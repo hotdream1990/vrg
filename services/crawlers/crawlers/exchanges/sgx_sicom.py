@@ -1,8 +1,9 @@
 """SGX / SICOM — TSR20 (mã TF) & RSS3 (mã RT), lấy SETTLE kỳ hạn có volume lớn nhất.
 
 Nguồn: api.sgx.com (JSON). Spec: lay-gia-cac-san.md.
-Lưu ý: endpoint trả 200 nhưng hiện rỗng cho TF/RT (cần đúng mã contract/kỳ hạn hoặc auth)
-→ trả BLOCKED kèm câu hỏi mở; logic parse vẫn sẵn sàng khi có dữ liệu.
+Lưu ý (đã kiểm chứng 2026-06-15): API v1.0 đổi format params — trả SGX_4015/4020 cho MỌI mã
+(kể cả flagship FEF). Không dò mù được → BLOCKED. Cần param spec hiện hành (capture từ browser)
+hoặc licensed feed. Logic parse vẫn sẵn sàng khi có dữ liệu hợp lệ.
 """
 
 from __future__ import annotations
@@ -54,7 +55,7 @@ def crawl() -> CrawlResult:
         return CrawlResult(
             source=Source.SGX,
             status=Status.BLOCKED,
-            note="SGX API trả rỗng cho TF/RT — cần xác nhận mã contract/kỳ hạn hoặc auth. (Open item)",
+            note="SGX API v1.0 đổi format params (SGX_4015/4020 cho mọi mã) — cần param spec hiện hành (capture từ browser) hoặc licensed feed. (Open item)",
         )
     except Exception as exc:  # noqa: BLE001
         return CrawlResult(source=Source.SGX, status=Status.ERROR, note=str(exc))

@@ -1,73 +1,59 @@
-"""SHFE — Natural Rubber (ru): SETTLE của kỳ hạn có VOLUME lớn nhất.
+"""SHFE — Natural Rubber (天然橡胶, RU): giá mới nhất + khối lượng + open interest.
 
-Nguồn: https://www.shfe.com.cn/data/dailydata/kx/kx{YYYYMMDD}.dat (JSON). Spec: lay-gia-cac-san.md.
-Lưu ý: endpoint hiện 404 từ môi trường này (cần ngày giao dịch thật / proxy) → BLOCKED;
-logic parse + chọn kỳ hạn theo max volume đã sẵn sàng khi truy cập được.
+Nguồn: Sina futures (hq.sinajs.cn/list=nf_RU0) — tự động được, ổn định (cần header Referer).
+LƯU Ý ĐỘ CHÍNH XÁC: Sina trả giá GIAO DỊCH MỚI NHẤT (last), KHÔNG phải giá settlement
+chính thức cuối ngày của SHFE. Settlement chính thức cần file EOD của sàn hoặc feed có license.
+Đủ dùng làm tín hiệu giá/cầu Trung Quốc; là tham chiếu, không thay cho giá settlement chính thức.
 """
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import datetime
 
-from ..base.fetcher import fetch_json
-from ..base.models import ContractQuote, CrawlResult, PriceRecord, Source, Status
-from ..base.selection import SelectionStrategy
+from ..base.fetcher import fetch_text
+from ..base.models import CrawlResult, PriceRecord, Source, Status
 
-URL = "https://www.shfe.com.cn/data/dailydata/kx/kx{ymd}.dat"
+URL = "https://hq.sinajs.cn/list=nf_RU0"  # RU0 = hợp đồng chính (continuous)
+_HEADERS = {"Referer": "https://finance.sina.com.cn"}
 
-
-def _latest_trading_day(today: date | None = None) -> date:
-    d = (today or date.today()) - timedelta(days=1)
-    while d.weekday() >= 5:  # bỏ T7/CN
-        d -= timedelta(days=1)
-    return d
+# Vị trí cột trong chuỗi CSV của Sina nf_ (map từ dữ liệu thật, xem phase-02)
+_OPEN, _HIGH, _LOW, _LAST, _VOL, _OI, _DATE = 2, 3, 4, 7, 13, 14, 17
 
 
-def _parse(payload: dict) -> list[ContractQuote]:
-    rows = payload.get("o_curinstrument") or payload.get("Data") or []
-    quotes: list[ContractQuote] = []
-    for r in rows:
-        pid = str(r.get("PRODUCTID") or r.get("INSTRUMENTID") or "").lower()
-        if not pid.startswith("ru"):
-            continue
-        settle = r.get("SETTLEMENTPRICE") or r.get("settle")
-        vol = r.get("VOLUME") or r.get("volume")
-        if settle in (None, "", 0):
-            continue
-        try:
-            quotes.append(
-                ContractQuote(settle=float(settle), volume=float(vol) if vol else None)
-            )
-        except (TypeError, ValueError):
-            continue
-    return quotes
-
-
-def crawl(as_of: date | None = None) -> CrawlResult:
-    day = as_of or _latest_trading_day()
+def _parse(text: str) -> PriceRecord | None:
+    if '"' not in text:
+        return None
+    f = text.split('"', 2)[1].split(",")
+    if len(f) <= _DATE or not f[_LAST]:
+        return None
     try:
-        data = fetch_json(URL.format(ymd=day.strftime("%Y%m%d")))
-        best = SelectionStrategy.MAX_VOLUME.pick(_parse(data))
-        if best and best.settle is not None:
-            return CrawlResult(
-                source=Source.SHFE,
-                status=Status.OK,
-                records=[
-                    PriceRecord(
-                        source=Source.SHFE,
-                        grade="RU",
-                        price=best.settle,
-                        currency="CNY",
-                        unit="CNY/tonne",
-                        price_type="settlement",
-                        as_of=day,
-                    )
-                ],
-            )
-        return CrawlResult(source=Source.SHFE, status=Status.EMPTY, note=f"Không có ru ngày {day}")
-    except Exception as exc:  # noqa: BLE001
-        return CrawlResult(
+        return PriceRecord(
             source=Source.SHFE,
-            status=Status.BLOCKED,
-            note=f"SHFE .dat không truy cập được (cần ngày giao dịch thật/proxy): {exc}",
+            grade="RU",
+            price=float(f[_LAST]),
+            currency="CNY",
+            unit="CNY/tonne",
+            price_type="last",
+            as_of=datetime.strptime(f[_DATE], "%Y-%m-%d").date(),
+            contract="RU0",
+            extra={
+                "open": float(f[_OPEN]),
+                "high": float(f[_HIGH]),
+                "low": float(f[_LOW]),
+                "volume": float(f[_VOL]),
+                "open_interest": float(f[_OI]),
+                "exchange": "SHFE",
+            },
         )
+    except (ValueError, IndexError):
+        return None
+
+
+def crawl() -> CrawlResult:
+    try:
+        rec = _parse(fetch_text(URL, headers=_HEADERS))
+        if rec:
+            return CrawlResult(source=Source.SHFE, status=Status.OK, records=[rec])
+        return CrawlResult(source=Source.SHFE, status=Status.EMPTY, note="Sina trả rỗng cho nf_RU0")
+    except Exception as exc:  # noqa: BLE001
+        return CrawlResult(source=Source.SHFE, status=Status.ERROR, note=str(exc))
