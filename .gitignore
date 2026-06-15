@@ -33,3 +33,6 @@ build/
 .DS_Store
 .idea/
 .vscode/
+
+# ─── Claude Code (local, không commit; launch.json + commands/ thì commit) ───
+.claude/settings.local.json
