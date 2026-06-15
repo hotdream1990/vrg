@@ -1,27 +1,42 @@
-"""Test offline parser TOCOM/JPX settlement CSV (encoding cp932)."""
+"""Test offline cho parser TOCOM/OSE (cdf_dyr PDF) — dòng dữ liệu + chọn kỳ hạn.
+
+Không cần PDF thật: test trực tiếp _parse_row (1 dòng văn bản) và _pick (chọn max Trading Value).
+"""
 
 from crawlers.exchanges import tocom
 
-_CSV = (
-    "note line 1\n"
-    "note line 2\n"
-    "Issue Code,Issue Name,Put/Call,Contract Month,Strike,Settlement Price,"
-    "Theo,Under,Vol,Rate,Days until Maturity,Underlying Name\n"
-    "1,FUT,,202606,,424.9,,,,,9,Rubber (RSS3)\n"
-    "2,FUT,,202611,,435.9,,,,,162,Rubber (RSS3)\n"
-    "3,FUT,,202607,,362,,,,,15,Rubber (TSR20)\n"
-    "9,FUT_225,,202609,,69400,,,,,88,Nikkei 225\n"
+# Dòng thật từ cdf_dyr trang RSS3 (OSE)
+RSS3_TRADED = (
+    "202611 11.24 1611100AK 431.1 431.4 425.0 426.9 427.0 428.4 424.8 426.1 "
+    "- 2.8 244 66 521,536,500 141,527,500 426.1 2,744 …"
 )
+RSS3_UNTRADED = "202612 12.22 1611200AK … … … … … … … … … … … … … 428.0 10 …"
 
 
-def test_parse_filters_rubber_only() -> None:
-    parsed = tocom._parse(_CSV.encode("cp932"))
-    assert len(parsed["RSS3"]) == 2
-    assert len(parsed["TSR20"]) == 1
-    assert parsed["RSS3"][0]["settle"] == 424.9
+def test_parse_row_traded() -> None:
+    r = tocom._parse_row(RSS3_TRADED)
+    assert r is not None
+    assert r["contract"] == "202611"
+    assert r["settle"] == 426.1                 # số thập phân cuối dòng = settlement
+    assert r["trading_value"] == 521_536_500     # comma-number lớn nhất
 
 
-def test_front_picks_nearest_live_contract() -> None:
-    parsed = tocom._parse(_CSV.encode("cp932"))
-    front = tocom._front(parsed["RSS3"])
-    assert front["contract"] == "202606"  # days 9 < 162
+def test_parse_row_untraded() -> None:
+    r = tocom._parse_row(RSS3_UNTRADED)
+    assert r is not None
+    assert r["settle"] == 428.0
+    assert r["trading_value"] == 0
+
+
+def test_pick_max_trading_value() -> None:
+    rows = [
+        {"contract": "202606", "settle": 418.9, "trading_value": 135_099_000},
+        {"contract": "202611", "settle": 426.1, "trading_value": 521_536_500},
+        {"contract": "202612", "settle": 428.0, "trading_value": 0},
+    ]
+    assert tocom._pick(rows)["contract"] == "202611"
+
+
+def test_pick_fallback_front_when_untraded() -> None:
+    rows = [{"contract": "202607", "settle": 360.0, "trading_value": 0}]
+    assert tocom._pick(rows)["contract"] == "202607"

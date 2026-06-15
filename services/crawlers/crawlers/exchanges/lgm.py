@@ -1,20 +1,66 @@
-"""LGM Malaysia — giá physical FOB: SMR CV, SMR20, Latex (US Cents/Kg).
+"""LGM (Malaysian Rubber Board) — giá physical FOB: SMR CV/L/5/GP/10/20 + Latex.
 
-Nguồn: lgm.gov.my (form chọn ngày) — spec lay-gia-cac-san.md. Latex: giá/tỷ giá×10.
-Form cần phiên/tham số → chưa implement (open item). Trả BLOCKED — SMR20 tạm có từ ANRPC.
+Nguồn: API mà trang Angular của LGM gọi — webv2api/api/rubberprice/currentprice (JSON).
+Dùng Basic token CÔNG KHAI nhúng sẵn trong frontend LGM (FOB:…) — không phải secret riêng;
+override bằng env LGM_AUTH nếu cần. SMR* yết US cents/kg (field sellersUs); Latex yết Sen/kg
+(field sellers, 60% DRC). Spec: lay-gia-cac-san.md.
 """
 
 from __future__ import annotations
 
-from ..base.models import CrawlResult, Source, Status
+import os
+from datetime import datetime
+
+from ..base.fetcher import fetch_json
+from ..base.models import CrawlResult, PriceRecord, Source, Status
+
+URL = "https://www.lgm.gov.my/webv2api/api/rubberprice/currentprice"
+# Token Basic công khai nhúng trong frontend LGM (ai mở web cũng thấy) — không phải bí mật.
+_AUTH = os.getenv("LGM_AUTH", "Basic Rk9COkxnTUYwYiQyMDI1")
+
+
+def _norm(grade: str) -> str:
+    g = grade.upper().strip()
+    if "LATEX" in g:
+        return "LATEX"
+    return g.replace(" ", "")  # "SMR 20" -> "SMR20", "SMR CV" -> "SMRCV"
+
+
+def _parse(rows: list[dict]) -> list[PriceRecord]:
+    out: list[PriceRecord] = []
+    for r in rows:
+        grade = _norm(str(r.get("grade", "")))
+        if not grade:
+            continue
+        is_latex = grade == "LATEX"
+        price = r.get("sellers") if is_latex else r.get("sellersUs")
+        if price is None:
+            continue
+        try:
+            as_of = datetime.fromisoformat(str(r.get("tarikh"))).date()
+        except (TypeError, ValueError):
+            as_of = datetime.now().date()
+        out.append(
+            PriceRecord(
+                source=Source.LGM,
+                grade=grade,
+                price=float(price),
+                currency="MYR" if is_latex else "USD",
+                unit="Sen/kg (60% DRC)" if is_latex else "US cents/kg",
+                price_type="physical",
+                as_of=as_of,
+                extra={"local_sen_kg": r.get("sellers"), "tone": r.get("tone"), "session": r.get("masa")},
+            )
+        )
+    return out
 
 
 def crawl() -> CrawlResult:
-    return CrawlResult(
-        source=Source.LGM,
-        status=Status.BLOCKED,
-        note=(
-            "Giá physical FOB (SMR CV/SMR20/Latex) qua form chọn ngày, cần phiên/tham số. "
-            "Chưa implement; tạm thời SMR20 lấy từ ANRPC."
-        ),
-    )
+    try:
+        rows = fetch_json(URL, headers={"Authorization": _AUTH, "Accept": "application/json"})
+        records = _parse(rows if isinstance(rows, list) else [])
+        if records:
+            return CrawlResult(source=Source.LGM, status=Status.OK, records=records)
+        return CrawlResult(source=Source.LGM, status=Status.EMPTY, note="LGM không trả dữ liệu giá")
+    except Exception as exc:  # noqa: BLE001
+        return CrawlResult(source=Source.LGM, status=Status.ERROR, note=str(exc))
