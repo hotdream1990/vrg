@@ -3,11 +3,21 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import text
 
-from app.core.db import db_healthy
+from app.core.db import db_healthy, session_scope
 from app.services import price_repo
 
 pytestmark = pytest.mark.skipif(not db_healthy(), reason="DB không sẵn sàng")
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_test_rows():
+    """Dọn dữ liệu test sau mỗi test — KHÔNG để rác lọt vào DB dev (grade `__…__`)."""
+    yield
+    with session_scope() as db:
+        db.execute(text(r"DELETE FROM fact_price WHERE grade LIKE '\_\_%' ESCAPE '\'"))
+        db.execute(text("DELETE FROM meta_crawl_run WHERE sources = 'test'"))
 
 
 def test_upsert_and_latest_roundtrip() -> None:
