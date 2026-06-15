@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import health
+from app.routers import health, prices
 
 app = FastAPI(
     title="VRG — AI Dự báo Giá Cao su",
@@ -18,12 +18,14 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
+    allow_origin_regex=r"http://localhost:\d+",  # dev: web có thể chạy ở cổng bất kỳ
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(health.router)
+app.include_router(prices.router)
 
 
 @app.get("/", tags=["system"])

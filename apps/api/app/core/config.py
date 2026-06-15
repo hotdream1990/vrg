@@ -8,8 +8,8 @@ class Settings(BaseSettings):
 
     app_env: str = "development"
     api_host: str = "0.0.0.0"
-    api_port: int = 8000
-    cors_origins: list[str] = ["http://localhost:5173"]
+    api_port: int = 8390
+    cors_origins: list[str] = ["http://localhost:5390"]
 
     # Placeholders — điền giá trị thật trong .env (xem .env.example ở repo root)
     database_url: str = ""
