@@ -1,0 +1,3 @@
+# Cho phép esbuild (Vite cần) chạy build script khi cài — pnpm 10+ chặn mặc định.
+allowBuilds:
+  esbuild: true
