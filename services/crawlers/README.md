@@ -23,15 +23,15 @@ uv run pytest          # test offline (selection + parser ANRPC, không gọi m�
 |---|---|---|
 | **ANRPC** | SMR20, STR20, SIR20, RSS3 (physical US$/kg) | ✅ chạy |
 | **FX** (open.er-api) | USD/VND, CNY, THB, JPY, MYR | ✅ chạy |
-| SGX/SICOM | TSR20 (TF), RSS3 (RT) | ⚠️ API trả rỗng — cần mã contract/auth |
-| SHFE | RU natural rubber | ⚠️ `.dat` 404 từ môi trường — cần ngày giao dịch thật/proxy |
-| TOCOM/JPX | RSS3 | ⚠️ nguồn PDF (cdf_dyr) — cần parser PDF |
-| LGM | SMR CV/SMR20/Latex | ⚠️ form chọn ngày — cần phiên/tham số |
+| **SHFE** (Sina) | RU 天然橡胶 — last, CNY/tonne | ✅ chạy *(giá last, không phải settlement chính thức)* |
+| **TOCOM/JPX** | RSS3 + TSR20 — settlement, JPY/kg | ✅ chạy *(CSV settlement chính thức; headline = front month)* |
+| SGX/SICOM | TSR20 (TF), RSS3 (RT) | ⚠️ Akamai chặn bot (Access Denied) cả headless — cần browser thật+proxy hoặc licensed |
+| LGM | SMR CV/SMR20/Latex | ⚠️ form chọn ngày — cần Playwright fill form (chưa làm) |
 
-Logic parse + chọn kỳ hạn của SGX/SHFE **đã viết sẵn**, sẽ chạy khi endpoint/ngày hợp lệ.
+SHFE qua **Sina** (last). TOCOM qua **JPX CSV** settlement (`rb_e{YYYYMMDD}.csv`, cp932) — tự khám phá URL bằng Playwright nếu pattern đổi (self-healing). SGX bị **Akamai** chặn.
 
 ## Câu hỏi mở (cần chốt với VRG / kỹ thuật)
-- **SGX**: mã contract/kỳ hạn đúng cho TF/RT (hoặc nguồn thay thế Investing/Barchart).
-- **AFET**: đã sáp nhập TFEX — endpoint chính thức?
-- **TOCOM**: chấp nhận parser PDF hay dùng nguồn JSON thay thế?
-- **Vĩ mô còn thiếu**: oil (WTI/Brent), USD Index, PMI TQ — chọn nguồn (EIA/Stooq/API có key).
+- **SGX (SICOM)**: Akamai chặn → cần browser thật + residential proxy, hoặc licensed feed, hoặc dùng ANRPC làm proxy cho TSR20.
+- **TOCOM**: chọn kỳ hạn theo max Trading Value cần file volume riêng của JPX (hiện headline = front month).
+- **LGM**: implement Playwright fill form chọn ngày → SMR CV/SMR20/Latex.
+- **Vĩ mô còn thiếu**: oil (WTI/Brent), USD Index, PMI TQ — chọn nguồn.
