@@ -6,7 +6,7 @@
 
 ## Overview
 - **Priority**: P1
-- **Status**: ⚪ pending
+- **Status**: 🟡 in-progress — ANRPC + FX chạy ra số thật; SGX/SHFE best-effort (endpoint chưa cho data); TOCOM/LGM + oil/PMI còn open
 - **Mô tả**: Viết crawler thu thập giá tham chiếu 4 sàn (TOCOM/SICOM-SGX/SHFE/AFET) + chỉ số vĩ mô (WTI/Brent, USD/VNĐ, USD Index, PMI TQ), **bám đúng quy trình thủ công** trong spec. Ghi raw + chuẩn cấu trúc để Phase 03 ETL load.
 
 ## Key Insights (BẮT BUỘC tuân thủ spec)
@@ -81,13 +81,15 @@ services/crawlers/
 12. Compile/lint: `uv run ruff check`, chạy `pytest` parser offline.
 
 ## Todo List
-- [ ] `base/` (fetcher, models, selection tham số hóa, registry)
-- [ ] 5 crawler sàn (tocom, shfe, sgx_sicom, afet, lgm) bám spec từng field giá
-- [ ] 3 nhóm vĩ mô (oil, fx, pmi_cn) + helper tỷ giá
-- [ ] `run_crawl.py` CLI hỗ trợ `--as-of-date` (backfill) + ghi meta
-- [ ] Idempotent upsert (không trùng theo `(contract, as_of_date)`)
-- [ ] Unit test parser bằng fixture tĩnh (offline) + test selection
-- [ ] Compile/lint pass
+- [x] `base/` (fetcher retry/backoff/UA, models Pydantic, selection tham số hóa)
+- [~] Crawler sàn: ANRPC ✓, SGX/SHFE best-effort (sẵn parse, endpoint chưa trả data), TOCOM/LGM stub có ghi open item; AFET chưa
+- [~] Vĩ mô: FX ✓ (USD/VND,CNY,THB,JPY,MYR); oil/PMI/USD Index chưa
+- [x] `run_crawl.py` CLI (`--source`, `--out`); còn thiếu `--as-of-date` backfill + ghi meta
+- [ ] Idempotent upsert (chờ Phase 01 DB)
+- [x] Unit test offline: `test_selection`, `test_anrpc` (fixture tĩnh) — 4 passed
+- [x] Compile/lint pass (ruff clean)
+
+> Đã chạy thật `run_crawl --source all` → 9 bản ghi (4 ANRPC + 5 FX), lưu `data/raw/crawl-latest.json`.
 
 ## Success Criteria
 - Chạy `run_crawl --source all --as-of-date <T-1>` → mỗi sàn trả ≥1 bản ghi đúng field giá spec.
