@@ -5,4 +5,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [react()],
   server: { port: Number(process.env.WEB_PORT) || 5390, strictPort: false },
+  // Dùng 1 bản React duy nhất (tránh "Invalid hook call" khi pre-bundle react-chartjs-2).
+  resolve: { dedupe: ["react", "react-dom"] },
+  optimizeDeps: { include: ["react", "react-dom", "react-router-dom", "chart.js", "react-chartjs-2"] },
 });
