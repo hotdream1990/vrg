@@ -21,7 +21,11 @@ tests/
 ## Chạy & test (đã verified)
 ```bash
 uv sync
-uv run uvicorn app.main:app --reload   # http://localhost:8000/health
+uv run python -m app                   # http://localhost:8390/health (cổng VRG, đọc API_PORT)
 uv run pytest                          # 2 passed
 ```
-> Skeleton có sẵn `/` và `/health`. Heavy ML libs (Prophet/XGBoost) thêm ở Sprint 2.
+## Endpoints
+- `GET /health` · `GET /` — system.
+- `GET /api/prices/scan` — **quét tất cả nguồn** (gọi `services/crawlers`), trả `{records, sources}`. Dùng cho nút "Quét giá" trên web.
+
+> Heavy ML libs (Prophet/XGBoost) thêm ở Sprint 2.

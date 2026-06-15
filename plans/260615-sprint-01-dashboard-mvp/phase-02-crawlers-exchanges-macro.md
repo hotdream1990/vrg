@@ -6,7 +6,7 @@
 
 ## Overview
 - **Priority**: P1
-- **Status**: 🟡 in-progress — ANRPC + FX + SHFE(Sina) + TOCOM(JPX CSV settlement) chạy ra số thật; SGX bị Akamai chặn; LGM + vĩ mô (oil/PMI) còn open
+- **Status**: 🟡 in-progress — ANRPC + FX + SHFE(Sina) + TOCOM(OSE PDF, max Trading Value) chạy ra số thật + nút "Quét giá" (API `/api/prices/scan` + web) chạy end-to-end; LGM (API currentprice) cũng chạy → 5/6 nguồn OK; chỉ SGX bị Akamai chặn; vĩ mô (oil/PMI) còn open
 - **Mô tả**: Viết crawler thu thập giá tham chiếu 4 sàn (TOCOM/SICOM-SGX/SHFE/AFET) + chỉ số vĩ mô (WTI/Brent, USD/VNĐ, USD Index, PMI TQ), **bám đúng quy trình thủ công** trong spec. Ghi raw + chuẩn cấu trúc để Phase 03 ETL load.
 
 ## Key Insights (BẮT BUỘC tuân thủ spec)
@@ -89,7 +89,7 @@ services/crawlers/
 - [x] Unit test offline: `test_selection`, `test_anrpc` (fixture tĩnh) — 4 passed
 - [x] Compile/lint pass (ruff clean)
 
-> Đã chạy thật → 12 bản ghi (4 ANRPC + 5 FX + 1 SHFE + 2 TOCOM). SHFE=Sina(last), TOCOM=JPX CSV(settlement chính thức RSS3/TSR20). SGX Akamai-blocked, LGM form còn lại. Playwright dùng để khám phá URL (self-healing).
+> Đã chạy thật → 12 bản ghi. SHFE=Sina(last); **TOCOM/cao su = OSE Daily Report ZIP → cdf_dyr PDF (pdfplumber), chọn kỳ hạn max Trading Value** (RSS3 202611 = 426.1 JPY/kg). SGX Akamai-blocked, LGM form còn lại. **Đã có nút "Quét giá"**: `apps/api GET /api/prices/scan` → `apps/web App.tsx` bảng + chip trạng thái; verified e2e bằng Playwright.
 
 ## Success Criteria
 - Chạy `run_crawl --source all --as-of-date <T-1>` → mỗi sàn trả ≥1 bản ghi đúng field giá spec.

@@ -22,7 +22,11 @@ src/
 ## Chạy & build (đã verified)
 ```bash
 pnpm install
-pnpm dev      # http://localhost:5173
+pnpm dev      # http://localhost:5390 (cổng VRG)
 pnpm build    # tsc + vite build → dist/
 ```
 > `pnpm-workspace.yaml` đã bật `allowBuilds: esbuild` để build chạy được ngay sau clone.
+
+## Dashboard "Quét giá" (đã có)
+`App.tsx` có nút **Quét giá ngay** → gọi `GET {VITE_API_URL|:8390}/api/prices/scan` → hiện bảng giá đa sàn + chip trạng thái nguồn.
+Chạy đủ bộ: mở API (`apps/api`, cổng 8390) **và** web (`pnpm dev`, cổng 5390) rồi bấm nút. Đổi cổng qua `.env` / `VITE_API_URL`.

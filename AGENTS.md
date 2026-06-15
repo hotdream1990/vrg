@@ -55,20 +55,25 @@ plans/          kế hoạch triển khai
 - **Ngôn ngữ**: tài liệu & giao tiếp tiếng Việt; code & định danh tiếng Anh.
 - **Bảo mật**: không hardcode secret; dùng `.env` (xem `.env.example`).
 
-## 6. Chạy dự án (skeleton đã verified)
+## 6. Chạy dự án (cổng riêng VRG: API 8390 · Web 5390 · DB 5433)
 ```bash
-# API (FastAPI) — http://localhost:8000/health
-cd apps/api && uv sync && uv run uvicorn app.main:app --reload
-cd apps/api && uv run pytest            # test
+# Nhanh nhất — 1 lệnh chạy CẢ API + Web (hoặc gõ /dev trong Claude Code):
+./scripts/dev.sh                                     # Ctrl+C để dừng cả hai
 
-# Web (React+TS+Vite) — http://localhost:5173
+# Hoặc chạy riêng:
+# API (FastAPI) — http://localhost:8390/health
+cd apps/api && uv sync && uv run python -m app      # chạy theo API_PORT (mặc định 8390)
+cd apps/api && uv run pytest                         # test
+
+# Web (React+TS+Vite) — http://localhost:5390 · có nút "Quét giá ngay"
 cd apps/web && pnpm install && pnpm dev
-cd apps/web && pnpm build               # build production
+cd apps/web && pnpm build                            # build production
 
-# DB (TimescaleDB + pgvector)
+# DB (TimescaleDB + pgvector) — host 5433
 docker compose -f infra/docker/docker-compose.yml up db
 ```
-> Lưu ý: `apps/web/pnpm-workspace.yaml` đã bật `allowBuilds: esbuild` (pnpm 10+ chặn build script mặc định).
+> Cổng đổi qua `.env` (`API_PORT`/`WEB_PORT`/`DB_PORT`) — xem `.env.example`. Web gọi API qua `VITE_API_URL`.
+> `apps/web/pnpm-workspace.yaml` đã bật `allowBuilds: esbuild` (pnpm 10+ chặn build script mặc định).
 
 ## 7. Bảo mật & tuân thủ
 - Data residency 100% tại Việt Nam; Zero Data Retention với LLM API (hợp đồng Business/Enterprise).
