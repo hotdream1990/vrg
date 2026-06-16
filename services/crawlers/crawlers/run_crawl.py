@@ -60,8 +60,8 @@ def render(results: list[CrawlResult]) -> str:
     return "\n".join(lines)
 
 
-# Nguồn hỗ trợ nạp lịch sử (file theo ngày) → backfill chart thật.
-HISTORY = {Source.SHFE: shfe.history, Source.TOCOM: tocom.history}
+# Nguồn hỗ trợ nạp lịch sử → backfill chart thật (SHFE/TOCOM theo ngày, FX cả range 1 request).
+HISTORY = {Source.SHFE: shfe.history, Source.TOCOM: tocom.history, Source.FX: fx.history}
 
 
 def backfill(sources: list[Source], days: int) -> list:
