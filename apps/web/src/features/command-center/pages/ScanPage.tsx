@@ -11,6 +11,7 @@ import {
 import LiveCharts from "../sections/LiveCharts";
 import LiveKpis from "../sections/LiveKpis";
 import LiveScanTable from "../sections/LiveScanTable";
+import PhysicalGradeTrend from "../sections/PhysicalGradeTrend";
 
 type Point = { as_of: string; price: number };
 const EXPECTED = ["anrpc", "fx", "sgx", "shfe", "tocom", "lgm"];
@@ -122,6 +123,8 @@ export default function ScanPage() {
         physLabels={lgm.map((r) => r.grade)}
         physValues={lgm.map((r) => r.price)}
       />
+
+      <PhysicalGradeTrend rows={latest.filter((r) => r.price_type === "physical")} />
 
       <div className="card" style={{ marginBottom: 18 }}>
         <div className="card-head">

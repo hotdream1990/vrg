@@ -155,6 +155,7 @@ td.flat{color:#cbd5e1}
 .src-chip.bad{background:#f59e0b22;color:#fcd34d}
 .scan-empty{color:var(--muted);font-size:13px;padding:18px 0;text-align:center}
 .scan-err{color:#fca5a5;font-size:13px;margin-top:8px}
+.grade-select{background:#0d1428;border:1px solid var(--line);color:var(--text);font-size:13px;padding:6px 10px;border-radius:8px;cursor:pointer}
 .spinner{width:14px;height:14px;border:2px solid #ffffff55;border-top-color:#06121b;border-radius:50%;display:inline-block;animation:spin .7s linear infinite;vertical-align:-2px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
