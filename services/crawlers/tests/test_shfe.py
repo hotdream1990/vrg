@@ -1,30 +1,26 @@
-"""Test offline parser SHFE/Sina — khoá vị trí cột để không sai khi refactor."""
-
-from datetime import date
+"""Test offline SHFE — chọn kỳ hạn MAX VOLUME → settlement (cấu trúc kx .dat)."""
 
 from crawlers.exchanges import shfe
 
-# Chuỗi thật từ hq.sinajs.cn/list=nf_RU0 (rút gọn đuôi)
-SAMPLE = (
-    'var hq_str_nf_RU0="天然橡胶连续,150000,17615.000,17865.000,17585.000,'
-    "17760.000,17750.000,17760.000,17760.000,17760.000,17565.000,71,92,"
-    '163214.000,315546,沪,天然橡胶,2026-06-15,1,";'
-)
+# Trích thật từ kx{date}.dat (o_curinstrument), thêm dòng nhiễu để khoá logic lọc.
+SAMPLE = [
+    {"PRODUCTID": "ru_f", "DELIVERYMONTH": "2607", "SETTLEMENTPRICE": "17715", "VOLUME": "977", "OPENINTEREST": "849"},
+    {"PRODUCTID": "ru_f", "DELIVERYMONTH": "2609", "SETTLEMENTPRICE": "17760", "VOLUME": "315546", "OPENINTEREST": "163214"},
+    {"PRODUCTID": "ru_f", "DELIVERYMONTH": "2701", "SETTLEMENTPRICE": "18530", "VOLUME": "31504", "OPENINTEREST": "30431"},
+    {"PRODUCTID": "ru_f", "DELIVERYMONTH": "小计", "SETTLEMENTPRICE": "", "VOLUME": "352515", "OPENINTEREST": "199352"},
+    {"PRODUCTID": "cu_f", "DELIVERYMONTH": "2609", "SETTLEMENTPRICE": "70000", "VOLUME": "999999", "OPENINTEREST": "1"},
+]
 
 
-def test_parse_maps_fields_correctly() -> None:
-    rec = shfe._parse(SAMPLE)
-    assert rec is not None
-    assert rec.grade == "RU"
-    assert rec.price == 17760.0          # last (cột 7)
-    assert rec.currency == "CNY"
-    assert rec.as_of == date(2026, 6, 15)
-    assert rec.extra["open"] == 17615.0
-    assert rec.extra["high"] == 17865.0
-    assert rec.extra["low"] == 17585.0
-    assert rec.extra["volume"] == 163214.0
-    assert rec.extra["open_interest"] == 315546.0
+def test_pick_ru_max_volume() -> None:
+    best = shfe._pick_ru(SAMPLE)
+    assert best is not None
+    # 2609 thắng (volume lớn nhất); bỏ dòng 小计 (không phải số) và cu_f (đồng, không phải RU).
+    assert best["month"] == "2609"
+    assert best["settle"] == 17760.0
+    assert best["volume"] == 315546.0
 
 
-def test_parse_empty_returns_none() -> None:
-    assert shfe._parse('var hq_str_nf_RU0="";') is None
+def test_pick_ru_none_when_no_rubber() -> None:
+    rows = [{"PRODUCTID": "cu_f", "DELIVERYMONTH": "2609", "SETTLEMENTPRICE": "70000", "VOLUME": "1"}]
+    assert shfe._pick_ru(rows) is None
