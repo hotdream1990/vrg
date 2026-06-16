@@ -43,6 +43,11 @@ export default function ScanPage() {
     .at(-1);
   const dbOk = scanInfo?.db === "ok";
 
+  // Nguồn kỳ vọng nhưng chưa có data (vd SGX/SICOM đang blocked) — tự ẩn khi đã có.
+  const EXPECTED = ["anrpc", "fx", "sgx", "shfe", "tocom", "lgm"];
+  const present = new Set(latest.map((r) => r.source));
+  const missing = EXPECTED.filter((s) => !present.has(s));
+
   return (
     <>
       <div className="page-title" id="top">
@@ -111,6 +116,13 @@ export default function ScanPage() {
               </span>
             ))}
           </div>
+        )}
+
+        {missing.length > 0 && (
+          <p style={{ color: "var(--muted)", fontSize: 12, margin: "12px 0 0" }}>
+            ⚠ Chưa có data: <b style={{ color: "#fcd34d" }}>{missing.map((s) => s.toUpperCase()).join(", ")}</b>{" "}
+            — SGX/SICOM là open item (cần licensed feed / capture từ browser; xem services/crawlers/README).
+          </p>
         )}
       </div>
     </>
