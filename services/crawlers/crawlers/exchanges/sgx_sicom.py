@@ -55,7 +55,12 @@ def crawl() -> CrawlResult:
         return CrawlResult(
             source=Source.SGX,
             status=Status.BLOCKED,
-            note="SGX API v1.0 đổi format params (SGX_4015/4020 cho mọi mã) — cần param spec hiện hành (capture từ browser) hoặc licensed feed. (Open item)",
+            note=(
+                "SGX API còn sống nhưng chặn: /history/symbol/TF trả data rỗng; thêm ?params=… "
+                "→ SGX_4015 (Invalid params), /prices|delayed-prices → SGX_4020 (cần kind). Trang dùng "
+                "cc=TF&category=rubber (TF=TSR20, RT=RSS3). Cần CAPTURE request thật từ browser "
+                "(devtools sgx.com → field-codes params + header/cookie) hoặc licensed SICOM feed. (Open item)"
+            ),
         )
     except Exception as exc:  # noqa: BLE001
         return CrawlResult(source=Source.SGX, status=Status.ERROR, note=str(exc))
