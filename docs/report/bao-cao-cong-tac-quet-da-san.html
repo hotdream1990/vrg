@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Báo cáo Công tác — Hệ thống Quét Giá Cao su Đa sàn</title>
+<style>
+  :root{
+    --type-title: 62px;
+    --type-subtitle: 40px;
+    --type-body: 30px;
+    --type-small: 24px;
+    --type-eyebrow: 24px;
+    --pad-x: 112px;
+    --pad-top: 92px;
+    --pad-bottom: 84px;
+
+    --ink: #0E1B2C;
+    --ink-2: #46596E;
+    --ink-3: #7A8DA0;
+    --green: #15B86A;
+    --green-d: #0A7C44;
+    --green-ink: #0B5A33;
+    --line: rgba(255,255,255,.7);
+    --bg-dark: radial-gradient(60% 55% at 18% 8%, rgba(46,210,128,.34), transparent 60%), radial-gradient(52% 52% at 88% 92%, rgba(28,180,120,.26), transparent 62%), linear-gradient(150deg,#063221 0%,#0a4a31 52%,#06281b 100%);
+    --font: "Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--font);background:#0a120d;color:var(--ink);-webkit-font-smoothing:antialiased}
+  deck-stage:not(:defined){visibility:hidden}
+
+  section{
+    background:
+      radial-gradient(58% 48% at 10% 6%, rgba(54,214,140,.24), transparent 60%),
+      radial-gradient(52% 54% at 92% 10%, rgba(38,196,150,.22), transparent 60%),
+      radial-gradient(70% 60% at 82% 102%, rgba(74,222,150,.20), transparent 60%),
+      radial-gradient(48% 42% at 26% 98%, rgba(120,232,182,.18), transparent 60%),
+      linear-gradient(158deg, #eef7f1 0%, #f5faf6 46%, #e8f3ed 100%);
+    color:var(--ink);
+    overflow:hidden;
+    font-size:var(--type-body);
+  }
+  .pad{position:absolute;inset:0;padding:var(--pad-top) var(--pad-x) var(--pad-bottom);display:flex;flex-direction:column}
+
+  /* ---------- shared atoms ---------- */
+  .eyebrow{font-size:var(--type-eyebrow);font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--green-d);display:flex;align-items:center;gap:16px}
+  .eyebrow::before{content:"";width:46px;height:3px;background:var(--green);border-radius:2px;display:inline-block}
+  .s-title{font-size:var(--type-title);font-weight:800;line-height:1.05;letter-spacing:-.015em;margin:0;color:var(--ink);text-wrap:balance}
+  .s-sub{font-size:var(--type-subtitle);font-weight:400;line-height:1.28;color:var(--ink-2);margin:0}
+  .body{font-size:var(--type-body);line-height:1.42;color:var(--ink-2)}
+  .accent{color:var(--green-d)}
+  strong{font-weight:700;color:var(--ink)}
+
+  .panel{position:relative;background:linear-gradient(135deg, rgba(255,255,255,.60) 0%, rgba(255,255,255,.32) 100%);border:1px solid rgba(255,255,255,.75);border-radius:28px;box-shadow:0 32px 66px -30px rgba(10,60,38,.42), 0 6px 18px -8px rgba(10,60,38,.14), inset 0 1px 0 rgba(255,255,255,.9), inset 0 -26px 50px -34px rgba(10,60,38,.16);backdrop-filter:blur(26px) saturate(160%);-webkit-backdrop-filter:blur(26px) saturate(160%);overflow:hidden}
+  .panel::before{content:"";position:absolute;left:0;right:0;top:0;height:46%;border-radius:28px 28px 60% 60%/28px 28px 22% 22%;background:linear-gradient(180deg, rgba(255,255,255,.5) 0%, rgba(255,255,255,0) 100%);pointer-events:none;z-index:0}
+  .panel>*{position:relative;z-index:1}
+
+  .footer{position:absolute;left:var(--pad-x);right:var(--pad-x);bottom:42px;display:flex;align-items:center;justify-content:space-between;font-size:24px;color:var(--ink-3)}
+  .footer .tag{font-weight:600;color:var(--green-d)}
+  .glow{position:absolute;border-radius:50%;filter:blur(80px);background:radial-gradient(circle,rgba(30,210,124,.55),rgba(30,210,124,0) 70%);pointer-events:none}
+
+  /* numbered chip */
+  .chip{width:56px;height:56px;border-radius:16px;background:linear-gradient(150deg,#1ec678 0%,#0a7c44 100%);color:#fff;font-weight:800;font-size:28px;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid rgba(255,255,255,.28);box-shadow:0 12px 26px -10px rgba(18,164,92,.62), inset 0 1px 0 rgba(255,255,255,.55), inset 0 -9px 16px -10px rgba(0,40,20,.45)}
+  .chip.lite{width:92px;height:92px;border-radius:26px;font-size:42px;background:linear-gradient(150deg, rgba(255,255,255,.66) 0%, rgba(214,243,228,.42) 100%);color:var(--green-d);border:1px solid rgba(255,255,255,.85);box-shadow:0 18px 36px -18px rgba(10,80,50,.45), inset 0 1px 0 rgba(255,255,255,.95), inset 0 -12px 24px -18px rgba(10,80,50,.28);backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%)}
+
+  /* lists */
+  .feat{display:flex;gap:22px;align-items:flex-start}
+  .feat .ic{width:54px;height:54px;border-radius:15px;background:linear-gradient(150deg, rgba(255,255,255,.66), rgba(214,243,228,.42));border:1px solid rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;flex:none;color:var(--green-d);font-size:26px;box-shadow:0 10px 22px -12px rgba(10,80,50,.4), inset 0 1px 0 rgba(255,255,255,.9)}
+  .feat h4{margin:0 0 6px;font-size:30px;font-weight:700;color:var(--ink)}
+  .feat p{margin:0;font-size:26px;line-height:1.36;color:var(--ink-2)}
+
+  /* table */
+  table.cl{width:100%;border-collapse:separate;border-spacing:0;font-size:23px}
+  table.cl th{font-size:22px;text-transform:uppercase;letter-spacing:.06em;color:var(--green-d);text-align:left;padding:14px 16px 16px;border-bottom:2px solid var(--line);font-weight:700}
+  table.cl td{padding:18px 16px;border-bottom:1px solid var(--line);color:var(--ink-2);vertical-align:top;line-height:1.3}
+  table.cl td.d{color:var(--ink);font-weight:700}
+  table.cl tr:last-child td{border-bottom:none}
+  .pill{display:inline-block;padding:4px 13px;border-radius:999px;font-size:21px;font-weight:700;letter-spacing:.02em;white-space:nowrap}
+  .pill.ok{background:linear-gradient(150deg,#1ec678,#0c8a4d);color:#fff;box-shadow:0 8px 16px -7px rgba(18,164,92,.6), inset 0 1px 0 rgba(255,255,255,.5)}
+  .pill.wait{background:rgba(245,158,11,.16);color:#9a6a06;border:1px solid rgba(245,158,11,.35)}
+
+  /* dark terminal shot */
+  .term{border-radius:22px;overflow:hidden;border:1px solid rgba(10,55,35,.18);box-shadow:0 40px 80px -34px rgba(10,55,35,.55), 0 8px 22px -10px rgba(10,55,35,.22);background:#0b1220}
+  .term .bar{height:40px;background:#0d1428;border-bottom:1px solid #1f2c4a;display:flex;align-items:center;gap:9px;padding:0 16px}
+  .term .bar span{width:12px;height:12px;border-radius:50%}
+  .term .bar .t{margin-left:14px;color:#8aa0c5;font:600 19px/1 var(--mono);white-space:nowrap;flex:none}
+  .term pre{margin:0;padding:24px 26px;color:#cfe9d9;font:600 19px/1.55 var(--mono);white-space:pre;overflow:hidden}
+  .term .g{color:#37e08a}.term .y{color:#fbbf24}.term .m{color:#8aa0c5}.term .w{color:#eaf6ef}
+
+  /* placeholder shot */
+  .shot{border-radius:24px;border:1px dashed rgba(10,90,55,.35);background:repeating-linear-gradient(135deg,#eef3f0 0 14px,#e6ede9 14px 28px);position:relative;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
+  .shot .tag{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;font:600 26px/1.4 var(--font);color:var(--green-d);background:rgba(255,255,255,.9);border:1px solid var(--line);padding:18px 28px;border-radius:16px}
+
+  /* flow arrow */
+  .flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;gap:18px}
+  .flow .arr{display:flex;align-items:center;color:var(--green);font-size:46px;font-weight:800}
+  .flow .step{padding:30px 28px}
+  .flow .step .k{font-size:22px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green-d)}
+  .flow .step h4{margin:14px 0 8px;font-size:30px;color:var(--ink)}
+  .flow .step p{margin:0;font-size:24px;line-height:1.34;color:var(--ink-2)}
+
+  /* demo CTA button */
+  .demo-btn{position:relative;display:inline-flex;align-items:center;gap:12px;padding:18px 30px;border-radius:18px;background:linear-gradient(155deg,#20c878 0%,#0c8a4d 100%);color:#fff;font-size:25px;font-weight:700;text-decoration:none;border:1px solid rgba(255,255,255,.32);box-shadow:0 20px 40px -16px rgba(18,164,92,.72), inset 0 1px 0 rgba(255,255,255,.6), inset 0 -11px 22px -12px rgba(0,40,20,.5);transition:transform .15s ease, box-shadow .15s ease}
+  .demo-btn:hover{transform:translateY(-2px);box-shadow:0 26px 48px -16px rgba(18,164,92,.82), inset 0 1px 0 rgba(255,255,255,.6)}
+  .demo-btn .arr{font-size:27px;line-height:1}
+
+  .divider{background:var(--bg-dark);color:#EAF6EF}
+  .divider .s-title{color:#fff}.divider .eyebrow{color:#7DEBAE}.divider .eyebrow::before{background:#28C876}.divider .s-sub{color:#A9CFBC}
+
+  @media (prefers-reduced-motion:no-preference){
+    [data-deck-active] .anim{animation:rise .6s cubic-bezier(.2,.7,.2,1) both}
+    [data-deck-active] .anim:nth-child(2){animation-delay:.06s}
+    [data-deck-active] .anim:nth-child(3){animation-delay:.12s}
+    [data-deck-active] .anim:nth-child(4){animation-delay:.18s}
+    @keyframes rise{from{transform:translateY(24px)}to{transform:none}}
+  }
+</style>
+</head>
+<body>
+<deck-stage width="1920" height="1080">
+
+  <!-- ============ 00 COVER ============ -->
+  <section data-label="Bìa">
+    <div class="glow" style="width:760px;height:760px;right:-120px;top:-160px"></div>
+    <div class="glow" style="width:420px;height:420px;left:-120px;bottom:-160px;opacity:.6"></div>
+    <div class="pad" style="padding-bottom:150px">
+      <div class="anim" style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:24px">
+        <div style="display:flex;align-items:center;gap:22px;background:#15212F;border-radius:18px;padding:16px 28px;box-shadow:0 14px 34px -16px rgba(10,30,50,.45)">
+          <img src="assets/thaihung_trim.png" alt="Thái Hưng Infotech" style="height:62px;width:auto;display:block"/>
+          <span style="width:1px;height:50px;background:rgba(255,255,255,.22)"></span>
+          <img src="assets/bizino.png" alt="Bizino" style="height:34px;width:auto;display:block;filter:brightness(0) invert(1)"/>
+        </div>
+        <div style="display:flex;align-items:center;gap:20px">
+          <span style="font-size:24px;color:var(--ink-3);font-weight:600">Báo cáo cùng</span>
+          <span style="background:#fff;border-radius:50%;display:inline-flex;padding:5px;box-shadow:0 12px 30px -14px rgba(10,40,25,.35)"><img src="assets/vrg.png" alt="Tập đoàn Công nghiệp Cao su Việt Nam" style="height:120px;width:auto;display:block"/></span>
+        </div>
+      </div>
+      <div class="eyebrow anim" style="margin-top:54px">Báo cáo công tác · Giai đoạn PoC</div>
+      <h1 class="s-title anim" style="font-size:86px;margin-top:20px;max-width:1500px">Hệ thống Quét Giá<br/>Cao su Đa sàn</h1>
+      <p class="s-sub anim" style="margin-top:26px;max-width:1240px">Tổng kết công tác đã triển khai: từ biểu mẫu đầu vào của chuyên viên <strong class="accent">VRG</strong> đến hệ thống tự động thu thập giá tham chiếu từ các sàn quốc tế.</p>
+      <div class="footer">
+        <span>Trung tâm Điều hành AI — Phân tích &amp; Dự báo Giá Cao su</span>
+        <span class="tag">Tháng 06 / 2026 · v1.0</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 01 AGENDA ============ -->
+  <section data-label="Nội dung báo cáo">
+    <div class="pad">
+      <div class="eyebrow anim">Nội dung báo cáo</div>
+      <h2 class="s-title anim" style="margin-top:20px">Năm phần chính</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px 56px;margin-top:54px">
+        <div class="feat anim"><div class="chip">1</div><div><h4>Điểm xuất phát &amp; đầu vào</h4><p>Hiện trạng thủ công khi tiếp nhận và bộ biểu mẫu do chuyên viên cung cấp.</p></div></div>
+        <div class="feat anim"><div class="chip">2</div><div><h4>Nền tảng hệ thống</h4><p>Khung kiến trúc lõi, cơ sở dữ liệu &amp; cổng API đã được dựng.</p></div></div>
+        <div class="feat anim"><div class="chip">3</div><div><h4>Quét giá đa sàn</h4><p>Số hóa quy trình chuyên viên — lấy giá gì, của sàn nào, bằng cách nào.</p></div></div>
+        <div class="feat anim"><div class="chip">4</div><div><h4>Giao diện vận hành</h4><p>Màn hình "Quét giá đa sàn" — đang hoàn thiện, cập nhật sau.</p></div></div>
+        <div class="feat anim"><div class="chip">5</div><div><h4>Hướng đi tiếp theo</h4><p>Các nguồn &amp; biểu mẫu sẽ số hóa trong giai đoạn kế tiếp.</p></div></div>
+      </div>
+      <div class="footer"><span>Báo cáo công tác · Quét giá đa sàn</span><span class="tag">BIZINO</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 02 BỐI CẢNH & ĐẦU VÀO ============ -->
+  <section data-label="Điểm xuất phát">
+    <div class="pad">
+      <div class="eyebrow anim">Phần 01 · Điểm xuất phát</div>
+      <h2 class="s-title anim" style="margin-top:18px">Quy trình thủ công &amp; biểu mẫu đầu vào</h2>
+      <div style="display:grid;grid-template-columns:1fr 1.25fr;gap:56px;margin-top:42px;flex:1;align-items:start">
+        <div class="anim" style="display:flex;flex-direction:column;gap:26px;margin-top:6px">
+          <div class="feat"><div class="ic">✋</div><div><h4>Thu thập thủ công</h4><p>Chuyên viên vào từng website sàn mỗi ngày, đọc bảng &amp; báo cáo PDF để lấy giá ngày T‑1.</p></div></div>
+          <div class="feat"><div class="ic">◷</div><div><h4>Phụ thuộc kinh nghiệm</h4><p>Việc "chọn đúng kỳ hạn" dựa vào kinh nghiệm cá nhân, khó chuẩn hóa &amp; bàn giao.</p></div></div>
+          <div class="feat"><div class="ic">▤</div><div><h4>Dữ liệu rời rạc</h4><p>Nhiều định dạng Word · Excel · PDF · PPT, khó tổng hợp và tự động hóa.</p></div></div>
+        </div>
+        <div class="panel anim" style="padding:14px 36px 24px">
+          <table class="cl">
+            <thead><tr><th>Chuyên viên</th><th>Biểu mẫu cung cấp</th><th>Phục vụ</th></tr></thead>
+            <tbody>
+              <tr><td class="d">Tâm ★</td><td>Hướng dẫn lấy giá các sàn · Mẫu giá sàn &amp; mủ nước · Bản tin ngày · Giá Physical 2025–26</td><td>Lõi quét đa sàn &amp; bản tin</td></tr>
+              <tr><td class="d">Hạnh</td><td>Báo cáo Tuần — dữ liệu các công ty gửi về (đầu vào / đầu ra)</td><td>Sản lượng &amp; giá theo tuần</td></tr>
+              <tr><td class="d">Phụng</td><td>Báo cáo ký kết hợp đồng theo Quý · Phân tích thị trường hàng tuần</td><td>Giá bán thực tế · phân tích thị trường</td></tr>
+              <tr><td class="d">Triều</td><td>Mẫu Báo cáo Tiêu thụ năm toàn Tập đoàn (CV 3476)</td><td>Sản lượng tiêu thụ năm</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="footer"><span>★ Hồ sơ của chuyên viên Tâm là đầu vào trực tiếp cho hạng mục quét giá đa sàn</span><span class="tag">BIZINO</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 03 NỀN TẢNG HỆ THỐNG ============ -->
+  <section data-label="Nền tảng hệ thống">
+    <div class="pad">
+      <div class="eyebrow anim">Phần 02 · Nền tảng</div>
+      <h2 class="s-title anim" style="margin-top:18px">Khung hệ thống lõi đã được dựng</h2>
+      <p class="s-sub anim" style="margin-top:16px;max-width:1320px;font-size:31px">Một nền tảng gọn, an toàn, sẵn sàng mở rộng — vận hành cục bộ chỉ bằng một lệnh khởi động.</p>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:46px;flex:1">
+        <div class="panel anim" style="padding:30px 28px;display:flex;flex-direction:column;justify-content:center"><div class="chip lite" style="margin-bottom:18px">▦</div><h4 style="margin:0 0 12px;font-size:30px;color:var(--ink)">Kiến trúc đa lớp</h4><p style="margin:0;font-size:25px;line-height:1.4;color:var(--ink-2)">Monorepo chuẩn: Cổng API · Thu thập dữ liệu · Giao diện điều hành — mở rộng dần.</p></div>
+        <div class="panel anim" style="padding:30px 28px;display:flex;flex-direction:column;justify-content:center"><div class="chip lite" style="margin-bottom:18px">⛁</div><h4 style="margin:0 0 12px;font-size:30px;color:var(--ink)">CSDL chuỗi thời gian</h4><p style="margin:0;font-size:25px;line-height:1.4;color:var(--ink-2)">Lưu toàn bộ lịch sử giá &amp; nhật ký mỗi lần quét — sẵn cho dashboard và dự báo.</p></div>
+        <div class="panel anim" style="padding:30px 28px;display:flex;flex-direction:column;justify-content:center"><div class="chip lite" style="margin-bottom:18px">⇄</div><h4 style="margin:0 0 12px;font-size:30px;color:var(--ink)">Cổng API thống nhất</h4><p style="margin:0;font-size:25px;line-height:1.4;color:var(--ink-2)">Một đầu mối: quét giá, đọc giá mới nhất, tra lịch sử, kiểm tra sức khỏe hệ thống.</p></div>
+        <div class="panel anim" style="padding:30px 28px;display:flex;flex-direction:column;justify-content:center"><div class="chip lite" style="margin-bottom:18px">⚿</div><h4 style="margin:0 0 12px;font-size:30px;color:var(--ink)">Bảo mật &amp; lưu trú VN</h4><p style="margin:0;font-size:25px;line-height:1.4;color:var(--ink-2)">Dữ liệu đặt tại Việt Nam; tri thức nội bộ chuẩn hóa Markdown để các AI cùng đọc.</p></div>
+      </div>
+      <div class="footer"><span>FastAPI · React/TypeScript · TimescaleDB — khởi động cả hệ thống bằng một lệnh</span><span class="tag">BIZINO</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 04 QUÉT ĐA SÀN — CÁCH LÀM ============ -->
+  <section data-label="Số hóa quy trình">
+    <div class="pad">
+      <div class="eyebrow anim">Phần 03 · Quét giá đa sàn</div>
+      <h2 class="s-title anim" style="margin-top:18px">Số hóa kinh nghiệm chuyên viên thành tự động</h2>
+      <div class="flow anim" style="margin-top:46px">
+        <div class="panel step"><div class="k">Đầu vào</div><h4>Quy trình của chuyên viên</h4><p>Tài liệu của chuyên viên <strong>Tâm</strong>: web nào, lấy giá gì, chọn kỳ hạn ra sao.</p></div>
+        <div class="arr">→</div>
+        <div class="panel step"><div class="k">Chuẩn hóa</div><h4>Bộ quy tắc duy nhất</h4><p>Số hóa thành một tài liệu chuẩn — không còn phụ thuộc trí nhớ cá nhân.</p></div>
+        <div class="arr">→</div>
+        <div class="panel step"><div class="k">Tự động</div><h4>Robot thu thập</h4><p>Phần mềm bám đúng quy tắc, tự chạy hằng ngày, lấy giá ngày T‑1.</p></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px 56px;margin-top:46px">
+        <div class="feat anim"><div class="ic">≡</div><div><h4>Chuẩn hóa về một định dạng</h4><p>Mọi sàn quy về cùng cấu trúc giá — dễ so sánh, lưu trữ, dự báo.</p></div></div>
+        <div class="feat anim"><div class="ic">◎</div><div><h4>Chọn kỳ hạn theo kinh nghiệm</h4><p>Tự lấy kỳ hạn giao dịch sôi động nhất (khối lượng / giá trị lớn nhất).</p></div></div>
+        <div class="feat anim"><div class="ic">⛨</div><div><h4>Cô lập lỗi từng nguồn</h4><p>Một sàn lỗi không làm gián đoạn các sàn còn lại.</p></div></div>
+        <div class="feat anim"><div class="ic">↺</div><div><h4>Tự lùi ngày</h4><p>Khi sàn chưa công bố, tự tìm báo cáo mới nhất có sẵn.</p></div></div>
+      </div>
+      <div class="footer"><span>Tri thức chuyên viên → bộ quy tắc chuẩn → thu thập tự động</span><span class="tag">BIZINO</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 05 LẤY GÌ — SÀN NÀO — THẾ NÀO ============ -->
+  <section data-label="Bảng nguồn giá">
+    <div class="pad">
+      <div class="eyebrow anim">Phần 03 · Chi tiết nguồn</div>
+      <h2 class="s-title anim" style="margin-top:18px">Lấy giá gì — của sàn nào — bằng cách nào</h2>
+      <div class="panel anim" style="margin-top:34px;padding:10px 40px 18px;flex:1">
+        <table class="cl">
+          <thead><tr><th style="width:15%">Sàn</th><th style="width:23%">Mặt hàng</th><th style="width:15%">Loại giá</th><th>Cách lấy</th><th style="width:14%">Trạng thái</th></tr></thead>
+          <tbody>
+            <tr><td class="d">ANRPC<br/><span style="font-weight:400;color:var(--ink-3);font-size:21px">Hiệp hội</span></td><td>SMR20 · STR20 · SIR20 · RSS3</td><td>Physical (US$/kg)</td><td>Bảng giá công bố hằng ngày — tự lấy cột ngày mới nhất.</td><td><span class="pill ok">✓ Đang chạy</span></td></tr>
+            <tr><td class="d">SHFE<br/><span style="font-weight:400;color:var(--ink-3);font-size:21px">Thượng Hải</span></td><td>Cao su thiên nhiên (RU)</td><td>Settlement (CNY/tấn)</td><td>Dữ liệu chính thức của sàn — giá thanh toán kỳ hạn <strong>khối lượng lớn nhất</strong>.</td><td><span class="pill ok">✓ Đang chạy</span></td></tr>
+            <tr><td class="d">TOCOM / OSE<br/><span style="font-weight:400;color:var(--ink-3);font-size:21px">Nhật Bản</span></td><td>RSS3 · TSR20</td><td>Settlement (JPY/kg)</td><td>Báo cáo ngày (PDF) của sàn — kỳ hạn có <strong>giá trị giao dịch lớn nhất</strong>.</td><td><span class="pill ok">✓ Đang chạy</span></td></tr>
+            <tr><td class="d">LGM<br/><span style="font-weight:400;color:var(--ink-3);font-size:21px">Malaysia</span></td><td>SMR CV/L/5/GP/10/20 · Latex</td><td>Physical FOB (US¢/kg)</td><td>Cổng giá FOB — tự quy đổi mủ Latex sang US¢/kg theo tỷ giá cùng phiên.</td><td><span class="pill ok">✓ Đang chạy</span></td></tr>
+            <tr><td class="d">Tỷ giá</td><td>USD/VND · CNY · THB · JPY · MYR</td><td>FX</td><td>Theo dõi USD/VNĐ &amp; quy đổi giá các sàn về cùng mặt bằng.</td><td><span class="pill ok">✓ Đang chạy</span></td></tr>
+            <tr><td class="d">SGX / SICOM<br/><span style="font-weight:400;color:var(--ink-3);font-size:21px">Singapore</span></td><td>TSR20 · RSS3</td><td>Settlement</td><td>Cổng đổi cơ chế truy cập — cần kết nối chính thức / cấp quyền dữ liệu.</td><td><span class="pill wait">⏳ Chờ truy cập</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="footer"><span>5/6 nguồn đã tự động hóa · SICOM chờ kênh dữ liệu chính thức</span><span class="tag">BIZINO</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 06 KẾT QUẢ CHẠY THẬT ============ -->
+  <section data-label="Kết quả chạy thật">
+    <div class="pad">
+      <div class="eyebrow anim">Phần 03 · Minh chứng</div>
+      <h2 class="s-title anim" style="margin-top:18px">Kết quả quét thực tế — ngày 15/06/2026</h2>
+      <div style="display:grid;grid-template-columns:.92fr 1.08fr;gap:52px;margin-top:38px;flex:1;align-items:center">
+        <div class="anim" style="display:flex;flex-direction:column;gap:20px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+            <div class="panel" style="padding:24px 26px"><div style="font-size:52px;font-weight:800;color:var(--green-d);line-height:1">5/6</div><p style="margin:6px 0 0;font-size:24px;color:var(--ink-2)">nguồn lấy giá thành công</p></div>
+            <div class="panel" style="padding:24px 26px"><div style="font-size:52px;font-weight:800;color:var(--green-d);line-height:1">19</div><p style="margin:6px 0 0;font-size:24px;color:var(--ink-2)">bản ghi giá / phiên quét</p></div>
+            <div class="panel" style="padding:24px 26px"><div style="font-size:52px;font-weight:800;color:var(--green-d);line-height:1">5</div><p style="margin:6px 0 0;font-size:24px;color:var(--ink-2)">đồng tiền theo dõi</p></div>
+            <div class="panel" style="padding:24px 26px"><div style="font-size:52px;font-weight:800;color:var(--green-d);line-height:1">T‑1</div><p style="margin:6px 0 0;font-size:24px;color:var(--ink-2)">tự cập nhật &amp; ghi CSDL</p></div>
+          </div>
+          <div class="feat" style="margin-top:6px"><div class="ic">✓</div><p style="font-size:25px">Mỗi lần quét tự <strong>ghi vào cơ sở dữ liệu</strong> — sẵn sàng cấp cho dashboard &amp; mô hình dự báo.</p></div>
+        </div>
+        <div class="term anim">
+          <div class="bar"><span style="background:#ef4444"></span><span style="background:#fbbf24"></span><span style="background:#22c55e"></span><span class="t">run_crawl · all sources</span></div>
+<pre><span class="m">=== CHỈ SỐ SÀN / GIÁ THAM CHIẾU ===  (15/06/2026)</span>
+anrpc  SMR20      <span class="w">2.33</span>      US$/kg       physical
+anrpc  RSS3       <span class="w">3.16</span>      US$/kg       physical
+shfe   RU         <span class="w">17,760</span>    CNY/tonne    settlement
+tocom  RSS3       <span class="w">435.9</span>     JPY/kg       settlement
+tocom  TSR20      <span class="w">362.0</span>     JPY/kg       settlement
+lgm    SMR20      <span class="w">235.95</span>    US¢/kg       physical
+lgm    LATEX      <span class="w">198.04</span>    US¢/kg       physical
+fx     USD/VND    <span class="w">26,184.79</span> per USD      fx
+
+<span class="m">=== TRẠNG THÁI NGUỒN ===</span>
+<span class="g">✓</span> anrpc 4   <span class="g">✓</span> fx 5   <span class="g">✓</span> shfe 1
+<span class="g">✓</span> tocom 2   <span class="g">✓</span> lgm 7   <span class="y">⚠ sgx 0 (chờ truy cập)</span></pre>
+        </div>
+      </div>
+      <div class="footer"><span>Trích xuất trực tiếp từ phần mềm thu thập — dữ liệu thật, không mô phỏng</span><span class="tag">BIZINO</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 07 GIAO DIỆN (UI thật) ============ -->
+  <section data-label="Giao diện vận hành">
+    <div class="pad">
+      <div class="eyebrow anim">Phần 04 · Giao diện vận hành</div>
+      <h2 class="s-title anim" style="margin-top:18px">Màn hình "Quét giá đa sàn"</h2>
+      <div style="display:grid;grid-template-columns:1fr 1.22fr;gap:52px;flex:1;align-items:center">
+        <div class="anim" style="display:flex;flex-direction:column;gap:22px">
+          <div class="feat"><div class="ic">⊞</div><p style="font-size:27px">Mở trang là <strong>tự hiển thị giá mới nhất</strong> đã lưu, kèm thời điểm cập nhật.</p></div>
+          <div class="feat"><div class="ic">⟳</div><p style="font-size:27px">Nút <strong>"Quét giá ngay"</strong> — thu thập tức thời &amp; ghi vào cơ sở dữ liệu.</p></div>
+          <div class="feat"><div class="ic">▦</div><p style="font-size:27px">Thẻ KPI &amp; <strong>biểu đồ từng sàn</strong> (SHFE · OSE · ANRPC · vĩ mô) cập nhật trực tiếp.</p></div>
+          <div class="feat"><div class="ic">◉</div><p style="font-size:27px">Hiển thị rõ <strong>trạng thái nguồn</strong> — đang chạy / chờ truy cập.</p></div>
+          <a class="demo-btn anim" href="http://localhost:5390/quet-da-san" target="_blank" rel="noopener" style="margin-top:8px;align-self:flex-start">▶ Mở giao diện trực tiếp <span class="arr">↗</span></a>
+        </div>
+        <div class="shot anim" style="aspect-ratio:16/10;width:100%;background:#0b1220;padding:0;border:1px solid rgba(255,255,255,.6);box-shadow:0 40px 80px -34px rgba(10,55,35,.5), 0 8px 22px -10px rgba(10,55,35,.2)">
+          <div style="height:36px;background:#0d1428;border-bottom:1px solid #1f2c4a;display:flex;align-items:center;gap:9px;padding:0 16px"><span style="width:12px;height:12px;border-radius:50%;background:#ef4444"></span><span style="width:12px;height:12px;border-radius:50%;background:#fbbf24"></span><span style="width:12px;height:12px;border-radius:50%;background:#22c55e"></span></div>
+          <img src="shots/scan_ui.png" alt="Màn hình Quét giá đa sàn (Live)" style="width:100%;height:calc(100% - 36px);object-fit:cover;object-position:top;display:block"/>
+        </div>
+      </div>
+      <div class="footer"><span>Giao diện Command Center — dữ liệu thật, ghi TimescaleDB</span><span class="tag">BIZINO</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 08 HƯỚNG TIẾP THEO ============ -->
+  <section data-label="Hướng tiếp theo">
+    <div class="glow" style="width:560px;height:560px;left:44%;top:-180px;background:radial-gradient(circle,rgba(40,200,118,.45),transparent 70%)"></div>
+    <div class="pad">
+      <div class="eyebrow anim">Phần 05 · Hướng đi tiếp theo</div>
+      <h2 class="s-title anim" style="margin-top:18px">Những việc cần làm tiếp</h2>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:48px;flex:1">
+        <div class="panel anim" style="padding:34px 32px;border-top:5px solid #2bd07e"><div class="chip" style="margin-bottom:18px">A</div><h4 style="margin:0 0 14px;font-size:30px;color:var(--ink)">Hoàn tất các nguồn giá</h4><p style="margin:0;font-size:24px;line-height:1.42;color:var(--ink-2)">Kết nối chính thức SICOM; bổ sung lịch sử 2 năm; thêm chỉ báo vĩ mô (dầu, USD Index, PMI Trung Quốc).</p></div>
+        <div class="panel anim" style="padding:34px 32px;border-top:5px solid #15a45c"><div class="chip" style="margin-bottom:18px">B</div><h4 style="margin:0 0 14px;font-size:30px;color:var(--ink)">Số hóa biểu mẫu nghiệp vụ</h4><p style="margin:0;font-size:24px;line-height:1.42;color:var(--ink-2)">Giá mủ nước nội địa; giá bán thực tế VRG để tính chênh lệch với thị trường; sản lượng tiêu thụ &amp; báo cáo tuần.</p></div>
+        <div class="panel anim" style="padding:34px 32px;border-top:5px solid #7fae93"><div class="chip" style="margin-bottom:18px">C</div><h4 style="margin:0 0 14px;font-size:30px;color:var(--ink)">Tự động hóa &amp; tri thức</h4><p style="margin:0;font-size:24px;line-height:1.42;color:var(--ink-2)">Lịch chạy tự động hằng ngày; nạp bản tin &amp; báo cáo phân tích vào trợ lý RAG hỏi đáp tiếng Việt có trích dẫn.</p></div>
+      </div>
+      <div class="footer"><span>Nền tảng đã sẵn sàng — mở rộng theo từng biểu mẫu chuyên viên cung cấp</span><span class="tag">BIZINO</span></div>
+    </div>
+  </section>
+
+</deck-stage>
+<script src="deck-stage.js"></script>
+</body>
+</html>

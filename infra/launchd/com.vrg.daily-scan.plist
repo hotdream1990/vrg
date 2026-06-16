@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Lịch quét giá VRG hàng ngày (macOS launchd) → tích lũy lịch sử vào TimescaleDB.
+
+  Cài (chỉ chạy 1 lần):
+    cp infra/launchd/com.vrg.daily-scan.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.vrg.daily-scan.plist
+  Chạy thử ngay:   launchctl start com.vrg.daily-scan
+  Gỡ:              launchctl unload ~/Library/LaunchAgents/com.vrg.daily-scan.plist
+
+  Lưu ý: máy phải bật lúc 18:00; máy ngủ thì launchd chạy bù khi thức (best-effort).
+  Sửa đường dẫn nếu repo không ở /Volumes/Work/biz-project/VRG.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.vrg.daily-scan</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Volumes/Work/biz-project/VRG/scripts/daily-scan.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>18</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/Volumes/Work/biz-project/VRG/data/daily-scan.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Volumes/Work/biz-project/VRG/data/daily-scan.log</string>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
