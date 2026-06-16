@@ -8,7 +8,7 @@ import {
   fetchLatest,
   scanPrices,
 } from "../../../lib/api-client";
-import HistoryLineChart from "../charts/HistoryLineChart";
+import LiveCharts from "../sections/LiveCharts";
 import LiveKpis from "../sections/LiveKpis";
 import LiveScanTable from "../sections/LiveScanTable";
 
@@ -19,12 +19,14 @@ const EXPECTED = ["anrpc", "fx", "sgx", "shfe", "tocom", "lgm"];
 const pct = (pts: Point[]): number | undefined =>
   pts.length >= 2 ? ((pts[pts.length - 1].price - pts[pts.length - 2].price) / pts[pts.length - 2].price) * 100 : undefined;
 
-/** Route "Quét Đa sàn" — dashboard giá THẬT: KPI + chart lịch sử (backfill từ sàn) + bảng chi tiết.
-    Mở trang tự nạp từ DB (không cần click); "Quét giá ngay" = cập nhật, "Nạp lịch sử" = backfill. */
+/** Route "Quét Đa sàn" — dashboard giá THẬT: KPI + nhiều chart (settlement sàn, vĩ mô FX,
+    physical theo grade) backfill từ sàn + bảng chi tiết. Mở trang tự nạp từ DB. */
 export default function ScanPage() {
   const [latest, setLatest] = useState<LatestRow[]>([]);
-  const [shfeHist, setShfeHist] = useState<Point[]>([]);
-  const [tocomHist, setTocomHist] = useState<Point[]>([]);
+  const [shfe, setShfe] = useState<Point[]>([]);
+  const [rss3, setRss3] = useState<Point[]>([]);
+  const [tsr20, setTsr20] = useState<Point[]>([]);
+  const [fxCny, setFxCny] = useState<Point[]>([]);
   const [scanInfo, setScanInfo] = useState<ScanResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
@@ -34,9 +36,16 @@ export default function ScanPage() {
 
   const loadLatest = () => fetchLatest().then((r) => setLatest(r.records));
   const loadHistories = () =>
-    Promise.all([fetchHistory("shfe", "RU", 90), fetchHistory("tocom", "RSS3", 60)]).then(([a, b]) => {
-      setShfeHist(a.points);
-      setTocomHist(b.points);
+    Promise.all([
+      fetchHistory("shfe", "RU", 90),
+      fetchHistory("tocom", "RSS3", 60),
+      fetchHistory("tocom", "TSR20", 60),
+      fetchHistory("fx", "USD/CNY", 120),
+    ]).then(([a, b, c, d]) => {
+      setShfe(a.points);
+      setRss3(b.points);
+      setTsr20(c.points);
+      setFxCny(d.points);
     });
 
   useEffect(() => {
@@ -63,6 +72,7 @@ export default function ScanPage() {
     try {
       await backfillPrices("shfe", 90);
       await backfillPrices("tocom", 30);
+      await backfillPrices("fx", 120);
       await loadHistories();
     } catch (e) {
       fail(e);
@@ -72,11 +82,13 @@ export default function ScanPage() {
   }
 
   const deltas: Record<string, number> = {};
-  const ds = pct(shfeHist);
+  const ds = pct(shfe);
   if (ds != null) deltas["shfe:RU"] = ds;
-  const dt = pct(tocomHist);
-  if (dt != null) deltas["tocom:RSS3"] = dt;
+  const dr = pct(rss3);
+  if (dr != null) deltas["tocom:RSS3"] = dr;
 
+  // Physical theo grade (LGM, US cents/kg) cho chart cột — từ giá hiện tại.
+  const lgm = latest.filter((r) => r.source === "lgm").sort((a, b) => b.price - a.price);
   const missing = EXPECTED.filter((s) => !new Set(latest.map((r) => r.source)).has(s));
   const updatedAt = latest.map((r) => r.ingested_at).filter(Boolean).sort().at(-1);
   const dbOk = scanInfo?.db === "ok";
@@ -86,7 +98,7 @@ export default function ScanPage() {
       <div className="page-title" id="top">
         <div>
           <h2>◎ Dashboard Đa sàn (Live)</h2>
-          <p>Giá thật 6 nguồn + lịch sử settlement backfill từ sàn (SHFE · OSE) · ghi TimescaleDB.</p>
+          <p>Giá thật 6 nguồn + lịch sử settlement/tỷ giá backfill từ sàn (SHFE · OSE · ECB) · ghi TimescaleDB.</p>
         </div>
         <div className="actions">
           <button className="btn" onClick={backfill} disabled={backfilling || loading}>
@@ -102,10 +114,14 @@ export default function ScanPage() {
 
       <LiveKpis latest={latest} deltas={deltas} />
 
-      <div className="grid-2">
-        <Chart title="SHFE · Cao su thiên nhiên" sub={`Settlement kỳ hạn max-volume · CNY/tấn · ${shfeHist.length} phiên`} points={shfeHist} label="SHFE RU (CNY/tấn)" color="#38bdf8" />
-        <Chart title="OSE/TOCOM · RSS3" sub={`Settlement max trading value · JPY/kg · ${tocomHist.length} phiên`} points={tocomHist} label="OSE RSS3 (JPY/kg)" color="#22c55e" />
-      </div>
+      <LiveCharts
+        shfe={shfe}
+        rss3={rss3}
+        tsr20={tsr20}
+        fxCny={fxCny}
+        physLabels={lgm.map((r) => r.grade)}
+        physValues={lgm.map((r) => r.price)}
+      />
 
       <div className="card" style={{ marginBottom: 18 }}>
         <div className="card-head">
@@ -131,26 +147,5 @@ export default function ScanPage() {
         )}
       </div>
     </>
-  );
-}
-
-function Chart({ title, sub, points, label, color }: { title: string; sub: string; points: Point[]; label: string; color: string }) {
-  return (
-    <div className="card">
-      <div className="card-head">
-        <div>
-          <h3>{title}</h3>
-          <div className="sub">{sub}</div>
-        </div>
-        <span className="chip">Dữ liệu thật</span>
-      </div>
-      <div className="chart-wrap">
-        {points.length > 0 ? (
-          <HistoryLineChart points={points} label={label} color={color} />
-        ) : (
-          <div className="scan-empty">Chưa có lịch sử — bấm “Nạp lịch sử”.</div>
-        )}
-      </div>
-    </div>
   );
 }
