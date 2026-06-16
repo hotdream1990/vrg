@@ -23,15 +23,15 @@ uv run pytest          # test offline (selection + parser ANRPC, không gọi m�
 |---|---|---|
 | **ANRPC** | SMR20, STR20, SIR20, RSS3 (physical US$/kg) | ✅ chạy |
 | **FX** (open.er-api) | USD/VND, CNY, THB, JPY, MYR | ✅ chạy |
-| **SHFE** (Sina) | RU 天然橡胶 — last, CNY/tonne | ✅ chạy *(giá last, không phải settlement chính thức)* |
+| **SHFE** (daily kx) | RU 天然橡胶 — **settlement**, CNY/tonne | ✅ chạy *(SETTLEMENTPRICE kỳ hạn **max Volume** — đúng spec)* |
 | **TOCOM/OSE** | RSS3 + TSR20 — settlement, JPY/kg | ✅ chạy *(OSE Daily Report PDF · chọn kỳ hạn **max Trading Value**)* |
-| **LGM** | SMR CV/L/5/GP/10/20 (US cents/kg) + Latex (Sen/kg) | ✅ chạy *(API currentprice + Basic token công khai)* |
-| SGX/SICOM | TSR20 (TF), RSS3 (RT) | ⚠️ Akamai chặn bot (Access Denied) cả headless — cần browser thật+proxy hoặc licensed |
+| **LGM** | SMR CV/L/5/GP/10/20 + Latex — **US cents/kg** | ✅ chạy *(API currentprice; Latex tự quy đổi Sen/kg→US cents/kg theo tỷ giá nội tại)* |
+| **SGX/SICOM** | TSR20 (TF), RSS3 (RT) | ❌ **CHƯA CÓ DATA** — API trả rỗng / `SGX_4015/4020`; cần request capture từ browser hoặc licensed SICOM feed |
 
-SHFE qua **Sina** (last). Cao su (RSS3/TSR20) qua **OSE Daily Report ZIP** → `cdf_dyr` PDF (pdfplumber), chọn kỳ hạn có **Trading Value lớn nhất** (đúng hướng dẫn). LGM qua **API currentprice** (httpx + token công khai). SGX bị **Akamai** chặn.
+SHFE qua **SHFE daily kx** (`/data/tradedata/future/dailydata/kx{date}.dat`) → SETTLEMENTPRICE của kỳ hạn **max Volume**. Cao su (RSS3/TSR20) qua **OSE Daily Report ZIP** → `cdf_dyr` PDF (pdfplumber), chọn kỳ hạn có **Trading Value lớn nhất**. LGM qua **API currentprice** (httpx + token công khai). **SGX hiện chưa có data** (xem mục dưới).
 
 ## Câu hỏi mở (cần chốt với VRG / kỹ thuật)
-- **SGX (SICOM)**: Akamai chặn → cần browser thật + residential proxy, hoặc licensed feed, hoặc dùng ANRPC làm proxy cho TSR20.
+- **SGX (SICOM) — CHƯA CÓ DATA**: API còn sống nhưng `/history/symbol/TF` trả rỗng; `params`→`SGX_4015`, `prices`→`SGX_4020`. Trang dùng `cc=TF&category=rubber`. Cần capture request thật từ browser (devtools sgx.com) hoặc licensed feed. Tạm thời TSR20/RSS3 có thể tham chiếu ANRPC/TOCOM.
 - **TOCOM/OSE**: ✅ đã chọn max Trading Value từ PDF. Còn lại: lịch sử 2 năm (ZIP chỉ ~4 tháng) → dùng Excel của VRG / J-QUANTS.
 - **LGM**: ✅ xong — API `webv2api/api/rubberprice/currentprice` + Basic token công khai nhúng trong frontend.
 - **Vĩ mô còn thiếu**: oil (WTI/Brent), USD Index, PMI TQ — chọn nguồn.
