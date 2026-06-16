@@ -60,11 +60,38 @@ def render(results: list[CrawlResult]) -> str:
     return "\n".join(lines)
 
 
+# Nguồn hỗ trợ nạp lịch sử (file theo ngày) → backfill chart thật.
+HISTORY = {Source.SHFE: shfe.history, Source.TOCOM: tocom.history}
+
+
+def backfill(sources: list[Source], days: int) -> list:
+    """Gom bản ghi lịch sử từ các nguồn hỗ trợ (bỏ qua nguồn không hỗ trợ)."""
+    records = []
+    for src in sources:
+        fn = HISTORY.get(src)
+        if fn:
+            records.extend(fn(days))
+    return records
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Crawl chỉ số sàn cao su (VRG)")
     ap.add_argument("--source", default="all", help="all | anrpc,fx,sgx,shfe,tocom,lgm")
     ap.add_argument("--out", default=None, help="đường dẫn lưu JSON (vd data/raw/crawl.json)")
+    ap.add_argument("--backfill", action="store_true", help="nạp lịch sử (chỉ nguồn có file theo ngày: shfe,tocom)")
+    ap.add_argument("--days", type=int, default=90, help="số phiên lịch sử khi --backfill")
     args = ap.parse_args()
+
+    if args.backfill:
+        srcs = list(HISTORY) if args.source == "all" else [Source(s) for s in args.source.split(",")]
+        records = backfill(srcs, args.days)
+        payload = [json.loads(r.model_dump_json()) for r in records]
+        if args.out:
+            out = Path(args.out)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        print(f"backfill {[s.value for s in srcs]} ({args.days}d): {len(records)} bản ghi")
+        return
 
     sources = None if args.source == "all" else [Source(s) for s in args.source.split(",")]
     results = run(sources)

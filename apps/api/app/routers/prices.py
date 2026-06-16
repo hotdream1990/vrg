@@ -69,6 +69,32 @@ def scan(source: str = Query("all", description="all | anrpc,fx,sgx,shfe,tocom,l
     )
 
 
+@router.post("/backfill")
+def backfill(
+    source: str = Query("shfe", description="nguồn có lịch sử theo ngày: shfe | tocom"),
+    days: int = Query(90, ge=1, le=365),
+) -> dict:
+    """Nạp lịch sử settlement từ sàn (shfe nhanh · tocom chậm hơn) → DB để vẽ chart thật."""
+    out = pathlib.Path(tempfile.gettempdir()) / f"vrg_backfill_{source}.json"
+    try:
+        subprocess.run(
+            ["uv", "run", "python", "-m", "crawlers.run_crawl",
+             "--backfill", "--source", source, "--days", str(days), "--out", str(out)],
+            cwd=_CRAWLER_DIR, check=True, capture_output=True, text=True, timeout=600,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(500, f"Không tìm thấy crawler: {exc}") from exc
+    except subprocess.CalledProcessError as exc:
+        raise HTTPException(500, f"Backfill lỗi: {(exc.stderr or '')[-400:]}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise HTTPException(504, "Backfill quá thời gian") from exc
+
+    records = json.loads(out.read_text(encoding="utf-8"))
+    persisted, run_id, db_note = _persist(records, f"backfill:{source}")
+    return {"source": source, "days": days, "records": len(records),
+            "persisted": persisted, "run_id": run_id, "db": db_note}
+
+
 @router.get("/latest")
 def latest() -> dict:
     """Giá mới nhất mỗi (sàn, mặt hàng) đã ghi trong DB."""

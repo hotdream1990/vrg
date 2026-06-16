@@ -84,55 +84,70 @@ def _pick(rows: list[dict]) -> dict | None:
     return rows[0] if rows else None
 
 
-def _fetch_pdf(today: date) -> tuple[bytes, date] | None:
-    for d in _recent_days(today):
-        try:
-            zbytes = fetch_bytes(_zip_url(d))
-        except Exception:  # noqa: BLE001 - ngày này không có, thử ngày trước
+def _pdf_for(day: date) -> bytes | None:
+    """Tải ZIP của đúng 1 ngày → bytes PDF cdf_dyr (None nếu ngày đó không có report)."""
+    try:
+        zbytes = fetch_bytes(_zip_url(day))
+    except Exception:  # noqa: BLE001 - ngày này không có
+        return None
+    try:
+        with zipfile.ZipFile(io.BytesIO(zbytes)) as zf:
+            name = next((n for n in zf.namelist() if re.search(r"cdf_dyr_\d+\.pdf$", n)), None)
+            return zf.read(name) if name else None
+    except zipfile.BadZipFile:
+        return None
+
+
+def _records_for(pdf_bytes: bytes, day: date, keep_curve: bool = True) -> list[PriceRecord]:
+    records: list[PriceRecord] = []
+    for grade, rows in _parse_rubber(pdf_bytes).items():
+        best = _pick(rows)
+        if not best:
             continue
-        try:
-            with zipfile.ZipFile(io.BytesIO(zbytes)) as zf:
-                name = next((n for n in zf.namelist() if re.search(r"cdf_dyr_\d+\.pdf$", n)), None)
-                if name:
-                    return zf.read(name), d
-        except zipfile.BadZipFile:
-            continue
-    return None
+        extra = {"exchange": "OSE/TOCOM", "selection": "max_trading_value", "trading_value": best["trading_value"]}
+        if keep_curve:
+            extra["curve"] = rows
+        records.append(
+            PriceRecord(
+                source=Source.TOCOM,
+                grade=grade,
+                price=best["settle"],
+                currency="JPY",
+                unit="JPY/kg",
+                price_type="settlement",
+                as_of=day,
+                contract=best["contract"],
+                extra=extra,
+            )
+        )
+    return records
 
 
 def crawl(as_of: date | None = None) -> CrawlResult:
     try:
-        fetched = _fetch_pdf(as_of or date.today())
-        if not fetched:
-            return CrawlResult(
-                source=Source.TOCOM, status=Status.EMPTY, note="Không tải được OSE Daily Report ZIP"
-            )
-        pdf_bytes, day = fetched
-        records: list[PriceRecord] = []
-        for grade, rows in _parse_rubber(pdf_bytes).items():
-            best = _pick(rows)
-            if not best:
-                continue
-            records.append(
-                PriceRecord(
-                    source=Source.TOCOM,
-                    grade=grade,
-                    price=best["settle"],
-                    currency="JPY",
-                    unit="JPY/kg",
-                    price_type="settlement",
-                    as_of=day,
-                    contract=best["contract"],
-                    extra={
-                        "exchange": "OSE/TOCOM",
-                        "selection": "max_trading_value",
-                        "trading_value": best["trading_value"],
-                        "curve": rows,
-                    },
-                )
-            )
-        if records:
-            return CrawlResult(source=Source.TOCOM, status=Status.OK, records=records)
-        return CrawlResult(source=Source.TOCOM, status=Status.EMPTY, note=f"Không thấy RSS3/TSR20 ({day})")
+        for d in _recent_days(as_of or date.today()):
+            pdf = _pdf_for(d)
+            if pdf and (records := _records_for(pdf, d)):
+                return CrawlResult(source=Source.TOCOM, status=Status.OK, records=records)
+        return CrawlResult(source=Source.TOCOM, status=Status.EMPTY, note="Không tải được OSE Daily Report ZIP")
     except Exception as exc:  # noqa: BLE001
         return CrawlResult(source=Source.TOCOM, status=Status.ERROR, note=str(exc))
+
+
+def history(days: int = 45, end: date | None = None) -> list[PriceRecord]:
+    """Backfill RSS3+TSR20: settlement (max trading value) cho ~`days` phiên gần nhất.
+
+    Chậm hơn SHFE (mỗi ngày = 1 ZIP + parse PDF). ZIP chỉ lưu ~4 tháng.
+    """
+    out: list[PriceRecord] = []
+    d = end or date.today()
+    got, scanned, max_scan = 0, 0, days * 2 + 30
+    while got < days and scanned < max_scan:
+        scanned += 1
+        if d.weekday() < 5:
+            pdf = _pdf_for(d)
+            if pdf and (recs := _records_for(pdf, d, keep_curve=False)):
+                out.extend(recs)
+                got += 1
+        d -= timedelta(days=1)
+    return out
