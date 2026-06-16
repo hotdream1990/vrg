@@ -1,26 +1,47 @@
 import { useEffect, useState } from "react";
 
-import { type LatestRow, type ScanResult, fetchLatest, scanPrices } from "../../../lib/api-client";
+import {
+  type LatestRow,
+  type ScanResult,
+  backfillPrices,
+  fetchHistory,
+  fetchLatest,
+  scanPrices,
+} from "../../../lib/api-client";
+import HistoryLineChart from "../charts/HistoryLineChart";
+import LiveKpis from "../sections/LiveKpis";
+import LiveScanTable from "../sections/LiveScanTable";
 
-/** Route "Quét Đa sàn" — đã implement thật:
-    - Mở trang: nạp giá ĐÃ LƯU từ TimescaleDB (không cần quét lại mỗi lần).
-    - Nút "Quét giá ngay": chạy crawler 6 sàn → ghi DB → làm mới bảng. */
+type Point = { as_of: string; price: number };
+const EXPECTED = ["anrpc", "fx", "sgx", "shfe", "tocom", "lgm"];
+
+// % thay đổi phiên gần nhất so phiên trước (history sắp xếp tăng dần theo ngày).
+const pct = (pts: Point[]): number | undefined =>
+  pts.length >= 2 ? ((pts[pts.length - 1].price - pts[pts.length - 2].price) / pts[pts.length - 2].price) * 100 : undefined;
+
+/** Route "Quét Đa sàn" — dashboard giá THẬT: KPI + chart lịch sử (backfill từ sàn) + bảng chi tiết.
+    Mở trang tự nạp từ DB (không cần click); "Quét giá ngay" = cập nhật, "Nạp lịch sử" = backfill. */
 export default function ScanPage() {
   const [latest, setLatest] = useState<LatestRow[]>([]);
+  const [shfeHist, setShfeHist] = useState<Point[]>([]);
+  const [tocomHist, setTocomHist] = useState<Point[]>([]);
   const [scanInfo, setScanInfo] = useState<ScanResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function loadLatest() {
-    try {
-      setLatest((await fetchLatest()).records);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được dữ liệu đã lưu");
-    }
-  }
+  const fail = (e: unknown) => setError(e instanceof Error ? e.message : "Lỗi không xác định");
+
+  const loadLatest = () => fetchLatest().then((r) => setLatest(r.records));
+  const loadHistories = () =>
+    Promise.all([fetchHistory("shfe", "RU", 90), fetchHistory("tocom", "RSS3", 60)]).then(([a, b]) => {
+      setShfeHist(a.points);
+      setTocomHist(b.points);
+    });
 
   useEffect(() => {
-    void loadLatest();
+    void loadLatest().catch(fail);
+    void loadHistories().catch(fail);
   }, []);
 
   async function scan() {
@@ -30,39 +51,63 @@ export default function ScanPage() {
       setScanInfo(await scanPrices("all"));
       await loadLatest();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Lỗi không xác định");
+      fail(e);
     } finally {
       setLoading(false);
     }
   }
 
-  const updatedAt = latest
-    .map((r) => r.ingested_at)
-    .filter(Boolean)
-    .sort()
-    .at(-1);
-  const dbOk = scanInfo?.db === "ok";
+  async function backfill() {
+    setBackfilling(true);
+    setError(null);
+    try {
+      await backfillPrices("shfe", 90);
+      await backfillPrices("tocom", 30);
+      await loadHistories();
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBackfilling(false);
+    }
+  }
 
-  // Nguồn kỳ vọng nhưng chưa có data (vd SGX/SICOM đang blocked) — tự ẩn khi đã có.
-  const EXPECTED = ["anrpc", "fx", "sgx", "shfe", "tocom", "lgm"];
-  const present = new Set(latest.map((r) => r.source));
-  const missing = EXPECTED.filter((s) => !present.has(s));
+  const deltas: Record<string, number> = {};
+  const ds = pct(shfeHist);
+  if (ds != null) deltas["shfe:RU"] = ds;
+  const dt = pct(tocomHist);
+  if (dt != null) deltas["tocom:RSS3"] = dt;
+
+  const missing = EXPECTED.filter((s) => !new Set(latest.map((r) => r.source)).has(s));
+  const updatedAt = latest.map((r) => r.ingested_at).filter(Boolean).sort().at(-1);
+  const dbOk = scanInfo?.db === "ok";
 
   return (
     <>
       <div className="page-title" id="top">
         <div>
-          <h2>◎ Quét Đa sàn</h2>
-          <p>Quét giá cao su 6 sàn (ANRPC · FX · SHFE · TOCOM/OSE · SGX · LGM) và lưu vào TimescaleDB.</p>
+          <h2>◎ Dashboard Đa sàn (Live)</h2>
+          <p>Giá thật 6 nguồn + lịch sử settlement backfill từ sàn (SHFE · OSE) · ghi TimescaleDB.</p>
         </div>
         <div className="actions">
-          <button className="btn btn-primary" onClick={scan} disabled={loading}>
+          <button className="btn" onClick={backfill} disabled={backfilling || loading}>
+            {backfilling ? <><span className="spinner" /> Đang nạp…</> : "↻ Nạp lịch sử"}
+          </button>
+          <button className="btn btn-primary" onClick={scan} disabled={loading || backfilling}>
             {loading ? <><span className="spinner" /> Đang quét…</> : "⟳ Quét giá ngay"}
           </button>
         </div>
       </div>
 
-      <div className="card">
+      {error && <div className="scan-err" style={{ marginBottom: 12 }}>Lỗi: {error} — kiểm tra API (8390) &amp; DB.</div>}
+
+      <LiveKpis latest={latest} deltas={deltas} />
+
+      <div className="grid-2">
+        <Chart title="SHFE · Cao su thiên nhiên" sub={`Settlement kỳ hạn max-volume · CNY/tấn · ${shfeHist.length} phiên`} points={shfeHist} label="SHFE RU (CNY/tấn)" color="#38bdf8" />
+        <Chart title="OSE/TOCOM · RSS3" sub={`Settlement max trading value · JPY/kg · ${tocomHist.length} phiên`} points={tocomHist} label="OSE RSS3 (JPY/kg)" color="#22c55e" />
+      </div>
+
+      <div className="card" style={{ marginBottom: 18 }}>
         <div className="card-head">
           <div>
             <h3>Giá mới nhất đã lưu</h3>
@@ -79,52 +124,33 @@ export default function ScanPage() {
             </span>
           )}
         </div>
-
-        {error && <div className="scan-err">Lỗi: {error} — kiểm tra API (cổng 8390) &amp; DB.</div>}
-
         {latest.length === 0 && !error ? (
-          <div className="scan-empty">Kho trống — bấm “Quét giá ngay” để lấy &amp; lưu giá từ các sàn.</div>
+          <div className="scan-empty">Kho trống — bấm “Quét giá ngay”.</div>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Sàn</th><th>Mặt hàng</th><th style={{ textAlign: "right" }}>Giá</th>
-                <th>Đơn vị</th><th>Kỳ hạn</th><th>Loại giá</th><th>Ngày</th>
-              </tr>
-            </thead>
-            <tbody>
-              {latest.map((r, i) => (
-                <tr key={i}>
-                  <td>{r.source.toUpperCase()}</td>
-                  <td style={{ fontWeight: 500 }}>{r.grade}</td>
-                  <td style={{ textAlign: "right" }}>{r.price.toLocaleString()}</td>
-                  <td>{r.unit}</td>
-                  <td>{r.contract ? r.contract : "—"}</td>
-                  <td>{r.price_type}</td>
-                  <td>{r.as_of}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {scanInfo && (
-          <div className="src-chips">
-            {scanInfo.sources.map((s) => (
-              <span key={s.source} className={`src-chip ${s.status === "ok" ? "ok" : "bad"}`} title={s.note ?? ""}>
-                {s.status === "ok" ? "✓" : "⚠"} {s.source} ({s.count})
-              </span>
-            ))}
-          </div>
-        )}
-
-        {missing.length > 0 && (
-          <p style={{ color: "var(--muted)", fontSize: 12, margin: "12px 0 0" }}>
-            ⚠ Chưa có data: <b style={{ color: "#fcd34d" }}>{missing.map((s) => s.toUpperCase()).join(", ")}</b>{" "}
-            — SGX/SICOM là open item (cần licensed feed / capture từ browser; xem services/crawlers/README).
-          </p>
+          <LiveScanTable latest={latest} scanInfo={scanInfo} missing={missing} />
         )}
       </div>
     </>
+  );
+}
+
+function Chart({ title, sub, points, label, color }: { title: string; sub: string; points: Point[]; label: string; color: string }) {
+  return (
+    <div className="card">
+      <div className="card-head">
+        <div>
+          <h3>{title}</h3>
+          <div className="sub">{sub}</div>
+        </div>
+        <span className="chip">Dữ liệu thật</span>
+      </div>
+      <div className="chart-wrap">
+        {points.length > 0 ? (
+          <HistoryLineChart points={points} label={label} color={color} />
+        ) : (
+          <div className="scan-empty">Chưa có lịch sử — bấm “Nạp lịch sử”.</div>
+        )}
+      </div>
+    </div>
   );
 }

@@ -48,4 +48,17 @@ export const fetchLatest = () => req<{ records: LatestRow[] }>("/api/prices/late
 export const fetchHistory = (source: string, grade: string, days = 30) =>
   req<HistorySeries>(`/api/prices/history?source=${source}&grade=${grade}&days=${days}`);
 
+export type BackfillResult = {
+  source: string;
+  days: number;
+  records: number;
+  persisted: number;
+  run_id: number | null;
+  db: string;
+};
+
+/** Nạp lịch sử settlement (shfe/tocom) vào DB để vẽ chart thật. */
+export const backfillPrices = (source = "shfe", days = 90) =>
+  req<BackfillResult>(`/api/prices/backfill?source=${source}&days=${days}`, { method: "POST" });
+
 export { API };
