@@ -1,0 +1,40 @@
+PHẦN 1 — ĐÃ HOÀN THÀNH (TUẦN TRƯỚC),,,,
+Hạng mục,Công việc,Trạng thái,Phụ trách,Ghi chú
+1. Dashboard Giám sát Thị trường,Khung giao diện Dashboard đa sàn (bản demo),Hoàn thành,Bizino,
+1. Dashboard Giám sát Thị trường,Bảng giá cập nhật + biểu đồ lịch sử trên Dashboard (bản demo),Hoàn thành,Bizino,
+1. Dashboard Giám sát Thị trường,Lưu trữ & tích lũy lịch sử giá hằng ngày (bản demo),Hoàn thành,Bizino,
+"4. Hạ tầng, Bảo mật & Nghiệm thu",Thiết lập hệ thống & cơ sở dữ liệu (bản demo),Hoàn thành,Bizino,Môi trường phát triển
+1. Dashboard Giám sát Thị trường,"Thu thập giá tự động — sàn Nhật (TOCOM/OSE: cao su RSS3, TSR20)",Hoàn thành,Bizino,
+1. Dashboard Giám sát Thị trường,Thu thập giá tự động — sàn Trung Quốc (SHFE Thượng Hải: cao su tự nhiên),Hoàn thành,Bizino,
+1. Dashboard Giám sát Thị trường,"Thu thập giá tự động — Malaysia (Cục Cao su LGM: SMR, Latex)",Hoàn thành,Bizino,
+1. Dashboard Giám sát Thị trường,Thu thập giá tự động — Hiệp hội ANRPC (giá tham chiếu khu vực),Hoàn thành,Bizino,
+1. Dashboard Giám sát Thị trường,"Thu thập tỷ giá ngoại tệ (USD/VNĐ, USD/CNY, ...)",Hoàn thành,Bizino,
+
+PHẦN 2 — ĐANG LÀM (HIỆN TẠI),,,,
+Hạng mục,Công việc,Trạng thái,Phụ trách,Ghi chú
+1. Dashboard Giám sát Thị trường,Thu thập giá sàn Singapore (SICOM),Đang thực hiện,Bizino,Nguồn yêu cầu bản quyền dữ liệu — đang xử lý
+1. Dashboard Giám sát Thị trường,"Thu thập chỉ số vĩ mô (dầu, USD Index, PMI Trung Quốc)",Đang thực hiện,Bizino,
+1. Dashboard Giám sát Thị trường,Lấy giá giao dịch thực (Physical Price) hằng ngày từ báo cáo của chuyên viên vào hệ thống,Đang thực hiện,Phối hợp,Nguồn: báo cáo giá ngày của anh Tâm — để đối chiếu với giá sàn
+1. Dashboard Giám sát Thị trường,Xử lý & xuất báo cáo giá hằng ngày từ tài liệu của anh Tâm,Đang thực hiện,Phối hợp,Tự động xử lý & xuất báo cáo ngày từ tài liệu/báo cáo của anh Tâm
+2. Hệ thống Dự báo Giá,Giao diện hiển thị dự báo trên Dashboard (bản demo),Đang thực hiện,Bizino,"Đã dựng giao diện, chờ gắn mô hình"
+
+PHẦN 3 — BACKLOG (KẾ HOẠCH & CHỜ PHỐI HỢP),,,,
+Hạng mục,Công việc,Trạng thái,Phụ trách,Ghi chú
+1. Dashboard Giám sát Thị trường,So sánh giá sàn VRG với quốc tế (chênh lệch Premium/Discount),Cần phối hợp,Phối hợp,Cần VRG cung cấp giá bán thực tế (Hợp đồng theo Quý) để tính Premium/Discount
+2. Hệ thống Dự báo Giá,Mô hình dự báo giá SVR 10 (mục tiêu sai số ≤ 6% trong 7 ngày),Theo kế hoạch,Bizino,
+2. Hệ thống Dự báo Giá,Ma trận kịch bản Tăng / Ổn định / Giảm + khuyến nghị,Theo kế hoạch,Bizino,
+3. Trung tâm Điều hành AI (Lãnh đạo),Số hóa & hệ thống hóa tri thức nội bộ VRG,Theo kế hoạch,Phối hợp,Cần VRG bàn giao tài liệu
+3. Trung tâm Điều hành AI (Lãnh đạo),Trợ lý hỏi đáp tiếng Việt có trích dẫn nguồn,Theo kế hoạch,Bizino,
+3. Trung tâm Điều hành AI (Lãnh đạo),Cảnh báo đa kênh (Email/Zalo/Telegram) khi giá biến động,Theo kế hoạch,Bizino,
+3. Trung tâm Điều hành AI (Lãnh đạo),Báo cáo tự động đầu ngày (07:30) & cuối ngày (17:00),Theo kế hoạch,Bizino,
+"4. Hạ tầng, Bảo mật & Nghiệm thu",Triển khai trên Cloud Việt Nam,Theo kế hoạch,Bizino,Đưa hệ thống lên máy chủ đặt tại VN — lưu trú dữ liệu trong nước (Nghị định 13/2023)
+"4. Hạ tầng, Bảo mật & Nghiệm thu","Bảo mật: mã hóa, phân quyền, không lưu dữ liệu tại bên thứ ba",Theo kế hoạch,Bizino,
+"4. Hạ tầng, Bảo mật & Nghiệm thu",Chạy đối chiếu dự báo AI vs chuyên gia (Shadow testing),Theo kế hoạch,Phối hợp,So sánh dự báo của hệ thống với chuyên viên để đo độ chính xác
+"4. Hạ tầng, Bảo mật & Nghiệm thu",Đào tạo người dùng & nghiệm thu bàn giao,Theo kế hoạch,Phối hợp,Hướng dẫn lãnh đạo & chuyên viên vận hành hệ thống
+5. VRG cung cấp / phối hợp,Lịch sử giá sàn ≥ 3 năm (Excel/CSV),Cần phối hợp,VRG,Dữ liệu quá khứ để HUẤN LUYỆN mô hình dự báo (web chỉ có giá hiện tại)
+5. VRG cung cấp / phối hợp,Số liệu tồn kho & sản lượng theo loại mủ (BCTM),Cần phối hợp,VRG,
+5. VRG cung cấp / phối hợp,Giá giao dịch thực (Physical Price) + biểu mẫu báo cáo hiện hành,Cần phối hợp,VRG,
+5. VRG cung cấp / phối hợp,Báo cáo trả phí & tài liệu nội bộ (phục vụ hỏi đáp AI),Cần phối hợp,VRG,
+5. VRG cung cấp / phối hợp,"Xác nhận bản quyền dữ liệu quốc tế (vd Reuters), nếu có",Cần phối hợp,VRG,"Nếu có sẵn, dùng để lấy giá settlement + lịch sử chính thức"
+5. VRG cung cấp / phối hợp,Ký thỏa thuận bảo mật (NDA),Cần phối hợp,VRG,Cam kết giữ bí mật trước khi VRG bàn giao dữ liệu nhạy cảm
+5. VRG cung cấp / phối hợp,Thống nhất mốc thời gian & phạm vi Giai đoạn PoC,Cần phối hợp,Phối hợp,

@@ -323,6 +323,68 @@ fx     USD/VND    <span class="w">26,184.79</span> per USD      fx
     </div>
   </section>
 
+  <!-- ============ PHỤ LỤC 1 · ANRPC · SHFE · OSE ============ -->
+  <section data-label="Phụ lục · ANRPC · SHFE · OSE">
+    <div class="pad">
+      <div class="eyebrow anim">Phụ lục · Cách lấy giá (1/2)</div>
+      <h2 class="s-title anim" style="margin-top:14px;font-size:52px">Cách lấy giá từng sàn — chuyên viên đối chiếu</h2>
+      <div class="panel anim" style="margin-top:24px;padding:6px 36px 12px;flex:1">
+        <table class="cl">
+          <thead><tr><th style="width:19%">Sàn / Trang</th><th>Các bước lấy giá (vào đâu · lấy gì · chọn thế nào)</th><th style="width:27%">✅ Cần xác nhận</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="d">ANRPC<br/><span style="font-weight:400;font-family:var(--mono);font-size:18px;color:var(--ink-3);word-break:break-all">anrpc.org/anrpc-daily-price</span></td>
+              <td>Vào trang <strong>ANRPC Daily Price</strong> → bảng giá physical → lấy <strong>cột ngày mới nhất</strong> → đọc giá <strong>SMR20 · STR20 · SIR20 · RSS3</strong> (US$/kg).</td>
+              <td>Lấy cột ngày mới nhất đúng ý? Đủ 4 grade cho bản tin?</td>
+            </tr>
+            <tr>
+              <td class="d">SHFE · Thượng Hải<br/><span style="font-weight:400;font-family:var(--mono);font-size:18px;color:var(--ink-3);word-break:break-all">shfe.com.cn → Statistical Data → Daily</span></td>
+              <td>Chọn <strong>ngày T‑1</strong> → Future → Daily express → <strong>Natural rubber</strong> → chọn kỳ hạn có <strong>Volume lớn nhất</strong> (thường cách ~3 tháng) → lấy giá tại cột <strong>Settle</strong> (CNY/tấn).</td>
+              <td>"Chọn Volume lớn nhất → lấy Settle" đúng quy trình?</td>
+            </tr>
+            <tr>
+              <td class="d">OSE / TOCOM · Nhật<br/><span style="font-weight:400;font-family:var(--mono);font-size:18px;color:var(--ink-3);word-break:break-all">jpx.co.jp/…/statistics-derivatives/daily</span></td>
+              <td>Vào trang <strong>Daily</strong> → tải file <strong>cdf_dyr</strong> → tìm <strong>RSS3</strong> (và <strong>TSR20</strong>) → lấy kỳ hạn có <strong>Trading Value lớn nhất</strong> (thường cách ~5 tháng) → lấy giá <strong>Settlement Price</strong> (JPY/kg).</td>
+              <td>"Trading Value lớn nhất → Settlement Price" đúng? Lịch sử 2 năm lấy ở đâu?</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="footer"><span>Hệ thống <strong style="color:var(--green-d)">tự động thực hiện đúng quy trình này</strong> hằng ngày — không thao tác tay</span><span class="tag">BIZINO</span></div>
+    </div>
+  </section>
+
+  <!-- ============ PHỤ LỤC 2 · LGM · FX · SGX ============ -->
+  <section data-label="Phụ lục · LGM · FX · SGX">
+    <div class="pad">
+      <div class="eyebrow anim">Phụ lục · Cách lấy giá (2/2)</div>
+      <h2 class="s-title anim" style="margin-top:14px;font-size:52px">Cách lấy giá từng sàn — chuyên viên đối chiếu</h2>
+      <div class="panel anim" style="margin-top:24px;padding:6px 36px 12px;flex:1">
+        <table class="cl">
+          <thead><tr><th style="width:19%">Sàn / Trang</th><th>Các bước lấy giá (vào đâu · lấy gì · chọn thế nào)</th><th style="width:27%">✅ Cần xác nhận</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="d">LGM · Malaysia<br/><span style="font-weight:400;font-family:var(--mono);font-size:18px;color:var(--ink-3);word-break:break-all">lgm.gov.my → reference prices (FOB)</span></td>
+              <td>Chọn <strong>ngày T‑1</strong> → <strong>SMR CV · SMR20…</strong> lấy theo <strong>US Cents/Kg</strong>; <strong>Latex in Bulk</strong> (Sen/Kg) → quy đổi <strong>giá ÷ tỷ giá × 10</strong>.</td>
+              <td><strong class="accent">🔴 Quan trọng:</strong> Latex = <strong>198,04</strong> US¢/kg (15/06) có khớp cách quy đổi này?</td>
+            </tr>
+            <tr>
+              <td class="d">Tỷ giá<br/><span style="font-weight:400;font-family:var(--mono);font-size:18px;color:var(--ink-3);word-break:break-all">exchangerates.org.uk · bnm.gov.my</span></td>
+              <td>USD/CNY, USD/THB tra ở <strong>exchangerates.org.uk</strong>; <strong>USD/MYR</strong> ở <strong>BNM</strong>. <span style="color:var(--ink-3)">(Hệ thống dùng 1 API gộp cho cả 5 cặp.)</span></td>
+              <td>Dùng nguồn gộp thay 2 trang trên — chấp nhận được?</td>
+            </tr>
+            <tr>
+              <td class="d">SGX / SICOM · Singapore<br/><span style="font-weight:400;font-family:var(--mono);font-size:18px;color:var(--ink-3);word-break:break-all">sgx.com → Historical Settlement Data</span></td>
+              <td>Type <strong>Future</strong> → <strong>RSS3</strong> (COM = <strong>RT</strong>) · <strong>TSR20</strong> (COM = <strong>TF</strong>), COM_MM = tháng trước 1, COM_YY = năm nay → lấy giá <strong>SETTLE</strong>. <span style="color:#9a6a06;font-weight:700">(API đổi cơ chế → tạm dừng.)</span></td>
+              <td>Có nguồn SICOM chính thức / cho phép kết nối không?</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="footer"><span>Đối chiếu đầy đủ trong tài liệu <strong style="color:var(--green-d)">cach-lay-gia-tung-san-chi-tiet.md</strong></span><span class="tag">BIZINO</span></div>
+    </div>
+  </section>
+
 </deck-stage>
 <script src="deck-stage.js"></script>
 </body>
