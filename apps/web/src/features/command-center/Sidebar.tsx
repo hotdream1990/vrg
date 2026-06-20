@@ -16,7 +16,9 @@ export default function Sidebar() {
   };
 
   // Chỉ các route đã implement mới sáng active; mục hash là phím tắt cuộn, không active.
-  const isActive = (it: NavItem) => pathname === it.to && !it.hash;
+  const isActive = (it: NavItem) =>
+    !it.hash &&
+    (pathname === it.to || (it.to !== "/" && pathname.startsWith(it.to + "/")));
 
   return (
     <aside className="sidebar">

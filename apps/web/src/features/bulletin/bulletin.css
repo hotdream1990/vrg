@@ -1,0 +1,388 @@
+/* ═══ Bulletin Page Styles ═══ */
+/* Kế thừa design tokens từ command-center.css (--bg, --panel, --line, --text, etc.) */
+
+/* ── Toolbar ── */
+.blt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.blt-date-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.blt-date-input {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.blt-date-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15);
+}
+
+/* ── Empty state ── */
+.blt-empty {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--muted);
+}
+
+.blt-empty-icon {
+  margin-bottom: 16px;
+  opacity: 0.4;
+  color: var(--muted);
+}
+
+.blt-empty-icon svg {
+  width: 64px;
+  height: 64px;
+}
+
+.blt-empty h3 {
+  color: var(--text);
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+
+.blt-empty p {
+  font-size: 14px;
+}
+
+/* ── Loading & Error ── */
+.blt-loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.blt-error {
+  background: #ef444422;
+  color: #fca5a5;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  border: 1px solid #ef444444;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* SVG icons inside buttons and chips */
+.btn svg,
+.chip svg {
+  vertical-align: -2px;
+}
+
+.page-title h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Sections container ── */
+.blt-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: blt-fade 0.3s ease;
+}
+
+@keyframes blt-fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Section card ── */
+.blt-section {
+  padding: 20px;
+}
+
+.blt-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.blt-section-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.blt-section-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Editable section — subtle left border accent */
+.blt-editable {
+  border-left: 3px solid var(--info);
+}
+
+/* ── Fake data row (striped background) ── */
+.blt-fake-row td {
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(245, 158, 11, 0.03) 10px,
+    rgba(245, 158, 11, 0.03) 20px
+  );
+}
+
+/* ── Table right-align ── */
+th.r, td.r {
+  text-align: right;
+}
+
+/* ── Floor price labels ── */
+.blt-floor-labels {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.blt-floor-labels label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  flex: 1;
+}
+
+/* ── Inputs ── */
+.blt-input {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  flex: 1;
+  transition: border-color 0.2s;
+}
+
+.blt-input:focus {
+  outline: none;
+  border-color: var(--info);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.12);
+}
+
+/* Cell-level input inside table */
+.blt-cell-input {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  font-size: 13px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  width: 100%;
+  text-align: right;
+  transition: all 0.15s;
+}
+
+.blt-cell-input:hover {
+  border-color: var(--line);
+  background: var(--bg);
+}
+
+.blt-cell-input:focus {
+  outline: none;
+  border-color: var(--info);
+  background: var(--bg);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.12);
+}
+
+/* ── Raw materials ── */
+.blt-raw-materials {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.blt-rm-row {
+  display: flex;
+  gap: 10px;
+}
+
+.blt-rm-region {
+  max-width: 200px;
+}
+
+.blt-rm-price {
+  flex: 1;
+}
+
+/* ── Subsections (market analysis) ── */
+.blt-subsection {
+  margin-bottom: 20px;
+}
+
+.blt-subsection h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ── Textarea ── */
+.blt-textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  transition: border-color 0.2s;
+}
+
+.blt-textarea:focus {
+  outline: none;
+  border-color: var(--info);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.12);
+}
+
+/* ── Analysis row with delete button ── */
+.blt-analysis-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.blt-analysis-row .blt-textarea {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.blt-rm-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 4px;
+  transition: all 0.15s;
+}
+
+.blt-rm-btn:hover {
+  background: #ef444433;
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+
+/* ── Add button ── */
+.blt-add-btn {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+/* ── Source URLs ── */
+.blt-source-url {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+/* ── Published list table ── */
+.blt-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.blt-list-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.blt-list-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+}
+.blt-list-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.blt-list-table tbody tr:hover td {
+  background: var(--bg);
+}
+.blt-list-table a.btn {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* ── Back link (editor → list) ── */
+.blt-back {
+  display: inline-block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+.blt-back:hover {
+  color: var(--text);
+}
+
+/* ── Clickable date link in list ── */
+.blt-link {
+  color: var(--accent, #22c55e);
+  text-decoration: none;
+}
+.blt-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .blt-floor-labels {
+    flex-direction: column;
+  }
+  .blt-rm-row {
+    flex-direction: column;
+  }
+  .blt-rm-region {
+    max-width: 100%;
+  }
+}

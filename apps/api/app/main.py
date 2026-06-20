@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import health, prices
+from app.routers import bulletins, health, prices
 
 app = FastAPI(
     title="VRG — AI Dự báo Giá Cao su",
@@ -26,6 +26,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(prices.router)
+app.include_router(bulletins.router)
 
 
 @app.get("/", tags=["system"])

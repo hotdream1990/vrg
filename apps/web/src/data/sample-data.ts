@@ -39,7 +39,7 @@ export const nav: { section: string; items: NavItem[] }[] = [
     section: "Dữ liệu & Báo cáo",
     items: [
       { icon: "◎", label: "Quét Đa sàn", to: "/quet-da-san" },
-      { icon: "⌷", label: "Báo cáo tự động", to: "/" },
+      { icon: "📋", label: "Bản tin ngày", to: "/ban-tin" },
       { icon: "⎙", label: "Tài liệu nội bộ", to: "/" },
       { icon: "◷", label: "Lịch sử Cảnh báo", to: "/" },
     ],

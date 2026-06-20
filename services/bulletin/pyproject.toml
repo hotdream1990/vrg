@@ -1,0 +1,25 @@
+[project]
+name = "vrg-bulletin"
+version = "0.1.0"
+description = "Generate bản tin thị trường cao su ngày (PPTX) — VRG"
+requires-python = ">=3.12"
+dependencies = [
+    "python-pptx>=1.0",
+    "pydantic>=2.6",
+]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "ruff>=0.7",
+    "pytest>=8.3",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

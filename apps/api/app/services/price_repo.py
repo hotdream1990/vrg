@@ -102,3 +102,51 @@ def history(source: str, grade: str, days: int = 30) -> list[dict[str, Any]]:
             {"source": source, "grade": grade, "days": days},
         )
         return [dict(m) for m in result.mappings().all()]
+
+
+def prices_for_dates(target_date: str, prev_date: str) -> list[dict[str, Any]]:
+    """Lấy giá đã quét đúng 2 ngày (T và T-1).
+
+    Giữ cho mục đích khác; BẢN TIN dùng latest_two_for_bulletin() để mỗi chỉ số
+    luôn lấy giá thật mới nhất, không phụ thuộc các sàn có cùng ngày hay không.
+    """
+    ensure_schema()
+    with session_scope() as db:
+        result = db.execute(
+            text("""
+                SELECT source, grade, price, currency, unit, price_type, as_of, contract
+                FROM fact_price
+                WHERE as_of IN (:d1, :d2)
+                ORDER BY source, grade, as_of
+            """),
+            {"d1": target_date, "d2": prev_date},
+        )
+        return [dict(m) for m in result.mappings().all()]
+
+
+def latest_two_for_bulletin(as_of_max: str) -> list[dict[str, Any]]:
+    """Cho mỗi (source, grade): 2 bản ghi as_of mới nhất <= as_of_max — phục vụ bản tin.
+
+    curr = bản ghi mới nhất, prev = liền trước (để tính chênh lệch). Nhờ vậy mỗi chỉ số
+    luôn dùng giá THẬT mới nhất sẵn có, không phụ thuộc các sàn có cùng ngày hay không
+    (FX cập nhật T+0, sàn T-1/T-2, ANRPC trễ hơn...).
+    """
+    ensure_schema()
+    with session_scope() as db:
+        result = db.execute(
+            text("""
+                SELECT source, grade, price, currency, unit, price_type, as_of, contract
+                FROM (
+                    SELECT source, grade, price, currency, unit, price_type, as_of, contract,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY source, grade ORDER BY as_of DESC
+                           ) AS rn
+                    FROM fact_price
+                    WHERE as_of <= CAST(:d AS date)
+                ) t
+                WHERE rn <= 2
+                ORDER BY source, grade, as_of
+            """),
+            {"d": as_of_max},
+        )
+        return [dict(m) for m in result.mappings().all()]

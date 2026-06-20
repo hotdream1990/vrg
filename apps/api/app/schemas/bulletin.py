@@ -1,0 +1,89 @@
+"""Pydantic schemas cho bulletin API."""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+
+
+class WorldPriceItem(BaseModel):
+    exchange: str
+    grade: str
+    unit: str = "USD/T"
+    price_prev: int | None = None
+    price_curr: int | None = None
+    change_abs: int | None = None
+    change_pct: float | None = None
+    is_fake: bool = False
+
+
+class PhysicalPriceItem(BaseModel):
+    grade: str
+    price_prev: int | None = None
+    price_curr: int | None = None
+    change_abs: int | None = None
+    change_pct: float | None = None
+    is_fake: bool = False
+
+
+class VrgFloorItem(BaseModel):
+    grade: str
+    fob_usd: int | None = None
+    domestic_vnd: int | None = None
+    is_fake: bool = False
+
+
+class RawMaterialRegion(BaseModel):
+    region: str
+    price_text: str
+    is_fake: bool = False
+
+
+class SectionStatus(BaseModel):
+    """Trạng thái nguồn dữ liệu 1 section."""
+    section: str
+    source: str            # "db" | "sample" | "manual"
+    description: str       # mô tả chi tiết
+
+
+class BulletinDraft(BaseModel):
+    """Draft bản tin ngày -- đầy đủ data cho preview + edit trên UI."""
+
+    report_date: str               # DD/MM/YYYY
+    prev_date: str                 # DD/MM/YYYY
+
+    # Section I -- read-only preview
+    world_prices: list[WorldPriceItem] = Field(default_factory=list)
+
+    # Section II -- read-only preview
+    physical_prices: list[PhysicalPriceItem] = Field(default_factory=list)
+
+    # Section III -- editable
+    vrg_floor_prev_label: str = ""
+    vrg_floor_curr_label: str = ""
+    vrg_floor_prev: list[VrgFloorItem] = Field(default_factory=list)
+    vrg_floor_curr: list[VrgFloorItem] = Field(default_factory=list)
+    raw_materials: list[RawMaterialRegion] = Field(default_factory=list)
+
+    # Section IV -- editable
+    exchange_summary: list[str] = Field(default_factory=list)
+    physical_summary: str = ""
+    market_analysis: list[str] = Field(default_factory=list)
+    source_urls: list[str] = Field(default_factory=list)
+
+    # Data source summary (auto-computed by service)
+    data_sources: list[SectionStatus] = Field(default_factory=list)
+
+
+class BulletinDraftUpdate(BaseModel):
+    """Chi cac field admin co the chinh sua."""
+
+    vrg_floor_prev_label: str | None = None
+    vrg_floor_curr_label: str | None = None
+    vrg_floor_prev: list[VrgFloorItem] | None = None
+    vrg_floor_curr: list[VrgFloorItem] | None = None
+    raw_materials: list[RawMaterialRegion] | None = None
+    exchange_summary: list[str] | None = None
+    physical_summary: str | None = None
+    market_analysis: list[str] | None = None
+    source_urls: list[str] | None = None
+

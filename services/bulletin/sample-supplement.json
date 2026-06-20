@@ -1,0 +1,49 @@
+{
+  "vrg_floor_prev_label": "Giá sàn lần 13\n(27/05/2026)",
+  "vrg_floor_curr_label": "Giá sàn lần 14\n(09/06/2026)",
+  "vrg_floor_prev": [
+    { "grade": "SVR CV 50",  "fob_usd": 2480, "domestic_vnd": 63800000 },
+    { "grade": "SVR CV60",   "fob_usd": 2460, "domestic_vnd": 63250000 },
+    { "grade": "SVR L",      "fob_usd": 2430, "domestic_vnd": 62450000 },
+    { "grade": "SVR 3L Mix", "fob_usd": 2435, "domestic_vnd": 62600000 },
+    { "grade": "SVR 3L",     "fob_usd": 2420, "domestic_vnd": 62200000 },
+    { "grade": "SVR 5S",     "fob_usd": 2410, "domestic_vnd": 61950000 },
+    { "grade": "SVR 5",      "fob_usd": 2400, "domestic_vnd": 61650000 },
+    { "grade": "SVR 10 Mix", "fob_usd": 2260, "domestic_vnd": 58000000 },
+    { "grade": "SVR 10",     "fob_usd": 2240, "domestic_vnd": 57500000 },
+    { "grade": "SVR 20",     "fob_usd": 2220, "domestic_vnd": 56950000 },
+    { "grade": "RSS 3",      "fob_usd": 2460, "domestic_vnd": 63250000 },
+    { "grade": "RSS 1",      "fob_usd": 2480, "domestic_vnd": 63750000 },
+    { "grade": "LATEX",      "fob_usd": 1750, "domestic_vnd": 45300000 }
+  ],
+  "vrg_floor_curr": [
+    { "grade": "SVR CV 50",  "fob_usd": 2510, "domestic_vnd": 64500000 },
+    { "grade": "SVR CV60",   "fob_usd": 2490, "domestic_vnd": 63950000 },
+    { "grade": "SVR L",      "fob_usd": 2460, "domestic_vnd": 63200000 },
+    { "grade": "SVR 3L Mix", "fob_usd": 2465, "domestic_vnd": 63300000 },
+    { "grade": "SVR 3L",     "fob_usd": 2450, "domestic_vnd": 62900000 },
+    { "grade": "SVR 5S",     "fob_usd": 2440, "domestic_vnd": 62650000 },
+    { "grade": "SVR 5",      "fob_usd": 2430, "domestic_vnd": 62400000 },
+    { "grade": "SVR 10 Mix", "fob_usd": 2300, "domestic_vnd": 59000000 },
+    { "grade": "SVR 10",     "fob_usd": 2280, "domestic_vnd": 58500000 },
+    { "grade": "SVR 20",     "fob_usd": 2260, "domestic_vnd": 57950000 },
+    { "grade": "RSS 3",      "fob_usd": 2490, "domestic_vnd": 63950000 },
+    { "grade": "RSS 1",      "fob_usd": 2510, "domestic_vnd": 64450000 },
+    { "grade": "LATEX",      "fob_usd": 1760, "domestic_vnd": 45500000 }
+  ],
+  "raw_material_regions": {
+    "Bình Dương": "573 đ/độ TSC",
+    "Bình Phước": "538-580 đ/độ TSC",
+    "Bình Thuận": "545 đ/độ TSC",
+    "Tây Ninh": "570 đ/độ TSC"
+  },
+  "market_analysis": [
+    "Giá cao su kỳ hạn tại Nhật Bản giảm, giá giảm do thị trường kỳ vọng nguồn cung cao su toàn cầu sẽ gia tăng trong thời gian tới. Nguồn cung cao su thiên nhiên được dự báo sẽ tăng khi hoạt động khai thác mủ bước vào giai đoạn cao điểm tại các nước sản xuất chính.",
+    "Nhiều nhà máy sản xuất cao su tổng hợp tại Trung Quốc đã nâng công suất hoạt động sau khi hoàn tất các đợt bảo trì, góp phần gia tăng lượng cao su tổng hợp trên thị trường trong thời gian tới.",
+    "Tuy nhiên, Đồng yên yếu giúp các tài sản được định giá bằng Đồng yên trở nên rẻ hơn đối với nhà đầu tư nước ngoài, từ đó góp phần hạn chế đà giảm của thị trường cao su."
+  ],
+  "source_urls": [
+    "Nguồn tin: https://intl.sci99.com/annualreport/; Report Sublime China Information;",
+    "https://vietnambiz.vn/gia-cao-su-hom-nay"
+  ]
+}
