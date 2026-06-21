@@ -48,6 +48,26 @@ CREATE TABLE IF NOT EXISTS fact_price (
 
 CREATE INDEX IF NOT EXISTS ix_fact_price_latest
     ON fact_price (source, grade, as_of DESC);
+
+CREATE TABLE IF NOT EXISTS vrg_floor_price (
+    lan          integer NOT NULL,
+    as_of        date NOT NULL,
+    grade        text NOT NULL,
+    fob_usd      double precision,
+    domestic_vnd double precision,
+    ingested_at  timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (lan, grade)
+);
+
+CREATE INDEX IF NOT EXISTS ix_vrg_floor_asof ON vrg_floor_price (as_of DESC, lan DESC);
+
+CREATE TABLE IF NOT EXISTS member_unit (
+    name        text PRIMARY KEY,
+    sort_order  integer NOT NULL DEFAULT 0,
+    is_active   boolean NOT NULL DEFAULT true,
+    note        text,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
 """
 
 # Hypertable tách riêng: cần extension timescaledb; nếu thiếu, bảng vẫn dùng được.

@@ -9,8 +9,8 @@ import tempfile
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.schemas.price import HistorySeries, ScanResponse
-from app.services import price_repo, scan_service
+from app.schemas.price import HistorySeries, PriceBoard, PriceRecordEdit, ScanResponse
+from app.services import price_board, price_repo, scan_service
 
 router = APIRouter(prefix="/api/prices", tags=["prices"])
 
@@ -63,6 +63,74 @@ def backfill(
 def latest() -> dict:
     """Giá mới nhất mỗi (sàn, mặt hàng) đã ghi trong DB."""
     return {"records": price_repo.latest()}
+
+
+@router.get("/board", response_model=PriceBoard)
+def board() -> PriceBoard:
+    """Bảng giá thành phần per sàn (native · tỷ giá · USD/T) + danh sách tỷ giá."""
+    return PriceBoard(**price_board.build_board())
+
+
+@router.get("/purchase-sheet")
+def purchase_sheet(
+    date_from: str | None = Query(None, description="từ ngày YYYY-MM-DD"),
+    date_to: str | None = Query(None, description="đến ngày YYYY-MM-DD"),
+) -> dict:
+    """Lưới Giá mủ nguyên liệu (giá thu mua mủ nước): công ty × ngày (đồng/độ TSC)."""
+    return price_repo.purchase_sheet(date_from, date_to)
+
+
+@router.delete("/purchase")
+def delete_purchase(as_of: str = Query(..., description="YYYY-MM-DD")) -> dict:
+    """Xoá toàn bộ giá thu mua mủ nước của 1 ngày."""
+    return {"deleted": price_repo.delete_purchase_date(as_of)}
+
+
+@router.get("/sheet")
+def sheet(
+    days: int = Query(30, ge=1, le=365),
+    date_from: str | None = Query(None, description="từ ngày YYYY-MM-DD"),
+    date_to: str | None = Query(None, description="đến ngày YYYY-MM-DD"),
+) -> dict:
+    """Lưới 'Bảng tính giá' giống sheet mẫu VRG: ngày × sàn (Native·Tỷ giá·USD) + tỷ giá."""
+    from app.services import price_sheet
+
+    return price_sheet.build_sheet(days, date_from, date_to)
+
+
+@router.get("/records")
+def list_records(
+    source: str | None = Query(None, description="lọc theo nguồn"),
+    grade: str | None = Query(None, description="lọc theo chỉ số (chứa)"),
+    date_from: str | None = Query(None, description="từ ngày YYYY-MM-DD"),
+    date_to: str | None = Query(None, description="đến ngày YYYY-MM-DD"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=500),
+) -> dict:
+    """Danh sách bản ghi giá để quản lý — lọc + phân trang. Trả {records, total, page, page_size}."""
+    res = price_repo.list_records(source, grade, date_from, date_to, page_size, (page - 1) * page_size)
+    return {**res, "page": page, "page_size": page_size}
+
+
+@router.put("/records")
+def upsert_record(rec: PriceRecordEdit) -> dict:
+    """Thêm mới hoặc sửa 1 bản ghi giá (theo khóa as_of+source+grade+contract+price_type)."""
+    price_repo.upsert_record(rec.model_dump())
+    return {"ok": True}
+
+
+@router.delete("/records")
+def delete_record(
+    as_of: str = Query(..., description="YYYY-MM-DD"),
+    source: str = Query(...),
+    grade: str = Query(...),
+    contract: str = Query(""),
+    price_type: str = Query(...),
+) -> dict:
+    """Xóa 1 bản ghi giá theo khóa."""
+    if not price_repo.delete_record(as_of, source, grade, contract, price_type):
+        raise HTTPException(404, "Không tìm thấy bản ghi để xóa")
+    return {"deleted": True}
 
 
 @router.get("/history", response_model=HistorySeries)

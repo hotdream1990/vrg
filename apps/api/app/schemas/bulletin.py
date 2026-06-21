@@ -13,7 +13,6 @@ class WorldPriceItem(BaseModel):
     price_curr: int | None = None
     change_abs: int | None = None
     change_pct: float | None = None
-    is_fake: bool = False
 
 
 class PhysicalPriceItem(BaseModel):
@@ -22,26 +21,27 @@ class PhysicalPriceItem(BaseModel):
     price_curr: int | None = None
     change_abs: int | None = None
     change_pct: float | None = None
-    is_fake: bool = False
 
 
 class VrgFloorItem(BaseModel):
     grade: str
     fob_usd: int | None = None
     domestic_vnd: int | None = None
-    is_fake: bool = False
 
 
 class RawMaterialRegion(BaseModel):
-    region: str
-    price_text: str
-    is_fake: bool = False
+    """1 dòng giá thu mua mủ nước theo công ty VRG (đồng/độ TSC)."""
+
+    region: str                       # tên công ty thành viên VRG
+    price: float | None = None        # giá đồng/độ TSC (numeric, để lưu fact_price)
+    unit: str = "đồng/độ TSC"
+    price_text: str = ""              # hiển thị (số đã format, không kèm đơn vị)
 
 
 class SectionStatus(BaseModel):
     """Trạng thái nguồn dữ liệu 1 section."""
     section: str
-    source: str            # "db" | "sample" | "manual"
+    source: str            # "db" | "manual" | "empty"
     description: str       # mô tả chi tiết
 
 

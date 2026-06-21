@@ -9,6 +9,15 @@ import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from app.core.market_meta import (
+    CANON_PHYS as _CANON_PHYS,
+    CANON_WORLD as _CANON_WORLD,
+    EXCHANGE_NAMES as _EXCHANGE_NAMES,
+    PHYSICAL_GRADE_MAP as _PHYSICAL_GRADE_MAP,
+    VRG_COMPANIES,
+    VRG_FLOOR_GRADES,
+    WORLD_GRADE_MAP as _WORLD_GRADE_MAP,
+)
 from app.schemas.bulletin import (
     BulletinDraft,
     BulletinDraftUpdate,
@@ -27,59 +36,73 @@ for sub in ["bulletin"]:
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# ── Giá trị khởi tạo cho các mục admin tự nhập (III/III.2/IV) — KHÔNG phải giá thị trường ──
-
-_DEFAULT_VRG_FLOOR = [
-    VrgFloorItem(grade="SVR CV 50", fob_usd=2510, domestic_vnd=64500000, is_fake=True),
-    VrgFloorItem(grade="SVR CV60", fob_usd=2490, domestic_vnd=63950000, is_fake=True),
-    VrgFloorItem(grade="SVR L", fob_usd=2460, domestic_vnd=63200000, is_fake=True),
-    VrgFloorItem(grade="SVR 3L Mix", fob_usd=2465, domestic_vnd=63300000, is_fake=True),
-    VrgFloorItem(grade="SVR 3L", fob_usd=2450, domestic_vnd=62900000, is_fake=True),
-    VrgFloorItem(grade="SVR 5S", fob_usd=2440, domestic_vnd=62650000, is_fake=True),
-    VrgFloorItem(grade="SVR 5", fob_usd=2430, domestic_vnd=62400000, is_fake=True),
-    VrgFloorItem(grade="SVR 10 Mix", fob_usd=2300, domestic_vnd=59000000, is_fake=True),
-    VrgFloorItem(grade="SVR 10", fob_usd=2280, domestic_vnd=58500000, is_fake=True),
-    VrgFloorItem(grade="SVR 20", fob_usd=2260, domestic_vnd=57950000, is_fake=True),
-    VrgFloorItem(grade="RSS 3", fob_usd=2490, domestic_vnd=63950000, is_fake=True),
-    VrgFloorItem(grade="RSS 1", fob_usd=2510, domestic_vnd=64450000, is_fake=True),
-    VrgFloorItem(grade="LATEX", fob_usd=1760, domestic_vnd=45500000, is_fake=True),
-]
-
-_DEFAULT_RAW_MATERIALS = [
-    RawMaterialRegion(region="B\u00ecnh D\u01b0\u01a1ng", price_text="573 \u0111/\u0111\u1ed9 TSC", is_fake=True),
-    RawMaterialRegion(region="B\u00ecnh Ph\u01b0\u1edbc", price_text="538-580 \u0111/\u0111\u1ed9 TSC", is_fake=True),
-    RawMaterialRegion(region="B\u00ecnh Thu\u1eadn", price_text="545 \u0111/\u0111\u1ed9 TSC", is_fake=True),
-    RawMaterialRegion(region="T\u00e2y Ninh", price_text="570 \u0111/\u0111\u1ed9 TSC", is_fake=True),
-]
-
-_DEFAULT_ANALYSIS = [
-    "Giá cao su kỳ hạn tại Nhật Bản giảm do thị trường kỳ vọng nguồn cung cao su toàn cầu sẽ gia tăng trong thời gian tới.",
-    "Nhiều nhà máy sản xuất cao su tổng hợp tại Trung Quốc đã nâng công suất hoạt động sau khi hoàn tất các đợt bảo trì.",
-    "Tuy nhiên, Đồng yên yếu giúp các tài sản được định giá bằng Đồng yên trở nên rẻ hơn đối với nhà đầu tư nước ngoài.",
-]
+# Map sàn/grade, tên sàn, cấu trúc canon: import từ app.core.market_meta (DRY).
 
 
-# ── Grade mapping (crawler → bulletin) ──
+def _build_raw_materials(report_date: date) -> tuple[list[RawMaterialRegion], str]:
+    """Dựng 'Giá mủ nguyên liệu' theo công ty VRG từ fact_price (source=vrg).
 
-_WORLD_GRADE_MAP = {
-    ("tocom", "RSS3"): ("OSE", "RSS3"),
-    ("tocom", "TSR20"): ("OSE", "TSR20"),
-    ("shfe", "RU"): ("SHANGHAI", "RSS3"),
-    ("sgx", "RSS3"): ("SGX", "RSS3"),
-    ("sgx", "TSR20"): ("SGX", "TSR20"),
-    ("lgm", "SMRCV"): ("MRE", "SMRCV"),
-    ("lgm", "SMR20"): ("MRE", "SMR20"),
-    ("lgm", "LATEX"): ("MRE", "LATEX"),
-}
+    Trả (danh sách RawMaterialRegion theo VRG_COMPANIES, nguồn 'db'|'manual').
+    Công ty chưa có giá → để trống cho admin nhập tay.
+    """
+    purchase: dict[str, float] = {}
+    companies: list[str] = list(VRG_COMPANIES)
+    try:
+        from app.services import member_unit_repo, price_repo
 
-_PHYSICAL_GRADE_MAP = {"RSS3": "RSS3", "STR20": "STR20", "SMR20": "SMR20", "SIR20": "SIR20"}
+        purchase = price_repo.latest_purchase_by_company(report_date.isoformat())
+        companies = member_unit_repo.active_names() or companies
+    except Exception as exc:  # noqa: BLE001 - DB down → để trống, admin nhập tay
+        print(f"[bulletin] Không đọc được giá thu mua mủ nước: {exc}")
 
-_EXCHANGE_NAMES = {
-    "OSE": "Sàn TOCOM (Nhật Bản)",
-    "SHANGHAI": "Sàn SHFE (Thượng Hải - Trung Quốc)",
-    "SGX": "Sàn SGX (Singapore)",
-    "MRE": "Sàn MRB (Malaysia)",
-}
+    items = [
+        RawMaterialRegion(
+            region=co,
+            price=purchase.get(co),
+            price_text=(f"{int(round(purchase[co])):,}" if co in purchase else ""),
+        )
+        for co in companies
+    ]
+    return items, ("db" if purchase else "manual")
+
+
+def _coerce_int(v) -> int | None:
+    return int(round(v)) if v is not None else None
+
+
+def _build_vrg_floor(report_date: date):
+    """Section III (Giá sàn VRG) từ biểu giá Tập đoàn — 2 lần mới nhất <= ngày báo cáo.
+
+    Trả (prev_label, curr_label, prev_items, curr_items, src). Chưa có biểu giá → khung trống.
+    """
+    def to_items(sch) -> list[VrgFloorItem]:
+        m = {it["grade"]: it for it in sch["items"]} if sch else {}
+        return [
+            VrgFloorItem(grade=g, fob_usd=_coerce_int(m.get(g, {}).get("fob_usd")),
+                         domestic_vnd=_coerce_int(m.get(g, {}).get("domestic_vnd")))
+            for g in VRG_FLOOR_GRADES
+        ]
+
+    def label(sch) -> str | None:
+        if not sch:
+            return None
+        d = date.fromisoformat(sch["as_of"]).strftime("%d/%m/%Y")
+        return f"Giá sàn lần {sch['lan']}\n({d})"
+
+    curr = prev = None
+    try:
+        from app.services import floor_repo
+
+        fl = floor_repo.floor_for_bulletin(report_date.isoformat())
+        curr, prev = fl["curr"], fl["prev"]
+    except Exception as exc:  # noqa: BLE001 - DB down → khung trống
+        print(f"[bulletin] Không đọc được Giá sàn Tập đoàn: {exc}")
+
+    if curr:
+        return label(prev), label(curr), to_items(prev), to_items(curr), "db"
+    # Chưa có biểu giá nào → khung trống theo chủng loại (admin nhập ở Giá sàn Tập đoàn).
+    empty = [VrgFloorItem(grade=g) for g in VRG_FLOOR_GRADES]
+    return None, None, [], empty, "empty"
 
 
 # ── In-memory draft store (1 draft per date, MVP) ──
@@ -168,6 +191,8 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                 if not has_data_on_date:
                     price_map = {}  # không lấy data ngày khác thay thế
 
+                world_computed: dict = {}
+                phys_computed: dict = {}
                 for (src, grade), date_prices in price_map.items():
                     # curr = ngày mới nhất của mặt hàng, prev = ngày liền trước
                     sorted_dates = sorted(date_prices.keys())
@@ -183,25 +208,34 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                     chg = (curr_int - prev_int) if (curr_int and prev_int) else None
                     pct = round(chg / prev_int * 100, 1) if (chg is not None and prev_int) else None
 
-                    # World prices
                     mapping = _WORLD_GRADE_MAP.get((src, grade))
                     if mapping:
                         exchange, blt_grade = mapping
-                        world_prices.append(WorldPriceItem(
+                        world_computed[(exchange, blt_grade)] = WorldPriceItem(
                             exchange=exchange, grade=blt_grade,
                             price_prev=prev_int, price_curr=curr_int,
                             change_abs=chg, change_pct=pct,
-                            is_fake=False,
-                        ))
+                        )
 
-                    # Physical prices (ANRPC)
                     if src == "anrpc":
                         phys_grade = _PHYSICAL_GRADE_MAP.get(grade)
                         if phys_grade:
-                            physical_prices.append(PhysicalPriceItem(
+                            phys_computed[phys_grade] = PhysicalPriceItem(
                                 grade=phys_grade, price_prev=prev_int, price_curr=curr_int,
-                                change_abs=chg, change_pct=pct, is_fake=False,
-                            ))
+                                change_abs=chg, change_pct=pct,
+                            )
+
+                # Dựng ĐÚNG cấu trúc template: đủ dòng, đúng thứ tự; thiếu data → để trống (N/A).
+                if has_data_on_date:
+                    world_prices = [
+                        world_computed.get(k)
+                        or WorldPriceItem(exchange=k[0], grade=k[1])
+                        for k in _CANON_WORLD
+                    ]
+                    physical_prices = [
+                        phys_computed.get(g) or PhysicalPriceItem(grade=g)
+                        for g in _CANON_PHYS
+                    ]
 
                 # Auto exchange summary
                 by_exc: dict[str, list[WorldPriceItem]] = {}
@@ -216,6 +250,11 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
 
         except Exception as exc:
             print(f"[bulletin] DB read error (dùng sample data): {exc}")
+
+    # Giá mủ nguyên liệu (giá thu mua mủ nước) theo công ty VRG — đọc từ fact_price (source=vrg).
+    raw_materials, rm_src = _build_raw_materials(report_date)
+    # Giá sàn VRG (Section III) — đọc từ biểu giá Tập đoàn (2 lần mới nhất <= ngày báo cáo).
+    fl_prev_label, fl_curr_label, fl_prev, fl_curr, fl_src = _build_vrg_floor(report_date)
 
     # Chỉ dùng giá THẬT đúng ngày chọn; không có thì báo rõ "không có dữ liệu".
     world_src = "db" if world_prices else "empty"
@@ -244,13 +283,17 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
         ),
         SectionStatus(
             section="III. Giá sàn VRG",
-            source="manual",
-            description="Chưa có nguồn tự động \u2014 admin tự nhập/cập nhật",
+            source=fl_src,
+            description="Biểu giá Tập đoàn (2 lần mới nhất) — đọc từ DB"
+            if fl_src == "db"
+            else "Chưa có biểu giá — nhập ở 'Giá sàn Tập đoàn' (Quản lý số liệu)",
         ),
         SectionStatus(
             section="III.2 Giá mủ nguyên liệu",
-            source="manual",
-            description="Chưa có nguồn tự động \u2014 admin tự nhập/cập nhật",
+            source=rm_src,
+            description="Giá thu mua mủ nước theo công ty VRG — đọc từ DB (source=vrg)"
+            if rm_src == "db"
+            else "Chưa có giá thu mua — nhập ở 'Giá mủ nguyên liệu' (Quản lý số liệu)",
         ),
         SectionStatus(
             section="IV. Phân tích thị trường",
@@ -264,15 +307,15 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
         prev_date=prev_label,
         world_prices=world_prices,
         physical_prices=physical_prices,
-        vrg_floor_prev_label="Giá sàn lần trước",
-        vrg_floor_curr_label=f"Giá sàn ({report_label})",
-        vrg_floor_prev=list(_DEFAULT_VRG_FLOOR),
-        vrg_floor_curr=list(_DEFAULT_VRG_FLOOR),
-        raw_materials=list(_DEFAULT_RAW_MATERIALS),
+        vrg_floor_prev_label=fl_prev_label or "Lần trước (chưa có)",
+        vrg_floor_curr_label=fl_curr_label or f"Giá sàn ({report_label})",
+        vrg_floor_prev=fl_prev,
+        vrg_floor_curr=fl_curr,
+        raw_materials=raw_materials,
         exchange_summary=exchange_summary,
         physical_summary="",
-        market_analysis=list(_DEFAULT_ANALYSIS),
-        source_urls=["https://intl.sci99.com/annualreport/", "https://vietnambiz.vn/"],
+        market_analysis=[],
+        source_urls=[],
         data_sources=data_sources,
     )
 
@@ -297,20 +340,13 @@ def update_draft(report_date: date, updates: BulletinDraftUpdate) -> BulletinDra
     return draft
 
 
-def generate_pptx_from_draft(report_date: date) -> Path | None:
-    """Generate file PPTX từ draft hiện tại."""
-    from bulletin.generator import generate as gen_pptx
+def _draft_to_bulletin_data(draft: BulletinDraft):
+    """Convert BulletinDraft (API) → BulletinData (generator). Dùng chung cho PPTX & PDF."""
     from bulletin.models import BulletinData, PhysicalPriceRow, VrgFloorRow, WorldPriceRow
-
-    draft = _drafts.get(report_date.isoformat())
-    if not draft:
-        return None
 
     rdate = datetime.strptime(draft.report_date, "%d/%m/%Y").date()
     pdate = datetime.strptime(draft.prev_date, "%d/%m/%Y").date()
-
-    # Convert draft → BulletinData
-    data = BulletinData(
+    return BulletinData(
         report_date=rdate,
         prev_date=pdate,
         world_prices=[
@@ -333,6 +369,37 @@ def generate_pptx_from_draft(report_date: date) -> Path | None:
         source_urls=draft.source_urls,
     )
 
+
+def _save_snapshot(output: Path, draft: BulletinDraft) -> None:
+    """Lưu snapshot JSON cạnh file xuất để trang chi tiết đọc lại."""
+    try:
+        output.with_suffix(".json").write_text(draft.model_dump_json(indent=2), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[bulletin] Không lưu được snapshot JSON: {exc}")
+
+
+def generate_pdf_from_draft(report_date: date) -> Path | None:
+    """Generate PDF từ draft (HTML → Chromium → PDF: nhảy trang + header/footer lặp)."""
+    from bulletin.pdf_export import generate_pdf
+
+    draft = _drafts.get(report_date.isoformat()) or create_draft(report_date)
+    data = _draft_to_bulletin_data(draft)
+    date_str = data.report_date.strftime("%d-%m-%Y")
+    output = _ROOT / f"data/bulletins/Ban-tin-ngay-{date_str}.pdf"
+    result = generate_pdf(data, _resolve_assets(), output)
+    if result:
+        _save_snapshot(output, draft)
+    return result
+
+
+def generate_pptx_from_draft(report_date: date) -> Path | None:
+    """Generate file PPTX từ draft hiện tại."""
+    from bulletin.generator import generate as gen_pptx
+
+    draft = _drafts.get(report_date.isoformat()) or create_draft(report_date)
+    data = _draft_to_bulletin_data(draft)
+    rdate = data.report_date
+
     template = (
         _ROOT
         / "docs/bieu-mau/Tâm/Biểu mẫu -  Bản tin ngày 09-06-2026"
@@ -349,16 +416,8 @@ def generate_pptx_from_draft(report_date: date) -> Path | None:
     image_overrides = _resolve_image_overrides()
 
     result = gen_pptx(template, output, data, image_overrides=image_overrides)
-
-    # Lưu snapshot JSON cạnh file PPTX để xem chi tiết về sau (read-only)
     if result:
-        try:
-            output.with_suffix(".json").write_text(
-                draft.model_dump_json(indent=2), encoding="utf-8"
-            )
-        except Exception as exc:  # noqa: BLE001
-            print(f"[bulletin] Không lưu được snapshot JSON: {exc}")
-
+        _save_snapshot(output, draft)
     return result
 
 
@@ -372,6 +431,18 @@ _SLOT_TO_SHAPES: dict[str, list[str]] = {
     "footer-banner": ["Picture 21"],
     "logo-vrg": ["Picture 4"],
 }
+
+
+def _resolve_assets() -> dict[str, str]:
+    """slot → đường dẫn ảnh active (custom nếu có, ngược lại default) — dùng cho PDF."""
+    assets_dir = _ROOT / "data" / "bulletin-assets"
+    custom_dir = assets_dir / "custom"
+    out: dict[str, str] = {}
+    for slot in _SLOT_TO_SHAPES:
+        p = _find_asset(custom_dir, slot) or _find_asset(assets_dir, slot)
+        if p:
+            out[slot] = str(p)
+    return out
 
 
 def _resolve_image_overrides() -> dict[str, str] | None:

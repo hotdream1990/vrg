@@ -48,10 +48,48 @@ def generate(
     if image_overrides:
         _replace_images(prs, image_overrides)
 
+    # Đồng bộ vị trí header/footer giữa các slide nội dung (template gốc đặt lệch)
+    _normalize_header_footer(prs)
+
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(out))
     return out
+
+
+# Header/footer dùng chung trên các slide nội dung (banner trên, logo, tiêu đề, banner dưới)
+_HF_SHAPES = ("Picture 18", "Picture 4", "Content Placeholder 9", "Picture 21")
+
+
+def _normalize_header_footer(prs: Presentation) -> None:
+    """Ép các slide nội dung dùng CHUNG 1 header/footer theo slide 2.
+
+    - Cùng vị trí + kích thước banner trên/dưới, logo, ô tiêu đề.
+    - Cùng tiêu đề (text + định dạng) — copy txBody slide 2 sang (template gốc lỗi:
+      slide 3 dư dòng trống & không set cỡ chữ).
+    Bỏ qua slide bìa đầu (1) và bìa cuối (slide cuối).
+    """
+    import copy as _copy
+
+    slides = list(prs.slides)
+    if len(slides) < 3:
+        return
+    ref_geom: dict[str, tuple] = {}
+    ref_title = None
+    for sh in slides[1].shapes:  # slide 2 làm chuẩn
+        if sh.name in _HF_SHAPES and sh.name not in ref_geom:
+            ref_geom[sh.name] = (sh.left, sh.top, sh.width, sh.height)
+        if sh.name == "Content Placeholder 9" and sh.has_text_frame:
+            ref_title = sh.text_frame._txBody
+    for s in slides[2:-1]:  # slide nội dung còn lại (trừ bìa cuối)
+        for sh in s.shapes:
+            geom = ref_geom.get(sh.name)
+            if geom:
+                sh.left, sh.top, sh.width, sh.height = geom
+            if (sh.name == "Content Placeholder 9" and ref_title is not None
+                    and sh.has_text_frame):
+                cur = sh.text_frame._txBody
+                cur.getparent().replace(cur, _copy.deepcopy(ref_title))
 
 
 def _replace_images(prs: Presentation, overrides: dict[str, str | Path]) -> None:
@@ -212,18 +250,26 @@ def _update_slide3_domestic(slide, data: BulletinData) -> None:
                         _set_cell(table, row_idx, 3, _fmt_price(curr.fob_usd))
                         _set_cell(table, row_idx, 4, _fmt_price_vnd(curr.domestic_vnd))
 
-        # Fill giá mủ nguyên liệu
-        if (shape.has_text_frame and shape.name == "Rectangle 10"
-                and data.raw_material_regions):
-            paras = shape.text_frame.paragraphs
-            # Tìm para bắt đầu "Khu vực" và replace
-            region_idx = 0
-            regions_list = list(data.raw_material_regions.items())
-            for para in paras:
-                if para.text.strip().startswith("Khu vực") and region_idx < len(regions_list):
-                    region, price_text = regions_list[region_idx]
-                    _set_first_run_text_para(para, f"Khu vực {region}: {price_text}")
-                    region_idx += 1
+        # Fill giá mủ nguyên liệu — theo TỪNG ĐƠN VỊ thành viên (yêu cầu VRG, bỏ "khu vực").
+        # Template có ít dòng "Khu vực" → mỗi đơn vị 1 dòng; tràn slot cuối thì gộp.
+        # KHÔNG có số liệu → xoá sạch dòng mẫu (tránh để lọt giá khu vực giả của template).
+        if shape.has_text_frame and shape.name == "Rectangle 10":
+            unit_paras = [p for p in shape.text_frame.paragraphs
+                          if p.text.strip().startswith("Khu vực")]
+            if unit_paras:
+                lines = [
+                    f"{co}: {txt} đồng/độ TSC"
+                    for co, txt in (data.raw_material_regions or {}).items() if txt
+                ]
+                n = len(unit_paras)
+                for i, para in enumerate(unit_paras):
+                    if not lines:
+                        text = "(chưa cập nhật)" if i == 0 else ""
+                    elif i < n - 1:
+                        text = lines[i] if i < len(lines) else ""
+                    else:  # dòng cuối: gộp phần còn lại
+                        text = "; ".join(lines[i:]) if i < len(lines) else ""
+                    _set_first_run_text_para(para, text)
 
 
 # ---------------------------------------------------------------------------

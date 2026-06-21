@@ -29,3 +29,29 @@ def uscents_kg_to_usd_tonne(price_cents: float) -> int:
 def usd_kg_to_usd_tonne(price_usd_per_kg: float) -> int:
     """US$/kg → USD/tấn (ANRPC physical)."""
     return round(price_usd_per_kg * 1000)
+
+
+# Đơn vị gốc của sàn → cặp tỷ giá cần để quy đổi sang USD (None nếu đã là USD).
+_FX_PAIR_FOR_UNIT = {"CNY/tonne": "USD/CNY", "JPY/kg": "USD/JPY"}
+
+
+def to_usd_tonne_detail(
+    price: float, unit: str, fx_rates: dict[str, float]
+) -> tuple[int | None, str | None, float | None]:
+    """Quy đổi 1 giá gốc → (usd_tonne, fx_pair, fx_rate). 1 NGUỒN quy đổi dùng chung.
+
+    fx_pair/fx_rate = None khi đơn vị đã ở hệ USD (US$/kg, US cents/kg).
+    Thiếu tỷ giá → usd_tonne None nhưng vẫn trả fx_pair để UI báo rõ.
+    """
+    if unit == "US$/kg":
+        return usd_kg_to_usd_tonne(price), None, None
+    if unit == "US cents/kg":
+        return uscents_kg_to_usd_tonne(price), None, None
+    if unit == "CNY/tonne":
+        rate = fx_rates.get("USD/CNY")
+        return (cny_tonne_to_usd_tonne(price, rate) if rate else None), "USD/CNY", rate
+    if unit == "JPY/kg":
+        rate = fx_rates.get("USD/JPY")
+        return (jpy_kg_to_usd_tonne(price, rate) if rate else None), "USD/JPY", rate
+    # Đơn vị lạ → giả định đã ~USD/tấn.
+    return round(price), None, None

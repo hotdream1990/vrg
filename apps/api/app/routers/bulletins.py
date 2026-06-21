@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 from app.schemas.bulletin import BulletinDraft, BulletinDraftUpdate
 from app.services.bulletin_service import (
     create_draft,
+    generate_pdf_from_draft,
     generate_pptx_from_draft,
     get_draft,
     update_draft,
@@ -45,7 +46,7 @@ def api_create_draft(
     report_date: str | None = Query(None, description="DD-MM-YYYY, mặc định hôm qua"),
     crawl: bool = Query(True, description="Chạy crawler để lấy giá thật?"),
 ):
-    """Tạo draft bản tin mới — quét giá từ crawlers + fill sample data."""
+    """Tạo draft bản tin mới — đọc giá thật từ DB (KHÔNG còn số liệu mẫu)."""
     rdate = _parse_date(report_date)
     return create_draft(rdate, use_crawlers=crawl)
 
@@ -94,19 +95,34 @@ def api_generate_pptx(
     )
 
 
+@router.post("/generate-pdf")
+def api_generate_pdf(
+    report_date: str | None = Query(None, description="DD-MM-YYYY"),
+):
+    """Xuất PDF từ draft (HTML → Chromium: trang đầu/cuối + header/footer + nhảy trang)."""
+    rdate = _parse_date(report_date)
+    path = generate_pdf_from_draft(rdate)
+    if not path:
+        raise HTTPException(404, "Không thể tạo PDF. Kiểm tra draft và cấu hình render.")
+    return FileResponse(str(path), media_type="application/pdf", filename=path.name)
+
+
 # ── Published bulletins (đã xuất) ──
 
 
 @router.get("/published")
 def api_list_published():
-    """Liệt kê các bản tin đã xuất (file PPTX trong data/bulletins/), mới nhất trước."""
+    """Liệt kê các bản tin đã xuất (PPTX/PDF trong data/bulletins/), mới nhất trước."""
     items: list[dict] = []
     if _OUTPUT_DIR.exists():
-        for p in sorted(_OUTPUT_DIR.glob("Ban-tin-ngay-*.pptx"), reverse=True):
+        files = (list(_OUTPUT_DIR.glob("Ban-tin-ngay-*.pptx"))
+                 + list(_OUTPUT_DIR.glob("Ban-tin-ngay-*.pdf")))
+        for p in sorted(files, key=lambda x: (x.stem, x.suffix), reverse=True):
             st = p.stat()
             items.append({
                 "filename": p.name,
                 "report_date": _date_from_filename(p.name),
+                "format": p.suffix.lstrip(".").upper(),
                 "size": st.st_size,
                 "modified": datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
                 "download_url": f"/api/bulletins/published/{p.name}",
@@ -116,31 +132,31 @@ def api_list_published():
 
 @router.get("/published/{filename}")
 def api_download_published(filename: str):
-    """Tải 1 bản tin đã xuất. Chỉ cho .pptx trong data/bulletins/ (chặn path traversal)."""
+    """Tải 1 bản tin đã xuất (.pptx/.pdf) trong data/bulletins/ (chặn path traversal)."""
     safe = Path(filename).name
-    if not safe.endswith(".pptx"):
-        raise HTTPException(400, "Chỉ tải được file .pptx")
+    if not (safe.endswith(".pptx") or safe.endswith(".pdf")):
+        raise HTTPException(400, "Chỉ tải được file .pptx hoặc .pdf")
     path = _OUTPUT_DIR / safe
     if not path.exists():
         raise HTTPException(404, f"Không tìm thấy bản tin '{safe}'")
-    return FileResponse(
-        str(path),
-        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        filename=safe,
+    media = (
+        "application/pdf" if safe.endswith(".pdf")
+        else "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     )
+    return FileResponse(str(path), media_type=media, filename=safe)
 
 
 @router.get("/published/{filename}/detail", response_model=BulletinDraft)
 def api_published_detail(filename: str):
     """Chi tiết 1 bản tin đã xuất: ưu tiên snapshot JSON, nếu chưa có thì dựng lại từ DB."""
     safe = Path(filename).name
-    if not safe.endswith(".pptx"):
+    if not (safe.endswith(".pptx") or safe.endswith(".pdf")):
         raise HTTPException(400, "Tên file không hợp lệ")
-    pptx = _OUTPUT_DIR / safe
-    if not pptx.exists():
+    fpath = _OUTPUT_DIR / safe
+    if not fpath.exists():
         raise HTTPException(404, f"Không tìm thấy bản tin '{safe}'")
 
-    sidecar = pptx.with_suffix(".json")
+    sidecar = fpath.with_suffix(".json")
     if sidecar.exists():
         return BulletinDraft.model_validate_json(sidecar.read_text(encoding="utf-8"))
 
