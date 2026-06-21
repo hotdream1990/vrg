@@ -45,6 +45,16 @@ export const nav: { section: string; items: NavItem[] }[] = [
     ],
   },
   {
+    section: "Quản lý số liệu",
+    items: [
+      { icon: "▦", label: "Bảng tính giá các sàn", to: "/quan-ly-so-lieu/bang-gia-san" },
+      { icon: "⇄", label: "Tỷ giá", to: "/quan-ly-so-lieu/ty-gia" },
+      { icon: "⊜", label: "Giá sàn Tập đoàn", to: "/quan-ly-so-lieu/gia-san-tap-doan" },
+      { icon: "🪣", label: "Giá mủ nguyên liệu", to: "/quan-ly-so-lieu/gia-mu-nguyen-lieu" },
+      { icon: "🏢", label: "Đơn vị thành viên", to: "/quan-ly-so-lieu/don-vi-thanh-vien" },
+    ],
+  },
+  {
     section: "Quản trị",
     items: [
       { icon: "⌖", label: "Phân quyền RBAC", to: "/" },

@@ -1,0 +1,173 @@
+import { useCallback, useEffect, useState } from "react";
+
+import {
+  type FloorItem,
+  type FloorSchedule,
+  type FloorSummary,
+  createFloor,
+  deleteFloor,
+  getFloor,
+  listFloors,
+  nextFloorMeta,
+  updateFloor,
+} from "../../../lib/floor-client";
+import DateRangeBar from "../sections/DateRangeBar";
+import "../../bulletin/bulletin.css";
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const fmt = (v: number | null) => (v != null ? v.toLocaleString("vi-VN") : "");
+const num = (s: string): number | null => {
+  const n = Number(s.replace(/[.,\s]/g, ""));
+  return s.trim() && !isNaN(n) ? n : null;
+};
+/** Dựng items đủ chủng loại (grade thiếu → null) để form luôn hiện đủ dòng. */
+const fill = (grades: string[], items: FloorItem[]): FloorItem[] => {
+  const m = new Map(items.map((it) => [it.grade, it]));
+  return grades.map((g) => m.get(g) ?? { grade: g, fob_usd: null, domestic_vnd: null });
+};
+
+/** Quản lý số liệu → Giá sàn Tập đoàn: biểu giá theo "lần" (số tự nhảy), nhập tay. */
+export default function VrgFloorPage() {
+  const [list, setList] = useState<FloorSummary[]>([]);
+  const [grades, setGrades] = useState<string[]>([]);
+  const [nextLan, setNextLan] = useState(1);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [draft, setDraft] = useState<FloorSchedule | null>(null);
+  const [isNew, setIsNew] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const loadList = useCallback(() => {
+    listFloors(from || undefined, to || undefined).then(setList).catch((e) => setErr(e.message));
+  }, [from, to]);
+
+  useEffect(() => { loadList(); }, [loadList]);
+  useEffect(() => {
+    nextFloorMeta().then((m) => { setGrades(m.grades); setNextLan(m.next_lan); }).catch(() => {});
+  }, [list]);
+
+  const openEdition = async (lan: number) => {
+    setErr("");
+    try {
+      const sch = await getFloor(lan);
+      setDraft({ ...sch, items: fill(grades, sch.items) });
+      setIsNew(false);
+    } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
+  };
+
+  const startNew = () => {
+    setDraft({ lan: nextLan, as_of: todayISO(), items: fill(grades, []) });
+    setIsNew(true);
+    setErr("");
+  };
+
+  const setCell = (idx: number, field: "fob_usd" | "domestic_vnd", v: string) => {
+    if (!draft) return;
+    const items = [...draft.items];
+    items[idx] = { ...items[idx], [field]: num(v) };
+    setDraft({ ...draft, items });
+  };
+
+  const save = async () => {
+    if (!draft) return;
+    setBusy(true); setErr("");
+    try {
+      const saved = isNew
+        ? await createFloor(draft.as_of, draft.items)
+        : await updateFloor(draft.lan, draft.as_of, draft.items);
+      setDraft({ ...saved, items: fill(grades, saved.items) });
+      setIsNew(false);
+      loadList();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi lưu"); }
+    finally { setBusy(false); }
+  };
+
+  const remove = async () => {
+    if (!draft || isNew) return;
+    if (!confirm(`Xoá biểu giá lần ${draft.lan} (${draft.as_of})?`)) return;
+    setBusy(true);
+    try { await deleteFloor(draft.lan); setDraft(null); loadList(); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Lỗi xoá"); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="main">
+      <div className="page-title">
+        <div>
+          <h2>⊜ Giá sàn Tập đoàn</h2>
+          <p>Biểu giá theo "lần" (FOB USD/T + Nội địa VNĐ/T) — nhập tay, số lần tự nhảy. Bản tin ngày tự lấy 2 lần mới nhất.</p>
+        </div>
+        <div className="actions">
+          <button className="btn btn-primary" onClick={startNew}>＋ Tạo biểu giá mới (lần {nextLan})</button>
+        </div>
+      </div>
+
+      <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo}
+        info={`${list.length} biểu giá`} />
+
+      {err && <div className="blt-error">{err}</div>}
+
+      {/* Danh sách các lần */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-head"><div><h3>Các lần đã có</h3></div></div>
+        {list.length === 0 ? (
+          <div className="scan-empty">Chưa có biểu giá nào — bấm "Tạo biểu giá mới".</div>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {list.map((s) => (
+              <button key={s.lan} className={`btn${draft?.lan === s.lan && !isNew ? " btn-primary" : ""}`}
+                onClick={() => openEdition(s.lan)}>
+                Lần {s.lan} · {s.as_of} <span style={{ opacity: 0.7 }}>({s.grades} chủng loại)</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Editor 1 biểu giá */}
+      {draft && (
+        <div className="card blt-section blt-editable">
+          <div className="blt-section-header">
+            <h3>{isNew ? `Biểu giá mới — lần ${draft.lan}` : `Sửa biểu giá — lần ${draft.lan}`}</h3>
+            <div className="blt-section-meta" style={{ alignItems: "center" }}>
+              <label className="blt-date-label">Ngày áp dụng:
+                <input type="date" className="blt-date-input" value={draft.as_of}
+                  onChange={(e) => setDraft({ ...draft, as_of: e.target.value })} />
+              </label>
+              <button className="btn btn-primary" onClick={save} disabled={busy}>
+                {busy ? <span className="spinner" /> : null} Lưu biểu giá
+              </button>
+              {!isNew && <button className="btn" onClick={remove} disabled={busy}>Xoá</button>}
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Chủng loại</th>
+                <th className="r">Giá XK FOB/FCA (USD/T)</th>
+                <th className="r">Giá nội địa (VNĐ/T)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {draft.items.map((it, i) => (
+                <tr key={it.grade}>
+                  <td>{it.grade}</td>
+                  <td className="r">
+                    <input type="text" className="blt-cell-input" value={fmt(it.fob_usd)}
+                      onChange={(e) => setCell(i, "fob_usd", e.target.value)} placeholder="—" />
+                  </td>
+                  <td className="r">
+                    <input type="text" className="blt-cell-input" value={fmt(it.domestic_vnd)}
+                      onChange={(e) => setCell(i, "domestic_vnd", e.target.value)} placeholder="—" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -12,7 +12,6 @@ export type WorldPriceItem = {
   price_curr: number | null;
   change_abs: number | null;
   change_pct: number | null;
-  is_fake: boolean;
 };
 
 export type PhysicalPriceItem = {
@@ -21,25 +20,24 @@ export type PhysicalPriceItem = {
   price_curr: number | null;
   change_abs: number | null;
   change_pct: number | null;
-  is_fake: boolean;
 };
 
 export type VrgFloorItem = {
   grade: string;
   fob_usd: number | null;
   domestic_vnd: number | null;
-  is_fake: boolean;
 };
 
 export type RawMaterialRegion = {
-  region: string;
-  price_text: string;
-  is_fake: boolean;
+  region: string;            // tên công ty thành viên VRG
+  price: number | null;      // đồng/độ TSC
+  unit?: string;
+  price_text: string;        // số đã format (không kèm đơn vị)
 };
 
 export type SectionStatus = {
   section: string;
-  source: "db" | "sample" | "manual";
+  source: "db" | "manual" | "empty";
   description: string;
 };
 
@@ -92,7 +90,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** Tạo draft mới (quét crawler + fill sample). */
+/** Tạo draft mới (đọc giá thật từ DB). */
 export const createDraft = (dateStr?: string, crawl = true) => {
   const params = new URLSearchParams();
   if (dateStr) params.set("report_date", dateStr);
@@ -118,33 +116,42 @@ export const updateDraft = (updates: BulletinDraftUpdate, dateStr?: string) => {
   });
 };
 
-/** Xuất PPTX → tải về. */
-export const generatePptx = async (dateStr?: string): Promise<void> => {
-  const params = new URLSearchParams();
-  if (dateStr) params.set("report_date", dateStr);
+/** POST endpoint trả file → tải về trình duyệt. */
+async function downloadBlob(path: string, filename: string): Promise<void> {
   let res: Response;
   try {
-    res = await fetch(`${API}/api/bulletins/generate?${params}`, { method: "POST" });
+    res = await fetch(`${API}${path}`, { method: "POST" });
   } catch {
     throw new Error("Không kết nối được API. Kiểm tra API đang chạy ở " + API);
   }
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
-    try {
-      const body = await res.json();
-      detail = body.detail || detail;
-    } catch { /* ignore parse error */ }
+    try { const body = await res.json(); detail = body.detail || detail; } catch { /* ignore */ }
     throw new Error(detail);
   }
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `Ban-tin-ngay-${dateStr || "latest"}.pptx`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/** Xuất PPTX → tải về. */
+export const generatePptx = (dateStr?: string) => {
+  const p = new URLSearchParams();
+  if (dateStr) p.set("report_date", dateStr);
+  return downloadBlob(`/api/bulletins/generate?${p}`, `Ban-tin-ngay-${dateStr || "latest"}.pptx`);
+};
+
+/** Xuất PDF (có trang đầu/cuối + header/footer + nhảy trang) → tải về. */
+export const generatePdf = (dateStr?: string) => {
+  const p = new URLSearchParams();
+  if (dateStr) p.set("report_date", dateStr);
+  return downloadBlob(`/api/bulletins/generate-pdf?${p}`, `Ban-tin-ngay-${dateStr || "latest"}.pdf`);
 };
 
 // ── Published bulletins (đã xuất) ──

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import {
   type LatestRow,
@@ -8,6 +9,7 @@ import {
   fetchLatest,
   scanPrices,
 } from "../../../lib/api-client";
+import ExchangeBoard from "../sections/ExchangeBoard";
 import LiveCharts from "../sections/LiveCharts";
 import LiveKpis from "../sections/LiveKpis";
 import LiveScanTable from "../sections/LiveScanTable";
@@ -29,6 +31,7 @@ export default function ScanPage() {
   const [tsr20, setTsr20] = useState<Point[]>([]);
   const [fxCny, setFxCny] = useState<Point[]>([]);
   const [scanInfo, setScanInfo] = useState<ScanResult | null>(null);
+  const [boardKey, setBoardKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +63,7 @@ export default function ScanPage() {
     try {
       setScanInfo(await scanPrices("all"));
       await loadLatest();
+      setBoardKey((k) => k + 1);
     } catch (e) {
       fail(e);
     } finally {
@@ -75,6 +79,7 @@ export default function ScanPage() {
       await backfillPrices("tocom", 30);
       await backfillPrices("fx", 120);
       await loadHistories();
+      setBoardKey((k) => k + 1);
     } catch (e) {
       fail(e);
     } finally {
@@ -102,6 +107,7 @@ export default function ScanPage() {
           <p>Giá thật 6 nguồn + lịch sử settlement/tỷ giá backfill từ sàn (SHFE · OSE · ECB) · ghi TimescaleDB.</p>
         </div>
         <div className="actions">
+          <Link className="btn" to="/quan-ly-so-lieu/bang-gia-san">⊟ Quản lý số liệu</Link>
           <button className="btn" onClick={backfill} disabled={backfilling || loading}>
             {backfilling ? <><span className="spinner" /> Đang nạp…</> : "↻ Nạp lịch sử"}
           </button>
@@ -114,6 +120,8 @@ export default function ScanPage() {
       {error && <div className="scan-err" style={{ marginBottom: 12 }}>Lỗi: {error} — kiểm tra API (8390) &amp; DB.</div>}
 
       <LiveKpis latest={latest} deltas={deltas} />
+
+      <ExchangeBoard reloadKey={boardKey} />
 
       <LiveCharts
         shfe={shfe}

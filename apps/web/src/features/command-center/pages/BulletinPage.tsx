@@ -1,13 +1,10 @@
 import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 
-import type {
-  BulletinDraft,
-  RawMaterialRegion,
-  VrgFloorItem,
-} from "../../../lib/bulletin-client";
+import type { BulletinDraft } from "../../../lib/bulletin-client";
 import {
   createDraft,
+  generatePdf,
   generatePptx,
   updateDraft,
 } from "../../../lib/bulletin-client";
@@ -75,6 +72,7 @@ export default function BulletinPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [dateInput, setDateInput] = useState(() => {
@@ -110,11 +108,6 @@ export default function BulletinPage() {
     try {
       const updated = await updateDraft(
         {
-          vrg_floor_prev_label: draft.vrg_floor_prev_label,
-          vrg_floor_curr_label: draft.vrg_floor_curr_label,
-          vrg_floor_prev: draft.vrg_floor_prev,
-          vrg_floor_curr: draft.vrg_floor_curr,
-          raw_materials: draft.raw_materials,
           exchange_summary: draft.exchange_summary,
           physical_summary: draft.physical_summary,
           market_analysis: draft.market_analysis,
@@ -142,29 +135,22 @@ export default function BulletinPage() {
     }
   };
 
+  const handleExportPdf = async () => {
+    setExportingPdf(true);
+    setError(null);
+    try {
+      await generatePdf(dateStr());
+    } catch (e: any) {
+      setError(`Xuất PDF thất bại: ${e.message}`);
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   /* ── Inline edit helpers ── */
 
   const updateField = <K extends keyof BulletinDraft>(key: K, val: BulletinDraft[K]) =>
     setDraft((prev) => (prev ? { ...prev, [key]: val } : prev));
-
-  const updateFloorItem = (
-    which: "vrg_floor_prev" | "vrg_floor_curr",
-    idx: number,
-    field: keyof VrgFloorItem,
-    val: string
-  ) => {
-    if (!draft) return;
-    const items = [...draft[which]];
-    items[idx] = { ...items[idx], [field]: val ? parseInt(val.replace(/,/g, ""), 10) : null };
-    updateField(which, items);
-  };
-
-  const updateRawMaterial = (idx: number, field: keyof RawMaterialRegion, val: string) => {
-    if (!draft) return;
-    const items = [...draft.raw_materials];
-    items[idx] = { ...items[idx], [field]: val };
-    updateField("raw_materials", items);
-  };
 
   const updateAnalysis = (idx: number, val: string) => {
     if (!draft) return;
@@ -200,7 +186,10 @@ export default function BulletinPage() {
               <button className="btn" onClick={handleSave} disabled={saving}>
                 {saving ? <span className="spinner" /> : <IconSave />} Lưu
               </button>
-              <button className="btn btn-primary" onClick={handleExport} disabled={exporting}>
+              <button className="btn btn-primary" onClick={handleExportPdf} disabled={exportingPdf}>
+                {exportingPdf ? <span className="spinner" /> : <IconDownload />} Xuất PDF
+              </button>
+              <button className="btn" onClick={handleExport} disabled={exporting}>
                 {exporting ? <span className="spinner" /> : <IconDownload />} Xuất PPTX
               </button>
             </>
@@ -292,6 +281,10 @@ export default function BulletinPage() {
                 ) : (
                   <span className="chip warn"><IconAlertTriangle /> Chưa có dữ liệu</span>
                 )}
+                <Link className="chip" style={{ textDecoration: "none" }}
+                  to="/quan-ly-so-lieu/bang-gia-san">
+                  ↗ Bảng tính giá
+                </Link>
               </div>
             </div>
             <table>
@@ -308,7 +301,7 @@ export default function BulletinPage() {
               </thead>
               <tbody>
                 {draft.world_prices.map((w, i) => (
-                  <tr key={i} className={w.is_fake ? "blt-fake-row" : ""}>
+                  <tr key={i}>
                     <td>{w.exchange}</td>
                     <td>{w.grade}</td>
                     <td>{w.unit}</td>
@@ -332,6 +325,10 @@ export default function BulletinPage() {
                 ) : (
                   <span className="chip warn"><IconAlertTriangle /> Chưa có dữ liệu</span>
                 )}
+                <Link className="chip" style={{ textDecoration: "none" }}
+                  to="/quan-ly-so-lieu/bang-gia-san">
+                  ↗ Bảng tính giá
+                </Link>
               </div>
             </div>
             <table>
@@ -346,7 +343,7 @@ export default function BulletinPage() {
               </thead>
               <tbody>
                 {draft.physical_prices.map((p, i) => (
-                  <tr key={i} className={p.is_fake ? "blt-fake-row" : ""}>
+                  <tr key={i}>
                     <td>{p.grade}</td>
                     <td className="r">{fmt(p.price_prev)}</td>
                     <td className="r">{fmt(p.price_curr)}</td>
@@ -358,116 +355,81 @@ export default function BulletinPage() {
             </table>
           </div>
 
-          {/* ═══ Section III: Giá trong nước (EDITABLE) ═══ */}
-          <div className="card blt-section blt-editable">
+          {/* ═══ Section III: Giá sàn VRG (READ-ONLY — từ Giá sàn Tập đoàn) ═══ */}
+          <div className="card blt-section">
             <div className="blt-section-header">
               <h3>III. Giá trong nước — Giá sàn VRG</h3>
               <div className="blt-section-meta">
-                <span className="chip info"><IconEdit /> Chỉnh sửa được</span>
+                {draft.vrg_floor_curr.some((x) => x.fob_usd != null || x.domestic_vnd != null) ? (
+                  <span className="chip"><IconCheck /> Từ biểu giá Tập đoàn</span>
+                ) : (
+                  <span className="chip warn"><IconAlertTriangle /> Chưa có biểu giá</span>
+                )}
+                <Link className="chip" style={{ textDecoration: "none" }}
+                  to="/quan-ly-so-lieu/gia-san-tap-doan">
+                  ↗ Quản lý Giá sàn Tập đoàn
+                </Link>
               </div>
             </div>
-
-            <div className="blt-floor-labels">
-              <label>
-                Label cột trước:
-                <input
-                  type="text"
-                  className="blt-input"
-                  value={draft.vrg_floor_prev_label}
-                  onChange={(e) => updateField("vrg_floor_prev_label", e.target.value)}
-                />
-              </label>
-              <label>
-                Label cột mới:
-                <input
-                  type="text"
-                  className="blt-input"
-                  value={draft.vrg_floor_curr_label}
-                  onChange={(e) => updateField("vrg_floor_curr_label", e.target.value)}
-                />
-              </label>
-            </div>
-
             <table>
               <thead>
                 <tr>
                   <th>Chủng loại</th>
-                  <th className="r">FOB (USD) — Trước</th>
-                  <th className="r">Nội địa (VNĐ) — Trước</th>
-                  <th className="r">FOB (USD) — Mới</th>
-                  <th className="r">Nội địa (VNĐ) — Mới</th>
+                  <th className="r">FOB (USD) — {draft.vrg_floor_prev_label?.replace(/\n/g, " ")}</th>
+                  <th className="r">Nội địa (VNĐ) — {draft.vrg_floor_prev_label?.replace(/\n/g, " ")}</th>
+                  <th className="r">FOB (USD) — {draft.vrg_floor_curr_label?.replace(/\n/g, " ")}</th>
+                  <th className="r">Nội địa (VNĐ) — {draft.vrg_floor_curr_label?.replace(/\n/g, " ")}</th>
                 </tr>
               </thead>
               <tbody>
                 {draft.vrg_floor_curr.map((item, i) => (
                   <tr key={i}>
                     <td>{item.grade}</td>
-                    <td className="r">
-                      <input
-                        type="text"
-                        className="blt-cell-input"
-                        value={draft.vrg_floor_prev[i]?.fob_usd?.toLocaleString() ?? ""}
-                        onChange={(e) => updateFloorItem("vrg_floor_prev", i, "fob_usd", e.target.value)}
-                      />
-                    </td>
-                    <td className="r">
-                      <input
-                        type="text"
-                        className="blt-cell-input"
-                        value={draft.vrg_floor_prev[i]?.domestic_vnd?.toLocaleString() ?? ""}
-                        onChange={(e) => updateFloorItem("vrg_floor_prev", i, "domestic_vnd", e.target.value)}
-                      />
-                    </td>
-                    <td className="r">
-                      <input
-                        type="text"
-                        className="blt-cell-input"
-                        value={item.fob_usd?.toLocaleString() ?? ""}
-                        onChange={(e) => updateFloorItem("vrg_floor_curr", i, "fob_usd", e.target.value)}
-                      />
-                    </td>
-                    <td className="r">
-                      <input
-                        type="text"
-                        className="blt-cell-input"
-                        value={item.domestic_vnd?.toLocaleString() ?? ""}
-                        onChange={(e) => updateFloorItem("vrg_floor_curr", i, "domestic_vnd", e.target.value)}
-                      />
-                    </td>
+                    <td className="r">{fmt(draft.vrg_floor_prev[i]?.fob_usd ?? null)}</td>
+                    <td className="r">{fmt(draft.vrg_floor_prev[i]?.domestic_vnd ?? null)}</td>
+                    <td className="r">{fmt(item.fob_usd)}</td>
+                    <td className="r">{fmt(item.domestic_vnd)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* ═══ Section III.2: Giá mủ nguyên liệu (EDITABLE) ═══ */}
-          <div className="card blt-section blt-editable">
+          {/* ═══ Section III.2: Giá mủ nguyên liệu (READ-ONLY — từ Quản lý số liệu) ═══ */}
+          <div className="card blt-section">
             <div className="blt-section-header">
-              <h3>III.2 Giá mủ nguyên liệu</h3>
+              <h3>III.2 Giá mủ nguyên liệu (giá thu mua mủ nước)</h3>
               <div className="blt-section-meta">
-                <span className="chip info"><IconEdit /> Chỉnh sửa được</span>
+                {draft.raw_materials.some((rm) => rm.price != null) ? (
+                  <span className="chip"><IconCheck /> Từ kho giá (source=vrg)</span>
+                ) : (
+                  <span className="chip warn"><IconAlertTriangle /> Chưa có giá thu mua</span>
+                )}
+                <Link className="chip" style={{ textDecoration: "none" }}
+                  to="/quan-ly-so-lieu/gia-mu-nguyen-lieu">
+                  ↗ Quản lý Giá mủ nguyên liệu
+                </Link>
               </div>
             </div>
-            <div className="blt-raw-materials">
-              {draft.raw_materials.map((rm, i) => (
-                <div key={i} className="blt-rm-row">
-                  <input
-                    type="text"
-                    className="blt-input blt-rm-region"
-                    value={rm.region}
-                    onChange={(e) => updateRawMaterial(i, "region", e.target.value)}
-                    placeholder="Khu vực"
-                  />
-                  <input
-                    type="text"
-                    className="blt-input blt-rm-price"
-                    value={rm.price_text}
-                    onChange={(e) => updateRawMaterial(i, "price_text", e.target.value)}
-                    placeholder="Giá (đ/độ TSC)"
-                  />
-                </div>
-              ))}
-            </div>
+            <p style={{ color: "var(--muted)", fontSize: 12, margin: "0 0 8px" }}>
+              Đơn vị: <b>đồng/độ TSC</b>. Tự lấy giá mới nhất ≤ ngày báo cáo của mỗi công ty.
+            </p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Công ty</th>
+                  <th className="r">Giá thu mua (đồng/độ TSC)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {draft.raw_materials.map((rm, i) => (
+                  <tr key={i}>
+                    <td>{rm.region}</td>
+                    <td className="r">{rm.price != null ? rm.price.toLocaleString("vi-VN") : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           {/* ═══ Section IV: Phân tích thị trường (EDITABLE) ═══ */}
