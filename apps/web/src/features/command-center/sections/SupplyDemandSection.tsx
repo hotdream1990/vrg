@@ -8,10 +8,10 @@ export default function SupplyDemandSection() {
       <div className="card">
         <div className="card-head">
           <div>
-            <h3>▤ Cán cân Cung – Cầu thế giới 2025–2030</h3>
+            <h3 className="title-demo">Cán cân Cung – Cầu thế giới 2025–2030</h3>
             <div className="sub">Whatnext Rubber · sản xuất vs nhu cầu vs thâm hụt (triệu tấn)</div>
           </div>
-          <span className="chip warn">Thâm hụt nới rộng</span>
+          <span className="chip demo">Dữ liệu mẫu</span>
         </div>
         <div className="chart-wrap">
           <SupplyDemandChart />
@@ -24,13 +24,13 @@ export default function SupplyDemandSection() {
 
       <div className="card">
         <div className="card-head">
-          <h3>⟳ Dự báo giá TSR20 · SGX SICOM</h3>
-          <span className="chip">USD/tấn</span>
+          <h3 className="title-demo">Dự báo giá TSR20 · SGX SICOM</h3>
+          <span className="chip demo">Dữ liệu mẫu</span>
         </div>
         <div style={{ display: "grid", gap: 10 }}>
           <YearCard year="Năm 2025" range={tsr20.y2025} color="#38bdf8" />
           <YearCard year="Năm 2026" range={tsr20.y2026} color="#22c55e" />
-          <div style={{ padding: "11px 13px", background: "#16a34a15", borderRadius: 9, border: "1px dashed #16a34a55", fontSize: 12, color: "#cbd5e1" }}>
+          <div style={{ padding: "11px 13px", background: "#16a34a15", borderRadius: 9, border: "1px dashed #16a34a55", fontSize: 12, color: "#475569" }}>
             {tsr20.note}
           </div>
         </div>
@@ -41,7 +41,7 @@ export default function SupplyDemandSection() {
 
 function YearCard({ year, range, color }: { year: string; range: string; color: string }) {
   return (
-    <div style={{ padding: 12, background: "#0d1428", borderRadius: 9, borderLeft: `3px solid ${color}` }}>
+    <div style={{ padding: 12, background: "var(--panel-2)", borderRadius: 9, borderLeft: `3px solid ${color}` }}>
       <div style={{ fontSize: 12, color: "var(--muted)" }}>{year}</div>
       <div style={{ fontSize: 22, fontWeight: 700 }}>
         {range} <span style={{ fontSize: 12, color: "var(--muted)" }}>USD/tấn</span>

@@ -1,27 +1,27 @@
 import { alerts } from "../../../data/sample-data";
-import PriceLineChart from "../charts/PriceLineChart";
+import LiveConvergenceChart from "../charts/LiveConvergenceChart";
 
-/** Hội tụ 4 sàn: biểu đồ 30 ngày (trái) + cảnh báo thông minh (phải). */
+/** Hội tụ sàn: biểu đồ giá thật 30 ngày (trái) + cảnh báo thông minh — dữ liệu mẫu (phải). */
 export default function ConvergenceAndAlerts() {
   return (
     <div className="grid" id="sec-hoitu">
       <div className="card">
         <div className="card-head">
           <div>
-            <h3>Diễn biến giá 4 sàn quốc tế · 30 ngày gần nhất</h3>
-            <div className="sub">TOCOM (OSE) · SHANGHAI · SGX · MRE · USD/tấn</div>
+            <h3>Diễn biến giá các sàn quốc tế · 30 ngày gần nhất</h3>
+            <div className="sub">OSE · SHANGHAI · MRB (USD/tấn, đã quy đổi) — SGX chưa có nguồn</div>
           </div>
-          <span className="chip">Auto-refresh 60s</span>
+          <span className="chip">Dữ liệu thật</span>
         </div>
         <div className="chart-wrap">
-          <PriceLineChart />
+          <LiveConvergenceChart />
         </div>
       </div>
 
       <div className="card">
         <div className="card-head">
-          <h3>⚠ Cảnh báo thông minh</h3>
-          <span className="chip warn">3 mới</span>
+          <h3 className="title-demo">Cảnh báo thông minh</h3>
+          <span className="chip demo">Dữ liệu mẫu</span>
         </div>
         {alerts.map((a) => (
           <div className={`alert ${a.kind}`} key={a.title}>

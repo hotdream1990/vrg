@@ -6,8 +6,8 @@ export default function ArchitectureAndWorkflow() {
     <div className="grid-2">
       <div className="card">
         <div className="card-head">
-          <h3>⌬ Kiến trúc 5 Lớp Lọc · Hybrid AI</h3>
-          <span className="chip">On-premise</span>
+          <h3 className="title-demo">Kiến trúc 5 Lớp Lọc · Hybrid AI</h3>
+          <span className="chip demo">Minh hoạ</span>
         </div>
         <div className="layers">
           {layers.map((l) => (
@@ -22,12 +22,12 @@ export default function ArchitectureAndWorkflow() {
 
       <div className="card">
         <div className="card-head">
-          <h3>⌥ Quy trình Hiệp đồng AI – Chuyên gia – Lãnh đạo</h3>
-          <span className="chip info">3 bước</span>
+          <h3 className="title-demo">Quy trình Hiệp đồng AI – Chuyên gia – Lãnh đạo</h3>
+          <span className="chip demo">Minh hoạ</span>
         </div>
         <div style={{ display: "grid", gap: 10 }}>
           {workflow.map((w) => (
-            <div key={w.step} style={{ display: "grid", gridTemplateColumns: "48px 1fr", gap: 12, padding: 12, background: "#0d1428", borderRadius: 8, borderLeft: `3px solid ${w.color}` }}>
+            <div key={w.step} style={{ display: "grid", gridTemplateColumns: "48px 1fr", gap: 12, padding: 12, background: "var(--panel-2)", borderRadius: 8, borderLeft: `3px solid ${w.color}` }}>
               <div style={{ width: 36, height: 36, borderRadius: "50%", background: `${w.color}22`, color: w.color, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>
                 {w.step}
               </div>

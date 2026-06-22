@@ -28,4 +28,5 @@ ChartJS.register(
   Title,
 );
 
-export const AXIS = { tick: "#6b7c9c", grid: "#1f2c4a", legend: "#cbd5e1" } as const;
+// Màu trục/chú thích cho nền SÁNG (xanh-trắng VRG).
+export const AXIS = { tick: "#5f6f67", grid: "#e3e9e4", legend: "#16241d" } as const;

@@ -1,3 +1,4 @@
+import { ReloadOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -27,12 +28,10 @@ export default function DashboardPage() {
       <div className="page-title" id="top">
         <div>
           <h2>{pageTitle.h2}</h2>
-          <p>{pageTitle.p}</p>
+          <p>Thẻ KPI &amp; biểu đồ giá dùng <b>dữ liệu thật</b> từ kho giá; mục đánh dấu <span style={{ color: "#e07b16", fontWeight: 600 }}>màu cam</span> là dữ liệu mẫu (chờ tích hợp).</p>
         </div>
         <div className="actions">
-          <button className="btn">⟳ Cập nhật</button>
-          <button className="btn">⎙ Xuất báo cáo</button>
-          <button className="btn btn-primary">＋ Tạo cảnh báo</button>
+          <button className="btn" onClick={() => window.location.reload()}><ReloadOutlined /> Cập nhật</button>
         </div>
       </div>
 

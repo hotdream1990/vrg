@@ -5,8 +5,8 @@ export default function RagChat() {
   return (
     <div className="card" style={{ marginBottom: 18 }} id="sec-rag">
       <div className="card-head">
-        <h3>⌬ Private RAG · Hỏi đáp tài liệu nội bộ bằng tiếng Việt</h3>
-        <span className="chip">100% On-premise · AES-256</span>
+        <h3 className="title-demo">Private RAG · Hỏi đáp tài liệu nội bộ bằng tiếng Việt</h3>
+        <span className="chip demo">Dữ liệu mẫu</span>
       </div>
       <div className="chatbox">
         {ragMessages.map((m, i) => (

@@ -7,8 +7,8 @@ export default function ScenarioAndForecast() {
     <div className="grid-2" id="sec-kichban">
       <div className="card">
         <div className="card-head">
-          <h3>⌖ Ma trận Kịch bản Chiến lược · Tuần 21/2026</h3>
-          <span className="chip">AI đề xuất</span>
+          <h3 className="title-demo">Ma trận Kịch bản Chiến lược · Tuần 21/2026</h3>
+          <span className="chip demo">Dữ liệu mẫu</span>
         </div>
         <div className="scenario">
           {scenarios.map((s) => (
@@ -27,15 +27,15 @@ export default function ScenarioAndForecast() {
 
       <div className="card">
         <div className="card-head">
-          <h3>⧗ Dự báo Đa khung thời gian</h3>
-          <span className="chip info">Rolling Forecast</span>
+          <h3 className="title-demo">Dự báo Đa khung thời gian</h3>
+          <span className="chip demo">Dữ liệu mẫu</span>
         </div>
         <div className="chart-wrap">
           <ForecastChart />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginTop: 10, fontSize: 12 }}>
           {forecastFrames.map((f) => (
-            <div key={f.title} style={{ padding: 8, background: "#0d1428", borderRadius: 8, borderLeft: `3px solid ${f.color}` }}>
+            <div key={f.title} style={{ padding: 8, background: "var(--panel-2)", borderRadius: 8, borderLeft: `3px solid ${f.color}` }}>
               <b>{f.title}</b>
               <br />
               <span style={{ color: "var(--muted)" }}>{f.desc}</span>
