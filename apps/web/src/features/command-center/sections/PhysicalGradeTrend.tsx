@@ -45,7 +45,7 @@ export default function PhysicalGradeTrend({ rows }: { rows: Row[] }) {
         ) : (
           <div className="scan-empty">
             {cur ? (
-              <>Hiện <b style={{ color: "#86efac" }}>{cur.price.toLocaleString()} {cur.unit}</b> · đang tích lũy lịch sử ({points.length} phiên) — chart đầy dần mỗi ngày scan.</>
+              <>Hiện <b style={{ color: "#0b7a3b" }}>{cur.price.toLocaleString()} {cur.unit}</b> · đang tích lũy lịch sử ({points.length} phiên) — chart đầy dần mỗi ngày scan.</>
             ) : (
               "Chưa có data physical"
             )}
