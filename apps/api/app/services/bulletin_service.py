@@ -55,13 +55,15 @@ def _build_raw_materials(report_date: date) -> tuple[list[RawMaterialRegion], st
     except Exception as exc:  # noqa: BLE001 - DB down → để trống, admin nhập tay
         print(f"[bulletin] Không đọc được giá thu mua mủ nước: {exc}")
 
+    # CHỈ liệt kê đơn vị CÓ giá (theo thứ tự đơn vị thành viên); đơn vị trống bị bỏ qua.
     items = [
         RawMaterialRegion(
             region=co,
-            price=purchase.get(co),
-            price_text=(f"{int(round(purchase[co])):,}" if co in purchase else ""),
+            price=purchase[co],
+            price_text=f"{int(round(purchase[co])):,}",
         )
         for co in companies
+        if co in purchase
     ]
     return items, ("db" if purchase else "manual")
 
@@ -103,6 +105,54 @@ def _build_vrg_floor(report_date: date):
     # Chưa có biểu giá nào → khung trống theo chủng loại (admin nhập ở Giá sàn Tập đoàn).
     empty = [VrgFloorItem(grade=g) for g in VRG_FLOOR_GRADES]
     return None, None, [], empty, "empty"
+
+
+# Hiển thị grade trong text (LATEX → "Latex" theo template).
+_GRADE_DISP = {"LATEX": "Latex"}
+
+
+def _vn_num(v: int) -> str:
+    """Số kiểu VN: 2644 → '2.644'."""
+    return f"{v:,}".replace(",", ".")
+
+
+def _build_market_text(world_prices, physical_prices) -> tuple[list[str], str]:
+    """Sinh text Section IV: tóm tắt giá sàn (kèm tăng/giảm) + giá physical — đúng định dạng template.
+
+    Sàn 1 mặt hàng (OSE/SHANGHAI) → 'Sàn X: giao dịch ở mức V usd/tấn [tăng/giảm]'.
+    Sàn nhiều mặt hàng (SGX/MRB) → có tiền tố tên mặt hàng cho từng cái.
+    """
+    by_exc: dict[str, list] = {}
+    for wp in world_prices:
+        by_exc.setdefault(wp.exchange, []).append(wp)
+
+    # Luôn 4 slot cố định (OSE/SHANGHAI/SGX/MRB) để khớp đúng vị trí template; thiếu → "".
+    ex_lines: list[str] = []
+    for code in ("OSE", "SHANGHAI", "SGX", "MRE"):
+        rows = [r for r in by_exc.get(code, []) if r.price_curr is not None]
+        if not rows:
+            ex_lines.append("")
+            continue
+        single = len(rows) == 1
+        parts: list[str] = []
+        for r in rows:
+            chg = ""
+            if r.change_abs not in (None, 0) and r.change_pct is not None:
+                d = "tăng" if r.change_abs > 0 else "giảm"
+                pct = f"{abs(r.change_pct):.1f}".replace(".", ",")
+                chg = f" {d} {abs(int(r.change_abs)):02d} usd/tấn ({pct}%)"
+            prefix = "" if single else f"{_GRADE_DISP.get(r.grade, r.grade)} "
+            parts.append(f"{prefix}giao dịch ở mức {_vn_num(r.price_curr)} usd/tấn{chg}")
+        ex_lines.append(f"{_EXCHANGE_NAMES[code]}: {'; '.join(parts)};")
+
+    pp = [p for p in physical_prices if p.price_curr is not None]
+    physical = "; ".join(
+        f"{_GRADE_DISP.get(p.grade, p.grade)} giao dịch ở mức {_vn_num(p.price_curr)} usd/tấn"
+        for p in pp
+    )
+    if physical:
+        physical += ";"
+    return ex_lines, physical
 
 
 # ── In-memory draft store (1 draft per date, MVP) ──
@@ -237,19 +287,11 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                         for g in _CANON_PHYS
                     ]
 
-                # Auto exchange summary
-                by_exc: dict[str, list[WorldPriceItem]] = {}
-                for wp in world_prices:
-                    by_exc.setdefault(wp.exchange, []).append(wp)
-                for code, name in _EXCHANGE_NAMES.items():
-                    rows = by_exc.get(code, [])
-                    if rows:
-                        parts = [f"{r.grade} ở mức {r.price_curr:,} usd/tấn" for r in rows if r.price_curr]
-                        if parts:
-                            exchange_summary.append(f"{name}: {'; '.join(parts)};")
-
         except Exception as exc:
             print(f"[bulletin] DB read error (dùng sample data): {exc}")
+
+    # Section IV — tự sinh text tóm tắt giá sàn + physical (đúng định dạng template).
+    exchange_summary, physical_summary = _build_market_text(world_prices, physical_prices)
 
     # Giá mủ nguyên liệu (giá thu mua mủ nước) theo công ty VRG — đọc từ fact_price (source=vrg).
     raw_materials, rm_src = _build_raw_materials(report_date)
@@ -313,7 +355,7 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
         vrg_floor_curr=fl_curr,
         raw_materials=raw_materials,
         exchange_summary=exchange_summary,
-        physical_summary="",
+        physical_summary=physical_summary,
         market_analysis=[],
         source_urls=[],
         data_sources=data_sources,

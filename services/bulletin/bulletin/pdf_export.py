@@ -32,10 +32,8 @@ def generate_pdf(data: BulletinData, assets: dict[str, str], output_path: str | 
     uris = {k: v for k, v in uris.items() if v}
 
     cover = T.cover_html(data, uris)
-    content = T.content_html(data)
+    content = T.content_html(data, uris)   # header/footer xanh nướng sẵn trong từng .pg
     back = T.back_html(data, uris)
-    header = T.header_template(data, uris)
-    footer = T.footer_template(data, uris)
 
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -45,17 +43,14 @@ def generate_pdf(data: BulletinData, assets: dict[str, str], output_path: str | 
         browser = pw.chromium.launch(channel="chrome")
         page = browser.new_page()
 
-        def render(html: str, **kw) -> bytes:
+        def render(html: str) -> bytes:
             page.set_content(html, wait_until="load")
-            return page.pdf(width=T.PAGE_W, height=T.PAGE_H, print_background=True, **kw)
+            # margin 0 + không dùng header/footer Chromium (đã nướng vào .pg) → flush, full màu.
+            return page.pdf(width=T.PAGE_W, height=T.PAGE_H, print_background=True, margin=zero)
 
-        cover_pdf = render(cover, margin=zero)
-        content_pdf = render(
-            content,
-            margin={"top": "1.28in", "bottom": "0.62in", "left": "0.36in", "right": "0.36in"},
-            display_header_footer=True, header_template=header, footer_template=footer,
-        )
-        back_pdf = render(back, margin=zero)
+        cover_pdf = render(cover)
+        content_pdf = render(content)
+        back_pdf = render(back)
         browser.close()
 
     writer = PdfWriter()

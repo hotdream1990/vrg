@@ -251,8 +251,8 @@ def _update_slide3_domestic(slide, data: BulletinData) -> None:
                         _set_cell(table, row_idx, 4, _fmt_price_vnd(curr.domestic_vnd))
 
         # Fill giá mủ nguyên liệu — theo TỪNG ĐƠN VỊ thành viên (yêu cầu VRG, bỏ "khu vực").
-        # Template có ít dòng "Khu vực" → mỗi đơn vị 1 dòng; tràn slot cuối thì gộp.
-        # KHÔNG có số liệu → xoá sạch dòng mẫu (tránh để lọt giá khu vực giả của template).
+        # Mỗi đơn vị 1 DÒNG (line-break <a:br/>) gom trong ô đầu; xoá các ô "Khu vực" còn lại.
+        # KHÔNG có số liệu → '(chưa cập nhật)' (tránh để lọt giá khu vực giả của template).
         if shape.has_text_frame and shape.name == "Rectangle 10":
             unit_paras = [p for p in shape.text_frame.paragraphs
                           if p.text.strip().startswith("Khu vực")]
@@ -261,15 +261,9 @@ def _update_slide3_domestic(slide, data: BulletinData) -> None:
                     f"{co}: {txt} đồng/độ TSC"
                     for co, txt in (data.raw_material_regions or {}).items() if txt
                 ]
-                n = len(unit_paras)
-                for i, para in enumerate(unit_paras):
-                    if not lines:
-                        text = "(chưa cập nhật)" if i == 0 else ""
-                    elif i < n - 1:
-                        text = lines[i] if i < len(lines) else ""
-                    else:  # dòng cuối: gộp phần còn lại
-                        text = "; ".join(lines[i:]) if i < len(lines) else ""
-                    _set_first_run_text_para(para, text)
+                _set_para_multiline(unit_paras[0], "\n".join(lines) if lines else "(chưa cập nhật)")
+                for para in unit_paras[1:]:
+                    _set_first_run_text_para(para, "")
 
 
 # ---------------------------------------------------------------------------
@@ -321,87 +315,82 @@ def _fill_market_news_shape(shape, data: BulletinData) -> None:
         if phys_para_idx < len(paras) and data.market_physical_summary:
             _set_first_run_text_para(paras[phys_para_idx], data.market_physical_summary)
 
-    # P8+: analysis paragraphs
+    # P8+: analysis paragraphs (admin/AI nhập tay)
     analysis_start = phys_para_idx + 1 if data.market_physical_summary else phys_para_idx
     for i, text in enumerate(data.market_analysis[:2]):  # max 2 trên slide 4
         para_idx = analysis_start + 1 + i  # +1 bỏ qua header "3. Các thông tin..."
         if para_idx < len(paras):
             _set_first_run_text_para(paras[para_idx], text)
 
+    # Dọn các đoạn mẫu còn lại — tránh lọt nội dung mẫu của template (no fake data).
+    # Không có phân tích → bỏ cả header "3."; có thì giữ header + các đoạn đã fill.
+    clear_from = (analysis_start + 1 + len(data.market_analysis[:2])
+                  if data.market_analysis else analysis_start)
+    for j in range(clear_from, len(paras)):
+        _set_first_run_text_para(paras[j], "")
+
 
 def _fill_market_continuation(shape, data: BulletinData) -> None:
-    """Fill phần tiếp theo vào slide 5."""
+    """Fill phần tiếp theo vào slide 5 (phần cuối phân tích + nguồn tin)."""
     paras = shape.text_frame.paragraphs
     if len(paras) < 2:
         return
 
-    # Slide 5 thường chứa phần cuối phân tích + nguồn tin
-    remaining_analysis = data.market_analysis[2:]  # phần chưa fill ở slide 4
-    for i, text in enumerate(remaining_analysis):
-        para_idx = 1 + i
-        if para_idx < len(paras):
-            _set_first_run_text_para(paras[para_idx], text)
+    # Dọn toàn bộ nội dung mẫu (giữ P0 = header "IV...") trước khi fill — tránh lọt text mẫu.
+    for j in range(1, len(paras)):
+        _set_first_run_text_para(paras[j], "")
 
-    # Source URLs ở cuối
-    url_start = 1 + len(remaining_analysis) + 1
-    for i, url in enumerate(data.source_urls):
-        para_idx = url_start + i
-        if para_idx < len(paras):
-            _set_first_run_text_para(paras[para_idx], url)
+    idx = 1
+    for text in data.market_analysis[2:]:  # phần phân tích chưa fill ở slide 4
+        if idx < len(paras):
+            _set_first_run_text_para(paras[idx], text)
+            idx += 1
+    if data.source_urls and idx < len(paras):
+        _set_first_run_text_para(paras[idx], "Nguồn tin: " + "  ".join(data.source_urls))
 
 
 # ---------------------------------------------------------------------------
 # Helpers: cell/text manipulation (preserve formatting)
 # ---------------------------------------------------------------------------
 
-def _set_cell(table, row: int, col: int, value: str) -> None:
-    """Set cell text, giữ nguyên formatting của run đầu tiên.
-
-    Hỗ trợ '\n' → line break OoXML (thay vì \x0b bị escape).
-    """
-    cell = table.cell(row, col)
-    para = cell.text_frame.paragraphs[0]
+def _set_para_multiline(para, value: str) -> None:
+    """Set text 1 paragraph, giữ formatting run đầu. '\n' → line break OoXML <a:br/>."""
     if "\n" not in value:
-        # Simple case: no line break
         if para.runs:
             para.runs[0].text = value
             for run in para.runs[1:]:
                 run.text = ""
         else:
             para.text = value
-    else:
-        # Line break: cần tạo <a:br/> element
-        parts = value.split("\n")
-        if para.runs:
-            # Lưu format từ run đầu
-            first_run = para.runs[0]
-            rPr_src = first_run._r.find(qn("a:rPr"))
+        return
 
-            # Xóa toàn bộ run cũ + break cũ, chỉ giữ <a:pPr>
-            p_elem = para._p
-            for child in list(p_elem):
-                tag = child.tag
-                if tag.endswith("}r") or tag.endswith("}br"):
-                    p_elem.remove(child)
+    parts = value.split("\n")
+    if not para.runs:
+        para.text = parts[0]  # fallback (không có run để lấy format)
+        return
 
-            # Tạo run đầu tiên với text part[0]
-            new_first = etree.SubElement(p_elem, qn("a:r"))
-            if rPr_src is not None:
-                import copy
-                new_first.insert(0, copy.deepcopy(rPr_src))
-            t0 = etree.SubElement(new_first, qn("a:t"))
-            t0.text = parts[0]
+    import copy
 
-            # Thêm line break + run mới cho phần sau
-            for part in parts[1:]:
-                etree.SubElement(p_elem, qn("a:br"))
-                new_r = etree.SubElement(p_elem, qn("a:r"))
-                if rPr_src is not None:
-                    new_r.insert(0, copy.deepcopy(rPr_src))
-                t = etree.SubElement(new_r, qn("a:t"))
-                t.text = part
-        else:
-            para.text = parts[0]  # fallback
+    rPr_src = para.runs[0]._r.find(qn("a:rPr"))
+    p_elem = para._p
+    for child in list(p_elem):  # xoá run/break cũ, giữ <a:pPr>
+        if child.tag.endswith("}r") or child.tag.endswith("}br"):
+            p_elem.remove(child)
+    new_first = etree.SubElement(p_elem, qn("a:r"))
+    if rPr_src is not None:
+        new_first.insert(0, copy.deepcopy(rPr_src))
+    etree.SubElement(new_first, qn("a:t")).text = parts[0]
+    for part in parts[1:]:
+        etree.SubElement(p_elem, qn("a:br"))
+        new_r = etree.SubElement(p_elem, qn("a:r"))
+        if rPr_src is not None:
+            new_r.insert(0, copy.deepcopy(rPr_src))
+        etree.SubElement(new_r, qn("a:t")).text = part
+
+
+def _set_cell(table, row: int, col: int, value: str) -> None:
+    """Set cell text, giữ formatting run đầu; hỗ trợ '\n' → line break."""
+    _set_para_multiline(table.cell(row, col).text_frame.paragraphs[0], value)
 
 
 def _set_first_run_text(shape, text: str) -> None:

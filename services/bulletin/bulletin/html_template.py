@@ -44,22 +44,40 @@ _PHYS_ROWS = ["RSS3", "STR20", "SMR20", "SIR20",
               "Thai Latex 60% (Bulk)", "Thai Latex 60% (Drums)"]
 
 
-_CONTENT_CSS = """
-* { box-sizing: border-box; }
-body { margin: 0; font-family: 'Times New Roman','Arial',sans-serif; color:#111; font-size: 11px; }
-h2.section { font-size: 13px; color:#0b6b3a; margin: 6px 0 5px; font-weight:700; }
-h2.pb { break-before: page; }
-table { width:100%; border-collapse:collapse; margin-bottom:6px; }
-thead { display: table-header-group; }
-th,td { border:1px solid #b9c7bd; padding:3px 5px; font-size: 10.5px; }
-th { background:#2e8b4f; color:#fff; text-align:center; font-weight:600; }
-td.r { text-align:right; } td.c { text-align:center; }
-tbody tr:nth-child(even) td { background:#eef5ef; }
-tr { page-break-inside: avoid; }
-.up{color:#c0392b} .down{color:#1e8449} .flat{color:#555}
-p.para { margin:4px 0; line-height:1.4; text-align:justify; }
-.src { font-size:9.5px; color:#666; margin-top:6px; }
-.note { color:#999; font-style:italic; }
+_CONTENT_CSS = f"""
+* {{ box-sizing: border-box; }}
+html,body {{ margin: 0; }}
+body {{ font-family: 'Times New Roman','Arial',sans-serif; color:#111; font-size: 11px; }}
+
+/* Mỗi .pg = đúng 1 trang (header xanh trên cùng + body + footer dưới cùng) — mô phỏng slide PPTX. */
+.pg {{ width:{PAGE_W}; height:{PAGE_H}; display:flex; flex-direction:column; overflow:hidden; break-after:page; }}
+.pg:last-child {{ break-after:auto; }}
+.pg-body {{ flex:1; padding:14px 26px 6px; overflow:hidden; }}
+
+/* Header xanh full-width (bleed), logo tròn trái, tiêu đề TRẮNG */
+.pg-hdr {{ position:relative; width:100%; height:96px; flex:0 0 auto; background:#2e8b4f; background-size:100% 100%; }}
+.pg-hdr-logo {{ position:absolute; left:26px; top:50%; transform:translateY(-50%); height:68px; width:68px;
+  border-radius:50%; background:#fff; object-fit:contain; }}
+.pg-hdr-t {{ position:absolute; left:112px; right:16px; top:0; height:96px; display:flex; align-items:center;
+  color:#ffffff; font-family:Arial,sans-serif; font-size:17px; font-weight:800; letter-spacing:.3px; }}
+/* Footer xanh full-width */
+.pg-ftr {{ position:relative; width:100%; height:40px; flex:0 0 auto; background:#2e8b4f; background-size:100% 100%;
+  color:#fff; font-family:Arial,sans-serif; font-size:10px; font-weight:700; }}
+.pg-ftr span {{ position:absolute; top:0; height:40px; display:flex; align-items:center; }}
+.pg-ftr .l {{ left:34px; }} .pg-ftr .r {{ right:34px; }}
+
+h2.section {{ font-size: 13px; color:#0b6b3a; margin: 4px 0 6px; font-weight:700; }}
+table {{ width:100%; border-collapse:collapse; margin-bottom:8px; }}
+thead {{ display: table-header-group; }}
+th,td {{ border:1px solid #b9c7bd; padding:4px 6px; font-size: 11px; }}
+th {{ background:#dcebd0; background:#dcecdd; color:#0b6b3a; text-align:center; font-weight:700; }}
+td.r {{ text-align:right; }} td.c {{ text-align:center; }}
+tbody tr:nth-child(even) td {{ background:#f4f9f5; }}
+tr {{ page-break-inside: avoid; }}
+.up{{color:#c0392b}} .down{{color:#1e8449}} .flat{{color:#555}}
+p.para {{ margin:4px 0; line-height:1.4; text-align:justify; }}
+.src {{ font-size:9.5px; color:#666; margin-top:6px; }}
+.note {{ color:#999; font-style:italic; }}
 """
 
 
@@ -156,61 +174,64 @@ def _raw_materials(data: BulletinData) -> str:
 
 
 def _news(data: BulletinData) -> str:
+    """Section IV — bố cục đúng template: tóm tắt giá sàn + physical (auto) + phân tích + nguồn."""
+    dd_mm = data.report_date.strftime("%d/%m")
     out = ""
-    for s in data.market_exchange_summary:
-        out += f"<p class='para'>{s}</p>"
+    # 1. Giá cao su trên các sàn (auto)
+    ex = [s for s in data.market_exchange_summary if s]
+    if ex:
+        out += f"<p class='para'><b>1. Giá cao su {dd_mm} trên các sàn giao dịch thế giới:</b></p>"
+        for s in ex:
+            out += f"<p class='para'>{s}</p>"
+    # 2. Giá Physical (auto)
     if data.market_physical_summary:
+        out += f"<p class='para'><b>2. Giá Physical {dd_mm}: không có giá giao dịch.</b></p>"
         out += f"<p class='para'>{data.market_physical_summary}</p>"
-    for a in data.market_analysis:
-        out += f"<p class='para'>{a}</p>"
+    # 3. Phân tích (admin/AI nhập tay)
+    if data.market_analysis:
+        out += "<p class='para'><b>3. Các thông tin có liên quan:</b></p>"
+        for a in data.market_analysis:
+            out += f"<p class='para'>{a}</p>"
     if data.source_urls:
         out += "<p class='src'>Nguồn: " + " · ".join(data.source_urls) + "</p>"
-    return out or '<p class="note">Chưa có phân tích.</p>'
+    return out or '<p class="note">Chưa có thông tin thị trường.</p>'
 
 
-def content_html(data: BulletinData) -> str:
-    body = (
-        '<h2 class="section">I. Giá cao su thiên nhiên thế giới</h2>' + _world_table(data)
-        + '<h2 class="section">II. Giá vật chất (ANRPC)</h2>' + _physical_table(data)
-        + '<h2 class="section pb">III. Giá trong nước — Giá sàn VRG</h2>'
-        + _vrg_floor_table(data) + _raw_materials(data)
-        + '<h2 class="section pb">IV. Thông tin thị trường</h2>' + _news(data)
-    )
+def _page_header(data: BulletinData, assets: dict[str, str]) -> str:
+    """Header xanh full-width (logo + tiêu đề TRẮNG) — nướng vào đầu mỗi trang content."""
+    hb = assets.get("header-banner")
+    logo = assets.get("logo-vrg")
+    style = f"background-image:url('{hb}');" if hb else ""
+    lg = f"<img class='pg-hdr-logo' src='{logo}'/>" if logo else ""
+    return (f"<div class='pg-hdr' style=\"{style}\">{lg}"
+            f"<div class='pg-hdr-t'>BẢN TIN THỊ TRƯỜNG CAO SU NGÀY {data.report_date:%d/%m/%Y}</div></div>")
+
+
+def _page_footer(data: BulletinData, assets: dict[str, str]) -> str:
+    fb = assets.get("footer-banner") or assets.get("header-banner")
+    style = f"background-image:url('{fb}');" if fb else ""
+    return (f"<div class='pg-ftr' style=\"{style}\">"
+            "<span class='l'>RUBBERGROUP.VN</span>"
+            "<span class='r'>BẢN TIN THỊ TRƯỜNG KINH DOANH</span></div>")
+
+
+def content_html(data: BulletinData, assets: dict[str, str] | None = None) -> str:
+    """Nội dung bản tin — mỗi trang (.pg) = header xanh + body + footer (mô phỏng slide PPTX)."""
+    assets = assets or {}
+    hdr, ftr = _page_header(data, assets), _page_footer(data, assets)
+
+    def page(inner: str) -> str:
+        return f"<div class='pg'>{hdr}<div class='pg-body'>{inner}</div>{ftr}</div>"
+
+    d = data.report_date.strftime("%d/%m/%Y")
+    p1 = (f'<h2 class="section">I. Giá cao su thiên nhiên thế giới ngày {d}</h2>' + _world_table(data)
+          + '<h2 class="section">II. Giá các sản phẩm cao su giao ngay</h2>' + _physical_table(data))
+    p2 = ('<h2 class="section">III. Giá trong nước — Giá sàn VRG</h2>'
+          + _vrg_floor_table(data) + _raw_materials(data))
+    p3 = '<h2 class="section">IV. Các thông tin thị trường liên quan</h2>' + _news(data)
+    body = page(p1) + page(p2) + page(p3)
     return (f"<!doctype html><html><head><meta charset='utf-8'><style>{_CONTENT_CSS}</style>"
             f"</head><body>{body}</body></html>")
-
-
-# ── Header/footer cho Chromium (lặp mọi trang, nằm trong lề trang) ──
-
-def header_template(data: BulletinData, assets: dict[str, str]) -> str:
-    hb = assets.get("header-banner", "")
-    logo = assets.get("logo-vrg", "")
-    banner = (f"<img src='{hb}' style='position:absolute;left:0;top:0;width:100%;"
-              "height:100%;object-fit:fill;'/>") if hb else ""
-    lg = (f"<img src='{logo}' style='position:absolute;left:26px;top:14px;height:74px;"
-          "width:74px;border-radius:50%;background:#fff;'/>") if logo else ""
-    return (
-        "<div style='position:relative;width:100%;height:102px;font-family:Arial,sans-serif;'>"
-        f"{banner}{lg}"
-        "<div style='position:absolute;left:118px;top:0;height:102px;display:flex;"
-        "align-items:center;color:#fff;font-size:16px;font-weight:700;"
-        "text-shadow:0 1px 2px rgba(0,0,0,.35);'>"
-        f"BẢN TIN THỊ TRƯỜNG CAO SU NGÀY {data.report_date:%d/%m/%Y}</div></div>"
-    )
-
-
-def footer_template(data: BulletinData, assets: dict[str, str]) -> str:
-    fb = assets.get("footer-banner", assets.get("header-banner", ""))
-    banner = (f"<img src='{fb}' style='position:absolute;left:0;top:0;width:100%;"
-              "height:100%;object-fit:fill;'/>") if fb else ""
-    return (
-        "<div style='position:relative;width:100%;height:46px;font-family:Arial,sans-serif;'>"
-        f"{banner}"
-        "<div style='position:absolute;left:34px;top:0;height:46px;display:flex;align-items:center;"
-        "color:#fff;font-size:10px;font-weight:700;'>RUBBERGROUP.VN</div>"
-        "<div style='position:absolute;right:34px;top:0;height:46px;display:flex;align-items:center;"
-        "color:#fff;font-size:10px;font-weight:700;'>BẢN TIN THỊ TRƯỜNG KINH DOANH</div></div>"
-    )
 
 
 def _cover(image_uri: str | None, title: str, subtitle: str) -> str:
