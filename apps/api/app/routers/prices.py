@@ -7,12 +7,15 @@ import pathlib
 import subprocess
 import tempfile
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.core.security import require_editor
 from app.schemas.price import HistorySeries, PriceBoard, PriceRecordEdit, ScanResponse
 from app.services import price_board, price_repo, scan_service
 
 router = APIRouter(prefix="/api/prices", tags=["prices"])
+
+_editor = [Depends(require_editor)]  # ghi: cần admin/editor (viewer chỉ xem)
 
 _CRAWLER_DIR = pathlib.Path(__file__).resolve().parents[4] / "services" / "crawlers"
 
@@ -27,7 +30,7 @@ def _crawler_http_error(exc: Exception) -> HTTPException:
     return HTTPException(500, f"Lỗi crawl: {exc}")
 
 
-@router.post("/scan", response_model=ScanResponse)
+@router.post("/scan", response_model=ScanResponse, dependencies=_editor)
 def scan(source: str = Query("all", description="all | anrpc,fx,sgx,shfe,tocom,lgm")) -> ScanResponse:
     """Quét tất cả nguồn → ghi DB → trả bản ghi + trạng thái nguồn + thông tin persist."""
     try:
@@ -37,7 +40,7 @@ def scan(source: str = Query("all", description="all | anrpc,fx,sgx,shfe,tocom,l
     return ScanResponse(**result)
 
 
-@router.post("/backfill")
+@router.post("/backfill", dependencies=_editor)
 def backfill(
     source: str = Query("shfe", description="nguồn có lịch sử theo ngày: shfe | tocom | fx"),
     days: int = Query(90, ge=1, le=365),
@@ -80,7 +83,7 @@ def purchase_sheet(
     return price_repo.purchase_sheet(date_from, date_to)
 
 
-@router.delete("/purchase")
+@router.delete("/purchase", dependencies=_editor)
 def delete_purchase(as_of: str = Query(..., description="YYYY-MM-DD")) -> dict:
     """Xoá toàn bộ giá thu mua mủ nước của 1 ngày."""
     return {"deleted": price_repo.delete_purchase_date(as_of)}
@@ -112,14 +115,14 @@ def list_records(
     return {**res, "page": page, "page_size": page_size}
 
 
-@router.put("/records")
+@router.put("/records", dependencies=_editor)
 def upsert_record(rec: PriceRecordEdit) -> dict:
     """Thêm mới hoặc sửa 1 bản ghi giá (theo khóa as_of+source+grade+contract+price_type)."""
     price_repo.upsert_record(rec.model_dump())
     return {"ok": True}
 
 
-@router.delete("/records")
+@router.delete("/records", dependencies=_editor)
 def delete_record(
     as_of: str = Query(..., description="YYYY-MM-DD"),
     source: str = Query(...),

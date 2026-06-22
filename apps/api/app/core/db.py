@@ -68,6 +68,15 @@ CREATE TABLE IF NOT EXISTS member_unit (
     note        text,
     created_at  timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS app_user (
+    username      text PRIMARY KEY,
+    password_hash text NOT NULL,
+    full_name     text,
+    role          text NOT NULL DEFAULT 'admin',
+    is_active     boolean NOT NULL DEFAULT true,
+    created_at    timestamptz NOT NULL DEFAULT now()
+);
 """
 
 # Hypertable tách riêng: cần extension timescaledb; nếu thiếu, bảng vẫn dùng được.

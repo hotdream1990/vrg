@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.market_meta import VRG_FLOOR_GRADES
+from app.core.security import require_editor
 from app.schemas.floor import (
     FloorSaveRequest,
     FloorSchedule,
@@ -13,6 +14,8 @@ from app.schemas.floor import (
 from app.services import floor_repo
 
 router = APIRouter(prefix="/api/floor", tags=["floor"])
+
+_editor = [Depends(require_editor)]  # ghi: cần admin/editor (viewer chỉ xem)
 
 
 @router.get("", response_model=list[FloorScheduleSummary])
@@ -46,7 +49,7 @@ def get_schedule(lan: int):
     return sch
 
 
-@router.post("", response_model=FloorSchedule)
+@router.post("", response_model=FloorSchedule, dependencies=_editor)
 def create_schedule(req: FloorSaveRequest):
     """Tạo biểu giá mới — số lần tự nhảy = max(lan)+1."""
     lan = floor_repo.next_lan()
@@ -55,7 +58,7 @@ def create_schedule(req: FloorSaveRequest):
     return floor_repo.get_schedule(lan)
 
 
-@router.put("/{lan}", response_model=FloorSchedule)
+@router.put("/{lan}", response_model=FloorSchedule, dependencies=_editor)
 def update_schedule(lan: int, req: FloorSaveRequest):
     """Sửa biểu giá lần đã có (ghi đè giá + ngày áp dụng)."""
     floor_repo.save_schedule(lan, req.as_of, [it.model_dump() for it in req.items])
@@ -65,7 +68,7 @@ def update_schedule(lan: int, req: FloorSaveRequest):
     return sch
 
 
-@router.delete("/{lan}")
+@router.delete("/{lan}", dependencies=_editor)
 def delete_schedule(lan: int) -> dict:
     """Xoá 1 biểu giá theo lần."""
     if not floor_repo.delete_schedule(lan):

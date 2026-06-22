@@ -7,9 +7,10 @@ import shutil
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 
+from app.core.security import require_editor
 from app.schemas.bulletin import BulletinDraft, BulletinDraftUpdate
 from app.services.bulletin_service import (
     create_draft,
@@ -20,6 +21,9 @@ from app.services.bulletin_service import (
 )
 
 router = APIRouter(prefix="/api/bulletins", tags=["bulletins"])
+
+# Router để mở (phục vụ ảnh <img>/<a>); riêng các thao tác GHI cần admin/editor.
+_editor = [Depends(require_editor)]
 
 # ── Image assets paths ──
 _ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
@@ -41,7 +45,7 @@ _EXT_MAP = {
 # ── Draft endpoints ──
 
 
-@router.post("/draft", response_model=BulletinDraft)
+@router.post("/draft", response_model=BulletinDraft, dependencies=_editor)
 def api_create_draft(
     report_date: str | None = Query(None, description="DD-MM-YYYY, mặc định hôm qua"),
     crawl: bool = Query(True, description="Chạy crawler để lấy giá thật?"),
@@ -63,7 +67,7 @@ def api_get_draft(
     return draft
 
 
-@router.put("/draft", response_model=BulletinDraft)
+@router.put("/draft", response_model=BulletinDraft, dependencies=_editor)
 def api_update_draft(
     updates: BulletinDraftUpdate,
     report_date: str | None = Query(None, description="DD-MM-YYYY"),
@@ -76,7 +80,7 @@ def api_update_draft(
     return draft
 
 
-@router.post("/generate")
+@router.post("/generate", dependencies=_editor)
 def api_generate_pptx(
     report_date: str | None = Query(None, description="DD-MM-YYYY"),
 ):
@@ -95,7 +99,7 @@ def api_generate_pptx(
     )
 
 
-@router.post("/generate-pdf")
+@router.post("/generate-pdf", dependencies=_editor)
 def api_generate_pdf(
     report_date: str | None = Query(None, description="DD-MM-YYYY"),
 ):
@@ -220,7 +224,7 @@ def api_get_image(
     return FileResponse(str(path), media_type=media)
 
 
-@router.post("/images/{slot}")
+@router.post("/images/{slot}", dependencies=_editor)
 def api_upload_image(slot: str, file: UploadFile):
     """Upload hình mới cho slot (lưu vào custom/, không ghi đè default)."""
     if slot not in _IMAGE_SLOTS:
@@ -251,7 +255,7 @@ def api_upload_image(slot: str, file: UploadFile):
     }
 
 
-@router.delete("/images/{slot}")
+@router.delete("/images/{slot}", dependencies=_editor)
 def api_delete_custom_image(slot: str):
     """Xóa custom image → revert về default."""
     if slot not in _IMAGE_SLOTS:

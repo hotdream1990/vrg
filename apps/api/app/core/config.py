@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     # Production: BẮT BUỘC ghi đè qua .env, không dùng mật khẩu mặc định.
     database_url: str = "postgresql://vrg:changeme@localhost:5433/vrg_caosu"
 
+    # Auth (JWT). Production: BẮT BUỘC ghi đè jwt_secret + admin_password qua .env.
+    jwt_secret: str = "dev-insecure-change-me-please-override-in-env-32b+"
+    jwt_expire_minutes: int = 720  # 12h
+    admin_username: str = "admin"
+    admin_password: str = "admin"  # seed lần đầu — dev default, đổi ngay khi triển khai
+
     # Placeholders — điền giá trị thật trong .env (xem .env.example ở repo root)
     anthropic_api_key: str = ""
 

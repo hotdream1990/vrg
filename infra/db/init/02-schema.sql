@@ -54,3 +54,13 @@ CREATE TABLE IF NOT EXISTS member_unit (
     note        text,
     created_at  timestamptz NOT NULL DEFAULT now()
 );
+
+-- Tài khoản đăng nhập admin nội bộ (JWT). Seed admin từ env (xem user_repo).
+CREATE TABLE IF NOT EXISTS app_user (
+    username      text PRIMARY KEY,
+    password_hash text NOT NULL,
+    full_name     text,
+    role          text NOT NULL DEFAULT 'admin',
+    is_active     boolean NOT NULL DEFAULT true,
+    created_at    timestamptz NOT NULL DEFAULT now()
+);
