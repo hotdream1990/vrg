@@ -1,6 +1,7 @@
 /* Client API cho Bản tin ngày — gọi bulletin endpoints. */
 
 import { API } from "./api-client";
+import { authHeaders, onUnauthorized } from "./auth-token";
 
 // ── Types ──
 
@@ -75,10 +76,14 @@ export type BulletinDraftUpdate = {
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API}${path}`, init);
+    res = await fetch(`${API}${path}`, {
+      ...init,
+      headers: { ...authHeaders(), ...(init?.headers ?? {}) },
+    });
   } catch {
     throw new Error("Không kết nối được API (" + API + ")");
   }
+  if (res.status === 401) { onUnauthorized(); throw new Error("Phiên đăng nhập đã hết hạn"); }
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
     try {
@@ -120,10 +125,11 @@ export const updateDraft = (updates: BulletinDraftUpdate, dateStr?: string) => {
 async function downloadBlob(path: string, filename: string): Promise<void> {
   let res: Response;
   try {
-    res = await fetch(`${API}${path}`, { method: "POST" });
+    res = await fetch(`${API}${path}`, { method: "POST", headers: { ...authHeaders() } });
   } catch {
     throw new Error("Không kết nối được API. Kiểm tra API đang chạy ở " + API);
   }
+  if (res.status === 401) { onUnauthorized(); throw new Error("Phiên đăng nhập đã hết hạn"); }
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
     try { const body = await res.json(); detail = body.detail || detail; } catch { /* ignore */ }
@@ -197,10 +203,11 @@ export const uploadImage = async (slot: string, file: File): Promise<ImageSlot[]
   form.append("file", file);
   let res: Response;
   try {
-    res = await fetch(`${API}/api/bulletins/images/${slot}`, { method: "POST", body: form });
+    res = await fetch(`${API}/api/bulletins/images/${slot}`, { method: "POST", headers: { ...authHeaders() }, body: form });
   } catch {
     throw new Error("Không kết nối được API");
   }
+  if (res.status === 401) { onUnauthorized(); throw new Error("Phiên đăng nhập đã hết hạn"); }
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
     try { const b = await res.json(); detail = b.detail || detail; } catch {}

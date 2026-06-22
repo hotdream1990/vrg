@@ -1,3 +1,4 @@
+import { TeamOutlined } from "@ant-design/icons";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -8,10 +9,13 @@ import {
   reorderUnits,
   updateUnit,
 } from "../../../lib/member-unit-client";
+import { useAuth } from "../../auth/AuthContext";
+import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import "../../bulletin/bulletin.css";
 
 /** Quản lý số liệu → Đơn vị thành viên: danh sách công ty cho Giá mủ nguyên liệu (động). */
 export default function MemberUnitPage() {
+  const { canEdit } = useAuth();
   const [units, setUnits] = useState<MemberUnit[]>([]);
   const [newName, setNewName] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
@@ -56,16 +60,22 @@ export default function MemberUnitPage() {
     <div className="main">
       <div className="page-title">
         <div>
-          <h2>🏢 Đơn vị thành viên</h2>
+          <h2><TeamOutlined style={{ marginRight: 8 }} />Đơn vị thành viên</h2>
           <p>Danh sách công ty thành viên VRG dùng cho "Giá mủ nguyên liệu" — thêm, đổi tên, ẩn/hiện, sắp xếp. Đổi tên sẽ giữ nguyên lịch sử giá đã nhập.</p>
         </div>
       </div>
 
+      <ReadOnlyNotice />
+
       <div className="blt-toolbar">
-        <input className="blt-date-input" style={{ minWidth: 240 }} value={newName}
-          placeholder="Tên đơn vị mới (vd: Bình Long)" onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
-        <button className="btn btn-primary" onClick={add} disabled={busy || !newName.trim()}>＋ Thêm đơn vị</button>
+        {canEdit && (
+          <>
+            <input className="blt-date-input" style={{ minWidth: 240 }} value={newName}
+              placeholder="Tên đơn vị mới (vd: Bình Long)" onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
+            <button className="btn btn-primary" onClick={add} disabled={busy || !newName.trim()}>＋ Thêm đơn vị</button>
+          </>
+        )}
         <span style={{ color: "var(--muted)", fontSize: 13 }}>{units.length} đơn vị</span>
       </div>
 
@@ -78,7 +88,7 @@ export default function MemberUnitPage() {
               <th style={{ width: 50 }}>#</th>
               <th>Tên đơn vị</th>
               <th style={{ width: 110 }}>Trạng thái</th>
-              <th className="r" style={{ width: 220 }}>Thao tác</th>
+              {canEdit && <th className="r" style={{ width: 220 }}>Thao tác</th>}
             </tr>
           </thead>
           <tbody>
@@ -104,18 +114,20 @@ export default function MemberUnitPage() {
                     {u.is_active ? "Đang dùng" : "Đã ẩn"}
                   </span>
                 </td>
-                <td className="r" style={{ whiteSpace: "nowrap" }}>
-                  <button className="btn" onClick={() => move(i, -1)} disabled={busy || i === 0} title="Lên">↑</button>{" "}
-                  <button className="btn" onClick={() => move(i, 1)} disabled={busy || i === units.length - 1} title="Xuống">↓</button>{" "}
-                  <button className="btn" onClick={() => { setEditing(u.name); setEditVal(u.name); }} disabled={busy}>Đổi tên</button>{" "}
-                  <button className="btn" onClick={() => toggle(u)} disabled={busy}>{u.is_active ? "Ẩn" : "Hiện"}</button>{" "}
-                  <button className="btn" onClick={() => remove(u.name)} disabled={busy}>Xoá</button>
-                </td>
+                {canEdit && (
+                  <td className="r" style={{ whiteSpace: "nowrap" }}>
+                    <button className="btn" onClick={() => move(i, -1)} disabled={busy || i === 0} title="Lên">↑</button>{" "}
+                    <button className="btn" onClick={() => move(i, 1)} disabled={busy || i === units.length - 1} title="Xuống">↓</button>{" "}
+                    <button className="btn" onClick={() => { setEditing(u.name); setEditVal(u.name); }} disabled={busy}>Đổi tên</button>{" "}
+                    <button className="btn" onClick={() => toggle(u)} disabled={busy}>{u.is_active ? "Ẩn" : "Hiện"}</button>{" "}
+                    <button className="btn" onClick={() => remove(u.name)} disabled={busy}>Xoá</button>
+                  </td>
+                )}
               </tr>
             ))}
             {units.length === 0 && (
-              <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
-                Chưa có đơn vị — thêm đơn vị ở trên.
+              <tr><td colSpan={canEdit ? 4 : 3} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
+                Chưa có đơn vị.
               </td></tr>
             )}
           </tbody>

@@ -30,7 +30,8 @@ export default function PriceSheetGrid({
   dateFrom,
   dateTo,
   onSaved,
-}: { view?: "exchange" | "fx"; dateFrom?: string; dateTo?: string; onSaved?: () => void }) {
+  readOnly = false,
+}: { view?: "exchange" | "fx"; dateFrom?: string; dateTo?: string; onSaved?: () => void; readOnly?: boolean }) {
   const [sheet, setSheet] = useState<PriceSheet | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [val, setVal] = useState("");
@@ -55,8 +56,11 @@ export default function PriceSheetGrid({
   };
 
   // Ô sửa được: input khi đang sửa, ngược lại span bấm-để-sửa. raw = số gốc để prefill.
+  // readOnly (viewer): chỉ hiển thị số, không cho sửa.
   const cell = (id: string, raw: number | null | undefined, dec: number, save: (n: number) => void) =>
-    editing === id ? (
+    readOnly ? (
+      raw != null ? <>{fmt(raw, dec)}</> : <span style={{ color: "var(--muted)" }}>—</span>
+    ) : editing === id ? (
       <input
         className="blt-cell-input" autoFocus disabled={busy} value={val}
         onChange={(e) => setVal(e.target.value)}

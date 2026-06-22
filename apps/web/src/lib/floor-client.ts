@@ -1,6 +1,7 @@
 /* Client API Giá sàn Tập đoàn (biểu giá theo lần). */
 
 import { API } from "./api-client";
+import { authHeaders, onUnauthorized } from "./auth-token";
 
 export type FloorItem = { grade: string; fob_usd: number | null; domestic_vnd: number | null };
 export type FloorSchedule = { lan: number; as_of: string; items: FloorItem[] };
@@ -10,8 +11,9 @@ export type FloorSummary = {
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
-  try { res = await fetch(`${API}${path}`, init); }
+  try { res = await fetch(`${API}${path}`, { ...init, headers: { ...authHeaders(), ...(init?.headers ?? {}) } }); }
   catch { throw new Error("Không kết nối được API (" + API + ")"); }
+  if (res.status === 401) { onUnauthorized(); throw new Error("Phiên đăng nhập đã hết hạn"); }
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try { const b = await res.json(); msg = b.detail || msg; } catch { /* ignore */ }

@@ -5,10 +5,14 @@ const fmt = (v: number | null | undefined, d: number) =>
 
 /** Ô số tự quản lý trạng thái sửa: bấm → input, Enter/blur lưu, Esc huỷ. */
 export default function EditableCell({
-  value, dec = 0, onSave,
-}: { value: number | null | undefined; dec?: number; onSave: (n: number) => void }) {
+  value, dec = 0, onSave, readOnly = false,
+}: { value: number | null | undefined; dec?: number; onSave: (n: number) => void; readOnly?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState("");
+
+  if (readOnly) {
+    return value != null ? <>{fmt(value, dec)}</> : <span style={{ color: "var(--muted)" }}>—</span>;
+  }
 
   if (editing) {
     return (

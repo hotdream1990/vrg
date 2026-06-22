@@ -9,6 +9,7 @@ import {
   updateDraft,
 } from "../../../lib/bulletin-client";
 
+import { useAuth } from "../../auth/AuthContext";
 import BulletinImageSettings from "../../bulletin/BulletinImageSettings";
 import "../../bulletin/bulletin.css";
 
@@ -68,6 +69,7 @@ const fmtChg = (v: number | null) => (v != null ? `${v > 0 ? "+" : ""}${v}` : ""
 const cls = (v: number | null) => (v == null ? "" : v > 0 ? "up" : v < 0 ? "down" : "flat");
 
 export default function BulletinPage() {
+  const { canEdit } = useAuth();
   const [draft, setDraft] = useState<BulletinDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -171,6 +173,19 @@ export default function BulletinPage() {
 
   /* ── Render ── */
 
+  // Viewer (chỉ xem) không được vào trình soạn bản tin.
+  if (!canEdit) {
+    return (
+      <div className="main">
+        <div className="page-title"><div><h2>Soạn bản tin ngày</h2></div></div>
+        <div className="card" style={{ padding: 24, textAlign: "center", color: "var(--muted)" }}>
+          Tài khoản của bạn chỉ có quyền xem. Bạn có thể xem các{" "}
+          <Link className="blt-link" to="/ban-tin">bản tin đã xuất bản</Link>, nhưng không soạn/xuất bản tin mới.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="main">
       {/* Header */}
@@ -240,7 +255,7 @@ export default function BulletinPage() {
         <div className="blt-sections">
           {/* ═══ Data Source Summary ═══ */}
           {draft.data_sources && draft.data_sources.length > 0 && (
-            <div className="card blt-section" style={{ background: '#0d1117', border: '1px solid #1e293b' }}>
+            <div className="card blt-section">
               <div className="blt-section-header">
                 <h3><IconDatabase /> Trạng thái nguồn dữ liệu</h3>
               </div>
@@ -249,10 +264,10 @@ export default function BulletinPage() {
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
                     {(() => {
                       const m = ds.source === 'db'
-                        ? { bg: '#064e3b', fg: '#6ee7b7', label: 'DB', icon: <IconDatabase /> }
+                        ? { bg: '#16a34a1f', fg: '#0b7a3b', label: 'DB', icon: <IconDatabase /> }
                         : ds.source === 'manual'
-                        ? { bg: '#1e3a5f', fg: '#93c5fd', label: 'Nhập tay', icon: <IconEdit /> }
-                        : { bg: '#7f1d1d', fg: '#fca5a5', label: 'Chưa quét', icon: <IconAlertTriangle /> };
+                        ? { bg: '#0ea5e91f', fg: '#0369a1', label: 'Nhập tay', icon: <IconEdit /> }
+                        : { bg: '#f59e0b22', fg: '#a96a00', label: 'Chưa quét', icon: <IconAlertTriangle /> };
                       return (
                         <span style={{
                           display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -263,8 +278,8 @@ export default function BulletinPage() {
                         </span>
                       );
                     })()}
-                    <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{ds.section}</span>
-                    <span style={{ color: '#94a3b8', fontSize: 12 }}>{ds.description}</span>
+                    <span style={{ color: 'var(--text)', fontWeight: 500 }}>{ds.section}</span>
+                    <span style={{ color: 'var(--muted)', fontSize: 12 }}>{ds.description}</span>
                   </div>
                 ))}
               </div>

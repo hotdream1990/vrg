@@ -1,3 +1,4 @@
+import { DatabaseOutlined, ReloadOutlined, SyncOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -9,11 +10,13 @@ import {
   fetchLatest,
   scanPrices,
 } from "../../../lib/api-client";
+import { useAuth } from "../../auth/AuthContext";
 import ExchangeBoard from "../sections/ExchangeBoard";
 import LiveCharts from "../sections/LiveCharts";
 import LiveKpis from "../sections/LiveKpis";
 import LiveScanTable from "../sections/LiveScanTable";
 import PhysicalGradeTrend from "../sections/PhysicalGradeTrend";
+import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 
 type Point = { as_of: string; price: number };
 const EXPECTED = ["anrpc", "fx", "sgx", "shfe", "tocom", "lgm"];
@@ -25,6 +28,7 @@ const pct = (pts: Point[]): number | undefined =>
 /** Route "Quét Đa sàn" — dashboard giá THẬT: KPI + nhiều chart (settlement sàn, vĩ mô FX,
     physical theo grade) backfill từ sàn + bảng chi tiết. Mở trang tự nạp từ DB. */
 export default function ScanPage() {
+  const { canEdit } = useAuth();
   const [latest, setLatest] = useState<LatestRow[]>([]);
   const [shfe, setShfe] = useState<Point[]>([]);
   const [rss3, setRss3] = useState<Point[]>([]);
@@ -103,19 +107,25 @@ export default function ScanPage() {
     <>
       <div className="page-title" id="top">
         <div>
-          <h2>◎ Dashboard Đa sàn (Live)</h2>
+          <h2><ThunderboltOutlined style={{ marginRight: 8 }} />Dashboard Đa sàn (Live)</h2>
           <p>Giá thật 6 nguồn + lịch sử settlement/tỷ giá backfill từ sàn (SHFE · OSE · ECB) · ghi TimescaleDB.</p>
         </div>
         <div className="actions">
-          <Link className="btn" to="/quan-ly-so-lieu/bang-gia-san">⊟ Quản lý số liệu</Link>
-          <button className="btn" onClick={backfill} disabled={backfilling || loading}>
-            {backfilling ? <><span className="spinner" /> Đang nạp…</> : "↻ Nạp lịch sử"}
-          </button>
-          <button className="btn btn-primary" onClick={scan} disabled={loading || backfilling}>
-            {loading ? <><span className="spinner" /> Đang quét…</> : "⟳ Quét giá ngay"}
-          </button>
+          <Link className="btn" to="/quan-ly-so-lieu/bang-gia-san"><DatabaseOutlined style={{ marginRight: 6 }} />Quản lý số liệu</Link>
+          {canEdit && (
+            <>
+              <button className="btn" onClick={backfill} disabled={backfilling || loading}>
+                {backfilling ? <><span className="spinner" /> Đang nạp…</> : <><ReloadOutlined /> Nạp lịch sử</>}
+              </button>
+              <button className="btn btn-primary" onClick={scan} disabled={loading || backfilling}>
+                {loading ? <><span className="spinner" /> Đang quét…</> : <><SyncOutlined /> Quét giá ngay</>}
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      <ReadOnlyNotice />
 
       {error && <div className="scan-err" style={{ marginBottom: 12 }}>Lỗi: {error} — kiểm tra API (8390) &amp; DB.</div>}
 
@@ -152,7 +162,7 @@ export default function ScanPage() {
           )}
         </div>
         {latest.length === 0 && !error ? (
-          <div className="scan-empty">Kho trống — bấm “Quét giá ngay”.</div>
+          <div className="scan-empty">{canEdit ? "Kho trống — bấm “Quét giá ngay”." : "Kho trống."}</div>
         ) : (
           <LiveScanTable latest={latest} scanInfo={scanInfo} missing={missing} />
         )}

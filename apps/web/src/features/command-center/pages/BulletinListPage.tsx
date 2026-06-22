@@ -6,6 +6,7 @@ import {
   publishedDownloadUrl,
   type PublishedBulletin,
 } from "../../../lib/bulletin-client";
+import { useAuth } from "../../auth/AuthContext";
 import "../../bulletin/bulletin.css";
 
 /* ── Icons ── */
@@ -50,6 +51,7 @@ const fmtModified = (iso: string) => {
 };
 
 export default function BulletinListPage() {
+  const { canEdit } = useAuth();
   const [items, setItems] = useState<PublishedBulletin[] | null>(null);
   const [error, setError] = useState("");
 
@@ -68,11 +70,13 @@ export default function BulletinListPage() {
           <h2><IconList /> Bản tin đã xuất bản</h2>
           <p>Danh sách các bản tin ngày đã xuất (file PPTX)</p>
         </div>
-        <div className="actions">
-          <Link className="btn btn-primary" to="/ban-tin/tao">
-            <IconPlus /> Tạo bản tin mới
-          </Link>
-        </div>
+        {canEdit && (
+          <div className="actions">
+            <Link className="btn btn-primary" to="/ban-tin/tao">
+              <IconPlus /> Tạo bản tin mới
+            </Link>
+          </div>
+        )}
       </div>
 
       {error && <div className="blt-error">{error}</div>}
@@ -85,7 +89,7 @@ export default function BulletinListPage() {
         <div className="blt-empty">
           <div className="blt-empty-icon"><IconFile /></div>
           <h3>Chưa có bản tin nào</h3>
-          <p>Nhấn "Tạo bản tin mới" để tạo và xuất bản tin đầu tiên</p>
+          <p>{canEdit ? 'Nhấn "Tạo bản tin mới" để tạo và xuất bản tin đầu tiên' : "Chưa có bản tin nào được xuất bản."}</p>
         </div>
       )}
 

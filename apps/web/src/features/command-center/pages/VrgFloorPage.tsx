@@ -1,3 +1,4 @@
+import { BankOutlined } from "@ant-design/icons";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -11,7 +12,9 @@ import {
   nextFloorMeta,
   updateFloor,
 } from "../../../lib/floor-client";
+import { useAuth } from "../../auth/AuthContext";
 import DateRangeBar from "../sections/DateRangeBar";
+import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import "../../bulletin/bulletin.css";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -28,6 +31,7 @@ const fill = (grades: string[], items: FloorItem[]): FloorItem[] => {
 
 /** Quản lý số liệu → Giá sàn Tập đoàn: biểu giá theo "lần" (số tự nhảy), nhập tay. */
 export default function VrgFloorPage() {
+  const { canEdit } = useAuth();
   const [list, setList] = useState<FloorSummary[]>([]);
   const [grades, setGrades] = useState<string[]>([]);
   const [nextLan, setNextLan] = useState(1);
@@ -96,13 +100,17 @@ export default function VrgFloorPage() {
     <div className="main">
       <div className="page-title">
         <div>
-          <h2>⊜ Giá sàn Tập đoàn</h2>
+          <h2><BankOutlined style={{ marginRight: 8 }} />Giá sàn Tập đoàn</h2>
           <p>Biểu giá theo "lần" (FOB USD/T + Nội địa VNĐ/T) — nhập tay, số lần tự nhảy. Bản tin ngày tự lấy 2 lần mới nhất.</p>
         </div>
-        <div className="actions">
-          <button className="btn btn-primary" onClick={startNew}>＋ Tạo biểu giá mới (lần {nextLan})</button>
-        </div>
+        {canEdit && (
+          <div className="actions">
+            <button className="btn btn-primary" onClick={startNew}>＋ Tạo biểu giá mới (lần {nextLan})</button>
+          </div>
+        )}
       </div>
+
+      <ReadOnlyNotice />
 
       <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo}
         info={`${list.length} biểu giá`} />
@@ -113,7 +121,7 @@ export default function VrgFloorPage() {
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-head"><div><h3>Các lần đã có</h3></div></div>
         {list.length === 0 ? (
-          <div className="scan-empty">Chưa có biểu giá nào — bấm "Tạo biểu giá mới".</div>
+          <div className="scan-empty">{canEdit ? 'Chưa có biểu giá nào — bấm "Tạo biểu giá mới".' : "Chưa có biểu giá nào."}</div>
         ) : (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {list.map((s) => (
@@ -133,13 +141,17 @@ export default function VrgFloorPage() {
             <h3>{isNew ? `Biểu giá mới — lần ${draft.lan}` : `Sửa biểu giá — lần ${draft.lan}`}</h3>
             <div className="blt-section-meta" style={{ alignItems: "center" }}>
               <label className="blt-date-label">Ngày áp dụng:
-                <input type="date" className="blt-date-input" value={draft.as_of}
+                <input type="date" className="blt-date-input" value={draft.as_of} readOnly={!canEdit}
                   onChange={(e) => setDraft({ ...draft, as_of: e.target.value })} />
               </label>
-              <button className="btn btn-primary" onClick={save} disabled={busy}>
-                {busy ? <span className="spinner" /> : null} Lưu biểu giá
-              </button>
-              {!isNew && <button className="btn" onClick={remove} disabled={busy}>Xoá</button>}
+              {canEdit && (
+                <>
+                  <button className="btn btn-primary" onClick={save} disabled={busy}>
+                    {busy ? <span className="spinner" /> : null} Lưu biểu giá
+                  </button>
+                  {!isNew && <button className="btn" onClick={remove} disabled={busy}>Xoá</button>}
+                </>
+              )}
             </div>
           </div>
           <table>
@@ -155,11 +167,11 @@ export default function VrgFloorPage() {
                 <tr key={it.grade}>
                   <td>{it.grade}</td>
                   <td className="r">
-                    <input type="text" className="blt-cell-input" value={fmt(it.fob_usd)}
+                    <input type="text" className="blt-cell-input" value={fmt(it.fob_usd)} readOnly={!canEdit}
                       onChange={(e) => setCell(i, "fob_usd", e.target.value)} placeholder="—" />
                   </td>
                   <td className="r">
-                    <input type="text" className="blt-cell-input" value={fmt(it.domestic_vnd)}
+                    <input type="text" className="blt-cell-input" value={fmt(it.domestic_vnd)} readOnly={!canEdit}
                       onChange={(e) => setCell(i, "domestic_vnd", e.target.value)} placeholder="—" />
                   </td>
                 </tr>

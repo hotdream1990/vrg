@@ -1,5 +1,7 @@
 /* Client gọi API FastAPI (cổng VRG 8390). Bọc fetch + types dùng chung cho UI. */
 
+import { authHeaders, onUnauthorized } from "./auth-token";
+
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:8390";
 
 export type PriceRow = {
@@ -105,7 +107,11 @@ export const deletePurchaseDate = (as_of: string) =>
   req<{ deleted: number }>(`/api/prices/purchase?as_of=${as_of}`, { method: "DELETE" });
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API}${path}`, init);
+  const res = await fetch(`${API}${path}`, {
+    ...init,
+    headers: { ...authHeaders(), ...(init?.headers ?? {}) },
+  });
+  if (res.status === 401) { onUnauthorized(); throw new Error("Phiên đăng nhập đã hết hạn"); }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as T;
 }
@@ -151,10 +157,14 @@ export type PriceRecord = {
 async function reqDetail<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API}${path}`, init);
+    res = await fetch(`${API}${path}`, {
+      ...init,
+      headers: { ...authHeaders(), ...(init?.headers ?? {}) },
+    });
   } catch {
     throw new Error("Không kết nối được API (" + API + ")");
   }
+  if (res.status === 401) { onUnauthorized(); throw new Error("Phiên đăng nhập đã hết hạn"); }
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try { const b = await res.json(); msg = b.detail || msg; } catch { /* ignore */ }
