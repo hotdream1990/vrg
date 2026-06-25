@@ -10,7 +10,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.security import get_current_user, require_admin
-from app.routers import auth, bulletins, floor, health, member_unit, prices, users
+from app.routers import (
+    auth,
+    bulletins,
+    floor,
+    floor_suggest,
+    health,
+    member_unit,
+    prices,
+    users,
+)
 
 
 @asynccontextmanager
@@ -51,6 +60,7 @@ app.include_router(bulletins.router)
 _protected = [Depends(get_current_user)]
 app.include_router(prices.router, dependencies=_protected)
 app.include_router(floor.router, dependencies=_protected)
+app.include_router(floor_suggest.router, dependencies=_protected)
 app.include_router(member_unit.router, dependencies=_protected)
 app.include_router(users.router, dependencies=[Depends(require_admin)])  # quản trị: chỉ admin
 
