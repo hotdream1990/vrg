@@ -44,7 +44,12 @@ def build_item(grade: str, act: float | None, sug: float | None, r: dict | None,
     delta = round(sug - prev) if (sug is not None and prev is not None) else None
     band = round(bt.get("mae") or 0.0)
     action = fm.decide_action(delta, band)
-    conf = fm.confidence(bt.get("mape"), bt.get("hit"), bt.get("n", 0))
+    # Khi đề xuất điều chỉnh ⇒ chấm tin cậy theo sai số trên CHÍNH các lần điều chỉnh
+    # (mape_move), không lấy MAPE gộp (bị các lần giữ-nguyên kéo xuống giả tạo).
+    mape_move, n_move = bt.get("mape_move"), bt.get("n_move", 0)
+    rel_mape = mape_move if (action in ("raise", "lower") and n_move >= 3 and mape_move is not None) \
+        else bt.get("mape")
+    conf = fm.confidence(rel_mape, bt.get("hit"), bt.get("n", 0))
     caution = None
     if action in ("raise", "lower") and shfe_chg is not None and abs(shfe_chg) >= _SHFE_MIN \
             and (delta > 0) != (shfe_chg > 0):
@@ -56,5 +61,6 @@ def build_item(grade: str, act: float | None, sug: float | None, r: dict | None,
         "prev": round(prev) if prev is not None else None, "delta": delta,
         "delta_pct": (round(delta / prev * 100, 1) if (delta is not None and prev) else None),
         "band": band, "action": action, "confidence": conf, "caution": caution,
-        "mape": bt.get("mape"), "hit": bt.get("hit"), "n_bt": bt.get("n", 0),
+        "mape": bt.get("mape"), "mape_move": mape_move, "n_move": n_move,
+        "hit": bt.get("hit"), "n_bt": bt.get("n", 0),
     }

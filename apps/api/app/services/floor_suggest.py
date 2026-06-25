@@ -158,13 +158,22 @@ def _backtest_core(fd: list[str], fmap: dict, idx: dict, lanmap: dict,
         r = _fit_at(fd[:i], target, grade, fmap, idx, model, alpha)
         if not r:
             continue
+        prev = fr.prev_floor(fd, fmap, grade, target)[1]
         pts.append({"as_of": target, "lan": lanmap.get(target, i + 1), "actual": round(act),
-                    "pred": r["pred"], "err": round(r["pred"] - act),
+                    "pred": r["pred"], "prev": round(prev) if prev is not None else None,
+                    "err": round(r["pred"] - act),
                     "err_pct": round((r["pred"] - act) / act * 100, 2)})
     actual = [p["actual"] for p in pts]
     pred = [p["pred"] for p in pts]
     m = fm.metrics(actual, pred) or {"n": 0}
     m["hit"] = fm.hit_rate(actual, pred)
+    # Sai số RIÊNG trên các lần mô hình thực sự đề xuất điều chỉnh (|pred-prev| > dead-band).
+    # Tránh "thổi phồng" độ tin cậy bằng các lần giữ-nguyên dễ đoán.
+    band = round(m.get("mae") or 0.0)
+    mv = [p for p in pts if p["prev"] is not None and abs(p["pred"] - p["prev"]) > band]
+    mm = fm.metrics([p["actual"] for p in mv], [p["pred"] for p in mv]) if mv else None
+    m["mape_move"] = mm["mape"] if mm else None
+    m["n_move"] = len(mv)
     return {"grade": grade, "model": model, "alpha": alpha, "metrics": m, "points": pts}
 
 

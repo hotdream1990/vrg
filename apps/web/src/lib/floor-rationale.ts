@@ -37,19 +37,29 @@ export function buildRationale(it: SuggestItem | undefined, ctx: RationaleCtx): 
     ? `Chênh lệch so với lần trước (${sInt(it.delta)}) nằm trong ngưỡng nhiễu ±${int(it.band)} USD (≈ sai số trung bình mô hình) → giữ nguyên, tránh điều chỉnh theo dao động ngắn hạn.`
     : `Mức điều chỉnh ${sInt(it.delta)} vượt ngưỡng nhiễu ±${int(it.band)} USD (≈ sai số trung bình mô hình) → là tín hiệu thực, không phải biến động ngẫu nhiên.`);
 
-  // 3) Độ tin cậy = độ khớp backtest của chính grade này.
-  if (it.mape != null) {
+  // 3) Độ tin cậy = độ khớp backtest. Khi ĐỀ XUẤT điều chỉnh ⇒ nêu sai số RIÊNG trên các
+  //    lần điều chỉnh (mape_move), trung thực hơn MAPE gộp (bị các lần giữ-nguyên kéo xuống).
+  const onMove = it.action !== "hold" && it.n_move >= 3 && it.mape_move != null;
+  if (onMove) {
+    reasons.push(`Độ tin cậy ${CONF_LABEL[it.confidence ?? "low"]}: trên ${it.n_move} lần mô hình từng đề xuất điều chỉnh, sai số TB ${pct(it.mape_move)} (mức gộp mọi lần ${pct(it.mape)}, đúng hướng ${pct(it.hit)}).`);
+  } else if (it.mape != null) {
     const hitTxt = it.hit != null ? `, đúng hướng ${pct(it.hit)}` : "";
     reasons.push(`Độ tin cậy ${CONF_LABEL[it.confidence ?? "low"]}: mô hình khớp lịch sử grade này với MAPE ${pct(it.mape)}${hitTxt} qua ${it.n_bt} lần kiểm định (walk-forward).`);
   }
 
-  // 4) Đối chiếu SHFE (chỉ báo dẫn hướng) — xác nhận hoặc cảnh báo ngược chiều.
+  // 4) Đối chiếu SHFE (chỉ báo dẫn hướng) — chỉ tính khi SHFE biến động RÕ (≥0,5%), cùng
+  //    ngưỡng với cảnh báo; SHFE đi ngang KHÔNG được coi là "xác nhận".
   let caution: string | null = null;
   const shfe = ctx.drivers.find((d) => d.index.includes("SHFE"));
+  const shfeChg = shfe?.change_pct;
   if (it.caution === "shfe_opposite") {
-    caution = `SHFE RU (chỉ báo dẫn hướng, đồng hướng giá sàn ~88% lịch sử) đang đi NGƯỢC chiều đề xuất (${sPct(shfe?.change_pct)}) — cân nhắc thận trọng hoặc chờ xác nhận thêm.`;
-  } else if (it.action !== "hold" && shfe?.change_pct != null && (shfe.change_pct > 0) === ((it.delta ?? 0) > 0)) {
-    reasons.push(`SHFE RU (chỉ báo dẫn hướng, đồng hướng ~88% lịch sử) cùng chiều (${sPct(shfe.change_pct)}) → xác nhận hướng điều chỉnh.`);
+    caution = `SHFE RU (chỉ báo dẫn hướng, đồng hướng giá sàn ~88% lịch sử) đang đi NGƯỢC chiều đề xuất (${sPct(shfeChg)}) — cân nhắc thận trọng hoặc chờ xác nhận thêm.`;
+  } else if (it.action !== "hold" && shfeChg != null) {
+    if (Math.abs(shfeChg) >= 0.5 && (shfeChg > 0) === ((it.delta ?? 0) > 0)) {
+      reasons.push(`SHFE RU (chỉ báo dẫn hướng, đồng hướng ~88% lịch sử) cùng chiều (${sPct(shfeChg)}) → xác nhận hướng điều chỉnh.`);
+    } else if (Math.abs(shfeChg) < 0.5) {
+      reasons.push(`SHFE RU gần như đi ngang (${sPct(shfeChg)}) → chưa cho tín hiệu xác nhận, dựa chủ yếu vào physical & rổ chỉ số.`);
+    }
   }
 
   return { headline, reasons, caution };

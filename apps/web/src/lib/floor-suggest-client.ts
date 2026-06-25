@@ -19,7 +19,10 @@ export type SuggestItem = {
   action: FloorAction | null;   // NÂNG / GIỮ / HẠ theo dead-band
   confidence: FloorConfidence | null;
   caution: string | null;       // "shfe_opposite" khi SHFE ngược hướng
-  mape: number | null; hit: number | null; n_bt: number; // bằng chứng backtest grade
+  mape: number | null;          // MAPE gộp toàn chuỗi backtest
+  mape_move: number | null;     // MAPE RIÊNG các lần mô hình đề xuất điều chỉnh
+  n_move: number;               // số lần backtest mô hình đề xuất điều chỉnh
+  hit: number | null; n_bt: number; // bằng chứng backtest grade
 };
 export type SuggestResult = {
   as_of: string; model: FloorModel; backtest: boolean; n_train: number;

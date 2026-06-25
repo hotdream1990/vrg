@@ -127,6 +127,17 @@ def test_build_item_hold_and_shfe_caution() -> None:
     assert opp["confidence"] == "medium"  # high → medium
 
 
+def test_build_item_confidence_uses_actionable_error() -> None:
+    # MAPE gộp tốt (3%) nhưng sai số TRÊN CÁC LẦN ĐIỀU CHỈNH cao (9%, n=6).
+    bt = {"mae": 50.0, "mape": 3.0, "hit": 90.0, "n": 20, "mape_move": 9.0, "n_move": 6}
+    # GIỮ ⇒ vẫn dùng MAPE gộp ⇒ tin cậy CAO.
+    hold = fr.build_item("SVR 10", 1500.0, 1510.0, {"r": 0.9}, 1500.0, bt, shfe_chg=2.0)
+    assert hold["action"] == "hold" and hold["confidence"] == "high"
+    # NÂNG ⇒ chấm theo mape_move 9% ⇒ chỉ TRUNG BÌNH (không phải CAO theo 3% gộp).
+    rz = fr.build_item("SVR 10", 1700.0, 1620.0, {"r": 0.9}, 1500.0, bt, shfe_chg=2.0)
+    assert rz["action"] == "raise" and rz["mape_move"] == 9.0 and rz["confidence"] == "medium"
+
+
 # ----------------------------- Endpoint (cần DB + auth) -----------------------------
 
 pytestmark_db = pytest.mark.skipif(not db_healthy(), reason="DB không sẵn sàng")
