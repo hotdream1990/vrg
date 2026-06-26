@@ -9,8 +9,11 @@ secrets/
 # ─── Dữ liệu mật VRG (giữ local, KHÔNG commit) ───────────────
 docs/data/*
 docs/bieu-mau/*
+docs/bieu-mau-bo-sung/
+docs/ban hanh gia san/
 data/raw/*
 !data/raw/.gitkeep
+data/*.log
 
 # ─── Python ──────────────────────────────────────────────────
 __pycache__/
@@ -37,3 +40,4 @@ build/
 # ─── Claude Code (local, không commit; launch.json + commands/ thì commit) ───
 .claude/settings.local.json
 data/bulletins/
+screenshots/
