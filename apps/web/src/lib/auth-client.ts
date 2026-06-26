@@ -16,10 +16,13 @@ export async function login(username: string, password: string): Promise<LoginRe
       body: JSON.stringify({ username, password }),
     });
   } catch {
-    throw new Error("Không kết nối được máy chủ (" + API + ")");
+    throw new Error("Không kết nối được máy chủ — máy chủ chưa chạy hoặc đang lỗi (" + API + ")");
+  }
+  if (res.status >= 500) {
+    throw new Error("Máy chủ đang gặp lỗi, vui lòng thử lại (có thể cơ sở dữ liệu chưa sẵn sàng)");
   }
   if (!res.ok) {
-    let msg = "Đăng nhập thất bại";
+    let msg = "Sai tài khoản hoặc mật khẩu";
     try { const b = await res.json(); msg = b.detail || msg; } catch { /* ignore */ }
     throw new Error(msg);
   }
