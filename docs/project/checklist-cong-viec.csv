@@ -29,13 +29,14 @@ W3,3. Trung tâm Điều hành AI (Lãnh đạo),"[w3] Xuất ""Bản tin ngày"
 W3,2. Hệ thống Dự báo Giá,[w3] Màn Gợi ý điều chỉnh giá sàn (đề xuất nâng/giữ/hạ kèm diễn giải),Hoàn thành,Bizino,Có kiểm định độ chính xác trên lịch sử
 W3,2. Hệ thống Dự báo Giá,[w3] Xuất Tờ trình giá sàn từ màn Gợi ý (xem trước + In/Xuất PDF),Hoàn thành,Bizino,Tự sinh tờ trình theo đúng mẫu Ban TTKD
 W3,1. Dashboard Giám sát Thị trường,[w3] Nạp bổ sung dữ liệu giá lịch sử (từ 2024),Đang thực hiện,Bizino,Đã nạp tỷ giá / giá các sàn / giá mủ nước; còn chỉ số vĩ mô & tồn kho
-W3,1. Dashboard Giám sát Thị trường,[w3] Đưa màn Gợi ý giá sàn & giá giao ngay vào menu chính,Đang thực hiện,Bizino,
+W3,1. Dashboard Giám sát Thị trường,[w3] Đưa màn Gợi ý giá sàn & giá giao ngay vào menu chính,Hoàn thành,Bizino,Đã gắn route + menu điều hướng
+W3,2. Hệ thống Dự báo Giá,[w2] Ma trận kịch bản Tăng / Ổn định / Giảm (Bull/Base/Bear),Hoàn thành,Bizino,Build trên engine Gợi ý: sốc rổ chỉ số ±1 độ lệch chuẩn → 3 mức giá sàn từng chủng loại
+W3,2. Hệ thống Dự báo Giá,[w3] Gợi ý giá sàn cho ngày bất kỳ (không chỉ lần đã ban hành),Hoàn thành,Bizino,Chọn ngày tùy ý → dự báo theo dữ liệu hiện có
 
 PHẦN 3 — BACKLOG (KẾ HOẠCH & CHỜ PHỐI HỢP),,,,,
 Tuần,Hạng mục,Công việc,Trạng thái,Phụ trách,Ghi chú
 W3,1. Dashboard Giám sát Thị trường,[w2] So sánh giá sàn VRG với quốc tế (chênh lệch Premium/Discount),Cần phối hợp,Phối hợp,Đã có tương quan giá sàn ↔ chỉ số quốc tế trong màn Gợi ý; vẫn cần giá bán thực tế (HĐ theo Quý)
 W3,2. Hệ thống Dự báo Giá,Mô hình dự báo giá SVR 10 (mục tiêu sai số ≤ 6% trong 7 ngày),Theo kế hoạch,Bizino,Engine hồi quy giá sàn + backtest đã có (bước đệm); mô hình chuỗi-thời-gian 7 ngày chưa làm
-W2,2. Hệ thống Dự báo Giá,Ma trận kịch bản Tăng / Ổn định / Giảm + khuyến nghị,Theo kế hoạch,Bizino,
 W2,3. Trung tâm Điều hành AI (Lãnh đạo),Số hóa & hệ thống hóa tri thức nội bộ VRG,Theo kế hoạch,Phối hợp,Cần VRG bàn giao tài liệu
 W2,3. Trung tâm Điều hành AI (Lãnh đạo),Trợ lý hỏi đáp tiếng Việt có trích dẫn nguồn,Theo kế hoạch,Bizino,
 W3,3. Trung tâm Điều hành AI (Lãnh đạo),[w2] Cảnh báo đa kênh (Email/Zalo/Telegram) khi giá biến động,Theo kế hoạch,Bizino,Đã phác thảo cơ chế cảnh báo tự động theo ngưỡng biến động chỉ số
