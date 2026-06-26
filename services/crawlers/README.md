@@ -22,7 +22,7 @@ uv run pytest          # test offline (selection + parser ANRPC, không gọi m�
 | Nguồn | Grade | Trạng thái |
 |---|---|---|
 | **ANRPC** | SMR20, STR20, SIR20, RSS3 (physical US$/kg) | ✅ chạy |
-| **FX** (open.er-api) | USD/VND, CNY, THB, JPY, MYR | ✅ chạy |
+| **FX** | CNY/JPY/THB/MYR — **Close** từ exchangerates.org.uk (Playwright, vượt Cloudflare) · VND — open.er-api | ✅ chạy *(context mới mỗi đồng; không backfill)* |
 | **SHFE** (daily kx) | RU 天然橡胶 — **settlement**, CNY/tonne | ✅ chạy *(SETTLEMENTPRICE kỳ hạn **max Volume** — đúng spec)* |
 | **TOCOM/OSE** | RSS3 + TSR20 — settlement, JPY/kg | ✅ chạy *(OSE Daily Report PDF · chọn kỳ hạn **max Trading Value**)* |
 | **LGM** | SMR CV/L/5/GP/10/20 + Latex — **US cents/kg** | ✅ chạy *(API currentprice; Latex tự quy đổi Sen/kg→US cents/kg theo tỷ giá nội tại)* |

@@ -1,74 +1,123 @@
-"""Tỷ giá USD — phục vụ theo dõi USD/VNĐ và quy đổi giá physical (Latex, Sen/Kg...).
+"""Tỷ giá USD — Close hằng ngày từ exchangerates.org.uk (đúng nguồn Ban TTKD dùng).
 
-Latest: open.er-api.com (đủ pairs gồm VND). History: frankfurter.dev (ECB, có CNY/JPY/MYR/THB,
-KHÔNG có VND). Spec: lay-gia-cac-san.md.
+exchangerates.org.uk đứng sau Cloudflare → httpx bị 403; phải dùng trình duyệt thật (Playwright).
+GOTCHA: CF chỉ cho qua lần tải ĐẦU của mỗi BrowserContext → mỗi đồng tiền dùng 1 context MỚI
+(điều hướng nhiều trang trong cùng context bị WAF chặn 403). Lấy dòng Close mới nhất ("DD Month
+YYYY  1 USD = <rate> <CUR>") trong bảng "Exchange Rate History" của trang conversion.
+VND không có trên exchangerates → giữ logic cũ open.er-api (tạm thời). KHÔNG backfill trong crawler.
 """
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+import re
+from datetime import date, datetime, timezone
 
 from ..base.fetcher import fetch_json
 from ..base.models import CrawlResult, PriceRecord, Source, Status
 
-URL = "https://open.er-api.com/v6/latest/USD"
-PAIRS = ["VND", "CNY", "THB", "JPY", "MYR"]  # USD/VNĐ + các đồng cho quy đổi sàn
-# History ECB (không có VND) — backfill chart vĩ mô.
-_HIST_URL = "https://api.frankfurter.dev/v1/{start}..{end}?base=USD&symbols=CNY,JPY,MYR,THB"
+# Đồng tiền quy trình giá sàn: CNY/JPY (quy futures→USD), MYR (Ringgit), THB (physical Thái).
+_PAGES = {
+    "CNY": "https://www.exchangerates.org.uk/Dollars-to-Yuan-currency-conversion-page.html",
+    "JPY": "https://www.exchangerates.org.uk/Dollars-to-YEN-currency-conversion-page.html",
+    "THB": "https://www.exchangerates.org.uk/Dollars-to-Baht-currency-conversion-page.html",
+    "MYR": "https://www.exchangerates.org.uk/Dollars-to-Malaysian-Ringgit-currency-conversion-page.html",
+}
+_VND_URL = "https://open.er-api.com/v6/latest/USD"  # VND: giữ logic cũ (exchangerates không có)
+_UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+       "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
+# 1 dòng lịch sử: "23 June 2026  1 USD = 6.7908 CNY" (bỏ qua thứ đứng trước số ngày).
+_ROW = re.compile(r"(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})\s+1 USD = ([\d.]+)\s+([A-Z]{3})")
+
+
+def _parse_latest(text: str, code: str) -> tuple[date, float] | None:
+    """Dòng Close MỚI NHẤT cho `code` trong bảng lịch sử (newest-first). Offline-testable.
+
+    Bỏ qua dòng spot không có ngày (vd 'Live: 1 USD = ...') vì regex bắt buộc có ngày đứng trước.
+    """
+    for m in _ROW.finditer(text):
+        d, mon, yr, rate, cur = m.groups()
+        if cur != code:
+            continue
+        try:
+            as_of = datetime.strptime(f"{d} {mon} {yr}", "%d %B %Y").date()
+        except ValueError:
+            continue
+        return as_of, float(rate)
+    return None
+
+
+def _rec(code: str, as_of: date, rate: float) -> PriceRecord:
+    return PriceRecord(source=Source.FX, grade=f"USD/{code}", price=rate, currency=code,
+                       unit=f"{code} per USD", price_type="fx", as_of=as_of)
+
+
+def _cf_wait(page, sec: int = 15) -> None:
+    """Chờ Cloudflare giải JS challenge (title rời 'Just a moment'/'Attention Required')."""
+    for _ in range(sec):
+        title = page.title().lower()
+        if "just a moment" not in title and "attention" not in title:
+            page.wait_for_timeout(2000)  # để bảng lịch sử render xong
+            return
+        page.wait_for_timeout(1000)
+
+
+def _scrape(pages: dict[str, str]) -> tuple[list[PriceRecord], list[str]]:
+    """Scrape Close từng đồng bằng 1 context riêng. Trả (records, danh sách đồng lỗi)."""
+    from playwright.sync_api import sync_playwright
+
+    records: list[PriceRecord] = []
+    failed: list[str] = []
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        try:
+            for code, url in pages.items():
+                ctx = browser.new_context(user_agent=_UA, locale="en-US")
+                try:
+                    page = ctx.new_page()
+                    page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                    _cf_wait(page)
+                    parsed = _parse_latest(page.inner_text("body"), code)
+                    if parsed:
+                        records.append(_rec(code, *parsed))
+                    else:
+                        failed.append(code)
+                except Exception:  # noqa: BLE001 - cô lập từng đồng (CF chặn 1 ≠ chặn cả)
+                    failed.append(code)
+                finally:
+                    ctx.close()
+        finally:
+            browser.close()
+    return records, failed
+
+
+def _vnd() -> PriceRecord | None:
+    """USD/VND — giữ logic cũ open.er-api (exchangerates/ECB không có VND)."""
+    try:
+        data = fetch_json(_VND_URL)
+        rate = data.get("rates", {}).get("VND")
+        ts = data.get("time_last_update_unix")
+        as_of = (datetime.fromtimestamp(ts, tz=timezone.utc).date() if ts
+                 else datetime.now(timezone.utc).date())
+        return _rec("VND", as_of, float(rate)) if rate else None
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def crawl() -> CrawlResult:
+    """Quét tỷ giá Close (CNY/JPY/THB/MYR qua Playwright) + VND (open.er-api). Cô lập lỗi."""
+    notes: list[str] = []
     try:
-        data = fetch_json(URL)
-        rates = data.get("rates", {})
-        ts = data.get("time_last_update_unix")
-        as_of = (
-            datetime.fromtimestamp(ts, tz=timezone.utc).date()
-            if ts
-            else datetime.now(timezone.utc).date()
-        )
-        records = [
-            PriceRecord(
-                source=Source.FX,
-                grade=f"USD/{c}",
-                price=float(rates[c]),
-                currency=c,
-                unit=f"{c} per USD",
-                price_type="fx",
-                as_of=as_of,
-            )
-            for c in PAIRS
-            if c in rates
-        ]
-        if records:
-            return CrawlResult(source=Source.FX, status=Status.OK, records=records)
-        return CrawlResult(source=Source.FX, status=Status.EMPTY, note="Không có tỷ giá")
-    except Exception as exc:  # noqa: BLE001
-        return CrawlResult(source=Source.FX, status=Status.ERROR, note=str(exc))
-
-
-def history(days: int = 90, end: date | None = None) -> list[PriceRecord]:
-    """Backfill tỷ giá USD/CNY,JPY,MYR,THB (ECB qua frankfurter) — 1 request cả range.
-
-    KHÔNG có VND (ngoài rổ ECB) → VND chỉ tích lũy tiến từ open.er-api.
-    """
-    end_d = end or datetime.now(timezone.utc).date()
-    start_d = end_d - timedelta(days=days)
-    data = fetch_json(_HIST_URL.format(start=start_d.isoformat(), end=end_d.isoformat()))
-    rates = data.get("rates", {})
-    out: list[PriceRecord] = []
-    for day_str in sorted(rates):
-        as_of = datetime.fromisoformat(day_str).date()
-        for cur, val in rates[day_str].items():
-            out.append(
-                PriceRecord(
-                    source=Source.FX,
-                    grade=f"USD/{cur}",
-                    price=float(val),
-                    currency=cur,
-                    unit=f"{cur} per USD",
-                    price_type="fx",
-                    as_of=as_of,
-                )
-            )
-    return out
+        records, failed = _scrape(_PAGES)
+        if failed:
+            notes.append("Cloudflare/parse chặn: " + ",".join(failed))
+    except Exception as exc:  # noqa: BLE001 - Playwright/chromium hỏng → cả nhóm scrape fail
+        records, notes = [], [f"scrape lỗi: {str(exc)[:100]}"]
+    vnd = _vnd()
+    if vnd:
+        records.append(vnd)
+    else:
+        notes.append("VND lỗi")
+    note = "; ".join(notes) or None
+    if records:
+        return CrawlResult(source=Source.FX, status=Status.OK, records=records, note=note)
+    return CrawlResult(source=Source.FX, status=Status.BLOCKED, note=note or "Không lấy được tỷ giá")
