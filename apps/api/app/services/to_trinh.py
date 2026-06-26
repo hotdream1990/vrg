@@ -155,7 +155,9 @@ def build(as_of: str, model: str = "v1") -> dict[str, Any]:
         settlement = _settlement(db, t2, t1) if t1 else []
         physical = _physical(db, t2, t1) if t1 else []
         proposal = _proposal(db, sug, sug.get("prev_as_of"))
-    return {"as_of": as_of, "year": year, "lan": int(lan_year), "prev_lan": int(lan_year) - 1,
+    # ngày bất kỳ (chưa ban hành) ⇒ là lần KẾ TIẾP (lan_year + 1)
+    lan = int(lan_year) + (0 if sug.get("is_issuance", True) else 1)
+    return {"as_of": as_of, "year": year, "lan": lan, "prev_lan": lan - 1,
             "t1": str(t1) if t1 else None, "t2": str(t2) if t2 else None,
             "settlement": settlement, "physical": physical, "proposal": proposal,
             **_narrative(settlement, physical)}

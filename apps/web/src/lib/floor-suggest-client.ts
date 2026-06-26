@@ -30,6 +30,8 @@ export type SuggestResult = {
   prev_as_of: string | null;            // ngày lần ban hành liền trước
   basket_change_pct: number | null;     // TB biến động rổ kể từ lần trước
   drivers: FloorDriver[];
+  is_issuance?: boolean;                // false = ngày bất kỳ (chưa ban hành)
+  error?: string;                       // ngày không hợp lệ
 };
 export type CorrRow = { index: string; r: number; n: number };
 export type ChartSeries = { name: string; values: (number | null)[] };

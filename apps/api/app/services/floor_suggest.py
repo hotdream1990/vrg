@@ -117,8 +117,12 @@ def suggest(as_of: str, model: str = "v1", backtest: bool = True,
     backtest=True ⇒ chỉ fit data TRƯỚC as_of (so sánh khách quan với giá đã ban hành).
     """
     fd, grades, fmap, idx, lanmap = _load()
-    if as_of not in fd:
-        return {"as_of": as_of, "items": [], "error": "Không phải ngày ban hành giá sàn"}
+    is_issuance = as_of in fd
+    if not is_issuance:
+        # Ngày BẤT KỲ (chưa ban hành): fit toàn bộ lịch sử TRƯỚC as_of, không có giá thực để so.
+        if not fd or as_of <= fd[0]:
+            return {"as_of": as_of, "items": [], "error": f"Ngày phải sau lần ban hành đầu tiên ({fd[0] if fd else '—'})"}
+        backtest = True
     train = [d for d in fd if d != as_of and (d < as_of if backtest else True)]
     prev_d = max((d for d in fd if d < as_of), default=None)
     keys = FEATS[1:] if model == "v1" else FEATS
@@ -139,8 +143,8 @@ def suggest(as_of: str, model: str = "v1", backtest: bool = True,
         _, prev = fr.prev_floor(fd, fmap, g, as_of)
         items.append(fr.build_item(g, fmap.get((as_of, g)), sug, r, prev, bt, shfe_chg))
     return {
-        "as_of": as_of, "model": model, "backtest": backtest, "n_train": n_train,
-        "feats": sorted(feats_used), "prev_as_of": prev_d,
+        "as_of": as_of, "model": model, "backtest": backtest, "is_issuance": is_issuance,
+        "n_train": n_train, "feats": sorted(feats_used), "prev_as_of": prev_d,
         "basket_change_pct": round(sum(chgs) / len(chgs), 2) if chgs else None,
         "drivers": drivers, "items": items,
     }

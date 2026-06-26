@@ -27,6 +27,7 @@ const GRADES = ["SVR CV 50", "SVR CV60", "SVR L", "SVR 3L Mix", "SVR 3L", "SVR 5
 export default function FloorSuggestPage() {
   const [points, setPoints] = useState<FloorPoint[]>([]);
   const [asOf, setAsOf] = useState("");
+  const [mode, setMode] = useState<"issuance" | "custom">("issuance");
   const [backtest, setBacktest] = useState(true);
   const [model, setModel] = useState<FloorModel>("v1");
   const [grade, setGrade] = useState("SVR 10");
@@ -62,28 +63,53 @@ export default function FloorSuggestPage() {
           <h2><BulbOutlined style={{ marginRight: 8 }} />Gợi ý điều chỉnh giá sàn</h2>
           <p>Mô hình hồi quy theo rổ chỉ số thị trường (MRB SMR20 · SGX TSR20 · SHFE · OSE RSS3) đề xuất
             NÂNG/GIỮ/HẠ giá sàn so với lần ban hành liền trước, kèm diễn giải căn cứ và độ tin cậy.
-            Chọn 1 lần đã ban hành để đối chiếu với quyết định thực tế.</p>
+            Chọn 1 lần đã ban hành để đối chiếu, hoặc <b>một ngày bất kỳ</b> để gợi ý giá sàn mới theo dữ liệu hiện có.</p>
         </div>
       </div>
       {err && <div className="blt-error">{err}</div>}
+      {sug?.error && <div className="blt-error">{sug.error}</div>}
 
       <div className="card" style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center" }}>
-        <label className="blt-date-label">Lần ban hành:
-          <select className="blt-date-input" value={asOf} onChange={(e) => setAsOf(e.target.value)}>
-            {points.map((p) => <option key={p.as_of} value={p.as_of}>Lần {p.lan} · {p.as_of}</option>)}
+        <label className="blt-date-label">Chế độ:
+          <select className="blt-date-input" value={mode} onChange={(e) => {
+            const m = e.target.value as "issuance" | "custom";
+            setMode(m);
+            if (m === "issuance") { if (points[0]) setAsOf(points[0].as_of); }
+            else setAsOf(new Date().toISOString().slice(0, 10));
+          }}>
+            <option value="issuance">Lần đã ban hành</option>
+            <option value="custom">Ngày bất kỳ (gợi ý mới)</option>
           </select>
         </label>
+        {mode === "issuance" ? (
+          <label className="blt-date-label">Lần ban hành:
+            <select className="blt-date-input" value={asOf} onChange={(e) => setAsOf(e.target.value)}>
+              {points.map((p) => <option key={p.as_of} value={p.as_of}>Lần {p.lan} · {p.as_of}</option>)}
+            </select>
+          </label>
+        ) : (
+          <label className="blt-date-label">Ngày gợi ý:
+            <input type="date" className="blt-date-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+          </label>
+        )}
         <label className="blt-date-label">Mô hình:
           <select className="blt-date-input" value={model} onChange={(e) => setModel(e.target.value as FloorModel)}>
             <option value="v1">Rổ 4 futures (khuyến nghị)</option>
             <option value="v2">Đa biến + mủ nước (đối chiếu)</option>
           </select>
         </label>
-        <label className="blt-date-label" style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <input type="checkbox" checked={backtest} onChange={(e) => setBacktest(e.target.checked)} />
-          Backtest (chỉ dùng data trước lần này)
-        </label>
-        {sug && <span className="chip">Biến: {sug.feats.join(" · ") || "—"} · fit {sug.n_train} lần</span>}
+        {mode === "issuance" && (
+          <label className="blt-date-label" style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input type="checkbox" checked={backtest} onChange={(e) => setBacktest(e.target.checked)} />
+            Backtest (chỉ dùng data trước lần này)
+          </label>
+        )}
+        {sug && !sug.error && (
+          <span className="chip">
+            {sug.is_issuance === false ? "Ngày bất kỳ · so với lần " + (sug.prev_as_of ?? "—") + " · " : ""}
+            Biến: {sug.feats.join(" · ") || "—"} · fit {sug.n_train} lần
+          </span>
+        )}
         <button
           onClick={() => setShowToTrinh(true)}
           disabled={!asOf}
