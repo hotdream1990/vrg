@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Query
+from fastapi.responses import HTMLResponse
 
-from app.services import floor_suggest
+from app.services import floor_suggest, to_trinh, to_trinh_html
 
 router = APIRouter(prefix="/api/floor-suggest", tags=["floor-suggest"])
 
@@ -58,3 +59,18 @@ def correlation(grade: str = Query("SVR 10")) -> list[dict]:
 def chart(grade: str = Query("SVR 10")) -> dict:
     """Chuỗi (chuẩn hoá base-100) giá sàn + chỉ số để vẽ chart tương quan."""
     return floor_suggest.chart(grade)
+
+
+@router.get("/to-trinh", response_class=HTMLResponse)
+def to_trinh_doc(
+    as_of: str = Query(..., description="ngày 1 lần đã ban hành YYYY-MM-DD"),
+    model: str = _MODEL,
+) -> HTMLResponse:
+    """Sinh TỜ TRÌNH giá sàn (HTML A4) từ đề xuất mô hình + dữ liệu thị trường — để preview & in."""
+    return HTMLResponse(to_trinh_html.render(to_trinh.build(as_of, model)))
+
+
+@router.get("/to-trinh/data")
+def to_trinh_data(as_of: str = Query(...), model: str = _MODEL) -> dict:
+    """Dữ liệu thô 4 khối tờ trình (JSON) — để đối chiếu/sửa trước khi xuất."""
+    return to_trinh.build(as_of, model)
