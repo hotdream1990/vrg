@@ -1,40 +1,58 @@
-PHẦN 1 — ĐÃ HOÀN THÀNH (TUẦN TRƯỚC),,,,
-Hạng mục,Công việc,Trạng thái,Phụ trách,Ghi chú
-1. Dashboard Giám sát Thị trường,Khung giao diện Dashboard đa sàn (bản demo),Hoàn thành,Bizino,
-1. Dashboard Giám sát Thị trường,Bảng giá cập nhật + biểu đồ lịch sử trên Dashboard (bản demo),Hoàn thành,Bizino,
-1. Dashboard Giám sát Thị trường,Lưu trữ & tích lũy lịch sử giá hằng ngày (bản demo),Hoàn thành,Bizino,
-"4. Hạ tầng, Bảo mật & Nghiệm thu",Thiết lập hệ thống & cơ sở dữ liệu (bản demo),Hoàn thành,Bizino,Môi trường phát triển
-1. Dashboard Giám sát Thị trường,"Thu thập giá tự động — sàn Nhật (TOCOM/OSE: cao su RSS3, TSR20)",Hoàn thành,Bizino,
-1. Dashboard Giám sát Thị trường,Thu thập giá tự động — sàn Trung Quốc (SHFE Thượng Hải: cao su tự nhiên),Hoàn thành,Bizino,
-1. Dashboard Giám sát Thị trường,"Thu thập giá tự động — Malaysia (Cục Cao su LGM: SMR, Latex)",Hoàn thành,Bizino,
-1. Dashboard Giám sát Thị trường,Thu thập giá tự động — Hiệp hội ANRPC (giá tham chiếu khu vực),Hoàn thành,Bizino,
-1. Dashboard Giám sát Thị trường,"Thu thập tỷ giá ngoại tệ (USD/VNĐ, USD/CNY, ...)",Hoàn thành,Bizino,
+PHẦN 1 — ĐÃ HOÀN THÀNH (TUẦN TRƯỚC),,,,,
+Tuần,Hạng mục,Công việc,Trạng thái,Phụ trách,Ghi chú
+W3,1. Dashboard Giám sát Thị trường,[w2] Khung giao diện Dashboard đa sàn,Hoàn thành,Bizino,Nâng từ bản demo lên Command Center hoàn chỉnh (giao diện quản trị + phân quyền)
+W3,1. Dashboard Giám sát Thị trường,[w2] Bảng giá cập nhật + biểu đồ lịch sử trên Dashboard,Hoàn thành,Bizino,Đã chuyển từ demo sang dữ liệu thật
+W3,1. Dashboard Giám sát Thị trường,[w2] Lưu trữ & tích lũy lịch sử giá hằng ngày,Hoàn thành,Bizino,Đã chuyển sang cơ sở dữ liệu thật + tự động thu thập theo lịch
+W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w2] Thiết lập hệ thống & cơ sở dữ liệu,Hoàn thành,Bizino,Từ môi trường thử nghiệm lên cơ sở dữ liệu chạy thật
+W2,1. Dashboard Giám sát Thị trường,"Thu thập giá tự động — sàn Nhật (TOCOM/OSE: cao su RSS3, TSR20)",Hoàn thành,Bizino,
+W2,1. Dashboard Giám sát Thị trường,Thu thập giá tự động — sàn Trung Quốc (SHFE Thượng Hải: cao su tự nhiên),Hoàn thành,Bizino,
+W2,1. Dashboard Giám sát Thị trường,"Thu thập giá tự động — Malaysia (Cục Cao su LGM: SMR, Latex)",Hoàn thành,Bizino,
+W2,1. Dashboard Giám sát Thị trường,Thu thập giá tự động — Hiệp hội ANRPC (giá tham chiếu khu vực),Hoàn thành,Bizino,
+W2,1. Dashboard Giám sát Thị trường,"Thu thập tỷ giá ngoại tệ (USD/VNĐ, USD/CNY, ...)",Hoàn thành,Bizino,
 
-PHẦN 2 — ĐANG LÀM (HIỆN TẠI),,,,
-Hạng mục,Công việc,Trạng thái,Phụ trách,Ghi chú
-1. Dashboard Giám sát Thị trường,Thu thập giá sàn Singapore (SICOM),Đang thực hiện,Bizino,Nguồn yêu cầu bản quyền dữ liệu — đang xử lý
-1. Dashboard Giám sát Thị trường,"Thu thập chỉ số vĩ mô (dầu, USD Index, PMI Trung Quốc)",Đang thực hiện,Bizino,
-1. Dashboard Giám sát Thị trường,Lấy giá giao dịch thực (Physical Price) hằng ngày từ báo cáo của chuyên viên vào hệ thống,Đang thực hiện,Phối hợp,Nguồn: báo cáo giá ngày của anh Tâm — để đối chiếu với giá sàn
-1. Dashboard Giám sát Thị trường,Xử lý & xuất báo cáo giá hằng ngày từ tài liệu của anh Tâm,Đang thực hiện,Phối hợp,Tự động xử lý & xuất báo cáo ngày từ tài liệu/báo cáo của anh Tâm
-2. Hệ thống Dự báo Giá,Giao diện hiển thị dự báo trên Dashboard (bản demo),Đang thực hiện,Bizino,"Đã dựng giao diện, chờ gắn mô hình"
+PHẦN 2 — ĐANG LÀM (HIỆN TẠI),,,,,
+Tuần,Hạng mục,Công việc,Trạng thái,Phụ trách,Ghi chú
+W2,1. Dashboard Giám sát Thị trường,Thu thập giá sàn Singapore (SICOM),Đang thực hiện,Bizino,Nguồn yêu cầu bản quyền dữ liệu — đang xử lý
+W3,1. Dashboard Giám sát Thị trường,"[w2] Thu thập chỉ số vĩ mô (dầu, USD Index, PMI Trung Quốc)",Đang thực hiện,Bizino,Tỷ giá đã xong; phần dầu/USD Index/PMI chưa triển khai
+W3,1. Dashboard Giám sát Thị trường,[w2] Lấy giá giao dịch thực (Physical) hằng ngày từ báo cáo chuyên viên,Đang thực hiện,Phối hợp,Đã có trang Physical + chức năng nhập; còn quy đổi giá Baht/kg (2026) sang USD/tấn
+W3,1. Dashboard Giám sát Thị trường,[w2] Xử lý & xuất báo cáo giá hằng ngày từ tài liệu chuyên viên,Đang thực hiện,Phối hợp,Một phần đã có qua trình tạo Bản tin ngày; còn tự động hóa
+W2,2. Hệ thống Dự báo Giá,Giao diện hiển thị dự báo trên Dashboard (bản demo),Đang thực hiện,Bizino,"Đã dựng giao diện, chờ gắn mô hình"
+W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w3] Đăng nhập an toàn + phân quyền theo vai trò + quản trị người dùng,Hoàn thành,Bizino,Chờ nghiệm thu để chuyển sang Đã hoàn thành
+W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w3] Trang hồ sơ cá nhân + đổi mật khẩu,Hoàn thành,Bizino,
+W3,1. Dashboard Giám sát Thị trường,[w3] Nền tảng quản lý dữ liệu nội bộ (thêm/sửa/xóa bản ghi giá),Hoàn thành,Bizino,
+W3,1. Dashboard Giám sát Thị trường,[w3] Quản lý & nạp lịch sử giá sàn VRG,Hoàn thành,Bizino,30 lần ban hành từ 2024 đã đưa vào hệ thống
+W3,1. Dashboard Giám sát Thị trường,[w3] Nạp dữ liệu giá lịch sử từ file Excel của Ban TTKD,Hoàn thành,Bizino,"Giá các sàn, tỷ giá, mủ nước, giá giao ngay — từ 2024"
+W3,1. Dashboard Giám sát Thị trường,[w3] Quản lý danh mục đơn vị thành viên,Hoàn thành,Bizino,
+W3,1. Dashboard Giám sát Thị trường,[w3] Trang giá mủ nguyên liệu (giá mủ nước theo khu vực),Hoàn thành,Bizino,
+W3,3. Trung tâm Điều hành AI (Lãnh đạo),"[w3] Trình tạo ""Bản tin ngày"" thị trường (soạn / sửa / xuất bản)",Hoàn thành,Bizino,
+W3,3. Trung tâm Điều hành AI (Lãnh đạo),"[w3] Xuất ""Bản tin ngày"" ra bản trình chiếu (PPTX) và PDF",Hoàn thành,Bizino,
+W3,2. Hệ thống Dự báo Giá,[w3] Màn Gợi ý điều chỉnh giá sàn (đề xuất nâng/giữ/hạ kèm diễn giải),Hoàn thành,Bizino,Có kiểm định độ chính xác trên lịch sử
+W3,2. Hệ thống Dự báo Giá,[w3] Xuất Tờ trình giá sàn từ màn Gợi ý (xem trước + In/Xuất PDF),Hoàn thành,Bizino,Tự sinh tờ trình theo đúng mẫu Ban TTKD
+W3,1. Dashboard Giám sát Thị trường,[w3] Nạp bổ sung dữ liệu giá lịch sử (từ 2024),Đang thực hiện,Bizino,Đã nạp tỷ giá / giá các sàn / giá mủ nước; còn chỉ số vĩ mô & tồn kho
+W3,1. Dashboard Giám sát Thị trường,[w3] Đưa màn Gợi ý giá sàn & giá giao ngay vào menu chính,Đang thực hiện,Bizino,
 
-PHẦN 3 — BACKLOG (KẾ HOẠCH & CHỜ PHỐI HỢP),,,,
-Hạng mục,Công việc,Trạng thái,Phụ trách,Ghi chú
-1. Dashboard Giám sát Thị trường,So sánh giá sàn VRG với quốc tế (chênh lệch Premium/Discount),Cần phối hợp,Phối hợp,Cần VRG cung cấp giá bán thực tế (Hợp đồng theo Quý) để tính Premium/Discount
-2. Hệ thống Dự báo Giá,Mô hình dự báo giá SVR 10 (mục tiêu sai số ≤ 6% trong 7 ngày),Theo kế hoạch,Bizino,
-2. Hệ thống Dự báo Giá,Ma trận kịch bản Tăng / Ổn định / Giảm + khuyến nghị,Theo kế hoạch,Bizino,
-3. Trung tâm Điều hành AI (Lãnh đạo),Số hóa & hệ thống hóa tri thức nội bộ VRG,Theo kế hoạch,Phối hợp,Cần VRG bàn giao tài liệu
-3. Trung tâm Điều hành AI (Lãnh đạo),Trợ lý hỏi đáp tiếng Việt có trích dẫn nguồn,Theo kế hoạch,Bizino,
-3. Trung tâm Điều hành AI (Lãnh đạo),Cảnh báo đa kênh (Email/Zalo/Telegram) khi giá biến động,Theo kế hoạch,Bizino,
-3. Trung tâm Điều hành AI (Lãnh đạo),Báo cáo tự động đầu ngày (07:30) & cuối ngày (17:00),Theo kế hoạch,Bizino,
-"4. Hạ tầng, Bảo mật & Nghiệm thu",Triển khai trên Cloud Việt Nam,Theo kế hoạch,Bizino,Đưa hệ thống lên máy chủ đặt tại VN — lưu trú dữ liệu trong nước (Nghị định 13/2023)
-"4. Hạ tầng, Bảo mật & Nghiệm thu","Bảo mật: mã hóa, phân quyền, không lưu dữ liệu tại bên thứ ba",Theo kế hoạch,Bizino,
-"4. Hạ tầng, Bảo mật & Nghiệm thu",Chạy đối chiếu dự báo AI vs chuyên gia (Shadow testing),Theo kế hoạch,Phối hợp,So sánh dự báo của hệ thống với chuyên viên để đo độ chính xác
-"4. Hạ tầng, Bảo mật & Nghiệm thu",Đào tạo người dùng & nghiệm thu bàn giao,Theo kế hoạch,Phối hợp,Hướng dẫn lãnh đạo & chuyên viên vận hành hệ thống
-5. VRG cung cấp / phối hợp,Lịch sử giá sàn ≥ 3 năm (Excel/CSV),Cần phối hợp,VRG,Dữ liệu quá khứ để HUẤN LUYỆN mô hình dự báo (web chỉ có giá hiện tại)
-5. VRG cung cấp / phối hợp,Số liệu tồn kho & sản lượng theo loại mủ (BCTM),Cần phối hợp,VRG,
-5. VRG cung cấp / phối hợp,Giá giao dịch thực (Physical Price) + biểu mẫu báo cáo hiện hành,Cần phối hợp,VRG,
-5. VRG cung cấp / phối hợp,Báo cáo trả phí & tài liệu nội bộ (phục vụ hỏi đáp AI),Cần phối hợp,VRG,
-5. VRG cung cấp / phối hợp,"Xác nhận bản quyền dữ liệu quốc tế (vd Reuters), nếu có",Cần phối hợp,VRG,"Nếu có sẵn, dùng để lấy giá settlement + lịch sử chính thức"
-5. VRG cung cấp / phối hợp,Ký thỏa thuận bảo mật (NDA),Cần phối hợp,VRG,Cam kết giữ bí mật trước khi VRG bàn giao dữ liệu nhạy cảm
-5. VRG cung cấp / phối hợp,Thống nhất mốc thời gian & phạm vi Giai đoạn PoC,Cần phối hợp,Phối hợp,
+PHẦN 3 — BACKLOG (KẾ HOẠCH & CHỜ PHỐI HỢP),,,,,
+Tuần,Hạng mục,Công việc,Trạng thái,Phụ trách,Ghi chú
+W3,1. Dashboard Giám sát Thị trường,[w2] So sánh giá sàn VRG với quốc tế (chênh lệch Premium/Discount),Cần phối hợp,Phối hợp,Đã có tương quan giá sàn ↔ chỉ số quốc tế trong màn Gợi ý; vẫn cần giá bán thực tế (HĐ theo Quý)
+W3,2. Hệ thống Dự báo Giá,Mô hình dự báo giá SVR 10 (mục tiêu sai số ≤ 6% trong 7 ngày),Theo kế hoạch,Bizino,Engine hồi quy giá sàn + backtest đã có (bước đệm); mô hình chuỗi-thời-gian 7 ngày chưa làm
+W2,2. Hệ thống Dự báo Giá,Ma trận kịch bản Tăng / Ổn định / Giảm + khuyến nghị,Theo kế hoạch,Bizino,
+W2,3. Trung tâm Điều hành AI (Lãnh đạo),Số hóa & hệ thống hóa tri thức nội bộ VRG,Theo kế hoạch,Phối hợp,Cần VRG bàn giao tài liệu
+W2,3. Trung tâm Điều hành AI (Lãnh đạo),Trợ lý hỏi đáp tiếng Việt có trích dẫn nguồn,Theo kế hoạch,Bizino,
+W3,3. Trung tâm Điều hành AI (Lãnh đạo),[w2] Cảnh báo đa kênh (Email/Zalo/Telegram) khi giá biến động,Theo kế hoạch,Bizino,Đã phác thảo cơ chế cảnh báo tự động theo ngưỡng biến động chỉ số
+W3,3. Trung tâm Điều hành AI (Lãnh đạo),[w2] Báo cáo tự động đầu ngày (07:30) & cuối ngày (17:00),Theo kế hoạch,Bizino,Hạ tầng thu thập theo lịch đã có; còn tự động phát theo giờ
+W2,"4. Hạ tầng, Bảo mật & Nghiệm thu",Triển khai trên Cloud Việt Nam,Theo kế hoạch,Bizino,Đưa hệ thống lên máy chủ đặt tại VN — lưu trú dữ liệu trong nước (Nghị định 13/2023)
+W3,"4. Hạ tầng, Bảo mật & Nghiệm thu","[w2] Bảo mật: mã hóa, phân quyền, không lưu dữ liệu tại bên thứ ba",Theo kế hoạch,Bizino,Phân quyền đã xong; còn mã hóa & lưu trú dữ liệu
+W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w2] Chạy đối chiếu dự báo AI vs chuyên gia (Shadow testing),Theo kế hoạch,Phối hợp,Đã có kiểm định toàn chuỗi (backtest) cho giá sàn — một dạng đối chiếu
+W2,"4. Hạ tầng, Bảo mật & Nghiệm thu",Đào tạo người dùng & nghiệm thu bàn giao,Theo kế hoạch,Phối hợp,Hướng dẫn lãnh đạo & chuyên viên vận hành hệ thống
+W3,5. VRG cung cấp / phối hợp,[w2] Lịch sử giá sàn (phạm vi cần: từ 2024),Cần phối hợp,VRG,Đã nhận & nạp 30 lần ban hành (2024 → nay); thống nhất chỉ lấy từ 2024
+W3,5. VRG cung cấp / phối hợp,[w2] Số liệu tồn kho & sản lượng theo loại mủ (BCTM),Cần phối hợp,VRG,Đã có biểu mẫu mẫu; chưa đủ chuỗi & chưa đưa vào hệ thống
+W3,5. VRG cung cấp / phối hợp,[w2] Giá giao dịch thực (Physical Price) + biểu mẫu báo cáo,Cần phối hợp,VRG,Có báo cáo ngày của chuyên viên, đang xử lý/nhập
+W2,5. VRG cung cấp / phối hợp,Báo cáo trả phí & tài liệu nội bộ (phục vụ hỏi đáp AI),Cần phối hợp,VRG,
+W2,5. VRG cung cấp / phối hợp,"Xác nhận bản quyền dữ liệu quốc tế (vd Reuters), nếu có",Cần phối hợp,VRG,"Nếu có sẵn, dùng để lấy giá settlement + lịch sử chính thức"
+W2,5. VRG cung cấp / phối hợp,Ký thỏa thuận bảo mật (NDA),Cần phối hợp,VRG,Cam kết giữ bí mật trước khi VRG bàn giao dữ liệu nhạy cảm
+W2,5. VRG cung cấp / phối hợp,Thống nhất mốc thời gian & phạm vi Giai đoạn PoC,Cần phối hợp,Phối hợp,
+W3,1. Dashboard Giám sát Thị trường,[w3] Thu thập giá Physical từ marketscreener.com (Asian physical rubber prices),Theo kế hoạch,Bizino,Nguồn chính cho giá giao ngay từ 2026 (theo yêu cầu ban đầu)
+W3,1. Dashboard Giám sát Thị trường,[w3] Ngưng dùng nguồn ANRPC (không còn cần),Theo kế hoạch,Bizino,Thay bằng nguồn giá giao ngay mới
+W3,1. Dashboard Giám sát Thị trường,"[w3] Thu thập chỉ số vĩ mô (dầu thô, butadiene, USD Index, PMI)",Theo kế hoạch,Bizino,
+W3,2. Hệ thống Dự báo Giá,[w3] Trang quản lý Tồn kho & Tiêu thụ,Cần phối hợp,Phối hợp,Chưa có trong hệ thống — chờ dữ liệu báo cáo định kỳ từ chuyên viên
+W3,2. Hệ thống Dự báo Giá,"[w3] Cải tiến mô hình giá sàn (sát biên độ điều chỉnh thực tế hơn)",Theo kế hoạch,Bizino,Khi có thêm dữ liệu tiêu thụ/tồn kho
