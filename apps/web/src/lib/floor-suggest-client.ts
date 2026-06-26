@@ -83,6 +83,18 @@ export const fetchFloorBacktestSummary = (model: FloorModel = "v1") =>
 export const fetchFloorCorrelation = (grade: string) =>
   req<CorrRow[]>(`/api/floor-suggest/correlation?grade=${encodeURIComponent(grade)}`);
 
+export type ScenarioItem = {
+  grade: string; prev: number | null;
+  bear: number | null; base: number | null; bull: number | null;
+};
+export type ScenarioResult = {
+  as_of: string; model: FloorModel; shock_pct: number; items: ScenarioItem[]; error?: string;
+};
+
+/** Ma trận kịch bản Giảm/Cơ sở/Tăng (sốc ±shock lên rổ chỉ số). */
+export const fetchScenarios = (as_of: string, model: FloorModel = "v1") =>
+  req<ScenarioResult>(`/api/floor-suggest/scenarios?as_of=${as_of}&model=${model}`);
+
 /** Chuỗi chuẩn hoá base-100 (giá sàn + chỉ số) để vẽ chart tương quan. */
 export const fetchFloorChart = (grade: string) =>
   req<FloorChart>(`/api/floor-suggest/chart?grade=${encodeURIComponent(grade)}`);

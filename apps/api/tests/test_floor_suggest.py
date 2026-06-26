@@ -82,6 +82,16 @@ def test_fit_at_no_lookahead() -> None:
     assert r1["pred"] == r2["pred"], "chuẩn hoá phải causal — không rò rỉ tương lai"
 
 
+def test_fit_at_shock_moves_prediction_in_order() -> None:
+    """Cú sốc rổ +/- phải đẩy dự báo lên/xuống đúng hướng (kịch bản Tăng/Giảm)."""
+    dates, fmap, idx = _synthetic()
+    train, target = dates[:8], dates[8]
+    base = fs._fit_at(train, target, "SVR 10", fmap, idx, "v1", 0.0)
+    up = fs._fit_at(train, target, "SVR 10", fmap, idx, "v1", 0.0, shock=0.1)
+    down = fs._fit_at(train, target, "SVR 10", fmap, idx, "v1", 0.0, shock=-0.1)
+    assert down["pred"] < base["pred"] < up["pred"]
+
+
 # ----------------------- Luật đề xuất điều chỉnh (không cần DB) -----------------------
 
 

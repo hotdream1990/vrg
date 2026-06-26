@@ -61,8 +61,11 @@ def _load() -> tuple:
 
 
 def _fit_at(train: list[str], target: str, grade: str, fmap: dict, idx: dict,
-            model: str, alpha: float) -> dict[str, Any] | None:
-    """Fit trên `train`, dự báo giá sàn[grade] tại `target`. None nếu không đủ dữ liệu."""
+            model: str, alpha: float, shock: float = 0.0) -> dict[str, Any] | None:
+    """Fit trên `train`, dự báo giá sàn[grade] tại `target`. None nếu không đủ dữ liệu.
+
+    `shock` = cú sốc % áp lên rổ chỉ số tại target (vd +0.05 = rổ tăng 5%) — dùng cho kịch bản.
+    """
     keys = FEATS[1:] if model == "v1" else FEATS
     val = lambda k, d: _at(idx.get(k, []), d)  # noqa: E731
     sel = [k for k in keys
@@ -83,7 +86,7 @@ def _fit_at(train: list[str], target: str, grade: str, fmap: dict, idx: dict,
     y = np.array(ys, float)
     mean, sd = fm.standardize(x)
     xs = (x - mean) / sd
-    xt = (np.array([val(k, target) for k in sel], float) - mean) / sd
+    xt = (np.array([val(k, target) for k in sel], float) * (1 + shock) - mean) / sd
     a = alpha
     if model == "v1":  # gộp về 1 biến rổ (TB z-score) rồi OLS
         xs = xs.mean(axis=1, keepdims=True)
@@ -148,6 +151,42 @@ def suggest(as_of: str, model: str = "v1", backtest: bool = True,
         "basket_change_pct": round(sum(chgs) / len(chgs), 2) if chgs else None,
         "drivers": drivers, "items": items,
     }
+
+
+def _basket_sigma(fd: list[str], idx: dict, model: str) -> float:
+    """Độ lệch chuẩn biến động % của rổ chỉ số giữa các lần ban hành liên tiếp (kẹp 3%–15%)."""
+    keys = FEATS[1:] if model == "v1" else FEATS
+    moves = []
+    for a, b in zip(fd, fd[1:]):
+        chs = [vb / va - 1 for k in keys
+               if (va := _at(idx.get(k, []), a)) and (vb := _at(idx.get(k, []), b))]
+        if chs:
+            moves.append(sum(chs) / len(chs))
+    if len(moves) < 3:
+        return 0.05
+    return float(min(max(np.std(moves), 0.03), 0.15))
+
+
+def scenarios(as_of: str, model: str = "v1", shock_pct: float | None = None,
+              alpha: float = DEFAULT_ALPHA) -> dict[str, Any]:
+    """Ma trận kịch bản Giảm/Cơ sở/Tăng: áp cú sốc ±shock lên rổ chỉ số rồi dự báo lại từng grade.
+
+    shock mặc định = 1 độ lệch chuẩn biến động rổ giữa các lần ban hành (kịch bản 'thường gặp').
+    """
+    fd, grades, fmap, idx, _ = _load()
+    train = [d for d in fd if d < as_of]
+    if not train:
+        return {"as_of": as_of, "items": [], "error": "Cần ít nhất 1 lần ban hành trước ngày này"}
+    shock = (shock_pct / 100.0) if shock_pct else _basket_sigma(fd, idx, model)
+    items = []
+    for g in grades:
+        _, prev = fr.prev_floor(fd, fmap, g, as_of)
+        preds = {}
+        for key, s in (("base", 0.0), ("bull", shock), ("bear", -shock)):
+            r = _fit_at(train, as_of, g, fmap, idx, model, alpha, shock=s)
+            preds[key] = r["pred"] if r else None
+        items.append({"grade": g, "prev": round(prev) if prev is not None else None, **preds})
+    return {"as_of": as_of, "model": model, "shock_pct": round(shock * 100, 1), "items": items}
 
 
 def _backtest_core(fd: list[str], fmap: dict, idx: dict, lanmap: dict,

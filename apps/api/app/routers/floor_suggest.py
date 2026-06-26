@@ -49,6 +49,16 @@ def backtest_summary(
     return floor_suggest.backtest_summary(model, alpha)
 
 
+@router.get("/scenarios")
+def scenarios(
+    as_of: str = Query(..., description="ngày YYYY-MM-DD (lần ban hành hoặc ngày bất kỳ)"),
+    model: str = _MODEL,
+    shock_pct: float | None = Query(None, ge=0, description="cú sốc % rổ (bỏ trống = 1σ lịch sử)"),
+) -> dict:
+    """Ma trận kịch bản Giảm/Cơ sở/Tăng cho từng grade (sốc ±shock lên rổ chỉ số)."""
+    return floor_suggest.scenarios(as_of, model, shock_pct)
+
+
 @router.get("/correlation")
 def correlation(grade: str = Query("SVR 10")) -> list[dict]:
     """Bảng tương quan giá sàn (1 grade) vs các chỉ số."""

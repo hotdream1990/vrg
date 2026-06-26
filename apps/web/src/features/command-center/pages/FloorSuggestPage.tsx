@@ -16,6 +16,7 @@ import CorrelationChart from "../charts/CorrelationChart";
 import AdjustmentTable from "./components/AdjustmentTable";
 import BacktestPanel from "./components/BacktestPanel";
 import RecommendationRationale from "./components/RecommendationRationale";
+import ScenarioMatrix from "./components/ScenarioMatrix";
 import ToTrinhPreview from "./components/ToTrinhPreview";
 import "../../bulletin/bulletin.css";
 
@@ -129,6 +130,8 @@ export default function FloorSuggestPage() {
         basketChangePct={sug?.basket_change_pct ?? null}
         drivers={sug?.drivers ?? []}
       />
+
+      {asOf && <ScenarioMatrix asOf={asOf} model={model} />}
 
       <BacktestPanel grade={grade} />
 
