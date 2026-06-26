@@ -43,10 +43,15 @@ def to_usd_tonne_detail(
     fx_pair/fx_rate = None khi đơn vị đã ở hệ USD (US$/kg, US cents/kg).
     Thiếu tỷ giá → usd_tonne None nhưng vẫn trả fx_pair để UI báo rõ.
     """
+    if unit in ("USD/tonne", "USD/T"):
+        return round(price), None, None
     if unit == "US$/kg":
         return usd_kg_to_usd_tonne(price), None, None
     if unit == "US cents/kg":
         return uscents_kg_to_usd_tonne(price), None, None
+    if unit == "baht/kg":
+        rate = fx_rates.get("USD/THB")
+        return (round(price * 1000 / rate) if rate else None), "USD/THB", rate
     if unit == "CNY/tonne":
         rate = fx_rates.get("USD/CNY")
         return (cny_tonne_to_usd_tonne(price, rate) if rate else None), "USD/CNY", rate
