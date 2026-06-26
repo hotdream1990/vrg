@@ -277,6 +277,85 @@ def delete_purchase_date(as_of: str) -> int:
         return res.rowcount
 
 
+_PHYSICAL_SOURCES = ["reuters"]  # chỉ dùng dữ liệu chuyên viên (sheet 'Lưu'); KHÔNG dùng ANRPC
+_PHYSICAL_ORDER = ["RSS3", "STR20", "SMR20", "SIR20", "USS",
+                   "Thai Latex 60% (Bulk)", "Thai Latex 60% (Drums)", "Thai Latex 60%"]
+
+
+def _to_usd_tonne(price: float, unit: str, thb: float | None) -> int | None:
+    """Quy đổi 1 giá physical → USD/tấn theo đơn vị gốc. baht/kg cần tỷ giá USD/THB."""
+    if unit in ("USD/tonne", "USD/T"):
+        return round(price)
+    if unit == "US$/kg":
+        return round(price * 1000)
+    if unit == "US cents/kg":
+        return round(price * 10)
+    if unit == "baht/kg":
+        return round(price * 1000 / thb) if thb else None
+    return round(price)  # đơn vị lạ → giả định đã USD/tấn
+
+
+def physical_sheet(date_from: str | None = None, date_to: str | None = None) -> dict[str, Any]:
+    """Lưới giá physical (giao ngay) đã quy đổi USD/tấn: grade × ngày.
+
+    source ∈ {anrpc, reuters}, price_type='physical'. baht/kg quy đổi bằng USD/THB (kéo gần nhất);
+    thiếu THB → ô để trống. Trả {grades, dates, values[grade][date] = USD/tấn}.
+    """
+    ensure_schema()
+    where = ["price_type = 'physical'", "source IN :srcs"]
+    params: dict[str, Any] = {"srcs": _PHYSICAL_SOURCES}
+    if date_from:
+        where.append("as_of >= CAST(:dfrom AS date)")
+        params["dfrom"] = date_from
+    if date_to:
+        where.append("as_of <= CAST(:dto AS date)")
+        params["dto"] = date_to
+    stmt = text(
+        f"SELECT as_of, grade, price, unit FROM fact_price WHERE {' AND '.join(where)} "
+        "ORDER BY as_of DESC, source DESC"
+    ).bindparams(bindparam("srcs", expanding=True))
+    thb_stmt = text("SELECT as_of, price FROM fact_price WHERE source='fx' AND grade='USD/THB' ORDER BY as_of")
+    with session_scope() as db:
+        rows = db.execute(stmt, params).mappings().all()
+        thb_rows = db.execute(thb_stmt).mappings().all()
+
+    thb_series = [(str(t["as_of"]), float(t["price"])) for t in thb_rows]
+
+    def thb_at(d: str) -> float | None:
+        best = None
+        for dd, rr in thb_series:  # mới nhất <= d
+            if dd <= d:
+                best = rr
+            else:
+                break
+        return best
+
+    values: dict[str, dict[str, int]] = {}
+    for r in rows:
+        d = str(r["as_of"])
+        usd = _to_usd_tonne(float(r["price"]), r["unit"], thb_at(d))
+        if usd is not None:
+            values.setdefault(r["grade"], {}).setdefault(d, usd)
+
+    present = set(values.keys())
+    grades = [g for g in _PHYSICAL_ORDER if g in present]
+    grades += sorted(present - set(grades))
+    dates = sorted({d for m in values.values() for d in m}, reverse=True)
+    return {"grades": grades, "dates": dates, "values": values}
+
+
+def delete_physical_date(as_of: str) -> int:
+    """Xoá toàn bộ giá physical (anrpc/reuters) của 1 ngày. Trả số bản ghi đã xoá."""
+    ensure_schema()
+    stmt = text(
+        "DELETE FROM fact_price WHERE price_type = 'physical' AND source IN :srcs "
+        "AND as_of = CAST(:d AS date)"
+    ).bindparams(bindparam("srcs", expanding=True))
+    with session_scope() as db:
+        res = db.execute(stmt, {"srcs": _PHYSICAL_SOURCES, "d": as_of})
+        return res.rowcount
+
+
 def latest_purchase_by_company(as_of_max: str) -> dict[str, float]:
     """Giá thu mua mủ nước mới nhất (<= ngày) theo công ty VRG (source=vrg).
 

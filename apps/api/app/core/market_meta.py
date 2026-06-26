@@ -99,5 +99,5 @@ VRG_FLOOR_GRADES = [
 VRG_COMPANIES = [
     "Bà Rịa", "Bình Long", "Dầu Tiếng", "Đồng Nai", "Phước Hòa", "Phú Riềng",
     "Đồng Phú", "Lộc Ninh", "Hàng Gòn", "Hòa Bình", "Phú Thịnh", "Tân Biên",
-    "Tây Ninh (Tham khảo)",
+    "Tây Ninh (Tham khảo)", "Bình Thuận", "Quảng Trị", "Hà Tĩnh",
 ]

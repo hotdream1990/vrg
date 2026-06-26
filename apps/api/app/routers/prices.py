@@ -89,6 +89,21 @@ def delete_purchase(as_of: str = Query(..., description="YYYY-MM-DD")) -> dict:
     return {"deleted": price_repo.delete_purchase_date(as_of)}
 
 
+@router.get("/physical-sheet")
+def physical_sheet(
+    date_from: str | None = Query(None, description="từ ngày YYYY-MM-DD"),
+    date_to: str | None = Query(None, description="đến ngày YYYY-MM-DD"),
+) -> dict:
+    """Lưới Giá Physical (giao ngay): grade × ngày (nguồn anrpc/reuters)."""
+    return price_repo.physical_sheet(date_from, date_to)
+
+
+@router.delete("/physical", dependencies=_editor)
+def delete_physical(as_of: str = Query(..., description="YYYY-MM-DD")) -> dict:
+    """Xoá toàn bộ giá physical của 1 ngày."""
+    return {"deleted": price_repo.delete_physical_date(as_of)}
+
+
 @router.get("/sheet")
 def sheet(
     days: int = Query(30, ge=1, le=365),

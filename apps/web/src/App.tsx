@@ -6,8 +6,10 @@ import BulletinDetailPage from "./features/command-center/pages/BulletinDetailPa
 import BulletinListPage from "./features/command-center/pages/BulletinListPage";
 import BulletinPage from "./features/command-center/pages/BulletinPage";
 import DashboardPage from "./features/command-center/pages/DashboardPage";
+import FloorSuggestPage from "./features/command-center/pages/FloorSuggestPage";
 import FxRatePage from "./features/command-center/pages/FxRatePage";
 import MemberUnitPage from "./features/command-center/pages/MemberUnitPage";
+import PhysicalSheetPage from "./features/command-center/pages/PhysicalSheetPage";
 import PriceSheetPage from "./features/command-center/pages/PriceSheetPage";
 import ProfilePage from "./features/command-center/pages/ProfilePage";
 import RawMaterialPage from "./features/command-center/pages/RawMaterialPage";
@@ -35,7 +37,9 @@ export default function App() {
                   <Route path="/quan-ly-so-lieu/bang-gia-san" element={<PriceSheetPage />} />
                   <Route path="/quan-ly-so-lieu/ty-gia" element={<FxRatePage />} />
                   <Route path="/quan-ly-so-lieu/gia-san-tap-doan" element={<VrgFloorPage />} />
+                  <Route path="/goi-y-gia-san" element={<FloorSuggestPage />} />
                   <Route path="/quan-ly-so-lieu/gia-mu-nguyen-lieu" element={<RawMaterialPage />} />
+                  <Route path="/quan-ly-so-lieu/gia-physical" element={<PhysicalSheetPage />} />
                   <Route path="/quan-ly-so-lieu/don-vi-thanh-vien" element={<MemberUnitPage />} />
                   <Route path="/quet-da-san/records" element={<Navigate to="/quan-ly-so-lieu/bang-gia-san" replace />} />
                   <Route path="/ban-tin" element={<BulletinListPage />} />

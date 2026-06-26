@@ -106,6 +106,24 @@ export const fetchPurchaseSheet = (dateFrom?: string, dateTo?: string) => {
 export const deletePurchaseDate = (as_of: string) =>
   req<{ deleted: number }>(`/api/prices/purchase?as_of=${as_of}`, { method: "DELETE" });
 
+export type PhysicalSheet = {
+  grades: string[];
+  dates: string[];                                    // mới nhất trước
+  values: Record<string, Record<string, number>>;     // values[grade][date]
+};
+
+/** Lưới giá Physical (giao ngay): grade × ngày. Lọc khoảng ngày tùy chọn. */
+export const fetchPhysicalSheet = (dateFrom?: string, dateTo?: string) => {
+  const p = new URLSearchParams();
+  if (dateFrom) p.set("date_from", dateFrom);
+  if (dateTo) p.set("date_to", dateTo);
+  return req<PhysicalSheet>(`/api/prices/physical-sheet?${p}`);
+};
+
+/** Xoá toàn bộ giá physical của 1 ngày. */
+export const deletePhysicalDate = (as_of: string) =>
+  req<{ deleted: number }>(`/api/prices/physical?as_of=${as_of}`, { method: "DELETE" });
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     ...init,
