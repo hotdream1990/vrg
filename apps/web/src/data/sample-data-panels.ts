@@ -61,19 +61,6 @@ export const security: { ico: string; h4: string; p: string }[] = [
   { ico: "⊕", h4: "AES-256", p: "Mã hóa quân sự + PII Redaction tự động" },
 ];
 
-export const kpiTargets: { label: string; value: string; pct: number }[] = [
-  { label: "MAPE (sai số dự báo)", value: "2.4% / <3%", pct: 82 },
-  { label: "Giảm thời gian tổng hợp BC", value: "76% / 80%", pct: 95 },
-  { label: "Đề xuất AI được phê duyệt", value: "71% / 75%", pct: 94 },
-];
-
-export const channels: { label: string; status: string; cls: string }[] = [
-  { label: "📧 Email · ban lãnh đạo", status: "Bật", cls: "chip" },
-  { label: "💬 Zalo OA · chuyên viên", status: "Bật", cls: "chip" },
-  { label: "✈ Telegram · nhóm trực", status: "Bật", cls: "chip" },
-  { label: "📱 Mobile App push", status: "Pilot", cls: "chip warn" },
-];
-
 export const footer = {
   left: "© 2026 Bizino AI · Hybrid AI Agent for VRG · Phiên bản PoC – Giai đoạn 1",
   right: "Hạ tầng: ASUS Ascent GX10 · LLM API bảo mật cao · Sẵn sàng nâng cấp GPU Server",
