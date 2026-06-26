@@ -84,3 +84,13 @@ export const fetchFloorCorrelation = (grade: string) =>
 /** Chuỗi chuẩn hoá base-100 (giá sàn + chỉ số) để vẽ chart tương quan. */
 export const fetchFloorChart = (grade: string) =>
   req<FloorChart>(`/api/floor-suggest/chart?grade=${encodeURIComponent(grade)}`);
+
+/** Tờ trình giá sàn (HTML A4) cho 1 lần ban hành — để preview & in. */
+export async function fetchToTrinhHtml(as_of: string, model: FloorModel = "v1"): Promise<string> {
+  let res: Response;
+  try { res = await fetch(`${API}/api/floor-suggest/to-trinh?as_of=${as_of}&model=${model}`, { headers: authHeaders() }); }
+  catch { throw new Error("Không kết nối được API (" + API + ")"); }
+  if (res.status === 401) { onUnauthorized(); throw new Error("Phiên đăng nhập đã hết hạn"); }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.text();
+}

@@ -1,4 +1,4 @@
-import { BulbOutlined } from "@ant-design/icons";
+import { BulbOutlined, FileTextOutlined } from "@ant-design/icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -16,6 +16,7 @@ import CorrelationChart from "../charts/CorrelationChart";
 import AdjustmentTable from "./components/AdjustmentTable";
 import BacktestPanel from "./components/BacktestPanel";
 import RecommendationRationale from "./components/RecommendationRationale";
+import ToTrinhPreview from "./components/ToTrinhPreview";
 import "../../bulletin/bulletin.css";
 
 const GRADES = ["SVR CV 50", "SVR CV60", "SVR L", "SVR 3L Mix", "SVR 3L", "SVR 5S", "SVR 5",
@@ -33,6 +34,7 @@ export default function FloorSuggestPage() {
   const [chart, setChart] = useState<FloorChart | null>(null);
   const [corr, setCorr] = useState<CorrRow[]>([]);
   const [err, setErr] = useState("");
+  const [showToTrinh, setShowToTrinh] = useState(false);
 
   useEffect(() => {
     fetchFloorPoints().then((p) => { setPoints(p); if (p[0]) setAsOf(p[0].as_of); })
@@ -82,6 +84,15 @@ export default function FloorSuggestPage() {
           Backtest (chỉ dùng data trước lần này)
         </label>
         {sug && <span className="chip">Biến: {sug.feats.join(" · ") || "—"} · fit {sug.n_train} lần</span>}
+        <button
+          onClick={() => setShowToTrinh(true)}
+          disabled={!asOf}
+          style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
+            background: "var(--accent, #16a34a)", color: "#fff", border: "none", borderRadius: 8,
+            padding: "8px 16px", fontWeight: 600 }}
+        >
+          <FileTextOutlined /> Xem &amp; xuất tờ trình
+        </button>
       </div>
 
       <AdjustmentTable items={sug?.items ?? []} focus={grade} onFocus={setGrade} />
@@ -125,6 +136,10 @@ export default function FloorSuggestPage() {
           </tbody>
         </table>
       </div>
+
+      {showToTrinh && asOf && (
+        <ToTrinhPreview asOf={asOf} model={model} onClose={() => setShowToTrinh(false)} />
+      )}
     </div>
   );
 }
