@@ -61,6 +61,15 @@ CREATE TABLE IF NOT EXISTS vrg_floor_price (
 
 CREATE INDEX IF NOT EXISTS ix_vrg_floor_asof ON vrg_floor_price (as_of DESC, lan DESC);
 
+CREATE TABLE IF NOT EXISTS fact_inventory (
+    as_of       date PRIMARY KEY,
+    ton_kho     double precision,
+    ton_kho_hd  double precision,
+    note        text,
+    source      text NOT NULL DEFAULT 'hanh_weekly',
+    ingested_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS member_unit (
     name        text PRIMARY KEY,
     sort_order  integer NOT NULL DEFAULT 0,
