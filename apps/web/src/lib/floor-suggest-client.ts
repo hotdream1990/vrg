@@ -32,6 +32,11 @@ export type SuggestResult = {
   drivers: FloorDriver[];
   is_issuance?: boolean;                // false = ngày bất kỳ (chưa ban hành)
   error?: string;                       // ngày không hợp lệ
+  inventory?: InventoryAt | null;       // tồn kho Tập đoàn tại lần ban hành
+};
+export type InventoryAt = {
+  week: string; ton_kho: number; ton_free: number | null; ton_kho_hd: number | null;
+  d_ton_kho: number | null; d_free: number | null;
 };
 export type CorrRow = { index: string; r: number; n: number };
 export type ChartSeries = { name: string; values: (number | null)[] };

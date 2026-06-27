@@ -15,6 +15,7 @@ import {
 import CorrelationChart from "../charts/CorrelationChart";
 import AdjustmentTable from "./components/AdjustmentTable";
 import BacktestPanel from "./components/BacktestPanel";
+import InventoryIndicator from "./components/InventoryIndicator";
 import RecommendationRationale from "./components/RecommendationRationale";
 import ScenarioMatrix from "./components/ScenarioMatrix";
 import ToTrinhPreview from "./components/ToTrinhPreview";
@@ -123,6 +124,8 @@ export default function FloorSuggestPage() {
           <FileTextOutlined /> Xem &amp; xuất tờ trình
         </button>
       </div>
+
+      <InventoryIndicator inv={sug?.inventory} />
 
       <AdjustmentTable items={sug?.items ?? []} focus={grade} onFocus={setGrade} />
 

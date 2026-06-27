@@ -165,7 +165,26 @@ def suggest(as_of: str, model: str = "v1", backtest: bool = True,
         "as_of": as_of, "model": model, "backtest": backtest, "is_issuance": is_issuance,
         "n_train": n_train, "feats": sorted(feats_used), "prev_as_of": prev_d,
         "basket_change_pct": round(sum(chgs) / len(chgs), 2) if chgs else None,
-        "drivers": drivers, "items": items,
+        "drivers": drivers, "items": items, "inventory": _inventory_at(idx, as_of),
+    }
+
+
+def _inventory_at(idx: dict, as_of: str) -> dict[str, Any] | None:
+    """Tồn kho Tập đoàn tại tuần gần nhất ≤ as_of + xu hướng so tuần trước (cho chỉ số trên màn)."""
+    inv = [(d, v) for d, v in idx.get(INV, []) if d <= as_of]
+    free = [(d, v) for d, v in idx.get(FREE, []) if d <= as_of]
+    if not inv:
+        return None
+    wk, tk = inv[-1]
+    fr = free[-1][1] if free else None
+    p_tk = inv[-2][1] if len(inv) >= 2 else None
+    p_fr = free[-2][1] if len(free) >= 2 else None
+    return {
+        "week": wk, "ton_kho": round(tk),
+        "ton_free": round(fr) if fr is not None else None,
+        "ton_kho_hd": round(tk - fr) if fr is not None else None,
+        "d_ton_kho": round(tk - p_tk) if p_tk is not None else None,
+        "d_free": round(fr - p_fr) if (fr is not None and p_fr is not None) else None,
     }
 
 
