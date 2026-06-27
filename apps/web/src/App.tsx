@@ -8,6 +8,7 @@ import BulletinPage from "./features/command-center/pages/BulletinPage";
 import DashboardPage from "./features/command-center/pages/DashboardPage";
 import FloorSuggestPage from "./features/command-center/pages/FloorSuggestPage";
 import FxRatePage from "./features/command-center/pages/FxRatePage";
+import InventoryPage from "./features/command-center/pages/InventoryPage";
 import MemberUnitPage from "./features/command-center/pages/MemberUnitPage";
 import PhysicalSheetPage from "./features/command-center/pages/PhysicalSheetPage";
 import PriceSheetPage from "./features/command-center/pages/PriceSheetPage";
@@ -40,6 +41,7 @@ export default function App() {
                   <Route path="/goi-y-gia-san" element={<FloorSuggestPage />} />
                   <Route path="/quan-ly-so-lieu/gia-mu-nguyen-lieu" element={<RawMaterialPage />} />
                   <Route path="/quan-ly-so-lieu/gia-physical" element={<PhysicalSheetPage />} />
+                  <Route path="/quan-ly-so-lieu/ton-kho" element={<InventoryPage />} />
                   <Route path="/quan-ly-so-lieu/don-vi-thanh-vien" element={<MemberUnitPage />} />
                   <Route path="/quet-da-san/records" element={<Navigate to="/quan-ly-so-lieu/bang-gia-san" replace />} />
                   <Route path="/ban-tin" element={<BulletinListPage />} />
