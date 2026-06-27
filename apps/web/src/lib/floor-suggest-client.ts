@@ -3,7 +3,7 @@
 import { API } from "./api-client";
 import { authHeaders, onUnauthorized } from "./auth-token";
 
-export type FloorModel = "v1" | "v1i" | "v2"; // v1=rổ futures · v1i=rổ+tồn kho · v2=đa biến+mủ nước
+export type FloorModel = "v1" | "v1i" | "v1f" | "v2"; // rổ · +tồn kho tổng · +tồn kho tự do · đa biến
 export type FloorPoint = { lan: number; as_of: string };
 export type FloorAction = "raise" | "hold" | "lower";
 export type FloorConfidence = "high" | "medium" | "low";

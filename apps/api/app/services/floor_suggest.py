@@ -22,8 +22,11 @@ LABELS = {("vrg", "mu_nuoc"): "Giá mủ nước", ("lgm", "SMR20"): "MRB SMR20"
           ("sgx", "TSR20"): "SGX TSR20", ("shfe", "RU"): "SHFE RU", ("tocom", "RSS3"): "OSE RSS3"}
 # chỉ số tham chiếu thêm cho bảng tương quan (không vào model)
 REF = {("reuters", "SMR20"): "Physical SMR20", ("lgm", "SMRCV"): "MRB SMRCV", ("sgx", "RSS3"): "SGX RSS3"}
-INV = ("vrg", "ton_kho")  # tồn kho Tập đoàn — biến phụ cho model "v1i" (rổ + tồn kho)
+INV = ("vrg", "ton_kho")     # tổng tồn kho — biến phụ cho "v1i" (rổ + tồn kho)
+FREE = ("vrg", "ton_free")   # tồn kho TỰ DO = tồn kho − đã có HĐ (chưa bán) — cho "v1f"
 LABELS[INV] = "Tồn kho"
+LABELS[FREE] = "Tồn kho tự do (chưa có HĐ)"
+EXTRA = {INV, FREE}          # biến phụ: giữ cột riêng, KHÔNG gộp vào rổ futures
 
 MIN_TRAIN = 8     # tối thiểu số lần trong tập train để fit
 MIN_COVER = 5     # 1 feature chỉ được dùng khi có >= ngần này điểm phủ trên train
@@ -51,7 +54,7 @@ def _load() -> tuple:
                              "WHERE price_type IN ('settlement','physical') ORDER BY as_of")).all()
         mr = db.execute(text("SELECT as_of, avg(price) FROM fact_price WHERE source='vrg' "
                              "AND price_type='purchase' GROUP BY as_of ORDER BY as_of")).all()
-        iv = db.execute(text("SELECT as_of, ton_kho FROM fact_inventory "
+        iv = db.execute(text("SELECT as_of, ton_kho, ton_kho_hd FROM fact_inventory "
                              "WHERE ton_kho IS NOT NULL ORDER BY as_of")).all()
     floor_dates = sorted({str(r[0]) for r in fr})
     grades = sorted({r[1] for r in fr})
@@ -61,7 +64,8 @@ def _load() -> tuple:
     for d, s, g, v in ir:
         idx.setdefault((s, g), []).append((str(d), float(v)))
     idx[("vrg", "mu_nuoc")] = [(str(d), float(v)) for d, v in mr]
-    idx[INV] = [(str(d), float(v)) for d, v in iv]
+    idx[INV] = [(str(d), float(v)) for d, v, _ in iv]
+    idx[FREE] = [(str(d), float(v) - float(h)) for d, v, h in iv if h is not None]
     return floor_dates, grades, fmap, idx, lanmap
 
 
@@ -71,7 +75,8 @@ def _fit_at(train: list[str], target: str, grade: str, fmap: dict, idx: dict,
 
     `shock` = cú sốc % áp lên rổ chỉ số tại target (vd +0.05 = rổ tăng 5%) — dùng cho kịch bản.
     """
-    keys = (FEATS[1:] if model == "v1" else FEATS[1:] + [INV] if model == "v1i" else FEATS)
+    keys = (FEATS[1:] if model == "v1" else FEATS[1:] + [INV] if model == "v1i"
+            else FEATS[1:] + [FREE] if model == "v1f" else FEATS)
     val = lambda k, d: _at(idx.get(k, []), d)  # noqa: E731
     sel = [k for k in keys
            if sum(val(k, d) is not None for d in train) >= MIN_COVER and val(k, target) is not None]
@@ -93,16 +98,16 @@ def _fit_at(train: list[str], target: str, grade: str, fmap: dict, idx: dict,
     xs = (x - mean) / sd
     xt = (np.array([val(k, target) for k in sel], float) * (1 + shock) - mean) / sd
     a = alpha
-    if model in ("v1", "v1i"):  # gộp futures về 1 biến rổ; v1i giữ tồn kho làm biến riêng
-        fut = [i for i, k in enumerate(sel) if k != INV]
-        ivc = [i for i, k in enumerate(sel) if k == INV]
+    if model in ("v1", "v1i", "v1f"):  # gộp futures về 1 biến rổ; giữ biến phụ (tồn kho) riêng
+        fut = [i for i, k in enumerate(sel) if k not in EXTRA]
+        ext = [i for i, k in enumerate(sel) if k in EXTRA]
         cols_s, cols_t = [xs[:, fut].mean(axis=1)], [xt[fut].mean()]
-        if model == "v1i" and ivc:  # tồn kho có phủ → thêm cột riêng (ridge nhẹ)
-            cols_s.append(xs[:, ivc[0]])
-            cols_t.append(xt[ivc[0]])
+        if ext:  # biến phụ có phủ → thêm cột riêng (ridge nhẹ)
+            cols_s.append(xs[:, ext[0]])
+            cols_t.append(xt[ext[0]])
         xs = np.column_stack(cols_s)
         xt = np.array(cols_t)
-        a = 0.0 if (model == "v1" or len(cols_s) == 1) else alpha
+        a = 0.0 if len(cols_s) == 1 else alpha
     try:
         inter, beta = fm.ridge_fit(xs, y, a)
     except np.linalg.LinAlgError:  # ma trận suy biến (vd rổ hằng số) — bỏ lần này

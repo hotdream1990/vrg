@@ -96,7 +96,8 @@ export default function FloorSuggestPage() {
         <label className="blt-date-label">Mô hình:
           <select className="blt-date-input" value={model} onChange={(e) => setModel(e.target.value as FloorModel)}>
             <option value="v1">Rổ 4 futures (khuyến nghị)</option>
-            <option value="v1i">Rổ + Tồn kho (thử nghiệm)</option>
+            <option value="v1i">Rổ + Tồn kho tổng (thử nghiệm)</option>
+            <option value="v1f">Rổ + Tồn kho tự do (thử nghiệm)</option>
             <option value="v2">Đa biến + mủ nước (đối chiếu)</option>
           </select>
         </label>
