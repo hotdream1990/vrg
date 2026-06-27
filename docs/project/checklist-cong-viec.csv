@@ -55,5 +55,6 @@ W2,5. VRG cung cấp / phối hợp,Thống nhất mốc thời gian & phạm vi
 W3,1. Dashboard Giám sát Thị trường,[w3] Thu thập giá Physical từ marketscreener.com (Asian physical rubber prices),Theo kế hoạch,Bizino,Nguồn chính cho giá giao ngay từ 2026 (theo yêu cầu ban đầu)
 W3,1. Dashboard Giám sát Thị trường,[w3] Ngưng dùng nguồn ANRPC (không còn cần),Theo kế hoạch,Bizino,Thay bằng nguồn giá giao ngay mới
 W3,1. Dashboard Giám sát Thị trường,"[w3] Thu thập chỉ số vĩ mô (dầu thô, butadiene, USD Index, PMI)",Theo kế hoạch,Bizino,
-W3,2. Hệ thống Dự báo Giá,[w3] Trang quản lý Tồn kho & Tiêu thụ,Cần phối hợp,Phối hợp,Chưa có trong hệ thống — chờ dữ liệu báo cáo định kỳ từ chuyên viên
-W3,2. Hệ thống Dự báo Giá,"[w3] Cải tiến mô hình giá sàn (sát biên độ điều chỉnh thực tế hơn)",Theo kế hoạch,Bizino,Khi có thêm dữ liệu tiêu thụ/tồn kho
+W3,2. Hệ thống Dự báo Giá,[w3] Trang quản lý Tồn kho + nạp từ báo cáo tuần (PDF),Hoàn thành,Bizino,71 tuần tồn kho (2025→2026) đã nạp tự động + nhập/sửa tay được
+W3,2. Hệ thống Dự báo Giá,[w3] Số liệu Tiêu thụ theo tuần vào hệ thống,Theo kế hoạch,Bizino,Tách tiếp từ báo cáo tuần (phần tiêu thụ) — bước sau tồn kho
+W3,2. Hệ thống Dự báo Giá,"[w3] Cải tiến mô hình giá sàn (sát biên độ điều chỉnh thực tế hơn)",Theo kế hoạch,Bizino,Đã có dữ liệu tồn kho (71 tuần) — sẵn sàng thử thêm vào mô hình
