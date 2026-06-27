@@ -48,6 +48,7 @@ export type BacktestMetrics = {
 };
 export type BacktestPoint = {
   as_of: string; lan: number; actual: number; pred: number; err: number; err_pct: number;
+  ton_free?: number | null;  // tồn kho tự do (chưa có HĐ) tại lần này
 };
 export type BacktestResult = {
   grade: string; model: FloorModel; alpha: number;

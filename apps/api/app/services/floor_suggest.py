@@ -237,8 +237,10 @@ def _backtest_core(fd: list[str], fmap: dict, idx: dict, lanmap: dict,
         if not r:
             continue
         prev = fr.prev_floor(fd, fmap, grade, target)[1]
+        fv = _at(idx.get(FREE, []), target)  # tồn kho tự do (chưa có HĐ) tại lần này
         pts.append({"as_of": target, "lan": lanmap.get(target, i + 1), "actual": round(act),
                     "pred": r["pred"], "prev": round(prev) if prev is not None else None,
+                    "ton_free": round(fv) if fv is not None else None,
                     "err": round(r["pred"] - act),
                     "err_pct": round((r["pred"] - act) / act * 100, 2)})
     actual = [p["actual"] for p in pts]

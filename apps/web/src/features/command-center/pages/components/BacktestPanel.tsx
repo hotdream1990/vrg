@@ -83,6 +83,7 @@ export default function BacktestPanel({ grade }: { grade: string }) {
               labels={cur.points.map((p) => p.as_of)}
               actual={cur.points.map((p) => p.actual)}
               pred={cur.points.map((p) => p.pred)}
+              free={cur.points.map((p) => p.ton_free ?? null)}
             />
           : <div className="scan-empty">Chưa đủ dữ liệu để backtest grade này.</div>}
       </div>
