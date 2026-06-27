@@ -3,7 +3,7 @@
 import { API } from "./api-client";
 import { authHeaders, onUnauthorized } from "./auth-token";
 
-export type FloorModel = "v1" | "v2"; // v1=rổ 4 futures (khuyến nghị) · v2=đa biến ridge + mủ nước
+export type FloorModel = "v1" | "v1i" | "v2"; // v1=rổ futures · v1i=rổ+tồn kho · v2=đa biến+mủ nước
 export type FloorPoint = { lan: number; as_of: string };
 export type FloorAction = "raise" | "hold" | "lower";
 export type FloorConfidence = "high" | "medium" | "low";
@@ -39,6 +39,7 @@ export type FloorChart = { labels: string[]; series: ChartSeries[] };
 
 export type BacktestMetrics = {
   mae: number; mape: number; rmse: number; r2: number; n: number; hit: number | null;
+  mape_move?: number | null; n_move?: number;  // sai số trên các lần thực sự điều chỉnh
 };
 export type BacktestPoint = {
   as_of: string; lan: number; actual: number; pred: number; err: number; err_pct: number;

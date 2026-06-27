@@ -25,17 +25,18 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
 export default function BacktestPanel({ grade }: { grade: string }) {
   const [model, setModel] = useState<FloorModel>("v1");
   const [v1, setV1] = useState<BacktestResult | null>(null);
+  const [v1i, setV1i] = useState<BacktestResult | null>(null);
   const [v2, setV2] = useState<BacktestResult | null>(null);
   const [err, setErr] = useState("");
 
   useEffect(() => {
     setErr("");
-    Promise.all([fetchFloorBacktest(grade, "v1"), fetchFloorBacktest(grade, "v2")])
-      .then(([a, b]) => { setV1(a); setV2(b); })
+    Promise.all([fetchFloorBacktest(grade, "v1"), fetchFloorBacktest(grade, "v1i"), fetchFloorBacktest(grade, "v2")])
+      .then(([a, c, b]) => { setV1(a); setV1i(c); setV2(b); })
       .catch((e) => setErr(e.message));
   }, [grade]);
 
-  const cur = model === "v1" ? v1 : v2;
+  const cur = model === "v1" ? v1 : model === "v1i" ? v1i : v2;
   const m = cur?.metrics;
 
   return (
@@ -43,7 +44,7 @@ export default function BacktestPanel({ grade }: { grade: string }) {
       <div className="card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
         <h3>Kiểm định mô hình (Backtest) — {grade}</h3>
         <div style={{ display: "flex", gap: 6 }}>
-          {(["v1", "v2"] as FloorModel[]).map((mo) => (
+          {(["v1", "v1i", "v2"] as FloorModel[]).map((mo) => (
             <button
               key={mo}
               onClick={() => setModel(mo)}
@@ -52,7 +53,7 @@ export default function BacktestPanel({ grade }: { grade: string }) {
                 background: model === mo ? "var(--accent, #16a34a)" : undefined,
                 color: model === mo ? "#fff" : undefined }}
             >
-              {mo === "v1" ? "Rổ 4 futures (khuyến nghị)" : "Đa biến + mủ nước (đối chiếu)"}
+              {mo === "v1" ? "Rổ futures" : mo === "v1i" ? "Rổ + Tồn kho" : "Đa biến + mủ nước"}
             </button>
           ))}
         </div>
@@ -82,10 +83,26 @@ export default function BacktestPanel({ grade }: { grade: string }) {
           : <div className="scan-empty">Chưa đủ dữ liệu để backtest grade này.</div>}
       </div>
 
-      {v1 && v2 && (
-        <div style={{ fontSize: 12, color: "var(--muted)", margin: "8px 0" }}>
-          So sánh: <b>Rổ 4 futures</b> MAPE {v1.metrics.mape ?? "—"}% · đúng hướng {v1.metrics.hit ?? "—"}%
-          {"  •  "}<b>Đa biến</b> MAPE {v2.metrics.mape ?? "—"}% · đúng hướng {v2.metrics.hit ?? "—"}%
+      {v1 && v1i && (() => {
+        const a = v1.metrics, c = v1i.metrics;
+        const mapeUp = (c.mape ?? 0) <= (a.mape ?? 0);          // MAPE thấp hơn = tốt
+        const hitUp = (c.hit ?? 0) >= (a.hit ?? 0);
+        const verdict = mapeUp && hitUp ? ["TỐT HƠN", "#16a34a"]
+          : !mapeUp && !hitUp ? ["TỆ HƠN", "#e11d48"] : ["LẪN LỘN", "#ca8a04"];
+        return (
+          <div style={{ margin: "8px 0", padding: "10px 14px", background: "var(--card-2, #f6faf7)", borderRadius: 8, fontSize: 13 }}>
+            <b>Tác động Tồn kho lên mô hình</b> ({grade}) —
+            <span style={{ color: verdict[1], fontWeight: 700 }}> {verdict[0]}</span>
+            <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginTop: 6 }}>
+              <span>Trước (rổ futures): MAPE <b>{a.mape}%</b> · sai số khi điều chỉnh <b>{a.mape_move ?? "—"}%</b> · đúng hướng <b>{a.hit}%</b></span>
+              <span style={{ color: verdict[1] }}>→ Sau (rổ + tồn kho): MAPE <b>{c.mape}%</b> · điều chỉnh <b>{c.mape_move ?? "—"}%</b> · đúng hướng <b>{c.hit}%</b></span>
+            </div>
+          </div>
+        );
+      })()}
+      {v2 && (
+        <div style={{ fontSize: 12, color: "var(--muted)", margin: "4px 0 8px" }}>
+          (Tham chiếu — Đa biến + mủ nước: MAPE {v2.metrics.mape ?? "—"}% · đúng hướng {v2.metrics.hit ?? "—"}%)
         </div>
       )}
 
