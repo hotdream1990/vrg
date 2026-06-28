@@ -179,6 +179,31 @@ export const saveConfig = (updates: Record<string, string>) =>
     body: JSON.stringify(updates),
   });
 
+export type ScheduleJob = {
+  name: string;
+  label: string;
+  purpose: string | null;
+  hour: number;
+  minute: number;
+  enabled: boolean;
+  last_run: CrawlRun | null;
+  next_run: string | null;
+};
+
+/** Lịch chạy job định kỳ (scheduler trong app). */
+export const fetchSchedules = () => req<{ jobs: ScheduleJob[] }>("/api/schedules");
+
+export const updateSchedule = (name: string, body: { hour: number; minute: number; enabled: boolean }) =>
+  req<{ ok: boolean }>(`/api/schedules/${name}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+/** Chạy 1 job ngay (thủ công). */
+export const runSchedule = (name: string) =>
+  req<ScanResult>(`/api/schedules/${name}/run`, { method: "POST" });
+
 /** Chuỗi giá lịch sử cho biểu đồ. */
 export const fetchHistory = (source: string, grade: string, days = 30) =>
   req<HistorySeries>(`/api/prices/history?source=${source}&grade=${grade}&days=${days}`);

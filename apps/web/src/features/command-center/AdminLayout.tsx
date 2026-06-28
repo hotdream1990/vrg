@@ -1,6 +1,7 @@
 import {
   BankOutlined,
   BulbOutlined,
+  ClockCircleOutlined,
   DashboardOutlined,
   DatabaseOutlined,
   ExperimentOutlined,
@@ -54,6 +55,7 @@ const ADMIN_MENU = {
   children: [
     { key: "/quan-tri/nguoi-dung", icon: <UsergroupAddOutlined />, label: "Người dùng" },
     { key: "/quan-tri/cau-hinh", icon: <SettingOutlined />, label: "Cấu hình hệ thống" },
+    { key: "/quan-tri/lich-chay", icon: <ClockCircleOutlined />, label: "Lịch chạy" },
   ],
 };
 
@@ -73,7 +75,8 @@ export default function AdminLayout() {
     "/quan-ly-so-lieu/bang-gia-san", "/quan-ly-so-lieu/ty-gia", "/quan-ly-so-lieu/gia-san-tap-doan",
     "/quan-ly-so-lieu/gia-mu-nguyen-lieu", "/quan-ly-so-lieu/gia-physical",
     "/quan-ly-so-lieu/ton-kho", "/quan-ly-so-lieu/don-vi-thanh-vien",
-    "/goi-y-gia-san", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh", "/ho-so",
+    "/goi-y-gia-san", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
+    "/quan-tri/lich-chay", "/ho-so",
   ];
   const selected = pathname === "/"
     ? "/"

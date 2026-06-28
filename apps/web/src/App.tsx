@@ -15,6 +15,7 @@ import PriceSheetPage from "./features/command-center/pages/PriceSheetPage";
 import ProfilePage from "./features/command-center/pages/ProfilePage";
 import RawMaterialPage from "./features/command-center/pages/RawMaterialPage";
 import ScanPage from "./features/command-center/pages/ScanPage";
+import SchedulePage from "./features/command-center/pages/SchedulePage";
 import SystemConfigPage from "./features/command-center/pages/SystemConfigPage";
 import UserManagementPage from "./features/command-center/pages/UserManagementPage";
 import VrgFloorPage from "./features/command-center/pages/VrgFloorPage";
@@ -50,6 +51,7 @@ export default function App() {
                   <Route path="/ban-tin/xem/:filename" element={<BulletinDetailPage />} />
                   <Route path="/quan-tri/nguoi-dung" element={<UserManagementPage />} />
                   <Route path="/quan-tri/cau-hinh" element={<SystemConfigPage />} />
+                  <Route path="/quan-tri/lich-chay" element={<SchedulePage />} />
                   <Route path="/ho-so" element={<ProfilePage />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Route>
