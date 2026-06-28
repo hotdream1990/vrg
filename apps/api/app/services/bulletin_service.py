@@ -267,7 +267,7 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                             change_abs=chg, change_pct=pct,
                         )
 
-                    if src == "anrpc":
+                    if src == "reuters":
                         phys_grade = _PHYSICAL_GRADE_MAP.get(grade)
                         if phys_grade:
                             phys_computed[phys_grade] = PhysicalPriceItem(
@@ -317,9 +317,9 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
             else _empty,
         ),
         SectionStatus(
-            section="II. Giá vật chất (ANRPC)",
+            section="II. Giá vật chất (Reuters)",
             source=phys_src,
-            description="RSS3, STR20, SMR20, SIR20 \u2014 đọc từ DB (ANRPC)"
+            description="RSS3, STR20, SMR20, SIR20 \u2014 đọc từ DB (Reuters)"
             if phys_src == "db"
             else _empty,
         ),

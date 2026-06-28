@@ -31,7 +31,7 @@ def _crawler_http_error(exc: Exception) -> HTTPException:
 
 
 @router.post("/scan", response_model=ScanResponse, dependencies=_editor)
-def scan(source: str = Query("all", description="all | anrpc,fx,sgx,shfe,tocom,lgm")) -> ScanResponse:
+def scan(source: str = Query("all", description="all | fx,sgx,shfe,tocom,lgm")) -> ScanResponse:
     """Quét tất cả nguồn → ghi DB → trả bản ghi + trạng thái nguồn + thông tin persist."""
     try:
         result = scan_service.scan_and_persist(source)
@@ -94,7 +94,7 @@ def physical_sheet(
     date_from: str | None = Query(None, description="từ ngày YYYY-MM-DD"),
     date_to: str | None = Query(None, description="đến ngày YYYY-MM-DD"),
 ) -> dict:
-    """Lưới Giá Physical (giao ngay): grade × ngày (nguồn anrpc/reuters)."""
+    """Lưới Giá Physical (giao ngay): grade × ngày (nguồn reuters)."""
     return price_repo.physical_sheet(date_from, date_to)
 
 
@@ -153,7 +153,7 @@ def delete_record(
 
 @router.get("/history", response_model=HistorySeries)
 def history(
-    source: str = Query(..., description="mã nguồn (anrpc, shfe, ...)"),
+    source: str = Query(..., description="mã nguồn (reuters, shfe, ...)"),
     grade: str = Query(..., description="mặt hàng (SMR20, RSS3, ...)"),
     days: int = Query(30, ge=1, le=730),
 ) -> HistorySeries:

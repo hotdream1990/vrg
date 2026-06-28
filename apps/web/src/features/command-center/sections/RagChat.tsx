@@ -20,7 +20,7 @@ export default function RagChat() {
         ))}
       </div>
       <div className="chat-input">
-        <input placeholder="Hỏi: 'Xu hướng dầu Brent ảnh hưởng giá RSS3 thế nào?' · 'Tìm báo cáo ANRPC tháng 4'..." />
+        <input placeholder="Hỏi: 'Xu hướng dầu Brent ảnh hưởng giá RSS3 thế nào?' · 'Giá physical Reuters tháng 4'..." />
         <button>Gửi ↵</button>
       </div>
     </div>

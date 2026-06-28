@@ -1,6 +1,6 @@
 """Job quét giá hàng ngày → ghi TimescaleDB (tích lũy lịch sử cho mọi grade).
 
-Mỗi lần chạy thêm 1 điểm/ngày cho mọi nguồn — kể cả physical (LGM/ANRPC) vốn không có
+Mỗi lần chạy thêm 1 điểm/ngày cho mọi nguồn — kể cả physical (LGM) vốn không có
 archive theo ngày → dần dần đủ điểm để vẽ chart trend từng grade (SMR20, SIR20, ...).
 
 Chạy thủ công:  cd apps/api && uv run python -m app.jobs.daily_scan

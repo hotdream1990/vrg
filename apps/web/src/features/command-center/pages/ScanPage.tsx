@@ -19,7 +19,7 @@ import PhysicalGradeTrend from "../sections/PhysicalGradeTrend";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 
 type Point = { as_of: string; price: number };
-const EXPECTED = ["anrpc", "fx", "sgx", "shfe", "tocom", "lgm"];
+const EXPECTED = ["fx", "sgx", "shfe", "tocom", "lgm"];
 
 // % thay đổi phiên gần nhất so phiên trước (history sắp xếp tăng dần theo ngày).
 const pct = (pts: Point[]): number | undefined =>

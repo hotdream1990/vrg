@@ -1,7 +1,7 @@
 """CLI orchestrator: chạy tất cả nguồn, in bảng kết quả, tùy chọn lưu JSON.
 
   uv run python -m crawlers.run_crawl --source all
-  uv run python -m crawlers.run_crawl --source anrpc,fx --out ../../data/raw/crawl.json
+  uv run python -m crawlers.run_crawl --source fx,shfe --out ../../data/raw/crawl.json
 
 Cô lập lỗi: 1 nguồn hỏng không chặn nguồn khác.
 """
@@ -13,11 +13,11 @@ import json
 from pathlib import Path
 
 from .base.models import CrawlResult, Source, Status
-from .exchanges import anrpc, lgm, sgx_sicom, shfe, tocom
+from .exchanges import lgm, sgx_sicom, shfe, tocom
 from .macro import fx
 
+# Giá physical (Asian rubber) nay lấy từ marketscreener.py (chuỗi Reuters) — không qua ANRPC.
 CRAWLERS = {
-    Source.ANRPC: anrpc.crawl,
     Source.FX: fx.crawl,
     Source.SGX: sgx_sicom.crawl,
     Source.SHFE: shfe.crawl,
@@ -77,7 +77,7 @@ def backfill(sources: list[Source], days: int) -> list:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Crawl chỉ số sàn cao su (VRG)")
-    ap.add_argument("--source", default="all", help="all | anrpc,fx,sgx,shfe,tocom,lgm")
+    ap.add_argument("--source", default="all", help="all | fx,sgx,shfe,tocom,lgm")
     ap.add_argument("--out", default=None, help="đường dẫn lưu JSON (vd data/raw/crawl.json)")
     ap.add_argument("--backfill", action="store_true", help="nạp lịch sử (chỉ nguồn có file theo ngày: shfe,tocom)")
     ap.add_argument("--days", type=int, default=90, help="số phiên lịch sử khi --backfill")

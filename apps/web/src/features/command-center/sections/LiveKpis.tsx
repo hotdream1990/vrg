@@ -4,7 +4,7 @@ import { type LatestRow } from "../../../lib/api-client";
 const HEADLINE = [
   { source: "shfe", grade: "RU", label: "SHFE · RU (Thượng Hải)" },
   { source: "tocom", grade: "RSS3", label: "OSE · RSS3 (Nhật)" },
-  { source: "anrpc", grade: "RSS3", label: "ANRPC · RSS3 (BKK)" },
+  { source: "reuters", grade: "RSS3", label: "Reuters · RSS3 (BKK)" },
   { source: "lgm", grade: "SMR20", label: "MRE · SMR20 (Malaysia)" },
 ];
 

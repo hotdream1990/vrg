@@ -79,9 +79,9 @@ export default function BulletinDetailPage() {
             </table>
           </div>
 
-          {/* II. Giá vật chất (ANRPC) */}
+          {/* II. Giá vật chất (Reuters) */}
           <div className="card blt-section">
-            <div className="blt-section-header"><h3>II. Giá vật chất (ANRPC)</h3></div>
+            <div className="blt-section-header"><h3>II. Giá vật chất (Reuters)</h3></div>
             <table className="blt-list-table">
               <thead><tr>
                 <th>Mặt hàng</th>

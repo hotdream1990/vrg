@@ -333,7 +333,7 @@ export default function BulletinPage() {
           {/* ═══ Section II: Giá Physical (READ-ONLY) ═══ */}
           <div className="card blt-section">
             <div className="blt-section-header">
-              <h3>II. Giá vật chất (ANRPC / Physical)</h3>
+              <h3>II. Giá vật chất (Reuters / Physical)</h3>
               <div className="blt-section-meta">
                 {draft.physical_prices.length > 0 ? (
                   <span className="chip"><IconCheck /> Dữ liệu thật</span>

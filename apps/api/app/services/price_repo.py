@@ -277,7 +277,7 @@ def delete_purchase_date(as_of: str) -> int:
         return res.rowcount
 
 
-_PHYSICAL_SOURCES = ["reuters"]  # chỉ dùng dữ liệu chuyên viên (sheet 'Lưu'); KHÔNG dùng ANRPC
+_PHYSICAL_SOURCES = ["reuters"]  # chuỗi Reuters: lịch sử (Excel chuyên viên) + 2026 (marketscreener)
 _PHYSICAL_ORDER = ["RSS3", "STR20", "SMR20", "SIR20", "USS",
                    "Thai Latex 60% (Bulk)", "Thai Latex 60% (Drums)", "Thai Latex 60%"]
 
@@ -298,7 +298,7 @@ def _to_usd_tonne(price: float, unit: str, thb: float | None) -> int | None:
 def physical_sheet(date_from: str | None = None, date_to: str | None = None) -> dict[str, Any]:
     """Lưới giá physical (giao ngay) đã quy đổi USD/tấn: grade × ngày.
 
-    source ∈ {anrpc, reuters}, price_type='physical'. baht/kg quy đổi bằng USD/THB (kéo gần nhất);
+    source = reuters, price_type='physical'. baht/kg quy đổi bằng USD/THB (kéo gần nhất);
     thiếu THB → ô để trống. Trả {grades, dates, values[grade][date] = USD/tấn}.
     """
     ensure_schema()
@@ -345,7 +345,7 @@ def physical_sheet(date_from: str | None = None, date_to: str | None = None) -> 
 
 
 def delete_physical_date(as_of: str) -> int:
-    """Xoá toàn bộ giá physical (anrpc/reuters) của 1 ngày. Trả số bản ghi đã xoá."""
+    """Xoá toàn bộ giá physical (reuters) của 1 ngày. Trả số bản ghi đã xoá."""
     ensure_schema()
     stmt = text(
         "DELETE FROM fact_price WHERE price_type = 'physical' AND source IN :srcs "
@@ -381,7 +381,7 @@ def latest_two_for_bulletin(as_of_max: str) -> list[dict[str, Any]]:
 
     curr = bản ghi mới nhất, prev = liền trước (để tính chênh lệch). Nhờ vậy mỗi chỉ số
     luôn dùng giá THẬT mới nhất sẵn có, không phụ thuộc các sàn có cùng ngày hay không
-    (FX cập nhật T+0, sàn T-1/T-2, ANRPC trễ hơn...).
+    (FX cập nhật T+0, sàn T-1/T-2, physical trễ hơn...).
     """
     ensure_schema()
     with session_scope() as db:
