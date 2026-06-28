@@ -17,8 +17,9 @@ W3,1. Dashboard Giám sát Thị trường,"[w2] Thu thập chỉ số vĩ mô (
 W3,1. Dashboard Giám sát Thị trường,[w2] Lấy giá giao dịch thực (Physical) hằng ngày từ báo cáo chuyên viên,Hoàn thành,Phối hợp,Có trang Physical + nhập liệu; [w3] đã tự quy đổi giá Baht/kg sang USD/tấn (dùng tỷ giá) cho dữ liệu 2026
 W3,1. Dashboard Giám sát Thị trường,[w2] Xử lý & xuất báo cáo giá hằng ngày từ tài liệu chuyên viên,Đang thực hiện,Phối hợp,Một phần đã có qua trình tạo Bản tin ngày; còn tự động hóa
 W2,2. Hệ thống Dự báo Giá,Giao diện hiển thị dự báo trên Dashboard (bản demo),Đang thực hiện,Bizino,"Đã dựng giao diện, chờ gắn mô hình"
-W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w3] Đăng nhập an toàn + phân quyền theo vai trò + quản trị người dùng,Hoàn thành,Bizino,Chờ nghiệm thu để chuyển sang Đã hoàn thành
+W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w3] Đăng nhập an toàn + phân quyền theo vai trò + quản trị người dùng,Hoàn thành,Bizino,"3 cấp: Quản trị viên · Chuyên viên nhập liệu · Chuyên viên thường (chỉ xem). Chờ nghiệm thu"
 W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w3] Trang hồ sơ cá nhân + đổi mật khẩu,Hoàn thành,Bizino,
+W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w3] Trang Cấu hình hệ thống (admin) — tài khoản nguồn dữ liệu & proxy,Hoàn thành,Bizino,Admin tự cấu hình trên giao diện; mật khẩu được ẩn (không lộ ra màn hình)
 W3,1. Dashboard Giám sát Thị trường,[w3] Nền tảng quản lý dữ liệu nội bộ (thêm/sửa/xóa bản ghi giá),Hoàn thành,Bizino,
 W3,1. Dashboard Giám sát Thị trường,[w3] Quản lý & nạp lịch sử giá sàn VRG,Hoàn thành,Bizino,30 lần ban hành từ 2024 đã đưa vào hệ thống
 W3,1. Dashboard Giám sát Thị trường,[w3] Nạp dữ liệu giá lịch sử từ file Excel của Ban TTKD,Hoàn thành,Bizino,"Giá các sàn, tỷ giá, mủ nước, giá giao ngay — từ 2024"
@@ -53,6 +54,7 @@ W2,5. VRG cung cấp / phối hợp,"Xác nhận bản quyền dữ liệu quố
 W2,5. VRG cung cấp / phối hợp,Ký thỏa thuận bảo mật (NDA),Cần phối hợp,VRG,Cam kết giữ bí mật trước khi VRG bàn giao dữ liệu nhạy cảm
 W2,5. VRG cung cấp / phối hợp,Thống nhất mốc thời gian & phạm vi Giai đoạn PoC,Cần phối hợp,Phối hợp,
 W3,1. Dashboard Giám sát Thị trường,[w3] Thu thập giá Physical từ marketscreener.com (Asian physical rubber prices),Hoàn thành,Bizino,"Tự động thu thập + lập lịch chạy hằng ngày; đã nạp giá giao ngay châu Á 2026 gần nhất. Lưu ý: nguồn chặn truy cập tự động theo đường mạng — chạy ổn định khi đặt máy ở mạng phù hợp (hoặc proxy); giai đoạn 01-04/2026 nguồn không cho tra cứu lại"
+W3,1. Dashboard Giám sát Thị trường,[w3] Nút "Quét ngay" theo nguồn trên từng màn (chủ động cập nhật),Hoàn thành,Bizino,"Giá Physical, Tỷ giá, Bảng giá các sàn — mỗi màn có nút quét riêng + nhật ký quét"
 W3,1. Dashboard Giám sát Thị trường,[w3] Ngưng dùng nguồn ANRPC (không còn cần),Theo kế hoạch,Bizino,Thay bằng nguồn giá giao ngay mới
 W3,1. Dashboard Giám sát Thị trường,"[w3] Thu thập chỉ số vĩ mô (dầu thô, butadiene, USD Index, PMI)",Theo kế hoạch,Bizino,
 W3,2. Hệ thống Dự báo Giá,[w3] Trang quản lý Tồn kho + nạp từ báo cáo tuần (PDF),Hoàn thành,Bizino,71 tuần tồn kho (2025→2026) đã nạp tự động + nhập/sửa tay được
