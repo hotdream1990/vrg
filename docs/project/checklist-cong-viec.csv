@@ -28,6 +28,7 @@ W3,1. Dashboard Giám sát Thị trường,[w3] Quản lý danh mục đơn vị
 W3,1. Dashboard Giám sát Thị trường,[w3] Trang giá mủ nguyên liệu (giá mủ nước theo khu vực),Hoàn thành,Bizino,
 W3,3. Trung tâm Điều hành AI (Lãnh đạo),"[w3] Trình tạo ""Bản tin ngày"" thị trường (soạn / sửa / xuất bản)",Hoàn thành,Bizino,
 W3,3. Trung tâm Điều hành AI (Lãnh đạo),"[w3] Xuất ""Bản tin ngày"" ra bản trình chiếu (PPTX) và PDF",Hoàn thành,Bizino,
+W3,3. Trung tâm Điều hành AI (Lãnh đạo),[w3] AI phân tích thông tin thị trường cho Bản tin ngày,Hoàn thành,Bizino,"AI lấy tin từ vietnambiz.vn rồi viết đoạn nhận định; cần đặt API key AI ở trang Cấu hình để kích hoạt"
 W3,2. Hệ thống Dự báo Giá,[w3] Màn Gợi ý điều chỉnh giá sàn (đề xuất nâng/giữ/hạ kèm diễn giải),Hoàn thành,Bizino,Có kiểm định độ chính xác trên lịch sử
 W3,2. Hệ thống Dự báo Giá,[w3] Xuất Tờ trình giá sàn từ màn Gợi ý (xem trước + In/Xuất PDF),Hoàn thành,Bizino,Tự sinh tờ trình theo đúng mẫu Ban TTKD
 W3,1. Dashboard Giám sát Thị trường,[w3] Nạp bổ sung dữ liệu giá lịch sử (từ 2024),Đang thực hiện,Bizino,Đã nạp tỷ giá / giá các sàn / giá mủ nước; còn chỉ số vĩ mô & tồn kho
