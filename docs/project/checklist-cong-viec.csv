@@ -19,7 +19,8 @@ W3,1. Dashboard Giám sát Thị trường,[w2] Xử lý & xuất báo cáo giá
 W2,2. Hệ thống Dự báo Giá,Giao diện hiển thị dự báo trên Dashboard (bản demo),Đang thực hiện,Bizino,"Đã dựng giao diện, chờ gắn mô hình"
 W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w3] Đăng nhập an toàn + phân quyền theo vai trò + quản trị người dùng,Hoàn thành,Bizino,"3 cấp: Quản trị viên · Chuyên viên nhập liệu · Chuyên viên thường (chỉ xem). Chờ nghiệm thu"
 W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w3] Trang hồ sơ cá nhân + đổi mật khẩu,Hoàn thành,Bizino,
-W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w3] Trang Cấu hình hệ thống (admin) — tài khoản nguồn dữ liệu & proxy,Hoàn thành,Bizino,Admin tự cấu hình trên giao diện; mật khẩu được ẩn (không lộ ra màn hình)
+W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w3] Trang Cấu hình hệ thống (admin) — tài khoản nguồn dữ liệu & proxy,Hoàn thành,Bizino,"Admin tự cấu hình trên giao diện theo tab (Marketscreener, AI); mật khẩu được ẩn"
+W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w3] Lịch chạy tự động trong ứng dụng (quét giá theo giờ),Hoàn thành,Bizino,"Hệ thống tự lên lịch (không cài vào máy chủ); admin xem/sửa giờ, bật-tắt, chạy ngay"
 W3,1. Dashboard Giám sát Thị trường,[w3] Nền tảng quản lý dữ liệu nội bộ (thêm/sửa/xóa bản ghi giá),Hoàn thành,Bizino,
 W3,1. Dashboard Giám sát Thị trường,[w3] Quản lý & nạp lịch sử giá sàn VRG,Hoàn thành,Bizino,30 lần ban hành từ 2024 đã đưa vào hệ thống
 W3,1. Dashboard Giám sát Thị trường,[w3] Nạp dữ liệu giá lịch sử từ file Excel của Ban TTKD,Hoàn thành,Bizino,"Giá các sàn, tỷ giá, mủ nước, giá giao ngay — từ 2024"
