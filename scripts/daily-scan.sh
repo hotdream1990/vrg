@@ -3,6 +3,9 @@
 # Cài lịch: xem infra/launchd/com.vrg.daily-scan.plist
 set -uo pipefail
 
+# launchd/cron có PATH tối thiểu → nạp đường dẫn uv + docker + bin hệ thống (tránh exit 127)
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT" || exit 1
 
