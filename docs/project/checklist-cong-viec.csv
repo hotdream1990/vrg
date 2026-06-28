@@ -7,14 +7,14 @@ W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w2] Thiết lập hệ thống 
 W2,1. Dashboard Giám sát Thị trường,"Thu thập giá tự động — sàn Nhật (TOCOM/OSE: cao su RSS3, TSR20)",Hoàn thành,Bizino,
 W2,1. Dashboard Giám sát Thị trường,Thu thập giá tự động — sàn Trung Quốc (SHFE Thượng Hải: cao su tự nhiên),Hoàn thành,Bizino,
 W2,1. Dashboard Giám sát Thị trường,"Thu thập giá tự động — Malaysia (Cục Cao su LGM: SMR, Latex)",Hoàn thành,Bizino,
-W2,1. Dashboard Giám sát Thị trường,Thu thập giá tự động — Hiệp hội ANRPC (giá tham chiếu khu vực),Hoàn thành,Bizino,
+W2,1. Dashboard Giám sát Thị trường,Thu thập giá tự động — Hiệp hội ANRPC (giá tham chiếu khu vực),Hoàn thành,Bizino,[w3] Đã ngừng dùng — thay bằng nguồn Reuters (marketscreener) cho giá giao ngay
 W2,1. Dashboard Giám sát Thị trường,"Thu thập tỷ giá ngoại tệ (USD/VNĐ, USD/CNY, ...)",Hoàn thành,Bizino,
 
 PHẦN 2 — ĐANG LÀM (HIỆN TẠI),,,,,
 Tuần,Hạng mục,Công việc,Trạng thái,Phụ trách,Ghi chú
 W2,1. Dashboard Giám sát Thị trường,Thu thập giá sàn Singapore (SICOM),Đang thực hiện,Bizino,Nguồn yêu cầu bản quyền dữ liệu — đang xử lý
 W3,1. Dashboard Giám sát Thị trường,"[w2] Thu thập chỉ số vĩ mô (dầu, USD Index, PMI Trung Quốc)",Đang thực hiện,Bizino,Tỷ giá đã xong; phần dầu/USD Index/PMI chưa triển khai
-W3,1. Dashboard Giám sát Thị trường,[w2] Lấy giá giao dịch thực (Physical) hằng ngày từ báo cáo chuyên viên,Đang thực hiện,Phối hợp,Đã có trang Physical + chức năng nhập; còn quy đổi giá Baht/kg (2026) sang USD/tấn
+W3,1. Dashboard Giám sát Thị trường,[w2] Lấy giá giao dịch thực (Physical) hằng ngày từ báo cáo chuyên viên,Hoàn thành,Phối hợp,Có trang Physical + nhập liệu; [w3] đã tự quy đổi giá Baht/kg sang USD/tấn (dùng tỷ giá) cho dữ liệu 2026
 W3,1. Dashboard Giám sát Thị trường,[w2] Xử lý & xuất báo cáo giá hằng ngày từ tài liệu chuyên viên,Đang thực hiện,Phối hợp,Một phần đã có qua trình tạo Bản tin ngày; còn tự động hóa
 W2,2. Hệ thống Dự báo Giá,Giao diện hiển thị dự báo trên Dashboard (bản demo),Đang thực hiện,Bizino,"Đã dựng giao diện, chờ gắn mô hình"
 W3,"4. Hạ tầng, Bảo mật & Nghiệm thu",[w3] Đăng nhập an toàn + phân quyền theo vai trò + quản trị người dùng,Hoàn thành,Bizino,Chờ nghiệm thu để chuyển sang Đã hoàn thành
@@ -52,7 +52,7 @@ W2,5. VRG cung cấp / phối hợp,Báo cáo trả phí & tài liệu nội b�
 W2,5. VRG cung cấp / phối hợp,"Xác nhận bản quyền dữ liệu quốc tế (vd Reuters), nếu có",Cần phối hợp,VRG,"Nếu có sẵn, dùng để lấy giá settlement + lịch sử chính thức"
 W2,5. VRG cung cấp / phối hợp,Ký thỏa thuận bảo mật (NDA),Cần phối hợp,VRG,Cam kết giữ bí mật trước khi VRG bàn giao dữ liệu nhạy cảm
 W2,5. VRG cung cấp / phối hợp,Thống nhất mốc thời gian & phạm vi Giai đoạn PoC,Cần phối hợp,Phối hợp,
-W3,1. Dashboard Giám sát Thị trường,[w3] Thu thập giá Physical từ marketscreener.com (Asian physical rubber prices),Hoàn thành,Bizino,Crawl Firefox vượt Akamai + đăng nhập; đã nạp 2026 (04-06) vào chuỗi reuters; còn backfill 01-04/2026
+W3,1. Dashboard Giám sát Thị trường,[w3] Thu thập giá Physical từ marketscreener.com (Asian physical rubber prices),Hoàn thành,Bizino,"Tự động thu thập + lập lịch chạy hằng ngày; đã nạp giá giao ngay châu Á 2026 gần nhất. Lưu ý: nguồn chặn truy cập tự động theo đường mạng — chạy ổn định khi đặt máy ở mạng phù hợp (hoặc proxy); giai đoạn 01-04/2026 nguồn không cho tra cứu lại"
 W3,1. Dashboard Giám sát Thị trường,[w3] Ngưng dùng nguồn ANRPC (không còn cần),Theo kế hoạch,Bizino,Thay bằng nguồn giá giao ngay mới
 W3,1. Dashboard Giám sát Thị trường,"[w3] Thu thập chỉ số vĩ mô (dầu thô, butadiene, USD Index, PMI)",Theo kế hoạch,Bizino,
 W3,2. Hệ thống Dự báo Giá,[w3] Trang quản lý Tồn kho + nạp từ báo cáo tuần (PDF),Hoàn thành,Bizino,71 tuần tồn kho (2025→2026) đã nạp tự động + nhập/sửa tay được
