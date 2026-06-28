@@ -11,6 +11,7 @@ import { useAuth } from "../../auth/AuthContext";
 import DateRangeBar from "../sections/DateRangeBar";
 import EditableCell from "../sections/EditableCell";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
+import ScanNowButton from "../sections/ScanNowButton";
 import "../../bulletin/bulletin.css";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -69,6 +70,7 @@ export default function PhysicalSheetPage() {
         info={`${dates.length} ngày · ${grades.length} grade`}>
         {canEdit && (
           <>
+            <ScanNowButton source="marketscreener" label="Quét marketscreener" onDone={load} />
             <label className="blt-date-label">Thêm ngày:
               <input type="date" className="blt-date-input" value={newDate}
                 onChange={(e) => setNewDate(e.target.value)} />

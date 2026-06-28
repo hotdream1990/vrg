@@ -45,8 +45,37 @@ def persist(records: list[dict], sources: str) -> tuple[int, int | None, str]:
         return 0, run_id, f"error:{type(exc).__name__}"
 
 
+def scan_marketscreener(n: int = 5) -> dict:
+    """Trigger crawl marketscreener (Firefox + login, ghi reuters physical) qua subprocess.
+
+    Chạy trong env crawler (cần Firefox + psycopg). persist() tự ghi meta_crawl_run nên
+    đọc lại run mới nhất để trả kết quả (kể cả lỗi Akamai 403).
+    """
+    proc = subprocess.run(
+        ["uv", "run", "--with", "psycopg[binary]", "python", "-m",
+         "crawlers.marketscreener", "--persist", str(n)],
+        cwd=_CRAWLER_DIR, capture_output=True, text=True, timeout=300,
+    )
+    run = next((r for r in price_repo.recent_runs(5) if r["sources"] == "marketscreener"), None)
+    if run and run["status"] in ("ok", "empty"):
+        status = run["status"]
+    else:
+        status = "error"
+    note = (run["error"] if run else None) or (proc.stderr[-300:] if status == "error" else None)
+    return {
+        "records": [],
+        "sources": [{"source": "marketscreener", "status": status,
+                     "count": run["rows"] if run else 0, "note": note}],
+        "persisted": run["rows"] if run else 0,
+        "run_id": run["id"] if run else None,
+        "db": "ok",
+    }
+
+
 def scan_and_persist(source: str = "all") -> dict:
     """Quét tất cả nguồn → ghi DB → dict {records, sources, persisted, run_id, db}."""
+    if source == "marketscreener":
+        return scan_marketscreener()
     data = run_crawler(source)
     records = [rec for src in data for rec in src["records"]]
     sources = [

@@ -5,6 +5,7 @@ import { useAuth } from "../../auth/AuthContext";
 import DateRangeBar from "../sections/DateRangeBar";
 import PriceSheetGrid from "../sections/PriceSheetGrid";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
+import ScanNowButton from "../sections/ScanNowButton";
 import "../../bulletin/bulletin.css";
 
 /** Quản lý số liệu → Tỷ giá (USD/JPY·CNY·MYR·THB·VND theo ngày). */
@@ -12,6 +13,7 @@ export default function FxRatePage() {
   const { canEdit } = useAuth();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   return (
     <div className="main">
@@ -23,9 +25,13 @@ export default function FxRatePage() {
       </div>
 
       <ReadOnlyNotice />
-      <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo} />
+      <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo}>
+        {canEdit && (
+          <ScanNowButton source="fx" label="Quét tỷ giá" onDone={() => setReloadKey((k) => k + 1)} />
+        )}
+      </DateRangeBar>
 
-      <PriceSheetGrid view="fx" dateFrom={from || undefined} dateTo={to || undefined} readOnly={!canEdit} />
+      <PriceSheetGrid key={reloadKey} view="fx" dateFrom={from || undefined} dateTo={to || undefined} readOnly={!canEdit} />
     </div>
   );
 }
