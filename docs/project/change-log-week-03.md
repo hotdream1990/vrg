@@ -9,7 +9,7 @@
 > - Khi merge vào CSV sau này: thêm cột **`Last Update`** (tuần cập nhật gần nhất); các dòng cũ để `Last Update = Tuần 2`, các thay đổi bên dưới ghi `Last Update = Tuần 3`.
 > - Mục **chưa xong** sẽ vào CSV **Phần 2 (đang làm)** / **Phần 3 (backlog)** — *xử lý ở tương lai*.
 >
-> Mốc dự án: bắt đầu **15/06/2026** · Change log này lập ngày **26/06/2026**.
+> Mốc dự án: bắt đầu **15/06/2026** · Change log lập **26/06/2026** · **cập nhật 28/06/2026** (bổ sung tồn kho, marketscreener, scheduler, cấu hình, AI bản tin — xem Phần E).
 
 ---
 
@@ -22,6 +22,12 @@
 | **C. Đang làm / Backlog mới phát sinh** | 9 | → Phần 2 (đang làm) / Phần 3 (backlog) |
 
 Điểm nhấn Tuần 3: hoàn thiện **xác thực & phân quyền (RBAC)**, **Bản tin ngày + xuất PPTX/PDF**, **màn Gợi ý điều chỉnh giá sàn (engine hồi quy + backtest)**; nhiều màn từ *bản demo* đã lên **dữ liệu/DB thật**; đã **nhận & import một phần** lịch sử giá sàn VRG.
+
+> ⭐ **2 trọng tâm của tuần (nhấn mạnh):**
+>
+> **1. Backfill dữ liệu lịch sử — khối lượng lớn, tốn nhiều công.** Đây là phần nặng nhất tuần: nạp **~3.500+ điểm dữ liệu** giá quá khứ (2024→nay) từ file Excel Ban TTKD vào DB — tỷ giá, giá 4 sàn quốc tế (settlement), giá mủ nước, **30 lần ban hành giá sàn VRG** (target của mô hình). Mỗi nguồn 1 định dạng riêng, phải viết bộ công cụ parse + đối chiếu + sửa lỗi quy đổi (vd LATEX). **Không có chuỗi lịch sử này thì không thể chạy gợi ý giá sàn.**
+>
+> **2. Gợi ý giá sàn — tính năng quan trọng nhất + các màn nhập liệu phục vụ nó.** Màn **"Gợi ý điều chỉnh giá sàn"** (NÂNG/GIỮ/HẠ kèm diễn giải + backtest toàn chuỗi + ma trận kịch bản + **xuất tờ trình**) là đầu ra cốt lõi cho lãnh đạo. Để nó chạy đúng, tuần này dựng/hoàn thiện **các màn nhập liệu nuôi mô hình**: Bảng giá các sàn · Tỷ giá · Giá Physical · **Tồn kho** · Giá sàn Tập đoàn — admin/chuyên viên nhập & sửa trực tiếp, dữ liệu chảy thẳng vào engine + backtest.
 
 ---
 
@@ -96,18 +102,36 @@
 |---|---|---|---|---|
 | Tỷ giá | `fx` | 02/01/2024 → 24/06/2026 | 596 | Đủ (5 loại) |
 | Physical Malaysia | `lgm` | 02/01/2024 → 19/06/2026 | 479 | Đủ (7 grade) |
-| Physical (chuyên viên) | `reuters` | 14/05/2024 → 29/12/2025 | 269 | Lịch sử tới 2025; **physical 2026+ chuyển sang marketscreener** (backlog) |
+| Physical (chuyên viên) | `reuters` | 14/05/2024 → 29/12/2025 | 269 | Lịch sử tới 2025 (Excel chuyên viên) |
+| Physical 2026 (marketscreener) | `reuters` | 28/04/2026 → 26/06/2026 | 37 | **ĐÃ NỐI TIẾP** — crawler marketscreener (Reuters); còn lấp 01–04/2026 |
+| Tồn kho (báo cáo tuần) | `fact_inventory` | (từ báo cáo chị Hạnh) | 71 tuần | **ĐÃ NẠP** — tồn kho + đã có hợp đồng; đưa vào mô hình giá sàn |
 | Settlement SGX | `sgx` | 02/01/2024 → 09/06/2026 | 501 | Đủ (2 grade) |
 | Settlement SHFE | `shfe` | 02/01/2024 → 18/06/2026 | 569 | Đủ |
 | Settlement TOCOM/OSE | `tocom` | 04/01/2024 → 19/06/2026 | 511 | Đủ (2 grade) |
 | Giá mủ nước (thu mua) | `vrg/purchase` | 21/06/2024 → 20/06/2026 | 302 | Đủ (12 loại) |
 | Giá mủ nước (theo khu vực) | `vrg/region` | 08/07/2024 → 09/06/2026 | 312 | Đủ (4 KV) |
 | **Giá sàn VRG (target)** | `vrg_floor_price` | 15/01/2024 → 09/06/2026 | 30 lần | Đủ (đúng phạm vi cần — **từ 2024**) |
-| ~~ANRPC~~ | `anrpc` | 15–16/06/2026 | 2 | **Không còn cần** — không vào model/lưới physical; sẽ bỏ, thay bằng nguồn physical mới (marketscreener) |
+| ~~ANRPC~~ | `anrpc` | 15–16/06/2026 | 2 | **ĐÃ GỠ** — thay bằng nguồn Reuters (marketscreener) |
 | Vĩ mô (dầu/USD Index/PMI) | — | — | 0 | **Chưa nạp** |
 | Tồn kho / Tiêu thụ | — | — | 0 | **Chưa có bảng — chờ dữ liệu chuyên viên** |
 
-**Việc backfill còn lại (trong phạm vi từ 2024):** (1) vĩ mô (dầu/USD Index/PMI), (2) tồn kho/tiêu thụ (chặn vì thiếu dữ liệu chuỗi từ chuyên viên). *Physical 2026+ sẽ lấy từ **marketscreener** (xem backlog phần C); **ANRPC bỏ** — không backfill.*
+**Việc backfill còn lại (trong phạm vi từ 2024):** (1) vĩ mô (dầu/USD Index/PMI) — chưa nạp; (2) tiêu thụ — chờ dữ liệu chuỗi từ chuyên viên; (3) physical **01–04/2026** (marketscreener không cho tra cứu bài cũ). *Đã xong trong tuần: **physical 2026 (marketscreener)**, **tồn kho 71 tuần**; **ANRPC đã gỡ**.*
+
+---
+
+## E. Bổ sung cuối Tuần 3 *(27–28/06 — sau bản chốt 26/06)*
+
+*Nhiều mục ở Phần C đã chuyển từ "backlog/đang làm" sang **Hoàn thành**.*
+
+| Hạng mục | Công việc | Trạng thái | Bằng chứng |
+|---|---|---|---|
+| 2. Dự báo Giá ⭐ | **Tồn kho** đưa vào mô hình gợi ý giá sàn — import báo cáo tuần (chị Hạnh) + **trang nhập liệu Tồn kho** + biến thể mô hình có tồn kho (tổng & tồn tự do) + so sánh trước/sau + vẽ tồn kho tự do trên backtest | Hoàn thành | `6550107`, `d062193`, `58212de`, `eb83edb`, `b6e1169`, `161a8af` |
+| 1. Dashboard | **Crawler giá Physical từ marketscreener.com** (chuỗi Reuters "Asian physical rubber prices"; Firefox vượt chặn bot + đăng nhập) — lấp giá giao ngay **2026** | Hoàn thành | `c12c907`, `4e9b4aa` |
+| 1. Dashboard | **Gỡ ANRPC**, chuyển nguồn physical sang Reuters | Hoàn thành | `d45d4b1` |
+| 1. Dashboard | **Lịch chạy tự động trong ứng dụng** (scheduler thay cron hệ điều hành) + trang "Lịch chạy" (xem/sửa giờ, bật-tắt, chạy ngay) | Hoàn thành | `f0eaddb`, `8e4d90f` |
+| 1. Dashboard | **Nhật ký quét giá** trên giao diện + nút **"Quét ngay" theo nguồn** trên từng màn | Hoàn thành | `9277069`, `8b0eb84`, `5a316ac` |
+| 4. Hạ tầng | **Trang Cấu hình hệ thống (admin)** — tài khoản nguồn dữ liệu/proxy/AI theo tab; mật khẩu được ẩn; model AI chọn từ danh sách | Hoàn thành | `d17d407`, `c43352e`, `6664ae9`, `14bab67` |
+| 3. Trung tâm Điều hành AI | **AI phân tích thông tin thị trường** cho Bản tin ngày — lấy tin vietnambiz.vn → AI viết đoạn nhận định (OpenAI) | Hoàn thành | `094acc3`, `234c32e`, `c5d8d29` |
 
 ---
 
