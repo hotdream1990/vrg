@@ -18,7 +18,12 @@ WORLD_GRADE_MAP: dict[tuple[str, str], tuple[str, str]] = {
     ("lgm", "LATEX"): ("MRE", "LATEX"),
 }
 
-PHYSICAL_GRADE_MAP = {"RSS3": "RSS3", "STR20": "STR20", "SMR20": "SMR20", "SIR20": "SIR20"}
+# Map grade reuters → dòng canonical bản tin (gồm cả Latex để không bỏ sót dữ liệu đã có).
+PHYSICAL_GRADE_MAP = {
+    "RSS3": "RSS3", "STR20": "STR20", "SMR20": "SMR20", "SIR20": "SIR20",
+    "Thai Latex 60% (Bulk)": "Thai Latex 60% (Bulk)",
+    "Thai Latex 60% (Drums)": "Thai Latex 60% (Drums)",
+}
 
 EXCHANGE_NAMES = {
     "OSE": "Sàn TOCOM (Nhật Bản)",

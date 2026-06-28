@@ -23,13 +23,15 @@ _SYSTEM = (
 
 
 def _fetch_text() -> str:
-    """Tải trang vietnambiz, bóc text bài 'Giá cao su hôm nay' (bỏ nav/boilerplate)."""
+    """Tải trang vietnambiz, bóc đúng vùng TIN TỨC (bỏ menu điều hướng/boilerplate)."""
     r = httpx.get(SOURCE_URL, headers={"User-Agent": _UA}, follow_redirects=True, timeout=20)
     r.raise_for_status()
     html = re.sub(r"<script.*?</script>|<style.*?</style>", " ", r.text, flags=re.S)
     text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html)).strip()
-    idx = text.find("Giá cao su hôm nay")
-    return text[idx: idx + 3500] if idx >= 0 else text[:3500]
+    # Menu điều hướng nằm đầu trang; nội dung tin bắt đầu sau nhãn "TIN TỨC".
+    pos = text.find("TIN TỨC")
+    start = pos + len("TIN TỨC") if pos >= 0 else max(text.find("Giá cao su hôm nay"), 0)
+    return text[start: start + 3500].strip()
 
 
 def generate(n_paragraphs: int = 3) -> dict:
@@ -40,6 +42,8 @@ def generate(n_paragraphs: int = 3) -> dict:
         f"Hãy viết {n_paragraphs} đoạn 'Phân tích & nhận định' ngắn (mỗi đoạn 2-4 câu) cho bản tin "
         "giá cao su hôm nay của VRG, đề cập: diễn biến giá các sàn (Nhật/OSE, Thượng Hải/SHFE, "
         "Thái Lan), yếu tố cung-cầu (thời tiết, sản lượng, giá dầu) và hàm ý cho giá bán. "
+        "CHỈ dựa trên thông tin có trong đoạn nguồn ở trên — không thêm số liệu, mốc thời gian hay "
+        "sự kiện không xuất hiện trong nguồn. "
         "CHỈ trả về các đoạn văn, mỗi đoạn trên 1 dòng, không đánh số, không tiêu đề."
     )
     out = llm.complete(_SYSTEM, user, max_tokens=900)

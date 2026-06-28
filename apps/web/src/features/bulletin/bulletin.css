@@ -257,6 +257,23 @@ th.r, td.r {
   transition: border-color 0.2s;
 }
 
+.blt-readonly {
+  width: 100%;
+  background: #f6f7f9;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.blt-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 4px 0 8px;
+}
+
 .blt-textarea:focus {
   outline: none;
   border-color: var(--info);

@@ -479,30 +479,23 @@ export default function BulletinPage() {
             </div>
 
             <div className="blt-subsection">
-              <h4>1. Tóm tắt giá sàn giao dịch</h4>
-              {draft.exchange_summary.map((line, i) => (
-                <textarea
-                  key={i}
-                  className="blt-textarea"
-                  rows={2}
-                  value={line}
-                  onChange={(e) => {
-                    const items = [...draft.exchange_summary];
-                    items[i] = e.target.value;
-                    updateField("exchange_summary", items);
-                  }}
-                />
-              ))}
+              <h4>1. Tóm tắt giá sàn giao dịch <span className="chip">Tự sinh từ giá</span></h4>
+              {draft.exchange_summary.some((l) => l.trim()) ? (
+                draft.exchange_summary
+                  .filter((l) => l.trim())
+                  .map((line, i) => <div key={i} className="blt-readonly">{line}</div>)
+              ) : (
+                <div className="blt-hint">Chưa có dữ liệu giá sàn cho ngày này — phần này tự sinh từ giá đã quét.</div>
+              )}
             </div>
 
             <div className="blt-subsection">
-              <h4>2. Giá Physical</h4>
-              <textarea
-                className="blt-textarea"
-                rows={2}
-                value={draft.physical_summary}
-                onChange={(e) => updateField("physical_summary", e.target.value)}
-              />
+              <h4>2. Giá Physical <span className="chip">Tự sinh từ giá</span></h4>
+              {draft.physical_summary.trim() ? (
+                <div className="blt-readonly">{draft.physical_summary}</div>
+              ) : (
+                <div className="blt-hint">Chưa có dữ liệu giá physical cho ngày này.</div>
+              )}
             </div>
 
             <div className="blt-subsection">
