@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VRG Command Center — Báo cáo Tuần 3</title>
+<style>
+  :root{
+    --type-mega: 168px;
+    --type-title: 62px;
+    --type-subtitle: 40px;
+    --type-body: 30px;
+    --type-small: 24px;
+    --type-eyebrow: 24px;
+    --pad-x: 112px;
+    --pad-top: 92px;
+    --pad-bottom: 84px;
+    --gap-title: 44px;
+
+    --ink: #0E1B2C;
+    --ink-2: #46596E;
+    --ink-3: #7A8DA0;
+    --green: #15B86A;
+    --green-d: #0A7C44;
+    --green-ink: #0B5A33;
+    --line: rgba(255,255,255,.7);
+    --panel: rgba(255,255,255,.55);
+    --panel-solid:#ffffff;
+    --bg: radial-gradient(125% 120% at 82% -10%, #e7f1ea 0%, #f5f8f6 44%, #eaf0ec 100%);
+    --bg-dark: radial-gradient(60% 55% at 18% 8%, rgba(46,210,128,.34), transparent 60%), radial-gradient(52% 52% at 88% 92%, rgba(28,180,120,.26), transparent 62%), linear-gradient(150deg,#063221 0%,#0a4a31 52%,#06281b 100%);
+    --shadow: 0 32px 64px -30px rgba(10,55,35,.40), 0 6px 18px -8px rgba(10,55,35,.14), inset 0 1px 0 rgba(255,255,255,.85);
+    --font: "Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--font);background:#0a120d;color:var(--ink);-webkit-font-smoothing:antialiased}
+  deck-stage:not(:defined){visibility:hidden}
+
+  section{
+    background:
+      radial-gradient(58% 48% at 10% 6%, rgba(54,214,140,.24), transparent 60%),
+      radial-gradient(52% 54% at 92% 10%, rgba(38,196,150,.22), transparent 60%),
+      radial-gradient(70% 60% at 82% 102%, rgba(74,222,150,.20), transparent 60%),
+      radial-gradient(48% 42% at 26% 98%, rgba(120,232,182,.18), transparent 60%),
+      linear-gradient(158deg, #eef7f1 0%, #f5faf6 46%, #e8f3ed 100%);
+    color:var(--ink);
+    overflow:hidden;
+    font-size:var(--type-body);
+  }
+  .pad{position:absolute;inset:0;padding:var(--pad-top) var(--pad-x) var(--pad-bottom);display:flex;flex-direction:column}
+
+  /* ---------- shared atoms ---------- */
+  .eyebrow{font-size:var(--type-eyebrow);font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--green-d);display:flex;align-items:center;gap:16px}
+  .eyebrow::before{content:"";width:46px;height:3px;background:var(--green);border-radius:2px;display:inline-block}
+  .s-title{font-size:var(--type-title);font-weight:800;line-height:1.05;letter-spacing:-.015em;margin:0;color:var(--ink);text-wrap:balance}
+  .s-sub{font-size:var(--type-subtitle);font-weight:400;line-height:1.28;color:var(--ink-2);margin:0}
+  .body{font-size:var(--type-body);line-height:1.42;color:var(--ink-2)}
+  .accent{color:var(--green-d)}
+  .ink{color:var(--ink)}
+  strong{font-weight:700;color:var(--ink)}
+
+  .panel{position:relative;background:linear-gradient(135deg, rgba(255,255,255,.60) 0%, rgba(255,255,255,.32) 100%);border:1px solid rgba(255,255,255,.75);border-radius:28px;box-shadow:0 32px 66px -30px rgba(10,60,38,.42), 0 6px 18px -8px rgba(10,60,38,.14), inset 0 1px 0 rgba(255,255,255,.9), inset 0 -26px 50px -34px rgba(10,60,38,.16);backdrop-filter:blur(26px) saturate(160%);-webkit-backdrop-filter:blur(26px) saturate(160%);overflow:hidden}
+  .panel::before{content:"";position:absolute;left:0;right:0;top:0;height:46%;border-radius:28px 28px 60% 60%/28px 28px 22% 22%;background:linear-gradient(180deg, rgba(255,255,255,.5) 0%, rgba(255,255,255,0) 100%);pointer-events:none;z-index:0}
+  .panel>*{position:relative;z-index:1}
+
+  .brandmark{display:flex;align-items:center;gap:13px}
+  .brandmark .mk{width:34px;height:34px;border-radius:10px;background:linear-gradient(150deg,var(--green) 0%,var(--green-d) 100%);box-shadow:0 0 18px rgba(18,164,92,.45);position:relative;flex:none}
+  .brandmark .mk::after{content:"";position:absolute;inset:9px;border-radius:4px;border:3px solid #fff;border-right-color:transparent;border-bottom-color:transparent;transform:rotate(45deg)}
+  .brandmark .wm{font-size:25px;font-weight:800;letter-spacing:.02em;color:var(--ink);white-space:nowrap}
+  .footer span{white-space:nowrap}
+  .brandmark .wm small{font-size:24px;font-weight:500;color:var(--ink-3);letter-spacing:0}
+
+  .footer{position:absolute;left:var(--pad-x);right:var(--pad-x);bottom:42px;display:flex;align-items:center;justify-content:space-between;font-size:24px;color:var(--ink-3)}
+  .footer .tag{font-weight:600;color:var(--green-d)}
+
+  .glow{position:absolute;border-radius:50%;filter:blur(80px);background:radial-gradient(circle,rgba(30,210,124,.55),rgba(30,210,124,0) 70%);pointer-events:none}
+
+  /* numbered chip */
+  .chip{width:56px;height:56px;border-radius:16px;background:linear-gradient(150deg,#1ec678 0%,#0a7c44 100%);color:#fff;font-weight:800;font-size:28px;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid rgba(255,255,255,.28);box-shadow:0 12px 26px -10px rgba(18,164,92,.62), inset 0 1px 0 rgba(255,255,255,.55), inset 0 -9px 16px -10px rgba(0,40,20,.45)}
+  .chip.lite{width:98px;height:98px;border-radius:26px;font-size:46px;background:linear-gradient(150deg, rgba(255,255,255,.66) 0%, rgba(214,243,228,.42) 100%);color:var(--green-d);border:1px solid rgba(255,255,255,.85);box-shadow:0 18px 36px -18px rgba(10,80,50,.45), inset 0 1px 0 rgba(255,255,255,.95), inset 0 -12px 24px -18px rgba(10,80,50,.28);backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%)}
+
+  /* demo button */
+  .demo-btn{position:relative;display:inline-flex;align-items:center;gap:12px;padding:18px 30px;border-radius:18px;background:linear-gradient(155deg,#20c878 0%,#0c8a4d 100%);color:#fff;font-size:25px;font-weight:700;text-decoration:none;border:1px solid rgba(255,255,255,.32);box-shadow:0 20px 40px -16px rgba(18,164,92,.72), inset 0 1px 0 rgba(255,255,255,.6), inset 0 -11px 22px -12px rgba(0,40,20,.5);transition:transform .15s ease, box-shadow .15s ease}
+  .demo-btn:hover{transform:translateY(-2px);box-shadow:0 26px 48px -16px rgba(18,164,92,.82), inset 0 1px 0 rgba(255,255,255,.6)}
+  .demo-btn .arr{font-size:27px;line-height:1}
+
+  /* dark divider */
+  .divider{background:var(--bg-dark);color:#EAF6EF}
+  .divider .s-title{color:#fff}
+  .divider .eyebrow{color:#7DEBAE}
+  .divider .eyebrow::before{background:#28C876}
+  .divider .s-sub{color:#A9CFBC}
+  .part-num{font-size:var(--type-mega);font-weight:800;line-height:.82;letter-spacing:-.04em;background:linear-gradient(180deg,#39E08A 0%,#0F8B4E 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  /* lists */
+  .feat{display:flex;gap:22px;align-items:flex-start}
+  .feat .ic{width:54px;height:54px;border-radius:15px;background:linear-gradient(150deg, rgba(255,255,255,.66), rgba(214,243,228,.42));border:1px solid rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;flex:none;color:var(--green-d);box-shadow:0 10px 22px -12px rgba(10,80,50,.4), inset 0 1px 0 rgba(255,255,255,.9)}
+  .feat h4{margin:0 0 6px;font-size:30px;font-weight:700;color:var(--ink)}
+  .feat p{margin:0;font-size:27px;line-height:1.36;color:var(--ink-2)}
+
+  /* table */
+  table.cl{width:100%;border-collapse:separate;border-spacing:0;font-size:24px}
+  table.cl th{font-size:24px;text-transform:uppercase;letter-spacing:.06em;color:var(--green-d);text-align:left;padding:16px 18px 18px;border-bottom:2px solid var(--line);font-weight:700}
+  table.cl td{padding:22px 18px;border-bottom:1px solid var(--line);color:var(--ink-2);vertical-align:top;line-height:1.3}
+  table.cl td.d{color:var(--ink);font-weight:600}
+  table.cl tr:last-child td{border-bottom:none}
+  .pri{display:inline-block;padding:4px 13px;border-radius:999px;font-size:24px;font-weight:700;letter-spacing:.02em}
+  .pri.hi{background:linear-gradient(150deg,#1ec678,#0c8a4d);color:#fff;box-shadow:0 8px 16px -7px rgba(18,164,92,.6), inset 0 1px 0 rgba(255,255,255,.5)}
+  .pri.md{background:linear-gradient(150deg, rgba(216,239,224,.92), rgba(198,232,212,.78));color:var(--green-ink);border:1px solid rgba(255,255,255,.7)}
+  .pri.lo{background:rgba(238,242,240,.8);color:var(--ink-3);border:1px solid rgba(255,255,255,.7)}
+
+  /* image placeholder */
+  .shot{border-radius:24px;border:1px solid rgba(255,255,255,.6);background:
+     repeating-linear-gradient(135deg,#eef3f0 0 14px,#e6ede9 14px 28px);
+     position:relative;overflow:hidden;box-shadow:0 40px 80px -34px rgba(10,55,35,.5), 0 8px 22px -10px rgba(10,55,35,.2), inset 0 1px 0 rgba(255,255,255,.6)}
+  .shot .tag{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:24px;color:var(--ink-3);background:rgba(255,255,255,.85);border:1px solid var(--line);padding:8px 16px;border-radius:10px}
+
+  /* entrance */
+  @media (prefers-reduced-motion:no-preference){
+    [data-deck-active] .anim{animation:rise .6s cubic-bezier(.2,.7,.2,1) both}
+    [data-deck-active] .anim:nth-child(2){animation-delay:.06s}
+    [data-deck-active] .anim:nth-child(3){animation-delay:.12s}
+    [data-deck-active] .anim:nth-child(4){animation-delay:.18s}
+    @keyframes rise{from{transform:translateY(24px)}to{transform:none}}
+  }
+</style>
+</head>
+<body>
+<deck-stage width="1920" height="1080">
+
+<!-- 1. Bìa -->
+<section data-label="Bìa">
+  <div class="glow" style="width:680px;height:680px;left:-160px;top:-220px"></div>
+  <div class="pad" style="justify-content:center">
+    <div class="eyebrow anim">VRG Command Center · Báo cáo tiến độ</div>
+    <h1 class="s-title anim" style="font-size:96px;margin-top:26px;max-width:1560px">Tuần 3 — Backfill dữ liệu<br/>&amp; Gợi ý giá sàn</h1>
+    <p class="s-sub anim" style="margin-top:28px;max-width:1240px">Nạp <strong>~3.500+ điểm dữ liệu lịch sử</strong> (2024→nay) làm nền · Hoàn thiện màn <strong>Gợi ý điều chỉnh giá sàn</strong> (engine hồi quy + backtest + tờ trình) và các màn <strong>nhập liệu nuôi mô hình</strong>.</p>
+    <div class="footer"><span>AI Dự báo Giá Cao su · 15/06 → 28/06/2026</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- 2. Tổng quan -->
+<section data-label="Tổng quan">
+  <div class="pad">
+    <div class="eyebrow anim">Tổng quan Tuần 3</div>
+    <h2 class="s-title anim" style="margin-top:16px">Hai trọng tâm của tuần</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:54px;flex:1;align-items:stretch">
+      <div class="panel anim" style="padding:46px 48px">
+        <div class="chip">1</div>
+        <h3 style="font-size:42px;margin:24px 0 0;color:var(--ink)">Backfill lịch sử — phần nặng nhất</h3>
+        <p class="body" style="margin-top:18px">Nạp <strong>~3.500+ điểm dữ liệu</strong> giá quá khứ từ Excel Ban TTKD: tỷ giá, 4 sàn quốc tế, giá mủ nước, <strong>30 lần ban hành giá sàn VRG</strong>. Mỗi nguồn 1 định dạng, tốn nhiều công parse &amp; quy đổi.</p>
+        <p class="body" style="margin-top:14px;color:var(--green-d);font-weight:700">⮕ Không có chuỗi này thì không chạy được gợi ý giá sàn.</p>
+      </div>
+      <div class="panel anim" style="padding:46px 48px">
+        <div class="chip">2</div>
+        <h3 style="font-size:42px;margin:24px 0 0;color:var(--ink)">Gợi ý giá sàn — quan trọng nhất</h3>
+        <p class="body" style="margin-top:18px">Màn <strong>"Gợi ý điều chỉnh giá sàn"</strong> (NÂNG/GIỮ/HẠ kèm diễn giải + backtest toàn chuỗi + ma trận kịch bản + <strong>xuất tờ trình</strong>) — đầu ra cốt lõi cho lãnh đạo.</p>
+        <p class="body" style="margin-top:14px;color:var(--green-d);font-weight:700">⮕ Tuần này dựng/hoàn thiện các màn nhập liệu nuôi mô hình.</p>
+      </div>
+    </div>
+    <div class="footer"><span>VRG Command Center · Báo cáo tiến độ</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- 3. Divider 01 -->
+<section data-label="Phần 01" class="divider"><div class="glow" style="width:620px;height:620px;left:46%;top:-180px;background:radial-gradient(circle,rgba(40,200,118,.55),transparent 70%)"></div><div class="pad"><div class="part-num anim">01</div><div class="eyebrow anim" style="margin-top:28px">Dữ liệu nền</div><h2 class="s-title anim" style="margin-top:18px;max-width:1300px">Backfill lịch sử — khối lượng lớn</h2><p class="s-sub anim" style="margin-top:22px;max-width:1080px">~3.500+ điểm dữ liệu giá quá khứ (2024→nay) nạp vào TimescaleDB — nền tảng bắt buộc cho dự báo &amp; gợi ý.</p><div class="footer"><span style="color:#A9CFBC">VRG Command Center · Báo cáo tiến độ</span><span style="color:#7DEBAE;font-weight:700">BIZINO</span></div></div></section>
+
+<!-- 4. Backfill table -->
+<section data-label="Backfill — đã nạp">
+  <div class="pad">
+    <div class="eyebrow anim">Phần nặng nhất · tốn nhiều thời gian</div>
+    <h2 class="s-title anim" style="margin-top:14px">Dữ liệu lịch sử đã nạp (từ 2024)</h2>
+    <table class="cl anim" style="margin-top:34px">
+      <thead><tr><th>Nhóm dữ liệu</th><th>Khoảng đã nạp</th><th style="text-align:right">Số ngày/lần</th><th>Tình trạng</th></tr></thead>
+      <tbody>
+        <tr><td class="d">Tỷ giá (5 loại)</td><td>02/01/2024 → 24/06/2026</td><td style="text-align:right">596</td><td>Đủ</td></tr>
+        <tr><td class="d">Settlement SHFE</td><td>02/01/2024 → 18/06/2026</td><td style="text-align:right">569</td><td>Đủ</td></tr>
+        <tr><td class="d">Settlement TOCOM/OSE</td><td>04/01/2024 → 19/06/2026</td><td style="text-align:right">511</td><td>Đủ (2 grade)</td></tr>
+        <tr><td class="d">Settlement SGX</td><td>02/01/2024 → 09/06/2026</td><td style="text-align:right">501</td><td>Đủ (2 grade)</td></tr>
+        <tr><td class="d">Physical Malaysia (LGM)</td><td>02/01/2024 → 19/06/2026</td><td style="text-align:right">479</td><td>Đủ (7 grade)</td></tr>
+        <tr><td class="d">Giá mủ nước (thu mua + khu vực)</td><td>2024 → 2026</td><td style="text-align:right">614</td><td>Đủ</td></tr>
+        <tr><td class="d">Physical (Reuters: Excel + marketscreener)</td><td>14/05/2024 → 26/06/2026</td><td style="text-align:right">306</td><td>Lịch sử + 2026 nối tiếp</td></tr>
+        <tr><td class="d" style="color:var(--green-d)">★ Giá sàn VRG (target mô hình)</td><td>15/01/2024 → 09/06/2026</td><td style="text-align:right">30 lần</td><td><span class="pri hi">Đủ</span></td></tr>
+        <tr><td class="d" style="color:var(--green-d)">★ Tồn kho (báo cáo tuần)</td><td>(báo cáo chị Hạnh)</td><td style="text-align:right">71 tuần</td><td><span class="pri hi">Đã nạp</span></td></tr>
+      </tbody>
+    </table>
+    <p class="body anim" style="margin-top:18px;font-size:25px">Còn lại: chỉ số vĩ mô (dầu/USD Index/PMI) · tiêu thụ · physical 01–04/2026 — <span style="color:var(--ink-3)">chờ nguồn / nguồn không cho tra cứu lại.</span></p>
+    <div class="footer"><span>fact_price · vrg_floor_price · fact_inventory (TimescaleDB)</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- 5. Divider 02 -->
+<section data-label="Phần 02" class="divider"><div class="glow" style="width:620px;height:620px;left:46%;top:-180px;background:radial-gradient(circle,rgba(40,200,118,.55),transparent 70%)"></div><div class="pad"><div class="part-num anim">02</div><div class="eyebrow anim" style="margin-top:28px">Tính năng quan trọng nhất</div><h2 class="s-title anim" style="margin-top:18px;max-width:1300px">Gợi ý điều chỉnh giá sàn</h2><p class="s-sub anim" style="margin-top:22px;max-width:1120px">Đề xuất NÂNG/GIỮ/HẠ kèm diễn giải · kiểm định toàn chuỗi (backtest) · ma trận kịch bản · xuất tờ trình.</p><div class="footer"><span style="color:#A9CFBC">VRG Command Center · Báo cáo tiến độ</span><span style="color:#7DEBAE;font-weight:700">BIZINO</span></div></div></section>
+
+<!-- 6. Floor suggest -->
+<section data-label="Gợi ý giá sàn">
+  <div class="pad">
+    <div style="display:grid;grid-template-columns:1fr 1.05fr;gap:56px;flex:1;align-items:center">
+      <div>
+        <div class="eyebrow anim">Hệ thống Dự báo · Lõi</div>
+        <h2 class="s-title anim" style="margin-top:16px;font-size:50px">Màn Gợi ý điều chỉnh giá sàn</h2>
+        <div class="anim" style="margin-top:28px;display:flex;flex-direction:column;gap:18px">
+          <div class="feat"><div class="ic">◆</div><p style="font-size:26px"><strong>Đề xuất NÂNG / GIỮ / HẠ</strong> từng chủng loại so lần ban hành trước, kèm <strong>diễn giải</strong> &amp; độ tin cậy.</p></div>
+          <div class="feat"><div class="ic">▦</div><p style="font-size:26px"><strong>Backtest toàn chuỗi</strong> (walk-forward) — MAPE, hit-rate; engine hồi quy trên rổ chỉ số thị trường.</p></div>
+          <div class="feat"><div class="ic">◷</div><p style="font-size:26px"><strong>Ma trận kịch bản</strong> Bull/Base/Bear + <strong>xuất tờ trình</strong> đúng mẫu Ban TTKD (xem trước khi xuất).</p></div>
+          <div class="feat"><div class="ic">◉</div><p style="font-size:26px">Gợi ý cho <strong>lần ban hành</strong> hoặc <strong>ngày bất kỳ</strong>; tương quan giá sàn ↔ chỉ số quốc tế.</p></div>
+        </div>
+      </div>
+      <div class="shot anim" style="height:880px;background:#0b1220;padding:0">
+        <div style="height:32px;background:#0d1428;display:flex;align-items:center;gap:7px;padding:0 13px"><span style="width:11px;height:11px;border-radius:50%;background:#ef4444"></span><span style="width:11px;height:11px;border-radius:50%;background:#fbbf24"></span><span style="width:11px;height:11px;border-radius:50%;background:#22c55e"></span></div>
+        <img src="shots/week3/01-goi-y-gia-san.png" style="width:100%;height:calc(100% - 32px);object-fit:cover;object-position:top;display:block"/>
+      </div>
+    </div>
+    <div class="footer"><span>Ảnh chụp thực tế · engine + backtest chạy thật</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- 7. Data entry feeding the model -->
+<section data-label="Nhập liệu nuôi mô hình">
+  <div class="pad">
+    <div class="eyebrow anim">Hỗ trợ gợi ý giá sàn</div>
+    <h2 class="s-title anim" style="margin-top:14px">Các màn nhập liệu nuôi mô hình</h2>
+    <p class="s-sub anim" style="margin-top:14px;font-size:30px;max-width:1400px">Admin/chuyên viên nhập &amp; sửa trực tiếp — dữ liệu chảy thẳng vào engine gợi ý giá sàn + backtest.</p>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:28px;margin-top:34px;flex:1;align-items:start">
+      <div class="anim" style="display:flex;flex-direction:column;gap:12px">
+        <div class="shot" style="aspect-ratio:4/3;width:100%;background:#0b1220;padding:0"><div style="height:28px;background:#0d1428;display:flex;align-items:center;gap:6px;padding:0 11px"><span style="width:9px;height:9px;border-radius:50%;background:#ef4444"></span><span style="width:9px;height:9px;border-radius:50%;background:#fbbf24"></span><span style="width:9px;height:9px;border-radius:50%;background:#22c55e"></span></div><img src="shots/week3/02-ton-kho.png" style="width:100%;height:calc(100% - 28px);object-fit:cover;object-position:top;display:block"/></div>
+        <div><h4 style="margin:0;font-size:25px;color:var(--green-d);font-weight:700">★ Tồn kho</h4><p style="margin:3px 0 0;font-size:21px;line-height:1.3;color:var(--ink-2)">Tồn kho + đã có hợp đồng → biến vào mô hình (tồn tự do).</p></div>
+      </div>
+      <div class="anim" style="display:flex;flex-direction:column;gap:12px">
+        <div class="shot" style="aspect-ratio:4/3;width:100%;background:#0b1220;padding:0"><div style="height:28px;background:#0d1428;display:flex;align-items:center;gap:6px;padding:0 11px"><span style="width:9px;height:9px;border-radius:50%;background:#ef4444"></span><span style="width:9px;height:9px;border-radius:50%;background:#fbbf24"></span><span style="width:9px;height:9px;border-radius:50%;background:#22c55e"></span></div><img src="shots/week3/03-bang-tinh-gia.png" style="width:100%;height:calc(100% - 28px);object-fit:cover;object-position:top;display:block"/></div>
+        <div><h4 style="margin:0;font-size:25px;color:var(--ink);font-weight:700">Bảng giá các sàn</h4><p style="margin:3px 0 0;font-size:21px;line-height:1.3;color:var(--ink-2)">Nội tệ · tỷ giá · USD/T theo ngày — bấm ô sửa.</p></div>
+      </div>
+      <div class="anim" style="display:flex;flex-direction:column;gap:12px">
+        <div class="shot" style="aspect-ratio:4/3;width:100%;background:#0b1220;padding:0"><div style="height:28px;background:#0d1428;display:flex;align-items:center;gap:6px;padding:0 11px"><span style="width:9px;height:9px;border-radius:50%;background:#ef4444"></span><span style="width:9px;height:9px;border-radius:50%;background:#fbbf24"></span><span style="width:9px;height:9px;border-radius:50%;background:#22c55e"></span></div><img src="shots/week3/04-ty-gia.png" style="width:100%;height:calc(100% - 28px);object-fit:cover;object-position:top;display:block"/></div>
+        <div><h4 style="margin:0;font-size:25px;color:var(--ink);font-weight:700">Tỷ giá</h4><p style="margin:3px 0 0;font-size:21px;line-height:1.3;color:var(--ink-2)">USD/JPY·CNY·MYR·THB·VND để quy đổi.</p></div>
+      </div>
+      <div class="anim" style="display:flex;flex-direction:column;gap:12px">
+        <div class="shot" style="aspect-ratio:4/3;width:100%;background:#0b1220;padding:0"><div style="height:28px;background:#0d1428;display:flex;align-items:center;gap:6px;padding:0 11px"><span style="width:9px;height:9px;border-radius:50%;background:#ef4444"></span><span style="width:9px;height:9px;border-radius:50%;background:#fbbf24"></span><span style="width:9px;height:9px;border-radius:50%;background:#22c55e"></span></div><img src="shots/week3/05-gia-physical.png" style="width:100%;height:calc(100% - 28px);object-fit:cover;object-position:top;display:block"/></div>
+        <div><h4 style="margin:0;font-size:25px;color:var(--ink);font-weight:700">Giá Physical</h4><p style="margin:3px 0 0;font-size:21px;line-height:1.3;color:var(--ink-2)">Giá giao ngay (USD/T) — gồm Latex.</p></div>
+      </div>
+    </div>
+    <div class="footer"><span>Ảnh chụp thực tế · có phân quyền nhập/sửa</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- 8. Divider 03 -->
+<section data-label="Phần 03" class="divider"><div class="glow" style="width:620px;height:620px;left:46%;top:-180px;background:radial-gradient(circle,rgba(40,200,118,.55),transparent 70%)"></div><div class="pad"><div class="part-num anim">03</div><div class="eyebrow anim" style="margin-top:28px">Tự động hóa · AI · Quản trị</div><h2 class="s-title anim" style="margin-top:18px;max-width:1300px">Thu thập tự động &amp; tiện ích mới</h2><p class="s-sub anim" style="margin-top:22px;max-width:1120px">Crawler giá physical 2026 · lập lịch trong app · nhật ký quét · cấu hình &amp; AI phân tích thị trường.</p><div class="footer"><span style="color:#A9CFBC">VRG Command Center · Báo cáo tiến độ</span><span style="color:#7DEBAE;font-weight:700">BIZINO</span></div></div></section>
+
+<!-- 9. Automation: scan log + schedule -->
+<section data-label="Tự động hóa">
+  <div class="pad">
+    <div class="eyebrow anim">Thu thập &amp; lập lịch</div>
+    <h2 class="s-title anim" style="margin-top:14px">Quét đa sàn · Nhật ký · Lịch chạy</h2>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:40px;margin-top:36px;flex:1;align-items:start">
+      <div class="anim" style="display:flex;flex-direction:column;gap:14px">
+        <div class="shot" style="aspect-ratio:16/10;width:100%;background:#0b1220;padding:0"><div style="height:30px;background:#0d1428;display:flex;align-items:center;gap:6px;padding:0 12px"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444"></span><span style="width:10px;height:10px;border-radius:50%;background:#fbbf24"></span><span style="width:10px;height:10px;border-radius:50%;background:#22c55e"></span></div><img src="shots/week3/06-quet-da-san.png" style="width:100%;height:calc(100% - 30px);object-fit:cover;object-position:top;display:block"/></div>
+        <div><h4 style="margin:0;font-size:27px;color:var(--ink);font-weight:700">Quét đa sàn + Nhật ký quét</h4><p style="margin:4px 0 0;font-size:22px;line-height:1.3;color:var(--ink-2)">Nút "Quét ngay" theo nguồn · <strong>crawler marketscreener</strong> lấp giá physical 2026 (đã gỡ ANRPC) · nhật ký mọi lần quét.</p></div>
+      </div>
+      <div class="anim" style="display:flex;flex-direction:column;gap:14px">
+        <div class="shot" style="aspect-ratio:16/10;width:100%;background:#0b1220;padding:0"><div style="height:30px;background:#0d1428;display:flex;align-items:center;gap:6px;padding:0 12px"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444"></span><span style="width:10px;height:10px;border-radius:50%;background:#fbbf24"></span><span style="width:10px;height:10px;border-radius:50%;background:#22c55e"></span></div><img src="shots/week3/08-lich-chay.png" style="width:100%;height:calc(100% - 30px);object-fit:cover;object-position:top;display:block"/></div>
+        <div><h4 style="margin:0;font-size:27px;color:var(--ink);font-weight:700">Lịch chạy (scheduler trong app)</h4><p style="margin:4px 0 0;font-size:22px;line-height:1.3;color:var(--ink-2)">Tác vụ tự động theo giờ do hệ thống tự lên lịch — admin xem/sửa giờ, bật-tắt, chạy ngay.</p></div>
+      </div>
+    </div>
+    <div class="footer"><span>Ảnh chụp thực tế</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- 10. Config + AI -->
+<section data-label="Cấu hình & AI">
+  <div class="pad">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;flex:1;align-items:center">
+      <div class="shot anim" style="aspect-ratio:16/11;width:100%;background:#0b1220;padding:0"><div style="height:30px;background:#0d1428;display:flex;align-items:center;gap:6px;padding:0 12px"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444"></span><span style="width:10px;height:10px;border-radius:50%;background:#fbbf24"></span><span style="width:10px;height:10px;border-radius:50%;background:#22c55e"></span></div><img src="shots/week3/07-cau-hinh.png" style="width:100%;height:calc(100% - 30px);object-fit:cover;object-position:top;display:block"/></div>
+      <div>
+        <div class="eyebrow anim">Quản trị &amp; AI</div>
+        <h2 class="s-title anim" style="margin-top:16px;font-size:48px">Cấu hình hệ thống · AI phân tích</h2>
+        <div class="anim" style="margin-top:26px;display:flex;flex-direction:column;gap:16px">
+          <div class="feat"><div class="ic">⚙</div><p style="font-size:26px"><strong>Trang Cấu hình (admin)</strong> theo tab — tài khoản nguồn dữ liệu, proxy, AI; <strong>mật khẩu được ẩn</strong>, model chọn từ danh sách.</p></div>
+          <div class="feat"><div class="ic">✦</div><p style="font-size:26px"><strong>AI phân tích thị trường</strong> cho Bản tin ngày — lấy tin vietnambiz.vn rồi viết đoạn nhận định (OpenAI).</p></div>
+          <div class="feat"><div class="ic">⛉</div><p style="font-size:26px"><strong>Phân quyền 3 cấp</strong>: Quản trị viên · Chuyên viên nhập liệu · Chuyên viên thường (chỉ xem).</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="footer"><span>Ảnh chụp thực tế · secret được ẩn</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- 11. Tổng kết -->
+<section data-label="Tổng kết">
+  <div class="pad">
+    <div class="eyebrow anim">Tổng kết Tuần 3</div>
+    <h2 class="s-title anim" style="margin-top:14px">Đã làm &amp; tiếp theo</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:46px;flex:1;align-items:start">
+      <div class="anim">
+        <h3 style="font-size:32px;color:var(--green-d);margin:0 0 18px">✓ Đã hoàn thành</h3>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="feat"><div class="ic">★</div><p style="font-size:25px"><strong>Backfill</strong> ~3.500+ điểm dữ liệu lịch sử (2024→nay) + 30 lần ban hành giá sàn + 71 tuần tồn kho.</p></div>
+          <div class="feat"><div class="ic">★</div><p style="font-size:25px"><strong>Gợi ý giá sàn</strong>: engine + backtest + kịch bản + tờ trình + tích hợp tồn kho.</p></div>
+          <div class="feat"><div class="ic">◆</div><p style="font-size:25px">Crawler physical 2026 (marketscreener) · scheduler trong app · nhật ký quét · cấu hình · AI bản tin · RBAC.</p></div>
+        </div>
+      </div>
+      <div class="anim">
+        <h3 style="font-size:32px;color:var(--ink-3);margin:0 0 18px">↗ Tiếp theo</h3>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="feat"><div class="ic">○</div><p style="font-size:25px">Chỉ số vĩ mô (dầu/USD Index/PMI) + tiêu thụ — chờ nguồn dữ liệu chuyên viên.</p></div>
+          <div class="feat"><div class="ic">○</div><p style="font-size:25px">Mô hình chuỗi-thời-gian dự báo SVR 10 (7 ngày, MAPE ≤ 6%).</p></div>
+          <div class="feat"><div class="ic">○</div><p style="font-size:25px">Báo cáo tự động theo giờ · cảnh báo đa kênh.</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="footer"><span>VRG Command Center · Báo cáo tiến độ</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- 12. Demo -->
+<section data-label="Demo trực tiếp" class="divider">
+  <div class="glow" style="width:640px;height:640px;left:46%;top:-190px;background:radial-gradient(circle,rgba(40,200,118,.55),transparent 70%)"></div>
+  <div class="pad" style="align-items:center;text-align:center;justify-content:center">
+    <div class="eyebrow anim" style="justify-content:center">Trải nghiệm trực tiếp</div>
+    <h2 class="s-title anim" style="margin-top:18px;font-size:74px;max-width:1300px">Mở hệ thống Command Center</h2>
+    <p class="s-sub anim" style="margin-top:22px;max-width:1020px">Toàn bộ màn hình trong báo cáo đang chạy thật — bấm để thao tác trực tiếp.</p>
+    <a class="demo-btn anim" href="http://localhost:5390/" target="_blank" rel="noopener" style="margin-top:42px;font-size:30px;padding:22px 42px">▶ Mở VRG Command Center <span class="arr">↗</span></a>
+    <p class="anim" style="margin-top:26px;font-size:24px;color:#A9CFBC">Web <strong style="color:#EAF6EF">localhost:5390</strong> · API localhost:8390 · Đăng nhập <strong style="color:#EAF6EF">admin / admin</strong></p>
+    <div class="footer"><span style="color:#A9CFBC">VRG Command Center · Báo cáo tiến độ</span><span style="color:#7DEBAE;font-weight:700">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+</deck-stage>
+<script src="deck-stage.js"></script>
+</body>
+</html>
