@@ -31,7 +31,7 @@ CONFIG_SPEC = [
     {"key": "ANTHROPIC_API_KEY", "group": "ai", "label": "Anthropic API Key", "secret": True,
      "placeholder": "sk-ant-..."},
     {"key": "ANTHROPIC_MODEL", "group": "ai", "label": "Model Anthropic", "secret": False,
-     "placeholder": "claude-opus-4-8"},
+     "placeholder": "claude-haiku-4-5 (mặc định) · claude-sonnet-4-6 để phân tích sâu hơn"},
     {"key": "OPENAI_API_KEY", "group": "ai", "label": "OpenAI API Key (nếu dùng)", "secret": True,
      "placeholder": "sk-..."},
 ]
@@ -61,6 +61,14 @@ def list_config() -> list[dict[str, Any]]:
         }
         for c in CONFIG_SPEC
     ]
+
+
+def get_value(key: str, fallback: str | None = None) -> str | None:
+    """Lấy giá trị THẬT của 1 khóa cho backend dùng (KHÔNG lộ ra API). Trống → fallback."""
+    ensure_schema()
+    with session_scope() as db:
+        row = db.execute(text("SELECT value FROM app_config WHERE key = :k"), {"k": key}).first()
+    return (row[0] if row and row[0] else None) or fallback
 
 
 def set_config(updates: dict[str, str], by: str | None = None) -> int:

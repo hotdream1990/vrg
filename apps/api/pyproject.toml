@@ -19,6 +19,7 @@ dependencies = [
     "pyjwt>=2.8",
     "bcrypt>=4.1",
     "apscheduler>=3.10",
+    "anthropic>=0.40",
 ]
 
 [tool.uv]

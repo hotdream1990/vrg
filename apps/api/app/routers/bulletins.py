@@ -80,6 +80,18 @@ def api_update_draft(
     return draft
 
 
+@router.post("/market-analysis", dependencies=_editor)
+def api_market_analysis() -> dict:
+    """AI lấy tin thị trường (vietnambiz) + viết các đoạn 'Phân tích & nhận định' cho Section IV."""
+    from app.services import llm, market_analysis
+    try:
+        return market_analysis.generate()
+    except llm.LLMNotConfigured as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(502, f"Lỗi tạo phân tích AI: {exc}") from exc
+
+
 @router.post("/generate", dependencies=_editor)
 def api_generate_pptx(
     report_date: str | None = Query(None, description="DD-MM-YYYY"),

@@ -5,7 +5,8 @@
       "name": "vrg-api",
       "runtimeExecutable": "uv",
       "runtimeArgs": ["run", "--directory", "apps/api", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8390"],
-      "port": 8390
+      "port": 8390,
+      "autoPort": false
     },
     {
       "name": "vrg-web",
