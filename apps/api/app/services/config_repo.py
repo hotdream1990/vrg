@@ -26,14 +26,17 @@ CONFIG_SPEC = [
      "secret": True, "placeholder": "••••••••"},
     {"key": "MARKETSCREENER_PROXY", "group": "marketscreener", "label": "Proxy residential (tùy chọn)",
      "secret": True, "placeholder": "http://user:pass@host:port"},
+    # provider=... → chỉ hiện khi LLM_PROVIDER khớp (form hiển thị key+model đúng nhà cung cấp).
     {"key": "LLM_PROVIDER", "group": "ai", "label": "Nhà cung cấp LLM", "secret": False,
-     "placeholder": "anthropic", "options": ["anthropic", "openai"]},
-    {"key": "ANTHROPIC_API_KEY", "group": "ai", "label": "Anthropic API Key", "secret": True,
-     "placeholder": "sk-ant-..."},
-    {"key": "ANTHROPIC_MODEL", "group": "ai", "label": "Model Anthropic", "secret": False,
-     "placeholder": "claude-haiku-4-5 (mặc định) · claude-sonnet-4-6 để phân tích sâu hơn"},
-    {"key": "OPENAI_API_KEY", "group": "ai", "label": "OpenAI API Key (nếu dùng)", "secret": True,
-     "placeholder": "sk-..."},
+     "placeholder": "openai", "options": ["openai"]},
+    {"key": "OPENAI_API_KEY", "group": "ai", "provider": "openai", "label": "OpenAI API Key",
+     "secret": True, "placeholder": "sk-..."},
+    {"key": "OPENAI_MODEL", "group": "ai", "provider": "openai", "label": "Model OpenAI",
+     "secret": False, "placeholder": "gpt-5.4-mini (mặc định)"},
+    {"key": "ANTHROPIC_API_KEY", "group": "ai", "provider": "anthropic", "label": "Anthropic API Key",
+     "secret": True, "placeholder": "sk-ant-..."},
+    {"key": "ANTHROPIC_MODEL", "group": "ai", "provider": "anthropic", "label": "Model Anthropic",
+     "secret": False, "placeholder": "claude-haiku-4-5"},
 ]
 _KEYS = {c["key"]: c for c in CONFIG_SPEC}
 _CLEAR = "__CLEAR__"
@@ -55,7 +58,7 @@ def list_config() -> list[dict[str, Any]]:
         {
             "key": c["key"], "label": c["label"], "secret": c["secret"],
             "placeholder": c["placeholder"], "group": c["group"],
-            "options": c.get("options"),
+            "options": c.get("options"), "provider": c.get("provider"),
             "is_set": bool(stored.get(c["key"])),
             "display": _display(stored.get(c["key"]), c["secret"]),
         }

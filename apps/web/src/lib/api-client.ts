@@ -163,6 +163,7 @@ export type ConfigItem = {
   placeholder: string;
   group: string;
   options: string[] | null;
+  provider: string | null;
   is_set: boolean;
   display: string | null;
 };

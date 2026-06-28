@@ -23,6 +23,7 @@ class Settings(BaseSettings):
 
     # Placeholders — điền giá trị thật trong .env (xem .env.example ở repo root)
     anthropic_api_key: str = ""
+    openai_api_key: str = ""
 
 
 settings = Settings()

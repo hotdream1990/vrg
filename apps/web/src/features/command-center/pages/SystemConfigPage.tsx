@@ -26,6 +26,8 @@ export default function SystemConfigPage() {
   const [groups, setGroups] = useState<ConfigGroup[]>([]);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
+  // Nhà cung cấp LLM đang chọn → chỉ hiện key + model đúng provider đó.
+  const provider = (Form.useWatch("LLM_PROVIDER", form) as string | undefined) || "openai";
 
   const load = useCallback(async () => {
     const r = await fetchConfig();
@@ -67,7 +69,9 @@ export default function SystemConfigPage() {
     forceRender: true, // giữ field của mọi tab trong form, đổi tab không mất dữ liệu
     children: (
       <div style={{ paddingTop: 8 }}>
-        {items.filter((c) => c.group === g.id).map((c) => (
+        {items
+          .filter((c) => c.group === g.id && (!c.provider || c.provider === provider))
+          .map((c) => (
           <Form.Item
             key={c.key}
             name={c.key}
