@@ -20,6 +20,7 @@ from app.routers import (
     inventory,
     member_unit,
     prices,
+    schedules,
     users,
 )
 
@@ -33,7 +34,20 @@ async def lifespan(app: FastAPI):
         user_repo.seed_admin()
     except Exception as exc:  # noqa: BLE001
         print(f"[auth] Bỏ qua seed admin (DB chưa sẵn sàng?): {exc}")
+    try:
+        from app.services import scheduler
+
+        scheduler.start()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] Bỏ qua khởi động scheduler (DB chưa sẵn sàng?): {exc}")
     yield
+    try:
+        from app.services import scheduler
+
+        if scheduler._scheduler:
+            scheduler._scheduler.shutdown(wait=False)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 app = FastAPI(
@@ -67,6 +81,7 @@ app.include_router(member_unit.router, dependencies=_protected)
 app.include_router(inventory.router, dependencies=_protected)
 app.include_router(users.router, dependencies=[Depends(require_admin)])  # quản trị: chỉ admin
 app.include_router(config.router, dependencies=[Depends(require_admin)])  # cấu hình: chỉ admin
+app.include_router(schedules.router, dependencies=[Depends(require_admin)])  # lịch chạy: chỉ admin
 
 
 @app.get("/", tags=["system"])

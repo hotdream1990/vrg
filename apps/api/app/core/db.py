@@ -94,6 +94,14 @@ CREATE TABLE IF NOT EXISTS app_config (
     updated_at  timestamptz NOT NULL DEFAULT now(),
     updated_by  text
 );
+
+CREATE TABLE IF NOT EXISTS schedule_job (
+    name        text PRIMARY KEY,
+    hour        integer NOT NULL,
+    minute      integer NOT NULL,
+    enabled     boolean NOT NULL DEFAULT true,
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
 """
 
 # Hypertable tách riêng: cần extension timescaledb; nếu thiếu, bảng vẫn dùng được.
