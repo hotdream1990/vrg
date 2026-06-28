@@ -50,6 +50,20 @@ def finish_run(run_id: int, status: str, rows: int, error: str | None = None) ->
         )
 
 
+def recent_runs(limit: int = 20) -> list[dict[str, Any]]:
+    """Lịch sử các lần quét gần nhất (manual + cron) — cho bảng Nhật ký quét trên UI."""
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(
+            text("""
+                SELECT id, started_at, finished_at, sources, status, rows, error
+                FROM meta_crawl_run ORDER BY started_at DESC LIMIT :n
+            """),
+            {"n": limit},
+        )
+        return [dict(m) for m in rows.mappings().all()]
+
+
 def upsert_prices(records: list[dict[str, Any]], run_id: int) -> int:
     """Ghi danh sách bản ghi giá (đã chuẩn hóa từ crawler). Trả số bản ghi ghi được."""
     if not records:

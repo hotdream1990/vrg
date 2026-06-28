@@ -68,6 +68,12 @@ def latest() -> dict:
     return {"records": price_repo.latest()}
 
 
+@router.get("/crawl-runs")
+def crawl_runs(limit: int = Query(20, ge=1, le=100)) -> dict:
+    """Nhật ký các lần quét gần nhất (manual + cron) từ meta_crawl_run."""
+    return {"runs": price_repo.recent_runs(limit)}
+
+
 @router.get("/board", response_model=PriceBoard)
 def board() -> PriceBoard:
     """Bảng giá thành phần per sàn (native · tỷ giá · USD/T) + danh sách tỷ giá."""

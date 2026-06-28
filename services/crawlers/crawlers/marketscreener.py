@@ -133,31 +133,48 @@ def _to_usd_tonne(value: float, unit: str, thb: float | None) -> int | None:
 
 
 def persist(n: int = 60, dsn: str | None = None) -> int:
-    """Lấy n bài + quy đổi USD/T + upsert vào fact_price (source='reuters', physical)."""
+    """Lấy n bài + quy đổi USD/T + upsert fact_price (reuters, physical) + ghi meta_crawl_run.
+
+    Ghi lại lần quét (ok/empty/error) vào meta_crawl_run để hiện trên Nhật ký quét của UI;
+    lỗi (vd Akamai 403) vẫn được ghi rồi raise lại để cron biết exit code.
+    """
     import psycopg
+    from datetime import datetime, timezone
     dsn = dsn or os.environ.get("DATABASE_URL", "postgresql://vrg:changeme@localhost:5433/vrg_caosu")
-    arts = fetch(n)
+    started = datetime.now(timezone.utc)
+    status, err, recs = "ok", None, []
+    try:
+        arts = fetch(n)
+    except Exception as exc:  # noqa: BLE001 - vẫn ghi run lỗi để hiện trên Nhật ký
+        arts, status, err = [], "error", str(exc)[:400]
     with psycopg.connect(dsn) as conn:
-        thb_rows = conn.execute("SELECT as_of, price FROM fact_price WHERE source='fx' "
-                                "AND grade='USD/THB' ORDER BY as_of").fetchall()
-        def thb_at(d):  # tỷ giá USD/THB gần nhất <= ngày bài
-            prior = [r for r in thb_rows if str(r[0]) <= d]
-            return float(prior[-1][1]) if prior else None
-        recs = []
-        for a in arts:
-            if not a["as_of"]:
-                continue
-            for r in a["rows"]:
-                usd_t = _to_usd_tonne(r["value"], r["unit"], thb_at(a["as_of"]))
-                if usd_t:
-                    recs.append((a["as_of"], "reuters", r["grade"], "", "physical",
-                                 usd_t, "USD", "USD/tonne"))
-        if recs:
-            conn.cursor().executemany(
-                "INSERT INTO fact_price (as_of, source, grade, contract, price_type, price, currency, unit) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (as_of, source, grade, contract, price_type) "
-                "DO UPDATE SET price=EXCLUDED.price, ingested_at=now()", recs)
-            conn.commit()
+        if arts:
+            thb_rows = conn.execute("SELECT as_of, price FROM fact_price WHERE source='fx' "
+                                    "AND grade='USD/THB' ORDER BY as_of").fetchall()
+            def thb_at(d):  # tỷ giá USD/THB gần nhất <= ngày bài
+                prior = [r for r in thb_rows if str(r[0]) <= d]
+                return float(prior[-1][1]) if prior else None
+            for a in arts:
+                if not a["as_of"]:
+                    continue
+                for r in a["rows"]:
+                    usd_t = _to_usd_tonne(r["value"], r["unit"], thb_at(a["as_of"]))
+                    if usd_t:
+                        recs.append((a["as_of"], "reuters", r["grade"], "", "physical",
+                                     usd_t, "USD", "USD/tonne"))
+            if recs:
+                conn.cursor().executemany(
+                    "INSERT INTO fact_price (as_of, source, grade, contract, price_type, price, currency, unit) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (as_of, source, grade, contract, price_type) "
+                    "DO UPDATE SET price=EXCLUDED.price, ingested_at=now()", recs)
+        if status != "error" and not recs:
+            status = "empty"
+        conn.execute(
+            "INSERT INTO meta_crawl_run (started_at, finished_at, sources, status, rows, error) "
+            "VALUES (%s, now(), 'marketscreener', %s, %s, %s)", (started, status, len(recs), err))
+        conn.commit()
+    if status == "error":
+        raise RuntimeError(err)
     return len(recs)
 
 
