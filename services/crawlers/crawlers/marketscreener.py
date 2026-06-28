@@ -106,8 +106,28 @@ def _parse_article(pg, url: str) -> dict[str, Any] | None:
     return {"as_of": as_of, "url": url, "rows": rows} if rows else None
 
 
+def _load_config_from_db() -> None:
+    """Nạp tài khoản/proxy từ app_config (admin cấu hình trên UI) vào os.environ — ƯU TIÊN hơn .env.
+
+    DB không sẵn sàng → bỏ qua, dùng .env như cũ.
+    """
+    try:
+        import psycopg
+        dsn = os.environ.get("DATABASE_URL", "postgresql://vrg:changeme@localhost:5433/vrg_caosu")
+        with psycopg.connect(dsn, connect_timeout=5) as conn:
+            rows = conn.execute(
+                "SELECT key, value FROM app_config WHERE key LIKE 'MARKETSCREENER%' "
+                "AND value IS NOT NULL AND value <> ''"
+            ).fetchall()
+        for k, v in rows:
+            os.environ[k] = v
+    except Exception:  # noqa: BLE001 - DB chưa sẵn sàng → dùng .env
+        pass
+
+
 def fetch(n: int = 5) -> list[dict[str, Any]]:
     """Đăng nhập + lấy n bài 'Asian physical rubber prices' mới nhất, parse bảng giá."""
+    _load_config_from_db()
     with sync_playwright() as p:
         b = p.firefox.launch(headless=True)
         ctx_opts: dict[str, Any] = {"locale": "en-US", "viewport": {"width": 1366, "height": 1000}}

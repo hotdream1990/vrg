@@ -16,7 +16,7 @@ import "../../bulletin/bulletin.css";
 const ROLES = [
   { value: "admin", label: "Quản trị viên" },
   { value: "editor", label: "Chuyên viên nhập liệu" },
-  { value: "viewer", label: "Người xem (chỉ xem)" },
+  { value: "viewer", label: "Chuyên viên thường (chỉ xem)" },
 ];
 const ROLE_LABEL: Record<string, string> = Object.fromEntries(ROLES.map((r) => [r.value, r.label]));
 const ROLE_COLOR: Record<string, string> = { admin: "green", editor: "blue", viewer: "default" };

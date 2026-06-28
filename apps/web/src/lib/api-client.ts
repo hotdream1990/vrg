@@ -155,6 +155,26 @@ export type CrawlRun = {
 export const fetchCrawlRuns = (limit = 20) =>
   req<{ runs: CrawlRun[] }>(`/api/prices/crawl-runs?limit=${limit}`);
 
+export type ConfigItem = {
+  key: string;
+  label: string;
+  secret: boolean;
+  placeholder: string;
+  is_set: boolean;
+  display: string | null;
+};
+
+/** Cấu hình hệ thống (admin) — secret đã được server mask, không trả giá trị thật. */
+export const fetchConfig = () => req<{ config: ConfigItem[] }>("/api/config");
+
+/** Lưu cấu hình (chỉ gửi ô đã nhập; ô trống = giữ nguyên). */
+export const saveConfig = (updates: Record<string, string>) =>
+  req<{ updated: number; config: ConfigItem[] }>("/api/config", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+
 /** Chuỗi giá lịch sử cho biểu đồ. */
 export const fetchHistory = (source: string, grade: string, days = 30) =>
   req<HistorySeries>(`/api/prices/history?source=${source}&grade=${grade}&days=${days}`);

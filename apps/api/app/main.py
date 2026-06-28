@@ -13,6 +13,7 @@ from app.core.security import get_current_user, require_admin
 from app.routers import (
     auth,
     bulletins,
+    config,
     floor,
     floor_suggest,
     health,
@@ -65,6 +66,7 @@ app.include_router(floor_suggest.router, dependencies=_protected)
 app.include_router(member_unit.router, dependencies=_protected)
 app.include_router(inventory.router, dependencies=_protected)
 app.include_router(users.router, dependencies=[Depends(require_admin)])  # quản trị: chỉ admin
+app.include_router(config.router, dependencies=[Depends(require_admin)])  # cấu hình: chỉ admin
 
 
 @app.get("/", tags=["system"])
