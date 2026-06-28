@@ -9,6 +9,7 @@ from typing import Any
 
 from sqlalchemy import text
 
+from app.core.config import settings
 from app.core.db import ensure_schema, session_scope
 
 # Nhóm cấu hình → mỗi nhóm là 1 tab trên UI (thêm nhóm mới = thêm tab). Thứ tự = thứ tự tab.
@@ -32,12 +33,30 @@ CONFIG_SPEC = [
     {"key": "OPENAI_API_KEY", "group": "ai", "provider": "openai", "label": "OpenAI API Key",
      "secret": True, "placeholder": "sk-..."},
     {"key": "OPENAI_MODEL", "group": "ai", "provider": "openai", "label": "Model OpenAI",
-     "secret": False, "placeholder": "gpt-5.4-mini (mặc định)"},
+     "secret": False, "placeholder": "Chọn model"},  # options nạp động từ tài khoản
     {"key": "ANTHROPIC_API_KEY", "group": "ai", "provider": "anthropic", "label": "Anthropic API Key",
      "secret": True, "placeholder": "sk-ant-..."},
     {"key": "ANTHROPIC_MODEL", "group": "ai", "provider": "anthropic", "label": "Model Anthropic",
-     "secret": False, "placeholder": "claude-haiku-4-5"},
+     "secret": False, "placeholder": "Chọn model",
+     "options": ["claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-8"]},
 ]
+
+# Model OpenAI gợi ý khi chưa có key (sau khi đặt key → lấy danh sách thật từ tài khoản).
+_OPENAI_MODEL_FALLBACK = ["gpt-5.4-mini", "gpt-5.4", "gpt-4o-mini", "gpt-4o"]
+
+
+def list_openai_models() -> list[str]:
+    """Danh sách model OpenAI cho dropdown. Có key → lấy THẬT từ tài khoản; không thì fallback."""
+    key = get_value("OPENAI_API_KEY") or (settings.openai_api_key or None)
+    if not key:
+        return _OPENAI_MODEL_FALLBACK
+    try:
+        from openai import OpenAI
+        ids = [m.id for m in OpenAI(api_key=key).models.list().data
+               if m.id.startswith("gpt-") and "instruct" not in m.id]
+        return sorted(ids, reverse=True) or _OPENAI_MODEL_FALLBACK
+    except Exception:  # noqa: BLE001 - key sai/mạng lỗi → vẫn cho fallback
+        return _OPENAI_MODEL_FALLBACK
 _KEYS = {c["key"]: c for c in CONFIG_SPEC}
 _CLEAR = "__CLEAR__"
 

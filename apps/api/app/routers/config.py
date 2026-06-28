@@ -13,6 +13,12 @@ def get_config() -> dict:
     return {"groups": config_repo.CONFIG_GROUPS, "config": config_repo.list_config()}
 
 
+@router.get("/llm-models")
+def get_llm_models() -> dict:
+    """Danh sách model cho dropdown (OpenAI lấy thật từ tài khoản nếu đã đặt key)."""
+    return {"openai": config_repo.list_openai_models()}
+
+
 @router.put("")
 def put_config(body: dict[str, str], username: str = Depends(require_admin)) -> dict:
     """Cập nhật cấu hình (ô để trống = giữ nguyên giá trị cũ)."""

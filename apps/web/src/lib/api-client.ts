@@ -172,6 +172,9 @@ export type ConfigResponse = { groups: ConfigGroup[]; config: ConfigItem[] };
 /** Cấu hình hệ thống (admin) — secret đã được server mask, không trả giá trị thật. */
 export const fetchConfig = () => req<ConfigResponse>("/api/config");
 
+/** Danh sách model cho dropdown (OpenAI lấy thật từ tài khoản nếu đã đặt key). */
+export const fetchLlmModels = () => req<{ openai: string[] }>("/api/config/llm-models");
+
 /** Lưu cấu hình (chỉ gửi ô đã nhập; ô trống = giữ nguyên). */
 export const saveConfig = (updates: Record<string, string>) =>
   req<ConfigResponse & { updated: number }>("/api/config", {

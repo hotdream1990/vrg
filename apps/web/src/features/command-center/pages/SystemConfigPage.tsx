@@ -2,14 +2,20 @@ import { SettingOutlined } from "@ant-design/icons";
 import { App, Button, Form, Input, Select, Space, Tabs, Tag } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
-import { type ConfigGroup, type ConfigItem, fetchConfig, saveConfig } from "../../../lib/api-client";
+import {
+  type ConfigGroup,
+  type ConfigItem,
+  fetchConfig,
+  fetchLlmModels,
+  saveConfig,
+} from "../../../lib/api-client";
 import "../../bulletin/bulletin.css";
 
-/** Ô nhập tương ứng loại cấu hình: options → dropdown, secret → mật khẩu, còn lại → text. */
-function fieldInput(c: ConfigItem) {
-  if (c.options) {
-    return <Select placeholder={c.placeholder} allowClear
-      options={c.options.map((o) => ({ value: o, label: o }))} />;
+/** Ô nhập tương ứng loại cấu hình: có options → dropdown chọn, secret → mật khẩu, còn lại → text. */
+function fieldInput(c: ConfigItem, options: string[] | null) {
+  if (options && options.length) {
+    return <Select showSearch placeholder={c.placeholder} allowClear
+      options={options.map((o) => ({ value: o, label: o }))} />;
   }
   if (c.secret) {
     return <Input.Password autoComplete="new-password"
@@ -25,6 +31,7 @@ export default function SystemConfigPage() {
   const [items, setItems] = useState<ConfigItem[]>([]);
   const [groups, setGroups] = useState<ConfigGroup[]>([]);
   const [saving, setSaving] = useState(false);
+  const [openaiModels, setOpenaiModels] = useState<string[]>([]);
   const [form] = Form.useForm();
   // Nhà cung cấp LLM đang chọn → chỉ hiện key + model đúng provider đó.
   const provider = (Form.useWatch("LLM_PROVIDER", form) as string | undefined) || "openai";
@@ -39,6 +46,12 @@ export default function SystemConfigPage() {
   }, [form]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    fetchLlmModels().then((r) => setOpenaiModels(r.openai)).catch(() => setOpenaiModels([]));
+  }, []);
+
+  // Model OpenAI: dropdown nạp động từ tài khoản; các field khác dùng options tĩnh.
+  const optionsFor = (c: ConfigItem) => (c.key === "OPENAI_MODEL" ? openaiModels : c.options);
 
   const onSave = async () => {
     const values = form.getFieldsValue();
@@ -83,7 +96,7 @@ export default function SystemConfigPage() {
             }
             extra={c.secret ? "Để trống = giữ giá trị hiện tại." : undefined}
           >
-            {fieldInput(c)}
+            {fieldInput(c, optionsFor(c))}
           </Form.Item>
         ))}
       </div>
