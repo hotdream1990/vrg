@@ -155,21 +155,25 @@ export type CrawlRun = {
 export const fetchCrawlRuns = (limit = 20) =>
   req<{ runs: CrawlRun[] }>(`/api/prices/crawl-runs?limit=${limit}`);
 
+export type ConfigGroup = { id: string; label: string };
 export type ConfigItem = {
   key: string;
   label: string;
   secret: boolean;
   placeholder: string;
+  group: string;
+  options: string[] | null;
   is_set: boolean;
   display: string | null;
 };
+export type ConfigResponse = { groups: ConfigGroup[]; config: ConfigItem[] };
 
 /** Cấu hình hệ thống (admin) — secret đã được server mask, không trả giá trị thật. */
-export const fetchConfig = () => req<{ config: ConfigItem[] }>("/api/config");
+export const fetchConfig = () => req<ConfigResponse>("/api/config");
 
 /** Lưu cấu hình (chỉ gửi ô đã nhập; ô trống = giữ nguyên). */
 export const saveConfig = (updates: Record<string, string>) =>
-  req<{ updated: number; config: ConfigItem[] }>("/api/config", {
+  req<ConfigResponse & { updated: number }>("/api/config", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),

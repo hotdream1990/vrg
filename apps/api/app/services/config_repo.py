@@ -11,14 +11,29 @@ from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
 
+# Nhóm cấu hình → mỗi nhóm là 1 tab trên UI (thêm nhóm mới = thêm tab). Thứ tự = thứ tự tab.
+CONFIG_GROUPS = [
+    {"id": "marketscreener", "label": "Marketscreener"},
+    {"id": "ai", "label": "AI / LLM"},
+]
+
 # Khóa hiển thị trên trang Cấu hình. secret=True → API mask, không lộ giá trị.
+# options (tùy chọn) → render dropdown thay vì ô nhập.
 CONFIG_SPEC = [
-    {"key": "MARKETSCREENER_USER", "label": "Tài khoản marketscreener", "secret": False,
-     "placeholder": "ttkd@vrg.vn"},
-    {"key": "MARKETSCREENER_PASS", "label": "Mật khẩu marketscreener", "secret": True,
-     "placeholder": "••••••••"},
-    {"key": "MARKETSCREENER_PROXY", "label": "Proxy residential (tùy chọn)", "secret": True,
-     "placeholder": "http://user:pass@host:port"},
+    {"key": "MARKETSCREENER_USER", "group": "marketscreener", "label": "Tài khoản marketscreener",
+     "secret": False, "placeholder": "ttkd@vrg.vn"},
+    {"key": "MARKETSCREENER_PASS", "group": "marketscreener", "label": "Mật khẩu marketscreener",
+     "secret": True, "placeholder": "••••••••"},
+    {"key": "MARKETSCREENER_PROXY", "group": "marketscreener", "label": "Proxy residential (tùy chọn)",
+     "secret": True, "placeholder": "http://user:pass@host:port"},
+    {"key": "LLM_PROVIDER", "group": "ai", "label": "Nhà cung cấp LLM", "secret": False,
+     "placeholder": "anthropic", "options": ["anthropic", "openai"]},
+    {"key": "ANTHROPIC_API_KEY", "group": "ai", "label": "Anthropic API Key", "secret": True,
+     "placeholder": "sk-ant-..."},
+    {"key": "ANTHROPIC_MODEL", "group": "ai", "label": "Model Anthropic", "secret": False,
+     "placeholder": "claude-opus-4-8"},
+    {"key": "OPENAI_API_KEY", "group": "ai", "label": "OpenAI API Key (nếu dùng)", "secret": True,
+     "placeholder": "sk-..."},
 ]
 _KEYS = {c["key"]: c for c in CONFIG_SPEC}
 _CLEAR = "__CLEAR__"
@@ -39,7 +54,8 @@ def list_config() -> list[dict[str, Any]]:
     return [
         {
             "key": c["key"], "label": c["label"], "secret": c["secret"],
-            "placeholder": c["placeholder"],
+            "placeholder": c["placeholder"], "group": c["group"],
+            "options": c.get("options"),
             "is_set": bool(stored.get(c["key"])),
             "display": _display(stored.get(c["key"]), c["secret"]),
         }
