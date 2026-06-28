@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import type { BulletinDraft } from "../../../lib/bulletin-client";
 import {
   createDraft,
+  generateMarketAnalysis,
   generatePdf,
   generatePptx,
   updateDraft,
@@ -77,6 +78,7 @@ export default function BulletinPage() {
   const [exportingPdf, setExportingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
   const [dateInput, setDateInput] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
@@ -169,6 +171,26 @@ export default function BulletinPage() {
   const removeAnalysis = (idx: number) => {
     if (!draft) return;
     updateField("market_analysis", draft.market_analysis.filter((_, i) => i !== idx));
+  };
+
+  const aiAnalyze = async () => {
+    if (!draft) return;
+    setAiBusy(true);
+    setError(null);
+    try {
+      const r = await generateMarketAnalysis();
+      setDraft((prev) => prev ? {
+        ...prev,
+        market_analysis: r.paragraphs,
+        source_urls: prev.source_urls.includes(r.source_url)
+          ? prev.source_urls
+          : [...prev.source_urls.filter(Boolean), r.source_url],
+      } : prev);
+    } catch (e) {
+      setError(`Phân tích AI thất bại: ${(e as Error).message}`);
+    } finally {
+      setAiBusy(false);
+    }
   };
 
   /* ── Render ── */
@@ -502,9 +524,17 @@ export default function BulletinPage() {
                   </button>
                 </div>
               ))}
-              <button className="btn blt-add-btn" onClick={addAnalysis}>
-                + Thêm đoạn phân tích
-              </button>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button className="btn blt-add-btn" onClick={addAnalysis}>
+                  + Thêm đoạn phân tích
+                </button>
+                <button className="btn btn-primary" onClick={aiAnalyze} disabled={aiBusy}>
+                  {aiBusy ? <><span className="spinner" /> Đang phân tích…</> : "Phân tích bằng AI"}
+                </button>
+              </div>
+              <div className="blt-hint" style={{ marginTop: 4 }}>
+                AI lấy tin từ vietnambiz.vn rồi viết các đoạn nhận định (cần đặt API key ở Quản trị → Cấu hình → AI).
+              </div>
             </div>
 
             <div className="blt-subsection">
