@@ -25,6 +25,19 @@ _BAHT_RE = re.compile(r"([\d.]+)\s*baht/kg", re.I)        # Thái: "96.15 baht/k
 _USD_RE = re.compile(r"\$\s*([\d.]+)\s*/\s*kg", re.I)     # Malaysia/Indonesia: "$2.19/kg"
 
 
+def _proxy_opt() -> dict[str, str] | None:
+    """Proxy tùy chọn (MARKETSCREENER_PROXY=http://user:pass@host:port). Akamai chặn theo
+    IP+fingerprint: Firefox qua được từ IP residential/mobile sạch; IP bị gắn cờ thì cần
+    proxy residential. Proxy datacenter thường vẫn bị 403."""
+    raw = os.environ.get("MARKETSCREENER_PROXY")
+    if not raw:
+        return None
+    from urllib.parse import urlparse
+    u = urlparse(raw)
+    return {"server": f"{u.scheme}://{u.hostname}:{u.port}",
+            "username": u.username or "", "password": u.password or ""}
+
+
 def _cookie(pg) -> None:
     for sel in ("#didomi-notice-agree-button", "button:has-text('Agree')", "button:has-text('Accept')"):
         try:
@@ -40,6 +53,11 @@ def _login(pg) -> bool:
     if not u or not p:
         raise RuntimeError("Thiếu MARKETSCREENER_USER / MARKETSCREENER_PASS trong env")
     pg.goto(BASE + "/login/", wait_until="domcontentloaded", timeout=45000); pg.wait_for_timeout(1800); _cookie(pg)
+    if "Access Denied" in (pg.title() or ""):
+        raise RuntimeError(
+            "Akamai chặn IP này (403 Access Denied). Chạy từ mạng có IP residential/mobile "
+            "được chấp nhận, hoặc đặt MARKETSCREENER_PROXY=http://user:pass@host:port (residential)."
+        )
     pg.fill("input[type=email]", u)
     pg.click("button:has-text('Continue with an email')"); pg.wait_for_timeout(2200); _cookie(pg)
     pg.wait_for_selector("input[type=password]", timeout=10000)
@@ -92,7 +110,10 @@ def fetch(n: int = 5) -> list[dict[str, Any]]:
     """Đăng nhập + lấy n bài 'Asian physical rubber prices' mới nhất, parse bảng giá."""
     with sync_playwright() as p:
         b = p.firefox.launch(headless=True)
-        pg = b.new_context(locale="en-US", viewport={"width": 1366, "height": 1000}).new_page()
+        ctx_opts: dict[str, Any] = {"locale": "en-US", "viewport": {"width": 1366, "height": 1000}}
+        if (px := _proxy_opt()):
+            ctx_opts["proxy"] = px
+        pg = b.new_context(**ctx_opts).new_page()
         try:
             if not _login(pg):
                 raise RuntimeError("Đăng nhập marketscreener thất bại")
