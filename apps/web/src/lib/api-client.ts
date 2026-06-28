@@ -141,6 +141,20 @@ export const scanPrices = (source = "all") =>
 /** Giá mới nhất mỗi (sàn, mặt hàng) đã lưu DB (dùng khi mở trang, khỏi phải quét lại). */
 export const fetchLatest = () => req<{ records: LatestRow[] }>("/api/prices/latest");
 
+export type CrawlRun = {
+  id: number;
+  started_at: string;
+  finished_at: string | null;
+  sources: string | null;
+  status: string;
+  rows: number;
+  error: string | null;
+};
+
+/** Nhật ký các lần quét gần nhất (quét thủ công + cron). */
+export const fetchCrawlRuns = (limit = 20) =>
+  req<{ runs: CrawlRun[] }>(`/api/prices/crawl-runs?limit=${limit}`);
+
 /** Chuỗi giá lịch sử cho biểu đồ. */
 export const fetchHistory = (source: string, grade: string, days = 30) =>
   req<HistorySeries>(`/api/prices/history?source=${source}&grade=${grade}&days=${days}`);

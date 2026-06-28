@@ -11,6 +11,7 @@ import {
   scanPrices,
 } from "../../../lib/api-client";
 import { useAuth } from "../../auth/AuthContext";
+import CrawlRunLog from "../sections/CrawlRunLog";
 import ExchangeBoard from "../sections/ExchangeBoard";
 import LiveCharts from "../sections/LiveCharts";
 import LiveKpis from "../sections/LiveKpis";
@@ -167,6 +168,8 @@ export default function ScanPage() {
           <LiveScanTable latest={latest} scanInfo={scanInfo} missing={missing} />
         )}
       </div>
+
+      <CrawlRunLog reloadKey={boardKey} />
     </>
   );
 }
