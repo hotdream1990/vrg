@@ -52,7 +52,7 @@ W2,5. VRG cung cấp / phối hợp,Báo cáo trả phí & tài liệu nội b�
 W2,5. VRG cung cấp / phối hợp,"Xác nhận bản quyền dữ liệu quốc tế (vd Reuters), nếu có",Cần phối hợp,VRG,"Nếu có sẵn, dùng để lấy giá settlement + lịch sử chính thức"
 W2,5. VRG cung cấp / phối hợp,Ký thỏa thuận bảo mật (NDA),Cần phối hợp,VRG,Cam kết giữ bí mật trước khi VRG bàn giao dữ liệu nhạy cảm
 W2,5. VRG cung cấp / phối hợp,Thống nhất mốc thời gian & phạm vi Giai đoạn PoC,Cần phối hợp,Phối hợp,
-W3,1. Dashboard Giám sát Thị trường,[w3] Thu thập giá Physical từ marketscreener.com (Asian physical rubber prices),Theo kế hoạch,Bizino,Nguồn chính cho giá giao ngay từ 2026 (theo yêu cầu ban đầu)
+W3,1. Dashboard Giám sát Thị trường,[w3] Thu thập giá Physical từ marketscreener.com (Asian physical rubber prices),Hoàn thành,Bizino,Crawl Firefox vượt Akamai + đăng nhập; đã nạp 2026 (04-06) vào chuỗi reuters; còn backfill 01-04/2026
 W3,1. Dashboard Giám sát Thị trường,[w3] Ngưng dùng nguồn ANRPC (không còn cần),Theo kế hoạch,Bizino,Thay bằng nguồn giá giao ngay mới
 W3,1. Dashboard Giám sát Thị trường,"[w3] Thu thập chỉ số vĩ mô (dầu thô, butadiene, USD Index, PMI)",Theo kế hoạch,Bizino,
 W3,2. Hệ thống Dự báo Giá,[w3] Trang quản lý Tồn kho + nạp từ báo cáo tuần (PDF),Hoàn thành,Bizino,71 tuần tồn kho (2025→2026) đã nạp tự động + nhập/sửa tay được
