@@ -6,7 +6,7 @@ import { AXIS } from "./chart-setup";
 
 /** Cán cân tồn kho VRG: tồn kho + đã có hợp đồng (bar) · tồn tự do (line) — tấn, theo tuần. */
 export default function InventoryBalanceChart({ weeks }: { weeks: InventoryWeek[] }) {
-  const w = weeks.filter((x) => x.ton_kho != null).slice(-26); // 6 tháng gần nhất cho gọn
+  const w = weeks.filter((x) => x.ton_kho != null).slice(-20); // 20 phiên (tuần) gần nhất cho gọn
   const labels = w.map((x) => x.as_of.slice(5).split("-").reverse().join("/")); // YYYY-MM-DD → DD/MM
   const free = w.map((x) =>
     x.ton_kho != null && x.ton_kho_hd != null ? x.ton_kho - x.ton_kho_hd : null,
