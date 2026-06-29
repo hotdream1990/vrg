@@ -3,16 +3,13 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
 import { pageTitle } from "../../../data/sample-data";
-import ArchitectureAndWorkflow from "../sections/ArchitectureAndWorkflow";
 import ConvergenceAndAlerts from "../sections/ConvergenceAndAlerts";
 import HeatmapAndVrg from "../sections/HeatmapAndVrg";
+import InventoryBalanceSection from "../sections/InventoryBalanceSection";
 import KpiRow from "../sections/KpiRow";
 import RagChat from "../sections/RagChat";
-import ScenarioAndForecast from "../sections/ScenarioAndForecast";
-import SecurityRow from "../sections/SecurityRow";
-import SupplyDemandSection from "../sections/SupplyDemandSection";
 
-/** Trang Dashboard — các phần mockup từ demo (sẽ tách dần thành route riêng sau). */
+/** Trang Dashboard — KPI/giá/heatmap/tồn kho dùng dữ liệu thật; RAG hỏi-đáp là tính năng sắp có. */
 export default function DashboardPage() {
   const { hash } = useLocation();
 
@@ -28,7 +25,7 @@ export default function DashboardPage() {
       <div className="page-title" id="top">
         <div>
           <h2>{pageTitle.h2}</h2>
-          <p>Thẻ KPI &amp; biểu đồ giá dùng <b>dữ liệu thật</b> từ kho giá; mục đánh dấu <span style={{ color: "#e07b16", fontWeight: 600 }}>màu cam</span> là dữ liệu mẫu (chờ tích hợp).</p>
+          <p>Thẻ KPI · biểu đồ giá · heatmap · tồn kho dùng <b>dữ liệu thật</b> từ kho giá. Trợ lý hỏi-đáp RAG là tính năng sắp tích hợp.</p>
         </div>
         <div className="actions">
           <button className="btn" onClick={() => window.location.reload()}><ReloadOutlined /> Cập nhật</button>
@@ -37,12 +34,9 @@ export default function DashboardPage() {
 
       <KpiRow />
       <ConvergenceAndAlerts />
-      <ScenarioAndForecast />
       <HeatmapAndVrg />
-      <SupplyDemandSection />
-      <ArchitectureAndWorkflow />
+      <InventoryBalanceSection />
       <RagChat />
-      <SecurityRow />
     </>
   );
 }
