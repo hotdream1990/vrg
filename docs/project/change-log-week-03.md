@@ -40,7 +40,7 @@
 | 4. Hạ tầng, Bảo mật | Trang hồ sơ cá nhân + đổi mật khẩu | Hoàn thành | `ProfilePage.tsx` |
 | 1. Dashboard | Nền tảng quản lý dữ liệu nội bộ + CRUD bản ghi giá | Hoàn thành | `0aaa7d4`, `c25dd0e` · `PriceSheetPage.tsx` |
 | 1. Dashboard | Job quét giá tự động hằng ngày + bộ lập lịch (tích lũy lịch sử) | Hoàn thành | `68f772c` |
-| 1. Dashboard | Quản lý & nhập lịch sử giá sàn VRG (49 lần ban hành 2023–2026) | Hoàn thành | `import_floor.py` · `VrgFloorPage.tsx` |
+| 1. Dashboard | Quản lý & nhập lịch sử giá sàn VRG (30 lần ban hành 2024–2026; còn thiếu T1–T5/2026) | Hoàn thành (dữ liệu còn trống) | `import_floor.py` · `VrgFloorPage.tsx` |
 | 1. Dashboard | Bộ **công cụ** nhập lịch sử giá (sàn/FX/latex/physical) từ Excel Ban TTKD | Hoàn thành | `scripts/import-history/` — *công cụ đã xong; tiến độ NẠP dữ liệu xem mục Backfill ở phần C* |
 | 1. Dashboard | Quản lý đơn vị thành viên | Hoàn thành | `member_unit.py` · `MemberUnitPage.tsx` |
 | 1. Dashboard | Trang giá mủ nguyên liệu (giá mủ nước theo khu vực) | Hoàn thành | `RawMaterialPage.tsx` |
@@ -68,7 +68,7 @@
 | 3. Trung tâm Điều hành AI | Báo cáo tự động 07:30 & 17:00 | Ghi chú: hạ tầng **job quét + scheduler đã có**; còn tự động phát theo giờ |
 | 4. Hạ tầng, Bảo mật | Bảo mật: mã hóa, phân quyền, không lưu bên thứ ba | Trạng thái phần phân quyền: **RBAC đã xong**; còn mã hóa & data residency |
 | 4. Hạ tầng, Bảo mật | Shadow testing (AI vs chuyên gia) | Ghi chú: đã có **backtest walk-forward toàn chuỗi** cho giá sàn (một dạng đối chiếu) |
-| 5. VRG cung cấp | Lịch sử giá sàn (phạm vi cần: từ 2024) | Cần phối hợp → **đã nhận & nạp đủ phạm vi**: 30 lần ban hành (15/01/2024 → 09/06/2026). *Thống nhất chỉ lấy từ 2024, **không cần ≤ 2023**.* |
+| 5. VRG cung cấp | Lịch sử giá sàn (phạm vi cần: từ 2024) | Cần phối hợp → đã nhận & nạp **30 lần** ban hành (15/01/2024 → 09/06/2026), **CHƯA đủ**: thiếu **T1–T5/2026** + gián đoạn T5/24→T3/25 — chờ Anh Tâm bổ sung. *Thống nhất chỉ lấy từ 2024, **không cần ≤ 2023**.* |
 | 5. VRG cung cấp | Số liệu tồn kho & sản lượng (BCTM) | Ghi chú: đã có **biểu mẫu mẫu** (báo cáo tuần chị Hạnh, báo cáo năm anh Triều); **chưa đủ chuỗi & chưa import** |
 | 5. VRG cung cấp | Giá Physical + biểu mẫu báo cáo | Ghi chú: có **báo cáo ngày của anh Tâm**, đang xử lý/nhập |
 
@@ -100,22 +100,22 @@
 
 | Nhóm dữ liệu | Nguồn | Khoảng ĐÃ NẠP | Số ngày | Tình trạng |
 |---|---|---|---|---|
-| Tỷ giá | `fx` | 02/01/2024 → 24/06/2026 | 596 | Đủ (5 loại) |
-| Physical Malaysia | `lgm` | 02/01/2024 → 19/06/2026 | 479 | Đủ (7 grade) |
+| Tỷ giá | `fx` | 02/01/2024 → 24/06/2026 | 596 | 2024–25 đủ (5 loại) · trống ~T1/2026 |
+| Physical Malaysia | `lgm` | 02/01/2024 → 19/06/2026 | 479 | 2024–25 đủ (7 grade) · trống T1–T5/2026 |
 | Physical (chuyên viên) | `reuters` | 14/05/2024 → 29/12/2025 | 269 | Lịch sử tới 2025 (Excel chuyên viên) |
 | Physical 2026 (marketscreener) | `reuters` | 28/04/2026 → 26/06/2026 | 37 | **ĐÃ NỐI TIẾP** — crawler marketscreener (Reuters); còn lấp 01–04/2026 |
 | Tồn kho (báo cáo tuần) | `fact_inventory` | (từ báo cáo chị Hạnh) | 71 tuần | **ĐÃ NẠP** — tồn kho + đã có hợp đồng; đưa vào mô hình giá sàn |
-| Settlement SGX | `sgx` | 02/01/2024 → 09/06/2026 | 501 | Đủ (2 grade) |
-| Settlement SHFE | `shfe` | 02/01/2024 → 18/06/2026 | 569 | Đủ |
-| Settlement TOCOM/OSE | `tocom` | 04/01/2024 → 19/06/2026 | 511 | Đủ (2 grade) |
-| Giá mủ nước (thu mua) | `vrg/purchase` | 21/06/2024 → 20/06/2026 | 302 | Đủ (12 loại) |
+| Settlement SGX | `sgx` | 02/01/2024 → 09/06/2026 | 501 | 2024–25 đủ (2 grade) · 2026 chưa có nguồn live |
+| Settlement SHFE | `shfe` | 02/01/2024 → 18/06/2026 | 569 | 2024–25 đủ · trống ~T1/2026 |
+| Settlement TOCOM/OSE | `tocom` | 04/01/2024 → 19/06/2026 | 511 | 2024–25 đủ (2 grade) · trống T1–T4/2026 |
+| Giá mủ nước (thu mua) | `vrg/purchase` | 21/06/2024 → 20/06/2026 | 302 | Đủ (12 loại) · trống T2–T4/2025 |
 | Giá mủ nước (theo khu vực) | `vrg/region` | 08/07/2024 → 09/06/2026 | 312 | Đủ (4 KV) |
-| **Giá sàn VRG (target)** | `vrg_floor_price` | 15/01/2024 → 09/06/2026 | 30 lần | Đủ (đúng phạm vi cần — **từ 2024**) |
+| **Giá sàn VRG (target)** | `vrg_floor_price` | 15/01/2024 → 09/06/2026 | 30 lần | **Thiếu T1–T5/2026** + gián đoạn T5/24→T3/25 (345d) — chờ Anh Tâm bổ sung |
 | ~~ANRPC~~ | `anrpc` | 15–16/06/2026 | 2 | **ĐÃ GỠ** — thay bằng nguồn Reuters (marketscreener) |
 | Vĩ mô (dầu/USD Index/PMI) | — | — | 0 | **Chưa nạp** |
 | Tồn kho / Tiêu thụ | — | — | 0 | **Chưa có bảng — chờ dữ liệu chuyên viên** |
 
-**Việc backfill còn lại (trong phạm vi từ 2024):** (1) vĩ mô (dầu/USD Index/PMI) — chưa nạp; (2) tiêu thụ — chờ dữ liệu chuỗi từ chuyên viên; (3) physical **01–04/2026** (marketscreener không cho tra cứu bài cũ). *Đã xong trong tuần: **physical 2026 (marketscreener)**, **tồn kho 71 tuần**; **ANRPC đã gỡ**.*
+**Việc backfill còn lại (trong phạm vi từ 2024):** (1) vĩ mô (dầu/USD Index/PMI) — chưa nạp; (2) tiêu thụ — chờ dữ liệu chuỗi từ chuyên viên; (3) physical **01–04/2026** (marketscreener không cho tra cứu bài cũ); (4) **khoảng trống đầu–giữa 2026** ở settlement SGX/LGM/TOCOM + **giá sàn VRG (T1–T5/2026)** — do backfill Excel dừng ở **29/12/2025**, crawler live mỗi sàn bắt đầu ở thời điểm khác nhau (fx ~T2, TOCOM ~T4, SGX/LGM ~T6); đang lấp dần. *Đã xong trong tuần: **physical 2026 (marketscreener)**, **tồn kho 71 tuần**; **ANRPC đã gỡ**.*
 
 ---
 

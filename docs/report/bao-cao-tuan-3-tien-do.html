@@ -173,18 +173,18 @@
     <table class="cl anim" style="margin-top:34px">
       <thead><tr><th>Nhóm dữ liệu</th><th>Khoảng đã nạp</th><th style="text-align:right">Số ngày/lần</th><th>Tình trạng</th></tr></thead>
       <tbody>
-        <tr><td class="d">Tỷ giá (5 loại)</td><td>02/01/2024 → 24/06/2026</td><td style="text-align:right">596</td><td>Đủ</td></tr>
-        <tr><td class="d">Settlement SHFE</td><td>02/01/2024 → 18/06/2026</td><td style="text-align:right">569</td><td>Đủ</td></tr>
-        <tr><td class="d">Settlement TOCOM/OSE</td><td>04/01/2024 → 19/06/2026</td><td style="text-align:right">511</td><td>Đủ (2 grade)</td></tr>
-        <tr><td class="d">Settlement SGX</td><td>02/01/2024 → 09/06/2026</td><td style="text-align:right">501</td><td>Đủ (2 grade)</td></tr>
-        <tr><td class="d">Physical Malaysia (LGM)</td><td>02/01/2024 → 19/06/2026</td><td style="text-align:right">479</td><td>Đủ (7 grade)</td></tr>
-        <tr><td class="d">Giá mủ nước (thu mua + khu vực)</td><td>2024 → 2026</td><td style="text-align:right">614</td><td>Đủ</td></tr>
-        <tr><td class="d">Physical (Reuters: Excel + marketscreener)</td><td>14/05/2024 → 26/06/2026</td><td style="text-align:right">306</td><td>Lịch sử + 2026 nối tiếp</td></tr>
-        <tr><td class="d" style="color:var(--green-d)">★ Giá sàn VRG (target mô hình)</td><td>15/01/2024 → 09/06/2026</td><td style="text-align:right">30 lần</td><td><span class="pri hi">Đủ</span></td></tr>
-        <tr><td class="d" style="color:var(--green-d)">★ Tồn kho (báo cáo tuần)</td><td>(báo cáo chị Hạnh)</td><td style="text-align:right">71 tuần</td><td><span class="pri hi">Đã nạp</span></td></tr>
+        <tr><td class="d">Tỷ giá (5 loại)</td><td>02/01/2024 → 24/06/2026</td><td style="text-align:right">596</td><td>2024–25 đủ · trống ~T1/2026</td></tr>
+        <tr><td class="d">Settlement SHFE</td><td>02/01/2024 → 18/06/2026</td><td style="text-align:right">569</td><td>2024–25 đủ · trống ~T1/2026</td></tr>
+        <tr><td class="d">Settlement TOCOM/OSE</td><td>04/01/2024 → 19/06/2026</td><td style="text-align:right">511</td><td>2024–25 đủ · trống T1–T4/2026</td></tr>
+        <tr><td class="d">Settlement SGX</td><td>02/01/2024 → 09/06/2026</td><td style="text-align:right">501</td><td>2024–25 đủ · 2026 chưa có nguồn live</td></tr>
+        <tr><td class="d">Physical Malaysia (LGM)</td><td>02/01/2024 → 19/06/2026</td><td style="text-align:right">479</td><td>2024–25 đủ · trống T1–T5/2026</td></tr>
+        <tr><td class="d">Giá mủ nước (thu mua + khu vực)</td><td>2024 → 2026</td><td style="text-align:right">614</td><td>Đủ · trống T2–T4/2025</td></tr>
+        <tr><td class="d">Physical (Reuters: Excel + marketscreener)</td><td>14/05/2024 → 26/06/2026</td><td style="text-align:right">306</td><td>Lịch sử · trống T1–T4/2026</td></tr>
+        <tr><td class="d" style="color:var(--green-d)">★ Giá sàn VRG (target mô hình)</td><td>15/01/2024 → 09/06/2026</td><td style="text-align:right">30 lần</td><td><span class="pri md">Thiếu T1–T5/2026</span></td></tr>
+        <tr><td class="d" style="color:var(--green-d)">★ Tồn kho (báo cáo tuần)</td><td>(báo cáo chị Hạnh)</td><td style="text-align:right">71 tuần</td><td><span class="pri md">Đã nạp (từ 2025)</span></td></tr>
       </tbody>
     </table>
-    <p class="body anim" style="margin-top:18px;font-size:25px">Còn lại: chỉ số vĩ mô (dầu/USD Index/PMI) · tiêu thụ · physical 01–04/2026 — <span style="color:var(--ink-3)">chờ nguồn / nguồn không cho tra cứu lại.</span></p>
+    <p class="body anim" style="margin-top:18px;font-size:25px">Backfill lịch sử liền mạch <strong>2024 → hết 2025</strong>; dữ liệu <strong>2026 đang lấp dần qua crawler live</strong> (mỗi sàn bắt đầu ở thời điểm khác nhau) → còn trống <strong>T1→giữa 2026</strong> ở giá sàn VRG · SGX · LGM · TOCOM · physical. Còn lại: vĩ mô (dầu/USD Index/PMI) · tiêu thụ — <span style="color:var(--ink-3)">chờ nguồn.</span></p>
     <div class="footer"><span>fact_price · vrg_floor_price · fact_inventory (TimescaleDB)</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
   </div>
 </section>
