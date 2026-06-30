@@ -23,8 +23,9 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
 }
 
 /** Kiểm định mô hình: backtest toàn chuỗi 1 grade, đo độ khớp dự báo vs giá sàn thực + so v1/v2. */
-export default function BacktestPanel({ grade }: { grade: string }) {
-  const [model, setModel] = useState<FloorModel>("v1");
+export default function BacktestPanel({ grade, model, onModel }: {
+  grade: string; model: FloorModel; onModel: (m: FloorModel) => void;
+}) {
   const [v1, setV1] = useState<BacktestResult | null>(null);
   const [v1i, setV1i] = useState<BacktestResult | null>(null);
   const [v1f, setV1f] = useState<BacktestResult | null>(null);
@@ -50,7 +51,7 @@ export default function BacktestPanel({ grade }: { grade: string }) {
           {(["v1", "v1i", "v1f", "v2"] as FloorModel[]).map((mo) => (
             <button
               key={mo}
-              onClick={() => setModel(mo)}
+              onClick={() => onModel(mo)}
               className="blt-date-input"
               style={{ cursor: "pointer", fontWeight: model === mo ? 700 : 400,
                 background: model === mo ? "var(--accent, #16a34a)" : undefined,

@@ -138,7 +138,7 @@ export default function FloorSuggestPage() {
 
       {asOf && <ScenarioMatrix asOf={asOf} model={model} />}
 
-      <BacktestPanel grade={grade} />
+      <BacktestPanel grade={grade} model={model} onModel={setModel} />
 
       <div className="card">
         <div className="card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
