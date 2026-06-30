@@ -68,7 +68,7 @@ def _scrape(pages: dict[str, str]) -> tuple[list[PriceRecord], list[str]]:
     records: list[PriceRecord] = []
     failed: list[str] = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.firefox.launch(headless=True)
         try:
             for code, url in pages.items():
                 ctx = browser.new_context(user_agent=_UA, locale="en-US")
@@ -110,7 +110,7 @@ def crawl() -> CrawlResult:
         records, failed = _scrape(_PAGES)
         if failed:
             notes.append("Cloudflare/parse chặn: " + ",".join(failed))
-    except Exception as exc:  # noqa: BLE001 - Playwright/chromium hỏng → cả nhóm scrape fail
+    except Exception as exc:  # noqa: BLE001 - Playwright/Firefox hỏng → cả nhóm scrape fail
         records, notes = [], [f"scrape lỗi: {str(exc)[:100]}"]
     vnd = _vnd()
     if vnd:

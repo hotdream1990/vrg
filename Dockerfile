@@ -29,11 +29,11 @@ ENV WEB_DIST_DIR=/app/web_dist \
 COPY apps/api/pyproject.toml apps/api/uv.lock ./
 RUN uv sync --no-dev --frozen
 
-# Deps crawler + trình duyệt Chromium (cho nút "Quét giá ngay" / scheduler — chạy subprocess `uv run`).
-# FX (exchangerates sau Cloudflare) cần trình duyệt thật; các sàn khác thuần HTTP.
+# Deps crawler + trình duyệt Firefox (cho nút "Quét giá ngay" / scheduler — chạy subprocess `uv run`).
+# FX (exchangerates) + marketscreener (sau Cloudflare/Akamai) dùng CHUNG 1 browser Firefox; sàn khác thuần HTTP.
 COPY services/crawlers/pyproject.toml services/crawlers/uv.lock ./services/crawlers/
 RUN cd services/crawlers && uv sync --no-dev --frozen \
-    && uv run playwright install --with-deps chromium
+    && uv run playwright install --with-deps firefox
 
 # Mã nguồn: app + package bulletin + package crawler + web build
 COPY apps/api/app ./app
