@@ -2,6 +2,7 @@
 
 import { API } from "./api-client";
 import { authHeaders, onUnauthorized } from "./auth-token";
+import { apiFetch } from "./http";
 
 // ── Types ──
 
@@ -73,27 +74,7 @@ export type BulletinDraftUpdate = {
 
 // ── API calls ──
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(`${API}${path}`, {
-      ...init,
-      headers: { ...authHeaders(), ...(init?.headers ?? {}) },
-    });
-  } catch {
-    throw new Error("Không kết nối được API (" + API + ")");
-  }
-  if (res.status === 401) { onUnauthorized(); throw new Error("Phiên đăng nhập đã hết hạn"); }
-  if (!res.ok) {
-    let detail = `HTTP ${res.status}`;
-    try {
-      const body = await res.json();
-      detail = body.detail || detail;
-    } catch { /* ignore */ }
-    throw new Error(detail);
-  }
-  return (await res.json()) as T;
-}
+const req = apiFetch;
 
 /** Tạo draft mới (đọc giá thật từ DB). */
 export const createDraft = (dateStr?: string, crawl = true) => {

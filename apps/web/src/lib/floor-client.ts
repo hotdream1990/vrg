@@ -1,7 +1,6 @@
 /* Client API Giá sàn Tập đoàn (biểu giá theo lần). */
 
-import { API } from "./api-client";
-import { authHeaders, onUnauthorized } from "./auth-token";
+import { apiFetch } from "./http";
 
 export type FloorItem = { grade: string; fob_usd: number | null; domestic_vnd: number | null };
 export type FloorSchedule = { lan: number; as_of: string; items: FloorItem[] };
@@ -9,18 +8,7 @@ export type FloorSummary = {
   lan: number; as_of: string; grades: number; filled: number; updated: string | null;
 };
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  let res: Response;
-  try { res = await fetch(`${API}${path}`, { ...init, headers: { ...authHeaders(), ...(init?.headers ?? {}) } }); }
-  catch { throw new Error("Không kết nối được API (" + API + ")"); }
-  if (res.status === 401) { onUnauthorized(); throw new Error("Phiên đăng nhập đã hết hạn"); }
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try { const b = await res.json(); msg = b.detail || msg; } catch { /* ignore */ }
-    throw new Error(msg);
-  }
-  return (await res.json()) as T;
-}
+const req = apiFetch;
 
 /** Danh sách biểu giá (mỗi lần 1 dòng), lọc theo ngày áp dụng. */
 export const listFloors = (dateFrom?: string, dateTo?: string) => {

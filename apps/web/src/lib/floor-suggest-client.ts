@@ -2,6 +2,7 @@
 
 import { API } from "./api-client";
 import { authHeaders, onUnauthorized } from "./auth-token";
+import { apiFetch } from "./http";
 
 export type FloorModel = "v1" | "v1i" | "v1f" | "v2"; // rổ · +tồn kho tổng · +tồn kho tự do · đa biến
 export type FloorPoint = { lan: number; as_of: string };
@@ -58,18 +59,7 @@ export type BacktestSummaryRow = {
   grade: string; mape: number | null; rmse: number | null; hit: number | null; n: number;
 };
 
-async function req<T>(path: string): Promise<T> {
-  let res: Response;
-  try { res = await fetch(`${API}${path}`, { headers: authHeaders() }); }
-  catch { throw new Error("Không kết nối được API (" + API + ")"); }
-  if (res.status === 401) { onUnauthorized(); throw new Error("Phiên đăng nhập đã hết hạn"); }
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try { const b = await res.json(); msg = b.detail || msg; } catch { /* ignore */ }
-    throw new Error(msg);
-  }
-  return (await res.json()) as T;
-}
+const req = apiFetch;
 
 /** Danh sách lần đã ban hành (cho dropdown chọn điểm so sánh). */
 export const fetchFloorPoints = () => req<FloorPoint[]>(`/api/floor-suggest/points`);

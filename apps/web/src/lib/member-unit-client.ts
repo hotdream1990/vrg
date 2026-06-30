@@ -1,22 +1,10 @@
 /* Client API Đơn vị thành viên (member_unit). */
 
-import { API } from "./api-client";
-import { authHeaders, onUnauthorized } from "./auth-token";
+import { apiFetch } from "./http";
 
 export type MemberUnit = { name: string; sort_order: number; is_active: boolean };
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  let res: Response;
-  try { res = await fetch(`${API}${path}`, { ...init, headers: { ...authHeaders(), ...(init?.headers ?? {}) } }); }
-  catch { throw new Error("Không kết nối được API (" + API + ")"); }
-  if (res.status === 401) { onUnauthorized(); throw new Error("Phiên đăng nhập đã hết hạn"); }
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try { const b = await res.json(); msg = b.detail || msg; } catch { /* ignore */ }
-    throw new Error(msg);
-  }
-  return (await res.json()) as T;
-}
+const req = apiFetch;
 
 const J = { "Content-Type": "application/json" };
 

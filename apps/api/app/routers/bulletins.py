@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import shutil
 from datetime import date, datetime, timedelta
@@ -19,6 +20,8 @@ from app.services.bulletin_service import (
     get_draft,
     update_draft,
 )
+
+logger = logging.getLogger("vrg.api")
 
 router = APIRouter(prefix="/api/bulletins", tags=["bulletins"])
 
@@ -89,7 +92,8 @@ def api_market_analysis() -> dict:
     except llm.LLMNotConfigured as exc:
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(502, f"Lỗi tạo phân tích AI: {exc}") from exc
+        logger.error("Tạo phân tích AI thất bại", exc_info=exc)
+        raise HTTPException(502, "Lỗi tạo phân tích AI — kiểm tra cấu hình LLM hoặc log máy chủ.") from exc
 
 
 @router.post("/generate", dependencies=_editor)

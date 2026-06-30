@@ -47,6 +47,7 @@ export default function HeatmapAndVrg() {
   const [rows, setRows] = useState<Cmp[] | null>(null);
   const [meta, setMeta] = useState<{ lan: number; as_of: string } | null>(null);
   const [hm, setHm] = useState<Record<string, Record<string, number | null>> | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -55,7 +56,11 @@ export default function HeatmapAndVrg() {
         const m: Record<string, Record<string, number | null>> = {};
         HM_ROWS.forEach((g) => { m[g] = {}; HM_COLS.forEach((ex) => { m[g][ex] = pctChange(sheet, ex, g); }); });
         setHm(m);
-      } catch { setHm({}); }
+      } catch (e) {
+        console.error("[HeatmapAndVrg] Lỗi tải heatmap:", e);
+        setHm({});
+        setErr(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
+      }
       try {
         const list = await listFloors();
         if (!list.length) { setRows([]); return; }
@@ -70,7 +75,11 @@ export default function HeatmapAndVrg() {
           out.push({ product: it.grade, vrg: it.fob_usd, market: mk.usd, marketLabel: mk.label, diffPct: ((it.fob_usd - mk.usd) / mk.usd) * 100 });
         }
         setRows(out);
-      } catch { setRows([]); }
+      } catch (e) {
+        console.error("[HeatmapAndVrg] Lỗi tải so sánh giá sàn:", e);
+        setRows([]);
+        setErr(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
+      }
     })();
   }, []);
 
@@ -79,6 +88,11 @@ export default function HeatmapAndVrg() {
 
   return (
     <div className="grid-2" id="sec-giasan">
+      {err && (
+        <div className="card" style={{ gridColumn: "1 / -1", color: "var(--muted)" }}>
+          Không tải được một số dữ liệu: {err}
+        </div>
+      )}
       <div className="card">
         <div className="card-head">
           <h3 className={hmReady ? undefined : "title-demo"}>Heatmap · % Thay đổi theo sàn × sản phẩm</h3>

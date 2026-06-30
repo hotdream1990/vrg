@@ -16,13 +16,19 @@ const fmt = (v: number | null | undefined, d = 0) =>
     Conversion tính ở backend (1 nguồn quy đổi). reloadKey đổi → nạp lại sau khi Quét/Nạp. */
 export default function ExchangeBoard({ reloadKey = 0 }: { reloadKey?: number }) {
   const [board, setBoard] = useState<PriceBoard | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
+    setErr(null);
     void fetchBoard()
       .then(setBoard)
-      .catch(() => setBoard(null));
+      .catch((e) => {
+        console.error("[ExchangeBoard] Lỗi tải bảng giá thành phần:", e);
+        setErr(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
+      });
   }, [reloadKey]);
 
+  if (err) return <div className="card" style={{ color: "var(--muted)" }}>Không tải được bảng giá thành phần: {err}</div>;
   if (!board || (board.exchanges.length === 0 && board.fx.length === 0)) return null;
 
   return (

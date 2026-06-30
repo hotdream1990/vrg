@@ -22,6 +22,7 @@ import VrgFloorPage from "./features/command-center/pages/VrgFloorPage";
 import { AuthProvider } from "./features/auth/AuthContext";
 import LoginPage from "./features/auth/LoginPage";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
+import RequireRole from "./features/auth/RequireRole";
 import { vrgTheme } from "./theme";
 
 export default function App() {
@@ -49,9 +50,12 @@ export default function App() {
                   <Route path="/ban-tin" element={<BulletinListPage />} />
                   <Route path="/ban-tin/tao" element={<BulletinPage />} />
                   <Route path="/ban-tin/xem/:filename" element={<BulletinDetailPage />} />
-                  <Route path="/quan-tri/nguoi-dung" element={<UserManagementPage />} />
-                  <Route path="/quan-tri/cau-hinh" element={<SystemConfigPage />} />
-                  <Route path="/quan-tri/lich-chay" element={<SchedulePage />} />
+                  {/* Khu quản trị — chỉ admin (chặn viewer/editor gõ thẳng URL) */}
+                  <Route element={<RequireRole roles={["admin"]} />}>
+                    <Route path="/quan-tri/nguoi-dung" element={<UserManagementPage />} />
+                    <Route path="/quan-tri/cau-hinh" element={<SystemConfigPage />} />
+                    <Route path="/quan-tri/lich-chay" element={<SchedulePage />} />
+                  </Route>
                   <Route path="/ho-so" element={<ProfilePage />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Route>

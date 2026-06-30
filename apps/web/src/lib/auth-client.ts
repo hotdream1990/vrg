@@ -1,7 +1,8 @@
 /* Client API đăng nhập + hồ sơ cá nhân. */
 
 import { API } from "./api-client";
-import { authHeaders, onUnauthorized } from "./auth-token";
+import { authHeaders } from "./auth-token";
+import { apiFetch } from "./http";
 
 export type User = { username: string; full_name: string | null; role: string };
 export type LoginResult = { access_token: string; token_type: string; user: User };
@@ -40,18 +41,8 @@ export async function fetchMe(): Promise<User | null> {
   }
 }
 
-async function authReq<T>(path: string, init: RequestInit): Promise<T> {
-  let res: Response;
-  try { res = await fetch(`${API}${path}`, { ...init, headers: { "Content-Type": "application/json", ...authHeaders(), ...(init.headers ?? {}) } }); }
-  catch { throw new Error("Không kết nối được API (" + API + ")"); }
-  if (res.status === 401) { onUnauthorized(); throw new Error("Phiên đăng nhập đã hết hạn"); }
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try { const b = await res.json(); msg = b.detail || msg; } catch { /* ignore */ }
-    throw new Error(msg);
-  }
-  return (await res.json()) as T;
-}
+const authReq = <T>(path: string, init: RequestInit): Promise<T> =>
+  apiFetch<T>(path, { ...init, headers: { "Content-Type": "application/json", ...(init.headers ?? {}) } });
 
 /** User tự cập nhật hồ sơ (họ tên). */
 export const updateProfile = (full_name: string | null) =>

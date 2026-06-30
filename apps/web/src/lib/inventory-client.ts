@@ -1,7 +1,6 @@
 /* Client API Tồn kho Tập đoàn (fact_inventory) — đọc chuỗi tuần + nhập/sửa/xoá. */
 
-import { API } from "./api-client";
-import { authHeaders, onUnauthorized } from "./auth-token";
+import { apiFetch } from "./http";
 
 export type InventoryWeek = {
   as_of: string;
@@ -11,24 +10,8 @@ export type InventoryWeek = {
   source: string;
 };
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(`${API}${path}`, {
-      ...init,
-      headers: { "Content-Type": "application/json", ...authHeaders(), ...(init?.headers ?? {}) },
-    });
-  } catch {
-    throw new Error("Không kết nối được API (" + API + ")");
-  }
-  if (res.status === 401) { onUnauthorized(); throw new Error("Phiên đăng nhập đã hết hạn"); }
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try { const b = await res.json(); msg = b.detail || msg; } catch { /* ignore */ }
-    throw new Error(msg);
-  }
-  return (await res.json()) as T;
-}
+const req = <T>(path: string, init?: RequestInit): Promise<T> =>
+  apiFetch<T>(path, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
 
 export const fetchInventory = () => req<InventoryWeek[]>(`/api/inventory`);
 

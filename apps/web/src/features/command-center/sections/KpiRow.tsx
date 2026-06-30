@@ -72,7 +72,11 @@ export default function KpiRow() {
         priceCard("Latex · MRB (USD/tấn)", usdSeries(sheet, "MRB", "LATEX")),
         purchaseCard(purchase),
       ]))
-      .catch(() => setCards(LOADING.map((c) => ({ ...c, value: "—", deltaText: "Lỗi tải", demo: true }))));
+      .catch((e) => {
+        console.error("[KpiRow] Lỗi tải KPI giá:", e);
+        const sub = e instanceof Error ? e.message : "Lỗi tải dữ liệu";
+        setCards(LOADING.map((c) => ({ ...c, value: "—", deltaText: "Lỗi tải", sub, demo: true })));
+      });
   }, []);
 
   return (
