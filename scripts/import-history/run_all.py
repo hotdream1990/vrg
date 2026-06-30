@@ -15,7 +15,7 @@ import argparse
 import _lib
 import coverage_report
 import import_exchange
-import import_floor
+import import_floor_table
 import import_latex
 import import_physical_staff
 
@@ -33,8 +33,8 @@ def main(from_year: int) -> None:
     import_latex.run(import_latex.DEFAULT_FILE, from_year, dry=False)
     print("[4/5] Giá physical USD/tấn (sheet 'Lưu')")
     import_physical_staff.run(import_physical_staff.DEFAULT_FILE, from_year, dry=False)
-    print("[5/5] Giá sàn Tập đoàn ban hành (sheet 'Bảng tính giá')")
-    import_floor.run(from_year, dry=False)
+    print("[5/5] Giá sàn Tập đoàn ban hành (file 'Giá sàn 2024-2026.xlsx')")
+    import_floor_table.run(from_year, dry=False)
     print("=== Báo cáo độ phủ ===")
     coverage_report.main(coverage_report.DEFAULT_OUT)
     print("=== HOÀN TẤT ===")
