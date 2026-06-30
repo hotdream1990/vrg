@@ -1,0 +1,51 @@
+name: vrg
+
+# Triển khai VRG bằng image GỘP đã push lên GitLab registry (web tĩnh + FastAPI trong 1 container).
+# Dùng:
+#   docker login registry.gitlab.com
+#   cp deployment/vrg.env.example deployment/.env   # rồi điền giá trị thật
+#   VRG_TAG=0.1.0 docker compose --env-file deployment/.env -f deployment/vrg_deploy.yaml up -d
+#
+# Schema DB lấy từ infra/db/init (chạy 1 lần khi volume db trống).
+
+x-app-env: &app-env
+  APP_ENV: '${APP_ENV:-production}'
+  WEB_DIST_DIR: /app/web_dist
+  DATABASE_URL: 'postgresql://vrg:${DB_PASSWORD:-changeme}@db:5432/vrg_caosu'
+  JWT_SECRET: '${JWT_SECRET}'
+  JWT_EXPIRE_MINUTES: '${JWT_EXPIRE_MINUTES:-720}'
+  ADMIN_USERNAME: '${ADMIN_USERNAME:-admin}'
+  ADMIN_PASSWORD: '${ADMIN_PASSWORD}'
+
+services:
+  app:
+    image: 'registry.gitlab.com/flowbot1/flowbot/vrg:${VRG_TAG}'
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'python -c "import urllib.request;urllib.request.urlopen(''http://localhost:8000/health'')"']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  db:
+    image: timescale/timescaledb-ha:pg16
+    environment:
+      POSTGRES_USER: vrg
+      POSTGRES_PASSWORD: '${DB_PASSWORD:-changeme}'
+      POSTGRES_DB: vrg_caosu
+    volumes:
+      - db-data:/home/postgres/pgdata/data
+      - ../infra/db/init:/docker-entrypoint-initdb.d:ro   # extensions + schema (chạy khi volume trống)
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vrg -d vrg_caosu']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  db-data:

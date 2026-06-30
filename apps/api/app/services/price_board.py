@@ -5,14 +5,14 @@ kèm danh sách tỷ giá (Exchange Rate). Tái dùng convert (1 nguồn quy đ�
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 from typing import Any
 
 from app.core.market_meta import EXCHANGE_ORDER, FX_PAIRS, WORLD_GRADE_MAP
+from app.core.paths import bulletin_dir
 from app.services import price_repo
 
 # bulletin.convert (services/bulletin) — 1 nguồn quy đổi đơn vị, dùng chung với bản tin.
-_BULLETIN = Path(__file__).resolve().parents[4] / "services" / "bulletin"
+_BULLETIN = bulletin_dir()
 if str(_BULLETIN) not in sys.path:
     sys.path.insert(0, str(_BULLETIN))
 

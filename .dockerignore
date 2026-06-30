@@ -1,0 +1,37 @@
+# Giữ build context gọn + KHÔNG đưa secret/dữ liệu mật vào image.
+.git
+.gitignore
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.venv
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+
+# Web/API artifacts (sẽ build lại trong image)
+apps/web/dist
+apps/api/.venv
+
+# Secret & dữ liệu mật (xem .gitignore) — tuyệt đối không bake vào image
+.env
+*.env
+!*.env.example
+data/raw
+docs/data
+docs/bieu-mau
+
+# services/: cần bulletin + crawlers (cho quét giá). Loại phần không dùng + tests.
+services/forecasting
+services/rag
+services/notifications
+services/bulletin/tests
+services/crawlers/tests
+
+# Không cần cho runtime
+plans
+deployment
+infra/launchd
+scripts/import-history
+**/*.log
+.DS_Store

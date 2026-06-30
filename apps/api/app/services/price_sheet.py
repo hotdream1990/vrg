@@ -5,13 +5,13 @@ mỗi sàn có Native · Tỷ giá · USD/T + khối tỷ giá. Đọc DB, USD q
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 from typing import Any
 
 from app.core.market_meta import FX_PAIRS, SHEET_GROUPS
+from app.core.paths import bulletin_dir
 from app.services import price_repo
 
-_BULLETIN = Path(__file__).resolve().parents[4] / "services" / "bulletin"
+_BULLETIN = bulletin_dir()
 if str(_BULLETIN) not in sys.path:
     sys.path.insert(0, str(_BULLETIN))
 

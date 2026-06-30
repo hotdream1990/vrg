@@ -3,13 +3,16 @@
 Cổng backend phục vụ Dashboard · Forecast · Command Center.
 """
 
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.security import get_current_user, require_admin
+from app.web_static import mount_spa
 from app.routers import (
     auth,
     bulletins,
@@ -24,6 +27,9 @@ from app.routers import (
     users,
 )
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
+logger = logging.getLogger("vrg.api")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,13 +39,13 @@ async def lifespan(app: FastAPI):
 
         user_repo.seed_admin()
     except Exception as exc:  # noqa: BLE001
-        print(f"[auth] Bỏ qua seed admin (DB chưa sẵn sàng?): {exc}")
+        logger.warning("[auth] Bỏ qua seed admin (DB chưa sẵn sàng?): %s", exc)
     try:
         from app.services import scheduler
 
         scheduler.start()
     except Exception as exc:  # noqa: BLE001
-        print(f"[scheduler] Bỏ qua khởi động scheduler (DB chưa sẵn sàng?): {exc}")
+        logger.warning("[scheduler] Bỏ qua khởi động scheduler (DB chưa sẵn sàng?): %s", exc)
     yield
     try:
         from app.services import scheduler
@@ -66,6 +72,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Bắt mọi lỗi CHƯA xử lý → log đầy đủ phía server, trả 500 chung (không lộ traceback/nội bộ).
+
+    HTTPException (401/403/404/400…) vẫn đi qua handler riêng của FastAPI; handler này chỉ
+    áp cho lỗi ngoài dự kiến để tránh rò rỉ thông tin nhạy cảm ra client.
+    """
+    logger.error("Lỗi chưa xử lý: %s %s", request.method, request.url.path, exc_info=exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Lỗi hệ thống — vui lòng thử lại hoặc liên hệ quản trị."},
+    )
+
 # Mở: health + auth. Bảo vệ (cần JWT): router dữ liệu (đều fetch-based).
 # bulletins để mở vì phục vụ ảnh banner (<img>) + tải file (<a>) không gửi được Bearer;
 # UI vẫn bị chặn bởi login. Có thể siết sau bằng blob-fetch.
@@ -83,8 +103,6 @@ app.include_router(users.router, dependencies=[Depends(require_admin)])  # quả
 app.include_router(config.router, dependencies=[Depends(require_admin)])  # cấu hình: chỉ admin
 app.include_router(schedules.router, dependencies=[Depends(require_admin)])  # lịch chạy: chỉ admin
 
-
-@app.get("/", tags=["system"])
-def root() -> dict[str, str]:
-    """Thông tin service."""
-    return {"service": "vrg-caosu-api", "status": "ok", "env": settings.app_env}
+# Phục vụ web tĩnh (image gộp) ở "/" — phải đặt SAU khi include hết router API.
+# Dev/API thuần (không có WEB_DIST_DIR): "/" trả thông tin service dạng JSON.
+mount_spa(app, settings.app_env)

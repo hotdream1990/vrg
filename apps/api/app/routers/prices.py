@@ -3,31 +3,35 @@
 from __future__ import annotations
 
 import json
+import logging
 import pathlib
 import subprocess
 import tempfile
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.core.paths import crawlers_dir
 from app.core.security import require_editor
 from app.schemas.price import HistorySeries, PriceBoard, PriceRecordEdit, ScanResponse
 from app.services import price_board, price_repo, scan_service
+
+logger = logging.getLogger("vrg.api")
 
 router = APIRouter(prefix="/api/prices", tags=["prices"])
 
 _editor = [Depends(require_editor)]  # ghi: cần admin/editor (viewer chỉ xem)
 
-_CRAWLER_DIR = pathlib.Path(__file__).resolve().parents[4] / "services" / "crawlers"
+_CRAWLER_DIR = crawlers_dir()
 
 
 def _crawler_http_error(exc: Exception) -> HTTPException:
-    if isinstance(exc, FileNotFoundError):
-        return HTTPException(500, f"Không tìm thấy crawler: {exc}")
-    if isinstance(exc, subprocess.CalledProcessError):
-        return HTTPException(500, f"Crawl lỗi: {(exc.stderr or '')[-400:]}")
+    """Log chi tiết lỗi crawl phía server; trả về message chung (không lộ đường dẫn/stderr)."""
+    logger.error("Crawler thất bại", exc_info=exc)
     if isinstance(exc, subprocess.TimeoutExpired):
-        return HTTPException(504, "Crawl quá thời gian")
-    return HTTPException(500, f"Lỗi crawl: {exc}")
+        return HTTPException(504, "Quá thời gian khi quét giá — vui lòng thử lại.")
+    if isinstance(exc, FileNotFoundError):
+        return HTTPException(500, "Không tìm thấy crawler trên máy chủ — liên hệ quản trị.")
+    return HTTPException(500, "Quét giá thất bại — kiểm tra log máy chủ hoặc liên hệ quản trị.")
 
 
 @router.post("/scan", response_model=ScanResponse, dependencies=_editor)

@@ -10,10 +10,11 @@ import pathlib
 import subprocess
 import tempfile
 
+from app.core.paths import crawlers_dir
 from app.services import price_repo
 
 # services/crawlers (uv project riêng, có pdfplumber/httpx)
-_CRAWLER_DIR = pathlib.Path(__file__).resolve().parents[4] / "services" / "crawlers"
+_CRAWLER_DIR = crawlers_dir()
 
 
 def run_crawler(sources: str) -> list[dict]:
