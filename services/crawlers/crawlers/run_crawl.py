@@ -60,9 +60,9 @@ def render(results: list[CrawlResult]) -> str:
     return "\n".join(lines)
 
 
-# Nguồn hỗ trợ nạp lịch sử → backfill chart thật (SHFE/TOCOM theo ngày). FX: không backfill
-# trong crawler (Close lấy định kỳ qua Playwright; lịch sử FX nạp riêng qua scripts/import-history).
-HISTORY = {Source.SHFE: shfe.history, Source.TOCOM: tocom.history}
+# Nguồn hỗ trợ nạp lịch sử → backfill chart thật. SHFE/TOCOM theo ngày; FX đọc bảng lịch sử
+# (~7 phiên) trên exchangerates → khớp tuyệt đối data live (lấp khi lỡ quên quét vài phiên).
+HISTORY = {Source.SHFE: shfe.history, Source.TOCOM: tocom.history, Source.FX: fx.history}
 
 
 def backfill(sources: list[Source], days: int) -> list:

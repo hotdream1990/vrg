@@ -4,13 +4,14 @@ exchangerates.org.uk đứng sau Cloudflare → httpx bị 403; phải dùng tr�
 GOTCHA: CF chỉ cho qua lần tải ĐẦU của mỗi BrowserContext → mỗi đồng tiền dùng 1 context MỚI
 (điều hướng nhiều trang trong cùng context bị WAF chặn 403). Lấy dòng Close mới nhất ("DD Month
 YYYY  1 USD = <rate> <CUR>") trong bảng "Exchange Rate History" của trang conversion.
-VND không có trên exchangerates → giữ logic cũ open.er-api (tạm thời). KHÔNG backfill trong crawler.
+VND không có trên exchangerates → giữ logic cũ open.er-api (tạm thời).
+Backfill: history() đọc chính bảng lịch sử của exchangerates (~7 phiên) → khớp tuyệt đối data live.
 """
 
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from ..base.fetcher import fetch_json
 from ..base.models import CrawlResult, PriceRecord, Source, Status
@@ -121,3 +122,50 @@ def crawl() -> CrawlResult:
     if records:
         return CrawlResult(source=Source.FX, status=Status.OK, records=records, note=note)
     return CrawlResult(source=Source.FX, status=Status.BLOCKED, note=note or "Không lấy được tỷ giá")
+
+
+def _parse_history(text: str, code: str, since: date) -> list[tuple[date, float]]:
+    """Mọi dòng Close cho `code` (bảng lịch sử) từ ngày >= since. Offline-testable."""
+    out: list[tuple[date, float]] = []
+    for m in _ROW.finditer(text):
+        d, mon, yr, rate, cur = m.groups()
+        if cur != code:
+            continue
+        try:
+            as_of = datetime.strptime(f"{d} {mon} {yr}", "%d %B %Y").date()
+        except ValueError:
+            continue
+        if as_of >= since:
+            out.append((as_of, float(rate)))
+    return out
+
+
+def history(days: int) -> list[PriceRecord]:
+    """Backfill Close CNY/JPY/THB/MYR các phiên gần đây từ CHÍNH exchangerates (bảng lịch sử).
+
+    Cùng nguồn với crawl() → giá trị KHỚP TUYỆT ĐỐI với data live. Bảng chỉ giữ ~7 phiên gần
+    nhất nên chỉ lấp được lỗ trong khoảng đó (đủ khi lỡ quên quét vài phiên). VND: bỏ qua
+    (exchangerates không có). Mỗi đồng dùng 1 context mới (CF chặn điều hướng nhiều trang).
+    """
+    from playwright.sync_api import sync_playwright
+
+    since = datetime.now(timezone.utc).date() - timedelta(days=days)
+    records: list[PriceRecord] = []
+    with sync_playwright() as p:
+        browser = p.firefox.launch(headless=True)
+        try:
+            for code, url in _PAGES.items():
+                ctx = browser.new_context(user_agent=_UA, locale="en-US")
+                try:
+                    page = ctx.new_page()
+                    page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                    _cf_wait(page)
+                    for as_of, rate in _parse_history(page.inner_text("body"), code, since):
+                        records.append(_rec(code, as_of, rate))
+                except Exception:  # noqa: BLE001 - cô lập từng đồng (CF chặn 1 ≠ chặn cả)
+                    pass
+                finally:
+                    ctx.close()
+        finally:
+            browser.close()
+    return records
