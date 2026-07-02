@@ -1,7 +1,6 @@
 """Repository cấu hình hệ thống (app_config) — admin chỉnh trên UI.
 
 Secret (mật khẩu, khóa API) KHÔNG bao giờ trả giá trị thật ra API — chỉ trả trạng thái đã đặt.
-Crawler marketscreener đọc trực tiếp bảng này (ưu tiên hơn .env).
 """
 from __future__ import annotations
 
@@ -14,17 +13,12 @@ from app.core.db import ensure_schema, session_scope
 
 # Nhóm cấu hình → mỗi nhóm là 1 tab trên UI (thêm nhóm mới = thêm tab). Thứ tự = thứ tự tab.
 CONFIG_GROUPS = [
-    {"id": "marketscreener", "label": "Marketscreener"},
     {"id": "ai", "label": "AI / LLM"},
 ]
 
 # Khóa hiển thị trên trang Cấu hình. secret=True → API mask, không lộ giá trị.
 # options (tùy chọn) → render dropdown thay vì ô nhập.
 CONFIG_SPEC = [
-    {"key": "MARKETSCREENER_USER", "group": "marketscreener", "label": "Tài khoản marketscreener",
-     "secret": False, "placeholder": "ttkd@vrg.vn"},
-    {"key": "MARKETSCREENER_PASS", "group": "marketscreener", "label": "Mật khẩu marketscreener",
-     "secret": True, "placeholder": "••••••••"},
     # provider=... → chỉ hiện khi LLM_PROVIDER khớp (form hiển thị key+model đúng nhà cung cấp).
     {"key": "LLM_PROVIDER", "group": "ai", "label": "Nhà cung cấp LLM", "secret": False,
      "placeholder": "openai", "options": ["openai"]},

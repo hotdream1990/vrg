@@ -4,7 +4,7 @@ import { useState } from "react";
 import { scanPrices } from "../../../lib/api-client";
 
 type Props = {
-  /** Mã nguồn truyền cho /scan (vd "marketscreener", "fx", "shfe,tocom,lgm,sgx"). */
+  /** Mã nguồn truyền cho /scan (vd "all", "fx", "shfe,tocom,lgm,sgx"). */
   source: string;
   label: string;
   /** Gọi lại sau khi quét xong để trang nạp lại dữ liệu. */

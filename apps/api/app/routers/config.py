@@ -24,11 +24,3 @@ def put_config(body: dict[str, str], username: str = Depends(require_admin)) -> 
     """Cập nhật cấu hình (ô để trống = giữ nguyên giá trị cũ)."""
     n = config_repo.set_config(body, by=username)
     return {"updated": n, "groups": config_repo.CONFIG_GROUPS, "config": config_repo.list_config()}
-
-
-@router.post("/marketscreener/test")
-def test_marketscreener() -> dict:
-    """Chạy thử đăng nhập marketscreener bằng tài khoản đang lưu → {ok, stage, message}."""
-    from app.services import scan_service
-
-    return scan_service.test_marketscreener()

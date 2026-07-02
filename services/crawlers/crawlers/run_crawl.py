@@ -16,7 +16,7 @@ from .base.models import CrawlResult, Source, Status
 from .exchanges import lgm, sgx_sicom, shfe, tocom
 from .macro import fx
 
-# Giá physical (Asian rubber) nay lấy từ marketscreener.py (chuỗi Reuters) — không qua ANRPC.
+# Giá physical (Asian rubber, chuỗi Reuters) nhập tay trên UI (trang Giá Physical) — không crawl.
 CRAWLERS = {
     Source.FX: fx.crawl,
     Source.SGX: sgx_sicom.crawl,

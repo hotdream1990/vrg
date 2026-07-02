@@ -18,12 +18,14 @@ def list_schedules() -> dict:
     """Danh sách job định kỳ: lịch + mô tả + lần chạy gần nhất + lần chạy kế tiếp."""
     out = []
     for job in schedule_repo.list_jobs():
-        meta = scheduler.JOB_REGISTRY.get(job["name"], {})
+        meta = scheduler.JOB_REGISTRY.get(job["name"])
+        if not meta:
+            continue  # job đã gỡ khỏi registry (vd marketscreener) → không hiện
         out.append({
             **job,
             "label": meta.get("label", job["name"]),
             "purpose": meta.get("purpose"),
-            "last_run": schedule_repo.last_run_for(meta["source"]) if meta else None,
+            "last_run": schedule_repo.last_run_for(meta["source"]),
             "next_run": scheduler.next_run(job["name"]),
         })
     return {"jobs": out}

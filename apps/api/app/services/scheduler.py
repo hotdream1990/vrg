@@ -22,13 +22,6 @@ JOB_REGISTRY: dict[str, dict] = {
         "default": (18, 0),
         "run": lambda: scan_service.scan_and_persist("all"),
     },
-    "marketscreener": {
-        "label": "Giá physical (marketscreener)",
-        "purpose": "Thu thập giá cao su Reuters (marketscreener) → lưu DB",
-        "source": "marketscreener",
-        "default": (18, 30),
-        "run": lambda: scan_service.scan_marketscreener(),
-    },
 }
 
 _scheduler: BackgroundScheduler | None = None

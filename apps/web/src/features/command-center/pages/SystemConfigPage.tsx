@@ -1,15 +1,13 @@
 import { SettingOutlined } from "@ant-design/icons";
-import { Alert, App, Button, Form, Input, Select, Space, Tabs, Tag } from "antd";
+import { App, Button, Form, Input, Select, Space, Tabs, Tag } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
 import {
   type ConfigGroup,
   type ConfigItem,
-  type MsTestResult,
   fetchConfig,
   fetchLlmModels,
   saveConfig,
-  testMarketscreener,
 } from "../../../lib/api-client";
 import "../../bulletin/bulletin.css";
 
@@ -26,7 +24,7 @@ function fieldInput(c: ConfigItem, options: string[] | null) {
   return <Input placeholder={c.placeholder} />;
 }
 
-/** Quản trị → Cấu hình hệ thống (chỉ admin), chia theo tab (Marketscreener · AI · …).
+/** Quản trị → Cấu hình hệ thống (chỉ admin), chia theo tab (AI / LLM · …).
  *  Secret được server mask; để trống = giữ nguyên giá trị hiện tại. */
 export default function SystemConfigPage() {
   const { message } = App.useApp();
@@ -34,8 +32,6 @@ export default function SystemConfigPage() {
   const [groups, setGroups] = useState<ConfigGroup[]>([]);
   const [saving, setSaving] = useState(false);
   const [openaiModels, setOpenaiModels] = useState<string[]>([]);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<MsTestResult | null>(null);
   const [form] = Form.useForm();
   // Nhà cung cấp LLM đang chọn → chỉ hiện key + model đúng provider đó.
   const provider = (Form.useWatch("LLM_PROVIDER", form) as string | undefined) || "openai";
@@ -80,18 +76,6 @@ export default function SystemConfigPage() {
     }
   };
 
-  const onTest = async () => {
-    setTesting(true);
-    setTestResult(null);
-    try {
-      setTestResult(await testMarketscreener());
-    } catch (e) {
-      setTestResult({ ok: false, stage: "error", message: String(e) });
-    } finally {
-      setTesting(false);
-    }
-  };
-
   const tabItems = groups.map((g) => ({
     key: g.id,
     label: g.label,
@@ -115,32 +99,6 @@ export default function SystemConfigPage() {
             {fieldInput(c, optionsFor(c))}
           </Form.Item>
         ))}
-        {g.id === "marketscreener" && (
-          <div style={{ marginTop: 4 }}>
-            <Button loading={testing} onClick={onTest}>Chạy thử đăng nhập</Button>
-            <span style={{ marginLeft: 10, color: "var(--muted)", fontSize: 12 }}>
-              Dùng cấu hình đã lưu · thử 1 lần · ~30–60s
-            </span>
-            {testResult && (
-              <>
-                <Alert style={{ marginTop: 12 }} showIcon
-                  type={testResult.ok ? "success" : "error"}
-                  message={testResult.ok ? "Đăng nhập được ✓" : "Chưa đăng nhập được"}
-                  description={testResult.message} />
-                {testResult.screenshot && (
-                  <div style={{ marginTop: 12 }}>
-                    <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 6 }}>
-                      Ảnh chụp trang đăng nhập (headless) — để anh xem tận mắt:
-                    </div>
-                    <img alt="Trang đăng nhập marketscreener"
-                      src={`data:image/jpeg;base64,${testResult.screenshot}`}
-                      style={{ width: "100%", borderRadius: 8, border: "1px solid #e5e7eb" }} />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
       </div>
     ),
   }));

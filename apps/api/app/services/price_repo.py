@@ -291,7 +291,7 @@ def delete_purchase_date(as_of: str) -> int:
         return res.rowcount
 
 
-_PHYSICAL_SOURCES = ["reuters"]  # chuỗi Reuters: lịch sử (Excel chuyên viên) + 2026 (marketscreener)
+_PHYSICAL_SOURCES = ["reuters"]  # chuỗi Reuters physical: lịch sử Excel chuyên viên + nhập tay trên UI
 _PHYSICAL_ORDER = ["RSS3", "STR20", "SMR20", "SIR20", "USS",
                    "Thai Latex 60% (Bulk)", "Thai Latex 60% (Drums)", "Thai Latex 60%"]
 

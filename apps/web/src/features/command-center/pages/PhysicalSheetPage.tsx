@@ -11,7 +11,6 @@ import { useAuth } from "../../auth/AuthContext";
 import DateRangeBar from "../sections/DateRangeBar";
 import EditableCell from "../sections/EditableCell";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
-import ScanNowButton from "../sections/ScanNowButton";
 import "../../bulletin/bulletin.css";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -70,7 +69,6 @@ export default function PhysicalSheetPage() {
         info={`${dates.length} ngày · ${grades.length} grade`}>
         {canEdit && (
           <>
-            <ScanNowButton source="marketscreener" label="Quét marketscreener" onDone={load} />
             <label className="blt-date-label">Thêm ngày:
               <input type="date" className="blt-date-input" value={newDate}
                 onChange={(e) => setNewDate(e.target.value)} />
@@ -119,7 +117,8 @@ export default function PhysicalSheetPage() {
       </div>
 
       <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
-        Đơn vị: USD/tấn — nguồn từ kho lưu hàng ngày của chuyên viên (đã quy đổi sẵn). Phủ 14/05/2024 → 29/12/2025; phần 2026 hiện đang trống (chưa có nguồn chuyên viên).
+        Đơn vị: USD/tấn (chuỗi Reuters, đã quy đổi sẵn). Lịch sử 14/05/2024 → 29/12/2025 nạp từ Excel chuyên viên;
+        số liệu mới <b>nhập tay trực tiếp tại đây</b> — chọn ngày rồi bấm ô để nhập.
       </p>
     </div>
   );
