@@ -10,16 +10,10 @@ import {
   resetPassword,
   updateUser,
 } from "../../../lib/user-client";
+import { ROLE_COLOR, ROLE_LABEL, ROLES } from "../../../lib/roles";
 import { useAuth } from "../../auth/AuthContext";
+import PermissionMatrix from "../sections/PermissionMatrix";
 import "../../bulletin/bulletin.css";
-
-const ROLES = [
-  { value: "admin", label: "Quản trị viên" },
-  { value: "editor", label: "Chuyên viên nhập liệu" },
-  { value: "viewer", label: "Chuyên viên thường (chỉ xem)" },
-];
-const ROLE_LABEL: Record<string, string> = Object.fromEntries(ROLES.map((r) => [r.value, r.label]));
-const ROLE_COLOR: Record<string, string> = { admin: "green", editor: "blue", viewer: "default" };
 
 /** Quản trị → Người dùng: liệt kê + tạo/sửa/xoá tài khoản, đặt lại mật khẩu (chỉ admin). */
 export default function UserManagementPage() {
@@ -128,6 +122,8 @@ export default function UserManagementPage() {
         <Table rowKey="username" size="middle" loading={loading} columns={columns}
           dataSource={users} pagination={false} scroll={{ x: "max-content" }} />
       </div>
+
+      <PermissionMatrix />
 
       <Modal title={creating ? "Thêm tài khoản" : `Sửa: ${editing?.username}`} open={open} forceRender
         onCancel={() => setOpen(false)} onOk={() => form.submit()} okText="Lưu" cancelText="Huỷ">
