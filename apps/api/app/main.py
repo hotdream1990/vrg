@@ -56,9 +56,20 @@ async def lifespan(app: FastAPI):
         pass
 
 
+def _app_version() -> str:
+    """Version từ pyproject.toml (đồng bộ apps/web + tag deploy; có ở /app/pyproject.toml runtime)."""
+    try:
+        import tomllib
+        from pathlib import Path
+        pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+        return tomllib.loads(pyproject.read_text("utf-8"))["project"]["version"]
+    except Exception:  # noqa: BLE001
+        return "0"
+
+
 app = FastAPI(
     title="VRG — AI Dự báo Giá Cao su",
-    version="0.1.0",
+    version=_app_version(),
     description="Backend gateway: Dashboard · Forecast · Command Center",
     lifespan=lifespan,
 )

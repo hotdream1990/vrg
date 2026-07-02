@@ -162,7 +162,7 @@ export default function AdminLayout() {
           <main className="main"><Outlet /></main>
         </Content>
         <Footer style={{ textAlign: "center", color: "#5f6f67", fontSize: 12, padding: "12px 24px" }}>
-          VRG · Command Center v1.0 (PoC) — Bizino AI × Thái Hưng Infotech
+          VRG · Command Center v{__APP_VERSION__} (PoC) — Bizino AI × Thái Hưng Infotech
         </Footer>
       </Layout>
     </Layout>

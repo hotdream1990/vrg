@@ -3,7 +3,7 @@
 
 export const topbar = {
   brandTitle: "Bizino AI · Rubber Price Intelligence",
-  brandSub: "Hybrid AI Agent for VRG · Command Center v1.0 (PoC)",
+  brandSub: `Hybrid AI Agent for VRG · Command Center v${__APP_VERSION__} (PoC)`,
   pills: [
     { kind: "live", text: "4/4 sàn đang Live" },
     { kind: "rag", text: "RAG: 1,284 tài liệu nội bộ" },
