@@ -43,14 +43,14 @@ def _build_raw_materials(report_date: date) -> tuple[list[RawMaterialRegion], st
     """Dựng 'Giá mủ nguyên liệu' theo công ty VRG từ fact_price (source=vrg).
 
     Trả (danh sách RawMaterialRegion theo VRG_COMPANIES, nguồn 'db'|'manual').
-    Công ty chưa có giá → để trống cho admin nhập tay.
+    CHỈ lấy giá ĐÚNG ngày báo cáo — công ty không có giá ngày đó sẽ không hiện.
     """
     purchase: dict[str, float] = {}
     companies: list[str] = list(VRG_COMPANIES)
     try:
         from app.services import member_unit_repo, price_repo
 
-        purchase = price_repo.latest_purchase_by_company(report_date.isoformat())
+        purchase = price_repo.purchase_by_company_on_date(report_date.isoformat())
         companies = member_unit_repo.active_names() or companies
     except Exception as exc:  # noqa: BLE001 - DB down → để trống, admin nhập tay
         print(f"[bulletin] Không đọc được giá thu mua mủ nước: {exc}")

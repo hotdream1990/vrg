@@ -370,10 +370,13 @@ def delete_physical_date(as_of: str) -> int:
         return res.rowcount
 
 
-def latest_purchase_by_company(as_of_max: str) -> dict[str, float]:
-    """Giá thu mua mủ nước mới nhất (<= ngày) theo công ty VRG (source=vrg).
+def purchase_by_company_on_date(as_of: str) -> dict[str, float]:
+    """Giá thu mua mủ nước ĐÚNG NGÀY báo cáo, theo công ty VRG (source=vrg).
 
-    Trả {công ty: giá đồng/độ TSC}. Phục vụ mục 'Giá mủ nguyên liệu' của bản tin.
+    Trả {công ty: giá đồng/độ TSC}. CHỈ lấy bản ghi as_of = ngày báo cáo (không carry
+    giá cũ) — công ty không nhập giá đúng ngày đó sẽ không xuất hiện. Nếu 1 công ty có
+    nhiều bản ghi cùng ngày (sửa lại) → lấy bản nhập sau cùng. Phục vụ mục 'Giá mủ
+    nguyên liệu' của bản tin.
     """
     ensure_schema()
     with session_scope() as db:
@@ -382,10 +385,10 @@ def latest_purchase_by_company(as_of_max: str) -> dict[str, float]:
                 SELECT DISTINCT ON (grade) grade, price
                 FROM fact_price
                 WHERE source = 'vrg' AND price_type = 'purchase'
-                  AND as_of <= CAST(:d AS date)
-                ORDER BY grade, as_of DESC, ingested_at DESC
+                  AND as_of = CAST(:d AS date)
+                ORDER BY grade, ingested_at DESC
             """),
-            {"d": as_of_max},
+            {"d": as_of},
         )
         return {m["grade"]: float(m["price"]) for m in result.mappings().all()}
 

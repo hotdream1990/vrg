@@ -449,7 +449,7 @@ export default function BulletinPage() {
               </div>
             </div>
             <p style={{ color: "var(--muted)", fontSize: 12, margin: "0 0 8px" }}>
-              Đơn vị: <b>đồng/độ TSC</b>. Tự lấy giá mới nhất ≤ ngày báo cáo của mỗi công ty.
+              Đơn vị: <b>đồng/độ TSC</b>. Chỉ lấy giá <b>đúng ngày báo cáo</b> — công ty không nhập giá ngày đó sẽ không hiện.
             </p>
             <table>
               <thead>
