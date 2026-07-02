@@ -173,9 +173,9 @@ export const saveConfig = (updates: Record<string, string>) =>
     body: JSON.stringify(updates),
   });
 
-export type MsTestResult = { ok: boolean; stage: string; message: string };
+export type MsTestResult = { ok: boolean; stage: string; message: string; screenshot?: string };
 
-/** Chạy thử đăng nhập marketscreener bằng proxy + tài khoản ĐÃ LƯU (mất ~30–60s). */
+/** Chạy thử đăng nhập marketscreener bằng tài khoản ĐÃ LƯU (mất ~30–60s). */
 export const testMarketscreener = () =>
   req<MsTestResult>("/api/config/marketscreener/test", { method: "POST" });
 

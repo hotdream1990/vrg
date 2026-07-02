@@ -28,7 +28,7 @@ def put_config(body: dict[str, str], username: str = Depends(require_admin)) -> 
 
 @router.post("/marketscreener/test")
 def test_marketscreener() -> dict:
-    """Chạy thử đăng nhập marketscreener bằng proxy + tài khoản đang lưu → {ok, stage, message}."""
+    """Chạy thử đăng nhập marketscreener bằng tài khoản đang lưu → {ok, stage, message}."""
     from app.services import scan_service
 
     return scan_service.test_marketscreener()

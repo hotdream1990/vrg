@@ -119,13 +119,25 @@ export default function SystemConfigPage() {
           <div style={{ marginTop: 4 }}>
             <Button loading={testing} onClick={onTest}>Chạy thử đăng nhập</Button>
             <span style={{ marginLeft: 10, color: "var(--muted)", fontSize: 12 }}>
-              Dùng cấu hình đã lưu · thử lại vài lần (anti-bot chập chờn) · ~1–2 phút
+              Dùng cấu hình đã lưu · thử 1 lần · ~30–60s
             </span>
             {testResult && (
-              <Alert style={{ marginTop: 12 }} showIcon
-                type={testResult.ok ? "success" : "error"}
-                message={testResult.ok ? "Đăng nhập được ✓" : "Chưa đăng nhập được"}
-                description={testResult.message} />
+              <>
+                <Alert style={{ marginTop: 12 }} showIcon
+                  type={testResult.ok ? "success" : "error"}
+                  message={testResult.ok ? "Đăng nhập được ✓" : "Chưa đăng nhập được"}
+                  description={testResult.message} />
+                {testResult.screenshot && (
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 6 }}>
+                      Ảnh chụp trang đăng nhập (headless) — để anh xem tận mắt:
+                    </div>
+                    <img alt="Trang đăng nhập marketscreener"
+                      src={`data:image/jpeg;base64,${testResult.screenshot}`}
+                      style={{ width: "100%", borderRadius: 8, border: "1px solid #e5e7eb" }} />
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -138,7 +150,7 @@ export default function SystemConfigPage() {
       <div className="page-title">
         <div>
           <h2><SettingOutlined style={{ marginRight: 8 }} />Cấu hình hệ thống</h2>
-          <p>Tài khoản nguồn dữ liệu, proxy &amp; AI cho hệ thống. Mật khẩu/khóa được ẩn —
+          <p>Tài khoản nguồn dữ liệu &amp; AI cho hệ thống. Mật khẩu/khóa được ẩn —
             để trống nghĩa là giữ nguyên giá trị hiện tại.</p>
         </div>
       </div>

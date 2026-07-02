@@ -26,19 +26,6 @@ _BAHT_RE = re.compile(r"([\d.]+)\s*baht/kg", re.I)        # Thái: "96.15 baht/k
 _USD_RE = re.compile(r"\$\s*([\d.]+)\s*/\s*kg", re.I)     # Malaysia/Indonesia: "$2.19/kg"
 
 
-def _proxy_opt() -> dict[str, str] | None:
-    """Proxy tùy chọn (MARKETSCREENER_PROXY=http://user:pass@host:port). Akamai chặn theo
-    IP+fingerprint: Firefox qua được từ IP residential/mobile sạch; IP bị gắn cờ thì cần
-    proxy residential. Proxy datacenter thường vẫn bị 403."""
-    raw = os.environ.get("MARKETSCREENER_PROXY")
-    if not raw:
-        return None
-    from urllib.parse import urlparse
-    u = urlparse(raw)
-    return {"server": f"{u.scheme}://{u.hostname}:{u.port}",
-            "username": u.username or "", "password": u.password or ""}
-
-
 def _cookie(pg) -> None:
     for sel in ("#didomi-notice-agree-button", "button:has-text('Agree')", "button:has-text('Accept')"):
         try:
@@ -49,7 +36,12 @@ def _cookie(pg) -> None:
             pass
 
 
-_LOGIN_RETRIES = 4  # anti-bot marketscreener chập chờn → thử lại vài lần (mỗi lần 1 context sạch)
+_LOGIN_RETRIES = 1  # 1 lần/scan — thử dồn dập làm IP bị rate-limit nặng hơn, không giúp gì
+
+
+def _headless() -> bool:
+    """headless=False khi MARKETSCREENER_HEADLESS=false (để xem UI khi test local có màn hình)."""
+    return os.environ.get("MARKETSCREENER_HEADLESS", "true").strip().lower() != "false"
 
 
 def _login_probe(pg, u: str, p: str) -> dict[str, Any]:
@@ -57,7 +49,7 @@ def _login_probe(pg, u: str, p: str) -> dict[str, Any]:
     pg.goto(BASE + "/login/", wait_until="domcontentloaded", timeout=45000)
     pg.wait_for_timeout(1800); _cookie(pg)
     if "Access Denied" in (pg.title() or ""):
-        return {"ok": False, "stage": "akamai", "message": "Akamai chặn IP (403). Cần proxy residential/mobile sạch."}
+        return {"ok": False, "stage": "akamai", "message": "Akamai chặn IP (403) — cần chạy từ mạng có IP sạch hoặc nạp cookie phiên."}
     pg.fill("input[type=email]", u)
     pg.click("button:has-text('Continue with an email')"); pg.wait_for_timeout(2200); _cookie(pg)
     pg.wait_for_selector("input[type=password]", timeout=10000)
@@ -72,7 +64,7 @@ def _login_probe(pg, u: str, p: str) -> dict[str, Any]:
     body = pg.inner_text("body").lower()
     if "session has expired" in body:
         return {"ok": False, "stage": "login",
-                "message": "Bị 'session expired' — IP proxy bị anti-bot chặn ở bước login (chập chờn)."}
+                "message": "Bị 'session expired' — IP bị anti-bot chặn ở bước login (chập chờn)."}
     if "invalid" in body or "incorrect" in body or "wrong" in body:
         return {"ok": False, "stage": "login", "message": "Sai tài khoản hoặc mật khẩu."}
     return {"ok": False, "stage": "login", "message": "Đăng nhập không thành công (sai mật khẩu hoặc anti-bot chặn)."}
@@ -115,7 +107,7 @@ def _parse_article(pg, url: str) -> dict[str, Any] | None:
 
 
 def _load_config_from_db() -> None:
-    """Nạp tài khoản/proxy từ app_config (admin cấu hình trên UI) vào os.environ — ƯU TIÊN hơn .env.
+    """Nạp tài khoản từ app_config (admin cấu hình trên UI) vào os.environ — ƯU TIÊN hơn .env.
 
     DB không sẵn sàng → bỏ qua, dùng .env như cũ.
     """
@@ -140,12 +132,10 @@ def fetch(n: int = 5) -> list[dict[str, Any]]:
     if not u or not p:
         raise RuntimeError("Thiếu MARKETSCREENER_USER / MARKETSCREENER_PASS trong cấu hình")
     with sync_playwright() as pw:
-        b = pw.firefox.launch(headless=True)
+        b = pw.firefox.launch(headless=_headless())
         try:
             for attempt in range(_LOGIN_RETRIES):
                 ctx_opts: dict[str, Any] = {"locale": "en-US", "viewport": {"width": 1366, "height": 1000}}
-                if (px := _proxy_opt()):
-                    ctx_opts["proxy"] = px
                 ctx = b.new_context(**ctx_opts)
                 pg = ctx.new_page()
                 try:
@@ -217,12 +207,13 @@ def persist(n: int = 60, dsn: str | None = None) -> int:
     return len(recs)
 
 
-def test_login(retries: int = 3) -> dict[str, Any]:
-    """Chạy thử ĐĂNG NHẬP (thử lại vài lần vì anti-bot chập chờn) → {ok, stage, message} cho nút 'Chạy thử'.
+def test_login(retries: int = 1) -> dict[str, Any]:
+    """Chạy thử ĐĂNG NHẬP (mặc định 1 lần) → {ok, stage, message} cho nút 'Chạy thử'.
 
-    Không lấy bài, chỉ kiểm tra login. Dừng sớm khi thành công / thiếu creds / Akamai chặn.
-    Dùng chung flow _login_probe với fetch().
+    Không lấy bài, chỉ kiểm tra login. Dùng chung flow _login_probe với fetch().
     """
+    import base64
+
     from playwright.sync_api import TimeoutError as PWTimeout
 
     _load_config_from_db()
@@ -231,21 +222,24 @@ def test_login(retries: int = 3) -> dict[str, Any]:
         return {"ok": False, "stage": "config", "message": "Thiếu tài khoản hoặc mật khẩu marketscreener."}
     last: dict[str, Any] = {"ok": False, "stage": "error", "message": "Chưa chạy được."}
     with sync_playwright() as pw:
-        b = pw.firefox.launch(headless=True)
+        b = pw.firefox.launch(headless=_headless())
         try:
             for attempt in range(retries):
                 opts: dict[str, Any] = {"locale": "en-US", "viewport": {"width": 1366, "height": 900}}
-                if (px := _proxy_opt()):
-                    opts["proxy"] = px
                 ctx = b.new_context(**opts)
                 pg = ctx.new_page()
                 try:
                     last = _login_probe(pg, u, p)
                 except PWTimeout:
-                    last = {"ok": False, "stage": "akamai", "message": "Timeout tải trang — proxy không thông hoặc mạng chặn."}
+                    last = {"ok": False, "stage": "akamai", "message": "Timeout tải trang — mạng chặn hoặc quá chậm."}
                 except Exception as exc:  # noqa: BLE001
                     last = {"ok": False, "stage": "error", "message": f"Lỗi: {str(exc)[:120]}"}
                 finally:
+                    try:  # chụp màn hình trang login để hiện lên UI cho admin xem tận mắt
+                        last["screenshot"] = base64.b64encode(
+                            pg.screenshot(type="jpeg", quality=55)).decode()
+                    except Exception:  # noqa: BLE001 - trang có thể đã lỗi/đóng
+                        pass
                     ctx.close()
                 if last["ok"] or last["stage"] in ("config", "akamai"):
                     break

@@ -1,6 +1,6 @@
 """Repository cấu hình hệ thống (app_config) — admin chỉnh trên UI.
 
-Secret (mật khẩu, proxy) KHÔNG bao giờ trả giá trị thật ra API — chỉ trả trạng thái đã đặt.
+Secret (mật khẩu, khóa API) KHÔNG bao giờ trả giá trị thật ra API — chỉ trả trạng thái đã đặt.
 Crawler marketscreener đọc trực tiếp bảng này (ưu tiên hơn .env).
 """
 from __future__ import annotations
@@ -25,8 +25,6 @@ CONFIG_SPEC = [
      "secret": False, "placeholder": "ttkd@vrg.vn"},
     {"key": "MARKETSCREENER_PASS", "group": "marketscreener", "label": "Mật khẩu marketscreener",
      "secret": True, "placeholder": "••••••••"},
-    {"key": "MARKETSCREENER_PROXY", "group": "marketscreener", "label": "Proxy residential (tùy chọn)",
-     "secret": True, "placeholder": "http://user:pass@host:port"},
     # provider=... → chỉ hiện khi LLM_PROVIDER khớp (form hiển thị key+model đúng nhà cung cấp).
     {"key": "LLM_PROVIDER", "group": "ai", "label": "Nhà cung cấp LLM", "secret": False,
      "placeholder": "openai", "options": ["openai"]},

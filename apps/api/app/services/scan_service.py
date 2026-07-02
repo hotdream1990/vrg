@@ -74,7 +74,7 @@ def scan_marketscreener(n: int = 5) -> dict:
 
 
 def test_marketscreener() -> dict:
-    """Chạy thử đăng nhập marketscreener (proxy+creds hiện tại) → {ok, stage, message} cho UI."""
+    """Chạy thử đăng nhập marketscreener (tài khoản hiện tại) → {ok, stage, message} cho UI."""
     proc = subprocess.run(
         ["uv", "run", "--with", "psycopg[binary]", "python", "-m",
          "crawlers.marketscreener", "--test"],
