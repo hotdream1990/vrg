@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from typing import Any
 
 from playwright.sync_api import sync_playwright
@@ -48,16 +49,15 @@ def _cookie(pg) -> None:
             pass
 
 
-def _login(pg) -> bool:
-    u, p = os.environ.get("MARKETSCREENER_USER"), os.environ.get("MARKETSCREENER_PASS")
-    if not u or not p:
-        raise RuntimeError("Thiếu MARKETSCREENER_USER / MARKETSCREENER_PASS trong env")
-    pg.goto(BASE + "/login/", wait_until="domcontentloaded", timeout=45000); pg.wait_for_timeout(1800); _cookie(pg)
+_LOGIN_RETRIES = 4  # anti-bot marketscreener chập chờn → thử lại vài lần (mỗi lần 1 context sạch)
+
+
+def _login_probe(pg, u: str, p: str) -> dict[str, Any]:
+    """1 lần thử đăng nhập (KHÔNG raise) → {ok, stage, message}. Dùng chung cho fetch + test_login."""
+    pg.goto(BASE + "/login/", wait_until="domcontentloaded", timeout=45000)
+    pg.wait_for_timeout(1800); _cookie(pg)
     if "Access Denied" in (pg.title() or ""):
-        raise RuntimeError(
-            "Akamai chặn IP này (403 Access Denied). Chạy từ mạng có IP residential/mobile "
-            "được chấp nhận, hoặc đặt MARKETSCREENER_PROXY=http://user:pass@host:port (residential)."
-        )
+        return {"ok": False, "stage": "akamai", "message": "Akamai chặn IP (403). Cần proxy residential/mobile sạch."}
     pg.fill("input[type=email]", u)
     pg.click("button:has-text('Continue with an email')"); pg.wait_for_timeout(2200); _cookie(pg)
     pg.wait_for_selector("input[type=password]", timeout=10000)
@@ -66,8 +66,16 @@ def _login(pg) -> bool:
         el = pg.query_selector(sel)
         if el and el.is_visible():
             el.click(); break
-    pg.wait_for_timeout(4500)
-    return "login" not in pg.url.lower()
+    pg.wait_for_timeout(5000)
+    if "login" not in pg.url.lower():
+        return {"ok": True, "stage": "done", "message": "Đăng nhập thành công."}
+    body = pg.inner_text("body").lower()
+    if "session has expired" in body:
+        return {"ok": False, "stage": "login",
+                "message": "Bị 'session expired' — IP proxy bị anti-bot chặn ở bước login (chập chờn)."}
+    if "invalid" in body or "incorrect" in body or "wrong" in body:
+        return {"ok": False, "stage": "login", "message": "Sai tài khoản hoặc mật khẩu."}
+    return {"ok": False, "stage": "login", "message": "Đăng nhập không thành công (sai mật khẩu hoặc anti-bot chặn)."}
 
 
 def _article_urls(pg, n: int) -> list[str]:
@@ -126,21 +134,32 @@ def _load_config_from_db() -> None:
 
 
 def fetch(n: int = 5) -> list[dict[str, Any]]:
-    """Đăng nhập + lấy n bài 'Asian physical rubber prices' mới nhất, parse bảng giá."""
+    """Đăng nhập (thử lại vì anti-bot chập chờn) + lấy n bài 'Asian physical rubber prices', parse bảng giá."""
     _load_config_from_db()
-    with sync_playwright() as p:
-        b = p.firefox.launch(headless=True)
-        ctx_opts: dict[str, Any] = {"locale": "en-US", "viewport": {"width": 1366, "height": 1000}}
-        if (px := _proxy_opt()):
-            ctx_opts["proxy"] = px
-        pg = b.new_context(**ctx_opts).new_page()
+    u, p = os.environ.get("MARKETSCREENER_USER"), os.environ.get("MARKETSCREENER_PASS")
+    if not u or not p:
+        raise RuntimeError("Thiếu MARKETSCREENER_USER / MARKETSCREENER_PASS trong cấu hình")
+    with sync_playwright() as pw:
+        b = pw.firefox.launch(headless=True)
         try:
-            if not _login(pg):
-                raise RuntimeError("Đăng nhập marketscreener thất bại")
-            out = [d for u in _article_urls(pg, n) if (d := _parse_article(pg, u))]
+            for attempt in range(_LOGIN_RETRIES):
+                ctx_opts: dict[str, Any] = {"locale": "en-US", "viewport": {"width": 1366, "height": 1000}}
+                if (px := _proxy_opt()):
+                    ctx_opts["proxy"] = px
+                ctx = b.new_context(**ctx_opts)
+                pg = ctx.new_page()
+                try:
+                    if _login_probe(pg, u, p)["ok"]:
+                        return [d for url in _article_urls(pg, n) if (d := _parse_article(pg, url))]
+                except Exception:  # noqa: BLE001 - Akamai/timeout/anti-bot → thử lại
+                    pass
+                finally:
+                    ctx.close()
+                if attempt < _LOGIN_RETRIES - 1:
+                    time.sleep(6)  # nghỉ giữa các lần → tránh rate-limit
+            raise RuntimeError("Đăng nhập marketscreener thất bại sau nhiều lần (anti-bot chặn)")
         finally:
             b.close()
-    return out
 
 
 def _to_usd_tonne(value: float, unit: str, thb: float | None) -> int | None:
@@ -198,9 +217,53 @@ def persist(n: int = 60, dsn: str | None = None) -> int:
     return len(recs)
 
 
+def test_login(retries: int = 3) -> dict[str, Any]:
+    """Chạy thử ĐĂNG NHẬP (thử lại vài lần vì anti-bot chập chờn) → {ok, stage, message} cho nút 'Chạy thử'.
+
+    Không lấy bài, chỉ kiểm tra login. Dừng sớm khi thành công / thiếu creds / Akamai chặn.
+    Dùng chung flow _login_probe với fetch().
+    """
+    from playwright.sync_api import TimeoutError as PWTimeout
+
+    _load_config_from_db()
+    u, p = os.environ.get("MARKETSCREENER_USER"), os.environ.get("MARKETSCREENER_PASS")
+    if not u or not p:
+        return {"ok": False, "stage": "config", "message": "Thiếu tài khoản hoặc mật khẩu marketscreener."}
+    last: dict[str, Any] = {"ok": False, "stage": "error", "message": "Chưa chạy được."}
+    with sync_playwright() as pw:
+        b = pw.firefox.launch(headless=True)
+        try:
+            for attempt in range(retries):
+                opts: dict[str, Any] = {"locale": "en-US", "viewport": {"width": 1366, "height": 900}}
+                if (px := _proxy_opt()):
+                    opts["proxy"] = px
+                ctx = b.new_context(**opts)
+                pg = ctx.new_page()
+                try:
+                    last = _login_probe(pg, u, p)
+                except PWTimeout:
+                    last = {"ok": False, "stage": "akamai", "message": "Timeout tải trang — proxy không thông hoặc mạng chặn."}
+                except Exception as exc:  # noqa: BLE001
+                    last = {"ok": False, "stage": "error", "message": f"Lỗi: {str(exc)[:120]}"}
+                finally:
+                    ctx.close()
+                if last["ok"] or last["stage"] in ("config", "akamai"):
+                    break
+                if attempt < retries - 1:
+                    time.sleep(5)
+        finally:
+            b.close()
+    if not last["ok"] and last.get("stage") == "login":
+        last["message"] += f" (đã thử {retries} lần)"
+    return last
+
+
 if __name__ == "__main__":
     import sys
-    if "--persist" in sys.argv:
+    if "--test" in sys.argv:
+        import json
+        print(json.dumps(test_login(), ensure_ascii=False))
+    elif "--persist" in sys.argv:
         n = next((int(a) for a in sys.argv if a.isdigit()), 60)
         print(f"[marketscreener] upsert {persist(n)} bản ghi physical vào fact_price")
     else:

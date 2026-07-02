@@ -1,13 +1,15 @@
 import { SettingOutlined } from "@ant-design/icons";
-import { App, Button, Form, Input, Select, Space, Tabs, Tag } from "antd";
+import { Alert, App, Button, Form, Input, Select, Space, Tabs, Tag } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
 import {
   type ConfigGroup,
   type ConfigItem,
+  type MsTestResult,
   fetchConfig,
   fetchLlmModels,
   saveConfig,
+  testMarketscreener,
 } from "../../../lib/api-client";
 import "../../bulletin/bulletin.css";
 
@@ -32,6 +34,8 @@ export default function SystemConfigPage() {
   const [groups, setGroups] = useState<ConfigGroup[]>([]);
   const [saving, setSaving] = useState(false);
   const [openaiModels, setOpenaiModels] = useState<string[]>([]);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<MsTestResult | null>(null);
   const [form] = Form.useForm();
   // Nhà cung cấp LLM đang chọn → chỉ hiện key + model đúng provider đó.
   const provider = (Form.useWatch("LLM_PROVIDER", form) as string | undefined) || "openai";
@@ -76,6 +80,18 @@ export default function SystemConfigPage() {
     }
   };
 
+  const onTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      setTestResult(await testMarketscreener());
+    } catch (e) {
+      setTestResult({ ok: false, stage: "error", message: String(e) });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const tabItems = groups.map((g) => ({
     key: g.id,
     label: g.label,
@@ -99,6 +115,20 @@ export default function SystemConfigPage() {
             {fieldInput(c, optionsFor(c))}
           </Form.Item>
         ))}
+        {g.id === "marketscreener" && (
+          <div style={{ marginTop: 4 }}>
+            <Button loading={testing} onClick={onTest}>Chạy thử đăng nhập</Button>
+            <span style={{ marginLeft: 10, color: "var(--muted)", fontSize: 12 }}>
+              Dùng cấu hình đã lưu · thử lại vài lần (anti-bot chập chờn) · ~1–2 phút
+            </span>
+            {testResult && (
+              <Alert style={{ marginTop: 12 }} showIcon
+                type={testResult.ok ? "success" : "error"}
+                message={testResult.ok ? "Đăng nhập được ✓" : "Chưa đăng nhập được"}
+                description={testResult.message} />
+            )}
+          </div>
+        )}
       </div>
     ),
   }));

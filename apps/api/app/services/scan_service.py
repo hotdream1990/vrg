@@ -73,6 +73,24 @@ def scan_marketscreener(n: int = 5) -> dict:
     }
 
 
+def test_marketscreener() -> dict:
+    """Chạy thử đăng nhập marketscreener (proxy+creds hiện tại) → {ok, stage, message} cho UI."""
+    proc = subprocess.run(
+        ["uv", "run", "--with", "psycopg[binary]", "python", "-m",
+         "crawlers.marketscreener", "--test"],
+        cwd=_CRAWLER_DIR, capture_output=True, text=True, timeout=180,
+    )
+    for line in reversed(proc.stdout.strip().splitlines()):
+        s = line.strip()
+        if s.startswith("{"):
+            try:
+                return json.loads(s)
+            except json.JSONDecodeError:
+                pass
+    return {"ok": False, "stage": "error",
+            "message": (proc.stderr[-200:].strip() or "Không đọc được kết quả test")}
+
+
 def scan_and_persist(source: str = "all") -> dict:
     """Quét tất cả nguồn → ghi DB → dict {records, sources, persisted, run_id, db}."""
     if source == "marketscreener":
