@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import {
+  downloadPublished,
   getPublishedDetail,
-  publishedDownloadUrl,
   type BulletinDraft,
 } from "../../../lib/bulletin-client";
 import "../../bulletin/bulletin.css";
@@ -44,9 +44,9 @@ export default function BulletinDetailPage() {
           <p>{name}</p>
         </div>
         <div className="actions">
-          <a className="btn btn-primary" href={publishedDownloadUrl(name)} download>
-            <IconDownload /> Tải PPTX
-          </a>
+          <button className="btn btn-primary" onClick={() => downloadPublished(name).catch((e) => setError(e.message))}>
+            <IconDownload /> Tải
+          </button>
         </div>
       </div>
 

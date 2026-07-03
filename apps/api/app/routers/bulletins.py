@@ -11,7 +11,8 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 
-from app.core.security import require_editor
+from app.core.paths import data_dir
+from app.core.security import get_current_user, require_editor
 from app.schemas.bulletin import BulletinDraft, BulletinDraftUpdate
 from app.services.bulletin_service import (
     create_draft,
@@ -27,14 +28,16 @@ logger = logging.getLogger("vrg.api")
 
 router = APIRouter(prefix="/api/bulletins", tags=["bulletins"])
 
-# Router để mở (phục vụ ảnh <img>/<a>); riêng các thao tác GHI cần admin/editor.
+# Thao tác GHI cần admin/editor; các GET DỮ LIỆU cần đăng nhập (_auth); riêng phần phục vụ
+# ảnh thô <img> (GET /images/{slot}) để mở vì trình duyệt không gắn được Bearer.
 _editor = [Depends(require_editor)]
+_auth = [Depends(get_current_user)]
 
-# ── Image assets paths ──
-_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
-_ASSETS_DIR = _ROOT / "data" / "bulletin-assets"
+# ── Image assets paths (ghi runtime → /app/data qua volume, xem paths.data_dir) ──
+_DATA_DIR = data_dir()
+_ASSETS_DIR = _DATA_DIR / "bulletin-assets"
 _CUSTOM_DIR = _ASSETS_DIR / "custom"
-_OUTPUT_DIR = _ROOT / "data" / "bulletins"
+_OUTPUT_DIR = _DATA_DIR / "bulletins"
 
 # Valid image slots
 _IMAGE_SLOTS = {"cover-front", "cover-back", "header-banner", "footer-banner", "logo-vrg"}
@@ -60,7 +63,7 @@ def api_create_draft(
     return create_draft(rdate, use_crawlers=crawl)
 
 
-@router.get("/draft", response_model=BulletinDraft)
+@router.get("/draft", response_model=BulletinDraft, dependencies=_auth)
 def api_get_draft(
     report_date: str | None = Query(None, description="DD-MM-YYYY"),
 ):
@@ -85,7 +88,7 @@ def api_update_draft(
     return draft
 
 
-@router.get("/drafts")
+@router.get("/drafts", dependencies=_auth)
 def api_list_drafts() -> dict:
     """Danh sách nháp đã lưu (mới nhất trước) — cho trang danh sách bản tin."""
     return {"drafts": list_saved_drafts()}
@@ -144,7 +147,7 @@ def api_generate_pdf(
 # ── Published bulletins (đã xuất) ──
 
 
-@router.get("/published")
+@router.get("/published", dependencies=_auth)
 def api_list_published():
     """Liệt kê các bản tin đã xuất (PPTX/PDF trong data/bulletins/), mới nhất trước."""
     items: list[dict] = []
@@ -164,7 +167,7 @@ def api_list_published():
     return {"bulletins": items}
 
 
-@router.get("/published/{filename}")
+@router.get("/published/{filename}", dependencies=_auth)
 def api_download_published(filename: str):
     """Tải 1 bản tin đã xuất (.pptx/.pdf) trong data/bulletins/ (chặn path traversal)."""
     safe = Path(filename).name
@@ -180,7 +183,7 @@ def api_download_published(filename: str):
     return FileResponse(str(path), media_type=media, filename=safe)
 
 
-@router.get("/published/{filename}/detail", response_model=BulletinDraft)
+@router.get("/published/{filename}/detail", response_model=BulletinDraft, dependencies=_auth)
 def api_published_detail(filename: str):
     """Chi tiết 1 bản tin đã xuất: ưu tiên snapshot JSON, nếu chưa có thì dựng lại từ DB."""
     safe = Path(filename).name
@@ -205,7 +208,7 @@ def api_published_detail(filename: str):
 # ── Image settings endpoints ──
 
 
-@router.get("/images")
+@router.get("/images", dependencies=_auth)
 def api_list_images():
     """Liệt kê tất cả hình ảnh: default + custom (nếu có)."""
     result: list[dict] = []

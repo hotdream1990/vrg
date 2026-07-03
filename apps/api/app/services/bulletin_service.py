@@ -9,6 +9,7 @@ import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from app.core.paths import data_dir
 from app.core.market_meta import (
     CANON_PHYS as _CANON_PHYS,
     CANON_WORLD as _CANON_WORLD,
@@ -460,7 +461,8 @@ def generate_pdf_from_draft(report_date: date) -> Path | None:
     draft = _drafts.get(report_date.isoformat()) or create_draft(report_date)
     data = _draft_to_bulletin_data(draft)
     date_str = data.report_date.strftime("%d-%m-%Y")
-    output = _ROOT / f"data/bulletins/Ban-tin-ngay-{date_str}.pdf"
+    output = data_dir() / f"bulletins/Ban-tin-ngay-{date_str}.pdf"
+    output.parent.mkdir(parents=True, exist_ok=True)
     result = generate_pdf(data, _resolve_assets(), output)
     if result:
         _save_snapshot(output, draft)
@@ -484,7 +486,7 @@ def generate_pptx_from_draft(report_date: date) -> Path | None:
         return None
 
     date_str = rdate.strftime("%d-%m-%Y")
-    output = _ROOT / f"data/bulletins/Ban-tin-ngay-{date_str}.pptx"
+    output = data_dir() / f"bulletins/Ban-tin-ngay-{date_str}.pptx"
     output.parent.mkdir(parents=True, exist_ok=True)
 
     # Resolve custom image overrides (slot → shape_name → file_path)
@@ -510,7 +512,7 @@ _SLOT_TO_SHAPES: dict[str, list[str]] = {
 
 def _resolve_assets() -> dict[str, str]:
     """slot → đường dẫn ảnh active (custom nếu có, ngược lại default) — dùng cho PDF."""
-    assets_dir = _ROOT / "data" / "bulletin-assets"
+    assets_dir = data_dir() / "bulletin-assets"
     custom_dir = assets_dir / "custom"
     out: dict[str, str] = {}
     for slot in _SLOT_TO_SHAPES:
@@ -522,7 +524,7 @@ def _resolve_assets() -> dict[str, str]:
 
 def _resolve_image_overrides() -> dict[str, str] | None:
     """Check custom/ dir for overrides, return shape_name → file_path mapping."""
-    assets_dir = _ROOT / "data" / "bulletin-assets"
+    assets_dir = data_dir() / "bulletin-assets"
     custom_dir = assets_dir / "custom"
 
     overrides: dict[str, str] = {}

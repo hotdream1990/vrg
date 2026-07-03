@@ -108,11 +108,11 @@ export const generateMarketAnalysis = () =>
     method: "POST",
   });
 
-/** POST endpoint trả file → tải về trình duyệt. */
-async function downloadBlob(path: string, filename: string): Promise<void> {
+/** Endpoint trả file (kèm Bearer) → tải về trình duyệt. */
+async function downloadBlob(path: string, filename: string, method: "POST" | "GET" = "POST"): Promise<void> {
   let res: Response;
   try {
-    res = await fetch(`${API}${path}`, { method: "POST", headers: { ...authHeaders() } });
+    res = await fetch(`${API}${path}`, { method, headers: { ...authHeaders() } });
   } catch {
     throw new Error("Không kết nối được API. Kiểm tra API đang chạy ở " + API);
   }
@@ -161,9 +161,9 @@ export type PublishedBulletin = {
 export const listPublished = () =>
   req<{ bulletins: PublishedBulletin[] }>(`/api/bulletins/published`);
 
-/** URL tải 1 bản tin đã xuất. */
-export const publishedDownloadUrl = (filename: string) =>
-  `${API}/api/bulletins/published/${encodeURIComponent(filename)}`;
+/** Tải 1 bản tin đã xuất (GET kèm Bearer → yêu cầu đăng nhập, không lộ file). */
+export const downloadPublished = (filename: string) =>
+  downloadBlob(`/api/bulletins/published/${encodeURIComponent(filename)}`, filename, "GET");
 
 /** Chi tiết 1 bản tin đã xuất (snapshot JSON, fallback dựng từ DB). */
 export const getPublishedDetail = (filename: string) =>

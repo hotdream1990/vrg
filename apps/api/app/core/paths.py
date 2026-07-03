@@ -33,3 +33,10 @@ def bulletin_dir() -> Path:
 def crawlers_dir() -> Path:
     """Thư mục `services/crawlers` (chứa crawler chạy bằng subprocess)."""
     return services_dir() / "crawlers"
+
+
+def data_dir() -> Path:
+    """Thư mục dữ liệu ghi runtime (bản tin đã xuất, ảnh custom). Image gộp → `/app/data`
+    (mount volume để KHÔNG mất khi deploy); dev → `<repo>/data`. Ghi đè: env VRG_DATA_DIR."""
+    env = os.getenv("VRG_DATA_DIR")
+    return Path(env) if env else services_dir().parent / "data"

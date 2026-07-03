@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 
 import {
   deleteDraft,
+  downloadPublished,
   listDrafts,
   listPublished,
-  publishedDownloadUrl,
   type PublishedBulletin,
   type SavedDraft,
 } from "../../../lib/bulletin-client";
@@ -180,9 +180,9 @@ export default function BulletinListPage() {
                       <Link className="btn" to={`/ban-tin/xem/${encodeURIComponent(b.filename)}`}>
                         <IconEye /> Xem
                       </Link>
-                      <a className="btn" href={publishedDownloadUrl(b.filename)} download>
+                      <button className="btn" onClick={() => downloadPublished(b.filename).catch((e) => setError(e.message))}>
                         <IconDownload /> Tải
-                      </a>
+                      </button>
                     </span>
                   </td>
                 </tr>

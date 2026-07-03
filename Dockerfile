@@ -40,6 +40,10 @@ COPY apps/api/app ./app
 COPY services/bulletin/bulletin ./services/bulletin/bulletin
 COPY services/crawlers/crawlers ./services/crawlers/crawlers
 COPY --from=web /web/dist ./web_dist
+# Ảnh mẫu bản tin (logo/banner mặc định) — baked vào image. File ghi runtime (bản tin đã
+# xuất, ảnh custom) nằm ở /app/data → mount volume trong compose để KHÔNG mất khi deploy.
+COPY data/bulletin-assets ./data/bulletin-assets
+RUN mkdir -p ./data/bulletins ./data/bulletin-assets/custom
 EXPOSE 8000
 # Chạy bằng `python -m uvicorn` (tự thêm /app vào sys.path → import được app.main dù
 # package=false) và KHÔNG qua 'uv run' để tránh re-sync/tải gói dev lúc khởi động.
