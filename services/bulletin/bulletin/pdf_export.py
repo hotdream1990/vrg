@@ -40,7 +40,8 @@ def generate_pdf(data: BulletinData, assets: dict[str, str], output_path: str | 
     zero = {"top": "0", "bottom": "0", "left": "0", "right": "0"}
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(channel="chrome")
+        # Chromium bundled của Playwright (cài sẵn trong image) — portable, không cần Google Chrome.
+        browser = pw.chromium.launch()
         page = browser.new_page()
 
         def render(html: str) -> bytes:

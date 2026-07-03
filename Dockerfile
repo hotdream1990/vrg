@@ -35,6 +35,9 @@ COPY services/crawlers/pyproject.toml services/crawlers/uv.lock ./services/crawl
 RUN cd services/crawlers && uv sync --no-dev --frozen \
     && uv run playwright install --with-deps firefox
 
+# Chromium bundled cho XUẤT PDF bản tin (Playwright render HTML→PDF — chỉ Chromium hỗ trợ page.pdf).
+RUN /app/.venv/bin/python -m playwright install --with-deps chromium
+
 # Mã nguồn: app + package bulletin + package crawler + web build
 COPY apps/api/app ./app
 COPY services/bulletin/bulletin ./services/bulletin/bulletin
