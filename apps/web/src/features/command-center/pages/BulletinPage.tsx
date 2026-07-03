@@ -12,6 +12,7 @@ import {
 
 import { useAuth } from "../../auth/AuthContext";
 import BulletinImageSettings from "../../bulletin/BulletinImageSettings";
+import DateInput from "../sections/DateInput";
 import "../../bulletin/bulletin.css";
 
 /* ── SVG Icons ── */
@@ -252,13 +253,8 @@ export default function BulletinPage() {
       {/* Date picker + Create */}
       <div className="blt-toolbar">
         <label className="blt-date-label">
-          Ngày bản tin:
-          <input
-            type="date"
-            className="blt-date-input"
-            value={dateInput}
-            onChange={(e) => setDateInput(e.target.value)}
-          />
+          Ngày bản tin:{" "}
+          <DateInput value={dateInput} onChange={setDateInput} />
         </label>
         <button className="btn btn-primary" onClick={() => handleCreate()} disabled={loading}>
           {loading ? <span className="spinner" /> : <IconZap />} Tạo bản tin

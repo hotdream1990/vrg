@@ -1,3 +1,5 @@
+import DateInput from "./DateInput";
+
 /** Thanh lọc khoảng ngày dùng chung cho các trang Quản lý số liệu. */
 export default function DateRangeBar({
   from, to, onFrom, onTo, onReload, info, children,
@@ -8,11 +10,11 @@ export default function DateRangeBar({
 }) {
   return (
     <div className="blt-toolbar">
-      <label className="blt-date-label">Từ ngày:
-        <input type="date" className="blt-date-input" value={from} onChange={(e) => onFrom(e.target.value)} />
+      <label className="blt-date-label">Từ ngày:{" "}
+        <DateInput value={from} onChange={onFrom} allowClear />
       </label>
-      <label className="blt-date-label">Đến ngày:
-        <input type="date" className="blt-date-input" value={to} onChange={(e) => onTo(e.target.value)} />
+      <label className="blt-date-label">Đến ngày:{" "}
+        <DateInput value={to} onChange={onTo} allowClear />
       </label>
       {(from || to) && (
         <button className="btn" onClick={() => { onFrom(""); onTo(""); }}>Xoá lọc (30 ngày)</button>

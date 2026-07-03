@@ -12,7 +12,9 @@ import {
   fetchFloorPoints,
   fetchFloorSuggest,
 } from "../../../lib/floor-suggest-client";
+import { dmy } from "../../../lib/date";
 import CorrelationChart from "../charts/CorrelationChart";
+import DateInput from "../sections/DateInput";
 import AdjustmentTable from "./components/AdjustmentTable";
 import BacktestPanel from "./components/BacktestPanel";
 import InventoryIndicator from "./components/InventoryIndicator";
@@ -86,12 +88,12 @@ export default function FloorSuggestPage() {
         {mode === "issuance" ? (
           <label className="blt-date-label">Lần ban hành:
             <select className="blt-date-input" value={asOf} onChange={(e) => setAsOf(e.target.value)}>
-              {points.map((p) => <option key={p.as_of} value={p.as_of}>Lần {p.lan} · {p.as_of}</option>)}
+              {points.map((p) => <option key={p.as_of} value={p.as_of}>Lần {p.lan} · {dmy(p.as_of)}</option>)}
             </select>
           </label>
         ) : (
           <label className="blt-date-label">Ngày gợi ý:
-            <input type="date" className="blt-date-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+            <DateInput value={asOf} onChange={setAsOf} />
           </label>
         )}
         <label className="blt-date-label">Mô hình:

@@ -1,4 +1,5 @@
 import { type LatestRow, type ScanResult } from "../../../lib/api-client";
+import { dmy } from "../../../lib/date";
 
 /** Bảng chi tiết giá đã lưu + chip trạng thái nguồn + note nguồn chưa có data. */
 export default function LiveScanTable({
@@ -28,7 +29,7 @@ export default function LiveScanTable({
               <td>{r.unit}</td>
               <td>{r.contract ? r.contract : "—"}</td>
               <td>{r.price_type}</td>
-              <td>{r.as_of}</td>
+              <td>{dmy(r.as_of)}</td>
             </tr>
           ))}
         </tbody>

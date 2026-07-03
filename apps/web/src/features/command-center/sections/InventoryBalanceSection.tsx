@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { dmy } from "../../../lib/date";
 import { type InventoryWeek, fetchInventory } from "../../../lib/inventory-client";
 import InventoryBalanceChart from "../charts/InventoryBalanceChart";
 
@@ -40,7 +41,7 @@ export default function InventoryBalanceSection() {
       )}
       <p style={{ color: "var(--muted)", fontSize: 11, margin: "10px 0 0" }}>
         Đã ký HĐ là phần tồn đã có bên cam kết mua; tồn tự do = tồn tổng − đã ký. Tồn tự do cao ⇒ áp lực bán ⇒ có thể điều chỉnh giá sàn hợp lý hơn để dễ tiêu thụ.
-        {last ? ` Tuần gần nhất ${last.as_of}: tồn ${fmt(last.ton_kho)} tấn = đã ký ${fmt(last.ton_kho_hd)} + tự do ${fmt(free)} tấn.` : ""}
+        {last ? ` Tuần gần nhất ${dmy(last.as_of)}: tồn ${fmt(last.ton_kho)} tấn = đã ký ${fmt(last.ton_kho_hd)} + tự do ${fmt(free)} tấn.` : ""}
       </p>
     </div>
   );

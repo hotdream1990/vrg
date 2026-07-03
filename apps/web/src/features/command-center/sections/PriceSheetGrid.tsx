@@ -6,6 +6,7 @@ import {
   fetchSheet,
   upsertRecord,
 } from "../../../lib/api-client";
+import { dmy } from "../../../lib/date";
 
 const fmt = (v: number | null | undefined, d = 0) =>
   v == null ? "" : v.toLocaleString("vi-VN", { maximumFractionDigits: d });
@@ -115,7 +116,7 @@ export default function PriceSheetGrid({
           <tbody>
             {sheet.rows.map((row) => (
               <tr key={row.as_of}>
-                <td style={{ whiteSpace: "nowrap", fontWeight: 500 }}>{row.as_of}</td>
+                <td style={{ whiteSpace: "nowrap", fontWeight: 500 }}>{dmy(row.as_of)}</td>
                 {cols.map((c) => {
                   const cv = row.cells[c.key] ?? {};
                   const e = c.edit;
@@ -159,7 +160,7 @@ export default function PriceSheetGrid({
           <tbody>
             {sheet.rows.map((row) => (
               <tr key={row.as_of}>
-                <td style={{ whiteSpace: "nowrap", fontWeight: 500 }}>{row.as_of}</td>
+                <td style={{ whiteSpace: "nowrap", fontWeight: 500 }}>{dmy(row.as_of)}</td>
                 {sheet.fx_pairs.map((p) => (
                   <td key={p} className="r">
                     {cell(`${row.as_of}|fxblk|${p}`, row.fx[p], 4,

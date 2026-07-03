@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { type PriceBoard, fetchBoard } from "../../../lib/api-client";
+import { dmy } from "../../../lib/date";
 
 const EX_LABEL: Record<string, string> = {
   OSE: "OSE (TOCOM)",
@@ -67,7 +68,7 @@ export default function ExchangeBoard({ reloadKey = 0 }: { reloadKey?: number })
                   {e.fx_pair && <span style={{ color: "var(--muted)", fontSize: 11 }}> ({e.fx_pair})</span>}
                 </td>
                 <td style={{ textAlign: "right", fontWeight: 600 }}>{fmt(e.usd_tonne)}</td>
-                <td>{e.as_of}</td>
+                <td>{dmy(e.as_of)}</td>
               </tr>
             ))}
             {board.exchanges.length === 0 && (

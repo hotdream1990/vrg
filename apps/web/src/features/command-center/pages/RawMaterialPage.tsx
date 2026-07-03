@@ -8,7 +8,9 @@ import {
   fetchPurchaseSheet,
   upsertRecord,
 } from "../../../lib/api-client";
+import { dmy } from "../../../lib/date";
 import { useAuth } from "../../auth/AuthContext";
+import DateInput from "../sections/DateInput";
 import DateRangeBar from "../sections/DateRangeBar";
 import EditableCell from "../sections/EditableCell";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
@@ -49,7 +51,7 @@ export default function RawMaterialPage() {
     if (newDate && !dates.includes(newDate)) setExtraDates((d) => [...new Set([...d, newDate])]);
   };
   const delDate = (d: string) => {
-    if (!confirm(`Xoá toàn bộ giá thu mua ngày ${d}?`)) return;
+    if (!confirm(`Xoá toàn bộ giá thu mua ngày ${dmy(d)}?`)) return;
     deletePurchaseDate(d)
       .then(() => { setExtraDates((x) => x.filter((e) => e !== d)); load(); })
       .catch((e) => setErr(e.message));
@@ -76,8 +78,7 @@ export default function RawMaterialPage() {
         {canEdit && (
           <>
             <label className="blt-date-label">Thêm ngày:
-              <input type="date" className="blt-date-input" value={newDate}
-                onChange={(e) => setNewDate(e.target.value)} />
+              <DateInput value={newDate} onChange={setNewDate} />
             </label>
             <button className="btn btn-primary" onClick={addDate}>＋ Thêm ngày</button>
           </>
@@ -100,7 +101,7 @@ export default function RawMaterialPage() {
             {dates.map((d) => (
               <tr key={d}>
                 <td style={{ ...STICKY, whiteSpace: "nowrap", fontWeight: 500 }}>
-                  {d}{" "}
+                  {dmy(d)}{" "}
                   {canEdit && (
                     <button className="blt-rm-btn" title="Xoá ngày" onClick={() => delDate(d)}
                       style={{ fontSize: 11 }}>✕</button>

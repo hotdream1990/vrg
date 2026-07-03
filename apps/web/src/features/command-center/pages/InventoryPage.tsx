@@ -8,6 +8,7 @@ import {
   upsertInventory,
 } from "../../../lib/inventory-client";
 import { useAuth } from "../../auth/AuthContext";
+import DateInput from "../sections/DateInput";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import "../../bulletin/bulletin.css";
 
@@ -66,8 +67,7 @@ export default function InventoryPage() {
       {canEdit && (
         <div className="card" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
           <label className="blt-date-label">Ngày tuần
-            <input type="date" className="blt-date-input" value={form.as_of}
-              onChange={(e) => setForm({ ...form, as_of: e.target.value })} />
+            <DateInput value={form.as_of} onChange={(v) => setForm({ ...form, as_of: v })} />
           </label>
           <label className="blt-date-label">Tồn kho (tấn)
             <input className="blt-date-input" inputMode="numeric" value={form.ton_kho} placeholder="vd: 24767"

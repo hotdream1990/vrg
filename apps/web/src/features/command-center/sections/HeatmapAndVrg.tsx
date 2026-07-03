@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 
 import { type PriceBoard, type PriceSheet, fetchBoard, fetchSheet } from "../../../lib/api-client";
+import { dmy } from "../../../lib/date";
 import { getFloor, listFloors } from "../../../lib/floor-client";
 
 type Cmp = { product: string; vrg: number; market: number; marketLabel: string; diffPct: number };
@@ -120,7 +121,7 @@ export default function HeatmapAndVrg() {
         <div className="card-head">
           <div>
             <h3 className={cmpReady ? undefined : "title-demo"}>So sánh Giá sàn Tập đoàn vs Thị trường</h3>
-            {meta && <div className="sub">Giá sàn lần {meta.lan} ({meta.as_of}) · FOB USD/T ↔ giá giao ngay quy đổi</div>}
+            {meta && <div className="sub">Giá sàn lần {meta.lan} ({dmy(meta.as_of)}) · FOB USD/T ↔ giá giao ngay quy đổi</div>}
           </div>
           <span className={`chip ${cmpReady ? "" : "demo"}`}>{cmpReady ? "Dữ liệu thật" : "Chưa có dữ liệu"}</span>
         </div>

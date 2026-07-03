@@ -13,6 +13,7 @@ import {
   updateFloor,
 } from "../../../lib/floor-client";
 import { useAuth } from "../../auth/AuthContext";
+import DateInput from "../sections/DateInput";
 import DateRangeBar from "../sections/DateRangeBar";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import "../../bulletin/bulletin.css";
@@ -141,8 +142,8 @@ export default function VrgFloorPage() {
             <h3>{isNew ? `Biểu giá mới — lần ${draft.lan}` : `Sửa biểu giá — lần ${draft.lan}`}</h3>
             <div className="blt-section-meta" style={{ alignItems: "center" }}>
               <label className="blt-date-label">Ngày áp dụng:
-                <input type="date" className="blt-date-input" value={draft.as_of} readOnly={!canEdit}
-                  onChange={(e) => setDraft({ ...draft, as_of: e.target.value })} />
+                <DateInput value={draft.as_of} readOnly={!canEdit}
+                  onChange={(v) => setDraft({ ...draft, as_of: v })} />
               </label>
               {canEdit && (
                 <>

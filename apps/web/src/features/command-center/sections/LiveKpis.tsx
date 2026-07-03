@@ -1,4 +1,5 @@
 import { type LatestRow } from "../../../lib/api-client";
+import { dmy } from "../../../lib/date";
 
 // 4 chỉ số đầu báo (mỗi sàn 1 grade tiêu biểu).
 const HEADLINE = [
@@ -27,7 +28,7 @@ export default function LiveKpis({ latest, deltas }: { latest: LatestRow[]; delt
             ) : (
               <span className="delta flat">{r ? r.unit : "chưa có data"}</span>
             )}
-            <div className="sub">{r ? `${r.unit} · ${r.price_type} · ${r.as_of}` : "—"}</div>
+            <div className="sub">{r ? `${r.unit} · ${r.price_type} · ${dmy(r.as_of)}` : "—"}</div>
           </div>
         );
       })}
