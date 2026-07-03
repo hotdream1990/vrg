@@ -369,16 +369,16 @@ def get_draft(report_date: date) -> BulletinDraft | None:
     return _drafts.get(report_date.isoformat())
 
 
-def update_draft(report_date: date, updates: BulletinDraftUpdate) -> BulletinDraft | None:
-    """Merge admin edits vào draft hiện có."""
-    draft = _drafts.get(report_date.isoformat())
-    if not draft:
-        return None
+def update_draft(report_date: date, updates: BulletinDraftUpdate) -> BulletinDraft:
+    """Merge admin edits vào draft. Tự dựng lại draft từ DB nếu bộ nhớ chưa có (vd sau khi
+    restart server / mở phiên khác) → nút Lưu luôn chạy, giữ nguyên phần text admin gửi lên."""
+    draft = _drafts.get(report_date.isoformat()) or create_draft(report_date)
 
     for field, value in updates.model_dump(exclude_unset=True).items():
         if value is not None:
             setattr(draft, field, value)
 
+    _drafts[report_date.isoformat()] = draft
     return draft
 
 
