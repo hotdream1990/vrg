@@ -77,6 +77,7 @@ export default function BulletinPage() {
   const [exporting, setExporting] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [dateInput, setDateInput] = useState(() => {
@@ -109,6 +110,7 @@ export default function BulletinPage() {
     if (!draft) return;
     setSaving(true);
     setError(null);
+    setNotice(null);
     try {
       const updated = await updateDraft(
         {
@@ -120,8 +122,10 @@ export default function BulletinPage() {
         dateStr()
       );
       setDraft(updated);
+      setNotice("Đã lưu bản tin.");
+      setTimeout(() => setNotice(null), 2500);
     } catch (e: any) {
-      setError(e.message);
+      setError(`Lưu thất bại: ${e?.message || e}`);
     } finally {
       setSaving(false);
     }
@@ -257,6 +261,13 @@ export default function BulletinPage() {
       />
 
       {error && <div className="blt-error"><IconAlertCircle /> {error}</div>}
+      {notice && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#16a34a",
+          background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8,
+          padding: "8px 12px", fontSize: 13, marginTop: 8 }}>
+          <IconCheck /> {notice}
+        </div>
+      )}
 
       {!draft && !loading && (
         <div className="blt-empty">
