@@ -158,6 +158,9 @@ def _build_market_text(world_prices, physical_prices) -> tuple[list[str], str]:
 # ── In-memory draft store (1 draft per date, MVP) ──
 _drafts: dict[str, BulletinDraft] = {}
 
+# Field text admin sửa — được lưu bền vào bulletin_draft (giá luôn dựng lại từ DB).
+_EDITABLE = ("exchange_summary", "physical_summary", "market_analysis", "source_urls")
+
 
 
 def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
@@ -361,6 +364,18 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
         data_sources=data_sources,
     )
 
+    # Áp overrides admin đã lưu (nếu có) → mở lại thấy đúng phần đã sửa; giá vẫn dựng mới từ DB.
+    try:
+        from app.services import draft_repo
+        overrides = draft_repo.get_overrides(date_key)
+    except Exception as exc:  # noqa: BLE001 - DB down → bỏ qua, dùng bản vừa dựng
+        print(f"[bulletin] Không đọc được nháp đã lưu: {exc}")
+        overrides = None
+    if overrides:
+        for f in _EDITABLE:
+            if overrides.get(f) is not None:
+                setattr(draft, f, overrides[f])
+
     _drafts[date_key] = draft
     return draft
 
@@ -370,8 +385,8 @@ def get_draft(report_date: date) -> BulletinDraft | None:
 
 
 def update_draft(report_date: date, updates: BulletinDraftUpdate) -> BulletinDraft:
-    """Merge admin edits vào draft. Tự dựng lại draft từ DB nếu bộ nhớ chưa có (vd sau khi
-    restart server / mở phiên khác) → nút Lưu luôn chạy, giữ nguyên phần text admin gửi lên."""
+    """Merge admin edits vào draft + LƯU BỀN vào DB (bulletin_draft). Tự dựng lại draft từ DB
+    nếu bộ nhớ chưa có (restart / phiên khác) → Lưu luôn chạy, giữ nguyên text admin."""
     draft = _drafts.get(report_date.isoformat()) or create_draft(report_date)
 
     for field, value in updates.model_dump(exclude_unset=True).items():
@@ -379,7 +394,25 @@ def update_draft(report_date: date, updates: BulletinDraftUpdate) -> BulletinDra
             setattr(draft, field, value)
 
     _drafts[report_date.isoformat()] = draft
+    try:
+        from app.services import draft_repo
+        draft_repo.save_draft(report_date.isoformat(), {f: getattr(draft, f) for f in _EDITABLE})
+    except Exception as exc:  # noqa: BLE001 - DB down → vẫn giữ nháp trong RAM
+        print(f"[bulletin] Không lưu được nháp vào DB: {exc}")
     return draft
+
+
+def list_saved_drafts() -> list[dict]:
+    """Danh sách nháp đã lưu (cho trang danh sách bản tin)."""
+    from app.services import draft_repo
+    return draft_repo.list_drafts()
+
+
+def delete_saved_draft(report_date: date) -> int:
+    """Xoá nháp 1 ngày (DB + bộ nhớ)."""
+    _drafts.pop(report_date.isoformat(), None)
+    from app.services import draft_repo
+    return draft_repo.delete_draft(report_date.isoformat())
 
 
 def _draft_to_bulletin_data(draft: BulletinDraft):

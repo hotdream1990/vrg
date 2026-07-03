@@ -15,9 +15,11 @@ from app.core.security import require_editor
 from app.schemas.bulletin import BulletinDraft, BulletinDraftUpdate
 from app.services.bulletin_service import (
     create_draft,
+    delete_saved_draft,
     generate_pdf_from_draft,
     generate_pptx_from_draft,
     get_draft,
+    list_saved_drafts,
     update_draft,
 )
 
@@ -81,6 +83,18 @@ def api_update_draft(
     if not draft:
         raise HTTPException(404, f"Chưa có draft cho ngày {rdate.isoformat()}")
     return draft
+
+
+@router.get("/drafts")
+def api_list_drafts() -> dict:
+    """Danh sách nháp đã lưu (mới nhất trước) — cho trang danh sách bản tin."""
+    return {"drafts": list_saved_drafts()}
+
+
+@router.delete("/draft", dependencies=_editor)
+def api_delete_draft(report_date: str | None = Query(None, description="DD-MM-YYYY")) -> dict:
+    """Xoá nháp 1 ngày (DB + bộ nhớ)."""
+    return {"deleted": delete_saved_draft(_parse_date(report_date))}
 
 
 @router.post("/market-analysis", dependencies=_editor)

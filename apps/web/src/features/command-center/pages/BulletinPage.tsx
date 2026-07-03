@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 
 import type { BulletinDraft } from "../../../lib/bulletin-client";
 import {
@@ -80,7 +80,10 @@ export default function BulletinPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
+  const [searchParams] = useSearchParams();
   const [dateInput, setDateInput] = useState(() => {
+    const q = searchParams.get("date"); // mở lại nháp từ danh sách: ?date=YYYY-MM-DD
+    if (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) return q;
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return d.toISOString().slice(0, 10); // YYYY-MM-DD for <input type=date>
@@ -93,7 +96,7 @@ export default function BulletinPage() {
 
   /* ── Actions ── */
 
-  const handleCreate = async () => {
+  const handleCreate = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -104,7 +107,15 @@ export default function BulletinPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateStr]);
+
+  // Mở từ danh sách nháp (?date=…) → tự tạo/nạp draft (áp overrides đã lưu) một lần.
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current || !searchParams.get("date")) return;
+    openedRef.current = true;
+    handleCreate();
+  }, [searchParams, handleCreate]);
 
   const handleSave = async () => {
     if (!draft) return;

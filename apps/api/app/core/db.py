@@ -102,6 +102,12 @@ CREATE TABLE IF NOT EXISTS schedule_job (
     enabled     boolean NOT NULL DEFAULT true,
     updated_at  timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS bulletin_draft (
+    report_date  date PRIMARY KEY,
+    payload      jsonb NOT NULL,
+    updated_at   timestamptz NOT NULL DEFAULT now()
+);
 """
 
 # Hypertable tách riêng: cần extension timescaledb; nếu thiếu, bảng vẫn dùng được.

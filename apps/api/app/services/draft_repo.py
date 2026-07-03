@@ -1,0 +1,60 @@
+"""Repository bản nháp bản tin (bulletin_draft) — lưu bền phần TEXT admin sửa, theo report_date.
+
+Giá (sàn/physical/floor/mủ) luôn dựng lại từ DB khi mở bản tin; bảng này chỉ giữ overrides
+admin (exchange_summary, physical_summary, market_analysis, source_urls) để không mất khi
+restart và để hiện trong danh sách "Nháp".
+"""
+from __future__ import annotations
+
+import json
+from typing import Any
+
+from sqlalchemy import text
+
+from app.core.db import ensure_schema, session_scope
+
+
+def save_draft(report_date: str, payload: dict[str, Any]) -> None:
+    """Lưu/ghi đè overrides của 1 ngày (report_date dạng YYYY-MM-DD)."""
+    ensure_schema()
+    with session_scope() as db:
+        db.execute(
+            text("INSERT INTO bulletin_draft (report_date, payload, updated_at) "
+                 "VALUES (CAST(:d AS date), CAST(:p AS jsonb), now()) "
+                 "ON CONFLICT (report_date) DO UPDATE SET payload = EXCLUDED.payload, updated_at = now()"),
+            {"d": report_date, "p": json.dumps(payload, ensure_ascii=False)},
+        )
+
+
+def get_overrides(report_date: str) -> dict[str, Any] | None:
+    """Overrides đã lưu cho 1 ngày (None nếu chưa có nháp). psycopg trả jsonb → dict sẵn."""
+    ensure_schema()
+    with session_scope() as db:
+        row = db.execute(
+            text("SELECT payload FROM bulletin_draft WHERE report_date = CAST(:d AS date)"),
+            {"d": report_date},
+        ).mappings().first()
+        return dict(row["payload"]) if row else None
+
+
+def list_drafts() -> list[dict[str, Any]]:
+    """Danh sách nháp đã lưu (mới nhất trước) cho trang danh sách bản tin."""
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(text(
+            "SELECT report_date, updated_at FROM bulletin_draft ORDER BY report_date DESC"
+        )).mappings().all()
+        return [
+            {"report_date": str(r["report_date"]),
+             "updated_at": r["updated_at"].isoformat(timespec="seconds")}
+            for r in rows
+        ]
+
+
+def delete_draft(report_date: str) -> int:
+    """Xoá nháp 1 ngày. Trả số dòng đã xoá."""
+    with session_scope() as db:
+        return db.execute(
+            text("DELETE FROM bulletin_draft WHERE report_date = CAST(:d AS date)"),
+            {"d": report_date},
+        ).rowcount

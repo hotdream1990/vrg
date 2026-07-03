@@ -169,6 +169,18 @@ export const publishedDownloadUrl = (filename: string) =>
 export const getPublishedDetail = (filename: string) =>
   req<BulletinDraft>(`/api/bulletins/published/${encodeURIComponent(filename)}/detail`);
 
+// ── Bản nháp đã lưu (chưa xuất) ──
+
+export type SavedDraft = { report_date: string; updated_at: string };
+
+/** Liệt kê nháp đã lưu (report_date dạng YYYY-MM-DD, mới nhất trước). */
+export const listDrafts = () =>
+  req<{ drafts: SavedDraft[] }>(`/api/bulletins/drafts`);
+
+/** Xoá nháp 1 ngày (dateStr dạng DD-MM-YYYY). */
+export const deleteDraft = (dateStr: string) =>
+  req<{ deleted: number }>(`/api/bulletins/draft?report_date=${dateStr}`, { method: "DELETE" });
+
 // ── Image settings ──
 
 export type ImageSlot = {
