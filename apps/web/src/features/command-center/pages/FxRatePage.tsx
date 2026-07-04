@@ -2,6 +2,7 @@ import { SwapOutlined } from "@ant-design/icons";
 import { useState } from "react";
 
 import { useAuth } from "../../auth/AuthContext";
+import DataSourceNote from "../sections/DataSourceNote";
 import DateRangeBar from "../sections/DateRangeBar";
 import PriceSheetGrid from "../sections/PriceSheetGrid";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
@@ -25,6 +26,7 @@ export default function FxRatePage() {
       </div>
 
       <ReadOnlyNotice />
+      <DataSourceNote page="fx" />
       <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo}>
         {canEdit && (
           <ScanNowButton source="fx" label="Quét tỷ giá" onDone={() => setReloadKey((k) => k + 1)} />

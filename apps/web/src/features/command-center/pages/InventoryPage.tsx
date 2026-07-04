@@ -9,6 +9,7 @@ import {
 } from "../../../lib/inventory-client";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
+import DataSourceNote from "../sections/DataSourceNote";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import "../../bulletin/bulletin.css";
 
@@ -63,6 +64,7 @@ export default function InventoryPage() {
       </div>
 
       <ReadOnlyNotice />
+      <DataSourceNote page="inventory" />
 
       {canEdit && (
         <div className="card" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>

@@ -3,7 +3,7 @@ import {
   BulbOutlined,
   ClockCircleOutlined,
   DashboardOutlined,
-  DatabaseOutlined,
+  EditOutlined,
   ExperimentOutlined,
   FileTextOutlined,
   FundOutlined,
@@ -12,6 +12,7 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  RobotOutlined,
   SafetyOutlined,
   SettingOutlined,
   SwapOutlined,
@@ -34,10 +35,15 @@ const MENU = [
   { key: "/", icon: <DashboardOutlined />, label: "Dashboard" },
   { key: "/quet-da-san", icon: <ThunderboltOutlined />, label: "Quét Đa sàn" },
   {
-    key: "data", icon: <DatabaseOutlined />, label: "Quản lý số liệu",
+    key: "data-auto", icon: <RobotOutlined />, label: "Quản lý số liệu (tự động)",
     children: [
       { key: "/quan-ly-so-lieu/bang-gia-san", icon: <TableOutlined />, label: "Bảng tính giá các sàn" },
       { key: "/quan-ly-so-lieu/ty-gia", icon: <SwapOutlined />, label: "Tỷ giá" },
+    ],
+  },
+  {
+    key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)",
+    children: [
       { key: "/quan-ly-so-lieu/gia-san-tap-doan", icon: <BankOutlined />, label: "Giá sàn Tập đoàn" },
       { key: "/quan-ly-so-lieu/gia-mu-nguyen-lieu", icon: <ExperimentOutlined />, label: "Giá mủ nguyên liệu" },
       { key: "/quan-ly-so-lieu/gia-physical", icon: <FundOutlined />, label: "Giá Physical" },
@@ -85,7 +91,7 @@ export default function AdminLayout() {
   return (
     <Layout style={{ minHeight: "100vh" }}>
       <Sider
-        collapsible trigger={null} width={236}
+        collapsible trigger={null} width={288}
         breakpoint="lg" collapsedWidth={broken ? 0 : 80}
         collapsed={collapsed}
         onCollapse={setCollapsed}
@@ -110,7 +116,7 @@ export default function AdminLayout() {
         </div>
         <Menu
           theme="dark" mode="inline"
-          selectedKeys={[selected]} defaultOpenKeys={["data", "admin"]}
+          selectedKeys={[selected]} defaultOpenKeys={["data-auto", "data-manual", "admin"]}
           items={menuItems}
           onClick={(e) => { nav(e.key); if (broken) setCollapsed(true); }}
         />

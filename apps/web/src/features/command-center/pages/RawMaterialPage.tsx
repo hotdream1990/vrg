@@ -11,6 +11,7 @@ import {
 import { dmy } from "../../../lib/date";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
+import DataSourceNote from "../sections/DataSourceNote";
 import DateRangeBar from "../sections/DateRangeBar";
 import EditableCell from "../sections/EditableCell";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
@@ -72,6 +73,7 @@ export default function RawMaterialPage() {
       </div>
 
       <ReadOnlyNotice />
+      <DataSourceNote page="raw-material" />
 
       <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo} onReload={load}
         info={`${dates.length} ngày · ${companies.length} đơn vị`}>

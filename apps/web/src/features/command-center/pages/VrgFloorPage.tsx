@@ -14,6 +14,7 @@ import {
 } from "../../../lib/floor-client";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
+import DataSourceNote from "../sections/DataSourceNote";
 import DateRangeBar from "../sections/DateRangeBar";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import "../../bulletin/bulletin.css";
@@ -112,6 +113,7 @@ export default function VrgFloorPage() {
       </div>
 
       <ReadOnlyNotice />
+      <DataSourceNote page="vrg-floor" />
 
       <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo}
         info={`${list.length} biểu giá`} />

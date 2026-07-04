@@ -179,3 +179,29 @@ td.flat{color:#64748b}
   .row{flex-wrap:wrap}
 }
 [id^="sec-"],#top{scroll-margin-top:20px}
+
+/* ── GHI CHÚ NGUỒN SỐ LIỆU (hộp gập tự động / thủ công) ── */
+.dsn{border:1px solid var(--line);border-left-width:4px;border-radius:12px;background:var(--panel);margin-bottom:16px;overflow:hidden}
+.dsn-auto{border-left-color:var(--accent)}
+.dsn-manual{border-left-color:var(--warn)}
+.dsn-head{width:100%;display:flex;align-items:center;gap:12px;padding:11px 16px;background:none;border:0;cursor:pointer;text-align:left;font:inherit;color:var(--text)}
+.dsn-head:hover{background:var(--panel-2)}
+.dsn-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.dsn-auto .dsn-badge{background:#16a34a1f;color:#0b7a3b}
+.dsn-manual .dsn-badge{background:#f59e0b22;color:#a96a00}
+.dsn-tagline{flex:1;color:var(--muted);font-size:13px;min-width:0}
+.dsn-toggle{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:12px;white-space:nowrap}
+.dsn-body{padding:2px 16px 14px;border-top:1px solid var(--line)}
+.dsn-intro{margin:12px 0;color:var(--text);font-size:13px}
+.dsn-source{padding:12px 0;border-top:1px dashed var(--line)}
+.dsn-source:first-of-type{border-top:0}
+.dsn-source-name{font-weight:700;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dsn-method{font-weight:500;font-size:11px;color:var(--muted);background:var(--panel-2);padding:2px 8px;border-radius:6px}
+.dsn-kv{display:grid;grid-template-columns:96px 1fr;gap:6px 14px;margin:0;font-size:13px}
+.dsn-kv dt{color:var(--muted);font-weight:600}
+.dsn-kv dd{margin:0;min-width:0}
+.dsn-kv ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px}
+.dsn-kv code,.dsn-url{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--panel-2);padding:1px 6px;border-radius:5px;word-break:break-word}
+.dsn-link{color:#0369a1;text-decoration:underline;word-break:break-all}
+.dsn-caveats{margin:12px 0 0;padding-left:18px;color:var(--muted);font-size:12.5px;display:flex;flex-direction:column;gap:4px}
+@media (max-width:768px){.dsn-kv{grid-template-columns:1fr;gap:2px 0}.dsn-kv dt{margin-top:6px}.dsn-tagline{display:none}}

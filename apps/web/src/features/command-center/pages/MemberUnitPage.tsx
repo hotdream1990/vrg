@@ -10,6 +10,7 @@ import {
   updateUnit,
 } from "../../../lib/member-unit-client";
 import { useAuth } from "../../auth/AuthContext";
+import DataSourceNote from "../sections/DataSourceNote";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import "../../bulletin/bulletin.css";
 
@@ -66,6 +67,7 @@ export default function MemberUnitPage() {
       </div>
 
       <ReadOnlyNotice />
+      <DataSourceNote page="member-unit" />
 
       <div className="blt-toolbar">
         {canEdit && (
