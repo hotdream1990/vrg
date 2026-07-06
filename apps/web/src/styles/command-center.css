@@ -156,7 +156,7 @@ td.flat{color:#64748b}
 .db-badge.warn{background:#f59e0b22;color:#a96a00}
 .db-badge.err{background:#dc26261f;color:#b91c1c}
 .src-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.src-chip{font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid var(--line)}
+.src-chip{font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid var(--line);display:inline-flex;align-items:center;gap:4px}
 .src-chip.ok{background:#16a34a1f;color:#0b7a3b}
 .src-chip.bad{background:#f59e0b22;color:#a96a00}
 .scan-empty{color:var(--muted);font-size:13px;padding:18px 0;text-align:center}

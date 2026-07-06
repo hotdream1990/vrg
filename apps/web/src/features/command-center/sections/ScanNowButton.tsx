@@ -1,7 +1,7 @@
-import { SyncOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, ExclamationCircleOutlined, SyncOutlined } from "@ant-design/icons";
 import { useState } from "react";
 
-import { scanPrices } from "../../../lib/api-client";
+import { type ScanResult, type SourceStatus, scanPrices } from "../../../lib/api-client";
 
 type Props = {
   /** Mã nguồn truyền cho /scan (vd "all", "fx", "shfe,tocom,lgm,sgx"). */
@@ -11,37 +11,68 @@ type Props = {
   onDone?: () => void;
 };
 
-/** Nút "Quét ngay" theo nguồn — chủ động trigger crawl tại đúng màn liên quan. */
+/** Tên hiển thị thân thiện cho từng mã nguồn crawler. */
+const NAMES: Record<string, string> = { shfe: "SHFE", tocom: "OSE", sgx: "SGX", lgm: "MRB", fx: "Tỷ giá" };
+const friendly = (s: string) => NAMES[s] ?? s.toUpperCase();
+
+/** Lỗi tầng mạng (không kết nối được nguồn) → hiển thị "lỗi mạng" cho dễ hiểu. */
+const isNetErr = (note?: string | null) =>
+  !!note && /route to host|EHOSTUNREACH|Errno 113|timed out|timeout|connection|getaddrinfo|resolve/i.test(note);
+
+type Chip = { key: string; label: string; ok: boolean; title: string };
+type Result = { tone: "ok" | "warn" | "err"; summary: string; chips: Chip[] };
+
+const build = (r: ScanResult): Result => {
+  const errs = r.sources.filter((s) => s.status === "error");
+  const oks = r.sources.filter((s) => s.status !== "error");
+  const chips: Chip[] = r.sources.map((s: SourceStatus) => ({
+    key: s.source,
+    label: s.status === "error"
+      ? `${friendly(s.source)} · ${isNetErr(s.note) ? "lỗi mạng" : "lỗi"}`
+      : `${friendly(s.source)} · ${s.count}`,
+    ok: s.status !== "error",
+    title: s.status === "error" ? (s.note || "Lỗi không xác định") : `${s.count} bản ghi`,
+  }));
+  if (errs.length === 0)
+    return { tone: "ok", summary: `Đã ghi ${r.persisted} bản ghi · ${oks.length}/${r.sources.length} nguồn OK`, chips };
+  if (oks.length > 0)
+    return { tone: "warn", summary: `Đã ghi ${r.persisted} bản ghi · ${oks.length}/${r.sources.length} nguồn OK, ${errs.length} lỗi`, chips };
+  return { tone: "err", summary: "Không quét được nguồn nào", chips };
+};
+
+/** Nút "Quét ngay" theo nguồn — báo rõ nguồn nào OK / nguồn nào lỗi (không đánh đồng lỗi cả cụm). */
 export default function ScanNowButton({ source, label, onDone }: Props) {
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [result, setResult] = useState<Result | null>(null);
 
   const run = async () => {
     setBusy(true);
-    setMsg(null);
+    setResult(null);
     try {
       const r = await scanPrices(source);
-      const errored = r.sources.find((s) => s.status === "error");
-      if (errored) {
-        setMsg({ ok: false, text: errored.note?.slice(0, 90) || "Quét thất bại" });
-      } else {
-        setMsg({ ok: true, text: `Đã ghi ${r.persisted} bản ghi` });
-        onDone?.();
-      }
+      setResult(build(r));
+      if (r.persisted > 0) onDone?.();  // có bản ghi mới → nạp lại lưới, dù 1 nguồn lỗi
     } catch (e) {
-      setMsg({ ok: false, text: String(e).slice(0, 90) });
+      setResult({ tone: "err", summary: String(e).slice(0, 90), chips: [] });
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
       <button className="btn" onClick={run} disabled={busy}>
         {busy ? <><span className="spinner" /> Đang quét…</> : <><SyncOutlined /> {label}</>}
       </button>
-      {msg && (
-        <span className={`db-badge ${msg.ok ? "ok" : "err"}`} title={msg.text}>{msg.text}</span>
+      {result && (
+        <>
+          <span className={`db-badge ${result.tone}`}>{result.summary}</span>
+          {result.chips.map((c) => (
+            <span key={c.key} className={`src-chip ${c.ok ? "ok" : "bad"}`} title={c.title}>
+              {c.ok ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />} {c.label}
+            </span>
+          ))}
+        </>
       )}
     </span>
   );
