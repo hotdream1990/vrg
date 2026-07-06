@@ -1,0 +1,198 @@
+import { CheckCircleOutlined, SolutionOutlined } from "@ant-design/icons";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { dmy } from "../../../lib/date";
+import {
+  type MarketQuote,
+  type MarketQuoteSummary,
+  type Section,
+  deleteQuote,
+  emptyQuote,
+  fetchQuoteMeta,
+  getQuote,
+  isEmptyQuote,
+  listQuotes,
+  saveQuote,
+} from "../../../lib/market-quote-client";
+import { useAuth } from "../../auth/AuthContext";
+import DataSourceNote from "../sections/DataSourceNote";
+import DateInput from "../sections/DateInput";
+import DateRangeBar from "../sections/DateRangeBar";
+import ReadOnlyNotice from "../sections/ReadOnlyNotice";
+import GradePriceTable from "./components/GradePriceTable";
+import RegionLatexTable from "./components/RegionLatexTable";
+import VcbRateBar from "./components/VcbRateBar";
+import "../../bulletin/bulletin.css";
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+type SectKey = "domestic_private" | "export_vrg" | "domestic_vrg";
+
+/** Quản lý số liệu → Báo giá mủ thị trường: 1 phiếu/ngày, TỰ LƯU (auto-save) khi nhập. */
+export default function MarketQuotePage() {
+  const { canEdit } = useAuth();
+  const [grades, setGrades] = useState<string[]>([]);
+  const [units, setUnits] = useState<string[]>([]);
+  const [list, setList] = useState<MarketQuoteSummary[]>([]);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [draft, setDraft] = useState<MarketQuote | null>(null);
+  const [isNew, setIsNew] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [savedAt, setSavedAt] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const lastSaved = useRef("");
+  const timer = useRef<number | null>(null);
+
+  useEffect(() => {
+    fetchQuoteMeta().then((m) => { setGrades(m.grades); setUnits(m.units); }).catch(() => {});
+  }, []);
+  const loadList = useCallback(() => {
+    listQuotes(from || undefined, to || undefined).then(setList).catch((e) => setErr(e.message));
+  }, [from, to]);
+  useEffect(() => { loadList(); }, [loadList]);
+
+  // Auto-save: nhập xong ~0.9s tự lưu (bỏ qua khi phiếu còn trống / chưa đổi gì).
+  useEffect(() => {
+    if (!draft || !canEdit) return;
+    const json = JSON.stringify(draft);
+    if (json === lastSaved.current || isEmptyQuote(draft)) return;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      setSaveState("saving"); setErr("");
+      saveQuote(draft).then(() => {
+        lastSaved.current = json;
+        setSaveState("saved"); setSavedAt(new Date().toLocaleTimeString("vi-VN"));
+        setIsNew(false); loadList();
+      }).catch((e) => { setSaveState("error"); setErr(e instanceof Error ? e.message : "Lỗi lưu"); });
+    }, 900);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [draft, canEdit, loadList]);
+
+  const openDate = async (as_of: string) => {
+    setErr("");
+    try {
+      const q = await getQuote(as_of);
+      lastSaved.current = JSON.stringify(q); setSaveState("idle"); setSavedAt("");
+      setIsNew(false); setDraft(q);
+    } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
+  };
+  // Tạo mới / đổi ngày: ngày ĐÃ CÓ phiếu → mở cái cũ (chống trùng, không báo lỗi);
+  // ngày trống → phiếu mới (keepData: giữ dữ liệu đang nhập khi chỉ đổi ngày).
+  const startAt = async (as_of: string, keepData = false) => {
+    setErr("");
+    try {
+      if ((await listQuotes(as_of, as_of)).length > 0) { await openDate(as_of); return; }
+      lastSaved.current = ""; setSaveState("idle"); setSavedAt(""); setIsNew(true);
+      setDraft((d) => (keepData && d ? { ...d, as_of } : emptyQuote(as_of, grades)));
+    } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
+  };
+  const startNew = () => { void startAt(todayISO()); };
+
+  const setSect = (k: SectKey, patch: Partial<Section>) =>
+    setDraft((d) => d && { ...d, [k]: { ...d[k], ...patch } });
+  const setPrice = (k: SectKey, g: string, v: number | null) =>
+    setDraft((d) => d && { ...d, [k]: { ...d[k], prices: { ...d[k].prices, [g]: v } } });
+  const setStatus = (g: string, v: string) =>
+    setDraft((d) => d && { ...d, domestic_vrg: { ...d.domestic_vrg, status: { ...d.domestic_vrg.status, [g]: v } } });
+  const setRegion = (u: string, v: number | null) =>
+    setDraft((d) => d && { ...d, regions: { ...d.regions, [u]: v } });
+
+  const remove = async () => {
+    if (!draft || !confirm(`Xoá phiếu báo giá ngày ${dmy(draft.as_of)}? (Giá mủ nước đã đồng bộ vẫn giữ)`)) return;
+    setBusy(true);
+    try { await deleteQuote(draft.as_of); setDraft(null); loadList(); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Lỗi xoá"); }
+    finally { setBusy(false); }
+  };
+
+  const statusText = saveState === "saving" ? "Đang lưu…"
+    : saveState === "saved" ? `Đã lưu lúc ${savedAt}`
+    : saveState === "error" ? "Lỗi lưu — sửa lại để thử lại" : "Tự lưu khi nhập";
+
+  return (
+    <div className="main">
+      <div className="page-title">
+        <div>
+          <h2><SolutionOutlined style={{ marginRight: 8 }} />Báo giá mủ thị trường</h2>
+          <p>Phiếu báo giá theo ngày: tỷ giá VCB · giá SVR (tư nhân/VRG XK/VRG nội địa) · giá mủ nước khu vực. Tự lưu khi nhập.</p>
+        </div>
+        {canEdit && (
+          <div className="actions">
+            <button className="btn btn-primary" onClick={startNew}>＋ Tạo phiếu mới</button>
+          </div>
+        )}
+      </div>
+
+      <ReadOnlyNotice />
+      <DataSourceNote page="market-quote" />
+
+      <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo} info={`${list.length} phiếu`} />
+      {err && <div className="blt-error">{err}</div>}
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-head"><h3>Các phiếu đã có</h3></div>
+        {list.length === 0 ? (
+          <div className="scan-empty">{canEdit ? 'Chưa có phiếu nào — bấm "Tạo phiếu mới".' : "Chưa có phiếu nào."}</div>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {list.map((s) => (
+              <button key={s.as_of} className={`btn${draft?.as_of === s.as_of ? " btn-primary" : ""}`}
+                onClick={() => openDate(s.as_of)}>
+                {dmy(s.as_of)} <span style={{ opacity: 0.7 }}>({s.filled} giá)</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {draft && (
+        <>
+          <div className="card blt-section" style={{ marginBottom: 16 }}>
+            <div className="blt-section-header">
+              <h3>Phiếu ngày {dmy(draft.as_of)}</h3>
+              <div className="blt-section-meta" style={{ alignItems: "center" }}>
+                <label className="blt-date-label">Ngày báo giá:
+                  <DateInput value={draft.as_of} readOnly={!canEdit || !isNew}
+                    onChange={(v) => startAt(v, true)} />
+                </label>
+                {canEdit && (
+                  <span className="db-badge" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {saveState === "saving" ? <span className="spinner" /> : <CheckCircleOutlined />} {statusText}
+                  </span>
+                )}
+                {canEdit && <button className="btn" onClick={remove} disabled={busy}>Xoá phiếu</button>}
+              </div>
+            </div>
+          </div>
+
+          <VcbRateBar fx={draft.fx} date={draft.as_of} readOnly={!canEdit}
+            onChange={(fx) => setDraft((d) => d && { ...d, fx })} />
+
+          <GradePriceTable title="1. Giá nội địa — hàng tư nhân" subtitle="VNĐ/tấn" grades={grades}
+            section={draft.domestic_private} unitLabel="Đồng/tấn" readOnly={!canEdit}
+            onPrice={(g, v) => setPrice("domestic_private", g, v)} onNote={(v) => setSect("domestic_private", { note: v })} />
+
+          <GradePriceTable title="2. Giá xuất khẩu — hàng VRG" subtitle="USD/tấn (FOB)" grades={grades}
+            section={draft.export_vrg} unitLabel="USD/tấn" readOnly={!canEdit}
+            onPrice={(g, v) => setPrice("export_vrg", g, v)} onNote={(v) => setSect("export_vrg", { note: v })} />
+
+          <GradePriceTable title="3. Giá nội địa — hàng VRG" subtitle="VNĐ/tấn + tình trạng" grades={grades}
+            section={draft.domestic_vrg} unitLabel="Đồng/tấn" withStatus readOnly={!canEdit}
+            onPrice={(g, v) => setPrice("domestic_vrg", g, v)} onStatus={setStatus}
+            onNote={(v) => setSect("domestic_vrg", { note: v })} />
+
+          <RegionLatexTable units={units} regions={draft.regions} readOnly={!canEdit} onPrice={setRegion} />
+
+          <div className="card blt-section" style={{ marginBottom: 16 }}>
+            <label className="blt-date-label" style={{ display: "block" }}>Ghi chú chung / Cảnh báo
+              <textarea className="blt-date-input" style={{ width: "100%", minHeight: 52, resize: "vertical" }}
+                value={draft.footer} readOnly={!canEdit} placeholder="Ghi chú cuối phiếu…"
+                onChange={(e) => setDraft((d) => d && { ...d, footer: e.target.value })} />
+            </label>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

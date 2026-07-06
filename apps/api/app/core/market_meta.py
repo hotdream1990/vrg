@@ -44,7 +44,7 @@ CANON_PHYS = ["RSS3", "STR20", "SMR20", "SIR20",
               "Thai Latex 60% (Bulk)", "Thai Latex 60% (Drums)"]
 
 # Cặp tỷ giá hiển thị ở mục "Exchange Rate" (đã được FX crawler nạp sẵn).
-FX_PAIRS = ["USD/JPY", "USD/CNY", "USD/MYR", "USD/THB", "USD/VND"]
+FX_PAIRS = ["USD/JPY", "USD/CNY", "USD/MYR", "USD/THB", "USD/VND (Mua)", "USD/VND (Bán)"]
 
 # ── Spec lưới "Bảng tính giá" (giống sheet mẫu VRG) ──
 # Mỗi nhóm = 1 sàn; mỗi cột = 1 mặt hàng. `edit` = khóa fact_price để ghi đè khi sửa ô.
@@ -98,6 +98,10 @@ VRG_FLOOR_GRADES = [
     "SVR CV 50", "SVR CV60", "SVR L", "SVR 3L Mix", "SVR 3L", "SVR 5S", "SVR 5",
     "SVR 10 Mix", "SVR 10", "SVR 20", "RSS 3", "RSS 1", "LATEX",
 ]
+
+
+# Chủng loại cho "Báo giá mủ thị trường" (Mục 1-3: giá tư nhân/VRG XK/VRG nội địa) — theo phiếu Excel.
+MARKET_QUOTE_GRADES = ["SVR CV 50", "SVR CV 60", "SVR 3L", "SVR 10", "LATEX"]
 
 
 # Công ty cao su thành viên VRG cho "Giá thu mua mủ nước" (đồng/độ TSC) — theo file Excel gốc.

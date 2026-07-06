@@ -2,6 +2,28 @@ import type { DataSourceNote } from "./types";
 
 /** Các trang SỐ LIỆU THỦ CÔNG — người nhập tay từ văn bản/báo cáo nguồn (không có crawler). */
 export const MANUAL_NOTES: Record<string, DataSourceNote> = {
+  "market-quote": {
+    kind: "manual",
+    tagline: "Nhập tay phiếu báo giá mủ thị trường theo ngày; Mục 4 (giá mủ nước) đồng bộ kho Giá mủ nguyên liệu.",
+    intro:
+      "1 phiếu/ngày: tỷ giá VCB + giá SVR (tư nhân · VRG xuất khẩu · VRG nội địa) + giá mủ nước khu vực + ghi chú.",
+    sources: [
+      {
+        name: "Phiếu báo giá mủ thị trường (nội bộ)",
+        where: "Nguồn gốc: bản báo giá mủ hằng ngày của bộ phận kinh doanh (mẫu Excel 'Báo giá mủ ngày …').",
+        method: "Nhập tay tại trang này",
+        steps: [
+          "Bấm '＋ Tạo phiếu mới', chọn ngày báo giá.",
+          "Điền tỷ giá VCB, giá SVR cho 3 mục (tư nhân / VRG XK / VRG nội địa) + tình trạng (Mục 3).",
+          "Điền Mục 4 (giá mủ nước theo đơn vị) — tự ghi vào kho 'Giá mủ nguyên liệu'.",
+          "Bấm 'Lưu phiếu'.",
+        ],
+        field: "tỷ giá (mua_tm/mua_ck/bán); giá SVR theo chủng loại; giá mủ nước theo đơn vị (đồng/độ TSC); ghi chú.",
+        note: "Giá SVR còn được lưu chuỗi (source='market') làm đầu vào Bản tin/dự báo. Mục 4 dùng chung danh mục đơn vị thành viên.",
+      },
+    ],
+  },
+
   "vrg-floor": {
     kind: "manual",
     tagline: "Nhập tay theo từng 'lần' Tập đoàn ban hành — không có nguồn tự động.",

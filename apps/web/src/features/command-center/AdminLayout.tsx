@@ -15,6 +15,7 @@ import {
   RobotOutlined,
   SafetyOutlined,
   SettingOutlined,
+  SolutionOutlined,
   SwapOutlined,
   TableOutlined,
   TeamOutlined,
@@ -44,6 +45,7 @@ const MENU = [
   {
     key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)",
     children: [
+      { key: "/quan-ly-so-lieu/bao-gia-mu", icon: <SolutionOutlined />, label: "Báo giá mủ thị trường" },
       { key: "/quan-ly-so-lieu/gia-san-tap-doan", icon: <BankOutlined />, label: "Giá sàn Tập đoàn" },
       { key: "/quan-ly-so-lieu/gia-mu-nguyen-lieu", icon: <ExperimentOutlined />, label: "Giá mủ nguyên liệu" },
       { key: "/quan-ly-so-lieu/gia-physical", icon: <FundOutlined />, label: "Giá Physical" },
@@ -80,7 +82,7 @@ export default function AdminLayout() {
     "/quet-da-san",
     "/quan-ly-so-lieu/bang-gia-san", "/quan-ly-so-lieu/ty-gia", "/quan-ly-so-lieu/gia-san-tap-doan",
     "/quan-ly-so-lieu/gia-mu-nguyen-lieu", "/quan-ly-so-lieu/gia-physical",
-    "/quan-ly-so-lieu/ton-kho", "/quan-ly-so-lieu/don-vi-thanh-vien",
+    "/quan-ly-so-lieu/ton-kho", "/quan-ly-so-lieu/bao-gia-mu", "/quan-ly-so-lieu/don-vi-thanh-vien",
     "/goi-y-gia-san", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
     "/quan-tri/lich-chay", "/ho-so",
   ];

@@ -64,3 +64,11 @@ CREATE TABLE IF NOT EXISTS app_user (
     is_active     boolean NOT NULL DEFAULT true,
     created_at    timestamptz NOT NULL DEFAULT now()
 );
+
+-- Báo giá mủ thị trường — 1 phiếu/ngày (tỷ giá VCB + Mục 1-3 SVR + ghi chú) dạng jsonb.
+-- Mục 4 (giá mủ nước theo đơn vị) đồng bộ sang fact_price (source=vrg, purchase).
+CREATE TABLE IF NOT EXISTS market_quote (
+    as_of       date PRIMARY KEY,
+    payload     jsonb NOT NULL,
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);

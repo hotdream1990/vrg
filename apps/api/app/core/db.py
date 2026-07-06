@@ -108,6 +108,12 @@ CREATE TABLE IF NOT EXISTS bulletin_draft (
     payload      jsonb NOT NULL,
     updated_at   timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS market_quote (
+    as_of       date PRIMARY KEY,
+    payload     jsonb NOT NULL,
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
 """
 
 # Hypertable tách riêng: cần extension timescaledb; nếu thiếu, bảng vẫn dùng được.
