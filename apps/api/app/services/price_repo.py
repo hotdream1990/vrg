@@ -279,6 +279,19 @@ def purchase_sheet(date_from: str | None = None, date_to: str | None = None) -> 
     return {"companies": member_unit_repo.active_names(), "dates": dates, "values": values}
 
 
+def purchase_recent_for(grade: str, limit: int = 10) -> list[dict[str, Any]]:
+    """Vài giá thu mua mủ nước gần nhất của 1 đơn vị (source=vrg) — cho form công khai xem lại."""
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(
+            text("SELECT as_of, price FROM fact_price "
+                 "WHERE source = 'vrg' AND price_type = 'purchase' AND grade = :g "
+                 "ORDER BY as_of DESC LIMIT :n"),
+            {"g": grade, "n": limit},
+        ).mappings().all()
+        return [{"as_of": str(r["as_of"]), "price": float(r["price"])} for r in rows]
+
+
 def delete_purchase_date(as_of: str) -> int:
     """Xoá toàn bộ giá thu mua mủ nước của 1 ngày (source=vrg). Trả số bản ghi đã xoá."""
     ensure_schema()

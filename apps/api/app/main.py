@@ -24,6 +24,7 @@ from app.routers import (
     market_quote,
     member_unit,
     prices,
+    public_purchase,
     schedules,
     users,
 )
@@ -104,6 +105,7 @@ async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSON
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(bulletins.router)
+app.include_router(public_purchase.router)  # CÔNG KHAI: đơn vị nhập giá mủ (gác bằng mật khẩu riêng)
 
 _protected = [Depends(get_current_user)]
 app.include_router(prices.router, dependencies=_protected)

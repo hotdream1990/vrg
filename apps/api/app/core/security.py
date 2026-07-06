@@ -80,3 +80,28 @@ def require_editor(username: str = Depends(get_current_user)) -> str:
     if _active_user(username).get("role") not in EDITOR_ROLES:
         raise HTTPException(403, "Tài khoản chỉ có quyền xem — không được nhập/sửa số liệu")
     return username
+
+
+# ── Token cho link công khai (đơn vị thành viên nhập giá mủ) ──
+# Dùng claim `scope` thay cho `sub` → get_current_user (đọc `sub`) TỪ CHỐI token này,
+# nên token công khai KHÔNG dùng được cho bất kỳ endpoint nội bộ nào (chỉ mở đúng phần nhập giá).
+_PUBLIC_SCOPE = "public-purchase"
+
+
+def create_public_token(hours: int = 8) -> str:
+    exp = datetime.now(timezone.utc) + timedelta(hours=hours)
+    return jwt.encode({"scope": _PUBLIC_SCOPE, "exp": exp}, settings.jwt_secret, algorithm=_ALGO)
+
+
+def _valid_public_token(token: str) -> bool:
+    try:
+        return jwt.decode(token, settings.jwt_secret, algorithms=[_ALGO]).get("scope") == _PUBLIC_SCOPE
+    except jwt.PyJWTError:
+        return False
+
+
+def require_public(creds: HTTPAuthorizationCredentials | None = Depends(_bearer)) -> None:
+    """Chỉ cho qua nếu có token công khai hợp lệ (đổi từ mật khẩu ở /auth)."""
+    if not creds or not _valid_public_token(creds.credentials):
+        raise HTTPException(401, "Phiên nhập giá đã hết hạn — vui lòng nhập lại mật khẩu",
+                            headers={"WWW-Authenticate": "Bearer"})

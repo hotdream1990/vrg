@@ -22,6 +22,7 @@ import UserManagementPage from "./features/command-center/pages/UserManagementPa
 import VrgFloorPage from "./features/command-center/pages/VrgFloorPage";
 import { AuthProvider } from "./features/auth/AuthContext";
 import LoginPage from "./features/auth/LoginPage";
+import PublicPurchaseInputPage from "./features/public/PublicPurchaseInputPage";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
 import RequireRole from "./features/auth/RequireRole";
 import { vrgTheme } from "./theme";
@@ -34,6 +35,8 @@ export default function App() {
           <AuthProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              {/* CÔNG KHAI — đơn vị thành viên nhập giá mủ (gác bằng mật khẩu riêng, ngoài đăng nhập) */}
+              <Route path="/nhap-gia-mu" element={<PublicPurchaseInputPage />} />
               {/* Mọi route khác cần đăng nhập + nằm trong khung admin */}
               <Route element={<ProtectedRoute />}>
                 <Route element={<AdminLayout />}>
