@@ -4,8 +4,9 @@ exchangerates.org.uk đứng sau Cloudflare → httpx bị 403; phải dùng tr�
 GOTCHA: CF chỉ cho qua lần tải ĐẦU của mỗi BrowserContext → mỗi đồng tiền dùng 1 context MỚI
 (điều hướng nhiều trang trong cùng context bị WAF chặn 403). Lấy dòng Close mới nhất ("DD Month
 YYYY  1 USD = <rate> <CUR>") trong bảng "Exchange Rate History" của trang conversion.
-VND không có trên exchangerates → giữ logic cũ open.er-api (tạm thời).
-Backfill: history() đọc chính bảng lịch sử của exchangerates (~7 phiên) → khớp tuyệt đối data live.
+VND: lấy TỪ VIETCOMBANK (API công khai có date param) — 2 giá "USD/VND (Mua)" (chuyển khoản)
+và "USD/VND (Bán)", đồng bộ với phiếu Báo giá mủ. Backfill VND theo từng ngày qua VCB.
+Backfill 4 đồng còn lại: history() đọc bảng lịch sử exchangerates (~7 phiên) → khớp data live.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ _PAGES = {
     "THB": "https://www.exchangerates.org.uk/Dollars-to-Baht-currency-conversion-page.html",
     "MYR": "https://www.exchangerates.org.uk/Dollars-to-Malaysian-Ringgit-currency-conversion-page.html",
 }
-_VND_URL = "https://open.er-api.com/v6/latest/USD"  # VND: giữ logic cũ (exchangerates không có)
+_VCB_URL = "https://www.vietcombank.com.vn/api/exchangerates?date={d}"  # VND: nguồn Vietcombank
 _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
 # 1 dòng lịch sử: "23 June 2026  1 USD = 6.7908 CNY" (bỏ qua thứ đứng trước số ngày).
@@ -91,17 +92,47 @@ def _scrape(pages: dict[str, str]) -> tuple[list[PriceRecord], list[str]]:
     return records, failed
 
 
-def _vnd() -> PriceRecord | None:
-    """USD/VND — giữ logic cũ open.er-api (exchangerates/ECB không có VND)."""
+def _vcb_usd(day: date | None = None) -> tuple[date, float | None, float | None] | None:
+    """(ngày, mua CK, bán) USD từ VCB theo ngày (mặc định hôm nay). None nếu lỗi/không có USD."""
+    d = (day or datetime.now(timezone.utc).date()).isoformat()
     try:
-        data = fetch_json(_VND_URL)
-        rate = data.get("rates", {}).get("VND")
-        ts = data.get("time_last_update_unix")
-        as_of = (datetime.fromtimestamp(ts, tz=timezone.utc).date() if ts
-                 else datetime.now(timezone.utc).date())
-        return _rec("VND", as_of, float(rate)) if rate else None
+        data = fetch_json(_VCB_URL.format(d=d),
+                          headers={"User-Agent": _UA, "Accept": "application/json"})
     except Exception:  # noqa: BLE001
         return None
+    usd = next((x for x in data.get("Data", []) if x.get("currencyCode") == "USD"), None)
+    if not usd:
+        return None
+
+    def _num(v: object) -> float | None:
+        s = str(v).replace(",", "").strip()
+        try:
+            return float(s) if s and s != "-" else None
+        except ValueError:
+            return None
+
+    src = str(data.get("Date") or d)[:10]
+    try:
+        as_of = date.fromisoformat(src)
+    except ValueError:
+        as_of = date.fromisoformat(d)
+    return as_of, _num(usd.get("transfer")), _num(usd.get("sell"))
+
+
+def _vnd_records(day: date | None = None) -> list[PriceRecord]:
+    """USD/VND Mua (chuyển khoản) + Bán từ VCB → list PriceRecord (rỗng nếu lỗi)."""
+    got = _vcb_usd(day)
+    if not got:
+        return []
+    as_of, ck, ban = got
+    out: list[PriceRecord] = []
+    if ck is not None:
+        out.append(PriceRecord(source=Source.FX, grade="USD/VND (Mua)", price=ck,
+                               currency="VND", unit="VND per USD", price_type="fx", as_of=as_of))
+    if ban is not None:
+        out.append(PriceRecord(source=Source.FX, grade="USD/VND (Bán)", price=ban,
+                               currency="VND", unit="VND per USD", price_type="fx", as_of=as_of))
+    return out
 
 
 def crawl() -> CrawlResult:
@@ -113,11 +144,11 @@ def crawl() -> CrawlResult:
             notes.append("Cloudflare/parse chặn: " + ",".join(failed))
     except Exception as exc:  # noqa: BLE001 - Playwright/Firefox hỏng → cả nhóm scrape fail
         records, notes = [], [f"scrape lỗi: {str(exc)[:100]}"]
-    vnd = _vnd()
+    vnd = _vnd_records()
     if vnd:
-        records.append(vnd)
+        records.extend(vnd)
     else:
-        notes.append("VND lỗi")
+        notes.append("VND (VCB) lỗi")
     note = "; ".join(notes) or None
     if records:
         return CrawlResult(source=Source.FX, status=Status.OK, records=records, note=note)
@@ -168,4 +199,10 @@ def history(days: int) -> list[PriceRecord]:
                     ctx.close()
         finally:
             browser.close()
+
+    # VND (Mua/Bán) từ VCB — API có date param nên backfill được từng ngày trong khoảng.
+    day = datetime.now(timezone.utc).date()
+    for _ in range(days + 1):
+        records.extend(_vnd_records(day))
+        day -= timedelta(days=1)
     return records
