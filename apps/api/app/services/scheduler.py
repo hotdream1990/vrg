@@ -12,17 +12,28 @@ from app.services import scan_service, schedule_repo
 
 _TZ = "Asia/Ho_Chi_Minh"
 
-# Đăng ký job định kỳ: name → nhãn, mô tả, nguồn (khớp meta_crawl_run.sources),
-# lịch mặc định (giờ, phút), hàm chạy.
-JOB_REGISTRY: dict[str, dict] = {
-    "daily-scan": {
-        "label": "Quét giá đa sàn",
+# Các mốc quét trong ngày (giờ VN, Asia/Ho_Chi_Minh). "daily-scan" giữ tên cũ (đã seed DB) = 18:00.
+_SCAN_SLOTS: dict[str, tuple[int, int]] = {
+    "scan-0630": (6, 30),
+    "scan-0730": (7, 30),
+    "scan-1500": (15, 0),
+    "daily-scan": (18, 0),
+}
+
+
+def _scan_meta(hm: tuple[int, int]) -> dict:
+    return {
+        "label": f"Quét giá đa sàn {hm[0]:02d}:{hm[1]:02d}",
         "purpose": "Quét giá các sàn + tỷ giá → lưu DB (tích lũy lịch sử)",
         "source": "all",
-        "default": (18, 0),
+        "default": hm,
         "run": lambda: scan_service.scan_and_persist("all"),
-    },
-}
+    }
+
+
+# Đăng ký job định kỳ: name → nhãn, mô tả, nguồn (khớp meta_crawl_run.sources),
+# lịch mặc định (giờ, phút), hàm chạy. Mỗi mốc = 1 job (admin xem/sửa/tắt riêng ở Lịch chạy).
+JOB_REGISTRY: dict[str, dict] = {name: _scan_meta(hm) for name, hm in _SCAN_SLOTS.items()}
 
 _scheduler: BackgroundScheduler | None = None
 
