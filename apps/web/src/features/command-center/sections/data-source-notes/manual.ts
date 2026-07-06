@@ -4,9 +4,9 @@ import type { DataSourceNote } from "./types";
 export const MANUAL_NOTES: Record<string, DataSourceNote> = {
   "market-quote": {
     kind: "manual",
-    tagline: "Nhập tay phiếu báo giá mủ thị trường theo ngày; Mục 4 (giá mủ nước) đồng bộ kho Giá mủ nguyên liệu.",
+    tagline: "Nhập tay phiếu báo giá mủ thị trường theo ngày; Mục 5 (giá mủ nước + mủ chén) đồng bộ kho Giá mủ nguyên liệu.",
     intro:
-      "1 phiếu/ngày: tỷ giá VCB + giá SVR (tư nhân · VRG xuất khẩu · VRG nội địa) + giá mủ nước khu vực + ghi chú.",
+      "1 phiếu/ngày: tỷ giá VCB + giá SVR (tư nhân · VRG xuất khẩu · VRG nội địa, kèm bao bì + đơn vị vận chuyển) + đề xuất mua từ khách hàng + giá mủ khu vực (nước + chén) + ghi chú.",
     sources: [
       {
         name: "Phiếu báo giá mủ thị trường (nội bộ)",
@@ -14,12 +14,13 @@ export const MANUAL_NOTES: Record<string, DataSourceNote> = {
         method: "Nhập tay tại trang này",
         steps: [
           "Bấm '＋ Tạo phiếu mới', chọn ngày báo giá.",
-          "Điền tỷ giá VCB, giá SVR cho 3 mục (tư nhân / VRG XK / VRG nội địa) + tình trạng (Mục 3).",
-          "Điền Mục 4 (giá mủ nước theo đơn vị) — tự ghi vào kho 'Giá mủ nguyên liệu'.",
-          "Bấm 'Lưu phiếu'.",
+          "Điền tỷ giá VCB, giá SVR cho 3 mục (tư nhân / VRG XK / VRG nội địa) + bao bì (hàng rời/pallet) + đơn vị vận chuyển; Mục 3 thêm tình trạng.",
+          "Điền Mục 4 (đề xuất mua từ khách hàng: số lượng + đơn giá) — chỉ lưu trong phiếu.",
+          "Điền Mục 5 (giá mủ nước + mủ chén theo đơn vị) — tự ghi vào kho 'Giá mủ nguyên liệu'.",
+          "Phiếu tự lưu khi nhập.",
         ],
-        field: "tỷ giá (mua_tm/mua_ck/bán); giá SVR theo chủng loại; giá mủ nước theo đơn vị (đồng/độ TSC); ghi chú.",
-        note: "Giá SVR còn được lưu chuỗi (source='market') làm đầu vào Bản tin/dự báo. Mục 4 dùng chung danh mục đơn vị thành viên.",
+        field: "tỷ giá (mua_tm/mua_ck/bán); giá SVR theo chủng loại + bao bì + vận chuyển; đề xuất KH (số lượng/đơn giá); mủ nước (đồng/độ TSC) + mủ chén (đồng/kg) theo đơn vị; ghi chú.",
+        note: "Giá SVR còn được lưu chuỗi (source='market') làm đầu vào Bản tin/dự báo. Mục 5 (mủ nước=purchase, mủ chén=purchase_cup) dùng chung danh mục đơn vị thành viên.",
       },
     ],
   },

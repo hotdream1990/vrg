@@ -14,9 +14,11 @@ class VcbRate(BaseModel):
 
 
 class Section(BaseModel):
-    """1 bảng giá theo chủng loại + ghi chú (Mục 1, 2)."""
+    """1 bảng giá theo chủng loại + ghi chú (Mục 1, 2). Kèm bao bì & đơn vị vận chuyển."""
 
     prices: dict[str, float | None] = Field(default_factory=dict)  # grade -> đơn giá
+    packaging: dict[str, str] = Field(default_factory=dict)  # grade -> bao bì (hàng rời/pallet)
+    shipping: dict[str, str] = Field(default_factory=dict)  # grade -> đơn vị vận chuyển
     note: str = ""
 
 
@@ -26,15 +28,25 @@ class DomesticVrgSection(Section):
     status: dict[str, str] = Field(default_factory=dict)  # grade -> tình trạng
 
 
+class ProposalSection(BaseModel):
+    """Mục 4 — Đề xuất mua từ khách hàng: số lượng + đơn giá theo chủng loại (lưu trong phiếu)."""
+
+    qty: dict[str, float | None] = Field(default_factory=dict)  # grade -> số lượng (tấn)
+    prices: dict[str, float | None] = Field(default_factory=dict)  # grade -> đơn giá (VNĐ/tấn)
+    note: str = ""
+
+
 class MarketQuote(BaseModel):
-    """Phiếu báo giá mủ 1 ngày. `regions` (Mục 4) đồng bộ kho Giá mủ nguyên liệu."""
+    """Phiếu báo giá mủ 1 ngày. `regions`/`regions_cup` (Mục 5) đồng bộ kho Giá mủ nguyên liệu."""
 
     as_of: str
     fx: VcbRate = Field(default_factory=VcbRate)
     domestic_private: Section = Field(default_factory=Section)  # Mục 1 — giá NĐ tư nhân (VNĐ/tấn)
     export_vrg: Section = Field(default_factory=Section)  # Mục 2 — giá XK VRG (USD/tấn)
     domestic_vrg: DomesticVrgSection = Field(default_factory=DomesticVrgSection)  # Mục 3 (VNĐ/tấn)
-    regions: dict[str, float | None] = Field(default_factory=dict)  # Mục 4 — đơn vị -> đồng/độ TSC
+    customer_proposal: ProposalSection = Field(default_factory=ProposalSection)  # Mục 4 — đề xuất KH
+    regions: dict[str, float | None] = Field(default_factory=dict)  # Mục 5 — mủ nước (đồng/độ TSC)
+    regions_cup: dict[str, float | None] = Field(default_factory=dict)  # Mục 5 — mủ chén (đồng/kg)
     footer: str = ""
 
 
@@ -47,10 +59,11 @@ class MarketQuoteSummary(BaseModel):
 
 
 class MarketQuoteMeta(BaseModel):
-    """Metadata dựng form: chủng loại SVR cố định + đơn vị thành viên (cột Mục 4)."""
+    """Metadata dựng form: chủng loại SVR + đơn vị thành viên (Mục 5) + gợi ý bao bì."""
 
     grades: list[str]
     units: list[str]
+    packaging: list[str]
 
 
 class VcbRateResult(VcbRate):

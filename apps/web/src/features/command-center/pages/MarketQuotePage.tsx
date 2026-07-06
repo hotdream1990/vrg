@@ -20,6 +20,7 @@ import DateInput from "../sections/DateInput";
 import DateRangeBar from "../sections/DateRangeBar";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import GradePriceTable from "./components/GradePriceTable";
+import ProposalTable from "./components/ProposalTable";
 import RegionLatexTable from "./components/RegionLatexTable";
 import VcbRateBar from "./components/VcbRateBar";
 import "../../bulletin/bulletin.css";
@@ -32,6 +33,7 @@ export default function MarketQuotePage() {
   const { canEdit } = useAuth();
   const [grades, setGrades] = useState<string[]>([]);
   const [units, setUnits] = useState<string[]>([]);
+  const [packOpts, setPackOpts] = useState<string[]>([]);
   const [list, setList] = useState<MarketQuoteSummary[]>([]);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -45,7 +47,9 @@ export default function MarketQuotePage() {
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
-    fetchQuoteMeta().then((m) => { setGrades(m.grades); setUnits(m.units); }).catch(() => {});
+    fetchQuoteMeta()
+      .then((m) => { setGrades(m.grades); setUnits(m.units); setPackOpts(m.packaging); })
+      .catch(() => {});
   }, []);
   const loadList = useCallback(() => {
     listQuotes(from || undefined, to || undefined).then(setList).catch((e) => setErr(e.message));
@@ -93,10 +97,22 @@ export default function MarketQuotePage() {
     setDraft((d) => d && { ...d, [k]: { ...d[k], ...patch } });
   const setPrice = (k: SectKey, g: string, v: number | null) =>
     setDraft((d) => d && { ...d, [k]: { ...d[k], prices: { ...d[k].prices, [g]: v } } });
+  const setPackaging = (k: SectKey, g: string, v: string) =>
+    setDraft((d) => d && { ...d, [k]: { ...d[k], packaging: { ...d[k].packaging, [g]: v } } });
+  const setShipping = (k: SectKey, g: string, v: string) =>
+    setDraft((d) => d && { ...d, [k]: { ...d[k], shipping: { ...d[k].shipping, [g]: v } } });
   const setStatus = (g: string, v: string) =>
     setDraft((d) => d && { ...d, domestic_vrg: { ...d.domestic_vrg, status: { ...d.domestic_vrg.status, [g]: v } } });
   const setRegion = (u: string, v: number | null) =>
     setDraft((d) => d && { ...d, regions: { ...d.regions, [u]: v } });
+  const setRegionCup = (u: string, v: number | null) =>
+    setDraft((d) => d && { ...d, regions_cup: { ...d.regions_cup, [u]: v } });
+  const setProp = (patch: Partial<MarketQuote["customer_proposal"]>) =>
+    setDraft((d) => d && { ...d, customer_proposal: { ...d.customer_proposal, ...patch } });
+  const setPropQty = (g: string, v: number | null) =>
+    setDraft((d) => d && { ...d, customer_proposal: { ...d.customer_proposal, qty: { ...d.customer_proposal.qty, [g]: v } } });
+  const setPropPrice = (g: string, v: number | null) =>
+    setDraft((d) => d && { ...d, customer_proposal: { ...d.customer_proposal, prices: { ...d.customer_proposal.prices, [g]: v } } });
 
   const remove = async () => {
     if (!draft || !confirm(`Xoá phiếu báo giá ngày ${dmy(draft.as_of)}? (Giá mủ nước đã đồng bộ vẫn giữ)`)) return;
@@ -115,7 +131,7 @@ export default function MarketQuotePage() {
       <div className="page-title">
         <div>
           <h2><SolutionOutlined style={{ marginRight: 8 }} />Báo giá mủ thị trường</h2>
-          <p>Phiếu báo giá theo ngày: tỷ giá VCB · giá SVR (tư nhân/VRG XK/VRG nội địa) · giá mủ nước khu vực. Tự lưu khi nhập.</p>
+          <p>Phiếu báo giá theo ngày: tỷ giá VCB · giá SVR (tư nhân/VRG XK/VRG nội địa) · đề xuất mua từ khách hàng · giá mủ khu vực (nước + chén). Tự lưu khi nhập.</p>
         </div>
         {canEdit && (
           <div className="actions">
@@ -170,19 +186,31 @@ export default function MarketQuotePage() {
             onChange={(fx) => setDraft((d) => d && { ...d, fx })} />
 
           <GradePriceTable title="1. Giá nội địa — hàng tư nhân" subtitle="VNĐ/tấn" grades={grades}
-            section={draft.domestic_private} unitLabel="Đồng/tấn" readOnly={!canEdit}
-            onPrice={(g, v) => setPrice("domestic_private", g, v)} onNote={(v) => setSect("domestic_private", { note: v })} />
+            section={draft.domestic_private} unitLabel="Đồng/tấn" packagingOptions={packOpts} readOnly={!canEdit}
+            onPrice={(g, v) => setPrice("domestic_private", g, v)}
+            onPackaging={(g, v) => setPackaging("domestic_private", g, v)}
+            onShipping={(g, v) => setShipping("domestic_private", g, v)}
+            onNote={(v) => setSect("domestic_private", { note: v })} />
 
           <GradePriceTable title="2. Giá xuất khẩu — hàng VRG" subtitle="USD/tấn (FOB)" grades={grades}
-            section={draft.export_vrg} unitLabel="USD/tấn" readOnly={!canEdit}
-            onPrice={(g, v) => setPrice("export_vrg", g, v)} onNote={(v) => setSect("export_vrg", { note: v })} />
+            section={draft.export_vrg} unitLabel="USD/tấn" packagingOptions={packOpts} readOnly={!canEdit}
+            onPrice={(g, v) => setPrice("export_vrg", g, v)}
+            onPackaging={(g, v) => setPackaging("export_vrg", g, v)}
+            onShipping={(g, v) => setShipping("export_vrg", g, v)}
+            onNote={(v) => setSect("export_vrg", { note: v })} />
 
           <GradePriceTable title="3. Giá nội địa — hàng VRG" subtitle="VNĐ/tấn + tình trạng" grades={grades}
-            section={draft.domestic_vrg} unitLabel="Đồng/tấn" withStatus readOnly={!canEdit}
-            onPrice={(g, v) => setPrice("domestic_vrg", g, v)} onStatus={setStatus}
+            section={draft.domestic_vrg} unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!canEdit}
+            onPrice={(g, v) => setPrice("domestic_vrg", g, v)}
+            onPackaging={(g, v) => setPackaging("domestic_vrg", g, v)}
+            onShipping={(g, v) => setShipping("domestic_vrg", g, v)} onStatus={setStatus}
             onNote={(v) => setSect("domestic_vrg", { note: v })} />
 
-          <RegionLatexTable units={units} regions={draft.regions} readOnly={!canEdit} onPrice={setRegion} />
+          <ProposalTable grades={grades} section={draft.customer_proposal ?? { qty: {}, prices: {}, note: "" }}
+            readOnly={!canEdit} onQty={setPropQty} onPrice={setPropPrice} onNote={(v) => setProp({ note: v })} />
+
+          <RegionLatexTable units={units} regions={draft.regions ?? {}} regionsCup={draft.regions_cup ?? {}}
+            readOnly={!canEdit} onPrice={setRegion} onPriceCup={setRegionCup} />
 
           <div className="card blt-section" style={{ marginBottom: 16 }}>
             <label className="blt-date-label" style={{ display: "block" }}>Ghi chú chung / Cảnh báo

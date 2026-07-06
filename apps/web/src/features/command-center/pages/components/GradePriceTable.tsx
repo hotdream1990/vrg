@@ -1,8 +1,14 @@
-/* Bảng giá theo chủng loại SVR (Mục 1-3 của phiếu Báo giá mủ). Có cột Tình trạng cho Mục 3. */
+/* Bảng giá theo chủng loại SVR (Mục 1-3 của phiếu Báo giá mủ).
+   Mỗi chủng loại có: đơn giá · bao bì đóng gói · đơn vị vận chuyển. Mục 3 thêm cột Tình trạng. */
 
 import { AutoComplete } from "antd";
 
-import { MARKET_STATUS_OPTIONS, type DomesticVrgSection, type Section } from "../../../../lib/market-quote-client";
+import {
+  MARKET_STATUS_OPTIONS,
+  PACKAGING_OPTIONS,
+  type DomesticVrgSection,
+  type Section,
+} from "../../../../lib/market-quote-client";
 import NumInput from "../../sections/NumInput";
 
 const STATUS_OPTS = MARKET_STATUS_OPTIONS.map((s) => ({ value: s }));
@@ -13,17 +19,22 @@ type Props = {
   grades: string[];
   section: Section | DomesticVrgSection;
   unitLabel: string;
+  packagingOptions?: string[];
   withStatus?: boolean;
   readOnly?: boolean;
   onPrice: (grade: string, v: number | null) => void;
+  onPackaging: (grade: string, v: string) => void;
+  onShipping: (grade: string, v: string) => void;
   onStatus?: (grade: string, v: string) => void;
   onNote: (v: string) => void;
 };
 
 export default function GradePriceTable({
-  title, subtitle, grades, section, unitLabel, withStatus, readOnly, onPrice, onStatus, onNote,
+  title, subtitle, grades, section, unitLabel, packagingOptions, withStatus,
+  readOnly, onPrice, onPackaging, onShipping, onStatus, onNote,
 }: Props) {
   const status = (section as DomesticVrgSection).status ?? {};
+  const packOpts = (packagingOptions?.length ? packagingOptions : PACKAGING_OPTIONS).map((s) => ({ value: s }));
   return (
     <div className="card blt-section blt-editable" style={{ marginBottom: 16 }}>
       <div className="blt-section-header">
@@ -34,17 +45,32 @@ export default function GradePriceTable({
         <thead>
           <tr>
             <th>Chủng loại</th>
-            <th className="r">Đơn giá ({unitLabel})</th>
+            <th>Bao bì đóng gói</th>
+            <th>Đơn vị vận chuyển</th>
             {withStatus && <th>Tình trạng</th>}
+            <th className="r">Đơn giá ({unitLabel})</th>
           </tr>
         </thead>
         <tbody>
           {grades.map((g) => (
             <tr key={g}>
               <td style={{ fontWeight: 500 }}>{g}</td>
-              <td className="r">
-                <NumInput value={section.prices[g] ?? null} readOnly={readOnly}
-                  onChange={(v) => onPrice(g, v)} />
+              <td>
+                <AutoComplete
+                  value={section.packaging?.[g] ?? ""}
+                  options={packOpts}
+                  disabled={readOnly}
+                  allowClear
+                  style={{ width: "100%", minWidth: 130 }}
+                  placeholder="Hàng rời / Pallet"
+                  onChange={(v) => onPackaging(g, v ?? "")}
+                />
+              </td>
+              <td>
+                <input className="blt-cell-input" style={{ minWidth: 140 }}
+                  value={section.shipping?.[g] ?? ""} readOnly={readOnly}
+                  placeholder="Đơn vị vận chuyển…"
+                  onChange={(e) => onShipping(g, e.target.value)} />
               </td>
               {withStatus && (
                 <td>
@@ -61,6 +87,10 @@ export default function GradePriceTable({
                   />
                 </td>
               )}
+              <td className="r">
+                <NumInput value={section.prices?.[g] ?? null} readOnly={readOnly}
+                  onChange={(v) => onPrice(g, v)} />
+              </td>
             </tr>
           ))}
         </tbody>

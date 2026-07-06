@@ -30,29 +30,38 @@ def _quote() -> dict:
     return {
         "as_of": _D,
         "fx": {"mua_tm": 26000, "mua_ck": 26010, "ban": 26400},
-        "domestic_private": {"prices": {"SVR 10": 57500000}, "note": "n1"},
+        "domestic_private": {"prices": {"SVR 10": 57500000},
+                             "packaging": {"SVR 10": "Pallet"},
+                             "shipping": {"SVR 10": "Xe khách"}, "note": "n1"},
         "export_vrg": {"prices": {"SVR 10": 2260}, "note": "n2"},
         "domestic_vrg": {"prices": {"SVR 10": 58200000},
                          "status": {"SVR 10": "Có giao dịch"}, "note": "n3"},
+        "customer_proposal": {"qty": {"SVR 10": 100}, "prices": {"SVR 10": 57000000}, "note": "kh"},
         "regions": {_REGION: 549},
+        "regions_cup": {_REGION: 21000},
         "footer": "f",
     }
 
 
 def test_save_get_roundtrip_and_region_sync() -> None:
-    """save → get đọc lại đúng; Mục 4 đồng bộ sang kho Giá mủ nguyên liệu (source=vrg purchase)."""
+    """save → get đọc lại đúng; Mục 5 đồng bộ sang kho Giá mủ nguyên liệu (purchase + purchase_cup)."""
     saved = market_quote_repo.save_quote(_quote())
     assert saved is not None
     assert saved["fx"]["ban"] == 26400
     assert saved["domestic_vrg"]["status"]["SVR 10"] == "Có giao dịch"
+    assert saved["domestic_private"]["packaging"]["SVR 10"] == "Pallet"
+    assert saved["domestic_private"]["shipping"]["SVR 10"] == "Xe khách"
+    assert saved["customer_proposal"]["qty"]["SVR 10"] == 100
     assert saved["regions"].get(_REGION) == 549
+    assert saved["regions_cup"].get(_REGION) == 21000
 
-    # Mục 4 phải xuất hiện trong kho Giá mủ nguyên liệu đúng ngày.
-    purchase = price_repo.purchase_by_company_on_date(_D)
-    assert abs(purchase.get(_REGION, 0) - 549) < 1e-6
+    # Mục 5 (mủ nước + mủ chén) phải xuất hiện trong kho Giá mủ nguyên liệu đúng ngày.
+    assert abs(price_repo.purchase_by_company_on_date(_D).get(_REGION, 0) - 549) < 1e-6
+    assert abs(price_repo.purchase_by_company_on_date(_D, "purchase_cup").get(_REGION, 0) - 21000) < 1e-6
 
     got = market_quote_repo.get_quote(_D)
     assert got and got["domestic_private"]["prices"]["SVR 10"] == 57500000
+    assert got["customer_proposal"]["prices"]["SVR 10"] == 57000000
 
 
 def test_market_series_mirrored_then_delete_keeps_purchase() -> None:

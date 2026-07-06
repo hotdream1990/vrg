@@ -1,9 +1,9 @@
 """Repository Báo giá mủ thị trường (market_quote) — 1 phiếu/ngày (nhập tay).
 
-Payload jsonb giữ tỷ giá VCB + Mục 1-3 (giá SVR + ghi chú). Mục 4 (giá mủ nước theo
-đơn vị) KHÔNG lưu trong payload mà đồng bộ thẳng kho Giá mủ nguyên liệu
-(fact_price source=vrg, purchase). Mục 1-3 còn được mirror sang fact_price source=market
-để dùng như chuỗi thời gian cho Bản tin/dự báo.
+Payload jsonb giữ tỷ giá VCB + Mục 1-3 (giá SVR + bao bì + vận chuyển + ghi chú) + Mục 4
+(đề xuất mua từ khách hàng). Mục 5 (giá mủ nước + mủ chén theo đơn vị) KHÔNG lưu trong
+payload mà đồng bộ thẳng kho Giá mủ nguyên liệu (fact_price source=vrg, purchase/purchase_cup).
+Mục 1-3 còn được mirror sang fact_price source=market để dùng như chuỗi thời gian cho Bản tin/dự báo.
 """
 
 from __future__ import annotations
@@ -25,20 +25,25 @@ _SECTION_MODES = {
     "domestic_vrg": ("market_domestic_vrg", "VND", "đồng/tấn"),
 }
 _PURCHASE = {"source": "vrg", "price_type": "purchase", "currency": "VND", "unit": "đồng/độ TSC"}
+_PURCHASE_CUP = {"source": "vrg", "price_type": "purchase_cup", "currency": "VND", "unit": "đồng/kg"}
 
 
 def meta() -> dict[str, Any]:
-    """Chủng loại SVR cố định + đơn vị thành viên active (cột Mục 4)."""
-    return {"grades": MARKET_QUOTE_GRADES, "units": member_unit_repo.active_names()}
+    """Chủng loại SVR + đơn vị thành viên active (cột Mục 5) + gợi ý bao bì (Mục 1-3)."""
+    from app.core.market_meta import MARKET_QUOTE_PACKAGING
+
+    return {"grades": MARKET_QUOTE_GRADES, "units": member_unit_repo.active_names(),
+            "packaging": MARKET_QUOTE_PACKAGING}
 
 
 def _payload_of(mq: dict[str, Any]) -> dict[str, Any]:
-    """Phần lưu trong market_quote.payload (bỏ regions — regions đi vào fact_price)."""
+    """Phần lưu trong market_quote.payload (bỏ regions/regions_cup — chúng đi vào fact_price)."""
     return {
         "fx": mq.get("fx") or {},
         "domestic_private": mq.get("domestic_private") or {},
         "export_vrg": mq.get("export_vrg") or {},
         "domestic_vrg": mq.get("domestic_vrg") or {},
+        "customer_proposal": mq.get("customer_proposal") or {},
         "footer": mq.get("footer") or "",
     }
 
@@ -79,14 +84,15 @@ def list_quotes(date_from: str | None = None, date_to: str | None = None) -> lis
 
 
 def get_quote(as_of: str) -> dict[str, Any] | None:
-    """1 phiếu đầy đủ. regions (Mục 4) đọc live từ kho Giá mủ nguyên liệu theo ngày."""
+    """1 phiếu đầy đủ. Mục 5 (mủ nước + mủ chén) đọc live từ kho Giá mủ nguyên liệu theo ngày."""
     ensure_schema()
     with session_scope() as db:
         row = db.execute(text(
             "SELECT payload FROM market_quote WHERE as_of = CAST(:d AS date)"
         ), {"d": as_of}).mappings().first()
     regions = price_repo.purchase_by_company_on_date(as_of)
-    if not row and not regions:
+    regions_cup = price_repo.purchase_by_company_on_date(as_of, "purchase_cup")
+    if not row and not regions and not regions_cup:
         return None
     p = _as_payload(row["payload"]) if row else {}
     return {
@@ -95,7 +101,9 @@ def get_quote(as_of: str) -> dict[str, Any] | None:
         "domestic_private": p.get("domestic_private") or {"prices": {}, "note": ""},
         "export_vrg": p.get("export_vrg") or {"prices": {}, "note": ""},
         "domestic_vrg": p.get("domestic_vrg") or {"prices": {}, "status": {}, "note": ""},
+        "customer_proposal": p.get("customer_proposal") or {"qty": {}, "prices": {}, "note": ""},
         "regions": regions,
+        "regions_cup": regions_cup,
         "footer": p.get("footer") or "",
     }
 
@@ -110,19 +118,20 @@ def save_quote(mq: dict[str, Any]) -> dict[str, Any] | None:
             VALUES (CAST(:d AS date), CAST(:p AS jsonb))
             ON CONFLICT (as_of) DO UPDATE SET payload = EXCLUDED.payload, updated_at = now()
         """), {"d": as_of, "p": json.dumps(_payload_of(mq), ensure_ascii=False)})
-    _sync_regions(as_of, mq.get("regions") or {})
+    _sync_regions(as_of, mq.get("regions") or {}, _PURCHASE)
+    _sync_regions(as_of, mq.get("regions_cup") or {}, _PURCHASE_CUP)
     _mirror_market_series(as_of, mq)
     return get_quote(as_of)
 
 
-def _sync_regions(as_of: str, regions: dict[str, Any]) -> None:
-    """Mục 4 → kho Giá mủ nguyên liệu (đảm bảo đơn vị tồn tại, upsert giá đồng/độ TSC)."""
+def _sync_regions(as_of: str, regions: dict[str, Any], mode: dict[str, str]) -> None:
+    """Mục 5 → kho Giá mủ nguyên liệu (đảm bảo đơn vị tồn tại, upsert giá theo `mode`)."""
     for unit, price in regions.items():
         if price is None:
             continue
         member_unit_repo.add_unit(unit)  # idempotent (ON CONFLICT DO NOTHING)
         price_repo.upsert_record({"as_of": as_of, "grade": unit, "contract": "",
-                                  "price": float(price), **_PURCHASE})
+                                  "price": float(price), **mode})
 
 
 def _mirror_market_series(as_of: str, mq: dict[str, Any]) -> None:

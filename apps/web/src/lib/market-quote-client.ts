@@ -3,8 +3,18 @@
 import { apiFetch } from "./http";
 
 export type VcbRate = { mua_tm: number | null; mua_ck: number | null; ban: number | null };
-export type Section = { prices: Record<string, number | null>; note: string };
+export type Section = {
+  prices: Record<string, number | null>;
+  packaging: Record<string, string>; // grade -> bao bì (hàng rời/pallet)
+  shipping: Record<string, string>; // grade -> đơn vị vận chuyển
+  note: string;
+};
 export type DomesticVrgSection = Section & { status: Record<string, string> };
+export type ProposalSection = {
+  qty: Record<string, number | null>; // grade -> số lượng (tấn)
+  prices: Record<string, number | null>; // grade -> đơn giá (VNĐ/tấn)
+  note: string;
+};
 
 export type MarketQuote = {
   as_of: string;
@@ -12,12 +22,14 @@ export type MarketQuote = {
   domestic_private: Section;
   export_vrg: Section;
   domestic_vrg: DomesticVrgSection;
-  regions: Record<string, number | null>;
+  customer_proposal: ProposalSection;
+  regions: Record<string, number | null>; // mủ nước (đồng/độ TSC)
+  regions_cup: Record<string, number | null>; // mủ chén (đồng/kg)
   footer: string;
 };
 
 export type MarketQuoteSummary = { as_of: string; filled: number; updated: string | null };
-export type MarketQuoteMeta = { grades: string[]; units: string[] };
+export type MarketQuoteMeta = { grades: string[]; units: string[]; packaging: string[] };
 export type VcbRateResult = VcbRate & { date: string };
 
 /** Gợi ý tình trạng giao dịch (chọn nhanh; vẫn cho tự nhập tuỳ ý). */
@@ -50,26 +62,38 @@ export const deleteQuote = (as_of: string) =>
 export const fetchVcbRate = (date?: string) =>
   req<VcbRateResult>(`/api/market-quote/vcb-rate${date ? `?date=${date}` : ""}`);
 
+/** Gợi ý bao bì đóng gói (fallback nếu meta chưa tải). */
+export const PACKAGING_OPTIONS = ["Hàng rời", "Pallet"];
+
+const textMapEmpty = (m: Record<string, string>) => Object.values(m).every((v) => !v?.trim());
+const numMapEmpty = (m: Record<string, number | null>) => Object.values(m).every((v) => v == null);
+
 /** Phiếu "trống" (chưa có gì để lưu) — dùng để bỏ qua auto-save khi chưa nhập. */
 export const isEmptyQuote = (q: MarketQuote): boolean => {
-  const secEmpty = (s: Section) => Object.values(s.prices).every((v) => v == null) && !s.note.trim();
+  const secEmpty = (s: Section) =>
+    numMapEmpty(s.prices) && textMapEmpty(s.packaging) && textMapEmpty(s.shipping) && !s.note.trim();
   const fxEmpty = q.fx.mua_tm == null && q.fx.mua_ck == null && q.fx.ban == null;
-  const statusEmpty = Object.values(q.domestic_vrg.status).every((v) => !v?.trim());
-  const regionsEmpty = Object.values(q.regions).every((v) => v == null);
+  const statusEmpty = textMapEmpty(q.domestic_vrg.status);
+  const propEmpty =
+    numMapEmpty(q.customer_proposal.qty) && numMapEmpty(q.customer_proposal.prices)
+    && !q.customer_proposal.note.trim();
   return fxEmpty && secEmpty(q.domestic_private) && secEmpty(q.export_vrg)
-    && secEmpty(q.domestic_vrg) && statusEmpty && regionsEmpty && !q.footer.trim();
+    && secEmpty(q.domestic_vrg) && statusEmpty && propEmpty
+    && numMapEmpty(q.regions) && numMapEmpty(q.regions_cup) && !q.footer.trim();
 };
 
 /** Phiếu rỗng để tạo mới (giá theo chủng loại = null). */
 export const emptyQuote = (as_of: string, grades: string[]): MarketQuote => {
-  const blank = () => Object.fromEntries(grades.map((g) => [g, null]));
+  const blankNum = () => Object.fromEntries(grades.map((g) => [g, null]));
   return {
     as_of,
     fx: { mua_tm: null, mua_ck: null, ban: null },
-    domestic_private: { prices: blank(), note: "" },
-    export_vrg: { prices: blank(), note: "" },
-    domestic_vrg: { prices: blank(), status: {}, note: "" },
+    domestic_private: { prices: blankNum(), packaging: {}, shipping: {}, note: "" },
+    export_vrg: { prices: blankNum(), packaging: {}, shipping: {}, note: "" },
+    domestic_vrg: { prices: blankNum(), packaging: {}, shipping: {}, status: {}, note: "" },
+    customer_proposal: { qty: blankNum(), prices: blankNum(), note: "" },
     regions: {},
+    regions_cup: {},
     footer: "",
   };
 };

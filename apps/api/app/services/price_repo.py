@@ -383,13 +383,13 @@ def delete_physical_date(as_of: str) -> int:
         return res.rowcount
 
 
-def purchase_by_company_on_date(as_of: str) -> dict[str, float]:
-    """Giá thu mua mủ nước ĐÚNG NGÀY báo cáo, theo công ty VRG (source=vrg).
+def purchase_by_company_on_date(as_of: str, price_type: str = "purchase") -> dict[str, float]:
+    """Giá thu mua ĐÚNG NGÀY báo cáo, theo công ty VRG (source=vrg).
 
-    Trả {công ty: giá đồng/độ TSC}. CHỈ lấy bản ghi as_of = ngày báo cáo (không carry
-    giá cũ) — công ty không nhập giá đúng ngày đó sẽ không xuất hiện. Nếu 1 công ty có
-    nhiều bản ghi cùng ngày (sửa lại) → lấy bản nhập sau cùng. Phục vụ mục 'Giá mủ
-    nguyên liệu' của bản tin.
+    `price_type` = 'purchase' (mủ nước) hoặc 'purchase_cup' (mủ chén). Trả {công ty: giá}.
+    CHỈ lấy bản ghi as_of = ngày báo cáo (không carry giá cũ) — công ty không nhập giá đúng
+    ngày đó sẽ không xuất hiện. Nếu 1 công ty có nhiều bản ghi cùng ngày (sửa lại) → lấy bản
+    nhập sau cùng. Phục vụ mục 'Giá mủ nguyên liệu' của bản tin.
     """
     ensure_schema()
     with session_scope() as db:
@@ -397,11 +397,11 @@ def purchase_by_company_on_date(as_of: str) -> dict[str, float]:
             text("""
                 SELECT DISTINCT ON (grade) grade, price
                 FROM fact_price
-                WHERE source = 'vrg' AND price_type = 'purchase'
+                WHERE source = 'vrg' AND price_type = :pt
                   AND as_of = CAST(:d AS date)
                 ORDER BY grade, ingested_at DESC
             """),
-            {"d": as_of},
+            {"d": as_of, "pt": price_type},
         )
         return {m["grade"]: float(m["price"]) for m in result.mappings().all()}
 
