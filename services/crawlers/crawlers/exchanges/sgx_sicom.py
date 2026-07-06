@@ -8,7 +8,7 @@ benchmark); khi có volume phiên thì ưu tiên volume. Giá = preliminary sett
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from ..base.fetcher import fetch_json
 from ..base.models import CrawlResult, PriceRecord, Source, Status
@@ -37,12 +37,24 @@ def _pick(rows: list[dict]) -> dict | None:
     return max(valid, key=lambda r: _num(r.get("open-interest")) or 0.0)
 
 
+def _weekday(d: date) -> date:
+    """Kẹp ngày cuối tuần về Thứ 6 liền trước (thị trường đóng cửa T7/CN — giá là của phiên T6).
+
+    SGX feed delayed đôi khi đóng dấu base-date là ngày cuối tuần / phiên kế; fallback hôm nay
+    cũng có thể rơi vào cuối tuần. Kẹp về T6 để dữ liệu nằm đúng ngày giao dịch (dễ track).
+    """
+    if d.weekday() >= 5:  # 5=T7, 6=CN
+        d -= timedelta(days=d.weekday() - 4)
+    return d
+
+
 def _as_of(row: dict) -> date:
-    """Ngày phiên dữ liệu (base-date YYYYMMDD do SGX trả), fallback hôm nay."""
+    """Ngày phiên dữ liệu (base-date YYYYMMDD do SGX trả), fallback hôm nay — kẹp về ngày giao dịch."""
     try:
-        return datetime.strptime(str(row.get("base-date")), "%Y%m%d").date()
+        d = datetime.strptime(str(row.get("base-date")), "%Y%m%d").date()
     except ValueError:
-        return date.today()
+        d = date.today()
+    return _weekday(d)
 
 
 def crawl() -> CrawlResult:
