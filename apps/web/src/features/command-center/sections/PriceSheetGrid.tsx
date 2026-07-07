@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 
 import {
   type PriceSheet,
@@ -38,6 +38,7 @@ export default function PriceSheetGrid({
   const [val, setVal] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const cancelRef = useRef(false); // Esc đặt cờ này để onBlur không lưu
 
   const load = useCallback(() => {
     fetchSheet({ dateFrom, dateTo, days: 30 }).then(setSheet).catch((e) => setErr(e.message));
@@ -66,13 +67,14 @@ export default function PriceSheetGrid({
         className="blt-cell-input" autoFocus disabled={busy} value={val}
         onChange={(e) => setVal(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            const n = Number(val.replace(/[,\s]/g, ""));
-            if (val.trim() && !isNaN(n)) save(n); else setEditing(null);
-          }
-          if (e.key === "Escape") setEditing(null);
+          if (e.key === "Enter") e.currentTarget.blur();                 // → lưu qua onBlur
+          else if (e.key === "Escape") { cancelRef.current = true; e.currentTarget.blur(); }
         }}
-        onBlur={() => setEditing(null)}
+        onBlur={() => {
+          if (cancelRef.current) { cancelRef.current = false; setEditing(null); return; }
+          const n = Number(val.replace(/[,\s]/g, ""));
+          if (val.trim() && !isNaN(n)) save(n); else setEditing(null);
+        }}
         style={{ width: 60, padding: "2px 4px", fontSize: 11 }}
       />
     ) : (

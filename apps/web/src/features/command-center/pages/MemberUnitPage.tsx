@@ -1,5 +1,5 @@
 import { TeamOutlined } from "@ant-design/icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   type MemberUnit,
@@ -23,6 +23,7 @@ export default function MemberUnitPage() {
   const [editVal, setEditVal] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const cancelRef = useRef(false); // Esc đặt cờ này để onBlur không lưu
 
   const load = useCallback(() => {
     listUnits().then(setUnits).catch((e) => setErr(e.message));
@@ -103,10 +104,13 @@ export default function MemberUnitPage() {
                       style={{ minWidth: 200 }}
                       onChange={(e) => setEditVal(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") saveRename(u.name);
-                        if (e.key === "Escape") setEditing(null);
+                        if (e.key === "Enter") e.currentTarget.blur();               // → lưu qua onBlur
+                        else if (e.key === "Escape") { cancelRef.current = true; e.currentTarget.blur(); }
                       }}
-                      onBlur={() => saveRename(u.name)} />
+                      onBlur={() => {
+                        if (cancelRef.current) { cancelRef.current = false; setEditing(null); return; }
+                        saveRename(u.name);
+                      }} />
                   ) : (
                     <span style={{ fontWeight: 500 }}>{u.name}</span>
                   )}
