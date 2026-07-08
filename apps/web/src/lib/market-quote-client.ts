@@ -62,8 +62,8 @@ export const deleteQuote = (as_of: string) =>
 export const fetchVcbRate = (date?: string) =>
   req<VcbRateResult>(`/api/market-quote/vcb-rate${date ? `?date=${date}` : ""}`);
 
-/** Gợi ý bao bì đóng gói (fallback nếu meta chưa tải). */
-export const PACKAGING_OPTIONS = ["Hàng rời", "Pallet"];
+/** Loại bao bì (fallback nếu meta chưa tải). */
+export const PACKAGING_OPTIONS = ["Đã có bao bì", "Chưa có bao bì"];
 
 const textMapEmpty = (m: Record<string, string>) => Object.values(m).every((v) => !v?.trim());
 const numMapEmpty = (m: Record<string, number | null>) => Object.values(m).every((v) => v == null);

@@ -1,7 +1,7 @@
 /* Bảng giá theo chủng loại SVR (Mục 1-3 của phiếu Báo giá mủ).
    Mỗi chủng loại có: đơn giá · bao bì đóng gói · đơn vị vận chuyển. Mục 3 thêm cột Tình trạng. */
 
-import { AutoComplete } from "antd";
+import { AutoComplete, Select } from "antd";
 
 import {
   MARKET_STATUS_OPTIONS,
@@ -34,7 +34,7 @@ export default function GradePriceTable({
   readOnly, onPrice, onPackaging, onShipping, onStatus, onNote,
 }: Props) {
   const status = (section as DomesticVrgSection).status ?? {};
-  const packOpts = (packagingOptions?.length ? packagingOptions : PACKAGING_OPTIONS).map((s) => ({ value: s }));
+  const packOpts = (packagingOptions?.length ? packagingOptions : PACKAGING_OPTIONS).map((s) => ({ label: s, value: s }));
   return (
     <div className="card blt-section blt-editable" style={{ marginBottom: 16 }}>
       <div className="blt-section-header">
@@ -56,13 +56,13 @@ export default function GradePriceTable({
             <tr key={g}>
               <td style={{ fontWeight: 500 }}>{g}</td>
               <td>
-                <AutoComplete
-                  value={section.packaging?.[g] ?? ""}
+                <Select
+                  value={section.packaging?.[g] || undefined}
                   options={packOpts}
                   disabled={readOnly}
                   allowClear
-                  style={{ width: "100%", minWidth: 130 }}
-                  placeholder="Hàng rời / Pallet"
+                  style={{ width: "100%", minWidth: 150 }}
+                  placeholder="Chọn loại bao bì"
                   onChange={(v) => onPackaging(g, v ?? "")}
                 />
               </td>
