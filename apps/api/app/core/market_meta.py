@@ -103,8 +103,9 @@ VRG_FLOOR_GRADES = [
 # Chủng loại cho "Báo giá mủ thị trường" (Mục 1-3: giá tư nhân/VRG XK/VRG nội địa) — theo phiếu Excel.
 MARKET_QUOTE_GRADES = ["SVR CV 50", "SVR CV 60", "SVR 3L", "SVR 10", "RSS3", "LATEX"]
 
-# Loại bao bì cho mỗi chủng loại (Mục 1-3) — chọn nhanh trên form.
-MARKET_QUOTE_PACKAGING = ["Đã có bao bì", "Chưa có bao bì"]
+# Gợi ý bao bì đóng gói cho các chủng loại SVR (Mục 1-3) — chọn nhanh trên form.
+# LATEX dùng 2 lựa chọn cố định ("Đã có bao bì"/"Chưa có bao bì") xử lý riêng ở frontend.
+MARKET_QUOTE_PACKAGING = ["Hàng rời", "Pallet"]
 
 
 # Công ty cao su thành viên VRG cho "Giá thu mua mủ nước" (đồng/độ TSC) — theo file Excel gốc.

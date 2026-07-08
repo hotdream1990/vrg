@@ -62,8 +62,12 @@ export const deleteQuote = (as_of: string) =>
 export const fetchVcbRate = (date?: string) =>
   req<VcbRateResult>(`/api/market-quote/vcb-rate${date ? `?date=${date}` : ""}`);
 
-/** Loại bao bì (fallback nếu meta chưa tải). */
-export const PACKAGING_OPTIONS = ["Đã có bao bì", "Chưa có bao bì"];
+/** Gợi ý bao bì đóng gói cho các chủng loại SVR (fallback nếu meta chưa tải). */
+export const PACKAGING_OPTIONS = ["Hàng rời", "Pallet"];
+
+/** Chủng loại dùng 2 lựa chọn bao bì cố định (chỉ áp dụng cho LATEX). */
+export const LATEX_GRADE = "LATEX";
+export const LATEX_PACKAGING_OPTIONS = ["Đã có bao bì", "Chưa có bao bì"];
 
 const textMapEmpty = (m: Record<string, string>) => Object.values(m).every((v) => !v?.trim());
 const numMapEmpty = (m: Record<string, number | null>) => Object.values(m).every((v) => v == null);

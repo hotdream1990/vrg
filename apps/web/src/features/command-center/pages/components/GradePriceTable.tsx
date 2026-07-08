@@ -4,6 +4,8 @@
 import { AutoComplete, Select } from "antd";
 
 import {
+  LATEX_GRADE,
+  LATEX_PACKAGING_OPTIONS,
   MARKET_STATUS_OPTIONS,
   PACKAGING_OPTIONS,
   type DomesticVrgSection,
@@ -34,7 +36,9 @@ export default function GradePriceTable({
   readOnly, onPrice, onPackaging, onShipping, onStatus, onNote,
 }: Props) {
   const status = (section as DomesticVrgSection).status ?? {};
-  const packOpts = (packagingOptions?.length ? packagingOptions : PACKAGING_OPTIONS).map((s) => ({ label: s, value: s }));
+  // Các chủng loại SVR: gợi ý nhập tự do (Hàng rời / Pallet). LATEX: 2 lựa chọn cố định.
+  const packOpts = (packagingOptions?.length ? packagingOptions : PACKAGING_OPTIONS).map((s) => ({ value: s }));
+  const latexPackOpts = LATEX_PACKAGING_OPTIONS.map((s) => ({ label: s, value: s }));
   return (
     <div className="card blt-section blt-editable" style={{ marginBottom: 16 }}>
       <div className="blt-section-header">
@@ -56,15 +60,27 @@ export default function GradePriceTable({
             <tr key={g}>
               <td style={{ fontWeight: 500 }}>{g}</td>
               <td>
-                <Select
-                  value={section.packaging?.[g] || undefined}
-                  options={packOpts}
-                  disabled={readOnly}
-                  allowClear
-                  style={{ width: "100%", minWidth: 150 }}
-                  placeholder="Chọn loại bao bì"
-                  onChange={(v) => onPackaging(g, v ?? "")}
-                />
+                {g === LATEX_GRADE ? (
+                  <Select
+                    value={section.packaging?.[g] || undefined}
+                    options={latexPackOpts}
+                    disabled={readOnly}
+                    allowClear
+                    style={{ width: "100%", minWidth: 150 }}
+                    placeholder="Chọn loại bao bì"
+                    onChange={(v) => onPackaging(g, v ?? "")}
+                  />
+                ) : (
+                  <AutoComplete
+                    value={section.packaging?.[g] ?? ""}
+                    options={packOpts}
+                    disabled={readOnly}
+                    allowClear
+                    style={{ width: "100%", minWidth: 130 }}
+                    placeholder="Hàng rời / Pallet"
+                    onChange={(v) => onPackaging(g, v ?? "")}
+                  />
+                )}
               </td>
               <td>
                 <input className="blt-cell-input" style={{ minWidth: 140 }}
