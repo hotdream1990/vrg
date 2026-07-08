@@ -63,7 +63,7 @@ export default function VrgFloorPage() {
   };
 
   const startNew = () => {
-    setDraft({ lan: nextLan, as_of: todayISO(), items: fill(grades, []) });
+    setDraft({ lan: nextLan, as_of: todayISO(), title: `Lần ${nextLan}`, items: fill(grades, []) });
     setIsNew(true);
     setErr("");
   };
@@ -80,8 +80,8 @@ export default function VrgFloorPage() {
     setBusy(true); setErr("");
     try {
       const saved = isNew
-        ? await createFloor(draft.as_of, draft.items)
-        : await updateFloor(draft.lan, draft.as_of, draft.items);
+        ? await createFloor(draft.as_of, draft.items, draft.title)
+        : await updateFloor(draft.lan, draft.as_of, draft.items, draft.title);
       setDraft({ ...saved, items: fill(grades, saved.items) });
       setIsNew(false);
       loadList();
@@ -91,7 +91,7 @@ export default function VrgFloorPage() {
 
   const remove = async () => {
     if (!draft || isNew) return;
-    if (!confirm(`Xoá biểu giá lần ${draft.lan} (${draft.as_of})?`)) return;
+    if (!confirm(`Xoá biểu giá "${draft.title}" (${draft.as_of})?`)) return;
     setBusy(true);
     try { await deleteFloor(draft.lan); setDraft(null); loadList(); }
     catch (e) { setErr(e instanceof Error ? e.message : "Lỗi xoá"); }
@@ -103,11 +103,11 @@ export default function VrgFloorPage() {
       <div className="page-title">
         <div>
           <h2><BankOutlined style={{ marginRight: 8 }} />Giá sàn Tập đoàn</h2>
-          <p>Biểu giá theo "lần" (FOB USD/T + Nội địa VNĐ/T) — nhập tay, số lần tự nhảy. Bản tin ngày tự lấy 2 lần mới nhất.</p>
+          <p>Biểu giá theo "lần" (FOB USD/T + Nội địa VNĐ/T) — nhập tay, tiêu đề tự đặt. Bản tin ngày tự lấy 2 lần mới nhất.</p>
         </div>
         {canEdit && (
           <div className="actions">
-            <button className="btn btn-primary" onClick={startNew}>＋ Tạo biểu giá mới (lần {nextLan})</button>
+            <button className="btn btn-primary" onClick={startNew}>＋ Tạo biểu giá mới</button>
           </div>
         )}
       </div>
@@ -130,7 +130,7 @@ export default function VrgFloorPage() {
             {list.map((s) => (
               <button key={s.lan} className={`btn${draft?.lan === s.lan && !isNew ? " btn-primary" : ""}`}
                 onClick={() => openEdition(s.lan)}>
-                Lần {s.lan} · {s.as_of} <span style={{ opacity: 0.7 }}>({s.grades} chủng loại)</span>
+                {s.title} · {s.as_of} <span style={{ opacity: 0.7 }}>({s.grades} chủng loại)</span>
               </button>
             ))}
           </div>
@@ -141,8 +141,13 @@ export default function VrgFloorPage() {
       {draft && (
         <div className="card blt-section blt-editable">
           <div className="blt-section-header">
-            <h3>{isNew ? `Biểu giá mới — lần ${draft.lan}` : `Sửa biểu giá — lần ${draft.lan}`}</h3>
+            <h3>{isNew ? "Biểu giá mới" : "Sửa biểu giá"}</h3>
             <div className="blt-section-meta" style={{ alignItems: "center" }}>
+              <label className="blt-date-label">Tiêu đề:
+                <input type="text" className="blt-date-input" style={{ width: 130 }}
+                  value={draft.title} readOnly={!canEdit} placeholder="Lần 15"
+                  onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+              </label>
               <label className="blt-date-label">Ngày áp dụng:
                 <DateInput value={draft.as_of} readOnly={!canEdit}
                   onChange={(v) => setDraft({ ...draft, as_of: v })} />

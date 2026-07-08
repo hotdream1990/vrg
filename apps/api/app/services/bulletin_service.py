@@ -90,7 +90,8 @@ def _build_vrg_floor(report_date: date):
         if not sch:
             return None
         d = date.fromisoformat(sch["as_of"]).strftime("%d/%m/%Y")
-        return f"Giá sàn lần {sch['lan']}\n({d})"
+        title = sch.get("title") or f"lần {sch['lan']}"
+        return f"Giá sàn {title}\n({d})"
 
     curr = prev = None
     try:

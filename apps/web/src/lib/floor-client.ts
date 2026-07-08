@@ -3,9 +3,9 @@
 import { apiFetch } from "./http";
 
 export type FloorItem = { grade: string; fob_usd: number | null; domestic_vnd: number | null };
-export type FloorSchedule = { lan: number; as_of: string; items: FloorItem[] };
+export type FloorSchedule = { lan: number; as_of: string; title: string; items: FloorItem[] };
 export type FloorSummary = {
-  lan: number; as_of: string; grades: number; filled: number; updated: string | null;
+  lan: number; as_of: string; title: string; grades: number; filled: number; updated: string | null;
 };
 
 const req = apiFetch;
@@ -24,18 +24,18 @@ export const getFloor = (lan: number) => req<FloorSchedule>(`/api/floor/${lan}`)
 /** Số lần kế tiếp + danh sách chủng loại mặc định (dựng form tạo mới). */
 export const nextFloorMeta = () => req<{ next_lan: number; grades: string[] }>(`/api/floor/next-lan`);
 
-/** Tạo biểu giá mới — số lần tự nhảy ở backend. */
-export const createFloor = (as_of: string, items: FloorItem[]) =>
+/** Tạo biểu giá mới — số lần tự nhảy ở backend; title = tiêu đề custom. */
+export const createFloor = (as_of: string, items: FloorItem[], title?: string) =>
   req<FloorSchedule>(`/api/floor`, {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ as_of, items }),
+    body: JSON.stringify({ as_of, title, items }),
   });
 
 /** Sửa biểu giá lần đã có. */
-export const updateFloor = (lan: number, as_of: string, items: FloorItem[]) =>
+export const updateFloor = (lan: number, as_of: string, items: FloorItem[], title?: string) =>
   req<FloorSchedule>(`/api/floor/${lan}`, {
     method: "PUT", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ as_of, items }),
+    body: JSON.stringify({ as_of, title, items }),
   });
 
 /** Xoá 1 biểu giá theo lần. */

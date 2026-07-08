@@ -34,7 +34,7 @@ def list_schedules(date_from: str | None = None, date_to: str | None = None) -> 
     clause = ("WHERE " + " AND ".join(where)) if where else ""
     with session_scope() as db:
         rows = db.execute(text(f"""
-            SELECT lan, as_of, COUNT(*) AS grades,
+            SELECT lan, as_of, MAX(title) AS title, COUNT(*) AS grades,
                    COUNT(fob_usd) + COUNT(domestic_vnd) AS filled,
                    MAX(ingested_at) AS updated
             FROM vrg_floor_price
@@ -42,7 +42,10 @@ def list_schedules(date_from: str | None = None, date_to: str | None = None) -> 
             GROUP BY lan, as_of
             ORDER BY as_of DESC, lan DESC
         """), params).mappings().all()
-        return [dict(r) for r in rows]
+        return [
+            {**dict(r), "title": (r["title"] or "").strip() or f"Lần {int(r['lan'])}"}
+            for r in rows
+        ]
 
 
 def get_schedule(lan: int) -> dict[str, Any] | None:
@@ -50,35 +53,38 @@ def get_schedule(lan: int) -> dict[str, Any] | None:
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(text("""
-            SELECT lan, as_of, grade, fob_usd, domestic_vnd
+            SELECT lan, as_of, grade, fob_usd, domestic_vnd, title
             FROM vrg_floor_price WHERE lan = :lan ORDER BY grade
         """), {"lan": lan}).mappings().all()
     if not rows:
         return None
+    lan_val = int(rows[0]["lan"])
     return {
-        "lan": int(rows[0]["lan"]),
+        "lan": lan_val,
         "as_of": str(rows[0]["as_of"]),
+        "title": (rows[0]["title"] or "").strip() or f"Lần {lan_val}",
         "items": [{"grade": r["grade"], "fob_usd": r["fob_usd"],
                    "domestic_vnd": r["domestic_vnd"]} for r in rows],
     }
 
 
-def save_schedule(lan: int, as_of: str, items: list[dict[str, Any]]) -> None:
-    """Ghi/cập nhật toàn bộ 1 biểu giá (upsert theo (lan, grade))."""
+def save_schedule(lan: int, as_of: str, items: list[dict[str, Any]], title: str | None = None) -> None:
+    """Ghi/cập nhật toàn bộ 1 biểu giá (upsert theo (lan, grade)). `title` = tiêu đề custom."""
     ensure_schema()
+    title = (title or "").strip() or None
     rows = [{
-        "lan": lan, "as_of": as_of, "grade": it["grade"],
+        "lan": lan, "as_of": as_of, "grade": it["grade"], "title": title,
         "fob_usd": it.get("fob_usd"), "domestic_vnd": it.get("domestic_vnd"),
     } for it in items if it.get("grade")]
     if not rows:
         return
     with session_scope() as db:
         db.execute(text("""
-            INSERT INTO vrg_floor_price (lan, as_of, grade, fob_usd, domestic_vnd)
-            VALUES (:lan, :as_of, :grade, :fob_usd, :domestic_vnd)
+            INSERT INTO vrg_floor_price (lan, as_of, grade, fob_usd, domestic_vnd, title)
+            VALUES (:lan, :as_of, :grade, :fob_usd, :domestic_vnd, :title)
             ON CONFLICT (lan, grade) DO UPDATE SET
                 as_of = EXCLUDED.as_of, fob_usd = EXCLUDED.fob_usd,
-                domestic_vnd = EXCLUDED.domestic_vnd, ingested_at = now()
+                domestic_vnd = EXCLUDED.domestic_vnd, title = EXCLUDED.title, ingested_at = now()
         """), rows)
 
 

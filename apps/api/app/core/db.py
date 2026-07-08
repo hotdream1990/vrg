@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS vrg_floor_price (
     grade        text NOT NULL,
     fob_usd      double precision,
     domestic_vnd double precision,
+    title        text,
     ingested_at  timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (lan, grade)
 );
@@ -114,6 +115,9 @@ CREATE TABLE IF NOT EXISTS market_quote (
     payload     jsonb NOT NULL,
     updated_at  timestamptz NOT NULL DEFAULT now()
 );
+
+-- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
+ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS title text;
 """
 
 # Hypertable tách riêng: cần extension timescaledb; nếu thiếu, bảng vẫn dùng được.
