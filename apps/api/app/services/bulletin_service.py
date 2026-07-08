@@ -224,6 +224,9 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                         return usd_kg_to_usd_tonne(price)
                     if unit == "US cents/kg":
                         return uscents_kg_to_usd_tonne(price)
+                    if unit == "Sen/kg":
+                        rate = fx_rates.get("USD/MYR")
+                        return round(price * 10 / rate) if rate else None
                     if unit == "CNY/tonne":
                         rate = fx_rates.get("USD/CNY")
                         return cny_tonne_to_usd_tonne(price, rate) if rate else None

@@ -3,7 +3,7 @@
 Crawlers trả về đơn vị gốc của sàn:
   - SHFE: CNY/tonne
   - TOCOM/OSE: JPY/kg
-  - LGM: US cents/kg  (Latex: Sen/kg — đã quy đổi sang US cents/kg trong crawler)
+  - LGM: US cents/kg  (Latex: Sen/kg — quy đổi USD/T bằng tỷ giá USD/MYR: Sen ÷ USD/MYR × 10)
   - ANRPC: US$/kg
   - FX: per USD (ví dụ 1 USD = 25,800 VND)
 """
@@ -49,6 +49,10 @@ def to_usd_tonne_detail(
         return usd_kg_to_usd_tonne(price), None, None
     if unit == "US cents/kg":
         return uscents_kg_to_usd_tonne(price), None, None
+    if unit == "Sen/kg":
+        # LGM Latex yết Sen/kg (Malaysia). Sen ÷ (USD/MYR) × 10 = USD/tấn.
+        rate = fx_rates.get("USD/MYR")
+        return (round(price * 10 / rate) if rate else None), "USD/MYR", rate
     if unit == "baht/kg":
         rate = fx_rates.get("USD/THB")
         return (round(price * 1000 / rate) if rate else None), "USD/THB", rate

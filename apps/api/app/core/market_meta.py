@@ -85,10 +85,10 @@ SHEET_GROUPS = [
          "edit": {"source": "lgm", "grade": "SMR20", "price_type": "physical",
                   "currency": "USc", "unit": "US cents/kg", "scale": 0.1, "field": "usd"}},
         {"key": "MRB:LATEX", "grade": "LATEX", "label": "LATEX",
-         "show_native": True, "native_label": "Sen", "native_unit": "US cents/kg",
-         "show_fx": False, "fx_pair": "USD/MYR",
+         "show_native": True, "native_label": "Sen", "native_unit": "Sen/kg",
+         "show_fx": True, "fx_pair": "USD/MYR",
          "edit": {"source": "lgm", "grade": "LATEX", "price_type": "physical",
-                  "currency": "USc", "unit": "US cents/kg", "scale": 1, "field": "native"}},
+                  "currency": "MYR", "unit": "Sen/kg", "scale": 1, "field": "native"}},
     ]},
 ]
 
