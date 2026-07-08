@@ -6,7 +6,9 @@ GOTCHA: CF chỉ cho qua lần tải ĐẦU của mỗi BrowserContext → mỗi
 YYYY  1 USD = <rate> <CUR>") trong bảng "Exchange Rate History" của trang conversion.
 VND: lấy TỪ VIETCOMBANK (API công khai có date param) — 2 giá "USD/VND (Mua)" (chuyển khoản)
 và "USD/VND (Bán)", đồng bộ với phiếu Báo giá mủ. Backfill VND theo từng ngày qua VCB.
-Backfill 4 đồng còn lại: history() đọc bảng lịch sử exchangerates (~7 phiên) → khớp data live.
+MYR: lấy TỪ BNM (Ngân hàng TW Malaysia) API — buying_rate phiên 12:00 (đúng nguồn chuyên viên,
+rateType=BR, quote=rm); dùng quy đổi Latex LGM (Sen ÷ USD/MYR × 10). Backfill MYR qua API theo tháng.
+Backfill CNY/JPY/THB: history() đọc bảng lịch sử exchangerates (~7 phiên) → khớp data live.
 """
 
 from __future__ import annotations
@@ -17,14 +19,16 @@ from datetime import date, datetime, timedelta, timezone
 from ..base.fetcher import fetch_json
 from ..base.models import CrawlResult, PriceRecord, Source, Status
 
-# Đồng tiền quy trình giá sàn: CNY/JPY (quy futures→USD), MYR (Ringgit), THB (physical Thái).
+# CNY/JPY (quy futures→USD) + THB (physical Thái) từ exchangerates. MYR từ BNM, VND từ VCB (riêng).
 _PAGES = {
     "CNY": "https://www.exchangerates.org.uk/Dollars-to-Yuan-currency-conversion-page.html",
     "JPY": "https://www.exchangerates.org.uk/Dollars-to-YEN-currency-conversion-page.html",
     "THB": "https://www.exchangerates.org.uk/Dollars-to-Baht-currency-conversion-page.html",
-    "MYR": "https://www.exchangerates.org.uk/Dollars-to-Malaysian-Ringgit-currency-conversion-page.html",
 }
 _VCB_URL = "https://www.vietcombank.com.vn/api/exchangerates?date={d}"  # VND: nguồn Vietcombank
+# BNM (Malaysia) — buying_rate phiên 12:00, quote=rm (đúng nguồn chuyên viên). {path}='' hoặc '/year/Y/month/M'.
+_BNM_URL = "https://api.bnm.gov.my/public/exchange-rate/USD{path}?session=1200&quote=rm"
+_BNM_HEADERS = {"Accept": "application/vnd.BNM.API.v1+json"}
 _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
 # 1 dòng lịch sử: "23 June 2026  1 USD = 6.7908 CNY" (bỏ qua thứ đứng trước số ngày).
@@ -135,8 +139,32 @@ def _vnd_records(day: date | None = None) -> list[PriceRecord]:
     return out
 
 
+def _bnm_myr(day: date | None = None) -> list[PriceRecord]:
+    """USD/MYR từ BNM (buying_rate, phiên 12:00). day=None → mới nhất; có day → cả tháng đó.
+
+    quote=rm → RM per 1 USD (≈4,07), cùng chiều với các cặp USD/xxx khác. rateType=BR = buying_rate.
+    """
+    path = f"/year/{day.year}/month/{day.month}" if day else ""
+    try:
+        data = fetch_json(_BNM_URL.format(path=path), headers=_BNM_HEADERS)
+    except Exception:  # noqa: BLE001
+        return []
+    rate = (data or {}).get("data", {}).get("rate")
+    items = rate if isinstance(rate, list) else ([rate] if rate else [])
+    out: list[PriceRecord] = []
+    for r in items:
+        buying, d = r.get("buying_rate"), r.get("date")
+        try:
+            as_of = date.fromisoformat(str(d))
+        except (TypeError, ValueError):
+            continue
+        if buying:
+            out.append(_rec("MYR", as_of, round(float(buying), 4)))
+    return out
+
+
 def crawl() -> CrawlResult:
-    """Quét tỷ giá Close (CNY/JPY/THB/MYR qua Playwright) + VND (open.er-api). Cô lập lỗi."""
+    """Quét tỷ giá: CNY/JPY/THB (Playwright) + VND (VCB) + MYR (BNM API). Cô lập lỗi từng nguồn."""
     notes: list[str] = []
     try:
         records, failed = _scrape(_PAGES)
@@ -149,6 +177,11 @@ def crawl() -> CrawlResult:
         records.extend(vnd)
     else:
         notes.append("VND (VCB) lỗi")
+    myr = _bnm_myr()
+    if myr:
+        records.extend(myr)
+    else:
+        notes.append("MYR (BNM) lỗi")
     note = "; ".join(notes) or None
     if records:
         return CrawlResult(source=Source.FX, status=Status.OK, records=records, note=note)
@@ -204,5 +237,15 @@ def history(days: int) -> list[PriceRecord]:
     day = datetime.now(timezone.utc).date()
     for _ in range(days + 1):
         records.extend(_vnd_records(day))
+        day -= timedelta(days=1)
+
+    # MYR từ BNM — API trả theo tháng; quét các tháng phủ khoảng [since, hôm nay].
+    seen_months: set[tuple[int, int]] = set()
+    day = datetime.now(timezone.utc).date()
+    for _ in range(days + 1):
+        key = (day.year, day.month)
+        if key not in seen_months:
+            seen_months.add(key)
+            records.extend(m for m in _bnm_myr(day) if m.as_of >= since)
         day -= timedelta(days=1)
     return records
