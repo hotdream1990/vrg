@@ -415,20 +415,39 @@ def latest_two_for_bulletin(as_of_max: str) -> list[dict[str, Any]]:
     curr = bản ghi mới nhất, prev = liền trước (để tính chênh lệch). Nhờ vậy mỗi chỉ số
     luôn dùng giá THẬT mới nhất sẵn có, không phụ thuộc các sàn có cùng ngày hay không
     (FX cập nhật T+0, sàn T-1/T-2, physical trễ hơn...).
+
+    Sàn có NHIỀU hợp đồng cùng grade/ngày (SGX lưu cả kỳ tháng-sau lẫn hợp đồng cũ sót lại)
+    sẽ khiến "2 bản ghi mới nhất" rơi vào CÙNG 1 ngày → không có ngày trước để so → mất
+    tăng/giảm. Vì vậy chốt 1 hợp đồng chuẩn cho mỗi (source, grade) = hợp đồng của ngày mới
+    nhất (nhiều hợp đồng → ưu tiên có-kỳ-hạn, rồi kỳ GẦN nhất), rồi lấy 2 ngày gần nhất CÙNG
+    hợp đồng đó — so sánh cùng-kỳ-hạn, đúng như TOCOM/SHFE (mỗi grade chỉ 1 hợp đồng/ngày).
     """
     ensure_schema()
     with session_scope() as db:
         result = db.execute(
             text("""
-                SELECT source, grade, price, currency, unit, price_type, as_of, contract
-                FROM (
-                    SELECT source, grade, price, currency, unit, price_type, as_of, contract,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY source, grade ORDER BY as_of DESC
-                           ) AS rn
+                WITH canon AS (
+                    -- hợp đồng chuẩn/mỗi (source,grade) = của ngày mới nhất, kỳ gần nhất
+                    SELECT DISTINCT ON (source, grade)
+                           source, grade, COALESCE(contract, '') AS canon_contract
                     FROM fact_price
                     WHERE as_of <= CAST(:d AS date)
-                ) t
+                    ORDER BY source, grade, as_of DESC,
+                             (COALESCE(contract, '') = '') ASC, COALESCE(contract, '') ASC
+                ),
+                picked AS (
+                    SELECT f.source, f.grade, f.price, f.currency, f.unit, f.price_type,
+                           f.as_of, f.contract,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY f.source, f.grade ORDER BY f.as_of DESC
+                           ) AS rn
+                    FROM fact_price f
+                    JOIN canon c ON f.source = c.source AND f.grade = c.grade
+                        AND COALESCE(f.contract, '') = c.canon_contract
+                    WHERE f.as_of <= CAST(:d AS date)
+                )
+                SELECT source, grade, price, currency, unit, price_type, as_of, contract
+                FROM picked
                 WHERE rn <= 2
                 ORDER BY source, grade, as_of
             """),
