@@ -11,8 +11,7 @@ import { dmy } from "../../../lib/date";
 const fmt = (v: number | null | undefined, d = 0) =>
   v == null ? "" : v.toLocaleString("vi-VN", { maximumFractionDigits: d });
 
-const showUsd = (c: SheetCol) => c.show_usd !== false; // mặc định hiện cột USD/T (SGX/MRB = false)
-const colSpan = (c: SheetCol) => (c.show_native ? 1 : 0) + (c.show_fx ? 1 : 0) + (showUsd(c) ? 1 : 0);
+const colSpan = (c: SheetCol) => (c.show_native ? 1 : 0) + (c.show_fx ? 1 : 0) + 1;
 const LINE = "1px solid var(--line, #1e293b)";
 const GRP = "2px solid var(--line, #334155)";
 
@@ -111,7 +110,7 @@ export default function PriceSheetGrid({
                 <Fragment key={c.key}>
                   {c.show_native && <th className="r" style={{ borderLeft: GRP }}>{c.native_label}</th>}
                   {c.show_fx && <th className="r">Tỷ giá</th>}
-                  {showUsd(c) && <th className="r" style={{ borderLeft: c.show_native || c.show_fx ? LINE : GRP }}>USD/T</th>}
+                  <th className="r" style={{ borderLeft: c.show_native || c.show_fx ? LINE : GRP }}>USD/T</th>
                 </Fragment>
               ))}
             </tr>
@@ -137,12 +136,10 @@ export default function PriceSheetGrid({
                             (n) => commit({ as_of: row.as_of, ...fxRecord(c.fx_pair!, n) }))}
                         </td>
                       )}
-                      {showUsd(c) && (
-                        <td className="r" style={{ fontWeight: 600, borderLeft: c.show_native || c.show_fx ? LINE : GRP }}>
-                          {cell(`${row.as_of}|${c.key}|u`, cv.usd, 0,
-                            (n) => commit({ as_of: row.as_of, source: e.source, grade: e.grade, contract: "", price_type: e.price_type, price: n * e.scale, currency: e.currency, unit: e.unit }))}
-                        </td>
-                      )}
+                      <td className="r" style={{ fontWeight: 600, borderLeft: c.show_native || c.show_fx ? LINE : GRP }}>
+                        {cell(`${row.as_of}|${c.key}|u`, cv.usd, 0,
+                          (n) => commit({ as_of: row.as_of, source: e.source, grade: e.grade, contract: "", price_type: e.price_type, price: n * e.scale, currency: e.currency, unit: e.unit }))}
+                      </td>
                     </Fragment>
                   );
                 })}

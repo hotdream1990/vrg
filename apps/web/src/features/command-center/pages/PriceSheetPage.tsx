@@ -21,7 +21,7 @@ export default function PriceSheetPage() {
       <div className="page-title">
         <div>
           <h2><TableOutlined style={{ marginRight: 8 }} />Bảng tính giá các sàn</h2>
-          <p>Giá theo ngày: OSE/SHANGHAI (nội tệ · tỷ giá · USD/T) · SGX/MRB (US cents/kg — đơn vị gốc) — bấm ô để sửa, ghi đè kho giá.</p>
+          <p>Giá nội tệ · Tỷ giá · USD/T theo ngày (OSE · SHANGHAI · SGX · MRB) — bấm ô để sửa, ghi đè kho giá.</p>
         </div>
       </div>
 

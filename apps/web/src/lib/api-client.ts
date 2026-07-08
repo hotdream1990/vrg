@@ -64,7 +64,7 @@ export type SheetEdit = {
 export type SheetCol = {
   key: string; grade: string; label: string;
   show_native: boolean; native_label?: string; native_unit?: string;
-  show_fx: boolean; fx_pair?: string; show_usd?: boolean; edit: SheetEdit;
+  show_fx: boolean; fx_pair?: string; edit: SheetEdit;
 };
 export type SheetGroup = { exchange: string; label: string; cols: SheetCol[] };
 export type SheetCell = { usd: number | null; native?: number | null; fx_rate?: number | null };
