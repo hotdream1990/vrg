@@ -232,11 +232,14 @@ def prices_since(
     else:
         where.append("as_of >= current_date - CAST(:days AS integer)")
         params["days"] = days
+    # ORDER BY ingested_at cuối cùng: khi 1 ngày có nhiều bản ghi (source,grade) do đổi kỳ hạn
+    # hoặc quét lại/sửa tay → build_sheet giữ bản ghi CUỐI, nên bản nhập/ghi MỚI NHẤT thắng
+    # (quét lại cập nhật đúng, và sửa tay override được giá quét sai).
     stmt = text(f"""
         SELECT as_of, source, grade, price, unit
         FROM fact_price
         WHERE {" AND ".join(where)}
-        ORDER BY as_of
+        ORDER BY as_of, ingested_at
     """).bindparams(bindparam("srcs", expanding=True))
     with session_scope() as db:
         result = db.execute(stmt, params)

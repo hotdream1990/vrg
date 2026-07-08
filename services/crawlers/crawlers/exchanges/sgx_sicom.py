@@ -1,14 +1,16 @@
-"""SGX / SICOM — TSR20 (mã TF) & RSS3 (mã RT): SETTLE của kỳ hạn hoạt động nhất.
+"""SGX / SICOM — TSR20 (mã TF) & RSS3 (mã RT): settlement của kỳ hạn giao THÁNG SAU.
 
 Nguồn: `api.sgx.com/derivatives/v1.0/contract-code/{code}` (JSON) — chính request mà trang
 `delayed-prices-futures?cc=TF&category=rubber` của SGX gọi (cần Origin/Referer sgx.com).
-Feed delayed nên volume phiên = 0 → chọn kỳ hạn có **open-interest lớn nhất** (contract
-benchmark); khi có volume phiên thì ưu tiên volume. Giá = preliminary settlement (US cents/kg).
+Chọn **hợp đồng giao tháng sau** (next month so với ngày hiện tại theo giờ Singapore UTC+8)
+đúng chỉ số chuyên viên. Giá = `preliminary-settlement-price-abs` (US cents/kg).
 """
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+
+_SGT = timezone(timedelta(hours=8))  # SGX = giờ Singapore (UTC+8) — căn ngày hiện tại theo múi này
 
 from ..base.fetcher import fetch_json
 from ..base.models import CrawlResult, PriceRecord, Source, Status
@@ -26,15 +28,29 @@ def _num(v: object) -> float | None:
         return None
 
 
+def _target_delivery_month(today: date | None = None) -> str:
+    """Kỳ hạn cần lấy = THÁNG SAU tháng của NGÀY HIỆN TẠI (giờ Singapore UTC+8).
+
+    Theo chỉ số chuyên viên: đọc hợp đồng giao "tháng sau" (next month). VD ngày xử lý
+    2026-07-08 (tháng 7) → hợp đồng giao **2026-08**. Định dạng "YYYY-MM" khớp field
+    `delivery-month` của SGX. API là live nên căn theo ngày hiện tại UTC+8 (không theo base-date).
+    """
+    d = today or datetime.now(_SGT).date()
+    y, m = (d.year + 1, 1) if d.month == 12 else (d.year, d.month + 1)
+    return f"{y:04d}-{m:02d}"
+
+
 def _pick(rows: list[dict]) -> dict | None:
-    """Kỳ hạn đại diện: volume phiên lớn nhất; nếu volume=0 hết (feed delayed) → OI lớn nhất."""
-    valid = [r for r in rows if _num(r.get("preliminary-settlement-price-abs")) is not None]
-    if not valid:
-        return None
-    by_vol = max(valid, key=lambda r: _num(r.get("total-volume")) or 0.0)
-    if (_num(by_vol.get("total-volume")) or 0.0) > 0:
-        return by_vol
-    return max(valid, key=lambda r: _num(r.get("open-interest")) or 0.0)
+    """Chọn hợp đồng giao THÁNG SAU (next month, giờ Singapore) có settle > 0.
+
+    (settle > 0: sáng sớm sàn chưa ra settlement → 0/None → bỏ, không lưu 0 USD/T vào DB.)
+    Không khớp tháng-sau/không có settle → None (grade đó để trống, không bịa số).
+    """
+    target = _target_delivery_month()
+    for r in rows:
+        if str(r.get("delivery-month")) == target and (_num(r.get("preliminary-settlement-price-abs")) or 0) > 0:
+            return r
+    return None
 
 
 def _weekday(d: date) -> date:
@@ -70,7 +86,7 @@ def crawl() -> CrawlResult:
                         source=Source.SGX,
                         grade=grade,
                         price=settle,
-                        currency="USD",
+                        currency="USc",  # US cents (không phải USD) — giá yết bằng cent/kg
                         unit="US cents/kg",
                         price_type="settlement",
                         as_of=_as_of(best),

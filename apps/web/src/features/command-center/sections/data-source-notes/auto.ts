@@ -4,10 +4,10 @@ import type { DataSourceNote } from "./types";
 export const AUTO_NOTES: Record<string, DataSourceNote> = {
   "price-sheet": {
     kind: "auto",
-    tagline: "Máy tự quét mỗi ngày từ 4 sàn (SHFE · OSE · SGX · MRB) — chọn hợp đồng có khối lượng lớn nhất; có thể sửa tay.",
+    tagline: "Máy tự quét mỗi ngày từ 4 sàn (SHFE · OSE · SGX · MRB) — mỗi sàn chọn hợp đồng đại diện theo quy ước; có thể sửa tay.",
     intro:
       "Giá đóng cửa (settlement) của các sàn kỳ hạn + giá physical MRB, do crawler tự lấy rồi ghi vào kho giá. " +
-      "Mỗi sàn tự chọn hợp đồng có khối lượng/giá trị giao dịch lớn nhất trong ngày (không cố định tháng đáo hạn).",
+      "Quy ước chọn hợp đồng theo từng sàn: SHFE/OSE lấy hợp đồng có khối lượng/giá trị giao dịch lớn nhất; SGX lấy hợp đồng giao tháng sau (theo giờ Singapore).",
     sources: [
       {
         name: "SHFE — Sàn kỳ hạn Thượng Hải (cao su RU)",
@@ -41,11 +41,11 @@ export const AUTO_NOTES: Record<string, DataSourceNote> = {
         method: "GET JSON (header Origin/Referer: sgx.com)",
         steps: [
           "Gọi API theo mã hợp đồng TF (→ TSR20) và RT (→ RSS3).",
-          "Lọc dòng có preliminary-settlement-price-abs; ưu tiên total-volume lớn nhất; nếu KL = 0 thì lấy open-interest lớn nhất.",
+          "Lấy hợp đồng giao THÁNG SAU so với ngày hiện tại (giờ Singapore UTC+8), có preliminary-settlement-price-abs > 0. VD ngày 08/07/2026 → lấy kỳ hạn giao 2026-08.",
         ],
-        field: "preliminary-settlement-price-abs (kèm delivery-month, base-date).",
+        field: "preliminary-settlement-price-abs của kỳ hạn tháng sau (kèm delivery-month, base-date).",
         unit: "US cents/kg",
-        note: "⚠️ Từ 6/2026 API SGX hay trả rỗng — khi thiếu cần nhập tay hoặc dùng nguồn thay thế.",
+        note: "⚠️ Sáng sớm sàn chưa ra settlement (kỳ tháng sau = 0/rỗng) → để trống, chờ phiên sau; hoặc nhập tay.",
       },
       {
         name: "MRB / LGM — Cục Cao su Malaysia (SMR CV/L/5/GP/10/20 + Latex)",

@@ -22,9 +22,10 @@ updated: 2026-06-15
   chọn **Volume lớn nhất** (thường cách ~3 tháng) → lấy giá tại **Settle**.
 
 ## SGX / SICOM (Singapore) — RSS3 & TSR20
-- Web: `https://www.sgx.com/research-education/derivatives` → Historical Settlement Data → Type: Future.
-- **RSS3**: cột COM = `RT`, COM_MM = tháng trước hiện tại 01 tháng, COM_YY = năm hiện tại → giá **SETTLE** (cùng 1 dòng).
-- **TSR 20**: cột COM = `TF`, COM_MM = tháng trước 01 tháng, COM_YY = năm hiện tại → giá **SETTLE**.
+- API: `https://api.sgx.com/derivatives/v1.0/contract-code/{TF|RT}?category=futures` (header Origin/Referer sgx.com).
+- **Mã hợp đồng**: RSS3 = `RT`, TSR20 = `TF`.
+- **Chọn kỳ hạn = giao THÁNG SAU** (next month) so với ngày hiện tại theo **giờ Singapore (UTC+8)** — vd ngày xử lý 2026-07-08 (tháng 7) → hợp đồng giao **2026-08**.
+- **Giá lấy**: `preliminary-settlement-price-abs` (US cents/kg) của kỳ hạn đó, cần > 0 (sáng sớm chưa ra settlement = 0 → bỏ, chờ phiên sau).
 
 ## LGM (Malaysia) — Physical FOB
 - Web: `https://www.lgm.gov.my/webv2/sidenav/(mreDetails:mreprice)` → reference prices (FOB) → chọn ngày (trước 01 ngày).

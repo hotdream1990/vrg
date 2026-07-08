@@ -48,8 +48,9 @@ FX_PAIRS = ["USD/JPY", "USD/CNY", "USD/MYR", "USD/THB", "USD/VND (Mua)", "USD/VN
 
 # ── Spec lưới "Bảng tính giá" (giống sheet mẫu VRG) ──
 # Mỗi nhóm = 1 sàn; mỗi cột = 1 mặt hàng. `edit` = khóa fact_price để ghi đè khi sửa ô.
-#  - show_native: hiện cột giá nội tệ (YEN/CNY/Sen).  show_fx: hiện cột tỷ giá inline.
-#  - edit.field='native' → ô sửa lưu thẳng giá nội tệ; ='usd' → lưu native = USD * scale (cents = USD/10).
+#  - show_native: hiện cột giá gốc (YEN/CNY/US¢).  show_fx: hiện cột tỷ giá inline.
+#  - show_usd (mặc định True): hiện cột USD/T quy đổi; SGX/MRB đặt False vì đã yết bằng US cents (=USD).
+#  - edit.field='native' → ô sửa lưu thẳng giá gốc; ='usd' → lưu native = USD * scale (cents = USD/10).
 SHEET_GROUPS = [
     {"exchange": "OSE", "label": "OSE", "cols": [
         {"key": "OSE:RSS3", "grade": "RSS3", "label": "RSS3 (JPX)",
@@ -65,30 +66,35 @@ SHEET_GROUPS = [
          "edit": {"source": "shfe", "grade": "RU", "price_type": "settlement",
                   "currency": "CNY", "unit": "CNY/tonne", "scale": 1, "field": "native"}},
     ]},
+    # SGX/MRB yết bằng US cents/kg (đã là USD) → hiện thẳng giá gốc cents, KHÔNG cột USD/T (show_usd=False).
     {"exchange": "SGX", "label": "SGX", "cols": [
         {"key": "SGX:RSS3", "grade": "RSS3", "label": "RSS3",
-         "show_native": False, "show_fx": False,
+         "show_native": True, "native_label": "US¢/kg", "native_unit": "US cents/kg",
+         "show_fx": False, "show_usd": False,
          "edit": {"source": "sgx", "grade": "RSS3", "price_type": "settlement",
-                  "currency": "USD", "unit": "US cents/kg", "scale": 0.1, "field": "usd"}},
+                  "currency": "USc", "unit": "US cents/kg", "scale": 1, "field": "native"}},
         {"key": "SGX:TSR20", "grade": "TSR20", "label": "TSR20",
-         "show_native": False, "show_fx": False,
+         "show_native": True, "native_label": "US¢/kg", "native_unit": "US cents/kg",
+         "show_fx": False, "show_usd": False,
          "edit": {"source": "sgx", "grade": "TSR20", "price_type": "settlement",
-                  "currency": "USD", "unit": "US cents/kg", "scale": 0.1, "field": "usd"}},
+                  "currency": "USc", "unit": "US cents/kg", "scale": 1, "field": "native"}},
     ]},
     {"exchange": "MRB", "label": "MRB", "cols": [
         {"key": "MRB:SMRCV", "grade": "SMRCV", "label": "SMRCV",
-         "show_native": False, "show_fx": False,
+         "show_native": True, "native_label": "US¢/kg", "native_unit": "US cents/kg",
+         "show_fx": False, "show_usd": False,
          "edit": {"source": "lgm", "grade": "SMRCV", "price_type": "physical",
-                  "currency": "USD", "unit": "US cents/kg", "scale": 0.1, "field": "usd"}},
+                  "currency": "USc", "unit": "US cents/kg", "scale": 1, "field": "native"}},
         {"key": "MRB:SMR20", "grade": "SMR20", "label": "SMR20",
-         "show_native": False, "show_fx": False,
+         "show_native": True, "native_label": "US¢/kg", "native_unit": "US cents/kg",
+         "show_fx": False, "show_usd": False,
          "edit": {"source": "lgm", "grade": "SMR20", "price_type": "physical",
-                  "currency": "USD", "unit": "US cents/kg", "scale": 0.1, "field": "usd"}},
+                  "currency": "USc", "unit": "US cents/kg", "scale": 1, "field": "native"}},
         {"key": "MRB:LATEX", "grade": "LATEX", "label": "LATEX",
-         "show_native": True, "native_label": "Sen", "native_unit": "US cents/kg",
-         "show_fx": False, "fx_pair": "USD/MYR",
+         "show_native": True, "native_label": "US¢/kg", "native_unit": "US cents/kg",
+         "show_fx": False, "show_usd": False,
          "edit": {"source": "lgm", "grade": "LATEX", "price_type": "physical",
-                  "currency": "USD", "unit": "US cents/kg", "scale": 1, "field": "native"}},
+                  "currency": "USc", "unit": "US cents/kg", "scale": 1, "field": "native"}},
     ]},
 ]
 

@@ -73,7 +73,7 @@ def _parse(rows: list[dict]) -> list[PriceRecord]:
                 source=Source.LGM,
                 grade=grade,
                 price=price,
-                currency="USD",
+                currency="USc",  # US cents (không phải USD) — giá yết bằng cent/kg
                 unit="US cents/kg",
                 price_type="physical",
                 as_of=as_of,

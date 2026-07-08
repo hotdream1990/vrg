@@ -110,17 +110,20 @@
 
 ---
 
-## 6. SGX / SICOM (Singapore) — TSR20 (TF) & RSS3 (RT) — ⏳ CHƯA LẤY ĐƯỢC
+## 6. SGX / SICOM (Singapore) — TSR20 (TF) & RSS3 (RT)
+
+**Lấy gì:** settlement của hợp đồng giao **THÁNG SAU**. **Đơn vị:** US cents/kg · **Loại:** settlement.
 
 | Bước | Chuyên viên (thủ công) | Hệ thống (tự động) |
 |---|---|---|
-| 1 | `sgx.com` → Historical Settlement Data → Future | Gọi `api.sgx.com/.../history/symbol/{TF|RT}` |
-| 2 | RSS3 = COM **RT**, TSR20 = COM **TF**; COM_MM = tháng‑1, COM_YY = năm nay | (logic chọn kỳ hạn Volume lớn nhất **đã viết sẵn**) |
-| 3 | Lấy giá **SETTLE** cùng dòng | ❌ API đổi cơ chế → trả rỗng / mã `SGX_4015`,`SGX_4020` → **BLOCKED** |
+| 1 | `sgx.com` → giá kỳ hạn cao su TF/RT | Gọi `api.sgx.com/derivatives/v1.0/contract-code/{TF\|RT}?category=futures` (header Origin/Referer sgx.com) |
+| 2 | RSS3 = COM **RT**, TSR20 = COM **TF** | Nhận diện mã hợp đồng TF→TSR20, RT→RSS3 |
+| 3 | Lấy hợp đồng giao **tháng sau** so với hiện tại | Lọc `delivery-month` = tháng-sau theo **giờ Singapore (UTC+8)**; vd 08/07/2026 → 2026-08 |
+| 4 | Lấy giá **SETTLE** | Lấy `preliminary-settlement-price-abs` (cần > 0; sáng sớm chưa settle = 0 → bỏ, chờ phiên sau) |
 
-**✅ Cần xác nhận / quyết định:**
-- [ ] VRG có **nguồn SGX/SICOM chính thức** (licensed feed) hoặc cho phép capture request từ trình duyệt không?
-- [ ] Trong lúc chờ, có chấp nhận **tham chiếu tạm** TSR20/RSS3 từ ANRPC/OSE không?
+**✅ Cần xác nhận:**
+- [x] Kỳ hạn = **tháng sau** (next month, giờ SGP) → SETTLE. Verify 08/07/2026: RSS3 2.885, TSR20 2.168 (khớp bảng chuyên viên).
+- [ ] Khi kỳ tháng-sau chưa ra settlement (sáng sớm) → để trống chờ phiên sau, có ổn không?
 
 ---
 
