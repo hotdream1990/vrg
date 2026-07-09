@@ -85,7 +85,8 @@ export default function BulletinDetailPage() {
             <table className="blt-list-table">
               <thead><tr>
                 <th>Mặt hàng</th>
-                <th className="r">Giá ({d.prev_date})</th><th className="r">Giá ({d.report_date})</th>
+                <th className="r">Giá ({d.physical_prev_label || d.prev_date})</th>
+                <th className="r">Giá ({d.physical_curr_label || d.report_date})</th>
                 <th className="r">+/-</th><th className="r">%</th>
               </tr></thead>
               <tbody>

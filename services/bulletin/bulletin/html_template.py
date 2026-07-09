@@ -115,8 +115,8 @@ def _physical_table(data: BulletinData) -> str:
     if not data.physical_prices:
         return '<p class="note">Không có dữ liệu giá vật chất (ANRPC) cho ngày này.</p>'
     m = {p.grade: p for p in data.physical_prices}
-    prev = data.prev_date.strftime("%d/%m/%y")
-    curr = data.report_date.strftime("%d/%m/%y")
+    prev = (data.physical_prev_date or data.prev_date).strftime("%d/%m/%y")
+    curr = (data.physical_curr_date or data.report_date).strftime("%d/%m/%y")
     head = (
         "<thead><tr><th rowspan='2'>Chủng loại</th>"
         f"<th rowspan='2'>Giá<br>({prev})</th><th rowspan='2'>Giá<br>({curr})</th>"

@@ -186,8 +186,10 @@ def _update_slide2_prices(slide, data: BulletinData) -> None:
                     _set_cell(table, row_idx, 7, _fmt_pct(row_data.change_pct))
 
         elif nrows == 8 and ncols == 5:
-            # Table 2: Physical (ANRPC)
-            _fill_table_headers_date(table, 0, data, col_prev=1, col_curr=2)
+            # Table 2: Physical (ANRPC) — ngày cột = phiên vật chất thật (có thể cũ hơn ngày báo cáo)
+            _fill_table_headers_date(table, 0, data, col_prev=1, col_curr=2,
+                                     prev_date=data.physical_prev_date,
+                                     curr_date=data.physical_curr_date)
             for row_idx, grade in _PHYSICAL_TABLE_MAP.items():
                 row_data = physical_map.get(grade)
                 if row_data:
@@ -415,10 +417,14 @@ def _set_first_run_text_para(para, text: str) -> None:
 
 
 def _fill_table_headers_date(table, header_row: int, data: BulletinData,
-                              col_prev: int, col_curr: int) -> None:
-    """Cập nhật ngày trong header bảng: 'Giá<br>(DD/MM/YY)'."""
-    prev_str = data.prev_date.strftime("%d/%m/%y")
-    curr_str = data.report_date.strftime("%d/%m/%y")
+                              col_prev: int, col_curr: int,
+                              prev_date=None, curr_date=None) -> None:
+    """Cập nhật ngày trong header bảng: 'Giá<br>(DD/MM/YY)'.
+
+    prev_date/curr_date override (cho bảng physical dùng ngày phiên vật chất thật).
+    """
+    prev_str = (prev_date or data.prev_date).strftime("%d/%m/%y")
+    curr_str = (curr_date or data.report_date).strftime("%d/%m/%y")
     _set_cell(table, header_row, col_prev, f"Giá\n({prev_str})")
     _set_cell(table, header_row, col_curr, f"Giá\n({curr_str})")
 

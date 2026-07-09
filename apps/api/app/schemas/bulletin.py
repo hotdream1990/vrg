@@ -54,8 +54,11 @@ class BulletinDraft(BaseModel):
     # Section I -- read-only preview
     world_prices: list[WorldPriceItem] = Field(default_factory=list)
 
-    # Section II -- read-only preview
+    # Section II -- read-only preview (ngày cột = phiên vật chất THẬT, có thể cũ hơn ngày báo cáo)
     physical_prices: list[PhysicalPriceItem] = Field(default_factory=list)
+    physical_prev_label: str = ""      # DD/MM/YYYY — phiên vật chất trước
+    physical_curr_label: str = ""      # DD/MM/YYYY — phiên vật chất gần nhất
+    physical_stale: bool = False       # phiên gần nhất cũ hơn ngày báo cáo
 
     # Section III -- editable
     vrg_floor_prev_label: str = ""

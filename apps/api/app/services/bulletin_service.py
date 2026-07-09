@@ -165,6 +165,18 @@ _EDITABLE = ("exchange_summary", "physical_summary", "market_analysis", "source_
 
 
 
+def _physical_sessions(price_map: dict, t_str: str) -> tuple[str | None, str | None]:
+    """2 phiên vật chất (reuters) gần nhất <= ngày báo cáo → (prev_iso, curr_iso).
+
+    Chỉ tính ngày CÓ THẬT của nguồn physical (bỏ qua các sàn khác) → khối Giá vật chất
+    gắn đúng ngày phiên, không đắp giá cũ vào ngày báo cáo khi nguồn chưa cập nhật.
+    """
+    dates = sorted({d for (s, _g), dp in price_map.items() if s == "reuters"
+                    for d in dp if d <= t_str})
+    return (dates[-2] if len(dates) >= 2 else None,
+            dates[-1] if dates else None)
+
+
 def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
     """Tạo draft bản tin từ giá THẬT đã quét (DB).
 
@@ -182,6 +194,9 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
     exchange_summary: list[str] = []
     has_data_on_date = False
     latest_label: str | None = None
+    # 2 phiên vật chất gần nhất THẬT (ISO) — khối physical dùng ĐÚNG ngày này, không đắp giá cũ.
+    phys_curr_iso: str | None = None
+    phys_prev_iso: str | None = None
 
     if use_crawlers:
         try:
@@ -256,6 +271,10 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                 if not has_data_on_date:
                     price_map = {}  # không lấy data ngày khác thay thế
 
+                # Giá vật chất giao dịch KHÔNG hằng ngày (nguồn hiện nhập tay/gián đoạn) → dùng
+                # ĐÚNG 2 phiên vật chất gần nhất có thật thay vì đắp giá cũ vào ngày báo cáo.
+                phys_prev_iso, phys_curr_iso = _physical_sessions(price_map, t_str)
+
                 world_computed: dict = {}
                 phys_computed: dict = {}
                 for (src, grade), date_prices in price_map.items():
@@ -289,9 +308,16 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                     if src == "reuters":
                         phys_grade = _PHYSICAL_GRADE_MAP.get(grade)
                         if phys_grade:
+                            # ĐÚNG 2 phiên vật chất gần nhất; grade không giao dịch đúng ngày → để trống.
+                            pe = date_prices.get(phys_prev_iso) if phys_prev_iso else None
+                            ce = date_prices.get(phys_curr_iso) if phys_curr_iso else None
+                            pv = _convert_to_usd_tonne(*pe, phys_prev_iso) if pe else None
+                            cv = _convert_to_usd_tonne(*ce, phys_curr_iso) if ce else None
+                            pchg = (cv - pv) if (cv and pv) else None
+                            ppct = round(pchg / pv * 100, 1) if (pchg is not None and pv) else None
                             phys_computed[phys_grade] = PhysicalPriceItem(
-                                grade=phys_grade, price_prev=prev_int, price_curr=curr_int,
-                                change_abs=chg, change_pct=pct,
+                                grade=phys_grade, price_prev=pv, price_curr=cv,
+                                change_abs=pchg, change_pct=ppct,
                             )
 
                 # Dựng ĐÚNG cấu trúc template: đủ dòng, đúng thứ tự; thiếu data → để trống (N/A).
@@ -319,7 +345,11 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
 
     # Chỉ dùng giá THẬT đúng ngày chọn; không có thì báo rõ "không có dữ liệu".
     world_src = "db" if world_prices else "empty"
-    phys_src = "db" if physical_prices else "empty"
+    # Physical: "db" chỉ khi có giá vật chất thật (không chỉ vì list đủ dòng khung).
+    phys_src = "db" if any(p.price_curr is not None for p in physical_prices) else "empty"
+    phys_prev_label = date.fromisoformat(phys_prev_iso).strftime("%d/%m/%Y") if phys_prev_iso else prev_label
+    phys_curr_label = date.fromisoformat(phys_curr_iso).strftime("%d/%m/%Y") if phys_curr_iso else report_label
+    phys_stale = phys_curr_iso is not None and phys_curr_iso < report_date.isoformat()
     if has_data_on_date:
         _empty = "Chưa có dữ liệu — hãy chạy Quét Đa sàn"
     elif latest_label:
@@ -338,7 +368,10 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
         SectionStatus(
             section="II. Giá vật chất (Reuters)",
             source=phys_src,
-            description="RSS3, STR20, SMR20, SIR20 \u2014 đọc từ DB (Reuters)"
+            description=(
+                f"RSS3, STR20, SMR20, SIR20 \u2014 phiên vật chất gần nhất {phys_curr_label}"
+                + (f" (cũ hơn ngày báo cáo {report_label})" if phys_stale else "")
+            )
             if phys_src == "db"
             else _empty,
         ),
@@ -368,6 +401,9 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
         prev_date=prev_label,
         world_prices=world_prices,
         physical_prices=physical_prices,
+        physical_prev_label=phys_prev_label,
+        physical_curr_label=phys_curr_label,
+        physical_stale=phys_stale,
         vrg_floor_prev_label=fl_prev_label or "Lần trước (chưa có)",
         vrg_floor_curr_label=fl_curr_label or f"Giá sàn ({report_label})",
         vrg_floor_prev=fl_prev,
@@ -437,9 +473,18 @@ def _draft_to_bulletin_data(draft: BulletinDraft):
 
     rdate = datetime.strptime(draft.report_date, "%d/%m/%Y").date()
     pdate = datetime.strptime(draft.prev_date, "%d/%m/%Y").date()
+
+    def _pdate(label: str):
+        try:
+            return datetime.strptime(label, "%d/%m/%Y").date()
+        except (ValueError, TypeError):
+            return None
+
     return BulletinData(
         report_date=rdate,
         prev_date=pdate,
+        physical_prev_date=_pdate(draft.physical_prev_label),
+        physical_curr_date=_pdate(draft.physical_curr_label),
         world_prices=[
             WorldPriceRow(exchange=w.exchange, grade=w.grade, unit=w.unit,
                           price_prev=w.price_prev, price_curr=w.price_curr)

@@ -48,6 +48,9 @@ export type BulletinDraft = {
   prev_date: string;
   world_prices: WorldPriceItem[];
   physical_prices: PhysicalPriceItem[];
+  physical_prev_label: string;
+  physical_curr_label: string;
+  physical_stale: boolean;
   vrg_floor_prev_label: string;
   vrg_floor_curr_label: string;
   vrg_floor_prev: VrgFloorItem[];

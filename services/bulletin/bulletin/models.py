@@ -77,6 +77,10 @@ class BulletinData:
     # Section II — Giá physical/ANRPC (Slide 2, Table 2)
     # Thứ tự: RSS3, STR20, SMR20, SIR20, Thai Latex Bulk, Thai Latex Drums
     physical_prices: list[PhysicalPriceRow] = field(default_factory=list)
+    # Ngày cột riêng cho physical = 2 phiên vật chất THẬT gần nhất (có thể cũ hơn report_date).
+    # None → fallback report_date/prev_date như cũ.
+    physical_prev_date: date | None = None
+    physical_curr_date: date | None = None
 
     # Section III — Giá trong nước (Slide 3)
     vrg_floor_prev_label: str | None = None     # "Giá sàn lần 13\n(27/05/2026)"
