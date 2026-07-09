@@ -22,6 +22,7 @@ from app.routers import (
     health,
     inventory,
     market_quote,
+    member_region,
     member_unit,
     prices,
     public_purchase,
@@ -112,6 +113,7 @@ app.include_router(prices.router, dependencies=_protected)
 app.include_router(floor.router, dependencies=_protected)
 app.include_router(floor_suggest.router, dependencies=_protected)
 app.include_router(member_unit.router, dependencies=_protected)
+app.include_router(member_region.router, dependencies=_protected)
 app.include_router(inventory.router, dependencies=_protected)
 app.include_router(market_quote.router, dependencies=_protected)
 app.include_router(users.router, dependencies=[Depends(require_admin)])  # quản trị: chỉ admin

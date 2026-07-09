@@ -79,6 +79,14 @@ CREATE TABLE IF NOT EXISTS member_unit (
     created_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- Khu vực (nhóm các đơn vị thành viên) — dùng gom giá mủ nguyên liệu theo khu vực trong bản tin.
+CREATE TABLE IF NOT EXISTS member_region (
+    name        text PRIMARY KEY,
+    sort_order  integer NOT NULL DEFAULT 0,
+    is_active   boolean NOT NULL DEFAULT true,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS app_user (
     username      text PRIMARY KEY,
     password_hash text NOT NULL,
@@ -118,6 +126,7 @@ CREATE TABLE IF NOT EXISTS market_quote (
 
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS title text;
+ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS region text;
 """
 
 # Hypertable tách riêng: cần extension timescaledb; nếu thiếu, bảng vẫn dùng được.

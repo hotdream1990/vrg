@@ -15,7 +15,6 @@ from app.core.market_meta import (
     CANON_WORLD as _CANON_WORLD,
     EXCHANGE_NAMES as _EXCHANGE_NAMES,
     PHYSICAL_GRADE_MAP as _PHYSICAL_GRADE_MAP,
-    VRG_COMPANIES,
     VRG_FLOOR_GRADES,
     WORLD_GRADE_MAP as _WORLD_GRADE_MAP,
 )
@@ -41,32 +40,48 @@ for sub in ["bulletin"]:
 
 
 def _build_raw_materials(report_date: date) -> tuple[list[RawMaterialRegion], str]:
-    """Dựng 'Giá mủ nguyên liệu' theo công ty VRG từ fact_price (source=vrg).
+    """Dựng 'Giá mủ nguyên liệu' GOM THEO KHU VỰC từ fact_price (source=vrg).
 
-    Trả (danh sách RawMaterialRegion theo VRG_COMPANIES, nguồn 'db'|'manual').
-    CHỈ lấy giá ĐÚNG ngày báo cáo — công ty không có giá ngày đó sẽ không hiện.
+    Mỗi khu vực = khoảng giá min–max của các đơn vị THUỘC khu vực CÓ giá đúng ngày báo cáo.
+    Đơn vị chưa gán khu vực → BỎ QUA; khu vực không có giá ngày đó → không đưa vào báo cáo.
     """
     purchase: dict[str, float] = {}
-    companies: list[str] = list(VRG_COMPANIES)
+    unit_region: dict[str, str | None] = {}
+    region_order: list[str] = []
     try:
-        from app.services import member_unit_repo, price_repo
+        from app.services import member_region_repo, member_unit_repo, price_repo
 
         purchase = price_repo.purchase_by_company_on_date(report_date.isoformat())
-        companies = member_unit_repo.active_names() or companies
+        unit_region = {u["name"]: u.get("region") for u in member_unit_repo.list_units()}
+        region_order = member_region_repo.active_names()
     except Exception as exc:  # noqa: BLE001 - DB down → để trống, admin nhập tay
         print(f"[bulletin] Không đọc được giá thu mua mủ nước: {exc}")
 
-    # CHỈ liệt kê đơn vị CÓ giá (theo thứ tự đơn vị thành viên); đơn vị trống bị bỏ qua.
-    items = [
-        RawMaterialRegion(
-            region=co,
-            price=purchase[co],
-            price_text=f"{int(round(purchase[co])):,}",
-        )
-        for co in companies
-        if co in purchase
-    ]
-    return items, ("db" if purchase else "manual")
+    items = _regions_from_purchase(purchase, unit_region, region_order)
+    return items, ("db" if items else "manual")
+
+
+def _regions_from_purchase(purchase: dict[str, float], unit_region: dict[str, str | None],
+                           region_order: list[str]) -> list[RawMaterialRegion]:
+    """Gom giá theo khu vực → khoảng min–max (1 số nếu bằng nhau).
+
+    Bỏ đơn vị chưa gán khu vực; liệt kê theo `region_order`, chỉ khu vực CÓ giá.
+    """
+    by_region: dict[str, list[float]] = {}
+    for company, price in purchase.items():
+        region = unit_region.get(company)
+        if region:
+            by_region.setdefault(region, []).append(price)
+
+    items: list[RawMaterialRegion] = []
+    for region in region_order:
+        prices = by_region.get(region)
+        if not prices:
+            continue
+        lo, hi = round(min(prices)), round(max(prices))
+        rng = str(lo) if lo == hi else f"{lo}-{hi}"
+        items.append(RawMaterialRegion(region=region, price=float(lo), price_text=rng))
+    return items
 
 
 def _coerce_int(v) -> int | None:

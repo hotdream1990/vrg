@@ -260,8 +260,8 @@ def _update_slide3_domestic(slide, data: BulletinData) -> None:
                           if p.text.strip().startswith("Khu vực")]
             if unit_paras:
                 lines = [
-                    f"{co}: {txt} đồng/độ TSC"
-                    for co, txt in (data.raw_material_regions or {}).items() if txt
+                    f"Khu vực {region}: {txt} đồng/độ TSC"
+                    for region, txt in (data.raw_material_regions or {}).items() if txt
                 ]
                 _set_para_multiline(unit_paras[0], "\n".join(lines) if lines else "(chưa cập nhật)")
                 for para in unit_paras[1:]:

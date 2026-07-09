@@ -35,12 +35,14 @@ def add_unit(body: MemberUnitAdd):
 
 @router.put("/{name}", response_model=list[MemberUnit], dependencies=_editor)
 def update_unit(name: str, body: MemberUnitUpdate):
-    """Đổi tên (migrate giá) và/hoặc bật-tắt active."""
+    """Đổi tên (migrate giá) và/hoặc bật-tắt active và/hoặc gán khu vực."""
     if body.new_name is not None:
         member_unit_repo.rename_unit(name, body.new_name)
         name = body.new_name.strip() or name
     if body.is_active is not None:
         member_unit_repo.set_active(name, body.is_active)
+    if body.set_region:
+        member_unit_repo.set_region(name, body.region)
     return member_unit_repo.list_units()
 
 

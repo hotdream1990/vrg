@@ -161,15 +161,14 @@ def _vrg_floor_table(data: BulletinData) -> str:
 
 
 def _raw_materials(data: BulletinData) -> str:
-    """Giá thu mua mủ nước theo công ty VRG (đồng/độ TSC) — chỉ hiện công ty có giá."""
+    """Giá mủ nguyên liệu GOM THEO KHU VỰC (đồng/độ TSC) — chỉ hiện khu vực có giá."""
     regions = {k: v for k, v in data.raw_material_regions.items() if v}
     if not regions:
         return ""
-    rows = "".join(f"<tr><td>{k}</td><td class='r'>{v}</td></tr>" for k, v in regions.items())
+    lines = "".join(f"<p class='para'>Khu vực {k}: {v} đ/độ TSC</p>" for k, v in regions.items())
     return (
-        "<p class='para'><b>Giá mủ nguyên liệu — giá thu mua mủ nước theo công ty:</b></p>"
-        "<table><thead><tr><th>Công ty</th><th>Giá (đồng/độ TSC)</th></tr></thead>"
-        f"<tbody>{rows}</tbody></table>"
+        "<p class='para'><b>Giá mủ nguyên liệu (do các đơn vị thành viên cung cấp) - đồng/độ TSC:</b></p>"
+        + lines
     )
 
 

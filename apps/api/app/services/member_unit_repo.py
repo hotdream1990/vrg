@@ -31,7 +31,7 @@ def list_units(include_inactive: bool = True) -> list[dict[str, Any]]:
         _seed_if_empty(db)
         clause = "" if include_inactive else "WHERE is_active"
         rows = db.execute(text(
-            f"SELECT name, sort_order, is_active FROM member_unit {clause} "
+            f"SELECT name, sort_order, is_active, region FROM member_unit {clause} "
             "ORDER BY sort_order, name")).mappings().all()
         return [dict(r) for r in rows]
 
@@ -77,6 +77,15 @@ def set_active(name: str, active: bool) -> None:
     with session_scope() as db:
         db.execute(text("UPDATE member_unit SET is_active = :a WHERE name = :n"),
                    {"a": active, "n": name})
+
+
+def set_region(name: str, region: str | None) -> None:
+    """Gán đơn vị vào 1 khu vực (region=None để bỏ gán)."""
+    ensure_schema()
+    region = (region or "").strip() or None
+    with session_scope() as db:
+        db.execute(text("UPDATE member_unit SET region = :r WHERE name = :n"),
+                   {"r": region, "n": name})
 
 
 def reorder(names: list[str]) -> None:

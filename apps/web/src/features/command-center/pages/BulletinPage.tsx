@@ -471,20 +471,20 @@ export default function BulletinPage() {
               </div>
             </div>
             <p style={{ color: "var(--muted)", fontSize: 12, margin: "0 0 8px" }}>
-              Đơn vị: <b>đồng/độ TSC</b>. Chỉ lấy giá <b>đúng ngày báo cáo</b> — công ty không nhập giá ngày đó sẽ không hiện.
+              Đơn vị: <b>đồng/độ TSC</b>. Gom theo <b>khu vực</b> (khoảng giá nếu nhiều đơn vị) — chỉ lấy giá <b>đúng ngày báo cáo</b>; đơn vị chưa gán khu vực không hiện.
             </p>
             <table>
               <thead>
                 <tr>
-                  <th>Công ty</th>
+                  <th>Khu vực</th>
                   <th className="r">Giá thu mua (đồng/độ TSC)</th>
                 </tr>
               </thead>
               <tbody>
                 {draft.raw_materials.map((rm, i) => (
                   <tr key={i}>
-                    <td>{rm.region}</td>
-                    <td className="r">{rm.price != null ? rm.price.toLocaleString("vi-VN") : "—"}</td>
+                    <td>Khu vực {rm.region}</td>
+                    <td className="r">{rm.price_text || "—"}</td>
                   </tr>
                 ))}
               </tbody>

@@ -112,6 +112,10 @@ MARKET_QUOTE_GRADES = ["SVR CV 50", "SVR CV 60", "SVR 3L", "SVR 10", "RSS3", "LA
 MARKET_QUOTE_PACKAGING = ["Hàng rời", "Pallet"]
 
 
+# Khu vực (nhóm đơn vị thành viên) — seed ban đầu; admin thêm/bớt ở tab Khu vực.
+VRG_REGIONS = ["Bình Dương", "Bình Phước", "Bình Thuận", "Tây Ninh"]
+
+
 # Công ty cao su thành viên VRG cho "Giá thu mua mủ nước" (đồng/độ TSC) — theo file Excel gốc.
 VRG_COMPANIES = [
     "Bà Rịa", "Bình Long", "Dầu Tiếng", "Đồng Nai", "Phước Hòa", "Phú Riềng",

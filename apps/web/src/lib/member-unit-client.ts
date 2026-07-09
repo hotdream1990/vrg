@@ -2,7 +2,7 @@
 
 import { apiFetch } from "./http";
 
-export type MemberUnit = { name: string; sort_order: number; is_active: boolean };
+export type MemberUnit = { name: string; sort_order: number; is_active: boolean; region: string | null };
 
 const req = apiFetch;
 
@@ -20,6 +20,11 @@ export const addUnit = (name: string) =>
 export const updateUnit = (name: string, body: { new_name?: string; is_active?: boolean }) =>
   req<MemberUnit[]>(`/api/member-units/${encodeURIComponent(name)}`,
     { method: "PUT", headers: J, body: JSON.stringify(body) });
+
+/** Gán đơn vị vào 1 khu vực (region=null để bỏ gán). */
+export const setUnitRegion = (name: string, region: string | null) =>
+  req<MemberUnit[]>(`/api/member-units/${encodeURIComponent(name)}`,
+    { method: "PUT", headers: J, body: JSON.stringify({ set_region: true, region }) });
 
 /** Sắp xếp lại theo thứ tự danh sách tên. */
 export const reorderUnits = (names: string[]) =>

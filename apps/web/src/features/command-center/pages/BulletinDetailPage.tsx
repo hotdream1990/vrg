@@ -118,7 +118,7 @@ export default function BulletinDetailPage() {
             {d.raw_materials.length > 0 && (
               <p style={{ marginTop: 14, color: "var(--muted)", fontSize: 13 }}>
                 <strong>Mủ nguyên liệu:</strong>{" "}
-                {d.raw_materials.map((r) => `${r.region}: ${r.price_text}`).join(" · ")}
+                {d.raw_materials.map((r) => `Khu vực ${r.region}: ${r.price_text}`).join(" · ")}
               </p>
             )}
           </div>
