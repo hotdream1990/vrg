@@ -199,42 +199,50 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                     uscents_kg_to_usd_tonne,
                 )
 
-                # Group by (source, grade) -> {as_of: (price, unit)}
+                # Group by (source, grade) -> {as_of: (price, unit)}. FX quy đổi theo NGÀY riêng.
                 price_map: dict[tuple[str, str], dict[str, tuple[float, str]]] = {}
-                fx_rates: dict[str, float] = {}
-
                 for row in db_rows:
-                    src = row["source"]
-                    grade = row["grade"]
-                    as_of = str(row["as_of"])
-                    price = float(row["price"])
-                    unit = row.get("unit", "")
+                    if row["source"] == "fx":
+                        continue  # FX dùng tỷ giá ĐÚNG NGÀY (fx_series bên dưới), không last-wins
+                    price_map.setdefault((row["source"], row["grade"]), {})[str(row["as_of"])] = (
+                        float(row["price"]), row.get("unit", "")
+                    )
 
-                    if src == "fx":
-                        fx_rates[grade] = price
-                        continue
+                # Tỷ giá theo NGÀY (đủ lịch sử) → mỗi giá quy đổi bằng tỷ giá của đúng ngày nó,
+                # KHỚP "Bảng tính giá". Trước đây bản tin dùng 1 tỷ giá mới nhất cho mọi ngày →
+                # prev bị lệch (vd OSE 07/07 ra 2.592 thay vì 2.598 vì xài tỷ giá 08/07).
+                fx_series: dict[str, list[tuple[str, float]]] = {}
+                fx_from = (report_date - timedelta(days=150)).isoformat()
+                for r in price_repo.prices_since(["fx"], date_from=fx_from, date_to=report_date.isoformat()):
+                    fx_series.setdefault(r["grade"], []).append((str(r["as_of"]), float(r["price"])))
+                for _p in fx_series:
+                    fx_series[_p].sort()
 
-                    key = (src, grade)
-                    if key not in price_map:
-                        price_map[key] = {}
-                    price_map[key][as_of] = (price, unit)
+                def _fx_at(pair: str, d: str) -> float | None:
+                    series = fx_series.get(pair, [])
+                    best = None
+                    for dd, rr in series:  # tỷ giá mới nhất <= d
+                        if dd <= d:
+                            best = rr
+                        else:
+                            break
+                    return best if best is not None else (series[0][1] if series else None)
 
-                def _convert_to_usd_tonne(price: float, unit: str) -> int | None:
-                    """Convert price in original unit -> USD/tonne."""
+                def _convert_to_usd_tonne(price: float, unit: str, as_of: str) -> int | None:
+                    """Quy đổi giá gốc → USD/tấn dùng tỷ giá của ĐÚNG ngày `as_of`."""
                     if unit == "US$/kg":
                         return usd_kg_to_usd_tonne(price)
                     if unit == "US cents/kg":
                         return uscents_kg_to_usd_tonne(price)
                     if unit == "Sen/kg":
-                        rate = fx_rates.get("USD/MYR")
+                        rate = _fx_at("USD/MYR", as_of)
                         return round(price * 10 / rate) if rate else None
                     if unit == "CNY/tonne":
-                        rate = fx_rates.get("USD/CNY")
+                        rate = _fx_at("USD/CNY", as_of)
                         return cny_tonne_to_usd_tonne(price, rate) if rate else None
                     if unit == "JPY/kg":
-                        rate = fx_rates.get("USD/JPY")
+                        rate = _fx_at("USD/JPY", as_of)
                         return jpy_kg_to_usd_tonne(price, rate) if rate else None
-                    # Unknown unit -> try direct round
                     return round(price)
 
                 real_dates = sorted({d for dp in price_map.values() for d in dp})
@@ -264,8 +272,8 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                     curr_entry = date_prices.get(curr_date) if curr_date else None
                     prev_entry = date_prices.get(prev_date) if prev_date else None
 
-                    curr_int = _convert_to_usd_tonne(*curr_entry) if curr_entry else None
-                    prev_int = _convert_to_usd_tonne(*prev_entry) if prev_entry else None
+                    curr_int = _convert_to_usd_tonne(*curr_entry, curr_date) if curr_entry else None
+                    prev_int = _convert_to_usd_tonne(*prev_entry, prev_date) if prev_entry else None
                     chg = (curr_int - prev_int) if (curr_int and prev_int) else None
                     pct = round(chg / prev_int * 100, 1) if (chg is not None and prev_int) else None
 
