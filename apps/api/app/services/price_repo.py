@@ -17,7 +17,8 @@ _UPSERT = text("""
         (as_of, source, grade, contract, price_type, price, currency, unit, source_ts, run_id)
     VALUES
         (:as_of, :source, :grade, :contract, :price_type, :price, :currency, :unit, :source_ts, :run_id)
-    ON CONFLICT (as_of, source, grade, contract, price_type) DO UPDATE SET
+    ON CONFLICT (as_of, source, grade, price_type) DO UPDATE SET
+        contract = EXCLUDED.contract,
         price = EXCLUDED.price,
         currency = EXCLUDED.currency,
         unit = EXCLUDED.unit,
@@ -183,9 +184,9 @@ def upsert_record(rec: dict[str, Any]) -> None:
                     (as_of, source, grade, contract, price_type, price, currency, unit, run_id)
                 VALUES
                     (:as_of, :source, :grade, :contract, :price_type, :price, :currency, :unit, NULL)
-                ON CONFLICT (as_of, source, grade, contract, price_type) DO UPDATE SET
-                    price = EXCLUDED.price, currency = EXCLUDED.currency,
-                    unit = EXCLUDED.unit, ingested_at = now()
+                ON CONFLICT (as_of, source, grade, price_type) DO UPDATE SET
+                    contract = EXCLUDED.contract, price = EXCLUDED.price,
+                    currency = EXCLUDED.currency, unit = EXCLUDED.unit, ingested_at = now()
             """),
             {
                 "as_of": rec["as_of"], "source": rec["source"], "grade": rec["grade"],

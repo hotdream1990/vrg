@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS fact_price (
     source_ts   timestamptz,
     run_id      bigint,
     ingested_at timestamptz NOT NULL DEFAULT now(),
-    PRIMARY KEY (as_of, source, grade, contract, price_type)
+    PRIMARY KEY (as_of, source, grade, price_type)  -- contract KHÔNG trong PK: mỗi (ngày,sàn,grade) 1 dòng, upsert ghi đè
 );
 
 CREATE INDEX IF NOT EXISTS ix_fact_price_latest
