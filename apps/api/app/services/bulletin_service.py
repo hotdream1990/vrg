@@ -245,21 +245,24 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                 # Chỉ tạo bản tin cho ĐÚNG ngày chọn; ngày đó không có giá thật thì để trống.
                 has_data_on_date = report_date.isoformat() in real_dates
                 t_str = report_date.isoformat()
-                p_str = prev_date.isoformat()
                 if not has_data_on_date:
                     price_map = {}  # không lấy data ngày khác thay thế
 
                 world_computed: dict = {}
                 phys_computed: dict = {}
                 for (src, grade), date_prices in price_map.items():
-                    # curr = ngày mới nhất của mặt hàng, prev = ngày liền trước
+                    # curr = giá ngày báo cáo (hoặc phiên mới nhất <= ngày đó nếu chưa có).
+                    # prev = phiên GẦN NHẤT TRƯỚC ngày của curr — KHÔNG dùng report_date-1 vì khi
+                    # ngày báo cáo trống, curr lùi về phiên mới nhất và report_date-1 có thể TRÙNG
+                    # curr → chênh lệch = 0 (mất tăng/giảm).
                     sorted_dates = sorted(date_prices.keys())
-                    curr_entry = date_prices.get(t_str) or (
-                        date_prices[sorted_dates[-1]] if sorted_dates else None
+                    curr_date = t_str if t_str in date_prices else (
+                        sorted_dates[-1] if sorted_dates else None
                     )
-                    prev_entry = date_prices.get(p_str)
-                    if prev_entry is None and len(sorted_dates) >= 2:
-                        prev_entry = date_prices[sorted_dates[-2]]
+                    prev_date = max((d for d in sorted_dates if curr_date and d < curr_date),
+                                    default=None)
+                    curr_entry = date_prices.get(curr_date) if curr_date else None
+                    prev_entry = date_prices.get(prev_date) if prev_date else None
 
                     curr_int = _convert_to_usd_tonne(*curr_entry) if curr_entry else None
                     prev_int = _convert_to_usd_tonne(*prev_entry) if prev_entry else None
