@@ -183,10 +183,13 @@ def _news(data: BulletinData) -> str:
         out += f"<p class='para'><b>1. Giá cao su {dd_mm} trên các sàn giao dịch thế giới:</b></p>"
         for s in ex:
             out += f"<p class='para'>{s}</p>"
-    # 2. Giá Physical (auto)
+    # 2. Giá Physical (auto) — ngày = phiên vật chất THẬT (có thể khác ngày báo cáo)
+    phys_dd_mm = (data.physical_curr_date or data.report_date).strftime("%d/%m")
     if data.market_physical_summary:
-        out += f"<p class='para'><b>2. Giá Physical {dd_mm}: không có giá giao dịch.</b></p>"
+        out += f"<p class='para'><b>2. Giá Physical {phys_dd_mm}:</b></p>"
         out += f"<p class='para'>{data.market_physical_summary}</p>"
+    else:
+        out += f"<p class='para'><b>2. Giá Physical {phys_dd_mm}: không có giá giao dịch.</b></p>"
     # 3. Phân tích (admin/AI nhập tay)
     if data.market_analysis:
         out += "<p class='para'><b>3. Các thông tin có liên quan:</b></p>"

@@ -29,3 +29,27 @@ def test_physical_sessions_ignores_dates_after_report() -> None:
 
 def test_physical_sessions_empty_when_no_reuters() -> None:
     assert bs._physical_sessions({("shfe", "RU"): {"2026-07-08": (1, "CNY/tonne")}}, "2026-07-08") == (None, None)
+
+
+# --- Section IV text (PDF): tiêu đề Giá Physical không được báo "không có" khi CÓ giá ---
+
+
+def _bd(summary):
+    from datetime import date
+
+    from bulletin.models import BulletinData
+    return BulletinData(report_date=date(2026, 7, 8), prev_date=date(2026, 7, 7),
+                        physical_curr_date=date(2026, 7, 8), physical_prev_date=date(2026, 7, 7),
+                        market_physical_summary=summary)
+
+
+def test_news_physical_header_shows_prices_when_present() -> None:
+    from bulletin.html_template import _news
+    html = _news(_bd("RSS3 giao dịch ở mức 2.952 usd/tấn;"))
+    assert "không có giá giao dịch" not in html          # có giá → KHÔNG báo "không có"
+    assert "2. Giá Physical 08/07:" in html and "RSS3 giao dịch" in html
+
+
+def test_news_physical_header_empty_when_no_prices() -> None:
+    from bulletin.html_template import _news
+    assert "2. Giá Physical 08/07: không có giá giao dịch." in _news(_bd(None))
