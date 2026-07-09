@@ -1,4 +1,4 @@
-"""Router Bản tin ngày — tạo draft, cập nhật, xuất PPTX, quản lý hình ảnh."""
+"""Router Bản tin ngày — tạo draft, cập nhật, xuất PDF, quản lý hình ảnh."""
 
 from __future__ import annotations
 
@@ -18,7 +18,6 @@ from app.services.bulletin_service import (
     create_draft,
     delete_saved_draft,
     generate_pdf_from_draft,
-    generate_pptx_from_draft,
     get_draft,
     list_saved_drafts,
     update_draft,
@@ -113,25 +112,6 @@ def api_market_analysis() -> dict:
         raise HTTPException(502, "Lỗi tạo phân tích AI — kiểm tra cấu hình LLM hoặc log máy chủ.") from exc
 
 
-@router.post("/generate", dependencies=_editor)
-def api_generate_pptx(
-    report_date: str | None = Query(None, description="DD-MM-YYYY"),
-):
-    """Xuất PPTX từ draft hiện tại → download file."""
-    rdate = _parse_date(report_date)
-    path = generate_pptx_from_draft(rdate)
-    if not path:
-        raise HTTPException(
-            404,
-            "Không thể tạo PPTX. Kiểm tra: (1) Draft tồn tại? (2) File template có sẵn?",
-        )
-    return FileResponse(
-        str(path),
-        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        filename=path.name,
-    )
-
-
 @router.post("/generate-pdf", dependencies=_editor)
 def api_generate_pdf(
     report_date: str | None = Query(None, description="DD-MM-YYYY"),
@@ -149,11 +129,10 @@ def api_generate_pdf(
 
 @router.get("/published", dependencies=_auth)
 def api_list_published():
-    """Liệt kê các bản tin đã xuất (PPTX/PDF trong data/bulletins/), mới nhất trước."""
+    """Liệt kê các bản tin đã xuất (PDF trong data/bulletins/), mới nhất trước."""
     items: list[dict] = []
     if _OUTPUT_DIR.exists():
-        files = (list(_OUTPUT_DIR.glob("Ban-tin-ngay-*.pptx"))
-                 + list(_OUTPUT_DIR.glob("Ban-tin-ngay-*.pdf")))
+        files = list(_OUTPUT_DIR.glob("Ban-tin-ngay-*.pdf"))
         for p in sorted(files, key=lambda x: (x.stem, x.suffix), reverse=True):
             st = p.stat()
             items.append({
@@ -169,25 +148,21 @@ def api_list_published():
 
 @router.get("/published/{filename}", dependencies=_auth)
 def api_download_published(filename: str):
-    """Tải 1 bản tin đã xuất (.pptx/.pdf) trong data/bulletins/ (chặn path traversal)."""
+    """Tải 1 bản tin đã xuất (.pdf) trong data/bulletins/ (chặn path traversal)."""
     safe = Path(filename).name
-    if not (safe.endswith(".pptx") or safe.endswith(".pdf")):
-        raise HTTPException(400, "Chỉ tải được file .pptx hoặc .pdf")
+    if not safe.endswith(".pdf"):
+        raise HTTPException(400, "Chỉ tải được file .pdf")
     path = _OUTPUT_DIR / safe
     if not path.exists():
         raise HTTPException(404, f"Không tìm thấy bản tin '{safe}'")
-    media = (
-        "application/pdf" if safe.endswith(".pdf")
-        else "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-    )
-    return FileResponse(str(path), media_type=media, filename=safe)
+    return FileResponse(str(path), media_type="application/pdf", filename=safe)
 
 
 @router.get("/published/{filename}/detail", response_model=BulletinDraft, dependencies=_auth)
 def api_published_detail(filename: str):
     """Chi tiết 1 bản tin đã xuất: ưu tiên snapshot JSON, nếu chưa có thì dựng lại từ DB."""
     safe = Path(filename).name
-    if not (safe.endswith(".pptx") or safe.endswith(".pdf")):
+    if not safe.endswith(".pdf"):
         raise HTTPException(400, "Tên file không hợp lệ")
     fpath = _OUTPUT_DIR / safe
     if not fpath.exists():
@@ -328,7 +303,7 @@ def _find_file(directory: Path, slot: str) -> Path | None:
 
 
 def _date_from_filename(name: str) -> str | None:
-    """Ban-tin-ngay-DD-MM-YYYY.pptx → 'DD/MM/YYYY'."""
+    """Ban-tin-ngay-DD-MM-YYYY.pdf → 'DD/MM/YYYY'."""
     m = re.search(r"(\d{2})-(\d{2})-(\d{4})", name)
     return f"{m.group(1)}/{m.group(2)}/{m.group(3)}" if m else None
 

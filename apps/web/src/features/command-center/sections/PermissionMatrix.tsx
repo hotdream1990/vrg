@@ -13,7 +13,7 @@ const CAPS: Cap[] = [
   { key: "scan", label: "Quét giá đa sàn & nạp lịch sử (backfill)", allow: { viewer: false, editor: true, admin: true } },
   { key: "data", label: "Nhập / sửa / xoá số liệu (giá, tỷ giá, Physical, mủ nguyên liệu, tồn kho)", allow: { viewer: false, editor: true, admin: true } },
   { key: "master", label: "Quản lý giá sàn Tập đoàn & đơn vị thành viên", allow: { viewer: false, editor: true, admin: true } },
-  { key: "bulletin", label: "Soạn / sửa / xuất bản tin (PDF · PPTX)", allow: { viewer: false, editor: true, admin: true } },
+  { key: "bulletin", label: "Soạn / sửa / xuất bản tin (PDF)", allow: { viewer: false, editor: true, admin: true } },
   { key: "users", label: "Quản trị người dùng (tạo / sửa / khoá / xoá tài khoản)", allow: { viewer: false, editor: false, admin: true } },
   { key: "config", label: "Cấu hình hệ thống (AI / LLM, nguồn dữ liệu)", allow: { viewer: false, editor: false, admin: true } },
   { key: "schedule", label: "Lịch chạy tự động (scheduler)", allow: { viewer: false, editor: false, admin: true } },

@@ -136,13 +136,6 @@ async function downloadBlob(path: string, filename: string, method: "POST" | "GE
   URL.revokeObjectURL(url);
 }
 
-/** Xuất PPTX → tải về. */
-export const generatePptx = (dateStr?: string) => {
-  const p = new URLSearchParams();
-  if (dateStr) p.set("report_date", dateStr);
-  return downloadBlob(`/api/bulletins/generate?${p}`, `Ban-tin-ngay-${dateStr || "latest"}.pptx`);
-};
-
 /** Xuất PDF (có trang đầu/cuối + header/footer + nhảy trang) → tải về. */
 export const generatePdf = (dateStr?: string) => {
   const p = new URLSearchParams();
@@ -160,7 +153,7 @@ export type PublishedBulletin = {
   download_url: string;
 };
 
-/** Liệt kê bản tin đã xuất (file PPTX trong data/bulletins/). */
+/** Liệt kê bản tin đã xuất (file PDF trong data/bulletins/). */
 export const listPublished = () =>
   req<{ bulletins: PublishedBulletin[] }>(`/api/bulletins/published`);
 

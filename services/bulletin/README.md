@@ -1,58 +1,38 @@
 # services/bulletin — Bản tin thị trường cao su ngày
 
-Tự động generate file PPTX bản tin ngày theo mẫu VRG, fill dữ liệu giá
-từ crawlers và/hoặc input thủ công.
+Render bản tin ngày theo mẫu VRG ra **PDF** (HTML → Chromium), fill dữ liệu giá
+từ DB (`fact_price`) qua `apps/api` (`bulletin_service`). Đầu ra chỉ còn PDF
+(đã bỏ xuất PPTX).
 
-## Chạy
+## Sinh bản tin
 
-```bash
-cd services/bulletin
-uv sync
+Bản tin được tạo qua API (không còn CLI `python -m bulletin`):
 
-# 1. Chạy crawler + generate (tự động fill giá thế giới + physical):
-uv run python -m bulletin
+- `POST /api/bulletins/draft` — dựng draft từ giá thật trong DB.
+- `POST /api/bulletins/generate-pdf` — xuất PDF (bìa + ruột nhảy trang + header/footer).
 
-# 2. Không crawl, chỉ fill từ file JSON (giá sàn, phân tích):
-uv run python -m bulletin --no-crawl --date 18-06-2026 --supplement sample-supplement.json
-
-# 3. Chỉ định template + output khác:
-uv run python -m bulletin --template path/to/template.pptx --out output.pptx
-```
-
-Output mặc định: `data/bulletins/Ban-tin-ngay-DD-MM-YYYY.pptx`
+Output: `data/bulletins/Ban-tin-ngay-DD-MM-YYYY.pdf` (+ `.json` snapshot cho trang chi tiết).
 
 ## Kiến trúc
 
 ```
 bulletin/
 ├── __init__.py
-├── __main__.py         # python -m bulletin
 ├── models.py           # BulletinData, WorldPriceRow, PhysicalPriceRow, VrgFloorRow
-├── generator.py        # Core: fill data vào template PPTX (giữ nguyên format)
-├── convert.py          # Quy đổi đơn vị: CNY/tonne, JPY/kg, cents/kg → USD/T
-├── data_mapper.py      # Map crawler PriceRecord → BulletinData
-└── run_generate.py     # CLI entry point
+├── convert.py          # Quy đổi đơn vị: CNY/tonne, JPY/kg, cents/kg, Sen/kg → USD/T
+├── html_template.py    # Dựng HTML ruột bản tin (bố cục theo mẫu) + đo/xếp trang
+└── pdf_export.py       # HTML → Chromium (Playwright) → PDF, ghép bìa đầu/cuối
 ```
+
+Dữ liệu vào `BulletinData` do `apps/api/app/services/bulletin_service.py` dựng từ
+`fact_price` (giá sàn, physical, giá sàn Tập đoàn, giá mủ nguyên liệu theo khu vực).
 
 ## Template
 
-File mẫu gốc: `docs/bieu-mau/Tâm/Biểu mẫu - Bản tin ngày 09-06-2026/Bản tin ngày 09-06-2026.pptx`
-
-Generator dùng file này làm template, tìm shape theo tên, fill data
-vào đúng cell/paragraph mà **giữ nguyên toàn bộ formatting** (font, màu,
-border, background).
-
-## File supplement JSON
-
-Dùng `--supplement` để bổ sung dữ liệu thủ công (giá sàn VRG, mủ nguyên liệu,
-phân tích thị trường). Xem [sample-supplement.json](sample-supplement.json) làm mẫu.
-
-Các field:
-- `vrg_floor_prev_label` / `vrg_floor_curr_label` — label header bảng giá sàn
-- `vrg_floor_prev` / `vrg_floor_curr` — data giá sàn [{grade, fob_usd, domestic_vnd}]
-- `raw_material_regions` — giá mủ nguyên liệu {khu_vực: giá_text}
-- `market_analysis` — danh sách đoạn phân tích thị trường
-- `source_urls` — danh sách URL nguồn tin
+Bố cục ruột (Section I–IV) bám mẫu thật:
+`docs/bieu-mau-bo-sung/mau_ban_tin_ngay/Bản tin ngày *.pdf`.
+Bìa đầu/cuối + banner header/footer lấy từ `data/bulletin-assets/`
+(custom ghi đè default nếu có — xem trang "Cấu hình hình ảnh").
 
 ## Quy đổi đơn vị
 
@@ -60,5 +40,6 @@ Các field:
 |---|---|---|
 | SHFE | CNY/tonne | USD/T (÷ tỷ giá USD/CNY) |
 | TOCOM/OSE | JPY/kg | USD/T (× 1000 ÷ tỷ giá USD/JPY) |
-| LGM | US cents/kg | USD/T (× 10) |
-| ANRPC | US$/kg | USD/T (× 1000) |
+| SGX/LGM | US cents/kg | USD/T (× 10) |
+| LGM Latex | Sen/kg | USD/T (× 10 ÷ tỷ giá USD/MYR) |
+| Reuters (physical) | US$/kg | USD/T (× 1000) |

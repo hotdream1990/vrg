@@ -1,11 +1,11 @@
 [project]
 name = "vrg-bulletin"
 version = "0.1.0"
-description = "Generate bản tin thị trường cao su ngày (PPTX) — VRG"
+description = "Generate bản tin thị trường cao su ngày (PDF) — VRG"
 requires-python = ">=3.12"
 dependencies = [
-    "python-pptx>=1.0",
-    "pydantic>=2.6",
+    "playwright>=1.60.0",
+    "pypdf>=6.13.3",
 ]
 
 [tool.uv]

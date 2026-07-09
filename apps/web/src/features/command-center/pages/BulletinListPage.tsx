@@ -95,7 +95,7 @@ export default function BulletinListPage() {
       <div className="page-title">
         <div>
           <h2><IconList /> Bản tin đã xuất bản</h2>
-          <p>Danh sách các bản tin ngày đã xuất (file PPTX)</p>
+          <p>Danh sách các bản tin ngày đã xuất (file PDF)</p>
         </div>
         {canEdit && (
           <div className="actions">
@@ -113,7 +113,7 @@ export default function BulletinListPage() {
           <div style={{ padding: "10px 16px", fontWeight: 600, borderBottom: "1px solid #eee" }}>
             Bản nháp đang soạn ({drafts.length})
             <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: 12, marginLeft: 8 }}>
-              — đã lưu, chưa xuất file. Bấm <b>Sửa</b> để mở lại; xuất PDF/PPTX trong trang soạn để đưa xuống danh sách dưới.
+              — đã lưu, chưa xuất file. Bấm <b>Sửa</b> để mở lại; xuất PDF trong trang soạn để đưa xuống danh sách dưới.
             </span>
           </div>
           <table className="blt-list-table">

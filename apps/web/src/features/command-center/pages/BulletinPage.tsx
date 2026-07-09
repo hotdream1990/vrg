@@ -6,7 +6,6 @@ import {
   createDraft,
   generateMarketAnalysis,
   generatePdf,
-  generatePptx,
   updateDraft,
 } from "../../../lib/bulletin-client";
 
@@ -75,7 +74,6 @@ export default function BulletinPage() {
   const [draft, setDraft] = useState<BulletinDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -140,18 +138,6 @@ export default function BulletinPage() {
       setError(`Lưu thất bại: ${e?.message || e}`);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleExport = async () => {
-    setExporting(true);
-    setError(null);
-    try {
-      await generatePptx(dateStr());
-    } catch (e: any) {
-      setError(`Xuất PPTX thất bại: ${e.message}`);
-    } finally {
-      setExporting(false);
     }
   };
 
@@ -231,7 +217,7 @@ export default function BulletinPage() {
         <div>
           <Link to="/ban-tin" className="blt-back">← Danh sách bản tin</Link>
           <h2><IconClipboard /> Bản tin Thị trường Cao su Ngày</h2>
-          <p>Tạo, xem trước và chỉnh sửa bản tin trước khi xuất PPTX</p>
+          <p>Tạo, xem trước và chỉnh sửa bản tin trước khi xuất PDF</p>
         </div>
         <div className="actions">
           {draft && (
@@ -241,9 +227,6 @@ export default function BulletinPage() {
               </button>
               <button className="btn btn-primary" onClick={handleExportPdf} disabled={exportingPdf}>
                 {exportingPdf ? <span className="spinner" /> : <IconDownload />} Xuất PDF
-              </button>
-              <button className="btn" onClick={handleExport} disabled={exporting}>
-                {exporting ? <span className="spinner" /> : <IconDownload />} Xuất PPTX
               </button>
             </>
           )}

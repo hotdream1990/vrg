@@ -1,4 +1,4 @@
-"""Bulletin service -- tạo draft từ data đã quét (fact_price DB), merge edits, generate PPTX.
+"""Bulletin service -- tạo draft từ data đã quét (fact_price DB), merge edits, xuất PDF.
 
 In-memory draft store (MVP). Sau này chuyển sang DB khi cần lịch sử.
 """
@@ -28,7 +28,7 @@ from app.schemas.bulletin import (
     WorldPriceItem,
 )
 
-# Thêm bulletin vào sys.path (cần cho generate PPTX)
+# Thêm bulletin vào sys.path (cần cho xuất PDF: convert / models / pdf_export)
 _ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 _SERVICES = _ROOT / "services"
 for sub in ["bulletin"]:
@@ -483,7 +483,7 @@ def delete_saved_draft(report_date: date) -> int:
 
 
 def _draft_to_bulletin_data(draft: BulletinDraft):
-    """Convert BulletinDraft (API) → BulletinData (generator). Dùng chung cho PPTX & PDF."""
+    """Convert BulletinDraft (API) → BulletinData (dùng cho xuất PDF)."""
     from bulletin.models import BulletinData, PhysicalPriceRow, VrgFloorRow, WorldPriceRow
 
     rdate = datetime.strptime(draft.report_date, "%d/%m/%Y").date()
@@ -544,45 +544,10 @@ def generate_pdf_from_draft(report_date: date) -> Path | None:
     return result
 
 
-def generate_pptx_from_draft(report_date: date) -> Path | None:
-    """Generate file PPTX từ draft hiện tại."""
-    from bulletin.generator import generate as gen_pptx
+# ── Image assets (bìa/banner/logo) dùng cho PDF ──
 
-    draft = _drafts.get(report_date.isoformat()) or create_draft(report_date)
-    data = _draft_to_bulletin_data(draft)
-    rdate = data.report_date
-
-    template = (
-        _ROOT
-        / "docs/bieu-mau/Tâm/Biểu mẫu -  Bản tin ngày 09-06-2026"
-        / "Bản tin ngày 09-06-2026.pptx"
-    )
-    if not template.exists():
-        return None
-
-    date_str = rdate.strftime("%d-%m-%Y")
-    output = data_dir() / f"bulletins/Ban-tin-ngay-{date_str}.pptx"
-    output.parent.mkdir(parents=True, exist_ok=True)
-
-    # Resolve custom image overrides (slot → shape_name → file_path)
-    image_overrides = _resolve_image_overrides()
-
-    result = gen_pptx(template, output, data, image_overrides=image_overrides)
-    if result:
-        _save_snapshot(output, draft)
-    return result
-
-
-# ── Image override resolution ──
-
-# Mapping: slot_name → list of PPTX shape names that use this image
-_SLOT_TO_SHAPES: dict[str, list[str]] = {
-    "cover-front": ["Picture 2"],
-    "cover-back": ["Picture 1"],
-    "header-banner": ["Picture 18"],
-    "footer-banner": ["Picture 21"],
-    "logo-vrg": ["Picture 4"],
-}
+# Các slot ảnh của bản tin (custom ghi đè default nếu có).
+_ASSET_SLOTS = ("cover-front", "cover-back", "header-banner", "footer-banner", "logo-vrg")
 
 
 def _resolve_assets() -> dict[str, str]:
@@ -590,28 +555,11 @@ def _resolve_assets() -> dict[str, str]:
     assets_dir = data_dir() / "bulletin-assets"
     custom_dir = assets_dir / "custom"
     out: dict[str, str] = {}
-    for slot in _SLOT_TO_SHAPES:
+    for slot in _ASSET_SLOTS:
         p = _find_asset(custom_dir, slot) or _find_asset(assets_dir, slot)
         if p:
             out[slot] = str(p)
     return out
-
-
-def _resolve_image_overrides() -> dict[str, str] | None:
-    """Check custom/ dir for overrides, return shape_name → file_path mapping."""
-    assets_dir = data_dir() / "bulletin-assets"
-    custom_dir = assets_dir / "custom"
-
-    overrides: dict[str, str] = {}
-
-    for slot, shape_names in _SLOT_TO_SHAPES.items():
-        # Custom takes priority over default
-        img_path = _find_asset(custom_dir, slot)
-        if img_path:
-            for shape_name in shape_names:
-                overrides[shape_name] = str(img_path)
-
-    return overrides if overrides else None
 
 
 def _find_asset(directory: Path, slot: str) -> Path | None:
