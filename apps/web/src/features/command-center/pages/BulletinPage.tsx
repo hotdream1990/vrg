@@ -142,9 +142,20 @@ export default function BulletinPage() {
   };
 
   const handleExportPdf = async () => {
+    if (!draft) return;
     setExportingPdf(true);
     setError(null);
     try {
+      // Tự lưu nội dung đang có (gồm phân tích AI) trước khi xuất → PDF không thiếu mục IV.3.
+      await updateDraft(
+        {
+          exchange_summary: draft.exchange_summary,
+          physical_summary: draft.physical_summary,
+          market_analysis: draft.market_analysis,
+          source_urls: draft.source_urls,
+        },
+        dateStr()
+      );
       await generatePdf(dateStr());
     } catch (e: any) {
       setError(`Xuất PDF thất bại: ${e.message}`);
@@ -184,9 +195,7 @@ export default function BulletinPage() {
       setDraft((prev) => prev ? {
         ...prev,
         market_analysis: r.paragraphs,
-        source_urls: prev.source_urls.includes(r.source_url)
-          ? prev.source_urls
-          : [...prev.source_urls.filter(Boolean), r.source_url],
+        source_urls: Array.from(new Set([...prev.source_urls.filter(Boolean), ...r.source_urls])),
       } : prev);
     } catch (e) {
       setError(`Phân tích AI thất bại: ${(e as Error).message}`);
@@ -358,14 +367,12 @@ export default function BulletinPage() {
             <div className="blt-section-header">
               <h3>II. Giá vật chất (Reuters / Physical)</h3>
               <div className="blt-section-meta">
-                {!draft.physical_prices.some((p) => p.price_curr != null) ? (
-                  <span className="chip warn"><IconAlertTriangle /> Chưa có dữ liệu</span>
-                ) : draft.physical_stale ? (
-                  <span className="chip warn">
-                    <IconAlertTriangle /> Dữ liệu cũ — đến {draft.physical_curr_label}
-                  </span>
+                {draft.physical_prices.length === 0 ? (
+                  <span className="chip warn"><IconAlertTriangle /> Không có giá vật chất</span>
+                ) : draft.physical_prices.some((p) => p.price_curr != null) ? (
+                  <span className="chip"><IconCheck /> Dữ liệu thật ({draft.physical_curr_label || draft.report_date})</span>
                 ) : (
-                  <span className="chip"><IconCheck /> Dữ liệu thật ({draft.physical_curr_label})</span>
+                  <span className="chip warn"><IconAlertTriangle /> Chưa có giá ngày {draft.physical_curr_label || draft.report_date}</span>
                 )}
                 <Link className="chip" style={{ textDecoration: "none" }}
                   to="/quan-ly-so-lieu/bang-gia-san">
@@ -373,28 +380,32 @@ export default function BulletinPage() {
                 </Link>
               </div>
             </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Mặt hàng</th>
-                  <th className="r">Giá ({draft.physical_prev_label || draft.prev_date})</th>
-                  <th className="r">Giá ({draft.physical_curr_label || draft.report_date})</th>
-                  <th className="r">+/−</th>
-                  <th className="r">%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {draft.physical_prices.map((p, i) => (
-                  <tr key={i}>
-                    <td>{p.grade}</td>
-                    <td className="r">{fmt(p.price_prev)}</td>
-                    <td className="r">{fmt(p.price_curr)}</td>
-                    <td className={`r ${cls(p.change_abs)}`}>{fmtChg(p.change_abs)}</td>
-                    <td className={`r ${cls(p.change_pct)}`}>{fmtPct(p.change_pct)}</td>
+            {draft.physical_prices.length > 0 ? (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mặt hàng</th>
+                    <th className="r">Giá ({draft.physical_prev_label || draft.prev_date})</th>
+                    <th className="r">Giá ({draft.physical_curr_label || draft.report_date})</th>
+                    <th className="r">+/−</th>
+                    <th className="r">%</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {draft.physical_prices.map((p, i) => (
+                    <tr key={i}>
+                      <td>{p.grade}</td>
+                      <td className="r">{fmt(p.price_prev)}</td>
+                      <td className="r">{fmt(p.price_curr)}</td>
+                      <td className={`r ${cls(p.change_abs)}`}>{fmtChg(p.change_abs)}</td>
+                      <td className={`r ${cls(p.change_pct)}`}>{fmtPct(p.change_pct)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="blt-hint">Không có giá vật chất giao dịch cho ngày {draft.report_date}.</div>
+            )}
           </div>
 
           {/* ═══ Section III: Giá sàn VRG (READ-ONLY — từ Giá sàn Tập đoàn) ═══ */}
@@ -424,15 +435,21 @@ export default function BulletinPage() {
                 </tr>
               </thead>
               <tbody>
-                {draft.vrg_floor_curr.map((item, i) => (
-                  <tr key={i}>
-                    <td>{item.grade}</td>
-                    <td className="r">{fmt(draft.vrg_floor_prev[i]?.fob_usd ?? null)}</td>
-                    <td className="r">{fmt(draft.vrg_floor_prev[i]?.domestic_vnd ?? null)}</td>
-                    <td className="r">{fmt(item.fob_usd)}</td>
-                    <td className="r">{fmt(item.domestic_vnd)}</td>
-                  </tr>
-                ))}
+                {draft.vrg_floor_curr
+                  .map((item, i) => ({ item, prev: draft.vrg_floor_prev[i] }))
+                  // Ẩn dòng không có giá ở cả 2 lần (vd SkimBlock chưa nhập).
+                  .filter(({ item, prev }) =>
+                    item.fob_usd != null || item.domestic_vnd != null ||
+                    prev?.fob_usd != null || prev?.domestic_vnd != null)
+                  .map(({ item, prev }) => (
+                    <tr key={item.grade}>
+                      <td>{item.grade}</td>
+                      <td className="r">{fmt(prev?.fob_usd ?? null)}</td>
+                      <td className="r">{fmt(prev?.domestic_vnd ?? null)}</td>
+                      <td className="r">{fmt(item.fob_usd)}</td>
+                      <td className="r">{fmt(item.domestic_vnd)}</td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>

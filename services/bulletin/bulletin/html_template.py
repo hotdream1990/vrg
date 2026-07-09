@@ -122,7 +122,7 @@ def _world_table(data: BulletinData) -> str:
 # ── Section II — Giá các sản phẩm cao su giao ngay (physical) ──
 def _physical_table(data: BulletinData) -> str:
     if not data.physical_prices:
-        return '<p class="note">Không có dữ liệu giá vật chất cho ngày này.</p>'
+        return '<p class="note">Không có giá vật chất giao dịch cho ngày này.</p>'
     m = {p.grade: p for p in data.physical_prices}
     prev = (data.physical_prev_date or data.prev_date).strftime("%d/%m/%y")
     curr = (data.physical_curr_date or data.report_date).strftime("%d/%m/%y")

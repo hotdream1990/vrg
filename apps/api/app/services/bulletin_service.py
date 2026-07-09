@@ -180,18 +180,6 @@ _EDITABLE = ("exchange_summary", "physical_summary", "market_analysis", "source_
 
 
 
-def _physical_sessions(price_map: dict, t_str: str) -> tuple[str | None, str | None]:
-    """2 phiên vật chất (reuters) gần nhất <= ngày báo cáo → (prev_iso, curr_iso).
-
-    Chỉ tính ngày CÓ THẬT của nguồn physical (bỏ qua các sàn khác) → khối Giá vật chất
-    gắn đúng ngày phiên, không đắp giá cũ vào ngày báo cáo khi nguồn chưa cập nhật.
-    """
-    dates = sorted({d for (s, _g), dp in price_map.items() if s == "reuters"
-                    for d in dp if d <= t_str})
-    return (dates[-2] if len(dates) >= 2 else None,
-            dates[-1] if dates else None)
-
-
 def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
     """Tạo draft bản tin từ giá THẬT đã quét (DB).
 
@@ -286,33 +274,34 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                 if not has_data_on_date:
                     price_map = {}  # không lấy data ngày khác thay thế
 
-                # Giá vật chất giao dịch KHÔNG hằng ngày (nguồn hiện nhập tay/gián đoạn) → dùng
-                # ĐÚNG 2 phiên vật chất gần nhất có thật thay vì đắp giá cũ vào ngày báo cáo.
-                phys_prev_iso, phys_curr_iso = _physical_sessions(price_map, t_str)
+                # Giá vật chất LẤY ĐÚNG NGÀY BÁO CÁO — ngày đó không có giá reuters thì để trống
+                # ("không có"), KHÔNG lùi về phiên cũ. prev = phiên reuters gần nhất TRƯỚC ngày
+                # báo cáo (chỉ để tính +/-).
+                _reuters_dates = sorted({d for (s, _g), dp in price_map.items() if s == "reuters"
+                                         for d in dp})
+                phys_curr_iso = t_str
+                phys_prev_iso = max((d for d in _reuters_dates if d < t_str), default=None)
+                # Giá thế giới: phiên thế giới liền trước ngày báo cáo (để so + gắn nhãn cột prev
+                # cho đúng phiên, kể cả khi report_date-1 rơi vào cuối tuần).
+                _world_dates = sorted({d for (s, g), dp in price_map.items()
+                                       if _WORLD_GRADE_MAP.get((s, g)) for d in dp})
+                world_prev_iso = max((d for d in _world_dates if d < t_str), default=None)
+                if world_prev_iso:
+                    prev_label = date.fromisoformat(world_prev_iso).strftime("%d/%m/%Y")
 
                 world_computed: dict = {}
                 phys_computed: dict = {}
                 for (src, grade), date_prices in price_map.items():
-                    # curr = giá ngày báo cáo (hoặc phiên mới nhất <= ngày đó nếu chưa có).
-                    # prev = phiên GẦN NHẤT TRƯỚC ngày của curr — KHÔNG dùng report_date-1 vì khi
-                    # ngày báo cáo trống, curr lùi về phiên mới nhất và report_date-1 có thể TRÙNG
-                    # curr → chênh lệch = 0 (mất tăng/giảm).
-                    sorted_dates = sorted(date_prices.keys())
-                    curr_date = t_str if t_str in date_prices else (
-                        sorted_dates[-1] if sorted_dates else None
-                    )
-                    prev_date = max((d for d in sorted_dates if curr_date and d < curr_date),
-                                    default=None)
-                    curr_entry = date_prices.get(curr_date) if curr_date else None
-                    prev_entry = date_prices.get(prev_date) if prev_date else None
-
-                    curr_int = _convert_to_usd_tonne(*curr_entry, curr_date) if curr_entry else None
-                    prev_int = _convert_to_usd_tonne(*prev_entry, prev_date) if prev_entry else None
-                    chg = (curr_int - prev_int) if (curr_int and prev_int) else None
-                    pct = round(chg / prev_int * 100, 1) if (chg is not None and prev_int) else None
-
                     mapping = _WORLD_GRADE_MAP.get((src, grade))
                     if mapping:
+                        # curr = ĐÚNG ngày báo cáo (thiếu → "—", vd OSE chưa có phiên) — KHÔNG lùi
+                        # về phiên cũ; prev = phiên thế giới liền trước để so & tính +/-.
+                        wc = date_prices.get(t_str)
+                        wp = date_prices.get(world_prev_iso) if world_prev_iso else None
+                        curr_int = _convert_to_usd_tonne(*wc, t_str) if wc else None
+                        prev_int = _convert_to_usd_tonne(*wp, world_prev_iso) if wp else None
+                        chg = (curr_int - prev_int) if (curr_int and prev_int) else None
+                        pct = round(chg / prev_int * 100, 1) if (chg is not None and prev_int) else None
                         exchange, blt_grade = mapping
                         world_computed[(exchange, blt_grade)] = WorldPriceItem(
                             exchange=exchange, grade=blt_grade,
@@ -322,12 +311,13 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
 
                     if src == "reuters":
                         phys_grade = _PHYSICAL_GRADE_MAP.get(grade)
-                        if phys_grade:
-                            # ĐÚNG 2 phiên vật chất gần nhất; grade không giao dịch đúng ngày → để trống.
-                            pe = date_prices.get(phys_prev_iso) if phys_prev_iso else None
-                            ce = date_prices.get(phys_curr_iso) if phys_curr_iso else None
-                            pv = _convert_to_usd_tonne(*pe, phys_prev_iso) if pe else None
+                        # curr = ĐÚNG ngày báo cáo (thiếu → "—", KHÔNG đắp phiên cũ vào cột này);
+                        # prev = phiên liền trước để so. Hiện dòng nếu CÓ giá ở curr HOẶC prev.
+                        ce = date_prices.get(phys_curr_iso) if phys_grade else None
+                        pe = date_prices.get(phys_prev_iso) if (phys_grade and phys_prev_iso) else None
+                        if phys_grade and (ce is not None or pe is not None):
                             cv = _convert_to_usd_tonne(*ce, phys_curr_iso) if ce else None
+                            pv = _convert_to_usd_tonne(*pe, phys_prev_iso) if pe else None
                             pchg = (cv - pv) if (cv and pv) else None
                             ppct = round(pchg / pv * 100, 1) if (pchg is not None and pv) else None
                             phys_computed[phys_grade] = PhysicalPriceItem(
@@ -342,10 +332,12 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                         or WorldPriceItem(exchange=k[0], grade=k[1])
                         for k in _CANON_WORLD
                     ]
-                    physical_prices = [
-                        phys_computed.get(g) or PhysicalPriceItem(grade=g)
-                        for g in _CANON_PHYS
-                    ]
+                    # Chỉ dựng bảng vật chất khi CÓ giá đúng ngày báo cáo; không có → để trống ("không có").
+                    if phys_computed:
+                        physical_prices = [
+                            phys_computed.get(g) or PhysicalPriceItem(grade=g)
+                            for g in _CANON_PHYS
+                        ]
 
         except Exception as exc:
             print(f"[bulletin] DB read error (dùng sample data): {exc}")

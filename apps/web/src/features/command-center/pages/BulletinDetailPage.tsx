@@ -82,24 +82,30 @@ export default function BulletinDetailPage() {
           {/* II. Giá vật chất (Reuters) */}
           <div className="card blt-section">
             <div className="blt-section-header"><h3>II. Giá vật chất (Reuters)</h3></div>
-            <table className="blt-list-table">
-              <thead><tr>
-                <th>Mặt hàng</th>
-                <th className="r">Giá ({d.physical_prev_label || d.prev_date})</th>
-                <th className="r">Giá ({d.physical_curr_label || d.report_date})</th>
-                <th className="r">+/-</th><th className="r">%</th>
-              </tr></thead>
-              <tbody>
-                {d.physical_prices.map((p, i) => (
-                  <tr key={i}>
-                    <td>{p.grade}</td>
-                    <td className="r">{fmt(p.price_prev)}</td><td className="r">{fmt(p.price_curr)}</td>
-                    <td className={`r ${cls(p.change_abs)}`}>{fmtChg(p.change_abs)}</td>
-                    <td className={`r ${cls(p.change_abs)}`}>{fmtPct(p.change_pct)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {d.physical_prices.length > 0 ? (
+              <table className="blt-list-table">
+                <thead><tr>
+                  <th>Mặt hàng</th>
+                  <th className="r">Giá ({d.physical_prev_label || d.prev_date})</th>
+                  <th className="r">Giá ({d.physical_curr_label || d.report_date})</th>
+                  <th className="r">+/-</th><th className="r">%</th>
+                </tr></thead>
+                <tbody>
+                  {d.physical_prices.map((p, i) => (
+                    <tr key={i}>
+                      <td>{p.grade}</td>
+                      <td className="r">{fmt(p.price_prev)}</td><td className="r">{fmt(p.price_curr)}</td>
+                      <td className={`r ${cls(p.change_abs)}`}>{fmtChg(p.change_abs)}</td>
+                      <td className={`r ${cls(p.change_abs)}`}>{fmtPct(p.change_pct)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p style={{ color: "var(--muted)", fontSize: 13 }}>
+                Không có giá vật chất giao dịch cho ngày {d.report_date}.
+              </p>
+            )}
           </div>
 
           {/* III. Giá sàn VRG */}
@@ -108,11 +114,17 @@ export default function BulletinDetailPage() {
             <table className="blt-list-table">
               <thead><tr><th>Loại</th><th className="r">FOB (USD/T)</th><th className="r">Trong nước (VND)</th></tr></thead>
               <tbody>
-                {d.vrg_floor_curr.map((v, i) => (
-                  <tr key={i}>
-                    <td>{v.grade}</td><td className="r">{fmt(v.fob_usd)}</td><td className="r">{fmt(v.domestic_vnd)}</td>
-                  </tr>
-                ))}
+                {d.vrg_floor_curr
+                  .map((v, i) => ({ v, p: d.vrg_floor_prev[i] }))
+                  // Ẩn dòng không có giá ở cả 2 lần (vd SkimBlock chưa nhập).
+                  .filter(({ v, p }) =>
+                    v.fob_usd != null || v.domestic_vnd != null ||
+                    p?.fob_usd != null || p?.domestic_vnd != null)
+                  .map(({ v }) => (
+                    <tr key={v.grade}>
+                      <td>{v.grade}</td><td className="r">{fmt(v.fob_usd)}</td><td className="r">{fmt(v.domestic_vnd)}</td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
             {d.raw_materials.length > 0 && (

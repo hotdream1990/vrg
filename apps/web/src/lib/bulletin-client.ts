@@ -107,7 +107,7 @@ export const updateDraft = (updates: BulletinDraftUpdate, dateStr?: string) => {
 
 /** AI lấy tin thị trường (vietnambiz) + viết các đoạn phân tích cho Section IV. */
 export const generateMarketAnalysis = () =>
-  req<{ paragraphs: string[]; source_url: string }>("/api/bulletins/market-analysis", {
+  req<{ paragraphs: string[]; source_urls: string[] }>("/api/bulletins/market-analysis", {
     method: "POST",
   });
 
