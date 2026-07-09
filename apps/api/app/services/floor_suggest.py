@@ -13,6 +13,7 @@ import numpy as np
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
+from app.core.market_meta import VRG_DOMESTIC_ONLY_GRADES
 from app.services import floor_model as fm
 from app.services import floor_recommend as fr
 
@@ -45,21 +46,34 @@ def _at(series: list[tuple[str, float]], d: str) -> float | None:
     return best
 
 
+def _target(grade: str, fob: float | None, dom: float | None) -> float | None:
+    """Trị hồi quy của 1 grade: grade chỉ-nội-địa (SkimBlock) dùng VNĐ/T, còn lại dùng FOB USD/T."""
+    v = dom if grade in VRG_DOMESTIC_ONLY_GRADES else fob
+    return float(v) if v is not None else None
+
+
+def _unit(grade: str) -> str:
+    """Đơn vị của giá sàn grade để hiển thị (SkimBlock = VNĐ/T, còn lại = USD/T)."""
+    return "VNĐ/T" if grade in VRG_DOMESTIC_ONLY_GRADES else "USD/T"
+
+
 def _load() -> tuple:
     ensure_schema()
     with session_scope() as db:
-        fr = db.execute(text("SELECT as_of, grade, fob_usd, lan FROM vrg_floor_price "
-                             "WHERE fob_usd IS NOT NULL ORDER BY as_of")).all()
+        fr = db.execute(text("SELECT as_of, grade, fob_usd, domestic_vnd, lan FROM vrg_floor_price "
+                             "ORDER BY as_of")).all()
         ir = db.execute(text("SELECT as_of, source, grade, price FROM fact_price "
                              "WHERE price_type IN ('settlement','physical') ORDER BY as_of")).all()
         mr = db.execute(text("SELECT as_of, avg(price) FROM fact_price WHERE source='vrg' "
                              "AND price_type='purchase' GROUP BY as_of ORDER BY as_of")).all()
         iv = db.execute(text("SELECT as_of, ton_kho, ton_kho_hd FROM fact_inventory "
                              "WHERE ton_kho IS NOT NULL ORDER BY as_of")).all()
-    floor_dates = sorted({str(r[0]) for r in fr})
-    grades = sorted({r[1] for r in fr})
-    fmap = {(str(d), g): float(v) for d, g, v, _ in fr}
-    lanmap = {str(d): int(lan) for d, _, _, lan in fr}
+    # fmap = trị hồi quy theo grade (FOB cho grade thường, VNĐ cho grade chỉ-nội-địa như SkimBlock).
+    fmap = {(str(d), g): t for d, g, fob, dom, _ in fr
+            if (t := _target(g, fob, dom)) is not None}
+    floor_dates = sorted({d for d, _ in fmap})
+    grades = sorted({g for _, g in fmap})
+    lanmap = {str(d): int(lan) for d, _, _, _, lan in fr}
     idx: dict[tuple[str, str], list[tuple[str, float]]] = {}
     for d, s, g, v in ir:
         idx.setdefault((s, g), []).append((str(d), float(v)))
@@ -160,7 +174,7 @@ def suggest(as_of: str, model: str = "v1", backtest: bool = True,
             n_train = max(n_train, r["n_train"])
         bt = _backtest_core(fd, fmap, idx, lanmap, g, model, alpha)["metrics"]
         _, prev = fr.prev_floor(fd, fmap, g, as_of)
-        items.append(fr.build_item(g, fmap.get((as_of, g)), sug, r, prev, bt, shfe_chg))
+        items.append(fr.build_item(g, fmap.get((as_of, g)), sug, r, prev, bt, shfe_chg, _unit(g)))
     return {
         "as_of": as_of, "model": model, "backtest": backtest, "is_issuance": is_issuance,
         "n_train": n_train, "feats": sorted(feats_used), "prev_as_of": prev_d,
@@ -220,7 +234,8 @@ def scenarios(as_of: str, model: str = "v1", shock_pct: float | None = None,
         for key, s in (("base", 0.0), ("bull", shock), ("bear", -shock)):
             r = _fit_at(train, as_of, g, fmap, idx, model, alpha, shock=s)
             preds[key] = r["pred"] if r else None
-        items.append({"grade": g, "prev": round(prev) if prev is not None else None, **preds})
+        items.append({"grade": g, "unit": _unit(g),
+                      "prev": round(prev) if prev is not None else None, **preds})
     return {"as_of": as_of, "model": model, "shock_pct": round(shock * 100, 1), "items": items}
 
 
@@ -266,7 +281,7 @@ def backtest(grade: str = "SVR 10", model: str = "v1", alpha: float = DEFAULT_AL
 
 
 def backtest_summary(model: str = "v1", alpha: float = DEFAULT_ALPHA) -> list[dict[str, Any]]:
-    """MAPE / % đúng hướng / n cho cả 13 grade — SVR 10 (mặt hàng PoC) đứng đầu."""
+    """MAPE / % đúng hướng / n cho từng grade — SVR 10 (mặt hàng PoC) đứng đầu."""
     fd, grades, fmap, idx, lanmap = _load()
     head = "SVR 10"
     ordered = ([head] if head in grades else []) + [g for g in grades if g != head]

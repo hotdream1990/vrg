@@ -35,11 +35,13 @@ def drivers(idx: dict, keys: list[tuple[str, str]], labels: dict,
 
 
 def build_item(grade: str, act: float | None, sug: float | None, r: dict | None,
-               prev: float | None, bt: dict, shfe_chg: float | None) -> dict[str, Any]:
+               prev: float | None, bt: dict, shfe_chg: float | None,
+               unit: str = "USD/T") -> dict[str, Any]:
     """Ghép 1 dòng đề xuất: Δ so lần trước, hành động (dead-band), độ tin cậy, cảnh báo SHFE.
 
     Dead-band = MAE backtest: |Δ| ≤ band ⇒ GIỮ (nhiễu). Hạ tin cậy + đánh dấu 'shfe_opposite'
     khi đề xuất nâng/hạ nhưng SHFE (chỉ báo dẫn hướng ~88%) đi ngược chiều rõ rệt.
+    `unit` = đơn vị giá sàn grade (USD/T, hoặc VNĐ/T cho grade chỉ-nội-địa như SkimBlock).
     """
     delta = round(sug - prev) if (sug is not None and prev is not None) else None
     band = round(bt.get("mae") or 0.0)
@@ -55,7 +57,7 @@ def build_item(grade: str, act: float | None, sug: float | None, r: dict | None,
             and (delta > 0) != (shfe_chg > 0):
         conf, caution = _CONF_DOWN[conf], "shfe_opposite"
     return {
-        "grade": grade, "actual": act, "suggested": sug,
+        "grade": grade, "unit": unit, "actual": act, "suggested": sug,
         "diff": (round(act - sug) if act is not None and sug is not None else None),
         "r": r["r"] if r else None,
         "prev": round(prev) if prev is not None else None, "delta": delta,

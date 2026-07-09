@@ -82,6 +82,27 @@ def test_fit_at_no_lookahead() -> None:
     assert r1["pred"] == r2["pred"], "chuẩn hoá phải causal — không rò rỉ tương lai"
 
 
+def test_target_and_unit_for_domestic_only_grade() -> None:
+    """SkimBlock (chỉ-nội-địa) hồi quy trên VNĐ/T; grade thường vẫn dùng FOB USD/T."""
+    # grade thường: lấy FOB, đơn vị USD/T (bỏ qua domestic).
+    assert fs._target("SVR 10", 2250.0, 57700000.0) == 2250.0
+    assert fs._unit("SVR 10") == "USD/T"
+    # SkimBlock: lấy domestic_vnd (không có FOB), đơn vị VNĐ/T.
+    assert fs._target("SkimBlock", None, 43000000.0) == 43000000.0
+    assert fs._unit("SkimBlock") == "VNĐ/T"
+    # thiếu cả hai ⇒ None (bị loại khỏi fmap).
+    assert fs._target("SkimBlock", None, None) is None
+
+
+def test_build_item_carries_unit() -> None:
+    bt = {"mae": 50.0, "mape": 4.0, "hit": 90.0, "n": 20}
+    it = fr.build_item("SkimBlock", None, 43000000.0, {"r": 0.9}, 44050000.0, bt,
+                       shfe_chg=None, unit="VNĐ/T")
+    assert it["unit"] == "VNĐ/T" and it["action"] == "lower"
+    # mặc định vẫn USD/T cho grade thường.
+    assert fr.build_item("SVR 10", 1500.0, 1520.0, {"r": 0.9}, 1500.0, bt, 2.0)["unit"] == "USD/T"
+
+
 def test_fit_at_shock_moves_prediction_in_order() -> None:
     """Cú sốc rổ +/- phải đẩy dự báo lên/xuống đúng hướng (kịch bản Tăng/Giảm)."""
     dates, fmap, idx = _synthetic()

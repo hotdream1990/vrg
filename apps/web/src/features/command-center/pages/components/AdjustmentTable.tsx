@@ -47,7 +47,12 @@ export default function AdjustmentTable(
           {items.map((it) => (
             <tr key={it.grade} onClick={() => onFocus(it.grade)}
               style={{ cursor: "pointer", background: it.grade === focus ? "var(--card-2, #eef6f0)" : undefined }}>
-              <td style={{ fontWeight: 500 }}>{it.grade}</td>
+              <td style={{ fontWeight: 500 }}>
+                {it.grade}
+                {it.unit && it.unit !== "USD/T" && (
+                  <span style={{ fontSize: 11, marginLeft: 6, color: "var(--muted)", fontWeight: 400 }}>({it.unit})</span>
+                )}
+              </td>
               <td className="r" style={{ color: "var(--muted)" }}>{fmt(it.prev)}</td>
               <td className="r">{fmt(it.suggested)}</td>
               <td className="r" style={{ color: it.action ? ACTION_COLOR[it.action] : "var(--muted)", fontWeight: 600, whiteSpace: "nowrap" }}>

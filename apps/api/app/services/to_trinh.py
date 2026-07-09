@@ -10,13 +10,14 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
+from app.core.market_meta import VRG_DOMESTIC_ONLY_GRADES
 from app.services import floor_suggest as fs
 
 # Thứ tự CỐ ĐỊNH (không sort): (tên tờ trình, tên hệ thống trong vrg_floor_price | None)
 TT_GRADES = [("CV50", "SVR CV 50"), ("CV60", "SVR CV60"), ("SVRL", "SVR L"), ("SVR 3L Mix", "SVR 3L Mix"),
              ("SVR 3L", "SVR 3L"), ("5S", "SVR 5S"), ("SVR5", "SVR 5"), ("SVR10 Mix", "SVR 10 Mix"),
              ("SVR10", "SVR 10"), ("SVR20", "SVR 20"), ("RSS3", "RSS 3"), ("RSS1", "RSS 1"),
-             ("Latex", "LATEX"), ("SkimBlock", None)]
+             ("Latex", "LATEX"), ("SkimBlock", "SkimBlock")]
 # Khối 1 settlement: (source, grade nguồn, SÀN hiển thị, grade hiển thị)
 SETTLE = [("tocom", "RSS3", "OSE", "RSS3"), ("shfe", "RU", "SHANGHAI", "RSS3"),
           ("sgx", "RSS3", "SGX", "RSS3"), ("sgx", "TSR20", "SGX", "TSR20"),
@@ -96,7 +97,8 @@ def _physical(db, t2, t1) -> list[dict]:
 
 
 def _proposal(db, sug: dict, prev_as_of) -> list[dict]:
-    sug_fob = {it["grade"]: it["suggested"] for it in sug["items"]}
+    # Trị dự báo từ engine theo grade: FOB USD/T (grade thường) hoặc VNĐ/T (grade chỉ-nội-địa).
+    sug_val = {it["grade"]: it["suggested"] for it in sug["items"]}
     prev = {}
     if prev_as_of:
         for g, f, v in db.execute(text("SELECT grade, fob_usd, domestic_vnd FROM vrg_floor_price WHERE as_of=:d"),
@@ -104,8 +106,15 @@ def _proposal(db, sug: dict, prev_as_of) -> list[dict]:
             prev[g] = (f, v)
     out = []
     for tt, sysg in TT_GRADES:
-        fob = sug_fob.get(sysg) if sysg else None
-        pf, pv = prev.get(sysg, (None, None))
+        pf, pv = prev.get(sysg, (None, None)) if sysg else (None, None)
+        if sysg in VRG_DOMESTIC_ONLY_GRADES:
+            # Grade chỉ-nội-địa (SkimBlock): engine dự báo thẳng VNĐ/T, không có FOB.
+            raw = sug_val.get(sysg)
+            vnd = round(raw / 50000) * 50000 if raw is not None else (round(pv) if pv else None)
+            vnd_d = round(vnd - pv) if (vnd is not None and pv is not None and raw is not None) else None
+            out.append({"grade": tt, "fob": None, "fob_delta": None, "vnd": vnd, "vnd_delta": vnd_d})
+            continue
+        fob = sug_val.get(sysg) if sysg else None
         fob_d = round(fob - pf) if (fob is not None and pf) else None
         vnd = round(pv * fob / pf / 50000) * 50000 if (fob and pf and pv) else (round(pv) if pv else None)
         vnd_d = round(vnd - pv) if (vnd is not None and pv is not None and fob_d) else None

@@ -41,7 +41,12 @@ export default function ScenarioMatrix({ asOf, model }: { asOf: string; model: F
         <tbody>
           {(data?.items ?? []).map((it) => (
             <tr key={it.grade}>
-              <td style={{ fontWeight: 500 }}>{it.grade}</td>
+              <td style={{ fontWeight: 500 }}>
+                {it.grade}
+                {it.unit && it.unit !== "USD/T" && (
+                  <span style={{ fontSize: 11, marginLeft: 6, color: "var(--muted)", fontWeight: 400 }}>({it.unit})</span>
+                )}
+              </td>
               <td className="r" style={{ color: "var(--muted)" }}>{fmt(it.prev)}</td>
               <td className="r" style={{ color: "#e11d48" }}>
                 {fmt(it.bear)}<span style={{ fontSize: 11, marginLeft: 4, opacity: 0.8 }}>{delta(it.bear, it.base)}</span>

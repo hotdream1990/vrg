@@ -11,7 +11,7 @@ export type FloorConfidence = "high" | "medium" | "low";
 /** Biến động 1 chỉ số trong rổ kể từ lần ban hành trước (căn cứ cho đề xuất). */
 export type FloorDriver = { index: string; prev: number | null; cur: number | null; change_pct: number | null };
 export type SuggestItem = {
-  grade: string; actual: number | null; suggested: number | null;
+  grade: string; unit: string; actual: number | null; suggested: number | null;
   diff: number | null; r: number | null;
   prev: number | null;          // giá sàn grade ở lần ban hành liền trước
   delta: number | null;         // đề xuất điều chỉnh = suggested − prev
@@ -81,7 +81,7 @@ export const fetchFloorCorrelation = (grade: string) =>
   req<CorrRow[]>(`/api/floor-suggest/correlation?grade=${encodeURIComponent(grade)}`);
 
 export type ScenarioItem = {
-  grade: string; prev: number | null;
+  grade: string; unit: string; prev: number | null;
   bear: number | null; base: number | null; bull: number | null;
 };
 export type ScenarioResult = {

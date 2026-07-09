@@ -96,8 +96,12 @@ SHEET_GROUPS = [
 # Chủng loại cho "Giá sàn Tập đoàn" (FOB USD/T + Nội địa VNĐ/T) — đúng thứ tự template bản tin.
 VRG_FLOOR_GRADES = [
     "SVR CV 50", "SVR CV60", "SVR L", "SVR 3L Mix", "SVR 3L", "SVR 5S", "SVR 5",
-    "SVR 10 Mix", "SVR 10", "SVR 20", "RSS 3", "RSS 1", "LATEX",
+    "SVR 10 Mix", "SVR 10", "SVR 20", "RSS 3", "RSS 1", "LATEX", "SkimBlock",
 ]
+
+# Chủng loại CHỈ có giá nội địa (không có FOB) — engine gợi ý giá sàn dự báo trên
+# domestic_vnd (VNĐ/T) thay vì fob_usd, nhưng vẫn qua cùng cơ chế hồi quy rổ chỉ số.
+VRG_DOMESTIC_ONLY_GRADES = {"SkimBlock"}
 
 
 # Chủng loại cho "Báo giá mủ thị trường" (Mục 1-3: giá tư nhân/VRG XK/VRG nội địa) — theo phiếu Excel.
