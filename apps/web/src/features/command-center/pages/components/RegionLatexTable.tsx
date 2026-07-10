@@ -1,4 +1,4 @@
-/* Mục 5 — Giá mủ khu vực theo đơn vị: mủ nước (đồng/độ TSC) + mủ chén (đồng/kg).
+/* Mục 6 — Giá mủ khu vực theo đơn vị: mủ nước (đồng/độ TSC) + mủ chén (đồng/kg).
    Đồng bộ kho "Giá mủ nguyên liệu" (mủ nước → purchase, mủ chén → purchase_cup). */
 
 import NumInput from "../../sections/NumInput";
@@ -18,7 +18,7 @@ export default function RegionLatexTable({
   return (
     <div className="card blt-section blt-editable" style={{ marginBottom: 16 }}>
       <div className="blt-section-header">
-        <h3>5. Giá mủ khu vực</h3>
+        <h3>6. Giá mủ khu vực</h3>
         <span style={{ color: "var(--muted)", fontSize: 12 }}>
           mủ nước (đồng/độ TSC) · mủ chén (đồng/kg) · đồng bộ với trang "Giá mủ nguyên liệu"
         </span>

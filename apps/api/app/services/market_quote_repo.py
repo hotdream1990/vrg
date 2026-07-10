@@ -21,6 +21,7 @@ _MARKET = "market"
 # section key → (price_type, currency, unit) khi mirror sang fact_price source=market
 _SECTION_MODES = {
     "domestic_private": ("market_domestic_private", "VND", "đồng/tấn"),
+    "domestic_export": ("market_domestic_export", "VND", "đồng/tấn"),
     "export_vrg": ("market_export_vrg", "USD", "USD/tấn"),
     "domestic_vrg": ("market_domestic_vrg", "VND", "đồng/tấn"),
 }
@@ -41,6 +42,7 @@ def _payload_of(mq: dict[str, Any]) -> dict[str, Any]:
     return {
         "fx": mq.get("fx") or {},
         "domestic_private": mq.get("domestic_private") or {},
+        "domestic_export": mq.get("domestic_export") or {},
         "export_vrg": mq.get("export_vrg") or {},
         "domestic_vrg": mq.get("domestic_vrg") or {},
         "customer_proposal": mq.get("customer_proposal") or {},
@@ -99,6 +101,8 @@ def get_quote(as_of: str) -> dict[str, Any] | None:
         "as_of": as_of,
         "fx": p.get("fx") or {},
         "domestic_private": p.get("domestic_private") or {"prices": {}, "note": ""},
+        "domestic_export": p.get("domestic_export")
+        or {"prices": {}, "packaging": {}, "shipping": {}, "note": ""},
         "export_vrg": p.get("export_vrg") or {"prices": {}, "note": ""},
         "domestic_vrg": p.get("domestic_vrg") or {"prices": {}, "status": {}, "note": ""},
         "customer_proposal": p.get("customer_proposal") or {"qty": {}, "prices": {}, "note": ""},

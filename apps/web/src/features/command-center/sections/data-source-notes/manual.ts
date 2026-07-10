@@ -4,9 +4,9 @@ import type { DataSourceNote } from "./types";
 export const MANUAL_NOTES: Record<string, DataSourceNote> = {
   "market-quote": {
     kind: "manual",
-    tagline: "Nhập tay phiếu báo giá mủ thị trường theo ngày; Mục 5 (giá mủ nước + mủ chén) đồng bộ kho Giá mủ nguyên liệu.",
+    tagline: "Nhập tay phiếu báo giá mủ thị trường theo ngày; Mục 6 (giá mủ nước + mủ chén) đồng bộ kho Giá mủ nguyên liệu.",
     intro:
-      "1 phiếu/ngày: tỷ giá VCB + giá SVR (tư nhân · VRG xuất khẩu · VRG nội địa, kèm bao bì + đơn vị vận chuyển) + đề xuất mua từ khách hàng + giá mủ khu vực (nước + chén) + ghi chú.",
+      "1 phiếu/ngày: tỷ giá VCB + giá SVR (nội địa tư nhân · nội địa hàng xuất khẩu · VRG xuất khẩu · VRG nội địa, kèm bao bì + đơn vị vận chuyển) + đề xuất mua từ khách hàng + giá mủ khu vực (nước + chén) + ghi chú.",
     sources: [
       {
         name: "Phiếu báo giá mủ thị trường (nội bộ)",
@@ -14,13 +14,13 @@ export const MANUAL_NOTES: Record<string, DataSourceNote> = {
         method: "Nhập tay tại trang này",
         steps: [
           "Bấm '＋ Tạo phiếu mới', chọn ngày báo giá.",
-          "Điền tỷ giá VCB, giá SVR cho 3 mục (tư nhân / VRG XK / VRG nội địa) + bao bì (hàng rời/pallet) + đơn vị vận chuyển; Mục 3 thêm tình trạng.",
-          "Điền Mục 4 (đề xuất mua từ khách hàng: số lượng + đơn giá) — chỉ lưu trong phiếu.",
-          "Điền Mục 5 (giá mủ nước + mủ chén theo đơn vị) — tự ghi vào kho 'Giá mủ nguyên liệu'.",
+          "Điền tỷ giá VCB, giá SVR cho 4 mục (NĐ tư nhân / NĐ hàng XK / VRG XK / VRG nội địa) + bao bì (hàng rời/pallet) + đơn vị vận chuyển; Mục 4 thêm tình trạng.",
+          "Điền Mục 5 (đề xuất mua từ khách hàng: số lượng + đơn giá) — chỉ lưu trong phiếu.",
+          "Điền Mục 6 (giá mủ nước + mủ chén theo đơn vị) — tự ghi vào kho 'Giá mủ nguyên liệu'.",
           "Phiếu tự lưu khi nhập.",
         ],
         field: "tỷ giá (mua_tm/mua_ck/bán); giá SVR theo chủng loại + bao bì + vận chuyển; đề xuất KH (số lượng/đơn giá); mủ nước (đồng/độ TSC) + mủ chén (đồng/kg) theo đơn vị; ghi chú.",
-        note: "Giá SVR còn được lưu chuỗi (source='market') làm đầu vào Bản tin/dự báo. Mục 5 (mủ nước=purchase, mủ chén=purchase_cup) dùng chung danh mục đơn vị thành viên.",
+        note: "Giá SVR còn được lưu chuỗi (source='market') làm đầu vào Bản tin/dự báo. Mục 6 (mủ nước=purchase, mủ chén=purchase_cup) dùng chung danh mục đơn vị thành viên.",
       },
     ],
   },
@@ -111,19 +111,20 @@ export const MANUAL_NOTES: Record<string, DataSourceNote> = {
 
   "member-unit": {
     kind: "manual",
-    tagline: "Danh mục công ty thành viên — quản trị viên thêm/sửa; dùng làm cột cho 'Giá mủ nguyên liệu'.",
-    intro: "Đây là danh mục hỗ trợ (không phải số liệu giá): danh sách đơn vị để tạo cột nhập giá mủ nước.",
+    tagline: "Đơn vị thành viên + khu vực (2 tab) — quản trị viên thêm/sửa; dùng cho 'Giá mủ nguyên liệu'.",
+    intro: "Đây là danh mục hỗ trợ (không phải số liệu giá): danh sách đơn vị (cột nhập giá mủ nước) và khu vực (nhóm đơn vị để gom giá theo khu vực trong bản tin).",
     sources: [
       {
         name: "Danh sách đơn vị thành viên VRG",
         where: "Nguồn gốc: cơ cấu đơn vị thành viên của VRG.",
         method: "Quản trị nhập tay tại trang này",
         steps: [
-          "Nhập tên đơn vị → '＋ Thêm đơn vị'.",
+          "Tab Đơn vị: nhập tên đơn vị → '＋ Thêm đơn vị'; cột Khu vực để gán đơn vị vào 1 khu vực (không bắt buộc).",
+          "Tab Khu vực: thêm / đổi tên / ẩn-hiện / sắp xếp / xoá khu vực.",
           "Dùng các nút thao tác để Đổi tên / Ẩn-Hiện / Sắp xếp thứ tự.",
         ],
-        field: "name (tên đơn vị), is_active (đang dùng/ẩn), thứ tự sắp xếp.",
-        note: "Đổi tên vẫn giữ nguyên lịch sử giá đã nhập theo đơn vị đó.",
+        field: "name, is_active, thứ tự sắp xếp; region (khu vực đã gán, tùy chọn).",
+        note: "Đổi tên vẫn giữ nguyên lịch sử giá. Bản tin gom giá mủ theo khu vực (khoảng min–max); đơn vị chưa gán khu vực không lên báo cáo.",
       },
     ],
   },

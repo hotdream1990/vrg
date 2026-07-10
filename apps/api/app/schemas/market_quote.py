@@ -41,9 +41,10 @@ class MarketQuote(BaseModel):
 
     as_of: str
     fx: VcbRate = Field(default_factory=VcbRate)
-    domestic_private: Section = Field(default_factory=Section)  # Mục 1 — giá NĐ tư nhân (VNĐ/tấn)
-    export_vrg: Section = Field(default_factory=Section)  # Mục 2 — giá XK VRG (USD/tấn)
-    domestic_vrg: DomesticVrgSection = Field(default_factory=DomesticVrgSection)  # Mục 3 (VNĐ/tấn)
+    domestic_private: Section = Field(default_factory=Section)  # Mục 1 — giá NĐ hàng tư nhân (VNĐ/tấn)
+    domestic_export: Section = Field(default_factory=Section)  # Mục 2 — giá NĐ hàng xuất khẩu (VNĐ/tấn)
+    export_vrg: Section = Field(default_factory=Section)  # Mục 3 — giá XK VRG (USD/tấn)
+    domestic_vrg: DomesticVrgSection = Field(default_factory=DomesticVrgSection)  # Mục 4 (VNĐ/tấn)
     customer_proposal: ProposalSection = Field(default_factory=ProposalSection)  # Mục 4 — đề xuất KH
     regions: dict[str, float | None] = Field(default_factory=dict)  # Mục 5 — mủ nước (đồng/độ TSC)
     regions_cup: dict[str, float | None] = Field(default_factory=dict)  # Mục 5 — mủ chén (đồng/kg)

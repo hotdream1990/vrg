@@ -20,6 +20,7 @@ export type MarketQuote = {
   as_of: string;
   fx: VcbRate;
   domestic_private: Section;
+  domestic_export: Section;
   export_vrg: Section;
   domestic_vrg: DomesticVrgSection;
   customer_proposal: ProposalSection;
@@ -74,15 +75,16 @@ const numMapEmpty = (m: Record<string, number | null>) => Object.values(m).every
 
 /** Phiếu "trống" (chưa có gì để lưu) — dùng để bỏ qua auto-save khi chưa nhập. */
 export const isEmptyQuote = (q: MarketQuote): boolean => {
-  const secEmpty = (s: Section) =>
-    numMapEmpty(s.prices) && textMapEmpty(s.packaging) && textMapEmpty(s.shipping) && !s.note.trim();
+  const secEmpty = (s?: Section) =>
+    !s || (numMapEmpty(s.prices ?? {}) && textMapEmpty(s.packaging ?? {})
+      && textMapEmpty(s.shipping ?? {}) && !s.note?.trim());
   const fxEmpty = q.fx.mua_tm == null && q.fx.mua_ck == null && q.fx.ban == null;
   const statusEmpty = textMapEmpty(q.domestic_vrg.status);
   const propEmpty =
     numMapEmpty(q.customer_proposal.qty) && numMapEmpty(q.customer_proposal.prices)
     && !q.customer_proposal.note.trim();
-  return fxEmpty && secEmpty(q.domestic_private) && secEmpty(q.export_vrg)
-    && secEmpty(q.domestic_vrg) && statusEmpty && propEmpty
+  return fxEmpty && secEmpty(q.domestic_private) && secEmpty(q.domestic_export)
+    && secEmpty(q.export_vrg) && secEmpty(q.domestic_vrg) && statusEmpty && propEmpty
     && numMapEmpty(q.regions) && numMapEmpty(q.regions_cup) && !q.footer.trim();
 };
 
@@ -93,6 +95,7 @@ export const emptyQuote = (as_of: string, grades: string[]): MarketQuote => {
     as_of,
     fx: { mua_tm: null, mua_ck: null, ban: null },
     domestic_private: { prices: blankNum(), packaging: {}, shipping: {}, note: "" },
+    domestic_export: { prices: blankNum(), packaging: {}, shipping: {}, note: "" },
     export_vrg: { prices: blankNum(), packaging: {}, shipping: {}, note: "" },
     domestic_vrg: { prices: blankNum(), packaging: {}, shipping: {}, status: {}, note: "" },
     customer_proposal: { qty: blankNum(), prices: blankNum(), note: "" },

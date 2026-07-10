@@ -26,7 +26,7 @@ import VcbRateBar from "./components/VcbRateBar";
 import "../../bulletin/bulletin.css";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
-type SectKey = "domestic_private" | "export_vrg" | "domestic_vrg";
+type SectKey = "domestic_private" | "domestic_export" | "export_vrg" | "domestic_vrg";
 
 /** Quản lý số liệu → Báo giá mủ thị trường: 1 phiếu/ngày, TỰ LƯU (auto-save) khi nhập. */
 export default function MarketQuotePage() {
@@ -131,7 +131,7 @@ export default function MarketQuotePage() {
       <div className="page-title">
         <div>
           <h2><SolutionOutlined style={{ marginRight: 8 }} />Báo giá mủ thị trường</h2>
-          <p>Phiếu báo giá theo ngày: tỷ giá VCB · giá SVR (tư nhân/VRG XK/VRG nội địa) · đề xuất mua từ khách hàng · giá mủ khu vực (nước + chén). Tự lưu khi nhập.</p>
+          <p>Phiếu báo giá theo ngày: tỷ giá VCB · giá SVR (NĐ tư nhân/NĐ hàng XK/VRG XK/VRG nội địa) · đề xuất mua từ khách hàng · giá mủ khu vực (nước + chén). Tự lưu khi nhập.</p>
         </div>
         {canEdit && (
           <div className="actions">
@@ -192,14 +192,22 @@ export default function MarketQuotePage() {
             onShipping={(g, v) => setShipping("domestic_private", g, v)}
             onNote={(v) => setSect("domestic_private", { note: v })} />
 
-          <GradePriceTable title="2. Giá xuất khẩu — hàng VRG" subtitle="USD/tấn (FOB)" grades={grades}
+          <GradePriceTable title="2. Giá nội địa — hàng xuất khẩu" subtitle="VNĐ/tấn" grades={grades}
+            section={draft.domestic_export ?? { prices: {}, packaging: {}, shipping: {}, note: "" }}
+            unitLabel="Đồng/tấn" packagingOptions={packOpts} readOnly={!canEdit}
+            onPrice={(g, v) => setPrice("domestic_export", g, v)}
+            onPackaging={(g, v) => setPackaging("domestic_export", g, v)}
+            onShipping={(g, v) => setShipping("domestic_export", g, v)}
+            onNote={(v) => setSect("domestic_export", { note: v })} />
+
+          <GradePriceTable title="3. Giá xuất khẩu — hàng VRG" subtitle="USD/tấn (FOB)" grades={grades}
             section={draft.export_vrg} unitLabel="USD/tấn" packagingOptions={packOpts} readOnly={!canEdit}
             onPrice={(g, v) => setPrice("export_vrg", g, v)}
             onPackaging={(g, v) => setPackaging("export_vrg", g, v)}
             onShipping={(g, v) => setShipping("export_vrg", g, v)}
             onNote={(v) => setSect("export_vrg", { note: v })} />
 
-          <GradePriceTable title="3. Giá nội địa — hàng VRG" subtitle="VNĐ/tấn + tình trạng" grades={grades}
+          <GradePriceTable title="4. Giá nội địa — hàng VRG" subtitle="VNĐ/tấn + tình trạng" grades={grades}
             section={draft.domestic_vrg} unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!canEdit}
             onPrice={(g, v) => setPrice("domestic_vrg", g, v)}
             onPackaging={(g, v) => setPackaging("domestic_vrg", g, v)}
