@@ -43,6 +43,8 @@ export default function MarketQuotePage() {
   const [savedAt, setSavedAt] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [info, setInfo] = useState("");
+  const [createDate, setCreateDate] = useState(todayISO());
   const lastSaved = useRef("");
   const timer = useRef<number | null>(null);
 
@@ -74,24 +76,29 @@ export default function MarketQuotePage() {
   }, [draft, canEdit, loadList]);
 
   const openDate = async (as_of: string) => {
-    setErr("");
+    setErr(""); setInfo("");
     try {
       const q = await getQuote(as_of);
       lastSaved.current = JSON.stringify(q); setSaveState("idle"); setSavedAt("");
       setIsNew(false); setDraft(q);
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
   };
-  // Tạo mới / đổi ngày: ngày ĐÃ CÓ phiếu → mở cái cũ (chống trùng, không báo lỗi);
-  // ngày trống → phiếu mới (keepData: giữ dữ liệu đang nhập khi chỉ đổi ngày).
+  // Tạo mới / đổi ngày (cho phép chọn ngày trong quá khứ): ngày ĐÃ CÓ phiếu → mở phiếu sẵn có
+  // + báo cho người dùng biết (chống trùng); ngày trống → phiếu mới
+  // (keepData: giữ dữ liệu đang nhập khi chỉ đổi ngày).
   const startAt = async (as_of: string, keepData = false) => {
-    setErr("");
+    setErr(""); setInfo("");
     try {
-      if ((await listQuotes(as_of, as_of)).length > 0) { await openDate(as_of); return; }
+      if ((await listQuotes(as_of, as_of)).length > 0) {
+        await openDate(as_of);
+        setInfo(`Ngày ${dmy(as_of)} đã có phiếu — đã mở phiếu sẵn có để xem/sửa.`);
+        return;
+      }
       lastSaved.current = ""; setSaveState("idle"); setSavedAt(""); setIsNew(true);
       setDraft((d) => (keepData && d ? { ...d, as_of } : emptyQuote(as_of, grades)));
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
   };
-  const startNew = () => { void startAt(todayISO()); };
+  const startNew = () => { void startAt(createDate); };
 
   const setSect = (k: SectKey, patch: Partial<Section>) =>
     setDraft((d) => d && { ...d, [k]: { ...d[k], ...patch } });
@@ -134,8 +141,12 @@ export default function MarketQuotePage() {
           <p>Phiếu báo giá theo ngày: tỷ giá VCB · giá SVR (NĐ tư nhân/NĐ hàng XK/VRG XK/VRG nội địa) · đề xuất mua từ khách hàng · giá mủ khu vực (nước + chén). Tự lưu khi nhập.</p>
         </div>
         {canEdit && (
-          <div className="actions">
-            <button className="btn btn-primary" onClick={startNew}>＋ Tạo phiếu mới</button>
+          <div className="actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <label className="blt-date-label" style={{ margin: 0, whiteSpace: "nowrap" }}>Ngày phiếu:
+              <DateInput value={createDate} noFuture style={{ width: 140 }}
+                onChange={(v) => setCreateDate(v || todayISO())} />
+            </label>
+            <button className="btn btn-primary" style={{ whiteSpace: "nowrap" }} onClick={startNew}>＋ Tạo phiếu mới</button>
           </div>
         )}
       </div>
@@ -145,6 +156,7 @@ export default function MarketQuotePage() {
 
       <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo} info={`${list.length} phiếu`} />
       {err && <div className="blt-error">{err}</div>}
+      {info && <div className="blt-info">{info}</div>}
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-head"><h3>Các phiếu đã có</h3></div>

@@ -87,6 +87,19 @@
   gap: 8px;
 }
 
+.blt-info {
+  background: #3b82f622;
+  color: #93c5fd;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  border: 1px solid #3b82f644;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* SVG icons inside buttons and chips */
 .btn svg,
 .chip svg {
