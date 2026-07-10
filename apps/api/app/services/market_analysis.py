@@ -1,8 +1,8 @@
 """Phân tích thông tin thị trường cao su bằng AI cho bản tin ngày (Mục IV.3).
 
-Lấy bài 'Giá cao su hôm nay' MỚI NHẤT trên vietnambiz (nguồn tổng hợp Reuters/SCI99) →
+Lấy bài 'Giá cao su hôm nay' MỚI NHẤT trên vietnambiz (bài này tự tổng hợp Reuters/SCI99) →
 AI viết 3 đoạn 'Các thông tin thị trường liên quan' đúng văn phong bản tin VRG.
-Nguồn tin trích dẫn = SCI99 (nguồn gốc) + URL bài vietnambiz có ngày — khớp mẫu chuyên viên.
+Nguồn tin trích dẫn = ĐÚNG URL bài vietnambiz AI đã đọc (KHÔNG gắn nguồn không thật sự đọc).
 KHÔNG để AI bịa số liệu/sự kiện ngoài nguồn.
 """
 from __future__ import annotations
@@ -14,8 +14,6 @@ import httpx
 from app.services import llm
 
 INDEX_URL = "https://vietnambiz.vn/gia-cao-su.html"
-# SCI99 (Sublime China Information) — nguồn gốc mà vietnambiz tổng hợp; mọi bản tin mẫu đều dẫn.
-SCI99_SOURCE = "https://intl.sci99.com/annualreport/;ReportSublimeChinaInformation"
 _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/126 Safari/537.36")
 _ARTICLE_RE = re.compile(r'href="(/gia-cao-su-hom-nay-[^"]+\.htm)"')
@@ -93,4 +91,5 @@ def generate(n_paragraphs: int = 3) -> dict:
     paragraphs = [p for p in paragraphs if p]
     if n_paragraphs:
         paragraphs = paragraphs[:n_paragraphs]
-    return {"paragraphs": paragraphs, "source_urls": [SCI99_SOURCE, article_url]}
+    # CHỈ trích dẫn nguồn AI THẬT SỰ đọc (bài vietnambiz có ngày) — không gắn nguồn không đọc.
+    return {"paragraphs": paragraphs, "source_urls": [article_url]}
