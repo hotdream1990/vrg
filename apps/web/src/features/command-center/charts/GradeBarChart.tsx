@@ -4,10 +4,13 @@ import { Bar } from "react-chartjs-2";
 import { AXIS } from "./chart-setup";
 
 /** Biểu đồ cột so sánh giá hiện tại theo grade (vd LGM SMR · US cents/kg). */
-export default function GradeBarChart({ labels, values, color = "#22c55e" }: { labels: string[]; values: number[]; color?: string }) {
+export default function GradeBarChart(
+  { labels, values, color = "#22c55e", unit = "US cents/kg" }:
+  { labels: string[]; values: number[]; color?: string; unit?: string },
+) {
   const data: ChartData<"bar"> = {
     labels,
-    datasets: [{ label: "US cents/kg", data: values, backgroundColor: `${color}cc`, borderRadius: 4 }],
+    datasets: [{ label: unit, data: values, backgroundColor: `${color}cc`, borderRadius: 4 }],
   };
 
   const options: ChartOptions<"bar"> = {

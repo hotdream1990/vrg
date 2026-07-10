@@ -21,6 +21,7 @@ from app.routers import (
     floor_suggest,
     health,
     inventory,
+    market_movement,
     market_quote,
     member_region,
     member_unit,
@@ -115,6 +116,7 @@ app.include_router(floor_suggest.router, dependencies=_protected)
 app.include_router(member_unit.router, dependencies=_protected)
 app.include_router(member_region.router, dependencies=_protected)
 app.include_router(inventory.router, dependencies=_protected)
+app.include_router(market_movement.router, dependencies=_protected)  # nhận định AI: per-route require_editor
 app.include_router(market_quote.router, dependencies=_protected)
 app.include_router(users.router, dependencies=[Depends(require_admin)])  # quản trị: chỉ admin
 app.include_router(config.router, dependencies=[Depends(require_admin)])  # cấu hình: chỉ admin

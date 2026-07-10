@@ -63,6 +63,17 @@ export const deleteQuote = (as_of: string) =>
 export const fetchVcbRate = (date?: string) =>
   req<VcbRateResult>(`/api/market-quote/vcb-rate${date ? `?date=${date}` : ""}`);
 
+// ── Lịch sử giá SVR thị trường (chuỗi thời gian 4 mục) — cho biểu đồ xu hướng ──
+export type MqHistorySeries = { name: string; values: (number | null)[] };
+export type MqHistorySection = {
+  key: string; label: string; unit: string; labels: string[]; series: MqHistorySeries[];
+};
+export type MqPriceHistory = { sections: MqHistorySection[]; dates: string[] };
+
+/** Lịch sử giá thị trường 4 mục (ngày × chủng loại) để vẽ đường xu hướng. */
+export const fetchMarketPriceHistory = (days = 90) =>
+  req<MqPriceHistory>(`/api/market-quote/history?days=${days}`);
+
 /** Gợi ý bao bì đóng gói cho các chủng loại SVR (fallback nếu meta chưa tải). */
 export const PACKAGING_OPTIONS = ["Hàng rời", "Pallet"];
 

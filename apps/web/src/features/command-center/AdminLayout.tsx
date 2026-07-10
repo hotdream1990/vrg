@@ -9,6 +9,7 @@ import {
   FundOutlined,
   IdcardOutlined,
   InboxOutlined,
+  LineChartOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -55,6 +56,7 @@ const MENU = [
   },
   { key: "/goi-y-gia-san", icon: <BulbOutlined />, label: "Gợi ý giá sàn" },
   { key: "/ban-tin", icon: <FileTextOutlined />, label: "Bản tin ngày" },
+  { key: "/ban-tin-bien-dong", icon: <LineChartOutlined />, label: "Bản tin biến động" },
 ];
 
 // Mục Quản trị chỉ hiện với role=admin.
@@ -83,7 +85,7 @@ export default function AdminLayout() {
     "/quan-ly-so-lieu/bang-gia-san", "/quan-ly-so-lieu/ty-gia", "/quan-ly-so-lieu/gia-san-tap-doan",
     "/quan-ly-so-lieu/gia-mu-nguyen-lieu", "/quan-ly-so-lieu/gia-physical",
     "/quan-ly-so-lieu/ton-kho", "/quan-ly-so-lieu/bao-gia-mu", "/quan-ly-so-lieu/don-vi-thanh-vien",
-    "/goi-y-gia-san", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
+    "/goi-y-gia-san", "/ban-tin-bien-dong", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
     "/quan-tri/lich-chay", "/ho-so",
   ];
   const selected = pathname === "/"

@@ -37,6 +37,40 @@ def meta() -> dict[str, Any]:
             "packaging": MARKET_QUOTE_PACKAGING}
 
 
+# price_type mirror → (section key, nhãn, đơn vị) cho biểu đồ lịch sử
+_HISTORY_SECTIONS = [
+    ("market_domestic_private", "domestic_private", "Giá nội địa — tư nhân", "VNĐ/tấn"),
+    ("market_domestic_export", "domestic_export", "Giá nội địa — hàng xuất khẩu", "VNĐ/tấn"),
+    ("market_export_vrg", "export_vrg", "Giá xuất khẩu — VRG", "USD/tấn"),
+    ("market_domestic_vrg", "domestic_vrg", "Giá nội địa — VRG", "VNĐ/tấn"),
+]
+
+
+def price_history(days: int = 90) -> dict[str, Any]:
+    """Lịch sử giá SVR thị trường (mirror source='market') theo ngày × chủng loại cho 4 mục."""
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(text(
+            "SELECT as_of, grade, price_type, price FROM fact_price "
+            "WHERE source = :s AND as_of >= CURRENT_DATE - CAST(:d AS integer) ORDER BY as_of"
+        ), {"s": _MARKET, "d": days}).mappings().all()
+    dates = sorted({str(r["as_of"]) for r in rows})
+    idx = {d: i for i, d in enumerate(dates)}
+    sections: list[dict[str, Any]] = []
+    for ptype, key, label, unit in _HISTORY_SECTIONS:
+        by_grade: dict[str, list[float | None]] = {}
+        for r in rows:
+            if r["price_type"] != ptype:
+                continue
+            by_grade.setdefault(r["grade"], [None] * len(dates))[idx[str(r["as_of"])]] = float(r["price"])
+        sections.append({
+            "key": key, "label": label, "unit": unit,
+            "labels": [d[5:] for d in dates],  # MM-DD
+            "series": [{"name": g, "values": v} for g, v in by_grade.items()],
+        })
+    return {"sections": sections, "dates": dates}
+
+
 def _payload_of(mq: dict[str, Any]) -> dict[str, Any]:
     """Phần lưu trong market_quote.payload (bỏ regions/regions_cup — chúng đi vào fact_price)."""
     return {

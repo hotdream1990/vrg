@@ -9,6 +9,7 @@ import DashboardPage from "./features/command-center/pages/DashboardPage";
 import FloorSuggestPage from "./features/command-center/pages/FloorSuggestPage";
 import FxRatePage from "./features/command-center/pages/FxRatePage";
 import InventoryPage from "./features/command-center/pages/InventoryPage";
+import MarketMovementPage from "./features/command-center/pages/MarketMovementPage";
 import MarketQuotePage from "./features/command-center/pages/MarketQuotePage";
 import MemberUnitPage from "./features/command-center/pages/MemberUnitPage";
 import PhysicalSheetPage from "./features/command-center/pages/PhysicalSheetPage";
@@ -55,6 +56,7 @@ export default function App() {
                   <Route path="/ban-tin" element={<BulletinListPage />} />
                   <Route path="/ban-tin/tao" element={<BulletinPage />} />
                   <Route path="/ban-tin/xem/:filename" element={<BulletinDetailPage />} />
+                  <Route path="/ban-tin-bien-dong" element={<MarketMovementPage />} />
                   {/* Khu quản trị — chỉ admin (chặn viewer/editor gõ thẳng URL) */}
                   <Route element={<RequireRole roles={["admin"]} />}>
                     <Route path="/quan-tri/nguoi-dung" element={<UserManagementPage />} />

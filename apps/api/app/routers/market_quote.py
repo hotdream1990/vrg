@@ -42,6 +42,12 @@ def vcb_rate_now(date: str | None = Query(None, description="YYYY-MM-DD (mặc �
         raise HTTPException(502, "Không lấy được tỷ giá VCB (mạng/nguồn) — vui lòng nhập tay.") from exc
 
 
+@router.get("/history")
+def get_price_history(days: int = Query(90, ge=7, le=365)) -> dict:
+    """Lịch sử giá SVR thị trường (4 mục) theo ngày × chủng loại — cho biểu đồ xu hướng."""
+    return market_quote_repo.price_history(days)
+
+
 @router.get("/{as_of}", response_model=MarketQuote)
 def get_quote(as_of: str):
     """1 phiếu đầy đủ theo ngày (Mục 4 đọc live từ kho Giá mủ nguyên liệu)."""
