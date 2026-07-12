@@ -67,9 +67,10 @@ body {{ font-family:'Times New Roman','Arial',sans-serif; color:#111; font-size:
 .pg-hdr {{ position:relative; width:100%; height:76px; flex:0 0 auto; background:#fff;
   display:flex; align-items:center; padding:10px var(--mr) 0 var(--ml); }}
 .pg-hdr-logo {{ height:46px; width:46px; border-radius:50%; object-fit:contain; margin-right:10px; flex:0 0 auto; }}
+/* Màu XANH ĐẶC (không dùng background-clip:text — nhiều trình xem PDF, vd macOS Preview,
+   render text-clip gradient thành khối đặc che chữ). Bám mẫu: tiêu đề xanh đậm. */
 .pg-hdr-t {{ font-family:Arial,sans-serif; font-size:21px; font-weight:800; letter-spacing:.3px;
-  background:linear-gradient(90deg,#134f67 0%,#2f8f57 55%,#43a83a 100%);
-  -webkit-background-clip:text; background-clip:text; color:transparent; }}
+  color:#1a7a3a; }}
 .pg-hdr-rule {{ position:absolute; left:calc(var(--ml) + 56px); right:var(--mr); bottom:12px; height:3px;
   background:linear-gradient(90deg,#134f67,#43a83a); }}
 /* Mẫu KHÔNG có footer band — chỉ chừa lề đáy. */
