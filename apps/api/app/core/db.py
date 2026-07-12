@@ -124,6 +124,12 @@ CREATE TABLE IF NOT EXISTS market_quote (
     updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS weekly_report (
+    week_key    text PRIMARY KEY,          -- ngày Thứ 2 ISO của tuần, 'YYYY-MM-DD'
+    payload     jsonb NOT NULL,            -- narrative (các phần viết) + override bảng III.3
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS title text;
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS region text;

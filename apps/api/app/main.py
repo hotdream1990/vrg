@@ -29,6 +29,7 @@ from app.routers import (
     public_purchase,
     schedules,
     users,
+    weekly_reports,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
@@ -118,6 +119,7 @@ app.include_router(member_region.router, dependencies=_protected)
 app.include_router(inventory.router, dependencies=_protected)
 app.include_router(market_movement.router, dependencies=_protected)  # nhận định AI: per-route require_editor
 app.include_router(market_quote.router, dependencies=_protected)
+app.include_router(weekly_reports.router, dependencies=_protected)  # nhận định AI + xuất PDF: per-route require_editor
 app.include_router(users.router, dependencies=[Depends(require_admin)])  # quản trị: chỉ admin
 app.include_router(config.router, dependencies=[Depends(require_admin)])  # cấu hình: chỉ admin
 app.include_router(schedules.router, dependencies=[Depends(require_admin)])  # lịch chạy: chỉ admin

@@ -22,9 +22,10 @@ services:
     image: 'registry.gitlab.com/flowbot1/flowbot/vrg:${VRG_TAG}'
     environment: *app-env
     volumes:
-      # File ghi runtime → giữ qua các lần deploy (bản tin đã xuất + ảnh custom).
+      # File ghi runtime → giữ qua các lần deploy (bản tin đã xuất + ảnh custom + báo cáo tuần đã xuất).
       - bulletin-out:/app/data/bulletins
       - bulletin-custom:/app/data/bulletin-assets/custom
+      - weekly-out:/app/data/weekly-reports
     depends_on:
       db:
         condition: service_healthy
@@ -55,3 +56,4 @@ volumes:
   db-data:
   bulletin-out:
   bulletin-custom:
+  weekly-out:

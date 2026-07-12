@@ -40,4 +40,5 @@ build/
 # ─── Claude Code (local, không commit; launch.json + commands/ thì commit) ───
 .claude/settings.local.json
 data/bulletins/
+data/weekly-reports/
 screenshots/

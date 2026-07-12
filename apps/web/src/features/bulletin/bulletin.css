@@ -405,3 +405,15 @@ th.r, td.r {
     max-width: 100%;
   }
 }
+
+/* ── Báo cáo tuần ── */
+.wk-table { width: 100%; border-collapse: collapse; margin: 6px 0 14px; }
+.wk-table th, .wk-table td { border: 1px solid var(--line); padding: 8px 10px; font-size: 13px; color: var(--text); }
+.wk-table th { background: var(--bg); color: var(--muted); text-align: center; font-weight: 600; }
+.wk-table td.c { text-align: center; }
+.wk-table td.r { text-align: right; font-variant-numeric: tabular-nums; }
+.wk-field { margin: 12px 0; }
+.wk-field-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.wk-field-head label { font-weight: 600; color: var(--text); }
+.wk-hint { font-size: 12px; color: var(--muted); margin-bottom: 4px; font-style: italic; }
+.btn-sm { padding: 2px 10px; font-size: 12px; }
