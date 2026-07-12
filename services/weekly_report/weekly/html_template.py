@@ -12,8 +12,8 @@ from __future__ import annotations
 from .models import WeeklyReportData
 
 PAGE_W, PAGE_H = "8.27in", "11.69in"  # A4
-# Body dùng được/trang (px CSS): 11.69in*96(≈1122) − header 76 − footer 16 − padding ~20, chừa slack.
-USABLE_PX = 985
+# Body dùng được/trang (px CSS): 11.69in*96(≈1122) − header 76 − footer 16 − padding ~20 ≈ 1010; chừa ~15 slack.
+USABLE_PX = 995
 
 
 # ── Định dạng số kiểu Việt Nam (chấm nghìn, phẩy thập phân) ──
@@ -53,22 +53,24 @@ _PHYS_ROWS = ["RSS3", "STR20", "SMR20", "LATEX"]
 
 _CSS = f"""
 * {{ box-sizing:border-box; }}
+/* Lề văn bản chuẩn VN: trái 3cm, phải 2cm (bám mẫu). */
+:root {{ --ml:3cm; --mr:2cm; }}
 html,body {{ margin:0; }}
 body {{ font-family:'Times New Roman','Arial',sans-serif; color:#111; font-size:13.5px; }}
 .pg {{ width:{PAGE_W}; height:{PAGE_H}; display:flex; flex-direction:column; overflow:hidden; break-after:page; }}
 .pg:last-child {{ break-after:auto; }}
-.pg-body {{ flex:1; padding:14px 30px 6px; overflow:hidden; }}
-.measure {{ width:{PAGE_W}; padding:0 30px; }}
+.pg-body {{ flex:1; padding:14px var(--mr) 6px var(--ml); overflow:hidden; }}
+.measure {{ width:{PAGE_W}; padding:0 var(--mr) 0 var(--ml); }}
 .blk {{ display:flow-root; }}
 
 /* Header = letterhead nền TRẮNG (như mẫu): logo nhỏ + tiêu đề chữ gradient teal→lá + gạch chân gradient. */
 .pg-hdr {{ position:relative; width:100%; height:76px; flex:0 0 auto; background:#fff;
-  display:flex; align-items:center; padding:10px 30px 0; }}
+  display:flex; align-items:center; padding:10px var(--mr) 0 var(--ml); }}
 .pg-hdr-logo {{ height:46px; width:46px; border-radius:50%; object-fit:contain; margin-right:10px; flex:0 0 auto; }}
 .pg-hdr-t {{ font-family:Arial,sans-serif; font-size:21px; font-weight:800; letter-spacing:.3px;
   background:linear-gradient(90deg,#134f67 0%,#2f8f57 55%,#43a83a 100%);
   -webkit-background-clip:text; background-clip:text; color:transparent; }}
-.pg-hdr-rule {{ position:absolute; left:86px; right:30px; bottom:12px; height:3px;
+.pg-hdr-rule {{ position:absolute; left:calc(var(--ml) + 56px); right:var(--mr); bottom:12px; height:3px;
   background:linear-gradient(90deg,#134f67,#43a83a); }}
 /* Mẫu KHÔNG có footer band — chỉ chừa lề đáy. */
 .pg-ftr {{ height:16px; flex:0 0 auto; }}
@@ -78,16 +80,16 @@ body {{ font-family:'Times New Roman','Arial',sans-serif; color:#111; font-size:
 .mh-sub {{ font-family:'Times New Roman',serif; font-weight:700; font-size:14px; color:#1a7a3a; margin-top:1px; }}
 .mh-rule {{ border:0; border-top:2px solid #17667a; margin:7px 0 2px; }}
 
-h2.section {{ font-size:15px; color:#0a9e48; margin:8px 0 6px; font-weight:700; }}
-p.sub {{ font-weight:700; margin:8px 0 4px; line-height:1.45; }}
-p.para {{ margin:6px 0; line-height:1.5; text-align:justify; text-indent:28px; }}
-table {{ width:100%; border-collapse:collapse; margin:4px 0 8px; }}
+h2.section {{ font-size:15px; color:#0a9e48; margin:6px 0 4px; font-weight:700; }}
+p.sub {{ font-weight:700; margin:6px 0 3px; line-height:1.4; }}
+p.para {{ margin:5px 0; line-height:1.45; text-align:justify; text-indent:28px; }}
+table {{ width:100%; border-collapse:collapse; margin:3px 0 6px; }}
 thead {{ display:table-header-group; }}
-th,td {{ border:1px solid #7f9c86; padding:7px 8px; font-size:13px; }}
+th,td {{ border:1px solid #7f9c86; padding:6px 8px; font-size:13px; }}
 th {{ background:#dbe7cf; color:#0a3d1e; text-align:center; font-weight:700; }}
 td.r {{ text-align:right; }} td.c {{ text-align:center; }}
-ul.blt {{ margin:3px 0 8px; padding-left:22px; }}
-ul.blt li {{ margin:4px 0; line-height:1.5; text-align:justify; }}
+ul.blt {{ margin:2px 0 6px; padding-left:22px; }}
+ul.blt li {{ margin:3px 0; line-height:1.45; text-align:justify; }}
 ul.blt ul {{ list-style:circle; margin:2px 0; padding-left:22px; }}
 ul.blt ul li {{ font-style:italic; }}
 ol.disc {{ margin:4px 0; padding-left:22px; }} ol.disc li {{ margin:6px 0; line-height:1.5; text-align:justify; }}
@@ -176,6 +178,28 @@ def _notes(label: str, items: list[str]) -> str:
     return (f"<p class='sub'>{label}</p>" + _bullets(items)) if items else ""
 
 
+def _chunk_notes(items: list[str]) -> list[list[str]]:
+    """Gom [gạch chính + các gạch phụ '>' theo sau] thành từng cụm (mỗi sàn 1 cụm)."""
+    chunks: list[list[str]] = []
+    for s in items:
+        if not s:
+            continue
+        if s.startswith(">") and chunks:
+            chunks[-1].append(s)
+        else:
+            chunks.append([s])
+    return chunks
+
+
+def _note_blocks(label: str, items: list[str]) -> list[str]:
+    """Chia nhận định thành nhiều .blk nhỏ (mỗi cụm sàn 1 block) để xếp trang DÀY, tránh nhảy
+    trang thô. Block đầu kèm nhãn 'Nhận định:' + cụm đầu; mỗi cụm sau 1 block riêng để tràn tự nhiên."""
+    chunks = _chunk_notes(items)
+    if not chunks:
+        return []
+    return [f"<p class='sub'>{label}</p>" + _bullets(chunks[0])] + [_bullets(ch) for ch in chunks[1:]]
+
+
 # ── Header/footer nướng mỗi trang ──
 def _page_header(assets: dict[str, str]) -> str:
     logo = assets.get("logo-vrg")
@@ -202,16 +226,17 @@ def content_groups(d: WeeklyReportData) -> list[list[str]]:
         _MASTHEAD + f'<h2 class="section">I. TÓM TẮT TUẦN {d.prev_week_no}/{d.prev_year}</h2>' + _paras(d.summary_prev),
         f'<h2 class="section">II. DIỄN BIẾN TUẦN {d.week_no}/{d.year}</h2>' + _paras(d.movement),
     ]
-    # Nhóm 2 — III (3 bảng + nhận định)
+    # Nhóm 2 — III (3 bảng + nhận định). Tách bảng khỏi nhận định + chia nhận định theo cụm sàn
+    # → xếp trang dày như mẫu, bảng bám ngay sau II, nhận định tràn tự nhiên (không nhảy trang thô).
     g3: list[str] = [
         '<h2 class="section">III. DIỄN BIẾN GIÁ</h2>'
-        '<p class="sub">1. Giá trên các sàn giao dịch quốc tế (USD/tấn):</p>'
-        + _exchange_table(d) + _notes("Nhận định:", d.exchange_notes),
-        '<p class="sub">2. Giá thị trường giao ngay (USD/tấn):</p>'
-        + _physical_table(d) + _notes("Nhận định:", d.physical_notes),
-        '<p class="sub">3. Giá thu mua mủ nước (VNĐ/độ TSC):</p>'
-        + _latex_table(d) + _notes("Nhận định:", d.latex_notes),
+        '<p class="sub">1. Giá trên các sàn giao dịch quốc tế (USD/tấn):</p>' + _exchange_table(d),
     ]
+    g3 += _note_blocks("Nhận định:", d.exchange_notes)
+    g3.append('<p class="sub">2. Giá thị trường giao ngay (USD/tấn):</p>' + _physical_table(d))
+    g3 += _note_blocks("Nhận định:", d.physical_notes)
+    g3.append('<p class="sub">3. Giá thu mua mủ nước (VNĐ/độ TSC):</p>' + _latex_table(d))
+    g3 += _note_blocks("Nhận định:", d.latex_notes)
     # Nhóm 3 — IV (tiểu mục)
     g4 = [f'<h2 class="section">IV. CÁC YẾU TỐ VĨ MÔ</h2>']
     for sec in d.macro:

@@ -31,6 +31,31 @@ _ANTIFAB = (
     "'nguồn không đề cập', 'không có dữ liệu', 'trong ngữ cảnh không có', 'chưa có số liệu'…)."
 )
 
+# Văn phong bám mẫu báo cáo VRG — chèn vào MỌI prompt để nhận định giàu hình ảnh + số đúng VN.
+_STYLE = (
+    "VĂN PHONG (bám mẫu Ban Thị trường VRG): phân tích thị trường trang trọng, GIÀU HÌNH ẢNH tài "
+    "chính; ưu tiên các cụm quen thuộc khi KHỚP với số liệu: 'bứt phá lập đỉnh', 'đảo chiều đi xuống', "
+    "'đánh mất gần X% giá trị', 'chịu sức ép nặng nề', 'giữ vững sắc xanh', 'sắc đỏ lan rộng', 'phân "
+    "hóa trái chiều', 'lực đỡ/lực kéo', 'suy yếu/hồi phục'. ĐỊNH DẠNG SỐ kiểu Việt: nghìn dấu CHẤM, "
+    "thập phân dấu PHẨY, % có dấu (vd -3,04% / +2,66%), giá kèm 'USD/tấn'. TUYỆT ĐỐI không viết % kiểu "
+    "'2.66%' (dấu chấm). KHÔNG lặp lại nguyên cặp giá tuần-trước→tuần-này của bảng (đã có trong bảng); "
+    "thay vào đó phân tích ĐỊNH TÍNH nguyên nhân & hàm ý."
+)
+
+
+def _vn(x: float | None, dec: int = 1) -> str:
+    """Số kiểu VN có dấu: 2.657,2 / -3,04. None → 'N/A'."""
+    if x is None:
+        return "N/A"
+    s = f"{abs(x):,.{dec}f}".replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+    return ("-" if x < 0 else "") + s
+
+
+def _pct(x: float | None) -> str:
+    """% kiểu VN có dấu +/-: +0,67% / -3,04%. None → 'N/A'."""
+    return "N/A" if x is None else ("+" if x >= 0 else "") + _vn(x, 2) + "%"
+
+
 # section key → (mô tả yêu cầu, số đoạn cắt; 0 = giữ hết dòng)
 _PROMPTS = {
     "summary_prev": ("Viết Phần I – TÓM TẮT TUẦN TRƯỚC: 1 đoạn tái hiện ngắn gọn bối cảnh & xu hướng "
@@ -38,14 +63,17 @@ _PROMPTS = {
     "movement": ("Viết Phần II – DIỄN BIẾN TUẦN BÁO CÁO: 2 đoạn phác họa 'hình thái' chuyển động giá "
                  "cả tuần (tăng/giảm đầu–cuối tuần, phân hóa hay bứt phá) và nguyên nhân chính.", 2),
     "exchange_notes": (
-        "Viết Nhận định bảng giá sàn quốc tế (III.1): TỪNG sàn 1 gạch chính kèm % thay đổi tuần. Góc "
-        "phân tích gợi ý (chỉ khẳng định khi nguồn có): OSE gắn đồng Yên (USD/JPY) & giá dầu; SHANGHAI "
-        "gắn tồn kho Thanh Đảo & nhà máy lốp xe; SGX/MRE gắn nguồn cung găng tay & cấu trúc chi phí sàn "
-        "Malaysia. Dưới mỗi sàn thêm 2 gạch phụ MỞ ĐẦU bằng '>': '> Cao nhất tuần: {số} ({ngày})' và "
-        "'> Thấp nhất tuần: {số} ({ngày})' — lấy ĐÚNG số từ mục Đỉnh/đáy tuần trong ngữ cảnh.", 0),
-    "physical_notes": ("Viết Nhận định bảng giá giao ngay (III.2): 1 đoạn về mức hạ nhiệt/tăng & biên "
-                       "độ % của RSS3/STR20/SMR20/Latex; có thể dẫn đỉnh/đáy tuần (đúng số ngữ cảnh) và "
-                       "diễn biến nguồn cung mủ Đông Nam Á nếu nguồn đề cập.", 1),
+        "Viết Nhận định bảng giá sàn quốc tế (III.1). MỖI SÀN 1 gạch chính theo ĐÚNG mẫu: "
+        "'Sàn {TÊN} ({±%}): {nhận định định tính}' — KHÔNG nêu lại cặp giá tuần trước→tuần này (bảng đã "
+        "có). Góc phân tích (chỉ khẳng định khi nguồn có): OSE↔đồng Yên (USD/JPY) & giá dầu; SHANGHAI↔"
+        "tồn kho Thanh Đảo & nhà máy lốp xe; SGX/MRE↔nguồn cung găng tay & cấu trúc chi phí sàn Malaysia. "
+        "Dưới mỗi sàn thêm 2 gạch phụ MỞ ĐẦU bằng '>' đúng mẫu: '> Cao nhất tuần: Đạt {số} USD/tấn (ngày "
+        "d/m)' và '> Thấp nhất tuần: {số} USD/tấn (ngày d/m)' — lấy ĐÚNG số & ngày từ mục Đỉnh/đáy trong "
+        "ngữ cảnh, số định dạng VN (2.657,2).", 0),
+    "physical_notes": ("Viết Nhận định bảng giá giao ngay (III.2): 1 đoạn phân tích định tính mức hạ "
+                       "nhiệt/tăng & biên độ % của RSS3/STR20/SMR20/Latex (% kiểu VN, vd -3,9%); có thể "
+                       "dẫn đỉnh/đáy tuần (đúng số ngữ cảnh, kèm 'USD/tấn' và ngày) và diễn biến nguồn "
+                       "cung mủ Đông Nam Á nếu nguồn đề cập.", 1),
     "latex_notes": ("Viết Nhận định giá thu mua mủ nước nội địa (III.3): 1 đoạn so sánh biên độ giá "
                     "tuần này với tuần trước và lý do (cầu nội địa, nguồn cung cục bộ).", 1),
     "forecast": ("Viết Phần V – DỰ BÁO XU HƯỚNG TUẦN TIẾP THEO: 1 đoạn mở + 2 gạch MỞ ĐẦU bằng '-': "
@@ -76,7 +104,8 @@ def _stats_lines(stats: dict, key: str, title: str) -> list[str]:
     if d:
         out.append(title)
         for k, s in d.items():
-            out.append(f"- {k}: Cao nhất {s['high']} ({s['high_date']}); Thấp nhất {s['low']} ({s['low_date']})")
+            out.append(f"- {k}: Cao nhất {_vn(s['high'])} USD/tấn (ngày {s['high_date']}); "
+                       f"Thấp nhất {_vn(s['low'])} USD/tấn (ngày {s['low_date']})")
     return out
 
 
@@ -86,20 +115,21 @@ def _context(week_key: str) -> str:
     lines = [
         f"BÁO CÁO TUẦN {rep['week_no']}/{rep['year']} ({rep['date_range']}). "
         f"Cột: {rep['prev_col_label']} → {rep['curr_col_label']}.",
-        "Giá sàn quốc tế (TB tuần USD/tấn, prev → curr [+/- ; %]):",
+        "Giá sàn quốc tế (TB tuần USD/tấn — tuần trước → tuần này [+/- ; %]):",
     ]
     for r in rep["exchange_rows"]:
-        lines.append(f"- {r['exchange']} {r['grade']}: {r['prev']} → {r['curr']} "
-                     f"({r['change_abs']}; {r['change_pct']}%)")
+        lines.append(f"- Sàn {r['exchange']} {r['grade']}: {_vn(r['prev'])} → {_vn(r['curr'])} USD/tấn "
+                     f"(+/- {_vn(r['change_abs'])}; {_pct(r['change_pct'])})")
     lines += _stats_lines(stats, "exchange", "Đỉnh/đáy tuần theo sàn (USD/tấn) — DÙNG ĐÚNG cho Cao/Thấp nhất tuần:")
     lines.append("Giá giao ngay (TB tuần USD/tấn):")
     for r in rep["physical_rows"]:
-        lines.append(f"- {r['grade']}: {r['prev']} → {r['curr']} ({r['change_abs']}; {r['change_pct']}%)")
+        lines.append(f"- {r['grade']}: {_vn(r['prev'])} → {_vn(r['curr'])} USD/tấn "
+                     f"(+/- {_vn(r['change_abs'])}; {_pct(r['change_pct'])})")
     lines += _stats_lines(stats, "physical", "Đỉnh/đáy tuần giao ngay (USD/tấn):")
     lines.append(f"Mủ nước nội địa (VNĐ/độ TSC): {rep['latex_prev']} → {rep['latex_curr']} "
                  f"(biến động {rep['latex_change']}).")
     if stats.get("fx"):
-        lines.append("Tỷ giá TB tuần: " + ", ".join(f"{p}={v}" for p, v in stats["fx"].items()) + ".")
+        lines.append("Tỷ giá TB tuần: " + ", ".join(f"{p}={_vn(v, 2)}" for p, v in stats["fx"].items()) + ".")
     return "\n".join(lines)
 
 
@@ -119,7 +149,7 @@ def _prompt(ctx: str, article: str, ask: str) -> str:
     return (
         f"NGỮ CẢNH SỐ LIỆU TUẦN:\n{ctx}\n\n"
         f"NGUỒN TIN (bài 'Giá cao su hôm nay' mới nhất, vietnambiz.vn):\n\"\"\"\n{article}\n\"\"\"\n\n"
-        f"{_ANTIFAB}\n\n{ask}"
+        f"{_ANTIFAB}\n\n{_STYLE}\n\n{ask}"
     )
 
 
