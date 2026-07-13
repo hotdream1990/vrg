@@ -16,15 +16,11 @@ import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
 import DataSourceNote from "../sections/DataSourceNote";
 import DateRangeBar from "../sections/DateRangeBar";
+import NumInput from "../sections/NumInput";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import "../../bulletin/bulletin.css";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
-const fmt = (v: number | null) => (v != null ? v.toLocaleString("vi-VN") : "");
-const num = (s: string): number | null => {
-  const n = Number(s.replace(/[.,\s]/g, ""));
-  return s.trim() && !isNaN(n) ? n : null;
-};
 /** Dựng items đủ chủng loại (grade thiếu → null) để form luôn hiện đủ dòng. */
 const fill = (grades: string[], items: FloorItem[]): FloorItem[] => {
   const m = new Map(items.map((it) => [it.grade, it]));
@@ -40,6 +36,7 @@ export default function VrgFloorPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [draft, setDraft] = useState<FloorSchedule | null>(null);
+  const [prevItems, setPrevItems] = useState<Record<string, FloorItem>>({}); // biểu giá lần trước → cảnh báo lệch ≥10%
   const [isNew, setIsNew] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -53,25 +50,36 @@ export default function VrgFloorPage() {
     nextFloorMeta().then((m) => { setGrades(m.grades); setNextLan(m.next_lan); }).catch(() => {});
   }, [list]);
 
+  // Biểu giá "lần" gần nhất TRƯỚC ngày `as_of` (để đối chiếu cảnh báo). Lỗi/không có → bỏ qua.
+  const loadPrev = useCallback(async (as_of: string, lan?: number) => {
+    try {
+      const prior = list.find((s) => s.as_of < as_of && s.lan !== lan);
+      if (!prior) { setPrevItems({}); return; }
+      const sch = await getFloor(prior.lan);
+      setPrevItems(Object.fromEntries(sch.items.map((it) => [it.grade, it])));
+    } catch { setPrevItems({}); }
+  }, [list]);
+
   const openEdition = async (lan: number) => {
     setErr("");
     try {
       const sch = await getFloor(lan);
       setDraft({ ...sch, items: fill(grades, sch.items) });
-      setIsNew(false);
+      setIsNew(false); void loadPrev(sch.as_of, sch.lan);
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
   };
 
   const startNew = () => {
-    setDraft({ lan: nextLan, as_of: todayISO(), title: `Lần ${nextLan}`, items: fill(grades, []) });
+    const as_of = todayISO();
+    setDraft({ lan: nextLan, as_of, title: `Lần ${nextLan}`, items: fill(grades, []) });
     setIsNew(true);
-    setErr("");
+    setErr(""); void loadPrev(as_of);
   };
 
-  const setCell = (idx: number, field: "fob_usd" | "domestic_vnd", v: string) => {
+  const setCell = (idx: number, field: "fob_usd" | "domestic_vnd", v: number | null) => {
     if (!draft) return;
     const items = [...draft.items];
-    items[idx] = { ...items[idx], [field]: num(v) };
+    items[idx] = { ...items[idx], [field]: v };
     setDraft({ ...draft, items });
   };
 
@@ -175,12 +183,12 @@ export default function VrgFloorPage() {
                 <tr key={it.grade}>
                   <td>{it.grade}</td>
                   <td className="r">
-                    <input type="text" className="blt-cell-input" value={fmt(it.fob_usd)} readOnly={!canEdit}
-                      onChange={(e) => setCell(i, "fob_usd", e.target.value)} placeholder="—" />
+                    <NumInput value={it.fob_usd} readOnly={!canEdit} prevValue={prevItems[it.grade]?.fob_usd}
+                      onChange={(v) => setCell(i, "fob_usd", v)} />
                   </td>
                   <td className="r">
-                    <input type="text" className="blt-cell-input" value={fmt(it.domestic_vnd)} readOnly={!canEdit}
-                      onChange={(e) => setCell(i, "domestic_vnd", e.target.value)} placeholder="—" />
+                    <NumInput value={it.domestic_vnd} readOnly={!canEdit} prevValue={prevItems[it.grade]?.domestic_vnd}
+                      onChange={(v) => setCell(i, "domestic_vnd", v)} />
                   </td>
                 </tr>
               ))}

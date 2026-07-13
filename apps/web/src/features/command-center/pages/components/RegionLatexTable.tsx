@@ -8,12 +8,14 @@ type Props = {
   regions: Record<string, number | null>; // mủ nước
   regionsCup: Record<string, number | null>; // mủ chén
   readOnly?: boolean;
+  prevRegions?: Record<string, number | null>;
+  prevRegionsCup?: Record<string, number | null>;
   onPrice: (unit: string, v: number | null) => void;
   onPriceCup: (unit: string, v: number | null) => void;
 };
 
 export default function RegionLatexTable({
-  units, regions, regionsCup, readOnly, onPrice, onPriceCup,
+  units, regions, regionsCup, readOnly, prevRegions, prevRegionsCup, onPrice, onPriceCup,
 }: Props) {
   return (
     <div className="card blt-section blt-editable" style={{ marginBottom: 16 }}>
@@ -37,11 +39,11 @@ export default function RegionLatexTable({
               <td style={{ fontWeight: 500 }}>{u}</td>
               <td className="r">
                 <NumInput value={regions?.[u] ?? null} readOnly={readOnly}
-                  onChange={(v) => onPrice(u, v)} />
+                  prevValue={prevRegions?.[u]} onChange={(v) => onPrice(u, v)} />
               </td>
               <td className="r">
                 <NumInput value={regionsCup?.[u] ?? null} readOnly={readOnly}
-                  onChange={(v) => onPriceCup(u, v)} />
+                  prevValue={prevRegionsCup?.[u]} onChange={(v) => onPriceCup(u, v)} />
               </td>
             </tr>
           ))}

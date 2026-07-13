@@ -7,9 +7,9 @@ export type Section = {
   prices: Record<string, number | null>;
   packaging: Record<string, string>; // grade -> bao bì (hàng rời/pallet)
   shipping: Record<string, string>; // grade -> đơn vị vận chuyển
+  status?: Record<string, string>; // grade -> tình trạng giao dịch (Mục 1-4)
   note: string;
 };
-export type DomesticVrgSection = Section & { status: Record<string, string> };
 export type ProposalSection = {
   qty: Record<string, number | null>; // grade -> số lượng (tấn)
   prices: Record<string, number | null>; // grade -> đơn giá (VNĐ/tấn)
@@ -22,7 +22,7 @@ export type MarketQuote = {
   domestic_private: Section;
   domestic_export: Section;
   export_vrg: Section;
-  domestic_vrg: DomesticVrgSection;
+  domestic_vrg: Section;
   customer_proposal: ProposalSection;
   regions: Record<string, number | null>; // mủ nước (đồng/độ TSC)
   regions_cup: Record<string, number | null>; // mủ chén (đồng/kg)
@@ -88,14 +88,13 @@ const numMapEmpty = (m: Record<string, number | null>) => Object.values(m).every
 export const isEmptyQuote = (q: MarketQuote): boolean => {
   const secEmpty = (s?: Section) =>
     !s || (numMapEmpty(s.prices ?? {}) && textMapEmpty(s.packaging ?? {})
-      && textMapEmpty(s.shipping ?? {}) && !s.note?.trim());
+      && textMapEmpty(s.shipping ?? {}) && textMapEmpty(s.status ?? {}) && !s.note?.trim());
   const fxEmpty = q.fx.mua_tm == null && q.fx.mua_ck == null && q.fx.ban == null;
-  const statusEmpty = textMapEmpty(q.domestic_vrg.status);
   const propEmpty =
     numMapEmpty(q.customer_proposal.qty) && numMapEmpty(q.customer_proposal.prices)
     && !q.customer_proposal.note.trim();
   return fxEmpty && secEmpty(q.domestic_private) && secEmpty(q.domestic_export)
-    && secEmpty(q.export_vrg) && secEmpty(q.domestic_vrg) && statusEmpty && propEmpty
+    && secEmpty(q.export_vrg) && secEmpty(q.domestic_vrg) && propEmpty
     && numMapEmpty(q.regions) && numMapEmpty(q.regions_cup) && !q.footer.trim();
 };
 
@@ -105,9 +104,9 @@ export const emptyQuote = (as_of: string, grades: string[]): MarketQuote => {
   return {
     as_of,
     fx: { mua_tm: null, mua_ck: null, ban: null },
-    domestic_private: { prices: blankNum(), packaging: {}, shipping: {}, note: "" },
-    domestic_export: { prices: blankNum(), packaging: {}, shipping: {}, note: "" },
-    export_vrg: { prices: blankNum(), packaging: {}, shipping: {}, note: "" },
+    domestic_private: { prices: blankNum(), packaging: {}, shipping: {}, status: {}, note: "" },
+    domestic_export: { prices: blankNum(), packaging: {}, shipping: {}, status: {}, note: "" },
+    export_vrg: { prices: blankNum(), packaging: {}, shipping: {}, status: {}, note: "" },
     domestic_vrg: { prices: blankNum(), packaging: {}, shipping: {}, status: {}, note: "" },
     customer_proposal: { qty: blankNum(), prices: blankNum(), note: "" },
     regions: {},

@@ -6,7 +6,7 @@ import { useState } from "react";
 import { type VcbRate, fetchVcbRate } from "../../../../lib/market-quote-client";
 import NumInput from "../../sections/NumInput";
 
-type Props = { fx: VcbRate; date: string; readOnly?: boolean; onChange: (fx: VcbRate) => void };
+type Props = { fx: VcbRate; date: string; readOnly?: boolean; onChange: (fx: VcbRate) => void; prevFx?: VcbRate | null };
 
 const FIELDS: { key: keyof VcbRate; label: string }[] = [
   { key: "mua_tm", label: "Mua TM" },
@@ -14,7 +14,7 @@ const FIELDS: { key: keyof VcbRate; label: string }[] = [
   { key: "ban", label: "Bán" },
 ];
 
-export default function VcbRateBar({ fx, date, readOnly, onChange }: Props) {
+export default function VcbRateBar({ fx, date, readOnly, onChange, prevFx }: Props) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -34,7 +34,7 @@ export default function VcbRateBar({ fx, date, readOnly, onChange }: Props) {
       <div style={{ fontWeight: 700 }}>Tỷ giá VCB (USD)</div>
       {FIELDS.map((f) => (
         <label key={f.key} className="blt-date-label">{f.label}
-          <NumInput value={fx[f.key]} readOnly={readOnly}
+          <NumInput value={fx[f.key]} readOnly={readOnly} prevValue={prevFx?.[f.key]}
             onChange={(v) => onChange({ ...fx, [f.key]: v })} />
         </label>
       ))}

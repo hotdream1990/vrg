@@ -222,6 +222,22 @@ th.r, td.r {
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.12);
 }
 
+/* ── Cảnh báo nhập tay (lệch ≥10% so với kỳ trước) ── */
+.num-warn,
+.blt-cell-input.num-warn,
+.blt-date-input.num-warn {
+  border-color: var(--warn) !important;
+  background: rgba(245, 158, 11, 0.10);
+}
+/* Bọc ô số + icon cảnh báo, giữ canh phải trong bảng */
+.num-warn-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  justify-content: flex-end;
+}
+
 /* ── Raw materials ── */
 .blt-raw-materials {
   display: flex;

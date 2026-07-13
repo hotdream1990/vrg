@@ -1,5 +1,5 @@
-/* Bảng giá theo chủng loại SVR (Mục 1-3 của phiếu Báo giá mủ).
-   Mỗi chủng loại có: đơn giá · bao bì đóng gói · đơn vị vận chuyển. Mục 3 thêm cột Tình trạng. */
+/* Bảng giá theo chủng loại SVR (Mục 1-4 của phiếu Báo giá mủ).
+   Mỗi chủng loại có: đơn giá · bao bì đóng gói · đơn vị vận chuyển · tình trạng (khi bật withStatus). */
 
 import { AutoComplete, Select } from "antd";
 
@@ -8,7 +8,6 @@ import {
   LATEX_PACKAGING_OPTIONS,
   MARKET_STATUS_OPTIONS,
   PACKAGING_OPTIONS,
-  type DomesticVrgSection,
   type Section,
 } from "../../../../lib/market-quote-client";
 import NumInput from "../../sections/NumInput";
@@ -19,11 +18,12 @@ type Props = {
   title: string;
   subtitle: string;
   grades: string[];
-  section: Section | DomesticVrgSection;
+  section: Section;
   unitLabel: string;
   packagingOptions?: string[];
   withStatus?: boolean;
   readOnly?: boolean;
+  prevPrices?: Record<string, number | null>; // giá kỳ trước → cảnh báo lệch ≥10%
   onPrice: (grade: string, v: number | null) => void;
   onPackaging: (grade: string, v: string) => void;
   onShipping: (grade: string, v: string) => void;
@@ -33,9 +33,9 @@ type Props = {
 
 export default function GradePriceTable({
   title, subtitle, grades, section, unitLabel, packagingOptions, withStatus,
-  readOnly, onPrice, onPackaging, onShipping, onStatus, onNote,
+  readOnly, prevPrices, onPrice, onPackaging, onShipping, onStatus, onNote,
 }: Props) {
-  const status = (section as DomesticVrgSection).status ?? {};
+  const status = section.status ?? {};
   // Các chủng loại SVR: gợi ý nhập tự do (Hàng rời / Pallet). LATEX: 2 lựa chọn cố định.
   const packOpts = (packagingOptions?.length ? packagingOptions : PACKAGING_OPTIONS).map((s) => ({ value: s }));
   const latexPackOpts = LATEX_PACKAGING_OPTIONS.map((s) => ({ label: s, value: s }));
@@ -105,7 +105,7 @@ export default function GradePriceTable({
               )}
               <td className="r">
                 <NumInput value={section.prices?.[g] ?? null} readOnly={readOnly}
-                  onChange={(v) => onPrice(g, v)} />
+                  prevValue={prevPrices?.[g]} onChange={(v) => onPrice(g, v)} />
               </td>
             </tr>
           ))}

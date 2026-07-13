@@ -14,18 +14,13 @@ class VcbRate(BaseModel):
 
 
 class Section(BaseModel):
-    """1 bảng giá theo chủng loại + ghi chú (Mục 1, 2). Kèm bao bì & đơn vị vận chuyển."""
+    """1 bảng giá theo chủng loại + ghi chú (Mục 1-4). Kèm bao bì, đơn vị vận chuyển & tình trạng."""
 
     prices: dict[str, float | None] = Field(default_factory=dict)  # grade -> đơn giá
     packaging: dict[str, str] = Field(default_factory=dict)  # grade -> bao bì (hàng rời/pallet)
     shipping: dict[str, str] = Field(default_factory=dict)  # grade -> đơn vị vận chuyển
+    status: dict[str, str] = Field(default_factory=dict)  # grade -> tình trạng giao dịch
     note: str = ""
-
-
-class DomesticVrgSection(Section):
-    """Mục 3 — thêm tình trạng giao dịch theo chủng loại."""
-
-    status: dict[str, str] = Field(default_factory=dict)  # grade -> tình trạng
 
 
 class ProposalSection(BaseModel):
@@ -44,7 +39,7 @@ class MarketQuote(BaseModel):
     domestic_private: Section = Field(default_factory=Section)  # Mục 1 — giá NĐ hàng tư nhân (VNĐ/tấn)
     domestic_export: Section = Field(default_factory=Section)  # Mục 2 — giá NĐ hàng xuất khẩu (VNĐ/tấn)
     export_vrg: Section = Field(default_factory=Section)  # Mục 3 — giá XK VRG (USD/tấn)
-    domestic_vrg: DomesticVrgSection = Field(default_factory=DomesticVrgSection)  # Mục 4 (VNĐ/tấn)
+    domestic_vrg: Section = Field(default_factory=Section)  # Mục 4 (VNĐ/tấn)
     customer_proposal: ProposalSection = Field(default_factory=ProposalSection)  # Mục 4 — đề xuất KH
     regions: dict[str, float | None] = Field(default_factory=dict)  # Mục 5 — mủ nước (đồng/độ TSC)
     regions_cup: dict[str, float | None] = Field(default_factory=dict)  # Mục 5 — mủ chén (đồng/kg)

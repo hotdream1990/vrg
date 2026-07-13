@@ -8,12 +8,14 @@ type Props = {
   grades: string[];
   section: ProposalSection;
   readOnly?: boolean;
+  prevQty?: Record<string, number | null>;
+  prevPrices?: Record<string, number | null>;
   onQty: (grade: string, v: number | null) => void;
   onPrice: (grade: string, v: number | null) => void;
   onNote: (v: string) => void;
 };
 
-export default function ProposalTable({ grades, section, readOnly, onQty, onPrice, onNote }: Props) {
+export default function ProposalTable({ grades, section, readOnly, prevQty, prevPrices, onQty, onPrice, onNote }: Props) {
   return (
     <div className="card blt-section blt-editable" style={{ marginBottom: 16 }}>
       <div className="blt-section-header">
@@ -34,11 +36,11 @@ export default function ProposalTable({ grades, section, readOnly, onQty, onPric
               <td style={{ fontWeight: 500 }}>{g}</td>
               <td className="r">
                 <NumInput value={section.qty?.[g] ?? null} readOnly={readOnly}
-                  onChange={(v) => onQty(g, v)} />
+                  prevValue={prevQty?.[g]} onChange={(v) => onQty(g, v)} />
               </td>
               <td className="r">
                 <NumInput value={section.prices?.[g] ?? null} readOnly={readOnly}
-                  onChange={(v) => onPrice(g, v)} />
+                  prevValue={prevPrices?.[g]} onChange={(v) => onPrice(g, v)} />
               </td>
             </tr>
           ))}

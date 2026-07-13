@@ -8,6 +8,7 @@ import {
   fetchPurchaseSheet,
   upsertRecord,
 } from "../../../lib/api-client";
+import { buildGridPrevMap } from "../../../lib/change-warning";
 import { dmy } from "../../../lib/date";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
@@ -42,6 +43,8 @@ export default function RawMaterialPage() {
     return [...set].sort().reverse();
   }, [sheet, extraDates]);
   const companies = sheet?.companies ?? [];
+  // prev[company][date] = giá ngày trước để cảnh báo lệch ≥10% khi nhập tay.
+  const prevOf = useMemo(() => buildGridPrevMap(companies, dates, sheet?.values), [companies, dates, sheet]);
 
   const saveCell = (company: string, date: string, price: number) =>
     upsertRecord({ as_of: date, source: "vrg", grade: company, contract: "",
@@ -111,7 +114,8 @@ export default function RawMaterialPage() {
                 </td>
                 {companies.map((co) => (
                   <td key={co} className="r">
-                    <EditableCell value={sheet?.values[co]?.[d] ?? null} onSave={(n) => saveCell(co, d, n)} readOnly={!canEdit} />
+                    <EditableCell value={sheet?.values[co]?.[d] ?? null} prevValue={prevOf[co]?.[d]}
+                      onSave={(n) => saveCell(co, d, n)} readOnly={!canEdit} />
                   </td>
                 ))}
               </tr>

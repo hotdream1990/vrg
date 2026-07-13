@@ -7,6 +7,7 @@ import {
   fetchPhysicalSheet,
   upsertRecord,
 } from "../../../lib/api-client";
+import { buildGridPrevMap } from "../../../lib/change-warning";
 import { dmy } from "../../../lib/date";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
@@ -41,6 +42,8 @@ export default function PhysicalSheetPage() {
     return [...set].sort().reverse();
   }, [sheet, extraDates]);
   const grades = sheet?.grades ?? [];
+  // prev[grade][date] = giá ngày trước để cảnh báo lệch ≥10% khi nhập tay.
+  const prevOf = useMemo(() => buildGridPrevMap(grades, dates, sheet?.values), [grades, dates, sheet]);
 
   // Nhập tay lưu nguồn 'reuters', USD/tonne (đơn vị dữ liệu cũ có thể lẫn — xem ghi chú).
   const saveCell = (grade: string, date: string, price: number) =>
@@ -108,7 +111,8 @@ export default function PhysicalSheetPage() {
                 </td>
                 {grades.map((g) => (
                   <td key={g} className="r">
-                    <EditableCell value={sheet?.values[g]?.[d] ?? null} onSave={(n) => saveCell(g, d, n)} readOnly={!canEdit} />
+                    <EditableCell value={sheet?.values[g]?.[d] ?? null} prevValue={prevOf[g]?.[d]}
+                      onSave={(n) => saveCell(g, d, n)} readOnly={!canEdit} />
                   </td>
                 ))}
               </tr>

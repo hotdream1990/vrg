@@ -2,6 +2,7 @@ import { CheckCircleOutlined, LockOutlined } from "@ant-design/icons";
 import { App, Button, Card, Input, Select, Table, Typography } from "antd";
 import { useState } from "react";
 
+import { changeLabel, isBigChange } from "../../lib/change-warning";
 import { dmy } from "../../lib/date";
 import {
   type RecentRow,
@@ -42,6 +43,11 @@ export default function PublicPurchaseInputPage() {
     setCompany(c);
     try { setRecent((await publicRecent(token, c)).records); } catch { setRecent([]); }
   };
+
+  // Cảnh báo: giá nhập lệch ≥10% so với lần gửi gần nhất của đơn vị (recent[0]).
+  const prevPrice = recent[0]?.price ?? null;
+  const priceNum = price.trim() ? Number(price.replace(/[.,\s]/g, "")) : null;
+  const warnPrice = isBigChange(priceNum, prevPrice);
 
   const submit = async () => {
     if (!company) { message.warning("Chọn đơn vị của bạn"); return; }
@@ -96,7 +102,13 @@ export default function PublicPurchaseInputPage() {
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontWeight: 600 }}>Giá mủ nước (đồng/độ TSC)</label>
           <Input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="numeric"
-            placeholder="vd: 550" onPressEnter={submit} style={{ marginTop: 4 }} disabled={!company} />
+            placeholder="vd: 550" onPressEnter={submit} style={{ marginTop: 4 }} disabled={!company}
+            status={warnPrice ? "warning" : undefined} />
+          {warnPrice && (
+            <Typography.Text type="warning" style={{ fontSize: 12, display: "block", marginTop: 4 }}>
+              Lệch {changeLabel(priceNum as number, prevPrice as number)} so với lần gần nhất ({fmt(prevPrice as number)}) — kiểm tra lại số liệu.
+            </Typography.Text>
+          )}
         </div>
 
         <Button type="primary" block loading={busy} disabled={!company} onClick={submit}>
