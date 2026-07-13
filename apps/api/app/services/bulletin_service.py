@@ -226,25 +226,17 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                         float(row["price"]), row.get("unit", "")
                     )
 
-                # Tỷ giá theo NGÀY (đủ lịch sử) → mỗi giá quy đổi bằng tỷ giá của đúng ngày nó,
-                # KHỚP "Bảng tính giá". Trước đây bản tin dùng 1 tỷ giá mới nhất cho mọi ngày →
-                # prev bị lệch (vd OSE 07/07 ra 2.592 thay vì 2.598 vì xài tỷ giá 08/07).
-                fx_series: dict[str, list[tuple[str, float]]] = {}
+                # Tỷ giá theo NGÀY → mỗi giá quy đổi bằng tỷ giá ĐÚNG ngày nó, KHỚP "Bảng tính giá".
+                # KHÔNG carry-forward (không đắp tỷ giá ngày khác dựng số cho ngày này) — thiếu tỷ giá
+                # đúng ngày thì giá đó không quy đổi (để trống), không lấy ngày gần nhất/cũ nhất.
+                fx_by_day: dict[str, dict[str, float]] = {}
                 fx_from = (report_date - timedelta(days=150)).isoformat()
                 for r in price_repo.prices_since(["fx"], date_from=fx_from, date_to=report_date.isoformat()):
-                    fx_series.setdefault(r["grade"], []).append((str(r["as_of"]), float(r["price"])))
-                for _p in fx_series:
-                    fx_series[_p].sort()
+                    fx_by_day.setdefault(r["grade"], {})[str(r["as_of"])] = float(r["price"])
 
                 def _fx_at(pair: str, d: str) -> float | None:
-                    series = fx_series.get(pair, [])
-                    best = None
-                    for dd, rr in series:  # tỷ giá mới nhất <= d
-                        if dd <= d:
-                            best = rr
-                        else:
-                            break
-                    return best if best is not None else (series[0][1] if series else None)
+                    """Tỷ giá ĐÚNG NGÀY d — KHÔNG carry-forward. Thiếu → None (giá đó không quy đổi)."""
+                    return fx_by_day.get(pair, {}).get(d)
 
                 def _convert_to_usd_tonne(price: float, unit: str, as_of: str) -> int | None:
                     """Quy đổi giá gốc → USD/tấn dùng tỷ giá của ĐÚNG ngày `as_of`."""
