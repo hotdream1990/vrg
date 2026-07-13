@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { fetchSheet } from "../../../../lib/api-client";
+import { dm } from "../../../../lib/date";
 import MultiLineChart from "../../charts/MultiLineChart";
 
 type Chart = { labels: string[]; series: { name: string; values: (number | null)[] }[] };
@@ -18,7 +19,7 @@ export default function FxTrendBlock() {
   useEffect(() => {
     fetchSheet({ days: 30 }).then((sheet) => {
       const rows = [...sheet.rows].sort((a, b) => a.as_of.localeCompare(b.as_of));
-      const labels = rows.map((r) => r.as_of.slice(5));
+      const labels = rows.map((r) => dm(r.as_of));
       const series = PAIRS.map(([pair, name]) => {
         const raw = rows.map((r) => r.fx?.[pair] ?? null);
         const base = raw.find((v): v is number => v != null) ?? null;

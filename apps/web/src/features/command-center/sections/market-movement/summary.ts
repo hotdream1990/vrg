@@ -9,6 +9,7 @@ import {
   fetchPurchaseSheet,
   fetchSheet,
 } from "../../../../lib/api-client";
+import { dm } from "../../../../lib/date";
 import { getFloor, listFloors } from "../../../../lib/floor-client";
 import { fetchInventory } from "../../../../lib/inventory-client";
 import type { GroupInput } from "../../../../lib/market-movement-client";
@@ -74,7 +75,7 @@ function physicalLines(ph: { grades: string[]; dates: string[]; values: Record<s
     if (c == null) return null;
     return `${g}: ${vnum(c)} USD/T${pct(c, prev ? ph.values[g]?.[prev] : null)}`;
   }).filter(Boolean);
-  return out.length ? `Phiên ${cur.slice(5)} — ${out.join("; ")}` : "Chưa đủ dữ liệu.";
+  return out.length ? `Phiên ${dm(cur)} — ${out.join("; ")}` : "Chưa đủ dữ liệu.";
 }
 function rawLines(p: { companies: string[]; dates: string[]; values: Record<string, Record<string, number>> }): string {
   if (!p.dates.length || !p.companies.length) return "Chưa đủ dữ liệu.";
@@ -86,7 +87,7 @@ function rawLines(p: { companies: string[]; dates: string[]; values: Record<stri
   const vals = p.companies.map((c) => p.values[c]?.[cur]).filter((v): v is number => v != null);
   if (!vals.length) return "Chưa đủ dữ liệu.";
   const a = avg(cur)!;
-  return `Mủ nước ngày ${cur.slice(5)}: ${vnum(Math.min(...vals))}–${vnum(Math.max(...vals))} đ/độ TSC, `
+  return `Mủ nước ngày ${dm(cur)}: ${vnum(Math.min(...vals))}–${vnum(Math.max(...vals))} đ/độ TSC, `
     + `TB ${vnum(a)}${pct(a, p.dates[1] ? avg(p.dates[1]) : null)}, ${vals.length} đơn vị.`;
 }
 
@@ -102,7 +103,7 @@ function mqLines(c: MarketQuote, p: MarketQuote | null, date: string): string {
       return v == null ? null : `${g}: NĐ tư nhân ${vnum(v / 1e6, 1)} tr.đ/T`;
     }).filter(Boolean);
   }
-  return out.length ? `Phiếu ${date.slice(5)} — ${out.join("; ")}` : "Chưa đủ dữ liệu.";
+  return out.length ? `Phiếu ${dm(date)} — ${out.join("; ")}` : "Chưa đủ dữ liệu.";
 }
 
 /** Gom tóm tắt các nhóm (song song, chịu lỗi từng nhóm). */

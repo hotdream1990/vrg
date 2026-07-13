@@ -7,5 +7,12 @@ export const dmy = (v?: string | null): string => {
   return y && m && d ? `${d}/${m}/${y}` : v;
 };
 
+/** ISO 'YYYY-MM-DD' (hoặc ISO datetime) → 'DD/MM' (nhãn biểu đồ / caption ngắn, chuẩn VN). */
+export const dm = (v?: string | null): string => {
+  if (!v) return "—";
+  const [, m, d] = v.slice(0, 10).split("-");
+  return m && d ? `${d}/${m}` : v;
+};
+
 /** Hôm nay dạng YYYY-MM-DD (cho state ô nhập ngày). */
 export const todayISO = (): string => new Date().toISOString().slice(0, 10);

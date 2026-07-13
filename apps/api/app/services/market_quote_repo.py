@@ -65,7 +65,7 @@ def price_history(days: int = 90) -> dict[str, Any]:
             by_grade.setdefault(r["grade"], [None] * len(dates))[idx[str(r["as_of"])]] = float(r["price"])
         sections.append({
             "key": key, "label": label, "unit": unit,
-            "labels": [d[5:] for d in dates],  # MM-DD
+            "labels": [f"{d[8:10]}/{d[5:7]}" for d in dates],  # DD/MM (chuẩn VN)
             "series": [{"name": g, "values": v} for g, v in by_grade.items()],
         })
     return {"sections": sections, "dates": dates}

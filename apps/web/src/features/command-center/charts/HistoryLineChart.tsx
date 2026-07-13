@@ -1,6 +1,7 @@
 import type { ChartData, ChartOptions } from "chart.js";
 import { Line } from "react-chartjs-2";
 
+import { dm } from "../../../lib/date";
 import { AXIS } from "./chart-setup";
 
 type Point = { as_of: string; price: number };
@@ -8,7 +9,7 @@ type Point = { as_of: string; price: number };
 /** Biểu đồ lịch sử THẬT (từ DB /history). Trục x rút gọn ngày, fill nhẹ dưới đường. */
 export default function HistoryLineChart({ points, label, color = "#22c55e" }: { points: Point[]; label: string; color?: string }) {
   const data: ChartData<"line"> = {
-    labels: points.map((p) => p.as_of.slice(5)), // MM-DD
+    labels: points.map((p) => dm(p.as_of)), // DD/MM
     datasets: [
       {
         label,

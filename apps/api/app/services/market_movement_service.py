@@ -67,5 +67,5 @@ def generate(groups: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "groups": result_groups,
         "overall": str(parsed.get("overall", "")).strip(),
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "generated_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
     }

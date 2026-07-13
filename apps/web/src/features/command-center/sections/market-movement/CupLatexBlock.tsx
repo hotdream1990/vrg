@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { dm } from "../../../../lib/date";
 import { getQuote, listQuotes } from "../../../../lib/market-quote-client";
 import GradeBarChart from "../../charts/GradeBarChart";
 
@@ -21,8 +22,8 @@ export default function CupLatexBlock() {
         setBars({ labels: entries.map((e) => e[0]), values: entries.map((e) => e[1]) });
         if (entries.length) {
           const vals = entries.map((e) => e[1]);
-          setCaption(`Ngày ${list[0].as_of.slice(5)}: ${vnum(Math.min(...vals))}–${vnum(Math.max(...vals))} đ/kg · ${entries.length} đơn vị.`);
-        } else setCaption(`Phiếu ${list[0].as_of.slice(5)} chưa nhập mủ chén.`);
+          setCaption(`Ngày ${dm(list[0].as_of)}: ${vnum(Math.min(...vals))}–${vnum(Math.max(...vals))} đ/kg · ${entries.length} đơn vị.`);
+        } else setCaption(`Phiếu ${dm(list[0].as_of)} chưa nhập mủ chén.`);
       } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi tải dữ liệu"); }
     })();
   }, []);

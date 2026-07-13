@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { fetchPurchaseSheet } from "../../../../lib/api-client";
+import { dm } from "../../../../lib/date";
 import GradeBarChart from "../../charts/GradeBarChart";
 
 const vnum = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
@@ -22,7 +23,7 @@ export default function RawLatexBlock() {
       if (entries.length) {
         const vals = entries.map((e) => e.v);
         const avg = vals.reduce((s, x) => s + x, 0) / vals.length;
-        setCaption(`Ngày ${cur.slice(5)}: ${vnum(Math.min(...vals))}–${vnum(Math.max(...vals))} đ/độ TSC · TB ${vnum(avg)} · ${entries.length} đơn vị.`);
+        setCaption(`Ngày ${dm(cur)}: ${vnum(Math.min(...vals))}–${vnum(Math.max(...vals))} đ/độ TSC · TB ${vnum(avg)} · ${entries.length} đơn vị.`);
       }
     }).catch((e) => setErr(e instanceof Error ? e.message : "Lỗi tải dữ liệu"));
   }, []);

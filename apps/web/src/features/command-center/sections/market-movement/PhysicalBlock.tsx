@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { fetchPhysicalSheet } from "../../../../lib/api-client";
+import { dm } from "../../../../lib/date";
 
 type Row = { grade: string; cur: number; pct: number | null };
 const vnum = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
@@ -34,7 +35,7 @@ export default function PhysicalBlock() {
       <div className="card-head">
         <div>
           <h3 className={ready ? undefined : "title-demo"}>Giá Physical (giao ngay)</h3>
-          {meta && <div className="sub">Reuters · phiên {meta.cur.slice(5)}{meta.prev ? ` so ${meta.prev.slice(5)}` : ""} (USD/tấn)</div>}
+          {meta && <div className="sub">Reuters · phiên {dm(meta.cur)}{meta.prev ? ` so ${dm(meta.prev)}` : ""} (USD/tấn)</div>}
         </div>
         <span className={`chip ${ready ? "" : "demo"}`}>{ready ? "Dữ liệu thật" : "Chưa có dữ liệu"}</span>
       </div>
