@@ -37,19 +37,10 @@ def build_sheet(
             by_key[(r["source"], r["grade"], d)] = (float(r["price"]), r["unit"])
             trading_dates.add(d)
 
-    fx_sorted = {p: sorted(m.items()) for p, m in fx_series.items()}
-
     def fx_at(pair: str, d: str) -> float | None:
-        m = fx_series.get(pair, {})
-        if d in m:
-            return m[d]
-        best = None
-        for dd, rr in fx_sorted.get(pair, []):  # latest <= d
-            if dd <= d:
-                best = rr
-            else:
-                break
-        return best
+        """Tỷ giá ĐÚNG NGÀY d — KHÔNG carry-forward (không đắp tỷ giá ngày khác để dựng số cho ngày
+        này). Thiếu tỷ giá đúng ngày → None → ô tỷ giá để trống + USD/tấn ngày đó không quy đổi."""
+        return fx_series.get(pair, {}).get(d)
 
     rows: list[dict[str, Any]] = []
     for d in sorted(trading_dates, reverse=True):
