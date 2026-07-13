@@ -122,6 +122,29 @@ export const fetchPhysicalSheet = (dateFrom?: string, dateTo?: string) => {
 export const deletePhysicalDate = (as_of: string) =>
   req<{ deleted: number }>(`/api/prices/physical?as_of=${as_of}`, { method: "DELETE" });
 
+export type ReutersParsedRow = {
+  label: string;
+  grade: string | null;
+  native_price: number | null;
+  native_unit: string | null;
+  contract: string;
+  usd_tonne: number | null;
+  status: string;                                     // ok | na | unmatched | no_unit | no_fx
+};
+export type ReutersParseResult = {
+  as_of: string;
+  usd_thb: number | null;
+  rows: ReutersParsedRow[];
+};
+
+/** Phân giải chuỗi giá physical Reuters (paste từ MarketScreener) → preview USD/tấn (chưa ghi DB). */
+export const parseReutersPhysical = (text: string, as_of?: string) =>
+  reqDetail<ReutersParseResult>(`/api/prices/physical/parse-reuters`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, as_of }),
+  });
+
 const req = apiFetch;
 
 /** Quét đa sàn → ghi DB → trả bản ghi + trạng thái + thông tin persist. */

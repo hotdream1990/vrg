@@ -14,6 +14,7 @@ import DataSourceNote from "../sections/DataSourceNote";
 import DateRangeBar from "../sections/DateRangeBar";
 import EditableCell from "../sections/EditableCell";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
+import ReutersPasteImport from "./components/ReutersPasteImport";
 import "../../bulletin/bulletin.css";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -68,6 +69,8 @@ export default function PhysicalSheetPage() {
 
       <ReadOnlyNotice />
       <DataSourceNote page="physical" />
+
+      {canEdit && <ReutersPasteImport defaultDate={newDate} onImported={load} />}
 
       <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo} onReload={load}
         info={`${dates.length} ngày · ${grades.length} grade`}>

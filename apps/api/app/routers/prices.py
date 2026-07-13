@@ -12,8 +12,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.paths import crawlers_dir
 from app.core.security import require_editor
-from app.schemas.price import HistorySeries, PriceBoard, PriceRecordEdit, ScanResponse
-from app.services import price_board, price_repo, scan_service
+from app.schemas.price import (
+    HistorySeries,
+    PriceBoard,
+    PriceRecordEdit,
+    ReutersParseRequest,
+    ReutersParseResult,
+    ScanResponse,
+)
+from app.services import price_board, price_repo, reuters_physical_parse, scan_service
 
 logger = logging.getLogger("vrg.api")
 
@@ -112,6 +119,12 @@ def physical_sheet(
 def delete_physical(as_of: str = Query(..., description="YYYY-MM-DD")) -> dict:
     """Xoá toàn bộ giá physical của 1 ngày."""
     return {"deleted": price_repo.delete_physical_date(as_of)}
+
+
+@router.post("/physical/parse-reuters", response_model=ReutersParseResult, dependencies=_editor)
+def parse_reuters(req: ReutersParseRequest) -> dict:
+    """Phân giải chuỗi giá physical Reuters (paste từ MarketScreener) → preview USD/tấn (chưa ghi DB)."""
+    return reuters_physical_parse.parse(req.text, as_of=req.as_of)
 
 
 @router.get("/sheet")

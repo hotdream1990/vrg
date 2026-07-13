@@ -31,6 +31,29 @@ class PriceRecordEdit(BaseModel):
     unit: str
 
 
+class ReutersParseRequest(BaseModel):
+    """Yêu cầu phân giải chuỗi giá physical Reuters (paste từ MarketScreener)."""
+
+    text: str
+    as_of: date | None = None          # ngày do người dùng chọn (mặc định hôm nay)
+
+
+class ReutersParsedRow(BaseModel):
+    label: str
+    grade: str | None = None
+    native_price: float | None = None
+    native_unit: str | None = None
+    contract: str = ""
+    usd_tonne: int | None = None
+    status: str                        # ok | na | unmatched | no_unit | no_fx
+
+
+class ReutersParseResult(BaseModel):
+    as_of: date
+    usd_thb: float | None = None       # USD/THB ĐÚNG NGÀY as_of (None nếu chưa có → baht/kg không nhập)
+    rows: list[ReutersParsedRow]
+
+
 class SourceStatus(BaseModel):
     source: str
     status: str
