@@ -7,12 +7,13 @@ const fmt = (v: number | null | undefined, d: number) =>
   v == null ? "" : v.toLocaleString("vi-VN", { maximumFractionDigits: d });
 
 /** Ô số tự quản lý trạng thái sửa: bấm → input, Enter/blur (rời ô) lưu, Esc huỷ.
+ *  Xoá trắng ô (rồi rời ô) → gọi `onClear` để xoá giá trị (nếu ô đang có giá).
  *  `prevValue` (tuỳ chọn) = giá kỳ trước; lệch ≥10% → viền vàng + icon cảnh báo. */
 export default function EditableCell({
-  value, dec = 0, onSave, readOnly = false, prevValue,
+  value, dec = 0, onSave, onClear, readOnly = false, prevValue,
 }: {
   value: number | null | undefined; dec?: number; onSave: (n: number) => void;
-  readOnly?: boolean; prevValue?: number | null;
+  onClear?: () => void; readOnly?: boolean; prevValue?: number | null;
 }) {
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState("");
@@ -31,8 +32,13 @@ export default function EditableCell({
   const commit = () => {
     setEditing(false);
     if (cancelled.current) { cancelled.current = false; return; }
-    const n = Number(v.replace(/[.,\s]/g, ""));
-    if (v.trim() && !isNaN(n) && n !== value) onSave(n);
+    const raw = v.trim();
+    if (!raw) {                                  // xoá trắng ô
+      if (value != null) onClear?.();            // đang có giá → xoá; vốn trống → không làm gì
+      return;
+    }
+    const n = Number(raw.replace(/[.,\s]/g, ""));
+    if (!isNaN(n) && n !== value) onSave(n);
   };
 
   if (editing) {

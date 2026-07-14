@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   type PhysicalSheet,
   deletePhysicalDate,
+  deleteRecord,
   fetchPhysicalSheet,
   upsertRecord,
 } from "../../../lib/api-client";
@@ -49,6 +50,11 @@ export default function PhysicalSheetPage() {
   const saveCell = (grade: string, date: string, price: number) =>
     upsertRecord({ as_of: date, source: "reuters", grade, contract: "",
       price_type: "physical", price, currency: "USD", unit: "USD/tonne" })
+      .then(load).catch((e) => setErr(e.message));
+
+  // Xoá trắng 1 ô → xoá bản ghi giá của đúng (grade, ngày) đó.
+  const clearCell = (grade: string, date: string) =>
+    deleteRecord({ as_of: date, source: "reuters", grade, contract: "", price_type: "physical" })
       .then(load).catch((e) => setErr(e.message));
 
   const addDate = () => {
@@ -112,7 +118,7 @@ export default function PhysicalSheetPage() {
                 {grades.map((g) => (
                   <td key={g} className="r">
                     <EditableCell value={sheet?.values[g]?.[d] ?? null} prevValue={prevOf[g]?.[d]}
-                      onSave={(n) => saveCell(g, d, n)} readOnly={!canEdit} />
+                      onSave={(n) => saveCell(g, d, n)} onClear={() => clearCell(g, d)} readOnly={!canEdit} />
                   </td>
                 ))}
               </tr>

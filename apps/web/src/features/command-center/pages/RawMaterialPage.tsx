@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import {
   type PurchaseSheet,
   deletePurchaseDate,
+  deleteRecord,
   fetchPurchaseSheet,
   upsertRecord,
 } from "../../../lib/api-client";
@@ -49,6 +50,11 @@ export default function RawMaterialPage() {
   const saveCell = (company: string, date: string, price: number) =>
     upsertRecord({ as_of: date, source: "vrg", grade: company, contract: "",
       price_type: "purchase", price, currency: "VND", unit: "đồng/độ TSC" })
+      .then(load).catch((e) => setErr(e.message));
+
+  // Xoá trắng 1 ô → xoá bản ghi giá thu mua của đúng (đơn vị, ngày) đó.
+  const clearCell = (company: string, date: string) =>
+    deleteRecord({ as_of: date, source: "vrg", grade: company, contract: "", price_type: "purchase" })
       .then(load).catch((e) => setErr(e.message));
 
   const addDate = () => {
@@ -115,7 +121,7 @@ export default function RawMaterialPage() {
                 {companies.map((co) => (
                   <td key={co} className="r">
                     <EditableCell value={sheet?.values[co]?.[d] ?? null} prevValue={prevOf[co]?.[d]}
-                      onSave={(n) => saveCell(co, d, n)} readOnly={!canEdit} />
+                      onSave={(n) => saveCell(co, d, n)} onClear={() => clearCell(co, d)} readOnly={!canEdit} />
                   </td>
                 ))}
               </tr>
