@@ -28,6 +28,11 @@ import "../../bulletin/bulletin.css";
 const todayISO = () => new Date().toISOString().slice(0, 10);
 type SectKey = "domestic_private" | "domestic_export" | "export_vrg" | "domestic_vrg";
 
+/** Chỉ giữ các ô người dùng đã sửa trong phiên — để phiếu KHÔNG ghi đè kho "Giá mủ nguyên liệu"
+ *  bằng ảnh chụp cũ/số của ngày khác (chống carry-forward mủ nước). */
+const pickEdited = (m: Record<string, number | null>, keys: Set<string>): Record<string, number | null> =>
+  Object.fromEntries(Object.entries(m).filter(([k]) => keys.has(k)));
+
 /** Quản lý số liệu → Báo giá mủ thị trường: 1 phiếu/ngày, TỰ LƯU (auto-save) khi nhập. */
 export default function MarketQuotePage() {
   const { canEdit } = useAuth();
@@ -48,6 +53,9 @@ export default function MarketQuotePage() {
   const [createDate, setCreateDate] = useState(todayISO());
   const lastSaved = useRef("");
   const timer = useRef<number | null>(null);
+  const editedR = useRef<Set<string>>(new Set()); // ô mủ nước user đã sửa phiên này
+  const editedRc = useRef<Set<string>>(new Set()); // ô mủ chén user đã sửa phiên này
+  const resetEdits = () => { editedR.current = new Set(); editedRc.current = new Set(); };
 
   useEffect(() => {
     fetchQuoteMeta()
@@ -67,7 +75,13 @@ export default function MarketQuotePage() {
     if (timer.current) clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
       setSaveState("saving"); setErr("");
-      saveQuote(draft).then(() => {
+      // Chỉ đồng bộ ô mủ nước/mủ chén user vừa sửa (không đẩy cả snapshot → không đè kho bằng số cũ/ngày khác).
+      const payload = {
+        ...draft,
+        regions: pickEdited(draft.regions ?? {}, editedR.current),
+        regions_cup: pickEdited(draft.regions_cup ?? {}, editedRc.current),
+      };
+      saveQuote(payload).then(() => {
         lastSaved.current = json;
         setSaveState("saved"); setSavedAt(new Date().toLocaleTimeString("vi-VN"));
         setIsNew(false); loadList();
@@ -89,6 +103,7 @@ export default function MarketQuotePage() {
     try {
       const q = await getQuote(as_of);
       lastSaved.current = JSON.stringify(q); setSaveState("idle"); setSavedAt("");
+      resetEdits(); // mở phiếu = số từ kho, chưa có ô nào user sửa → không tự đồng bộ lại
       setIsNew(false); setDraft(q); void loadPrev(as_of);
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
   };
@@ -104,7 +119,17 @@ export default function MarketQuotePage() {
         return;
       }
       lastSaved.current = ""; setSaveState("idle"); setSavedAt(""); setIsNew(true);
-      setDraft((d) => (keepData && d ? { ...d, as_of } : emptyQuote(as_of, grades)));
+      resetEdits();
+      if (keepData) {
+        // Đổi ngày: giữ phần đang nhập (tỷ giá/SVR/đề xuất) nhưng MỦ NƯỚC phải theo NGÀY —
+        // đọc lại từ kho theo ngày mới, TUYỆT ĐỐI không mang số mủ nước ngày cũ (chống carry-forward).
+        const fresh = await getQuote(as_of).catch(() => null);
+        setDraft((d) => (d
+          ? { ...d, as_of, regions: fresh?.regions ?? {}, regions_cup: fresh?.regions_cup ?? {} }
+          : emptyQuote(as_of, grades)));
+      } else {
+        setDraft(emptyQuote(as_of, grades));
+      }
       void loadPrev(as_of);
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
   };
@@ -120,10 +145,14 @@ export default function MarketQuotePage() {
     setDraft((d) => d && { ...d, [k]: { ...d[k], shipping: { ...d[k].shipping, [g]: v } } });
   const setStatus = (k: SectKey, g: string, v: string) =>
     setDraft((d) => d && { ...d, [k]: { ...d[k], status: { ...(d[k].status ?? {}), [g]: v } } });
-  const setRegion = (u: string, v: number | null) =>
+  const setRegion = (u: string, v: number | null) => {
+    editedR.current.add(u); // đánh dấu ô user sửa → mới đồng bộ ô này xuống kho
     setDraft((d) => d && { ...d, regions: { ...d.regions, [u]: v } });
-  const setRegionCup = (u: string, v: number | null) =>
+  };
+  const setRegionCup = (u: string, v: number | null) => {
+    editedRc.current.add(u);
     setDraft((d) => d && { ...d, regions_cup: { ...d.regions_cup, [u]: v } });
+  };
   const setProp = (patch: Partial<MarketQuote["customer_proposal"]>) =>
     setDraft((d) => d && { ...d, customer_proposal: { ...d.customer_proposal, ...patch } });
   const setPropQty = (g: string, v: number | null) =>
