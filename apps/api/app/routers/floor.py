@@ -27,7 +27,8 @@ def list_schedules(
     rows = floor_repo.list_schedules(date_from, date_to)
     return [
         FloorScheduleSummary(
-            lan=int(r["lan"]), as_of=str(r["as_of"]), title=r["title"], grades=int(r["grades"]),
+            lan=int(r["lan"]), as_of=str(r["as_of"]), title=r["title"],
+            dispatch_no=r.get("dispatch_no", ""), grades=int(r["grades"]),
             filled=int(r["filled"]), updated=str(r["updated"]) if r.get("updated") else None,
         )
         for r in rows
@@ -54,14 +55,17 @@ def create_schedule(req: FloorSaveRequest):
     """Tạo biểu giá mới — số lần tự nhảy = max(lan)+1; tiêu đề custom (mặc định "Lần {lan}")."""
     lan = floor_repo.next_lan()
     items = [it.model_dump() for it in req.items]
-    floor_repo.save_schedule(lan, req.as_of, items, req.title)
+    floor_repo.save_schedule(lan, req.as_of, items, req.title, req.dispatch_no, req.dispatch_summary)
     return floor_repo.get_schedule(lan)
 
 
 @router.put("/{lan}", response_model=FloorSchedule, dependencies=_editor)
 def update_schedule(lan: int, req: FloorSaveRequest):
     """Sửa biểu giá lần đã có (ghi đè giá + ngày áp dụng + tiêu đề)."""
-    floor_repo.save_schedule(lan, req.as_of, [it.model_dump() for it in req.items], req.title)
+    floor_repo.save_schedule(
+        lan, req.as_of, [it.model_dump() for it in req.items],
+        req.title, req.dispatch_no, req.dispatch_summary,
+    )
     sch = floor_repo.get_schedule(lan)
     if not sch:
         raise HTTPException(404, f"Không có biểu giá lần {lan}")

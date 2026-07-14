@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS vrg_floor_price (
     fob_usd      double precision,
     domestic_vnd double precision,
     title        text,
+    dispatch_no      text,                 -- số công văn (theo lần)
+    dispatch_summary text,                 -- trích yếu nội dung công văn (theo lần)
     ingested_at  timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (lan, grade)
 );
@@ -132,6 +134,8 @@ CREATE TABLE IF NOT EXISTS weekly_report (
 
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS title text;
+ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS dispatch_no text;
+ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS dispatch_summary text;
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS region text;
 """
 

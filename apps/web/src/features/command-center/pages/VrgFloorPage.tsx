@@ -71,7 +71,8 @@ export default function VrgFloorPage() {
 
   const startNew = () => {
     const as_of = todayISO();
-    setDraft({ lan: nextLan, as_of, title: `Lần ${nextLan}`, items: fill(grades, []) });
+    setDraft({ lan: nextLan, as_of, title: `Lần ${nextLan}`,
+      dispatch_no: "", dispatch_summary: "", items: fill(grades, []) });
     setIsNew(true);
     setErr(""); void loadPrev(as_of);
   };
@@ -87,9 +88,14 @@ export default function VrgFloorPage() {
     if (!draft) return;
     setBusy(true); setErr("");
     try {
+      const meta = {
+        title: draft.title,
+        dispatch_no: draft.dispatch_no,
+        dispatch_summary: draft.dispatch_summary,
+      };
       const saved = isNew
-        ? await createFloor(draft.as_of, draft.items, draft.title)
-        : await updateFloor(draft.lan, draft.as_of, draft.items, draft.title);
+        ? await createFloor(draft.as_of, draft.items, meta)
+        : await updateFloor(draft.lan, draft.as_of, draft.items, meta);
       setDraft({ ...saved, items: fill(grades, saved.items) });
       setIsNew(false);
       loadList();
@@ -138,7 +144,8 @@ export default function VrgFloorPage() {
             {list.map((s) => (
               <button key={s.lan} className={`btn${draft?.lan === s.lan && !isNew ? " btn-primary" : ""}`}
                 onClick={() => openEdition(s.lan)}>
-                {s.title} · {s.as_of} <span style={{ opacity: 0.7 }}>({s.grades} chủng loại)</span>
+                {s.title}{s.dispatch_no ? ` · CV ${s.dispatch_no}` : ""} · {s.as_of}{" "}
+                <span style={{ opacity: 0.7 }}>({s.grades} chủng loại)</span>
               </button>
             ))}
           </div>
@@ -156,6 +163,11 @@ export default function VrgFloorPage() {
                   value={draft.title} readOnly={!canEdit} placeholder="Lần 15"
                   onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
               </label>
+              <label className="blt-date-label">Số công văn:
+                <input type="text" className="blt-date-input" style={{ width: 160 }}
+                  value={draft.dispatch_no ?? ""} readOnly={!canEdit} placeholder="VD: 123/CSVN-TT"
+                  onChange={(e) => setDraft({ ...draft, dispatch_no: e.target.value })} />
+              </label>
               <label className="blt-date-label">Ngày áp dụng:
                 <DateInput value={draft.as_of} readOnly={!canEdit}
                   onChange={(v) => setDraft({ ...draft, as_of: v })} />
@@ -170,6 +182,12 @@ export default function VrgFloorPage() {
               )}
             </div>
           </div>
+          <label className="blt-date-label" style={{ display: "block", marginBottom: 14 }}>Trích yếu nội dung công văn
+            <textarea className="blt-date-input" style={{ width: "100%", minHeight: 54, resize: "vertical", marginTop: 4 }}
+              value={draft.dispatch_summary ?? ""} readOnly={!canEdit}
+              placeholder="Trích yếu nội dung công văn…"
+              onChange={(e) => setDraft({ ...draft, dispatch_summary: e.target.value })} />
+          </label>
           <table>
             <thead>
               <tr>
