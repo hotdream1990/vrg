@@ -35,7 +35,9 @@ const pickEdited = (m: Record<string, number | null>, keys: Set<string>): Record
 
 /** Quản lý số liệu → Báo giá mủ thị trường: 1 phiếu/ngày, TỰ LƯU (auto-save) khi nhập. */
 export default function MarketQuotePage() {
-  const { canEdit } = useAuth();
+  const { canEdit, can } = useAuth();
+  const canBasic = can("market_quote");   // Mục 1–4 + tỷ giá + đề xuất KH
+  const canRegion = can("raw_material");  // Mục 5 — giá mủ khu vực
   const [grades, setGrades] = useState<string[]>([]);
   const [units, setUnits] = useState<string[]>([]);
   const [packOpts, setPackOpts] = useState<string[]>([]);
@@ -233,6 +235,8 @@ export default function MarketQuotePage() {
             </div>
           </div>
 
+          {canBasic && (
+          <>
           <VcbRateBar fx={draft.fx} date={draft.as_of} readOnly={!canEdit} prevFx={prev?.fx}
             onChange={(fx) => setDraft((d) => d && { ...d, fx })} />
 
@@ -277,10 +281,6 @@ export default function MarketQuotePage() {
             readOnly={!canEdit} prevQty={prev?.customer_proposal?.qty} prevPrices={prev?.customer_proposal?.prices}
             onQty={setPropQty} onPrice={setPropPrice} onNote={(v) => setProp({ note: v })} />
 
-          <RegionLatexTable units={units} regions={draft.regions ?? {}} regionsCup={draft.regions_cup ?? {}}
-            readOnly={!canEdit} prevRegions={prev?.regions} prevRegionsCup={prev?.regions_cup}
-            onPrice={setRegion} onPriceCup={setRegionCup} />
-
           <div className="card blt-section" style={{ marginBottom: 16 }}>
             <label className="blt-date-label" style={{ display: "block" }}>Ghi chú chung / Cảnh báo
               <textarea className="blt-date-input" style={{ width: "100%", minHeight: 52, resize: "vertical" }}
@@ -288,6 +288,14 @@ export default function MarketQuotePage() {
                 onChange={(e) => setDraft((d) => d && { ...d, footer: e.target.value })} />
             </label>
           </div>
+          </>
+          )}
+
+          {canRegion && (
+            <RegionLatexTable units={units} regions={draft.regions ?? {}} regionsCup={draft.regions_cup ?? {}}
+              readOnly={!canEdit} prevRegions={prev?.regions} prevRegionsCup={prev?.regions_cup}
+              onPrice={setRegion} onPriceCup={setRegionCup} />
+          )}
         </>
       )}
     </div>

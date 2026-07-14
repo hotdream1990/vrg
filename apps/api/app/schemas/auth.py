@@ -15,6 +15,7 @@ class UserOut(BaseModel):
     full_name: str | None = None
     role: str = "admin"
     is_active: bool = True
+    permissions: list[str] = Field(default_factory=list)  # quyền theo mục (editor)
 
 
 class TokenResponse(BaseModel):
@@ -39,12 +40,14 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=6)
     full_name: str | None = None
     role: str = "admin"
+    permissions: list[str] = Field(default_factory=list)
 
 
 class UserUpdate(BaseModel):
     full_name: str | None = None
     role: str | None = None
     is_active: bool | None = None
+    permissions: list[str] | None = None
 
 
 class PasswordReset(BaseModel):

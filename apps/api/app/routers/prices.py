@@ -11,7 +11,7 @@ import tempfile
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.paths import crawlers_dir
-from app.core.security import require_editor
+from app.core.security import assert_cap, get_current_user, require_cap
 from app.schemas.price import (
     HistorySeries,
     PriceBoard,
@@ -26,9 +26,21 @@ logger = logging.getLogger("vrg.api")
 
 router = APIRouter(prefix="/api/prices", tags=["prices"])
 
-_editor = [Depends(require_editor)]  # ghi: cần admin/editor (viewer chỉ xem)
+# Quyền ghi theo mục dữ liệu (admin=tất cả). Router này phục vụ nhiều màn hình khác nhau:
+_auto = [Depends(require_cap("auto_data"))]      # quét đa sàn · bảng tính giá các sàn
+_raw = [Depends(require_cap("raw_material"))]    # giá mủ nguyên liệu
+_phys = [Depends(require_cap("physical"))]       # giá physical
 
 _CRAWLER_DIR = crawlers_dir()
+
+
+def _cap_for_record(source: str, price_type: str) -> str:
+    """Bản ghi giá thuộc mục nào → đúng quyền cần có (endpoint /records dùng chung 3 màn hình)."""
+    if price_type in ("purchase", "purchase_cup"):
+        return "raw_material"     # giá mủ nguyên liệu (mủ nước/mủ chén)
+    if price_type == "physical":
+        return "physical"         # giá physical
+    return "auto_data"            # override giá sàn trong bảng tính giá các sàn
 
 
 def _crawler_http_error(exc: Exception) -> HTTPException:
@@ -41,7 +53,7 @@ def _crawler_http_error(exc: Exception) -> HTTPException:
     return HTTPException(500, "Quét giá thất bại — kiểm tra log máy chủ hoặc liên hệ quản trị.")
 
 
-@router.post("/scan", response_model=ScanResponse, dependencies=_editor)
+@router.post("/scan", response_model=ScanResponse, dependencies=_auto)
 def scan(source: str = Query("all", description="all | fx,sgx,shfe,tocom,lgm")) -> ScanResponse:
     """Quét tất cả nguồn → ghi DB → trả bản ghi + trạng thái nguồn + thông tin persist."""
     try:
@@ -51,7 +63,7 @@ def scan(source: str = Query("all", description="all | fx,sgx,shfe,tocom,lgm")) 
     return ScanResponse(**result)
 
 
-@router.post("/backfill", dependencies=_editor)
+@router.post("/backfill", dependencies=_auto)
 def backfill(
     source: str = Query("shfe", description="nguồn có lịch sử theo ngày: shfe | tocom | fx"),
     days: int = Query(90, ge=1, le=365),
@@ -100,7 +112,7 @@ def purchase_sheet(
     return price_repo.purchase_sheet(date_from, date_to)
 
 
-@router.delete("/purchase", dependencies=_editor)
+@router.delete("/purchase", dependencies=_raw)
 def delete_purchase(as_of: str = Query(..., description="YYYY-MM-DD")) -> dict:
     """Xoá toàn bộ giá thu mua mủ nước của 1 ngày."""
     return {"deleted": price_repo.delete_purchase_date(as_of)}
@@ -115,13 +127,13 @@ def physical_sheet(
     return price_repo.physical_sheet(date_from, date_to)
 
 
-@router.delete("/physical", dependencies=_editor)
+@router.delete("/physical", dependencies=_phys)
 def delete_physical(as_of: str = Query(..., description="YYYY-MM-DD")) -> dict:
     """Xoá toàn bộ giá physical của 1 ngày."""
     return {"deleted": price_repo.delete_physical_date(as_of)}
 
 
-@router.post("/physical/parse-reuters", response_model=ReutersParseResult, dependencies=_editor)
+@router.post("/physical/parse-reuters", response_model=ReutersParseResult, dependencies=_phys)
 def parse_reuters(req: ReutersParseRequest) -> dict:
     """Phân giải chuỗi giá physical Reuters (paste từ MarketScreener) → preview USD/tấn (chưa ghi DB)."""
     return reuters_physical_parse.parse(req.text, as_of=req.as_of)
@@ -153,22 +165,25 @@ def list_records(
     return {**res, "page": page, "page_size": page_size}
 
 
-@router.put("/records", dependencies=_editor)
-def upsert_record(rec: PriceRecordEdit) -> dict:
+@router.put("/records")
+def upsert_record(rec: PriceRecordEdit, username: str = Depends(get_current_user)) -> dict:
     """Thêm mới hoặc sửa 1 bản ghi giá (theo khóa as_of+source+grade+contract+price_type)."""
+    assert_cap(username, _cap_for_record(rec.source, rec.price_type))
     price_repo.upsert_record(rec.model_dump())
     return {"ok": True}
 
 
-@router.delete("/records", dependencies=_editor)
+@router.delete("/records")
 def delete_record(
     as_of: str = Query(..., description="YYYY-MM-DD"),
     source: str = Query(...),
     grade: str = Query(...),
     contract: str = Query(""),
     price_type: str = Query(...),
+    username: str = Depends(get_current_user),
 ) -> dict:
     """Xóa 1 bản ghi giá theo khóa."""
+    assert_cap(username, _cap_for_record(source, price_type))
     if not price_repo.delete_record(as_of, source, grade, contract, price_type):
         raise HTTPException(404, "Không tìm thấy bản ghi để xóa")
     return {"deleted": True}

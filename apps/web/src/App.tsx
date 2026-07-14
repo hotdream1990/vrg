@@ -26,6 +26,7 @@ import { AuthProvider } from "./features/auth/AuthContext";
 import LoginPage from "./features/auth/LoginPage";
 import PublicPurchaseInputPage from "./features/public/PublicPurchaseInputPage";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
+import RequireCap from "./features/auth/RequireCap";
 import RequireRole from "./features/auth/RequireRole";
 import { vrgTheme } from "./theme";
 
@@ -43,16 +44,32 @@ export default function App() {
               <Route element={<ProtectedRoute />}>
                 <Route element={<AdminLayout />}>
                   <Route path="/" element={<DashboardPage />} />
-                  <Route path="/quet-da-san" element={<ScanPage />} />
-                  <Route path="/quan-ly-so-lieu/bang-gia-san" element={<PriceSheetPage />} />
-                  <Route path="/quan-ly-so-lieu/ty-gia" element={<FxRatePage />} />
-                  <Route path="/quan-ly-so-lieu/gia-san-tap-doan" element={<VrgFloorPage />} />
+                  {/* Số liệu tự động (quét + bảng giá sàn + tỷ giá) — quyền auto_data */}
+                  <Route element={<RequireCap caps={["auto_data"]} />}>
+                    <Route path="/quet-da-san" element={<ScanPage />} />
+                    <Route path="/quan-ly-so-lieu/bang-gia-san" element={<PriceSheetPage />} />
+                    <Route path="/quan-ly-so-lieu/ty-gia" element={<FxRatePage />} />
+                  </Route>
+                  <Route element={<RequireCap caps={["floor"]} />}>
+                    <Route path="/quan-ly-so-lieu/gia-san-tap-doan" element={<VrgFloorPage />} />
+                  </Route>
                   <Route path="/goi-y-gia-san" element={<FloorSuggestPage />} />
-                  <Route path="/quan-ly-so-lieu/gia-mu-nguyen-lieu" element={<RawMaterialPage />} />
-                  <Route path="/quan-ly-so-lieu/gia-physical" element={<PhysicalSheetPage />} />
-                  <Route path="/quan-ly-so-lieu/ton-kho" element={<InventoryPage />} />
-                  <Route path="/quan-ly-so-lieu/bao-gia-mu" element={<MarketQuotePage />} />
-                  <Route path="/quan-ly-so-lieu/don-vi-thanh-vien" element={<MemberUnitPage />} />
+                  <Route element={<RequireCap caps={["raw_material"]} />}>
+                    <Route path="/quan-ly-so-lieu/gia-mu-nguyen-lieu" element={<RawMaterialPage />} />
+                  </Route>
+                  <Route element={<RequireCap caps={["physical"]} />}>
+                    <Route path="/quan-ly-so-lieu/gia-physical" element={<PhysicalSheetPage />} />
+                  </Route>
+                  <Route element={<RequireCap caps={["inventory"]} />}>
+                    <Route path="/quan-ly-so-lieu/ton-kho" element={<InventoryPage />} />
+                  </Route>
+                  {/* Báo giá: cần Mục 1-4 (market_quote) HOẶC Mục 5 (raw_material) */}
+                  <Route element={<RequireCap caps={["market_quote", "raw_material"]} />}>
+                    <Route path="/quan-ly-so-lieu/bao-gia-mu" element={<MarketQuotePage />} />
+                  </Route>
+                  <Route element={<RequireCap caps={["member_unit"]} />}>
+                    <Route path="/quan-ly-so-lieu/don-vi-thanh-vien" element={<MemberUnitPage />} />
+                  </Route>
                   <Route path="/quet-da-san/records" element={<Navigate to="/quan-ly-so-lieu/bang-gia-san" replace />} />
                   <Route path="/ban-tin" element={<BulletinListPage />} />
                   <Route path="/ban-tin/tao" element={<BulletinPage />} />

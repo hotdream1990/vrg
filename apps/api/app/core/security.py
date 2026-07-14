@@ -10,6 +10,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
+from app.core.permissions import effective_caps
 
 _bearer = HTTPBearer(auto_error=False)
 _ALGO = "HS256"
@@ -80,6 +81,39 @@ def require_editor(username: str = Depends(get_current_user)) -> str:
     if _active_user(username).get("role") not in EDITOR_ROLES:
         raise HTTPException(403, "Tài khoản chỉ có quyền xem — không được nhập/sửa số liệu")
     return username
+
+
+# ── Phân quyền theo mục dữ liệu (chuyên viên nhập liệu) ──
+_NO_CAP = HTTPException(403, "Bạn không được phân quyền với mục dữ liệu này")
+
+
+def user_caps(username: str) -> set[str]:
+    """Quyền THỰC của tài khoản (admin=tất cả, editor=theo list, viewer=rỗng)."""
+    u = _active_user(username)
+    return effective_caps(u.get("role", ""), u.get("permissions"))
+
+
+def assert_cap(username: str, cap: str) -> None:
+    """Ném 403 nếu tài khoản không có quyền `cap`. Dùng trong handler (khi cap phụ thuộc payload)."""
+    if cap not in user_caps(username):
+        raise _NO_CAP
+
+
+def require_cap(cap: str):
+    """Factory dependency: chỉ cho ghi nếu tài khoản có quyền `cap` (admin=tất cả, viewer=chặn)."""
+    def dep(username: str = Depends(get_current_user)) -> str:
+        assert_cap(username, cap)
+        return username
+    return dep
+
+
+def require_any_cap(*caps: str):
+    """Factory dependency: cho ghi nếu tài khoản có ÍT NHẤT MỘT trong các quyền (vd Báo giá: market_quote|raw_material)."""
+    def dep(username: str = Depends(get_current_user)) -> str:
+        if not (user_caps(username) & set(caps)):
+            raise _NO_CAP
+        return username
+    return dep
 
 
 # ── Token cho link công khai (đơn vị thành viên nhập giá mủ) ──

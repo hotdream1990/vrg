@@ -1,4 +1,5 @@
 import {
+  ApartmentOutlined,
   BankOutlined,
   BulbOutlined,
   ClockCircleOutlined,
@@ -29,37 +30,53 @@ import { Avatar, Dropdown, Layout, Menu, Typography } from "antd";
 import { useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
+import type { Cap } from "../../lib/permissions";
 import { VRG } from "../../theme";
 import { useAuth } from "../auth/AuthContext";
 
 const { Header, Sider, Content, Footer } = Layout;
 
-const MENU = [
-  { key: "/", icon: <DashboardOutlined />, label: "Dashboard" },
-  { key: "/quet-da-san", icon: <ThunderboltOutlined />, label: "Quét Đa sàn" },
-  {
-    key: "data-auto", icon: <RobotOutlined />, label: "Quản lý số liệu (tự động)",
-    children: [
-      { key: "/quan-ly-so-lieu/bang-gia-san", icon: <TableOutlined />, label: "Bảng tính giá các sàn" },
-      { key: "/quan-ly-so-lieu/ty-gia", icon: <SwapOutlined />, label: "Tỷ giá" },
-    ],
-  },
-  {
-    key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)",
-    children: [
+/** Menu động theo quyền: chỉ hiện mục mà tài khoản được cấp (admin=tất cả, viewer=chỉ phần chung). */
+function buildMenu(can: (cap: Cap) => boolean) {
+  const items: NonNullable<Parameters<typeof Menu>[0]["items"]> = [
+    { key: "/", icon: <DashboardOutlined />, label: "Dashboard" },
+  ];
+  if (can("auto_data")) {
+    items.push({ key: "/quet-da-san", icon: <ThunderboltOutlined />, label: "Quét Đa sàn" });
+    items.push({
+      key: "data-auto", icon: <RobotOutlined />, label: "Quản lý số liệu (tự động)",
+      children: [
+        { key: "/quan-ly-so-lieu/bang-gia-san", icon: <TableOutlined />, label: "Bảng tính giá các sàn" },
+        { key: "/quan-ly-so-lieu/ty-gia", icon: <SwapOutlined />, label: "Tỷ giá" },
+      ],
+    });
+  }
+  const manual = [
+    (can("market_quote") || can("raw_material")) &&
       { key: "/quan-ly-so-lieu/bao-gia-mu", icon: <SolutionOutlined />, label: "Báo giá mủ thị trường" },
-      { key: "/quan-ly-so-lieu/gia-san-tap-doan", icon: <BankOutlined />, label: "Giá sàn Tập đoàn" },
-      { key: "/quan-ly-so-lieu/gia-mu-nguyen-lieu", icon: <ExperimentOutlined />, label: "Giá mủ nguyên liệu" },
-      { key: "/quan-ly-so-lieu/gia-physical", icon: <FundOutlined />, label: "Giá Physical" },
-      { key: "/quan-ly-so-lieu/ton-kho", icon: <InboxOutlined />, label: "Tồn kho" },
-      { key: "/quan-ly-so-lieu/don-vi-thanh-vien", icon: <TeamOutlined />, label: "Đơn vị thành viên" },
-    ],
-  },
-  { key: "/goi-y-gia-san", icon: <BulbOutlined />, label: "Gợi ý giá sàn" },
-  { key: "/ban-tin", icon: <FileTextOutlined />, label: "Bản tin ngày" },
-  { key: "/ban-tin/tuan", icon: <FileDoneOutlined />, label: "Báo cáo tuần" },
-  { key: "/ban-tin-bien-dong", icon: <LineChartOutlined />, label: "Bản tin biến động" },
-];
+    can("floor") && { key: "/quan-ly-so-lieu/gia-san-tap-doan", icon: <BankOutlined />, label: "Giá sàn Tập đoàn" },
+    can("raw_material") && { key: "/quan-ly-so-lieu/gia-mu-nguyen-lieu", icon: <ExperimentOutlined />, label: "Giá mủ nguyên liệu" },
+    can("physical") && { key: "/quan-ly-so-lieu/gia-physical", icon: <FundOutlined />, label: "Giá Physical" },
+    can("inventory") && { key: "/quan-ly-so-lieu/ton-kho", icon: <InboxOutlined />, label: "Tồn kho" },
+    can("member_unit") && { key: "/quan-ly-so-lieu/don-vi-thanh-vien", icon: <TeamOutlined />, label: "Đơn vị thành viên" },
+  ].filter(Boolean) as { key: string; icon: JSX.Element; label: string }[];
+  if (manual.length) {
+    items.push({ key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)", children: manual });
+  }
+  if (can("corridor_info")) {
+    items.push({
+      key: "corridor", icon: <ApartmentOutlined />, disabled: true,
+      label: <span>Thông tin hành lang <em style={{ opacity: 0.6, fontSize: 11 }}>(đang phát triển)</em></span>,
+    });
+  }
+  items.push(
+    { key: "/goi-y-gia-san", icon: <BulbOutlined />, label: "Gợi ý giá sàn" },
+    { key: "/ban-tin", icon: <FileTextOutlined />, label: "Bản tin ngày" },
+    { key: "/ban-tin/tuan", icon: <FileDoneOutlined />, label: "Báo cáo tuần" },
+    { key: "/ban-tin-bien-dong", icon: <LineChartOutlined />, label: "Bản tin biến động" },
+  );
+  return items;
+}
 
 // Mục Quản trị chỉ hiện với role=admin.
 const ADMIN_MENU = {
@@ -77,10 +94,10 @@ export default function AdminLayout() {
   const [broken, setBroken] = useState(false); // true = màn hẹp (mobile): Sider thành overlay
   const nav = useNavigate();
   const { pathname } = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, can } = useAuth();
 
   const isAdmin = user?.role === "admin";
-  const menuItems = isAdmin ? [...MENU, ADMIN_MENU] : MENU;
+  const menuItems = [...buildMenu(can), ...(isAdmin ? [ADMIN_MENU] : [])];
 
   const ROUTE_KEYS = [
     "/quet-da-san",

@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.market_meta import VRG_FLOOR_GRADES
-from app.core.security import require_editor
+from app.core.security import require_cap
 from app.schemas.floor import (
     FloorSaveRequest,
     FloorSchedule,
@@ -15,7 +15,7 @@ from app.services import floor_repo
 
 router = APIRouter(prefix="/api/floor", tags=["floor"])
 
-_editor = [Depends(require_editor)]  # ghi: cần admin/editor (viewer chỉ xem)
+_editor = [Depends(require_cap("floor"))]  # ghi: cần quyền 'floor' (admin=tất cả)
 
 
 @router.get("", response_model=list[FloorScheduleSummary])

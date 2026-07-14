@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS app_user (
     full_name     text,
     role          text NOT NULL DEFAULT 'admin',
     is_active     boolean NOT NULL DEFAULT true,
+    permissions   jsonb NOT NULL DEFAULT '[]'::jsonb,  -- quyền theo mục (editor); admin=tất cả
     created_at    timestamptz NOT NULL DEFAULT now()
 );
 
@@ -137,6 +138,7 @@ ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS title text;
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS dispatch_no text;
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS dispatch_summary text;
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS region text;
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS permissions jsonb NOT NULL DEFAULT '[]'::jsonb;
 """
 
 # Hypertable tách riêng: cần extension timescaledb; nếu thiếu, bảng vẫn dùng được.

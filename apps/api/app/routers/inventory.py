@@ -7,12 +7,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.core.security import require_editor
+from app.core.security import require_cap
 from app.services import inventory_repo
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
-_editor = [Depends(require_editor)]
+_editor = [Depends(require_cap("inventory"))]
 
 
 class InventoryIn(BaseModel):
@@ -29,7 +29,7 @@ def list_weeks(limit: int | None = None) -> list[dict]:
 
 
 @router.post("")
-def upsert_week(body: InventoryIn, _: object = Depends(require_editor)) -> dict:
+def upsert_week(body: InventoryIn, _: object = Depends(require_cap("inventory"))) -> dict:
     """Thêm/sửa 1 tuần (khóa = as_of)."""
     if not body.as_of.strip():
         raise HTTPException(400, "Thiếu ngày tuần")

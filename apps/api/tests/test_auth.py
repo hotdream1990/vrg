@@ -105,28 +105,36 @@ def test_user_management_crud() -> None:
 
 def test_role_editor_vs_viewer_write_access() -> None:
     h = _admin_headers()
-    for u in ("ed_test", "vw_test"):
+    for u in ("ed_test", "ed_nocap", "vw_test"):
         client.delete(f"/api/users/{u}", headers=h)
-    client.post("/api/users", json={"username": "ed_test", "password": "pass123", "role": "editor"}, headers=h)
+    # editor CÓ quyền 'member_unit' · editor KHÔNG có quyền nào · viewer
+    client.post("/api/users", json={"username": "ed_test", "password": "pass123", "role": "editor",
+                                    "permissions": ["member_unit"]}, headers=h)
+    client.post("/api/users", json={"username": "ed_nocap", "password": "pass123", "role": "editor"}, headers=h)
     client.post("/api/users", json={"username": "vw_test", "password": "pass123", "role": "viewer"}, headers=h)
-    eh, vh = _bearer("ed_test", "pass123"), _bearer("vw_test", "pass123")
+    eh, nh, vh = _bearer("ed_test", "pass123"), _bearer("ed_nocap", "pass123"), _bearer("vw_test", "pass123")
 
-    # Đọc: cả editor lẫn viewer đều được.
+    # /me phản ánh đúng quyền đã cấp.
+    assert client.get("/api/auth/me", headers=eh).json()["permissions"] == ["member_unit"]
+    assert client.get("/api/auth/me", headers=nh).json()["permissions"] == []
+
+    # Đọc: mọi tài khoản đăng nhập đều được.
     assert client.get("/api/member-units", headers=eh).status_code == 200
     assert client.get("/api/member-units", headers=vh).status_code == 200
 
-    # Ghi: editor được, viewer bị chặn 403.
+    # Ghi: editor CÓ quyền được; editor KHÔNG có quyền và viewer đều bị 403.
     assert client.post("/api/member-units", json={"name": "_zz_test_unit"}, headers=eh).status_code == 200
-    assert client.post("/api/member-units", json={"name": "_zz_test_unit2"}, headers=vh).status_code == 403
+    assert client.post("/api/member-units", json={"name": "_zz_test_unit2"}, headers=nh).status_code == 403
+    assert client.post("/api/member-units", json={"name": "_zz_test_unit3"}, headers=vh).status_code == 403
 
-    # Cả hai đều KHÔNG phải admin → không vào được quản trị người dùng.
+    # Không phải admin → không vào được quản trị người dùng.
     assert client.get("/api/users", headers=eh).status_code == 403
     assert client.get("/api/users", headers=vh).status_code == 403
 
     # Dọn.
     client.delete("/api/member-units/_zz_test_unit", headers=h)
-    client.delete("/api/users/ed_test", headers=h)
-    client.delete("/api/users/vw_test", headers=h)
+    for u in ("ed_test", "ed_nocap", "vw_test"):
+        client.delete(f"/api/users/{u}", headers=h)
 
 
 def test_last_admin_guard() -> None:

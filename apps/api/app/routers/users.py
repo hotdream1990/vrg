@@ -21,7 +21,8 @@ def list_users():
 def create_user(body: UserCreate):
     """Tạo tài khoản mới."""
     try:
-        user = user_repo.create_user(body.username, body.password, body.full_name, body.role)
+        user = user_repo.create_user(body.username, body.password, body.full_name, body.role,
+                                     body.permissions)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
     return UserOut(**user)
