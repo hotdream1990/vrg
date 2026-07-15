@@ -15,7 +15,7 @@ DATA_CAPS: dict[str, str] = {
     "inventory": "Tồn kho",
     "member_unit": "Đơn vị thành viên",
     "auto_data": "Số liệu tự động (bảng giá sàn · tỷ giá · quét đa sàn)",
-    "corridor_info": "Thông tin hành lang (đang phát triển)",
+    "market_demand": "Nhu cầu thị trường (đang phát triển)",
 }
 CAP_KEYS = frozenset(DATA_CAPS)
 

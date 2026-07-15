@@ -7,6 +7,7 @@ export const ROLES: Role[] = [
   { value: "admin", label: "Quản trị viên", color: "green" },
   { value: "editor", label: "Chuyên viên nhập liệu", color: "blue" },
   { value: "viewer", label: "Người xem", color: "default" },
+  { value: "member", label: "Đơn vị thành viên", color: "gold" },
 ];
 
 export const ROLE_LABEL: Record<string, string> = Object.fromEntries(ROLES.map((r) => [r.value, r.label]));

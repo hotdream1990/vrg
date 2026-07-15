@@ -83,6 +83,33 @@ def require_editor(username: str = Depends(get_current_user)) -> str:
     return username
 
 
+def assert_editor_window(username: str, as_of: str) -> None:
+    """Chuyên viên (editor) chỉ được ghi trong cửa sổ N ngày gần nhất; admin MIỄN (toàn quyền).
+
+    Chỉ gọi trong handler đã gác cap → user chắc chắn là admin hoặc editor.
+    """
+    from app.core import edit_window
+
+    if _active_user(username).get("role") == "admin":
+        return
+    edit_window.assert_editable(as_of, edit_window.editor_window())
+
+
+def get_current_member(username: str = Depends(get_current_user)) -> dict:
+    """Dependency cho tài khoản đơn vị thành viên — trả user dict (có `member_units`).
+
+    403 nếu không phải role=member; 403 nếu chưa được gán đơn vị nào. Token member chỉ mở
+    đúng các endpoint /api/member và chỉ với các đơn vị được gán — không đụng số liệu đơn vị
+    khác hay mục nội bộ.
+    """
+    u = _active_user(username)
+    if u.get("role") != "member":
+        raise HTTPException(403, "Chỉ dành cho tài khoản đơn vị thành viên")
+    if not (u.get("member_units") or []):
+        raise HTTPException(403, "Tài khoản chưa được gán đơn vị thành viên — liên hệ quản trị.")
+    return u
+
+
 # ── Phân quyền theo mục dữ liệu (chuyên viên nhập liệu) ──
 _NO_CAP = HTTPException(403, "Bạn không được phân quyền với mục dữ liệu này")
 

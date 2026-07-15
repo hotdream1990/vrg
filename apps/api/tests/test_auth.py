@@ -76,11 +76,16 @@ def test_user_management_crud() -> None:
     h = _admin_headers()
     client.delete("/api/users/tester1", headers=h)  # dọn nếu sót từ lần trước
 
-    # Tạo.
+    # Tạo (role=member phải kèm ≥1 đơn vị; thiếu đơn vị → 400).
+    assert client.post("/api/users",
+                       json={"username": "tester1", "password": "pass123", "role": "member"},
+                       headers=h).status_code == 400
     r = client.post("/api/users",
-                    json={"username": "tester1", "password": "pass123", "full_name": "Tester", "role": "member"},
+                    json={"username": "tester1", "password": "pass123", "full_name": "Tester",
+                          "role": "member", "member_units": ["Cao su Test", "Cao su Test 2"]},
                     headers=h)
     assert r.status_code == 200 and r.json()["role"] == "member"
+    assert r.json()["member_units"] == ["Cao su Test", "Cao su Test 2"]
 
     # Trùng username → 409.
     assert client.post("/api/users",
@@ -145,3 +150,57 @@ def test_last_admin_guard() -> None:
     assert client.put("/api/users/admin", json={"role": "member"}, headers=h).status_code == 400
     # Đảm bảo admin vẫn còn quyền sau các phép thử.
     assert client.get("/api/auth/me", headers=_admin_headers()).json()["role"] == "admin"
+
+
+def test_member_self_price_flow() -> None:
+    from datetime import date, timedelta
+    from urllib.parse import quote
+
+    h = _admin_headers()
+    client.delete("/api/users/mem_test", headers=h)  # dọn nếu sót
+    u1, u2, other = "Cao su Member A", "Cao su Member B", "Cao su Không Gán"
+
+    # Tạo tài khoản đơn vị thành viên gắn NHIỀU đơn vị + đăng nhập.
+    assert client.post("/api/users", json={"username": "mem_test", "password": "pass123",
+                                           "role": "member", "member_units": [u1, u2]}, headers=h).status_code == 200
+    mh = _bearer("mem_test", "pass123")
+    assert client.get("/api/auth/me", headers=mh).json()["member_units"] == [u1, u2]
+
+    today = date.today().isoformat()
+    g = client.get("/api/member/prices", headers=mh)
+    assert g.status_code == 200 and g.json()["units"] == [u1, u2]
+
+    # Nhập mủ nước cho u1 + mủ chén cho u2 → đọc lại đúng theo từng đơn vị.
+    assert client.put("/api/member/prices",
+                      json={"company": u1, "as_of": today, "price_type": "purchase", "price": 385},
+                      headers=mh).status_code == 200
+    assert client.put("/api/member/prices",
+                      json={"company": u2, "as_of": today, "price_type": "purchase_cup", "price": 12500},
+                      headers=mh).status_code == 200
+    sheets = client.get("/api/member/prices", headers=mh).json()["sheets"]
+    assert sheets[u1]["purchase"][today] == 385 and sheets[u2]["purchase_cup"][today] == 12500
+
+    # Đơn vị KHÔNG được gán → 403 (không ghi được cho đơn vị khác).
+    assert client.put("/api/member/prices",
+                      json={"company": other, "as_of": today, "price_type": "purchase", "price": 1},
+                      headers=mh).status_code == 403
+
+    # Ngoài cửa sổ 7 ngày → 403; ngày tương lai → 400.
+    old = (date.today() - timedelta(days=30)).isoformat()
+    future = (date.today() + timedelta(days=1)).isoformat()
+    assert client.put("/api/member/prices",
+                      json={"company": u1, "as_of": old, "price_type": "purchase", "price": 100},
+                      headers=mh).status_code == 403
+    assert client.put("/api/member/prices",
+                      json={"company": u1, "as_of": future, "price_type": "purchase", "price": 100},
+                      headers=mh).status_code == 400
+
+    # Token member KHÔNG đụng được endpoint nội bộ (cần quyền mục) → 403.
+    assert client.delete(f"/api/prices/purchase?as_of={today}", headers=mh).status_code == 403
+    # Admin (không phải member) gọi endpoint member → 403.
+    assert client.get("/api/member/prices", headers=h).status_code == 403
+
+    # Dọn: xoá 2 ô đã nhập + tài khoản.
+    client.delete(f"/api/member/prices?company={quote(u1)}&as_of={today}&price_type=purchase", headers=mh)
+    client.delete(f"/api/member/prices?company={quote(u2)}&as_of={today}&price_type=purchase_cup", headers=mh)
+    client.delete("/api/users/mem_test", headers=h)

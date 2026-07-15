@@ -410,6 +410,38 @@ def purchase_by_company_on_date(as_of: str, price_type: str = "purchase") -> dic
         return {m["grade"]: float(m["price"]) for m in result.mappings().all()}
 
 
+def member_price_history(company: str, days: int = 30) -> dict[str, Any]:
+    """Lịch sử giá mủ nước + mủ chén của ĐÚNG 1 công ty (source=vrg) trong `days` ngày gần nhất.
+
+    Trả {purchase: {date: giá}, purchase_cup: {date: giá}, dates: [mới→cũ]} — cho tài khoản
+    đơn vị thành viên tự xem/nhập giá của chính họ.
+    """
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(
+            text("""
+                SELECT DISTINCT ON (as_of, price_type) as_of, price_type, price
+                FROM fact_price
+                WHERE source = 'vrg' AND grade = :g
+                  AND price_type IN ('purchase', 'purchase_cup')
+                  AND as_of >= CURRENT_DATE - CAST(:d AS integer)
+                ORDER BY as_of DESC, price_type, ingested_at DESC
+            """),
+            {"g": company, "d": days},
+        ).mappings().all()
+    purchase: dict[str, float] = {}
+    purchase_cup: dict[str, float] = {}
+    dates: list[str] = []
+    seen: set[str] = set()
+    for r in rows:
+        d = str(r["as_of"])
+        if d not in seen:
+            seen.add(d)
+            dates.append(d)
+        (purchase if r["price_type"] == "purchase" else purchase_cup)[d] = float(r["price"])
+    return {"purchase": purchase, "purchase_cup": purchase_cup, "dates": dates}
+
+
 def latest_two_for_bulletin(as_of_max: str) -> list[dict[str, Any]]:
     """Cho mỗi (source, grade): 2 bản ghi as_of mới nhất <= as_of_max — phục vụ bản tin.
 

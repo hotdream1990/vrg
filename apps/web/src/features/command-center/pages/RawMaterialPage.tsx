@@ -11,6 +11,7 @@ import {
 } from "../../../lib/api-client";
 import { buildGridPrevMap } from "../../../lib/change-warning";
 import { dmy } from "../../../lib/date";
+import { useEditorWindow } from "../../../lib/edit-window";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
 import DataSourceNote from "../sections/DataSourceNote";
@@ -25,6 +26,7 @@ const STICKY = { position: "sticky" as const, left: 0, background: "var(--card, 
 /** Quản lý số liệu → Giá mủ nguyên liệu: lưới hàng=ngày × cột=đơn vị (đồng/độ TSC). */
 export default function RawMaterialPage() {
   const { canEdit } = useAuth();
+  const ew = useEditorWindow(); // cửa sổ sửa: ngày cũ hơn N ngày → chỉ xem (admin miễn)
   const [sheet, setSheet] = useState<PurchaseSheet | null>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -38,11 +40,11 @@ export default function RawMaterialPage() {
   }, [from, to]);
   useEffect(() => { load(); }, [load]);
 
-  // Hàng = ngày có data + ngày vừa "Thêm" (mới nhất trước).
+  // Hàng = ngày trong cửa sổ sửa (hiện sẵn để nhập) + ngày có data + ngày vừa "Thêm" (mới nhất trước).
   const dates = useMemo(() => {
-    const set = new Set([...extraDates, ...(sheet?.dates ?? [])]);
+    const set = new Set([...ew.windowDates, ...extraDates, ...(sheet?.dates ?? [])]);
     return [...set].sort().reverse();
-  }, [sheet, extraDates]);
+  }, [sheet, extraDates, ew.windowDates]);
   const companies = sheet?.companies ?? [];
   // prev[company][date] = giá ngày trước để cảnh báo lệch ≥10% khi nhập tay.
   const prevOf = useMemo(() => buildGridPrevMap(companies, dates, sheet?.values), [companies, dates, sheet]);
@@ -58,7 +60,12 @@ export default function RawMaterialPage() {
       .then(load).catch((e) => setErr(e.message));
 
   const addDate = () => {
-    if (newDate && !dates.includes(newDate)) setExtraDates((d) => [...new Set([...d, newDate])]);
+    if (!newDate || dates.includes(newDate)) return;
+    if (!ew.isEditable(newDate)) {
+      setErr(`Ngày ${dmy(newDate)} đã ngoài cửa sổ sửa — chỉ nhập được ${ew.days ?? 7} ngày gần nhất.`);
+      return;
+    }
+    setExtraDates((d) => [...new Set([...d, newDate])]);
   };
   const delDate = (d: string) => {
     if (!confirm(`Xoá toàn bộ giá thu mua ngày ${dmy(d)}?`)) return;
@@ -109,23 +116,28 @@ export default function RawMaterialPage() {
             </tr>
           </thead>
           <tbody>
-            {dates.map((d) => (
+            {dates.map((d) => {
+              const ed = ew.isEditable(d);
+              const hasData = companies.some((co) => sheet?.values[co]?.[d] != null);
+              return (
               <tr key={d}>
                 <td style={{ ...STICKY, whiteSpace: "nowrap", fontWeight: 500 }}>
                   {dmy(d)}{" "}
-                  {canEdit && (
+                  {canEdit && ed && hasData && (
                     <button className="blt-rm-btn" title="Xoá ngày" onClick={() => delDate(d)}
                       style={{ fontSize: 11 }}>✕</button>
                   )}
+                  {canEdit && !ed && <span style={{ color: "var(--muted)", fontSize: 11 }}>(chỉ xem)</span>}
                 </td>
                 {companies.map((co) => (
                   <td key={co} className="r">
                     <EditableCell value={sheet?.values[co]?.[d] ?? null} prevValue={prevOf[co]?.[d]}
-                      onSave={(n) => saveCell(co, d, n)} onClear={() => clearCell(co, d)} readOnly={!canEdit} />
+                      onSave={(n) => saveCell(co, d, n)} onClear={() => clearCell(co, d)} readOnly={!canEdit || !ed} />
                   </td>
                 ))}
               </tr>
-            ))}
+              );
+            })}
             {dates.length === 0 && (
               <tr><td colSpan={companies.length + 1} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                 {canEdit ? 'Chưa có ngày nào — chọn ngày rồi bấm "＋ Thêm ngày" để nhập.' : "Chưa có dữ liệu."}

@@ -8,6 +8,7 @@ import {
   upsertInventory,
 } from "../../../lib/inventory-client";
 import { isBigChange } from "../../../lib/change-warning";
+import { useEditorWindow } from "../../../lib/edit-window";
 import { useAuth } from "../../auth/AuthContext";
 import ChangeWarn from "../sections/ChangeWarn";
 import DateInput from "../sections/DateInput";
@@ -21,6 +22,7 @@ const EMPTY = { as_of: "", ton_kho: "", ton_kho_hd: "", note: "" };
 /** Quản lý số liệu → Tồn kho Tập đoàn: chuỗi tuần (tồn kho + tồn kho đã có hợp đồng), nhập/sửa/xoá. */
 export default function InventoryPage() {
   const { canEdit } = useAuth();
+  const ew = useEditorWindow(); // cửa sổ sửa: tuần cũ hơn N ngày → chỉ xem (admin miễn)
   const [weeks, setWeeks] = useState<InventoryWeek[]>([]);
   const [form, setForm] = useState({ ...EMPTY });
   const [busy, setBusy] = useState(false);
@@ -44,6 +46,10 @@ export default function InventoryPage() {
 
   const save = async () => {
     if (!form.as_of) { setErr("Chọn ngày tuần"); return; }
+    if (!ew.isEditable(form.as_of)) {
+      setErr(`Tuần ${form.as_of} đã ngoài cửa sổ sửa — chỉ nhập được ${ew.days ?? 7} ngày gần nhất.`);
+      return;
+    }
     setBusy(true); setErr("");
     try {
       await upsertInventory({ as_of: form.as_of, ton_kho: num(form.ton_kho), ton_kho_hd: num(form.ton_kho_hd), note: form.note || null });
@@ -96,7 +102,8 @@ export default function InventoryPage() {
             <input className="blt-date-input" value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })} />
           </label>
-          <button className="btn btn-primary" onClick={save} disabled={busy || !form.as_of}>
+          <button className="btn btn-primary" onClick={save}
+            disabled={busy || !form.as_of || !ew.isEditable(form.as_of)}>
             {weeks.some((w) => w.as_of === form.as_of) ? "Cập nhật tuần" : "＋ Thêm tuần"}
           </button>
           {form.as_of && <button className="btn" onClick={() => setForm({ ...EMPTY })} disabled={busy}>Hủy</button>}
@@ -114,20 +121,30 @@ export default function InventoryPage() {
             <th>Nguồn</th>{canEdit && <th className="r" style={{ width: 140 }}>Thao tác</th>}
           </tr></thead>
           <tbody>
-            {weeks.map((w) => (
+            {weeks.map((w) => {
+              const ed = ew.isEditable(w.as_of);
+              return (
               <tr key={w.as_of} style={{ background: form.as_of === w.as_of ? "var(--card-2, #eef6f0)" : undefined }}>
-                <td style={{ fontWeight: 500 }}>{w.as_of}</td>
+                <td style={{ fontWeight: 500 }}>
+                  {w.as_of}
+                  {canEdit && !ed && <span style={{ color: "var(--muted)", fontSize: 11, marginLeft: 6 }}>(chỉ xem)</span>}
+                </td>
                 <td className="r">{fmt(w.ton_kho)}</td>
                 <td className="r">{fmt(w.ton_kho_hd)}</td>
                 <td><span className="chip" style={{ fontSize: 11 }}>{w.source === "hanh_weekly" ? "PDF tuần" : "Nhập tay"}</span></td>
                 {canEdit && (
                   <td className="r" style={{ whiteSpace: "nowrap" }}>
-                    <button className="btn" onClick={() => edit(w)} disabled={busy}>Sửa</button>{" "}
-                    <button className="btn" onClick={() => remove(w.as_of)} disabled={busy}>Xoá</button>
+                    {ed ? (
+                      <>
+                        <button className="btn" onClick={() => edit(w)} disabled={busy}>Sửa</button>{" "}
+                        <button className="btn" onClick={() => remove(w.as_of)} disabled={busy}>Xoá</button>
+                      </>
+                    ) : <span style={{ color: "var(--muted)" }}>—</span>}
                   </td>
                 )}
               </tr>
-            ))}
+              );
+            })}
             {weeks.length === 0 && (
               <tr><td colSpan={canEdit ? 5 : 4} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>Chưa có dữ liệu tồn kho.</td></tr>
             )}

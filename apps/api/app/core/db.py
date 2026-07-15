@@ -139,6 +139,22 @@ ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS dispatch_no text;
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS dispatch_summary text;
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS region text;
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS permissions jsonb NOT NULL DEFAULT '[]'::jsonb;
+-- Các đơn vị gắn với tài khoản (chỉ dùng cho role=member) — 1 tài khoản có thể gán NHIỀU đơn vị.
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS member_units jsonb NOT NULL DEFAULT '[]'::jsonb;
+-- Migrate cột đơn cũ member_unit → mảng member_units rồi bỏ cột cũ (idempotent).
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'app_user' AND column_name = 'member_unit') THEN
+    UPDATE app_user SET member_units = jsonb_build_array(member_unit)
+      WHERE member_unit IS NOT NULL AND member_unit <> ''
+        AND (member_units IS NULL OR member_units = '[]'::jsonb);
+    ALTER TABLE app_user DROP COLUMN member_unit;
+  END IF;
+END $$;
+-- Đổi tên quyền cũ 'corridor_info' → 'market_demand' (Thông tin hành lang → Nhu cầu thị trường).
+UPDATE app_user SET permissions = REPLACE(permissions::text, 'corridor_info', 'market_demand')::jsonb
+    WHERE permissions::text LIKE '%corridor_info%';
 """
 
 # Hypertable tách riêng: cần extension timescaledb; nếu thiếu, bảng vẫn dùng được.

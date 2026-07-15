@@ -32,7 +32,7 @@ class VrgFloorItem(BaseModel):
 class RawMaterialRegion(BaseModel):
     """1 dòng giá thu mua mủ nước theo công ty VRG (đồng/độ TSC)."""
 
-    region: str                       # tên công ty thành viên VRG
+    region: str                       # tên đơn vị thành viên VRG
     price: float | None = None        # giá đồng/độ TSC (numeric, để lưu fact_price)
     unit: str = "đồng/độ TSC"
     price_text: str = ""              # hiển thị (số đã format, không kèm đơn vị)

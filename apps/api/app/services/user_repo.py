@@ -14,11 +14,25 @@ from app.core.security import hash_password, verify_password
 
 
 def _norm(row: Any) -> dict[str, Any]:
-    """Chuẩn hoá 1 dòng app_user → dict, đảm bảo `permissions` luôn là list."""
+    """Chuẩn hoá 1 dòng app_user → dict, đảm bảo `permissions`/`member_units` luôn là list."""
     d = dict(row)
     if "permissions" in d:
         d["permissions"] = list(d["permissions"] or [])
+    if "member_units" in d:
+        d["member_units"] = list(d["member_units"] or [])
     return d
+
+
+def _clean_units(units: list[str] | None) -> list[str]:
+    """Bỏ trống, strip, khử trùng lặp, giữ thứ tự (chuẩn hoá danh sách đơn vị của member)."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for u in units or []:
+        u = (u or "").strip()
+        if u and u not in seen:
+            seen.add(u)
+            out.append(u)
+    return out
 
 
 def seed_admin() -> None:
@@ -43,7 +57,7 @@ def get_user(username: str) -> dict[str, Any] | None:
     ensure_schema()
     with session_scope() as db:
         row = db.execute(
-            text("SELECT username, full_name, role, is_active, permissions "
+            text("SELECT username, full_name, role, is_active, permissions, member_units "
                  "FROM app_user WHERE username = :u"),
             {"u": username},
         ).mappings().first()
@@ -54,7 +68,7 @@ def list_users() -> list[dict[str, Any]]:
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(
-            text("SELECT username, full_name, role, is_active, permissions "
+            text("SELECT username, full_name, role, is_active, permissions, member_units "
                  "FROM app_user ORDER BY created_at"),
         ).mappings().all()
         return [_norm(r) for r in rows]
@@ -67,30 +81,36 @@ def _count_active_admins(db) -> int:  # noqa: ANN001 - session nội bộ
 
 
 def create_user(username: str, password: str, full_name: str | None, role: str,
-                permissions: list[str] | None = None) -> dict[str, Any]:
-    """Tạo tài khoản mới. Raise ValueError nếu username đã tồn tại. `permissions` chỉ có ý nghĩa với editor."""
+                permissions: list[str] | None = None,
+                member_units: list[str] | None = None) -> dict[str, Any]:
+    """Tạo tài khoản mới. Raise ValueError nếu username đã tồn tại.
+
+    `permissions` chỉ có ý nghĩa với editor; `member_units` chỉ gắn khi role=member (cho nhiều đơn vị).
+    """
     ensure_schema()
     u = username.strip()
+    role = role or "admin"
+    units = _clean_units(member_units) if role == "member" else []
     with session_scope() as db:
         if db.execute(text("SELECT 1 FROM app_user WHERE username = :u"), {"u": u}).first():
             raise ValueError(f"Tài khoản '{u}' đã tồn tại")
         db.execute(
-            text("INSERT INTO app_user (username, password_hash, full_name, role, permissions) "
-                 "VALUES (:u, :p, :f, :r, CAST(:perms AS jsonb))"),
-            {"u": u, "p": hash_password(password), "f": full_name, "r": role or "admin",
-             "perms": json.dumps(clean_caps(permissions))},
+            text("INSERT INTO app_user (username, password_hash, full_name, role, permissions, member_units) "
+                 "VALUES (:u, :p, :f, :r, CAST(:perms AS jsonb), CAST(:units AS jsonb))"),
+            {"u": u, "p": hash_password(password), "f": full_name, "r": role,
+             "perms": json.dumps(clean_caps(permissions)), "units": json.dumps(units)},
         )
     return get_user(u)  # type: ignore[return-value]
 
 
 def update_user(username: str, fields: dict[str, Any]) -> dict[str, Any] | None:
-    """Cập nhật full_name/role/is_active/permissions. Chặn khoá/hạ quyền admin cuối cùng (ValueError)."""
+    """Cập nhật full_name/role/is_active/permissions/member_units. Chặn khoá/hạ quyền admin cuối cùng."""
     allowed = {k: v for k, v in fields.items() if k in ("full_name", "role", "is_active")}
     has_perms = "permissions" in fields
     ensure_schema()
     with session_scope() as db:
         cur = db.execute(
-            text("SELECT role, is_active FROM app_user WHERE username = :u"), {"u": username},
+            text("SELECT role, is_active, member_units FROM app_user WHERE username = :u"), {"u": username},
         ).mappings().first()
         if not cur:
             return None
@@ -104,6 +124,17 @@ def update_user(username: str, fields: dict[str, Any]) -> dict[str, Any] | None:
         if has_perms:
             sets.append("permissions = CAST(:permissions AS jsonb)")
             params["permissions"] = json.dumps(clean_caps(fields.get("permissions")))
+        # member_units chỉ gắn khi role cuối cùng = member; role khác → xoá gắn cũ.
+        final_role = allowed.get("role", cur["role"])
+        if final_role == "member":
+            raw = fields.get("member_units", list(cur["member_units"] or []))
+            member_units = _clean_units(raw)
+            if not member_units:
+                raise ValueError("Tài khoản đơn vị thành viên phải chọn ít nhất một đơn vị.")
+        else:
+            member_units = []
+        sets.append("member_units = CAST(:member_units AS jsonb)")
+        params["member_units"] = json.dumps(member_units)
         if sets:
             db.execute(text(f"UPDATE app_user SET {', '.join(sets)} WHERE username = :u"), params)
     return get_user(username)
@@ -171,11 +202,11 @@ def authenticate(username: str, password: str) -> dict[str, Any] | None:
     ensure_schema()
     with session_scope() as db:
         row = db.execute(
-            text("SELECT username, password_hash, full_name, role, is_active, permissions "
+            text("SELECT username, password_hash, full_name, role, is_active, permissions, member_units "
                  "FROM app_user WHERE username = :u"),
             {"u": username},
         ).mappings().first()
     if not row or not row["is_active"] or not verify_password(password, row["password_hash"]):
         return None
     return {"username": row["username"], "full_name": row["full_name"], "role": row["role"],
-            "permissions": list(row["permissions"] or [])}
+            "permissions": list(row["permissions"] or []), "member_units": list(row["member_units"] or [])}

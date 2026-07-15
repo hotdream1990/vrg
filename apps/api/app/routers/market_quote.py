@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.security import require_any_cap
+from app.core.security import assert_editor_window, require_any_cap
 from app.schemas.market_quote import (
     MarketQuote,
     MarketQuoteMeta,
@@ -15,7 +15,8 @@ from app.services import market_quote_repo, vcb_rate
 
 router = APIRouter(prefix="/api/market-quote", tags=["market-quote"])
 
-_editor = [Depends(require_any_cap("market_quote", "raw_material"))]  # cần 1 trong 2 quyền (Mục 1-4 hoặc Mục 5)
+# cần 1 trong 2 quyền (Mục 1-4 hoặc Mục 5); trả username để áp cửa sổ sửa
+_editor_dep = Depends(require_any_cap("market_quote", "raw_material"))
 
 
 @router.get("", response_model=list[MarketQuoteSummary])
@@ -57,15 +58,17 @@ def get_quote(as_of: str):
     return quote
 
 
-@router.put("", response_model=MarketQuote, dependencies=_editor)
-def save_quote(mq: MarketQuote):
-    """Lưu/ghi đè phiếu theo ngày + đồng bộ Mục 4 sang kho Giá mủ nguyên liệu."""
+@router.put("", response_model=MarketQuote)
+def save_quote(mq: MarketQuote, username: str = _editor_dep):
+    """Lưu/ghi đè phiếu theo ngày + đồng bộ Mục 4 sang kho Giá mủ nguyên liệu (trong cửa sổ sửa; admin miễn)."""
+    assert_editor_window(username, mq.as_of)
     return market_quote_repo.save_quote(mq.model_dump())
 
 
-@router.delete("/{as_of}", dependencies=_editor)
-def delete_quote(as_of: str) -> dict:
-    """Xoá phiếu 1 ngày (giữ nguyên giá mủ nước đã đồng bộ sang kho chung)."""
+@router.delete("/{as_of}")
+def delete_quote(as_of: str, username: str = _editor_dep) -> dict:
+    """Xoá phiếu 1 ngày (giữ nguyên giá mủ nước đã đồng bộ sang kho chung; trong cửa sổ sửa; admin miễn)."""
+    assert_editor_window(username, as_of)
     if not market_quote_repo.delete_quote(as_of):
         raise HTTPException(404, f"Không có báo giá ngày {as_of}")
     return {"deleted": as_of}

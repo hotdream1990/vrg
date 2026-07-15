@@ -15,6 +15,7 @@ from app.core.db import ensure_schema, session_scope
 CONFIG_GROUPS = [
     {"id": "ai", "label": "AI / LLM"},
     {"id": "public", "label": "Link công khai"},
+    {"id": "data_entry", "label": "Cửa sổ nhập liệu"},
 ]
 
 # Khóa hiển thị trên trang Cấu hình. secret=True → API mask, không lộ giá trị.
@@ -35,6 +36,13 @@ CONFIG_SPEC = [
     # Mật khẩu cho link công khai để đơn vị thành viên tự nhập giá mủ nước (chưa đặt = link bị khoá).
     {"key": "PUBLIC_PURCHASE_PASSWORD", "group": "public", "label": "Mật khẩu nhập giá mủ (link công khai)",
      "secret": True, "placeholder": "Đặt mật khẩu để phát cho các đơn vị (bỏ trống = khoá link)"},
+    # Cửa sổ nhập liệu — số ngày gần nhất được nhập/sửa; ngày cũ hơn chuyển sang chỉ xem. Mặc định 7.
+    {"key": "MEMBER_EDIT_WINDOW_DAYS", "group": "data_entry", "secret": False,
+     "label": "Số ngày sửa được — Giá mủ đơn vị (tài khoản đơn vị thành viên)",
+     "placeholder": "Mặc định 7 — số ngày gần nhất được nhập/sửa (0 = chỉ hôm nay)"},
+    {"key": "EDITOR_EDIT_WINDOW_DAYS", "group": "data_entry", "secret": False,
+     "label": "Số ngày sửa được — chuyên viên nhập liệu (Giá mủ nguyên liệu · Physical · Tồn kho · Báo giá)",
+     "placeholder": "Mặc định 7 — số ngày gần nhất được nhập/sửa (0 = chỉ hôm nay); admin không bị giới hạn"},
 ]
 
 # Model OpenAI gợi ý khi chưa có key (sau khi đặt key → lấy danh sách thật từ tài khoản).

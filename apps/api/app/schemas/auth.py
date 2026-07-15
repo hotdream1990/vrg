@@ -16,6 +16,7 @@ class UserOut(BaseModel):
     role: str = "admin"
     is_active: bool = True
     permissions: list[str] = Field(default_factory=list)  # quyền theo mục (editor)
+    member_units: list[str] = Field(default_factory=list)  # các đơn vị gắn với tài khoản (role=member)
 
 
 class TokenResponse(BaseModel):
@@ -41,6 +42,7 @@ class UserCreate(BaseModel):
     full_name: str | None = None
     role: str = "admin"
     permissions: list[str] = Field(default_factory=list)
+    member_units: list[str] = Field(default_factory=list)  # bắt buộc ≥1 khi role=member
 
 
 class UserUpdate(BaseModel):
@@ -48,6 +50,7 @@ class UserUpdate(BaseModel):
     role: str | None = None
     is_active: bool | None = None
     permissions: list[str] | None = None
+    member_units: list[str] | None = None
 
 
 class PasswordReset(BaseModel):

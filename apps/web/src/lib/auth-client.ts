@@ -4,7 +4,10 @@ import { API } from "./api-client";
 import { authHeaders } from "./auth-token";
 import { apiFetch } from "./http";
 
-export type User = { username: string; full_name: string | null; role: string; permissions?: string[] };
+export type User = {
+  username: string; full_name: string | null; role: string;
+  permissions?: string[]; member_units?: string[];
+};
 export type LoginResult = { access_token: string; token_type: string; user: User };
 
 /** Đăng nhập → trả token + user. Ném lỗi (message tiếng Việt) nếu sai. */

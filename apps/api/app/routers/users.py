@@ -20,9 +20,11 @@ def list_users():
 @router.post("", response_model=UserOut)
 def create_user(body: UserCreate):
     """Tạo tài khoản mới."""
+    if body.role == "member" and not [u for u in body.member_units if (u or "").strip()]:
+        raise HTTPException(400, "Tài khoản đơn vị thành viên phải chọn ít nhất một đơn vị.")
     try:
         user = user_repo.create_user(body.username, body.password, body.full_name, body.role,
-                                     body.permissions)
+                                     body.permissions, body.member_units)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
     return UserOut(**user)

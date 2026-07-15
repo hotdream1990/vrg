@@ -24,10 +24,12 @@ from app.routers import (
     market_movement,
     market_quote,
     member_region,
+    member_self,
     member_unit,
     prices,
     public_purchase,
     schedules,
+    settings as settings_router,
     users,
     weekly_reports,
 )
@@ -116,6 +118,8 @@ app.include_router(floor.router, dependencies=_protected)
 app.include_router(floor_suggest.router, dependencies=_protected)
 app.include_router(member_unit.router, dependencies=_protected)
 app.include_router(member_region.router, dependencies=_protected)
+app.include_router(member_self.router, dependencies=_protected)  # đơn vị thành viên tự nhập giá của mình
+app.include_router(settings_router.router, dependencies=_protected)  # cài đặt đọc-được (cửa sổ nhập liệu)
 app.include_router(inventory.router, dependencies=_protected)
 app.include_router(market_movement.router, dependencies=_protected)  # nhận định AI: per-route require_editor
 app.include_router(market_quote.router, dependencies=_protected)

@@ -12,6 +12,7 @@ import InventoryPage from "./features/command-center/pages/InventoryPage";
 import MarketMovementPage from "./features/command-center/pages/MarketMovementPage";
 import MarketQuotePage from "./features/command-center/pages/MarketQuotePage";
 import WeeklyReportPage from "./features/command-center/pages/WeeklyReportPage";
+import MemberPricePage from "./features/command-center/pages/MemberPricePage";
 import MemberUnitPage from "./features/command-center/pages/MemberUnitPage";
 import PhysicalSheetPage from "./features/command-center/pages/PhysicalSheetPage";
 import PriceSheetPage from "./features/command-center/pages/PriceSheetPage";
@@ -22,13 +23,20 @@ import SchedulePage from "./features/command-center/pages/SchedulePage";
 import SystemConfigPage from "./features/command-center/pages/SystemConfigPage";
 import UserManagementPage from "./features/command-center/pages/UserManagementPage";
 import VrgFloorPage from "./features/command-center/pages/VrgFloorPage";
-import { AuthProvider } from "./features/auth/AuthContext";
+import { AuthProvider, useAuth } from "./features/auth/AuthContext";
 import LoginPage from "./features/auth/LoginPage";
 import PublicPurchaseInputPage from "./features/public/PublicPurchaseInputPage";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
 import RequireCap from "./features/auth/RequireCap";
 import RequireRole from "./features/auth/RequireRole";
 import { vrgTheme } from "./theme";
+
+/** Trang chủ: đơn vị thành viên → thẳng trang nhập giá của đơn vị; còn lại → Dashboard. */
+function HomeRoute() {
+  const { user } = useAuth();
+  if (user?.role === "member") return <Navigate to="/don-vi/gia-mu" replace />;
+  return <DashboardPage />;
+}
 
 export default function App() {
   return (
@@ -43,7 +51,11 @@ export default function App() {
               {/* Mọi route khác cần đăng nhập + nằm trong khung admin */}
               <Route element={<ProtectedRoute />}>
                 <Route element={<AdminLayout />}>
-                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/" element={<HomeRoute />} />
+                  {/* Tài khoản đơn vị thành viên — tự nhập giá mủ nước/mủ chén của đơn vị mình */}
+                  <Route element={<RequireRole roles={["member"]} />}>
+                    <Route path="/don-vi/gia-mu" element={<MemberPricePage />} />
+                  </Route>
                   {/* Số liệu tự động (quét + bảng giá sàn + tỷ giá) — quyền auto_data */}
                   <Route element={<RequireCap caps={["auto_data"]} />}>
                     <Route path="/quet-da-san" element={<ScanPage />} />

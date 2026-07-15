@@ -10,6 +10,7 @@ import {
 } from "../../../lib/api-client";
 import { buildGridPrevMap } from "../../../lib/change-warning";
 import { dmy } from "../../../lib/date";
+import { useEditorWindow } from "../../../lib/edit-window";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
 import DataSourceNote from "../sections/DataSourceNote";
@@ -25,6 +26,7 @@ const STICKY = { position: "sticky" as const, left: 0, background: "var(--card, 
 /** Quản lý số liệu → Giá Physical (giao ngay): lưới hàng=ngày × cột=grade (RSS3/STR20/SMR20…). */
 export default function PhysicalSheetPage() {
   const { canEdit } = useAuth();
+  const ew = useEditorWindow(); // cửa sổ sửa: ngày cũ hơn N ngày → chỉ xem (admin miễn)
   const [sheet, setSheet] = useState<PhysicalSheet | null>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -39,9 +41,9 @@ export default function PhysicalSheetPage() {
   useEffect(() => { load(); }, [load]);
 
   const dates = useMemo(() => {
-    const set = new Set([...extraDates, ...(sheet?.dates ?? [])]);
+    const set = new Set([...ew.windowDates, ...extraDates, ...(sheet?.dates ?? [])]);
     return [...set].sort().reverse();
-  }, [sheet, extraDates]);
+  }, [sheet, extraDates, ew.windowDates]);
   const grades = sheet?.grades ?? [];
   // prev[grade][date] = giá ngày trước để cảnh báo lệch ≥10% khi nhập tay.
   const prevOf = useMemo(() => buildGridPrevMap(grades, dates, sheet?.values), [grades, dates, sheet]);
@@ -58,7 +60,12 @@ export default function PhysicalSheetPage() {
       .then(load).catch((e) => setErr(e.message));
 
   const addDate = () => {
-    if (newDate && !dates.includes(newDate)) setExtraDates((d) => [...new Set([...d, newDate])]);
+    if (!newDate || dates.includes(newDate)) return;
+    if (!ew.isEditable(newDate)) {
+      setErr(`Ngày ${dmy(newDate)} đã ngoài cửa sổ sửa — chỉ nhập được ${ew.days ?? 7} ngày gần nhất.`);
+      return;
+    }
+    setExtraDates((d) => [...new Set([...d, newDate])]);
   };
   const delDate = (d: string) => {
     if (!confirm(`Xoá toàn bộ giá physical ngày ${dmy(d)}?`)) return;
@@ -106,23 +113,28 @@ export default function PhysicalSheetPage() {
             </tr>
           </thead>
           <tbody>
-            {dates.map((d) => (
+            {dates.map((d) => {
+              const ed = ew.isEditable(d);
+              const hasData = grades.some((g) => sheet?.values[g]?.[d] != null);
+              return (
               <tr key={d}>
                 <td style={{ ...STICKY, whiteSpace: "nowrap", fontWeight: 500 }}>
                   {dmy(d)}{" "}
-                  {canEdit && (
+                  {canEdit && ed && hasData && (
                     <button className="blt-rm-btn" title="Xoá ngày" onClick={() => delDate(d)}
                       style={{ fontSize: 11 }}>✕</button>
                   )}
+                  {canEdit && !ed && <span style={{ color: "var(--muted)", fontSize: 11 }}>(chỉ xem)</span>}
                 </td>
                 {grades.map((g) => (
                   <td key={g} className="r">
                     <EditableCell value={sheet?.values[g]?.[d] ?? null} prevValue={prevOf[g]?.[d]}
-                      onSave={(n) => saveCell(g, d, n)} onClear={() => clearCell(g, d)} readOnly={!canEdit} />
+                      onSave={(n) => saveCell(g, d, n)} onClear={() => clearCell(g, d)} readOnly={!canEdit || !ed} />
                   </td>
                 ))}
               </tr>
-            ))}
+              );
+            })}
             {dates.length === 0 && (
               <tr><td colSpan={grades.length + 1} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                 {canEdit ? 'Chưa có ngày nào — chọn ngày rồi bấm "＋ Thêm ngày" để nhập.' : "Chưa có dữ liệu."}

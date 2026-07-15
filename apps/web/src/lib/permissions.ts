@@ -3,7 +3,7 @@
 
 export type Cap =
   | "market_quote" | "raw_material" | "floor" | "physical"
-  | "inventory" | "member_unit" | "auto_data" | "corridor_info";
+  | "inventory" | "member_unit" | "auto_data" | "market_demand";
 
 /** Danh sách quyền + nhãn hiển thị (trang Quản trị người dùng, theo thứ tự này). */
 export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
@@ -14,7 +14,7 @@ export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
   { key: "inventory", label: "Tồn kho" },
   { key: "member_unit", label: "Đơn vị thành viên" },
   { key: "auto_data", label: "Số liệu tự động", hint: "Bảng tính giá các sàn · Tỷ giá · Quét đa sàn" },
-  { key: "corridor_info", label: "Thông tin hành lang", hint: "đang phát triển" },
+  { key: "market_demand", label: "Nhu cầu thị trường", hint: "đang phát triển" },
 ];
 
 export const CAP_KEYS: Cap[] = DATA_CAPS.map((c) => c.key);

@@ -10,6 +10,7 @@ import {
   resetPassword,
   updateUser,
 } from "../../../lib/user-client";
+import { listUnits } from "../../../lib/member-unit-client";
 import { DATA_CAPS } from "../../../lib/permissions";
 import { ROLE_COLOR, ROLE_LABEL, ROLES } from "../../../lib/roles";
 
@@ -23,6 +24,7 @@ export default function UserManagementPage() {
   const { user: me } = useAuth();
   const { message } = App.useApp();
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [units, setUnits] = useState<string[]>([]); // đơn vị thành viên đang active (gán cho role=member)
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<AppUser | null>(null); // null = tạo mới
@@ -36,6 +38,9 @@ export default function UserManagementPage() {
     listUsers().then(setUsers).catch((e) => message.error(e.message)).finally(() => setLoading(false));
   }, [message]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    listUnits(false).then((us) => setUnits(us.map((u) => u.name))).catch(() => setUnits([]));
+  }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -47,21 +52,24 @@ export default function UserManagementPage() {
     setEditing(u);
     form.resetFields();
     form.setFieldsValue({ full_name: u.full_name ?? "", role: u.role, is_active: u.is_active,
-      permissions: u.permissions ?? [] });
+      permissions: u.permissions ?? [], member_units: u.member_units ?? [] });
     setOpen(true);
   };
 
   const submit = async (v: Record<string, unknown>) => {
-    // Quyền theo mục chỉ áp cho editor (admin=toàn quyền, viewer=không có).
+    // Quyền theo mục chỉ áp cho editor; đơn vị chỉ áp cho tài khoản Đơn vị thành viên (member).
     const perms = v.role === "editor" ? ((v.permissions as string[]) ?? []) : [];
+    const memberUnits = v.role === "member" ? ((v.member_units as string[]) ?? []) : [];
     try {
       if (creating) {
         await createUser({ username: (v.username as string).trim(), password: v.password as string,
-          full_name: (v.full_name as string)?.trim() || undefined, role: v.role as string, permissions: perms });
+          full_name: (v.full_name as string)?.trim() || undefined, role: v.role as string,
+          permissions: perms, member_units: memberUnits });
         message.success("Đã tạo tài khoản");
       } else if (editing) {
         await updateUser(editing.username, { full_name: (v.full_name as string)?.trim() || null,
-          role: v.role as string, is_active: v.is_active as boolean, permissions: perms });
+          role: v.role as string, is_active: v.is_active as boolean,
+          permissions: perms, member_units: memberUnits });
         message.success("Đã cập nhật");
       }
       setOpen(false); load();
@@ -88,8 +96,13 @@ export default function UserManagementPage() {
     { title: "Họ và tên", dataIndex: "full_name", render: (v: string | null) => v || <i style={{ color: "#999" }}>—</i> },
     { title: "Vai trò", dataIndex: "role", render: (v: string) =>
       <Tag color={ROLE_COLOR[v] ?? "default"}>{ROLE_LABEL[v] ?? v}</Tag> },
-    { title: "Quyền số liệu", key: "perms", render: (_: unknown, u: AppUser) => {
+    { title: "Quyền / Đơn vị", key: "perms", render: (_: unknown, u: AppUser) => {
       if (u.role === "admin") return <Tag color="green">Toàn quyền</Tag>;
+      if (u.role === "member")
+        return u.member_units?.length
+          ? <Space size={[4, 4]} wrap>{u.member_units.map((n) =>
+              <Tag key={n} color="gold">{n}</Tag>)}</Space>
+          : <Tag color="warning">Chưa gán đơn vị</Tag>;
       if (u.role !== "editor") return <span style={{ color: "#999" }}>—</span>;
       if (!u.permissions?.length) return <Tag>Chưa cấp quyền</Tag>;
       return <Space size={[4, 4]} wrap>{u.permissions.map((p) =>
@@ -126,7 +139,7 @@ export default function UserManagementPage() {
       <div className="page-title">
         <div>
           <h2><SafetyOutlined style={{ marginRight: 8 }} />Quản trị người dùng</h2>
-          <p>Tạo & phân quyền tài khoản: <b>Quản trị viên</b> (toàn quyền) · <b>Chuyên viên nhập liệu</b> (nhập/sửa số liệu) · <b>Người xem</b> (chỉ xem).</p>
+          <p>Tạo & phân quyền tài khoản: <b>Quản trị viên</b> (toàn quyền) · <b>Chuyên viên nhập liệu</b> (nhập/sửa số liệu) · <b>Người xem</b> (chỉ xem) · <b>Đơn vị thành viên</b> (tự nhập giá mủ của đơn vị).</p>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm tài khoản</Button>
       </div>
@@ -164,6 +177,17 @@ export default function UserManagementPage() {
               if (role === "viewer")
                 return <Alert type="info" showIcon style={{ marginBottom: 16 }}
                   message="Người xem không truy cập các mục quản lý số liệu (chỉ xem dashboard/bản tin)." />;
+              if (role === "member")
+                return (
+                  <Form.Item label="Đơn vị thành viên" name="member_units"
+                    rules={[{ required: true, message: "Chọn ít nhất một đơn vị cho tài khoản đơn vị thành viên" }]}
+                    tooltip="Tài khoản này chỉ xem/nhập giá mủ nước & mủ chén của các đơn vị được chọn (có thể chọn nhiều).">
+                    <Select mode="multiple" allowClear showSearch optionFilterProp="label"
+                      placeholder="Chọn một hoặc nhiều đơn vị"
+                      options={units.map((n) => ({ value: n, label: n }))}
+                      notFoundContent="Chưa có đơn vị — thêm ở mục 'Đơn vị thành viên'." />
+                  </Form.Item>
+                );
               return (
                 <Form.Item label="Quyền theo mục (chuyên viên nhập liệu)" name="permissions"
                   tooltip="Chỉ những mục được tích mới hiện menu và cho phép nhập/sửa.">

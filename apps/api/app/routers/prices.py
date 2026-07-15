@@ -11,7 +11,10 @@ import tempfile
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.paths import crawlers_dir
-from app.core.security import assert_cap, get_current_user, require_cap
+from app.core.security import assert_cap, assert_editor_window, get_current_user, require_cap
+
+# Các mục nhập tay của chuyên viên bị áp cửa sổ sửa (N ngày gần nhất); auto_data thì không.
+_WINDOWED_CAPS = {"raw_material", "physical"}
 from app.schemas.price import (
     HistorySeries,
     PriceBoard,
@@ -28,8 +31,7 @@ router = APIRouter(prefix="/api/prices", tags=["prices"])
 
 # Quyền ghi theo mục dữ liệu (admin=tất cả). Router này phục vụ nhiều màn hình khác nhau:
 _auto = [Depends(require_cap("auto_data"))]      # quét đa sàn · bảng tính giá các sàn
-_raw = [Depends(require_cap("raw_material"))]    # giá mủ nguyên liệu
-_phys = [Depends(require_cap("physical"))]       # giá physical
+_phys = [Depends(require_cap("physical"))]       # giá physical (preview Reuters)
 
 _CRAWLER_DIR = crawlers_dir()
 
@@ -112,9 +114,11 @@ def purchase_sheet(
     return price_repo.purchase_sheet(date_from, date_to)
 
 
-@router.delete("/purchase", dependencies=_raw)
-def delete_purchase(as_of: str = Query(..., description="YYYY-MM-DD")) -> dict:
-    """Xoá toàn bộ giá thu mua mủ nước của 1 ngày."""
+@router.delete("/purchase")
+def delete_purchase(as_of: str = Query(..., description="YYYY-MM-DD"),
+                    username: str = Depends(require_cap("raw_material"))) -> dict:
+    """Xoá toàn bộ giá thu mua mủ nước của 1 ngày (trong cửa sổ sửa; admin miễn)."""
+    assert_editor_window(username, as_of)
     return {"deleted": price_repo.delete_purchase_date(as_of)}
 
 
@@ -127,9 +131,11 @@ def physical_sheet(
     return price_repo.physical_sheet(date_from, date_to)
 
 
-@router.delete("/physical", dependencies=_phys)
-def delete_physical(as_of: str = Query(..., description="YYYY-MM-DD")) -> dict:
-    """Xoá toàn bộ giá physical của 1 ngày."""
+@router.delete("/physical")
+def delete_physical(as_of: str = Query(..., description="YYYY-MM-DD"),
+                    username: str = Depends(require_cap("physical"))) -> dict:
+    """Xoá toàn bộ giá physical của 1 ngày (trong cửa sổ sửa; admin miễn)."""
+    assert_editor_window(username, as_of)
     return {"deleted": price_repo.delete_physical_date(as_of)}
 
 
@@ -168,7 +174,10 @@ def list_records(
 @router.put("/records")
 def upsert_record(rec: PriceRecordEdit, username: str = Depends(get_current_user)) -> dict:
     """Thêm mới hoặc sửa 1 bản ghi giá (theo khóa as_of+source+grade+contract+price_type)."""
-    assert_cap(username, _cap_for_record(rec.source, rec.price_type))
+    cap = _cap_for_record(rec.source, rec.price_type)
+    assert_cap(username, cap)
+    if cap in _WINDOWED_CAPS:
+        assert_editor_window(username, rec.as_of)
     price_repo.upsert_record(rec.model_dump())
     return {"ok": True}
 
@@ -183,7 +192,10 @@ def delete_record(
     username: str = Depends(get_current_user),
 ) -> dict:
     """Xóa 1 bản ghi giá theo khóa."""
-    assert_cap(username, _cap_for_record(source, price_type))
+    cap = _cap_for_record(source, price_type)
+    assert_cap(username, cap)
+    if cap in _WINDOWED_CAPS:
+        assert_editor_window(username, as_of)
     if not price_repo.delete_record(as_of, source, grade, contract, price_type):
         raise HTTPException(404, "Không tìm thấy bản ghi để xóa")
     return {"deleted": True}

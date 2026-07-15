@@ -31,7 +31,7 @@ export type VrgFloorItem = {
 };
 
 export type RawMaterialRegion = {
-  region: string;            // tên công ty thành viên VRG
+  region: string;            // tên đơn vị thành viên VRG
   price: number | null;      // đồng/độ TSC
   unit?: string;
   price_text: string;        // số đã format (không kèm đơn vị)

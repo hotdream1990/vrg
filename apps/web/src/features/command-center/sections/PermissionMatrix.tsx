@@ -10,7 +10,8 @@ type Cap = { key: string; label: string; allow: Record<string, Allow> };
 // các mục SỐ LIỆU nay phân quyền theo TỪNG chuyên viên ("grant" = tuỳ mục được cấp ở trên).
 const CAPS: Cap[] = [
   { key: "view", label: "Xem dashboard, bảng giá, biểu đồ, bản tin", allow: { viewer: true, editor: true, admin: true } },
-  { key: "profile", label: "Đổi mật khẩu & hồ sơ cá nhân", allow: { viewer: true, editor: true, admin: true } },
+  { key: "profile", label: "Đổi mật khẩu & hồ sơ cá nhân", allow: { viewer: true, editor: true, admin: true, member: true } },
+  { key: "member_price", label: "Tự nhập giá mủ nước / mủ chén của đơn vị mình (hôm nay + 7 ngày)", allow: { member: true, admin: true } },
   { key: "scan", label: "Quét giá đa sàn & bảng tính giá các sàn (auto_data)", allow: { viewer: false, editor: "grant", admin: true } },
   { key: "data", label: "Nhập / sửa số liệu theo mục (Báo giá · mủ nguyên liệu · Physical · Tồn kho)", allow: { viewer: false, editor: "grant", admin: true } },
   { key: "master", label: "Giá sàn Tập đoàn & Đơn vị thành viên", allow: { viewer: false, editor: "grant", admin: true } },

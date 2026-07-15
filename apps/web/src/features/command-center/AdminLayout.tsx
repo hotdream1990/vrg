@@ -63,10 +63,10 @@ function buildMenu(can: (cap: Cap) => boolean) {
   if (manual.length) {
     items.push({ key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)", children: manual });
   }
-  if (can("corridor_info")) {
+  if (can("market_demand")) {
     items.push({
-      key: "corridor", icon: <ApartmentOutlined />, disabled: true,
-      label: <span>Thông tin hành lang <em style={{ opacity: 0.6, fontSize: 11 }}>(đang phát triển)</em></span>,
+      key: "market-demand", icon: <ApartmentOutlined />, disabled: true,
+      label: <span>Nhu cầu thị trường <em style={{ opacity: 0.6, fontSize: 11 }}>(đang phát triển)</em></span>,
     });
   }
   items.push(
@@ -88,6 +88,18 @@ const ADMIN_MENU = {
   ],
 };
 
+// Menu tối giản cho tài khoản Đơn vị thành viên: chỉ nhập giá của đơn vị + Nhu cầu thị trường.
+const MEMBER_MENU = [
+  {
+    key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)",
+    children: [{ key: "/don-vi/gia-mu", icon: <ExperimentOutlined />, label: "Giá mủ đơn vị" }],
+  },
+  {
+    key: "market-demand", icon: <ApartmentOutlined />, disabled: true,
+    label: <span>Nhu cầu thị trường <em style={{ opacity: 0.6, fontSize: 11 }}>(đang phát triển)</em></span>,
+  },
+];
+
 /** Khung admin: Sider thu gọn + Menu icon vector + Header (user/logout) + nội dung route. */
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
@@ -97,13 +109,15 @@ export default function AdminLayout() {
   const { user, logout, can } = useAuth();
 
   const isAdmin = user?.role === "admin";
-  const menuItems = [...buildMenu(can), ...(isAdmin ? [ADMIN_MENU] : [])];
+  const isMember = user?.role === "member";
+  const menuItems = isMember ? MEMBER_MENU : [...buildMenu(can), ...(isAdmin ? [ADMIN_MENU] : [])];
 
   const ROUTE_KEYS = [
     "/quet-da-san",
     "/quan-ly-so-lieu/bang-gia-san", "/quan-ly-so-lieu/ty-gia", "/quan-ly-so-lieu/gia-san-tap-doan",
     "/quan-ly-so-lieu/gia-mu-nguyen-lieu", "/quan-ly-so-lieu/gia-physical",
     "/quan-ly-so-lieu/ton-kho", "/quan-ly-so-lieu/bao-gia-mu", "/quan-ly-so-lieu/don-vi-thanh-vien",
+    "/don-vi/gia-mu",
     "/goi-y-gia-san", "/ban-tin-bien-dong", "/ban-tin/tuan", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
     "/quan-tri/lich-chay", "/ho-so",
   ];

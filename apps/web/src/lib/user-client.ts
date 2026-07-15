@@ -8,6 +8,7 @@ export type AppUser = {
   role: string;
   is_active: boolean;
   permissions: string[]; // quyền theo mục (chỉ có ý nghĩa với editor)
+  member_units?: string[]; // các đơn vị (chỉ có ý nghĩa với role=member)
 };
 
 const req = apiFetch;
@@ -18,11 +19,11 @@ const J = { "Content-Type": "application/json" };
 export const listUsers = () => req<AppUser[]>(`/api/users`);
 
 /** Tạo tài khoản mới. */
-export const createUser = (body: { username: string; password: string; full_name?: string; role?: string; permissions?: string[] }) =>
+export const createUser = (body: { username: string; password: string; full_name?: string; role?: string; permissions?: string[]; member_units?: string[] }) =>
   req<AppUser>(`/api/users`, { method: "POST", headers: J, body: JSON.stringify(body) });
 
-/** Cập nhật họ tên / vai trò / trạng thái / quyền. */
-export const updateUser = (username: string, body: { full_name?: string | null; role?: string; is_active?: boolean; permissions?: string[] }) =>
+/** Cập nhật họ tên / vai trò / trạng thái / quyền / đơn vị. */
+export const updateUser = (username: string, body: { full_name?: string | null; role?: string; is_active?: boolean; permissions?: string[]; member_units?: string[] }) =>
   req<AppUser>(`/api/users/${encodeURIComponent(username)}`, { method: "PUT", headers: J, body: JSON.stringify(body) });
 
 /** Đặt lại mật khẩu (không cần mật khẩu cũ). */
