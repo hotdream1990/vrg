@@ -13,7 +13,7 @@ import numpy as np
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
-from app.core.market_meta import VRG_DOMESTIC_ONLY_GRADES
+from app.core.market_meta import VRG_DOMESTIC_ONLY_GRADES, VRG_FLOOR_GRADES
 from app.services import floor_model as fm
 from app.services import floor_recommend as fr
 
@@ -72,7 +72,10 @@ def _load() -> tuple:
     fmap = {(str(d), g): t for d, g, fob, dom, _ in fr
             if (t := _target(g, fob, dom)) is not None}
     floor_dates = sorted({d for d, _ in fmap})
-    grades = sorted({g for _, g in fmap})
+    # Hiện ĐỦ danh mục chủng loại giá sàn theo thứ tự báo cáo (kể cả grade chưa có dữ liệu →
+    # dòng trống); grade lạ trong dữ liệu (nếu có) xếp cuối theo ABC.
+    data_grades = {g for _, g in fmap}
+    grades = list(VRG_FLOOR_GRADES) + sorted(data_grades - set(VRG_FLOOR_GRADES))
     lanmap = {str(d): int(lan) for d, _, _, _, lan in fr}
     idx: dict[tuple[str, str], list[tuple[str, float]]] = {}
     for d, s, g, v in ir:
@@ -272,7 +275,7 @@ def _backtest_core(fd: list[str], fmap: dict, idx: dict, lanmap: dict,
     return {"grade": grade, "model": model, "alpha": alpha, "metrics": m, "points": pts}
 
 
-def backtest(grade: str = "SVR 10", model: str = "v1", alpha: float = DEFAULT_ALPHA) -> dict[str, Any]:
+def backtest(grade: str = "SVR 10 / CSR 10", model: str = "v1", alpha: float = DEFAULT_ALPHA) -> dict[str, Any]:
     """Backtest 1 grade trên toàn bộ lịch sử ban hành (đo độ khớp dự báo vs giá sàn thực)."""
     fd, grades, fmap, idx, lanmap = _load()
     if grade not in grades:
@@ -281,9 +284,9 @@ def backtest(grade: str = "SVR 10", model: str = "v1", alpha: float = DEFAULT_AL
 
 
 def backtest_summary(model: str = "v1", alpha: float = DEFAULT_ALPHA) -> list[dict[str, Any]]:
-    """MAPE / % đúng hướng / n cho từng grade — SVR 10 (mặt hàng PoC) đứng đầu."""
+    """MAPE / % đúng hướng / n cho từng grade — SVR 10 / CSR 10 (mặt hàng PoC) đứng đầu."""
     fd, grades, fmap, idx, lanmap = _load()
-    head = "SVR 10"
+    head = "SVR 10 / CSR 10"
     ordered = ([head] if head in grades else []) + [g for g in grades if g != head]
     out = []
     for g in ordered:

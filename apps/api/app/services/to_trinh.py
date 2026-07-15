@@ -16,8 +16,8 @@ from app.services import floor_suggest as fs
 # Thứ tự CỐ ĐỊNH (không sort): (tên tờ trình, tên hệ thống trong vrg_floor_price | None)
 TT_GRADES = [("CV50", "SVR CV 50"), ("CV60", "SVR CV60"), ("SVRL", "SVR L"), ("SVR 3L Mix", "SVR 3L Mix"),
              ("SVR 3L", "SVR 3L"), ("5S", "SVR 5S"), ("SVR5", "SVR 5"), ("SVR10 Mix", "SVR 10 Mix"),
-             ("SVR10", "SVR 10"), ("SVR20", "SVR 20"), ("RSS3", "RSS 3"), ("RSS1", "RSS 1"),
-             ("Latex", "LATEX"), ("SkimBlock", "SkimBlock")]
+             ("SVR10", "SVR 10 / CSR 10"), ("SVR20", "SVR 20 / CSR 20"), ("RSS3", "RSS 3"), ("RSS1", "RSS 1"),
+             ("Latex", "LATEX"), ("SkimBlock", "Skim Block")]
 # Khối 1 settlement: (source, grade nguồn, SÀN hiển thị, grade hiển thị)
 SETTLE = [("tocom", "RSS3", "OSE", "RSS3"), ("shfe", "RU", "SHANGHAI", "RSS3"),
           ("sgx", "RSS3", "SGX", "RSS3"), ("sgx", "TSR20", "SGX", "TSR20"),

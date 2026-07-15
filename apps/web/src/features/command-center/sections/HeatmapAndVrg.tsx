@@ -8,7 +8,7 @@ type Cmp = { product: string; vrg: number; market: number; marketLabel: string; 
 
 // Map chủng loại giá sàn VRG → grade thị trường (board dùng mã sàn "MRE").
 const FLOOR_MAP: Record<string, "RSS3" | "SMR20" | "LATEX" | "SMRCV"> = {
-  "RSS 3": "RSS3", "SVR 20": "SMR20", "LATEX": "LATEX", "SVR CV 50": "SMRCV", "SVR CV60": "SMRCV",
+  "RSS 3": "RSS3", "SVR 20 / CSR 20": "SMR20", "LATEX": "LATEX", "SVR CV 50": "SMRCV", "SVR CV60": "SMRCV",
 };
 // Heatmap % thay đổi: hàng = grade, cột = sàn (sheet dùng mã "MRB").
 const HM_COLS = ["OSE", "SHANGHAI", "SGX", "MRB"];

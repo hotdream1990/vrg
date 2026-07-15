@@ -155,6 +155,10 @@ END $$;
 -- Đổi tên quyền cũ 'corridor_info' → 'market_demand' (Thông tin hành lang → Nhu cầu thị trường).
 UPDATE app_user SET permissions = REPLACE(permissions::text, 'corridor_info', 'market_demand')::jsonb
     WHERE permissions::text LIKE '%corridor_info%';
+-- Đổi tên chủng loại giá sàn cho khớp báo cáo (idempotent).
+UPDATE vrg_floor_price SET grade = 'SVR 10 / CSR 10' WHERE grade = 'SVR 10';
+UPDATE vrg_floor_price SET grade = 'SVR 20 / CSR 20' WHERE grade = 'SVR 20';
+UPDATE vrg_floor_price SET grade = 'Skim Block' WHERE grade = 'SkimBlock';
 """
 
 # Hypertable tách riêng: cần extension timescaledb; nếu thiếu, bảng vẫn dùng được.

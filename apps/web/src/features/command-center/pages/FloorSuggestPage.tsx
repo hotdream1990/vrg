@@ -24,7 +24,7 @@ import ToTrinhPreview from "./components/ToTrinhPreview";
 import "../../bulletin/bulletin.css";
 
 const GRADES = ["SVR CV 50", "SVR CV60", "SVR L", "SVR 3L Mix", "SVR 3L", "SVR 5S", "SVR 5",
-  "SVR 10 Mix", "SVR 10", "SVR 20", "RSS 3", "RSS 1", "LATEX"];
+  "SVR 10 Mix", "SVR 10 / CSR 10", "SVR 20 / CSR 20", "RSS 3", "RSS 1", "LATEX", "Skim Block"];
 
 /** Màn Gợi ý điều chỉnh giá sàn: chọn 1 lần đã ban hành → đề xuất NÂNG/GIỮ/HẠ so lần trước,
  *  diễn giải căn cứ, kiểm định độ khớp (backtest) + tương quan chỉ số. */
@@ -34,7 +34,7 @@ export default function FloorSuggestPage() {
   const [mode, setMode] = useState<"issuance" | "custom">("issuance");
   const [backtest, setBacktest] = useState(true);
   const [model, setModel] = useState<FloorModel>("v1");
-  const [grade, setGrade] = useState("SVR 10");
+  const [grade, setGrade] = useState("SVR 10 / CSR 10");
   const [sug, setSug] = useState<SuggestResult | null>(null);
   const [chart, setChart] = useState<FloorChart | null>(null);
   const [corr, setCorr] = useState<CorrRow[]>([]);

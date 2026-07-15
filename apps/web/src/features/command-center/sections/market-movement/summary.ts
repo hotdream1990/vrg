@@ -45,7 +45,7 @@ function fxSeries(sheet: PriceSheet, pair: string): number[] {
     .map((r) => r.fx?.[pair]).filter((v): v is number => v != null);
 }
 const FLOOR_MAP: Record<string, string> = {
-  "RSS 3": "RSS3", "SVR 20": "SMR20", "LATEX": "LATEX", "SVR CV 50": "SMRCV", "SVR CV60": "SMRCV",
+  "RSS 3": "RSS3", "SVR 20 / CSR 20": "SMR20", "LATEX": "LATEX", "SVR CV 50": "SMRCV", "SVR CV60": "SMRCV",
 };
 function marketUsd(board: PriceBoard, mkt: string): number | null {
   const find = (ex: string, gr: string) => board.exchanges.find((e) => e.exchange === ex && e.grade === gr)?.usd_tonne ?? null;

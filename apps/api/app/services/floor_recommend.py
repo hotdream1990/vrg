@@ -51,7 +51,8 @@ def build_item(grade: str, act: float | None, sug: float | None, r: dict | None,
     mape_move, n_move = bt.get("mape_move"), bt.get("n_move", 0)
     rel_mape = mape_move if (action in ("raise", "lower") and n_move >= 3 and mape_move is not None) \
         else bt.get("mape")
-    conf = fm.confidence(rel_mape, bt.get("hit"), bt.get("n", 0))
+    # Không có dự báo (grade chưa có dữ liệu giá sàn) → không có độ tin cậy để hiển thị.
+    conf = fm.confidence(rel_mape, bt.get("hit"), bt.get("n", 0)) if sug is not None else None
     caution = None
     if action in ("raise", "lower") and shfe_chg is not None and abs(shfe_chg) >= _SHFE_MIN \
             and (delta > 0) != (shfe_chg > 0):

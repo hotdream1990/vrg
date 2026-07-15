@@ -32,7 +32,7 @@ def suggest(
 
 @router.get("/backtest")
 def backtest(
-    grade: str = Query("SVR 10"),
+    grade: str = Query("SVR 10 / CSR 10"),
     model: str = _MODEL,
     alpha: float = Query(floor_suggest.DEFAULT_ALPHA, ge=0, description="hệ số ridge (v2)"),
 ) -> dict:
@@ -60,13 +60,13 @@ def scenarios(
 
 
 @router.get("/correlation")
-def correlation(grade: str = Query("SVR 10")) -> list[dict]:
+def correlation(grade: str = Query("SVR 10 / CSR 10")) -> list[dict]:
     """Bảng tương quan giá sàn (1 grade) vs các chỉ số."""
     return floor_suggest.correlation(grade)
 
 
 @router.get("/chart")
-def chart(grade: str = Query("SVR 10")) -> dict:
+def chart(grade: str = Query("SVR 10 / CSR 10")) -> dict:
     """Chuỗi (chuẩn hoá base-100) giá sàn + chỉ số để vẽ chart tương quan."""
     return floor_suggest.chart(grade)
 

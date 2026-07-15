@@ -87,11 +87,11 @@ def test_target_and_unit_for_domestic_only_grade() -> None:
     # grade thường: lấy FOB, đơn vị USD/T (bỏ qua domestic).
     assert fs._target("SVR 10", 2250.0, 57700000.0) == 2250.0
     assert fs._unit("SVR 10") == "USD/T"
-    # SkimBlock: lấy domestic_vnd (không có FOB), đơn vị VNĐ/T.
-    assert fs._target("SkimBlock", None, 43000000.0) == 43000000.0
-    assert fs._unit("SkimBlock") == "VNĐ/T"
+    # Skim Block: lấy domestic_vnd (không có FOB), đơn vị VNĐ/T.
+    assert fs._target("Skim Block", None, 43000000.0) == 43000000.0
+    assert fs._unit("Skim Block") == "VNĐ/T"
     # thiếu cả hai ⇒ None (bị loại khỏi fmap).
-    assert fs._target("SkimBlock", None, None) is None
+    assert fs._target("Skim Block", None, None) is None
 
 
 def test_build_item_carries_unit() -> None:
@@ -186,10 +186,10 @@ def _token() -> dict:
 def test_backtest_endpoint_protected_and_shape() -> None:
     assert client.get("/api/floor-suggest/backtest").status_code == 401  # chặn khi chưa auth
     h = _token()
-    r = client.get("/api/floor-suggest/backtest?grade=SVR 10&model=v1", headers=h)
+    r = client.get("/api/floor-suggest/backtest", params={"grade": "SVR 10 / CSR 10", "model": "v1"}, headers=h)
     assert r.status_code == 200
     body = r.json()
-    assert body["grade"] == "SVR 10" and "metrics" in body and "points" in body
+    assert body["grade"] == "SVR 10 / CSR 10" and "metrics" in body and "points" in body
     if body["points"]:  # nếu DB có dữ liệu giá sàn
         assert "mape" in body["metrics"] and body["metrics"]["n"] == len(body["points"])
         p = body["points"][0]
@@ -203,5 +203,5 @@ def test_backtest_summary_endpoint() -> None:
     rows = r.json()
     assert isinstance(rows, list)
     if rows:
-        assert rows[0]["grade"] == "SVR 10"  # mặt hàng PoC đứng đầu
+        assert rows[0]["grade"] == "SVR 10 / CSR 10"  # mặt hàng PoC đứng đầu
         assert {"grade", "mape", "hit", "n"} <= set(rows[0])
