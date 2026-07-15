@@ -176,6 +176,13 @@ export default function BulletinPage() {
     updateField("market_analysis", items);
   };
 
+  const updateExchange = (idx: number, val: string) => {
+    if (!draft) return;
+    const items = [...draft.exchange_summary];
+    items[idx] = val;
+    updateField("exchange_summary", items);
+  };
+
   const addAnalysis = () => {
     if (!draft) return;
     updateField("market_analysis", [...draft.market_analysis, ""]);
@@ -501,23 +508,35 @@ export default function BulletinPage() {
             </div>
 
             <div className="blt-subsection">
-              <h4>1. Tóm tắt giá sàn giao dịch <span className="chip">Tự sinh từ giá</span></h4>
-              {draft.exchange_summary.some((l) => l.trim()) ? (
-                draft.exchange_summary
-                  .filter((l) => l.trim())
-                  .map((line, i) => <div key={i} className="blt-readonly">{line}</div>)
+              <h4>1. Tóm tắt giá sàn giao dịch <span className="chip info">Tự sinh · sửa được</span></h4>
+              {draft.exchange_summary.length ? (
+                draft.exchange_summary.map((line, i) => (
+                  <textarea
+                    key={i}
+                    className="blt-textarea"
+                    rows={2}
+                    value={line}
+                    placeholder="(sàn này chưa có dữ liệu — có thể nhập nhận định thủ công)"
+                    onChange={(e) => updateExchange(i, e.target.value)}
+                  />
+                ))
               ) : (
-                <div className="blt-hint">Chưa có dữ liệu giá sàn cho ngày này — phần này tự sinh từ giá đã quét.</div>
+                <div className="blt-hint">Chưa có dữ liệu giá sàn cho ngày này.</div>
               )}
+              <div className="blt-hint" style={{ marginTop: 4 }}>
+                Tự sinh từ giá đã quét — sửa tay rồi bấm “Lưu bản tin” sẽ giữ đúng nội dung đã sửa.
+              </div>
             </div>
 
             <div className="blt-subsection">
-              <h4>2. Giá Physical <span className="chip">Tự sinh từ giá</span></h4>
-              {draft.physical_summary.trim() ? (
-                <div className="blt-readonly">{draft.physical_summary}</div>
-              ) : (
-                <div className="blt-hint">Chưa có dữ liệu giá physical cho ngày này.</div>
-              )}
+              <h4>2. Giá Physical <span className="chip info">Tự sinh · sửa được</span></h4>
+              <textarea
+                className="blt-textarea"
+                rows={3}
+                value={draft.physical_summary}
+                placeholder="(chưa có dữ liệu physical — có thể nhập thủ công)"
+                onChange={(e) => updateField("physical_summary", e.target.value)}
+              />
             </div>
 
             <div className="blt-subsection">
