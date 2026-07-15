@@ -60,6 +60,13 @@ export default function FloorSuggestPage() {
   const markIndex = useMemo(() => (chart ? chart.labels.indexOf(asOf) : -1), [chart, asOf]);
   const focal = useMemo(() => sug?.items.find((i) => i.grade === grade), [sug, grade]);
 
+  // Nhãn lần ban hành theo TEXT (tiêu đề tự đặt) + ngày phát hành — không dùng số lần nội bộ.
+  const pointLabel = (p: FloorPoint) => {
+    const t = p.title?.trim();
+    const meaningful = t && t !== `Lần ${p.lan}`; // bỏ tiêu đề mặc định = số lần nội bộ
+    return meaningful ? `${t} · ${dmy(p.as_of)}` : dmy(p.as_of);
+  };
+
   return (
     <div className="main">
       <div className="page-title">
@@ -88,7 +95,7 @@ export default function FloorSuggestPage() {
         {mode === "issuance" ? (
           <label className="blt-date-label">Lần ban hành:
             <select className="blt-date-input" value={asOf} onChange={(e) => setAsOf(e.target.value)}>
-              {points.map((p) => <option key={p.as_of} value={p.as_of}>Lần {p.lan} · {dmy(p.as_of)}</option>)}
+              {points.map((p) => <option key={p.as_of} value={p.as_of}>{pointLabel(p)}</option>)}
             </select>
           </label>
         ) : (

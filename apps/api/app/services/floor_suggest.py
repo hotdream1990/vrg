@@ -137,11 +137,16 @@ def _fit_at(train: list[str], target: str, grade: str, fmap: dict, idx: dict,
 
 
 def points() -> list[dict[str, Any]]:
-    """Danh sách lần đã ban hành (cho picker) — mới nhất trước."""
+    """Danh sách lần đã ban hành (cho picker) — mới nhất trước.
+
+    Kèm `title` (tiêu đề tự đặt) để picker hiển thị theo TEXT + ngày phát hành,
+    thay cho số lần nội bộ (auto-increment) vốn không mang ý nghĩa với người dùng.
+    """
     with session_scope() as db:
-        rows = db.execute(text("SELECT lan, as_of FROM vrg_floor_price GROUP BY lan, as_of "
-                               "ORDER BY as_of DESC")).all()
-    return [{"lan": int(r[0]), "as_of": str(r[1])} for r in rows]
+        rows = db.execute(text("SELECT lan, as_of, MAX(title) AS title FROM vrg_floor_price "
+                               "GROUP BY lan, as_of ORDER BY as_of DESC")).mappings().all()
+    return [{"lan": int(r["lan"]), "as_of": str(r["as_of"]),
+             "title": (r["title"] or "").strip()} for r in rows]
 
 
 def suggest(as_of: str, model: str = "v1", backtest: bool = True,

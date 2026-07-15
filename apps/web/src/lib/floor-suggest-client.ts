@@ -5,7 +5,7 @@ import { authHeaders, onUnauthorized } from "./auth-token";
 import { apiFetch } from "./http";
 
 export type FloorModel = "v1" | "v1i" | "v1f" | "v2"; // rổ · +tồn kho tổng · +tồn kho tự do · đa biến
-export type FloorPoint = { lan: number; as_of: string };
+export type FloorPoint = { lan: number; as_of: string; title?: string };
 export type FloorAction = "raise" | "hold" | "lower";
 export type FloorConfidence = "high" | "medium" | "low";
 /** Biến động 1 chỉ số trong rổ kể từ lần ban hành trước (căn cứ cho đề xuất). */

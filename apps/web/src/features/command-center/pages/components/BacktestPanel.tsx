@@ -120,7 +120,7 @@ export default function BacktestPanel({ grade, model, onModel }: {
       <div style={{ overflow: "auto", maxHeight: 280 }}>
         <table style={{ fontSize: 13 }}>
           <thead><tr>
-            <th>Lần</th><th>Ngày</th><th className="r">Thực (FOB)</th>
+            <th>Ngày phát hành</th><th className="r">Thực (FOB)</th>
             <th className="r">Dự báo</th><th className="r">Lệch</th><th className="r">Lệch %</th>
           </tr></thead>
           <tbody>
@@ -128,7 +128,7 @@ export default function BacktestPanel({ grade, model, onModel }: {
               const big = Math.abs(p.err_pct) > 6;
               return (
                 <tr key={p.as_of}>
-                  <td>{p.lan}</td><td>{p.as_of}</td>
+                  <td>{p.as_of}</td>
                   <td className="r">{fmt(p.actual)}</td>
                   <td className="r" style={{ color: "var(--muted)" }}>{fmt(p.pred)}</td>
                   <td className="r" style={{ color: big ? "#e11d48" : "#16a34a", fontWeight: 600 }}>
