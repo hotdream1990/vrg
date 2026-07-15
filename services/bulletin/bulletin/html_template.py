@@ -60,6 +60,8 @@ body {{ font-family: 'Times New Roman','Arial',sans-serif; color:#111; font-size
 .measure {{ width:{PAGE_W}; padding:0 26px; }}
 /* Mỗi block nguyên khối — flow-root để chứa margin con (đo/hiển thị nhất quán, không co margin). */
 .blk {{ display:flow-root; }}
+/* Khung đo 1 item (block hoặc bảng có thể tách dòng) — flow-root cho khớp lúc render. */
+.mitem,.mt-pre {{ display:flow-root; }}
 
 /* Header xanh full-width, logo tròn trái, tiêu đề TRẮNG — cao 148px như mẫu */
 .pg-hdr {{ position:relative; width:100%; height:148px; flex:0 0 auto; background:#2e8b4f; background-size:100% 100%; }}
@@ -161,11 +163,13 @@ def _floor_ref(data: BulletinData) -> str:
     return cs or ps or ""
 
 
-def _vrg_floor_table(data: BulletinData) -> str:
+def _floor_parts(data: BulletinData) -> tuple[str, list[str]] | None:
+    """(thead, [tr,...]) bảng giá sàn — TÁCH DÒNG ĐƯỢC (mỗi grade 1 dòng, không rowspan thân bảng)
+    để phân trang xếp vừa trang, không tràn/mồ côi. None nếu không có dữ liệu."""
     if not data.vrg_floor_curr:
-        return ""
+        return None
     prev = {r.grade: r for r in data.vrg_floor_prev}
-    rows = ""
+    rows: list[str] = []
     for c in data.vrg_floor_curr:
         p = prev.get(c.grade)
         # Ẩn dòng KHÔNG có giá ở cả 2 lần (vd SkimBlock chưa nhập) — tránh dòng toàn N/A.
@@ -173,21 +177,23 @@ def _vrg_floor_table(data: BulletinData) -> str:
         prev_empty = p is None or (p.fob_usd is None and p.domestic_vnd is None)
         if curr_empty and prev_empty:
             continue
-        rows += (
+        rows.append(
             f"<tr><td>{c.grade}</td>"
             f"<td class='r'>{_fmt(p.fob_usd) if p else '—'}</td>"
             f"<td class='r'>{_fmt(p.domestic_vnd) if p else '—'}</td>"
             f"<td class='r'>{_fmt(c.fob_usd)}</td><td class='r'>{_fmt(c.domestic_vnd)}</td></tr>"
         )
+    if not rows:
+        return None
     pl = (data.vrg_floor_prev_label or "Lần trước").replace("\n", "<br>")
     cl = (data.vrg_floor_curr_label or "Hiện tại").replace("\n", "<br>")
-    return (
-        f"<table><thead><tr><th rowspan='2'>Chủng Loại</th><th colspan='2'>{pl}</th>"
+    head = (
+        f"<thead><tr><th rowspan='2'>Chủng Loại</th><th colspan='2'>{pl}</th>"
         f"<th colspan='2'>{cl}</th></tr>"
         "<tr><th>Giá XK<br>FOB/FCA<br>(USD/T)</th><th>Giá nội địa<br>(VNĐ/T)</th>"
-        "<th>Giá XK<br>FOB/FCA<br>(USD/T)</th><th>Giá nội địa<br>(VNĐ/T)</th></tr></thead><tbody>"
-        + rows + "</tbody></table>"
+        "<th>Giá XK<br>FOB/FCA<br>(USD/T)</th><th>Giá nội địa<br>(VNĐ/T)</th></tr></thead>"
     )
+    return head, rows
 
 
 def _raw_material_lines(data: BulletinData) -> str:
@@ -222,29 +228,46 @@ def _page_footer(data: BulletinData, assets: dict[str, str]) -> str:
             "<span class='r'>BẢN TIN THỊ TRƯỜNG KINH DOANH</span></div>")
 
 
-# ── Blocks (nguyên khối) chia theo nhóm trang: (I+II) · (III) · (IV) ──
-def content_groups(data: BulletinData) -> list[list[str]]:
-    """Trả về các NHÓM block; mỗi nhóm bắt đầu 1 trang mới, block trong nhóm được xếp packing."""
+# ── Blocks chia theo nhóm trang: (I+II) · (III) · (IV) ──
+# Item = str (block nguyên khối) HOẶC dict bảng tách-dòng {"pre","head","rows"}.
+def _table_item(pre: str, head: str, rows: list[str]) -> dict:
+    """Bảng có thể tách dòng khi phân trang; `pre` = tiêu đề/đầu đề dính chunk đầu."""
+    return {"pre": pre, "head": head, "rows": rows}
+
+
+def item_html(it) -> str:
+    """Dựng HTML đầy đủ 1 item (bảng KHÔNG tách) — dùng cho đường không đo (fallback)."""
+    if isinstance(it, dict):
+        return f"{it['pre']}<table>{it['head']}<tbody>{''.join(it['rows'])}</tbody></table>"
+    return it
+
+
+def content_groups(data: BulletinData) -> list[list]:
+    """Trả về các NHÓM item; mỗi nhóm bắt đầu 1 trang mới, item trong nhóm được xếp packing
+    (bảng dict được tách dòng vừa trang; str là block nguyên khối)."""
     d = data.report_date.strftime("%d/%m/%Y")
     dd_mm = data.report_date.strftime("%d/%m")
     phys_dd_mm = (data.physical_curr_date or data.report_date).strftime("%d/%m")
 
-    # Nhóm 1 — Section I + II
+    # Nhóm 1 — Section I + II (bảng nhỏ, giữ nguyên khối)
     g_top = [
         f'<h2 class="section">I. Giá cao su thiên nhiên thế giới ngày {d}</h2>' + _world_table(data),
         '<h2 class="section">II. Giá các sản phẩm cao su giao ngay:</h2>' + _physical_table(data),
     ]
 
-    # Nhóm 2 — Section III (giá sàn + mủ nguyên liệu)
-    floor_tbl = _vrg_floor_table(data)
-    ref = _floor_ref(data)
-    block_floor = '<h2 class="section">III. Giá cao su trong nước:</h2>'
-    if floor_tbl:
-        block_floor += (
+    # Nhóm 2 — Section III (giá sàn = bảng tách-dòng để không tràn + mủ nguyên liệu)
+    fp = _floor_parts(data)
+    iii = '<h2 class="section">III. Giá cao su trong nước:</h2>'
+    g_local: list = []
+    if fp:
+        ref = _floor_ref(data)
+        pre = iii + (
             f'<p class="sub">1. Giá sàn Tập đoàn {ref}: Giá xuất khẩu FOB/FCA (USD/T) cảng '
-            "Tp.HCM và giá bán Nội địa (VNĐ/tấn) giao hàng tại kho.</p>" + floor_tbl
+            "Tp.HCM và giá bán Nội địa (VNĐ/tấn) giao hàng tại kho.</p>"
         )
-    g_local = [block_floor]
+        g_local.append(_table_item(pre, fp[0], fp[1]))
+    else:
+        g_local.append(iii)
     rm_lines = _raw_material_lines(data)
     if rm_lines:
         g_local.append(
@@ -284,9 +307,20 @@ def content_groups(data: BulletinData) -> list[list[str]]:
     return [g_top, g_local, g_news]
 
 
-def measure_html(blocks: list[str]) -> str:
-    """HTML để Chromium đo chiều cao từng block (cùng bề rộng nội dung với trang thật)."""
-    inner = "".join(f"<div class='blk'>{b}</div>" for b in blocks)
+def measure_html(items: list) -> str:
+    """HTML để Chromium đo chiều cao từng item (cùng bề rộng nội dung với trang thật).
+    Bảng dict → đo riêng tiêu đề (.mt-pre) + thead + từng dòng để tách trang chính xác."""
+    parts = []
+    for it in items:
+        if isinstance(it, dict):
+            rows = "".join(it["rows"])
+            parts.append(
+                f"<div class='mitem'><div class='mt-pre'>{it['pre']}</div>"
+                f"<table>{it['head']}<tbody>{rows}</tbody></table></div>"
+            )
+        else:
+            parts.append(f"<div class='mitem'>{it}</div>")
+    inner = "".join(parts)
     return (f"<!doctype html><html><head><meta charset='utf-8'><style>{_CONTENT_CSS}</style>"
             f"</head><body><div class='measure'>{inner}</div></body></html>")
 
@@ -307,7 +341,8 @@ def pages_html(pages: list[list[str]], data: BulletinData, assets: dict[str, str
 
 def content_html(data: BulletinData, assets: dict[str, str] | None = None) -> str:
     """Fallback không đo: mỗi NHÓM = 1 trang (pdf_export bình thường dùng đường measure-and-pack)."""
-    return pages_html(content_groups(data), data, assets or {})
+    pages = [[item_html(it) for it in g] for g in content_groups(data)]
+    return pages_html(pages, data, assets or {})
 
 
 # ── Bìa đầu / cuối (full trang, không header/footer) ──

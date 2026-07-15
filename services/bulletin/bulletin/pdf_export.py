@@ -26,25 +26,63 @@ def _data_uri(path: str | Path) -> str | None:
     return f"data:{mime};base64," + base64.b64encode(p.read_bytes()).decode()
 
 
-def _pack(groups: list[list[str]], heights: list[float]) -> list[list[str]]:
-    """Xếp block của từng nhóm vào các trang (≤ USABLE_PX). Mỗi nhóm bắt đầu trang mới."""
+def _pack(groups: list[list], measures: list[dict]) -> list[list[str]]:
+    """Xếp item của từng nhóm vào các trang (≤ USABLE_PX). Mỗi nhóm bắt đầu trang mới.
+    Item str = block nguyên khối; item dict = bảng TÁCH DÒNG (thead lặp mỗi trang) để
+    lấp đầy trang, không tràn/mồ côi khi bảng dài hơn 1 trang."""
     pages: list[list[str]] = []
-    idx = 0
-    for group in groups:
-        cur: list[str] = []
-        cur_h = 0.0
-        for block in group:
-            h = heights[idx] if idx < len(heights) else 0.0
-            idx += 1
-            add = h + (_GAP_PX if cur else 0)
-            if cur and cur_h + add > T.USABLE_PX:
-                pages.append(cur)
-                cur, cur_h = [], 0.0
-                add = h
-            cur.append(block)
-            cur_h += add
+    cur: list[str] = []
+    cur_h = 0.0
+
+    def newpage() -> None:
+        nonlocal cur, cur_h
         if cur:
             pages.append(cur)
+        cur, cur_h = [], 0.0
+
+    idx = 0
+    for group in groups:
+        newpage()  # mỗi nhóm (I+II · III · IV) bắt đầu trang mới
+        for item in group:
+            m = measures[idx] if idx < len(measures) else {}
+            idx += 1
+            if isinstance(item, dict):  # bảng tách dòng
+                head_h = m.get("head", 0.0)
+                row_hs = m.get("rows", []) or [0.0] * len(item["rows"])
+                rows = item["rows"]
+                first, i, n = True, 0, len(rows)
+                while i < n:
+                    pre_h = m.get("pre", 0.0) if first else 0.0
+                    gap = _GAP_PX if cur else 0.0
+                    # Không đủ chỗ cho tiêu đề + thead + ít nhất 1 dòng → sang trang mới.
+                    if cur and cur_h + gap + pre_h + head_h + row_hs[i] > T.USABLE_PX:
+                        newpage()
+                        gap = 0.0
+                    used = pre_h + head_h
+                    chunk: list[str] = []
+                    while i < n and cur_h + gap + used + row_hs[i] <= T.USABLE_PX:
+                        used += row_hs[i]
+                        chunk.append(rows[i])
+                        i += 1
+                    if not chunk:  # an toàn: ép ≥1 dòng để không kẹt vòng lặp
+                        used += row_hs[i]
+                        chunk.append(rows[i])
+                        i += 1
+                    pre_html = item["pre"] if first else ""
+                    cur.append(f"{pre_html}<table>{item['head']}<tbody>{''.join(chunk)}</tbody></table>")
+                    cur_h += gap + used
+                    first = False
+                    if i < n:  # còn dòng → sang trang, thead sẽ lặp lại
+                        newpage()
+            else:  # block nguyên khối (str)
+                h = m.get("h", 0.0)
+                gap = _GAP_PX if cur else 0.0
+                if cur and cur_h + gap + h > T.USABLE_PX:
+                    newpage()
+                    gap = 0.0
+                cur.append(item)
+                cur_h += gap + h
+    newpage()
     return pages
 
 
@@ -73,16 +111,27 @@ def generate_pdf(data: BulletinData, assets: dict[str, str], output_path: str | 
             page.set_content(html, wait_until="load")
             return page.pdf(width=T.PAGE_W, height=T.PAGE_H, print_background=True, margin=zero)
 
-        # Đo chiều cao từng block → xếp trang (measure-and-pack). Lỗi đo → fallback 1 nhóm/trang.
+        # Đo chiều cao từng item (block/bảng) → xếp trang (measure-and-pack).
+        # Lỗi đo → fallback: mỗi nhóm 1 trang, bảng KHÔNG tách.
+        fallback = [[T.item_html(it) for it in g] for g in groups]
         try:
             page.set_content(T.measure_html(flat), wait_until="load")
-            heights = page.evaluate(
-                "() => Array.from(document.querySelectorAll('.measure > .blk'))"
-                ".map(e => e.getBoundingClientRect().height)"
+            measures = page.evaluate(
+                "() => Array.from(document.querySelectorAll('.measure > .mitem')).map(el => {"
+                "  const tbl = el.querySelector('table'), pre = el.querySelector('.mt-pre');"
+                "  if (tbl && pre) {"
+                "    const th = tbl.querySelector('thead');"
+                "    const rs = Array.from(tbl.querySelectorAll('tbody > tr'));"
+                "    return {pre: pre.getBoundingClientRect().height,"
+                "            head: th ? th.getBoundingClientRect().height : 0,"
+                "            rows: rs.map(r => r.getBoundingClientRect().height)};"
+                "  }"
+                "  return {h: el.getBoundingClientRect().height};"
+                "})"
             )
-            pages = _pack(groups, heights) if len(heights) == len(flat) else groups
+            pages = _pack(groups, measures) if len(measures) == len(flat) else fallback
         except Exception:  # noqa: BLE001 - đo lỗi → dựng theo nhóm
-            pages = groups
+            pages = fallback
 
         content = T.pages_html(pages, data, uris)
 
