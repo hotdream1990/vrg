@@ -59,15 +59,13 @@ function buildMenu(can: (cap: Cap) => boolean) {
     can("physical") && { key: "/quan-ly-so-lieu/gia-physical", icon: <FundOutlined />, label: "Giá Physical" },
     can("inventory") && { key: "/quan-ly-so-lieu/ton-kho", icon: <InboxOutlined />, label: "Tồn kho" },
     can("member_unit") && { key: "/quan-ly-so-lieu/don-vi-thanh-vien", icon: <TeamOutlined />, label: "Đơn vị thành viên" },
-  ].filter(Boolean) as { key: string; icon: JSX.Element; label: string }[];
-  if (manual.length) {
-    items.push({ key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)", children: manual });
-  }
-  if (can("market_demand")) {
-    items.push({
+    can("market_demand") && {
       key: "market-demand", icon: <ApartmentOutlined />, disabled: true,
       label: <span>Nhu cầu thị trường <em style={{ opacity: 0.6, fontSize: 11 }}>(đang phát triển)</em></span>,
-    });
+    },
+  ].filter(Boolean) as NonNullable<Parameters<typeof Menu>[0]["items"]>;
+  if (manual.length) {
+    items.push({ key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)", children: manual });
   }
   items.push(
     { key: "/goi-y-gia-san", icon: <BulbOutlined />, label: "Gợi ý giá sàn" },
@@ -92,13 +90,18 @@ const ADMIN_MENU = {
 const MEMBER_MENU = [
   {
     key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)",
-    children: [{ key: "/don-vi/gia-mu", icon: <ExperimentOutlined />, label: "Giá mủ đơn vị" }],
-  },
-  {
-    key: "market-demand", icon: <ApartmentOutlined />, disabled: true,
-    label: <span>Nhu cầu thị trường <em style={{ opacity: 0.6, fontSize: 11 }}>(đang phát triển)</em></span>,
+    children: [
+      { key: "/don-vi/gia-mu", icon: <ExperimentOutlined />, label: "Giá mủ đơn vị" },
+      {
+        key: "market-demand", icon: <ApartmentOutlined />, disabled: true,
+        label: <span>Nhu cầu thị trường <em style={{ opacity: 0.6, fontSize: 11 }}>(đang phát triển)</em></span>,
+      },
+    ],
   },
 ];
+
+// Mục Hồ sơ cá nhân (đổi mật khẩu) — hiện cuối sidebar cho mọi vai trò.
+const PROFILE_ITEM = { key: "/ho-so", icon: <IdcardOutlined />, label: "Hồ sơ cá nhân" };
 
 /** Khung admin: Sider thu gọn + Menu icon vector + Header (user/logout) + nội dung route. */
 export default function AdminLayout() {
@@ -110,7 +113,9 @@ export default function AdminLayout() {
 
   const isAdmin = user?.role === "admin";
   const isMember = user?.role === "member";
-  const menuItems = isMember ? MEMBER_MENU : [...buildMenu(can), ...(isAdmin ? [ADMIN_MENU] : [])];
+  const menuItems = isMember
+    ? [...MEMBER_MENU, PROFILE_ITEM]
+    : [...buildMenu(can), ...(isAdmin ? [ADMIN_MENU] : []), PROFILE_ITEM];
 
   const ROUTE_KEYS = [
     "/quet-da-san",
