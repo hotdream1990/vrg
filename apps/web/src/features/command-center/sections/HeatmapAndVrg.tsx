@@ -46,7 +46,7 @@ const hmStyle = (p: number | null) =>
 /** Heatmap %thay đổi + So sánh Giá sàn Tập đoàn vs Thị trường — DỮ LIỆU THẬT (sheet + floor↔board). */
 export default function HeatmapAndVrg() {
   const [rows, setRows] = useState<Cmp[] | null>(null);
-  const [meta, setMeta] = useState<{ lan: number; as_of: string } | null>(null);
+  const [meta, setMeta] = useState<{ lan: number; as_of: string; title: string } | null>(null);
   const [hm, setHm] = useState<Record<string, Record<string, number | null>> | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -66,7 +66,7 @@ export default function HeatmapAndVrg() {
         const list = await listFloors();
         if (!list.length) { setRows([]); return; }
         const [sch, board] = await Promise.all([getFloor(list[0].lan), fetchBoard()]);
-        setMeta({ lan: sch.lan, as_of: sch.as_of });
+        setMeta({ lan: sch.lan, as_of: sch.as_of, title: sch.title });
         const out: Cmp[] = [];
         for (const it of sch.items) {
           const mkt = FLOOR_MAP[it.grade];
@@ -96,7 +96,7 @@ export default function HeatmapAndVrg() {
       )}
       <div className="card">
         <div className="card-head">
-          <h3 className={hmReady ? undefined : "title-demo"}>Heatmap · % Thay đổi theo sàn × sản phẩm</h3>
+          <h3 className={hmReady ? undefined : "title-demo"}>% Tăng/giảm giá theo sàn và chủng loại</h3>
           <span className={`chip ${hmReady ? "" : "demo"}`}>{hmReady ? "Dữ liệu thật" : "Chưa có dữ liệu"}</span>
         </div>
         <div className="heatmap" style={{ gridTemplateColumns: `90px repeat(${HM_COLS.length}, 1fr)` }}>
@@ -113,7 +113,8 @@ export default function HeatmapAndVrg() {
           ))}
         </div>
         <p style={{ color: "var(--muted)", fontSize: 11, margin: "12px 0 0" }}>
-          % thay đổi phiên gần nhất (USD/T quy đổi). Ô "—" = sàn đó chưa có nguồn cho chủng loại.
+          Mỗi ô = giá phiên gần nhất tăng/giảm bao nhiêu so với phiên trước (giá đã quy về USD/tấn).
+          Xanh = tăng, đỏ = giảm, "—" = sàn đó không giao dịch chủng loại này.
         </p>
       </div>
 
@@ -121,7 +122,7 @@ export default function HeatmapAndVrg() {
         <div className="card-head">
           <div>
             <h3 className={cmpReady ? undefined : "title-demo"}>So sánh Giá sàn Tập đoàn vs Thị trường</h3>
-            {meta && <div className="sub">Giá sàn lần {meta.lan} ({dmy(meta.as_of)}) · FOB USD/T ↔ giá giao ngay quy đổi</div>}
+            {meta && <div className="sub">Giá sàn {meta.title?.trim() || `lần ${meta.lan}`} · áp dụng {dmy(meta.as_of)} · giá sàn VRG so với giá thị trường (cùng quy về USD/tấn)</div>}
           </div>
           <span className={`chip ${cmpReady ? "" : "demo"}`}>{cmpReady ? "Dữ liệu thật" : "Chưa có dữ liệu"}</span>
         </div>

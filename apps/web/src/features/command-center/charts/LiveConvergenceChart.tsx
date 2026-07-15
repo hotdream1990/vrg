@@ -5,20 +5,32 @@ import { Line } from "react-chartjs-2";
 import { type PriceSheet, fetchSheet } from "../../../lib/api-client";
 import { AXIS } from "./chart-setup";
 
-// Các đường giá hội tụ (chỉ vẽ đường có dữ liệu thật; SGX không crawl → tự bỏ).
+// Các đường giá hội tụ (chỉ vẽ đường có dữ liệu thật; đường nào thiếu data → tự bỏ).
 const SERIES = [
   { exchange: "OSE", grade: "RSS3", label: "OSE · RSS3", color: "#16a34a" },
-  { exchange: "SHANGHAI", grade: "RSS3", label: "SHANGHAI · RSS3", color: "#0ea5e9" },
+  { exchange: "SHANGHAI", grade: "RSS3", label: "SHFE · RSS3", color: "#0ea5e9" },
+  { exchange: "SGX", grade: "RSS3", label: "SGX · RSS3", color: "#ef4444" },
+  { exchange: "SGX", grade: "TSR20", label: "SGX · TSR20", color: "#ec4899" },
   { exchange: "MRB", grade: "SMR20", label: "MRB · SMR20", color: "#a855f7" },
   { exchange: "MRB", grade: "LATEX", label: "MRB · Latex", color: "#f59e0b" },
 ];
 
 const ddmm = (iso: string) => { const [, m, d] = iso.split("-"); return `${d}/${m}`; };
+const nf = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
 
 const options: ChartOptions<"line"> = {
   responsive: true,
   maintainAspectRatio: false,
-  plugins: { legend: { labels: { color: AXIS.legend, boxWidth: 14, font: { size: 11 } } } },
+  // Rê chuột vào bất kỳ vị trí ngày nào → hiện tooltip TẤT CẢ đường của phiên đó (không cần trúng điểm).
+  interaction: { mode: "index", intersect: false },
+  plugins: {
+    legend: { labels: { color: AXIS.legend, boxWidth: 14, font: { size: 11 } } },
+    tooltip: {
+      callbacks: {
+        label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y == null ? "—" : `${nf(ctx.parsed.y)} USD/T`}`,
+      },
+    },
+  },
   scales: {
     x: { ticks: { color: AXIS.tick, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: AXIS.grid } },
     y: { ticks: { color: AXIS.tick }, grid: { color: AXIS.grid } },
@@ -50,7 +62,7 @@ export default function LiveConvergenceChart() {
     .filter((x): x is { s: (typeof SERIES)[number]; data: (number | null)[] } => !!x && x.data.some((v) => v != null))
     .map(({ s, data }) => ({
       label: s.label, data, borderColor: s.color, backgroundColor: `${s.color}22`,
-      tension: 0.35, fill: false, pointRadius: 0, borderWidth: 2, spanGaps: true,
+      tension: 0.35, fill: false, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2, spanGaps: true,
     }));
 
   if (datasets.length === 0)

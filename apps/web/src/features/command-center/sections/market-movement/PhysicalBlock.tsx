@@ -1,65 +1,52 @@
 import { useEffect, useState } from "react";
 
 import { fetchPhysicalSheet } from "../../../../lib/api-client";
-import { dm } from "../../../../lib/date";
+import { dm, dmy } from "../../../../lib/date";
+import MultiLineChart from "../../charts/MultiLineChart";
 
-type Row = { grade: string; cur: number; pct: number | null };
+type Chart = { labels: string[]; series: { name: string; values: (number | null)[] }[] };
 const vnum = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
-const chgColor = (p: number | null) => (p == null ? "#5f6f67" : p > 0 ? "#0b7a3b" : p < 0 ? "#c0392b" : "#5f6f67");
+const daysAgoISO = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 
-/** Giá physical (Reuters, giao ngay) — mức mới nhất + %thay đổi so phiên trước, USD/tấn. */
+/** Giá physical (Reuters, giao ngay) — diễn biến 30 ngày các chủng loại, USD/tấn. */
 export default function PhysicalBlock() {
-  const [rows, setRows] = useState<Row[] | null>(null);
-  const [meta, setMeta] = useState<{ cur: string; prev: string | null } | null>(null);
+  const [data, setData] = useState<Chart | null>(null);
+  const [caption, setCaption] = useState("");
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    fetchPhysicalSheet().then((ph) => {
-      if (!ph.dates.length) { setRows([]); return; }
+    fetchPhysicalSheet(daysAgoISO(30)).then((ph) => {
+      if (!ph.dates.length) { setData({ labels: [], series: [] }); return; }
+      const dates = [...ph.dates].sort();                 // ASC cho trục thời gian
+      const labels = dates.map(dm);
+      const series = ph.grades
+        .map((g) => ({ name: g, values: dates.map((d) => ph.values[g]?.[d] ?? null) }))
+        .filter((s) => s.values.some((v) => v != null));
+      setData({ labels, series });
+
       const cur = ph.dates[0], prev = ph.dates[1] ?? null;
-      setMeta({ cur, prev });
-      const out: Row[] = [];
-      ph.grades.forEach((g) => {
-        const c = ph.values[g]?.[cur];
-        if (c == null) return;
-        const p = prev ? ph.values[g]?.[prev] : null;
-        out.push({ grade: g, cur: c, pct: p != null && p ? ((c - p) / p) * 100 : null });
-      });
-      setRows(out);
+      const rss3 = ph.values["RSS3"]?.[cur];
+      setCaption(
+        `Reuters · phiên ${dmy(cur)}${prev ? ` (so ${dm(prev)})` : ""} · USD/tấn`
+        + (rss3 != null ? ` · RSS3 ${vnum(rss3)}` : ""),
+      );
     }).catch((e) => setErr(e instanceof Error ? e.message : "Lỗi tải dữ liệu"));
   }, []);
 
-  const ready = !!rows && rows.length > 0;
+  const ready = !!data && data.series.length > 0;
   return (
     <div className="card">
       <div className="card-head">
         <div>
-          <h3 className={ready ? undefined : "title-demo"}>Giá Physical (giao ngay)</h3>
-          {meta && <div className="sub">Reuters · phiên {dm(meta.cur)}{meta.prev ? ` so ${dm(meta.prev)}` : ""} (USD/tấn)</div>}
+          <h3 className={ready ? undefined : "title-demo"}>Giá Physical (giao ngay) · 30 ngày</h3>
+          {caption && <div className="sub">{caption}</div>}
         </div>
         <span className={`chip ${ready ? "" : "demo"}`}>{ready ? "Dữ liệu thật" : "Chưa có dữ liệu"}</span>
       </div>
       {err ? <div className="scan-empty">{err}</div>
-        : !rows ? <div className="scan-empty">Đang tải…</div>
-        : rows.length === 0 ? <div className="scan-empty">Chưa có giá physical.</div>
-        : (
-          <div style={{ maxHeight: 300, overflow: "auto" }}>
-            <table>
-              <thead><tr><th>Chủng loại</th><th className="r">USD/tấn</th><th className="r">± phiên</th></tr></thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.grade}>
-                    <td style={{ fontWeight: 500 }}>{r.grade}</td>
-                    <td className="r">{vnum(r.cur)}</td>
-                    <td className="r" style={{ fontWeight: 600, color: chgColor(r.pct) }}>
-                      {r.pct == null ? "—" : `${r.pct >= 0 ? "+" : ""}${r.pct.toFixed(2)}%`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        : !data ? <div className="scan-empty">Đang tải…</div>
+        : !ready ? <div className="scan-empty">Chưa có giá physical.</div>
+        : <div className="chart-wrap"><MultiLineChart labels={data.labels} series={data.series} /></div>}
     </div>
   );
 }

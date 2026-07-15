@@ -7,7 +7,7 @@ export default function ConvergenceAndAlerts() {
       <div className="card-head">
         <div>
           <h3>Diễn biến giá các sàn quốc tế · 30 ngày gần nhất</h3>
-          <div className="sub">OSE · SHANGHAI · MRB (USD/tấn, đã quy đổi) — SGX chưa có nguồn</div>
+          <div className="sub">OSE · SHFE · SGX · MRB (USD/tấn, đã quy đổi)</div>
         </div>
         <span className="chip">Dữ liệu thật</span>
       </div>

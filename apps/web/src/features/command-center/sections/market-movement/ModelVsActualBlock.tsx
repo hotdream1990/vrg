@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { dmy } from "../../../../lib/date";
+import { listFloors } from "../../../../lib/floor-client";
 import { type SuggestItem, fetchFloorPoints, fetchFloorSuggest } from "../../../../lib/floor-suggest-client";
 
 const vnum = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
@@ -10,16 +12,18 @@ const ACTION: Record<string, { t: string; c: string }> = {
 /** Gợi ý giá sàn (mô hình đa biến v2) so với giá sàn thực tế tại lần ban hành gần nhất. */
 export default function ModelVsActualBlock() {
   const [items, setItems] = useState<SuggestItem[] | null>(null);
-  const [meta, setMeta] = useState<{ as_of: string; basket: number | null } | null>(null);
+  const [meta, setMeta] = useState<{ as_of: string; basket: number | null; label: string } | null>(null);
   const [err, setErr] = useState("");
 
   useEffect(() => {
     (async () => {
       try {
-        const pts = await fetchFloorPoints();
+        const [pts, floors] = await Promise.all([fetchFloorPoints(), listFloors().catch(() => [])]);
         if (!pts.length) { setItems([]); return; }
         const r = await fetchFloorSuggest(pts[0].as_of, "v2", true);
-        setMeta({ as_of: r.as_of, basket: r.basket_change_pct });
+        // Tên thật của lần ban hành (vd "Lần thứ 15 năm 2026") thay vì số thứ tự nội bộ/ngày.
+        const label = floors.find((f) => f.lan === pts[0].lan)?.title?.trim() || `lần ${pts[0].lan}`;
+        setMeta({ as_of: r.as_of, basket: r.basket_change_pct, label });
         setItems(r.items);
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Lỗi tải dữ liệu");
@@ -35,7 +39,7 @@ export default function ModelVsActualBlock() {
           <h3 className={ready ? undefined : "title-demo"}>Gợi ý giá sàn: mô hình vs thực tế</h3>
           {meta && (
             <div className="sub">
-              Mô hình đa biến (v2) · lần {meta.as_of}
+              Mô hình đa biến (v2) · {meta.label} · áp dụng {dmy(meta.as_of)}
               {meta.basket != null ? ` · rổ chỉ số ${meta.basket >= 0 ? "+" : ""}${meta.basket.toFixed(1)}% so lần trước` : ""}
             </div>
           )}

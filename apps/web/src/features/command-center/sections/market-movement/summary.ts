@@ -9,13 +9,25 @@ import {
   fetchPurchaseSheet,
   fetchSheet,
 } from "../../../../lib/api-client";
-import { dm } from "../../../../lib/date";
+import { dm, dmy } from "../../../../lib/date";
 import { getFloor, listFloors } from "../../../../lib/floor-client";
 import { fetchInventory } from "../../../../lib/inventory-client";
-import type { GroupInput } from "../../../../lib/market-movement-client";
+import type { GroupMeta } from "../../../../lib/market-movement-client";
 import { type MarketQuote, getQuote, listQuotes } from "../../../../lib/market-quote-client";
 
 const vnum = (n: number, d = 0) => n.toLocaleString("vi-VN", { maximumFractionDigits: d });
+
+/** Danh sách ngày ISP → chuỗi "N phiên: DD/MM/YYYY → DD/MM/YYYY" (1 ngày → chỉ ngày đó). */
+function rangeOf(isos: (string | null | undefined)[], noun = "phiên"): string {
+  const s = [...new Set(isos.filter((x): x is string => !!x))].sort();
+  if (!s.length) return "—";
+  return s.length === 1 ? dmy(s[0]) : `${s.length} ${noun}: ${dmy(s[0])} → ${dmy(s.at(-1)!)}`;
+}
+const latestOf = (isos: (string | null | undefined)[]): string | null => {
+  const s = [...new Set(isos.filter((x): x is string => !!x))].sort();
+  return s.length ? s.at(-1)! : null;
+};
+const hasData = (summary: string) => !summary.startsWith("Chưa đủ dữ liệu");
 const pct = (cur: number, prev: number | null | undefined) =>
   prev == null || !prev ? "" : ` (${(cur - prev) / prev >= 0 ? "+" : ""}${(((cur - prev) / prev) * 100).toFixed(2)}%)`;
 
@@ -62,7 +74,7 @@ function fxLines(sheet: PriceSheet): string {
   const out = FX_SHOW.map(([pair, label]) => {
     const s = fxSeries(sheet, pair);
     if (!s.length) return null;
-    const d = label === "USD/JPY" || label === "USD/CNY" ? 2 : 0;
+    const d = label === "USD/VND" ? 0 : 2; // VND số nguyên; MYR/JPY/CNY 2 số lẻ (tránh MYR hiện "4")
     return `${label}: ${vnum(s.at(-1)!, d)}${pct(s.at(-1)!, s.at(-2))}`;
   }).filter(Boolean);
   return out.length ? out.join("; ") : "Chưa đủ dữ liệu.";
@@ -107,16 +119,18 @@ function mqLines(c: MarketQuote, p: MarketQuote | null, date: string): string {
 }
 
 /** Gom tóm tắt các nhóm (song song, chịu lỗi từng nhóm). */
-export async function buildSummaries(): Promise<GroupInput[]> {
-  const [sheet, physical, purchase, inv, floorVsMkt, mq] = await Promise.all([
+export async function buildSummaries(): Promise<GroupMeta[]> {
+  const [sheet, physical, purchase, inv, floorData, mq] = await Promise.all([
     fetchSheet({ days: 30 }).catch(() => null),
     fetchPhysicalSheet().catch(() => null),
     fetchPurchaseSheet().catch(() => null),
     fetchInventory().catch(() => null),
     (async () => {
+      const empty = { line: "Chưa đủ dữ liệu.", label: "" as string, asOf: null as string | null };
       const list = await listFloors().catch(() => []);
-      if (!list.length) return "Chưa đủ dữ liệu.";
+      if (!list.length) return empty;
       const [sch, board] = await Promise.all([getFloor(list[0].lan), fetchBoard()]);
+      const name = sch.title?.trim() || `lần ${sch.lan}`; // tên thật (vd "Lần thứ 15 năm 2026"), không phải số thứ tự nội bộ
       const rows = sch.items.map((it) => {
         const mkt = FLOOR_MAP[it.grade];
         if (!mkt || it.fob_usd == null) return null;
@@ -124,8 +138,10 @@ export async function buildSummaries(): Promise<GroupInput[]> {
         if (m == null) return null;
         return `${it.grade}: sàn ${vnum(it.fob_usd)} vs TT ${vnum(m)} (${(it.fob_usd - m) / m >= 0 ? "+" : ""}${(((it.fob_usd - m) / m) * 100).toFixed(1)}%)`;
       }).filter(Boolean);
-      return rows.length ? `Giá sàn lần ${sch.lan} (${sch.as_of}) — ${rows.join("; ")}` : "Chưa đủ dữ liệu.";
-    })().catch(() => "Chưa đủ dữ liệu."),
+      return rows.length
+        ? { line: `Giá sàn ${name} (${sch.as_of}) — ${rows.join("; ")}`, label: name, asOf: sch.as_of }
+        : empty;
+    })().catch(() => ({ line: "Chưa đủ dữ liệu.", label: "" as string, asOf: null as string | null })),
     (async () => {
       const list = (await listQuotes().catch(() => [])).filter((s) => s.filled > 0);
       if (!list.length) return null;
@@ -157,13 +173,44 @@ export async function buildSummaries(): Promise<GroupInput[]> {
     rawLine += ` Mủ chén: ${vnum(Math.min(...cv))}–${vnum(Math.max(...cv))} đ/kg (${cup.length} đơn vị).`;
   }
 
+  // Ngày dữ liệu thực đã nạp cho từng nhóm (để hiển thị "nạp gì · khoảng ngày nào").
+  const exDates = sheet ? sheet.rows.map((r) => r.as_of) : [];
+  const fxDates = sheet
+    ? sheet.rows.filter((r) => r.fx && Object.values(r.fx).some((v) => v != null)).map((r) => r.as_of)
+    : [];
+  const invDates = (inv ?? []).map((w) => w.as_of);
+
+  const exSum = sheet ? exchangeLines(sheet) : "Chưa đủ dữ liệu.";
+  const phSum = physical ? physicalLines(physical) : "Chưa đủ dữ liệu.";
+  const mqSum = mq ? mqLines(mq.c, mq.p, mq.date) : "Chưa đủ dữ liệu.";
+  const fxSum = sheet ? fxLines(sheet) : "Chưa đủ dữ liệu.";
+
+  const mk = (
+    key: string, label: string, summary: string, source: string,
+    range: string, latest: string | null,
+  ): GroupMeta => ({ key, label, summary, source, range, latest, ok: hasData(summary) });
+
   return [
-    { key: "exchanges", label: "Sàn giao dịch quốc tế (futures)", summary: sheet ? exchangeLines(sheet) : "Chưa đủ dữ liệu." },
-    { key: "physical", label: "Giá physical (giao ngay)", summary: physical ? physicalLines(physical) : "Chưa đủ dữ liệu." },
-    { key: "marketquote", label: "Báo giá mủ thị trường (giá SVR)", summary: mq ? mqLines(mq.c, mq.p, mq.date) : "Chưa đủ dữ liệu." },
-    { key: "fx", label: "Tỷ giá", summary: sheet ? fxLines(sheet) : "Chưa đủ dữ liệu." },
-    { key: "inventory", label: "Tồn kho Tập đoàn", summary: invLine },
-    { key: "floor", label: "Giá sàn Tập đoàn vs Thị trường", summary: floorVsMkt },
-    { key: "raw", label: "Giá mủ nước & mủ chén nội địa", summary: rawLine },
+    mk("exchanges", "Sàn giao dịch quốc tế (futures)", exSum,
+      "Giá các sàn OSE · SHFE · SGX · MRB (quy đổi USD/tấn) — /api/prices/sheet",
+      rangeOf(exDates), latestOf(exDates)),
+    mk("physical", "Giá physical (giao ngay)", phSum,
+      "Giá giao ngay physical (Reuters, USD/tấn) — /api/prices/physical-sheet",
+      rangeOf(physical?.dates ?? []), latestOf(physical?.dates ?? [])),
+    mk("marketquote", "Báo giá mủ thị trường (giá SVR)", mqSum,
+      "Báo giá mủ SVR thị trường (phiếu nhập tay) — /api/market-quote",
+      mq ? `Phiếu ${dmy(mq.date)}` : "—", mq?.date ?? null),
+    mk("fx", "Tỷ giá", fxSum,
+      "Tỷ giá USD/VND · MYR · JPY · CNY (VCB · BNM · exchangerates)",
+      rangeOf(fxDates), latestOf(fxDates)),
+    mk("inventory", "Tồn kho Tập đoàn", invLine,
+      "Tồn kho Tập đoàn theo tuần — /api/inventory",
+      rangeOf(invDates, "tuần"), latestOf(invDates)),
+    mk("floor", "Giá sàn Tập đoàn vs Thị trường", floorData.line,
+      "Giá sàn công bố mới nhất vs giá thị trường — /api/floor",
+      floorData.asOf ? `${floorData.label} · ${dmy(floorData.asOf)}` : "—", floorData.asOf),
+    mk("raw", "Giá mủ nước & mủ chén nội địa", rawLine,
+      "Giá mủ nước & mủ chén nội địa (đơn vị thành viên) — /api/prices/purchase-sheet",
+      rangeOf(purchase?.dates ?? []), latestOf(purchase?.dates ?? [])),
   ];
 }

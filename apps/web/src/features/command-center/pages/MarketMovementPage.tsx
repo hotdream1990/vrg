@@ -8,7 +8,6 @@ import AssessmentBox from "../sections/market-movement/AssessmentBox";
 import CupLatexBlock from "../sections/market-movement/CupLatexBlock";
 import FxTrendBlock from "../sections/market-movement/FxTrendBlock";
 import MarketHistoryBlock from "../sections/market-movement/MarketHistoryBlock";
-import MarketQuoteBlock from "../sections/market-movement/MarketQuoteBlock";
 import ModelVsActualBlock from "../sections/market-movement/ModelVsActualBlock";
 import PhysicalBlock from "../sections/market-movement/PhysicalBlock";
 import RawLatexBlock from "../sections/market-movement/RawLatexBlock";
@@ -35,7 +34,6 @@ export default function MarketMovementPage() {
       <ConvergenceAndAlerts />
       <HeatmapAndVrg />
 
-      <MarketQuoteBlock />
       <MarketHistoryBlock />
 
       <div className="grid-2">
