@@ -112,7 +112,8 @@ function DataProvenance({
         </span>
       </div>
       <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 8 }}>
-        AI chỉ được cung cấp các số liệu dưới đây (đã tính sẵn xu hướng/%thay đổi) — không truy cập nguồn ngoài, không bịa thêm.
+        AI chỉ dùng số liệu <b>phiên/kỳ mới nhất</b> đối chiếu kỳ liền trước (đã tính sẵn %thay đổi) —
+        không phân tích cả kho lịch sử, không truy cập nguồn ngoài, không bịa thêm.
       </div>
 
       {metas.map((m) => (

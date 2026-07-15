@@ -17,11 +17,13 @@ import { type MarketQuote, getQuote, listQuotes } from "../../../../lib/market-q
 
 const vnum = (n: number, d = 0) => n.toLocaleString("vi-VN", { maximumFractionDigits: d });
 
-/** Danh sách ngày ISP → chuỗi "N phiên: DD/MM/YYYY → DD/MM/YYYY" (1 ngày → chỉ ngày đó). */
-function rangeOf(isos: (string | null | undefined)[], noun = "phiên"): string {
+/** Mốc AI THỰC SỰ đối chiếu: phiên/kỳ mới nhất (so kỳ liền trước). Nhận định chỉ dùng 2 mốc này —
+ *  KHÔNG phân tích cả kho lịch sử — nên nhãn phải phản ánh đúng, tránh ghi "N phiên" gây hiểu nhầm. */
+function usedRange(isos: (string | null | undefined)[], noun = "phiên"): string {
   const s = [...new Set(isos.filter((x): x is string => !!x))].sort();
   if (!s.length) return "—";
-  return s.length === 1 ? dmy(s[0]) : `${s.length} ${noun}: ${dmy(s[0])} → ${dmy(s.at(-1)!)}`;
+  const cur = dmy(s.at(-1)!);
+  return s.length >= 2 ? `${noun} ${cur} (so ${dm(s.at(-2)!)})` : `${noun} ${cur}`;
 }
 const latestOf = (isos: (string | null | undefined)[]): string | null => {
   const s = [...new Set(isos.filter((x): x is string => !!x))].sort();
@@ -193,24 +195,24 @@ export async function buildSummaries(): Promise<GroupMeta[]> {
   return [
     mk("exchanges", "Sàn giao dịch quốc tế (futures)", exSum,
       "Giá các sàn OSE · SHFE · SGX · MRB (quy đổi USD/tấn) — /api/prices/sheet",
-      rangeOf(exDates), latestOf(exDates)),
+      usedRange(exDates), latestOf(exDates)),
     mk("physical", "Giá physical (giao ngay)", phSum,
       "Giá giao ngay physical (Reuters, USD/tấn) — /api/prices/physical-sheet",
-      rangeOf(physical?.dates ?? []), latestOf(physical?.dates ?? [])),
+      usedRange(physical?.dates ?? []), latestOf(physical?.dates ?? [])),
     mk("marketquote", "Báo giá mủ thị trường (giá SVR)", mqSum,
       "Báo giá mủ SVR thị trường (phiếu nhập tay) — /api/market-quote",
-      mq ? `Phiếu ${dmy(mq.date)}` : "—", mq?.date ?? null),
+      mq ? `phiếu ${dmy(mq.date)}${mq.p ? " (so phiếu trước)" : ""}` : "—", mq?.date ?? null),
     mk("fx", "Tỷ giá", fxSum,
       "Tỷ giá USD/VND · MYR · JPY · CNY (VCB · BNM · exchangerates)",
-      rangeOf(fxDates), latestOf(fxDates)),
+      usedRange(fxDates), latestOf(fxDates)),
     mk("inventory", "Tồn kho Tập đoàn", invLine,
       "Tồn kho Tập đoàn theo tuần — /api/inventory",
-      rangeOf(invDates, "tuần"), latestOf(invDates)),
+      usedRange(invDates, "tuần"), latestOf(invDates)),
     mk("floor", "Giá sàn Tập đoàn vs Thị trường", floorData.line,
       "Giá sàn công bố mới nhất vs giá thị trường — /api/floor",
       floorData.asOf ? `${floorData.label} · ${dmy(floorData.asOf)}` : "—", floorData.asOf),
     mk("raw", "Giá mủ nước & mủ chén nội địa", rawLine,
       "Giá mủ nước & mủ chén nội địa (đơn vị thành viên) — /api/prices/purchase-sheet",
-      rangeOf(purchase?.dates ?? []), latestOf(purchase?.dates ?? [])),
+      usedRange(purchase?.dates ?? []), latestOf(purchase?.dates ?? [])),
   ];
 }
