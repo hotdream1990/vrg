@@ -13,9 +13,16 @@ from app.services import scan_service, schedule_repo
 _TZ = "Asia/Ho_Chi_Minh"
 
 # Các mốc quét trong ngày (giờ VN, Asia/Ho_Chi_Minh). "daily-scan" giữ tên cũ (đã seed DB) = 18:00.
+# ⚠ Nguồn Á châu ra giá đầu-giữa chiều VN: LGM/MRB upload phiên "Noon" ~14:00 VN (15:00 giờ Malaysia),
+# OSE/SHFE chốt settle ~13–14h VN. Trước các mốc đó nguồn CHƯA có giá hôm nay (buổi sáng chỉ lấy được
+# giá hôm qua). Nên cụm chiều (14:30 · 15:00 · 18:00) mới bắt được số hôm nay + retry khi LGM prod
+# chập chờn (route VN→gov.my hay EHOSTUNREACH). Mốc 12:00 lấp khoảng trống dài 07:30→15:00 (làm tươi
+# SGX/tỷ giá). Seed enabled=true; admin tinh chỉnh/tắt từng mốc ở trang Lịch chạy.
 _SCAN_SLOTS: dict[str, tuple[int, int]] = {
     "scan-0630": (6, 30),
     "scan-0730": (7, 30),
+    "scan-1200": (12, 0),
+    "scan-1430": (14, 30),
     "scan-1500": (15, 0),
     "daily-scan": (18, 0),
 }
