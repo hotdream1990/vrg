@@ -37,6 +37,29 @@ def get_overrides(report_date: str) -> dict[str, Any] | None:
         return dict(row["payload"]) if row else None
 
 
+def recent_market_analysis(before_date: str, limit: int = 5) -> list[dict[str, Any]]:
+    """Các đoạn 'market_analysis' ĐÃ LƯU (chuyên viên biên tập) của tối đa `limit` ngày
+    TRƯỚC before_date — mới nhất trước — để AI tham chiếu văn phong/tông giọng khi viết
+    mục IV. Bỏ ngày chưa có market_analysis. before_date dạng YYYY-MM-DD."""
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(
+            text("SELECT report_date, payload FROM bulletin_draft "
+                 "WHERE report_date < CAST(:d AS date) "
+                 "AND jsonb_typeof(payload -> 'market_analysis') = 'array' "
+                 "AND jsonb_array_length(payload -> 'market_analysis') > 0 "
+                 "ORDER BY report_date DESC LIMIT :n"),
+            {"d": before_date, "n": limit},
+        ).mappings().all()
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        paras = [p.strip() for p in (dict(r["payload"]).get("market_analysis") or [])
+                 if isinstance(p, str) and p.strip()]
+        if paras:
+            out.append({"report_date": str(r["report_date"]), "paragraphs": paras})
+    return out
+
+
 def list_drafts() -> list[dict[str, Any]]:
     """Danh sách nháp đã lưu (mới nhất trước) cho trang danh sách bản tin."""
     ensure_schema()

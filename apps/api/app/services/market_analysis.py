@@ -11,9 +11,11 @@ import re
 
 import httpx
 
-from app.services import llm
+from app.services import draft_repo, llm
 
 INDEX_URL = "https://vietnambiz.vn/gia-cao-su.html"
+_STYLE_REF_DAYS = 5           # số ngày gần nhất lấy làm ví dụ văn phong (đã biên tập)
+_STYLE_REF_MAX_CHARS = 3200   # trần độ dài khối ví dụ (bỏ bớt ngày cũ nếu vượt)
 _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/126 Safari/537.36")
 _ARTICLE_RE = re.compile(r'href="(/gia-cao-su-hom-nay-[^"]+\.htm)"')
@@ -28,12 +30,49 @@ _SYSTEM = (
     "TUYỆT ĐỐI không bịa số liệu, mốc thời gian hay sự kiện không có trong nguồn được cung cấp."
 )
 
-# Ví dụ văn phong (chỉ để AI học cách viết — KHÔNG sao chép nội dung/số liệu).
+# Ví dụ văn phong DỰ PHÒNG (khi chưa có bản tin nào đã biên tập để tham chiếu).
 _STYLE = (
     "Giá cao su kỳ hạn tại Nhật Bản ngày 03/06 tiếp tục tăng, giá tăng nhờ nguồn cung bị thắt "
     "chặt tại châu Á do thời tiết cực đoan, đồng yên suy yếu và giá dầu đi lên trong bối cảnh "
     "căng thẳng địa chính trị gia tăng, qua đó hỗ trợ giá cao su tự nhiên."
 )
+
+
+def _fmt_dmy(iso: str) -> str:
+    y, m, d = iso[:10].split("-")
+    return f"{d}/{m}/{y}"
+
+
+def _style_reference(report_date: str | None) -> str:
+    """Khối 'ví dụ văn phong' cho prompt.
+
+    Ưu tiên các đoạn market_analysis ĐÃ ĐƯỢC BIÊN TẬP của vài ngày gần nhất trước report_date →
+    AI bám đúng tông giọng đợt gần đây và linh động đổi giọng theo mạch tin cũ. Chưa có nháp nào
+    (hoặc lỗi DB) → dùng ví dụ mẫu tĩnh `_STYLE`.
+    """
+    samples: list[dict] = []
+    if report_date:
+        try:
+            samples = draft_repo.recent_market_analysis(report_date, limit=_STYLE_REF_DAYS)
+        except Exception:  # noqa: BLE001 — thiếu nháp/không kết nối DB → fallback tĩnh
+            samples = []
+    if not samples:
+        return ("VÍ DỤ VĂN PHONG (chỉ tham khảo cách viết, KHÔNG dùng lại số liệu/nội dung):\n"
+                f"“{_STYLE}”\n\n")
+    header = ("VÍ DỤ VĂN PHONG — trích mục 'Các thông tin thị trường liên quan' của các bản tin "
+              "GẦN ĐÂY (đã được chuyên viên biên tập, sắp theo thứ tự mới → cũ). CHỈ học văn phong, "
+              "tông giọng và mạch triển khai; TUYỆT ĐỐI KHÔNG dùng lại số liệu, mốc thời gian hay "
+              "sự kiện của các ngày cũ:\n")
+    blocks: list[str] = []
+    used = len(header)
+    for s in samples:  # mới nhất trước; dừng khi vượt trần độ dài
+        block = (f"— Bản tin {_fmt_dmy(s['report_date'])}:\n"
+                 + "\n".join(f"  “{p}”" for p in s["paragraphs"]) + "\n")
+        if used + len(block) > _STYLE_REF_MAX_CHARS and blocks:
+            break
+        blocks.append(block)
+        used += len(block)
+    return header + "".join(blocks) + "\n"
 
 
 def _clean_article(html: str) -> str:
@@ -63,12 +102,15 @@ def _fetch() -> tuple[str, str]:
     return _clean_article(art.text), url
 
 
-def generate(n_paragraphs: int = 3) -> dict:
-    """Lấy tin + AI viết n đoạn phân tích. Trả {paragraphs, source_urls}."""
+def generate(n_paragraphs: int = 3, report_date: str | None = None) -> dict:
+    """Lấy tin + AI viết n đoạn phân tích. Trả {paragraphs, source_urls}.
+
+    report_date (YYYY-MM-DD) → nạp văn phong từ các bản tin đã biên tập gần đó (mục IV) làm
+    ví dụ, thay cho ví dụ mẫu tĩnh; None → dùng mẫu tĩnh.
+    """
     article, article_url = _fetch()
     user = (
-        "VÍ DỤ VĂN PHONG (chỉ tham khảo cách viết, KHÔNG dùng lại số liệu/nội dung):\n"
-        f"“{_STYLE}”\n\n"
+        f"{_style_reference(report_date)}"
         f"NGUỒN — bài 'Giá cao su hôm nay' mới nhất trên vietnambiz.vn:\n“““\n{article}\n”””\n\n"
         f"Hãy viết đúng {n_paragraphs} đoạn cho mục 'Các thông tin thị trường liên quan', mỗi đoạn 2–4 câu:\n"
         "- Đoạn 1: diễn biến giá cao su kỳ hạn tại Nhật Bản (sàn OSE) — tăng/giảm và LÝ DO chính "

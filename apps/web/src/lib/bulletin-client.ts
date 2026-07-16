@@ -105,11 +105,14 @@ export const updateDraft = (updates: BulletinDraftUpdate, dateStr?: string) => {
   });
 };
 
-/** AI lấy tin thị trường (vietnambiz) + viết các đoạn phân tích cho Section IV. */
-export const generateMarketAnalysis = () =>
-  req<{ paragraphs: string[]; source_urls: string[] }>("/api/bulletins/market-analysis", {
-    method: "POST",
-  });
+/** AI lấy tin thị trường (vietnambiz) + viết các đoạn phân tích cho Section IV.
+ *  Truyền report_date (DD-MM-YYYY) để AI tham chiếu văn phong các bản tin đã biên tập gần đó. */
+export const generateMarketAnalysis = (dateStr?: string) => {
+  const params = new URLSearchParams();
+  if (dateStr) params.set("report_date", dateStr);
+  return req<{ paragraphs: string[]; source_urls: string[] }>(
+    `/api/bulletins/market-analysis?${params}`, { method: "POST" });
+};
 
 /** Endpoint trả file (kèm Bearer) → tải về trình duyệt. */
 async function downloadBlob(path: string, filename: string, method: "POST" | "GET" = "POST"): Promise<void> {

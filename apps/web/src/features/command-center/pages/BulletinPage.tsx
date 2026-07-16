@@ -198,7 +198,7 @@ export default function BulletinPage() {
     setAiBusy(true);
     setError(null);
     try {
-      const r = await generateMarketAnalysis();
+      const r = await generateMarketAnalysis(dateStr());
       setDraft((prev) => prev ? {
         ...prev,
         market_analysis: r.paragraphs,

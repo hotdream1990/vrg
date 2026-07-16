@@ -100,11 +100,14 @@ def api_delete_draft(report_date: str | None = Query(None, description="DD-MM-YY
 
 
 @router.post("/market-analysis", dependencies=_editor)
-def api_market_analysis() -> dict:
-    """AI lấy tin thị trường (vietnambiz) + viết các đoạn 'Phân tích & nhận định' cho Section IV."""
+def api_market_analysis(report_date: str | None = Query(None, description="DD-MM-YYYY")) -> dict:
+    """AI lấy tin thị trường (vietnambiz) + viết các đoạn 'Phân tích & nhận định' cho Section IV.
+
+    Nạp văn phong từ các bản tin đã biên tập gần report_date để giữ tông giọng nhất quán.
+    """
     from app.services import llm, market_analysis
     try:
-        return market_analysis.generate()
+        return market_analysis.generate(report_date=_parse_date(report_date).isoformat())
     except llm.LLMNotConfigured as exc:
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
