@@ -42,7 +42,7 @@ def _pack(groups: list[list], measures: list[dict]) -> list[list[str]]:
 
     idx = 0
     for group in groups:
-        newpage()  # mỗi nhóm (I+II · III+IV) bắt đầu trang mới
+        newpage()  # mỗi nhóm (I+II · III · IV) bắt đầu trang mới
         for item in group:
             m = measures[idx] if idx < len(measures) else {}
             idx += 1
@@ -69,7 +69,7 @@ def _pack(groups: list[list], measures: list[dict]) -> list[list[str]]:
                         chunk.append(rows[i])
                         i += 1
                     pre_html = item["pre"] if first else ""
-                    cur.append(f"{pre_html}<table>{item['head']}<tbody>{''.join(chunk)}</tbody></table>")
+                    cur.append(f"{pre_html}<table class='floor'>{item['head']}<tbody>{''.join(chunk)}</tbody></table>")
                     cur_h += gap + used
                     first = False
                     if i < n:  # còn dòng → sang trang, thead sẽ lặp lại

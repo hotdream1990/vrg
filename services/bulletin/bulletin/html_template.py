@@ -80,6 +80,8 @@ p.sub {{ font-weight:700; margin:10px 0 6px; line-height:1.45; font-size:13.5px;
 table {{ width:100%; border-collapse:collapse; margin:2px 0 10px; }}
 thead {{ display: table-header-group; }}
 th,td {{ border:1px solid #b9c7bd; padding:9px 8px; font-size:13px; }}
+/* Bảng giá sàn (III.1) nén dòng vừa phải để III.1 + III.2 vừa 1 trang, không nhảy trang. */
+table.floor th, table.floor td {{ padding:5px 8px; line-height:1.3; }}
 th {{ background:#e8f0d8; color:#0a9e48; text-align:center; font-weight:700; }}
 td.r {{ text-align:right; }} td.c {{ text-align:center; }}
 ul.blt {{ margin:4px 0 10px; padding-left:24px; }}
@@ -238,7 +240,7 @@ def _table_item(pre: str, head: str, rows: list[str]) -> dict:
 def item_html(it) -> str:
     """Dựng HTML đầy đủ 1 item (bảng KHÔNG tách) — dùng cho đường không đo (fallback)."""
     if isinstance(it, dict):
-        return f"{it['pre']}<table>{it['head']}<tbody>{''.join(it['rows'])}</tbody></table>"
+        return f"{it['pre']}<table class='floor'>{it['head']}<tbody>{''.join(it['rows'])}</tbody></table>"
     return it
 
 
@@ -246,8 +248,9 @@ def content_groups(data: BulletinData) -> list[list]:
     """Trả về các NHÓM item; mỗi nhóm bắt đầu 1 trang mới, item trong nhóm được xếp packing
     (bảng dict được tách dòng vừa trang; str là block nguyên khối).
 
-    Section III (giá sàn + mủ nguyên liệu) và Section IV (thông tin thị trường) nằm CHUNG 1
-    nhóm để IV chảy tiếp ngay sau mủ nguyên liệu, không ép sang trang mới (tránh trang gần trống)."""
+    Nhóm: (I+II) · (III: giá sàn NÉN GỌN + mủ nguyên liệu — vừa 1 trang) · (IV: sang trang mới).
+    Bảng giá sàn nén (class 'floor') giữ III.1 + III.2 chung 1 trang; IV ở nhóm riêng nên luôn
+    bắt đầu trang kế (không dồn IV chung trang với III)."""
     d = data.report_date.strftime("%d/%m/%Y")
     dd_mm = data.report_date.strftime("%d/%m")
     phys_dd_mm = (data.physical_curr_date or data.report_date).strftime("%d/%m")
@@ -278,7 +281,7 @@ def content_groups(data: BulletinData) -> list[list]:
             "- đồng/độ TSC:</p>" + rm_lines
         )
 
-    # Section IV — chảy tiếp trong nhóm 2 (không tách nhóm để khỏi ép trang mới); tràn nhiều trang khi dài.
+    # Nhóm 3 — Section IV (nhóm riêng → luôn bắt đầu trang mới; tràn nhiều trang khi dài).
     g_news: list[str] = []
     head_iv = '<h2 class="section">IV. Các thông tin thị trường liên quan:</h2>'
     ex = [s for s in data.market_exchange_summary if s]
@@ -307,7 +310,7 @@ def content_groups(data: BulletinData) -> list[list]:
     if urls:
         g_news.append('<p class="src"><b>Nguồn tin:</b> ' + "; ".join(urls) + "</p>")
 
-    return [g_top, g_local + g_news]
+    return [g_top, g_local, g_news]
 
 
 def measure_html(items: list) -> str:
@@ -319,7 +322,7 @@ def measure_html(items: list) -> str:
             rows = "".join(it["rows"])
             parts.append(
                 f"<div class='mitem'><div class='mt-pre'>{it['pre']}</div>"
-                f"<table>{it['head']}<tbody>{rows}</tbody></table></div>"
+                f"<table class='floor'>{it['head']}<tbody>{rows}</tbody></table></div>"
             )
         else:
             parts.append(f"<div class='mitem'>{it}</div>")
