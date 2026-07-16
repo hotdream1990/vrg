@@ -15,7 +15,12 @@ DATA_CAPS: dict[str, str] = {
     "inventory": "Tồn kho",
     "member_unit": "Đơn vị thành viên",
     "auto_data": "Số liệu tự động (bảng giá sàn · tỷ giá · quét đa sàn)",
-    "market_demand": "Nhu cầu thị trường (đang phát triển)",
+    "market_demand": "Nhu cầu thị trường (xem + sửa mọi đơn vị)",
+    # Quyền truy cập các màn phân tích/bản tin (xem + thao tác). Không có = ẩn khỏi menu + chặn API.
+    "floor_suggest": "Gợi ý giá sàn",
+    "bulletin_daily": "Bản tin ngày",
+    "bulletin_weekly": "Báo cáo tuần",
+    "market_movement": "Bản tin biến động",
 }
 CAP_KEYS = frozenset(DATA_CAPS)
 

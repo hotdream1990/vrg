@@ -7,12 +7,15 @@ nhập/sửa được HÔM NAY + N ngày gần nhất (server ép); ngày cũ h�
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core import edit_window
 from app.core.security import get_current_member
+from app.schemas.market_demand import MarketDemandEdit
 from app.schemas.member_self import MemberPriceEdit
-from app.services import price_repo
+from app.services import market_demand_repo, price_repo
 
 router = APIRouter(prefix="/api/member", tags=["member-self"])
 
@@ -63,3 +66,38 @@ def clear_my_price(
     edit_window.assert_editable(as_of, edit_window.member_window())
     price_repo.delete_record(as_of, "vrg", company, "", price_type)
     return {"deleted": True}
+
+
+# ── Nhu cầu thị trường (free text theo đơn vị / ngày) ──
+@router.get("/market-demand/timeline")
+def my_market_demand_timeline(days: int = Query(90, ge=1, le=730),
+                              member: dict = Depends(get_current_member)) -> dict:
+    """Timeline nhu cầu — CHỈ các đơn vị được gán của tài khoản (đa đơn vị), ẩn ngày trống."""
+    units = list(member["member_units"])
+    date_from = (edit_window.today() - timedelta(days=days)).isoformat()
+    return {"units": units, "today": edit_window.today().isoformat(),
+            "edit_window_days": edit_window.member_window(),
+            "entries": market_demand_repo.recent(date_from, companies=units)}
+
+
+@router.get("/market-demand")
+def my_market_demand(as_of: str = Query(..., description="YYYY-MM-DD"),
+                     member: dict = Depends(get_current_member)) -> dict:
+    """Nhu cầu thị trường của CÁC đơn vị được gán cho 1 ngày (chỉ đơn vị của tài khoản)."""
+    units = list(member["member_units"])
+    entries = market_demand_repo.entries_on(as_of)
+    return {"units": units, "today": edit_window.today().isoformat(),
+            "edit_window_days": edit_window.member_window(),
+            "entries": {u: entries.get(u, "") for u in units}}
+
+
+@router.put("/market-demand")
+def upsert_my_market_demand(body: MarketDemandEdit,
+                            member: dict = Depends(get_current_member)) -> dict:
+    """Ghi/sửa nhu cầu 1 đơn vị được gán, trong cửa sổ cho phép. create_only → chống ghi trùng."""
+    _assert_company(member, body.company)
+    edit_window.assert_editable(body.as_of, edit_window.member_window())
+    if body.create_only and market_demand_repo.entries_on(body.as_of).get(body.company, "").strip():
+        raise HTTPException(409, "Đơn vị này đã có nhu cầu cho ngày này — vui lòng dùng chức năng Sửa.")
+    market_demand_repo.upsert(body.as_of, body.company, body.content.strip(), member.get("username"))
+    return {"ok": True}

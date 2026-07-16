@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.core.security import get_current_user, require_admin
+from app.core.security import get_current_user, require_admin, require_cap
 from app.web_static import mount_spa
 from app.routers import (
     auth,
@@ -21,6 +21,7 @@ from app.routers import (
     floor_suggest,
     health,
     inventory,
+    market_demand,
     market_movement,
     market_quote,
     member_region,
@@ -115,15 +116,17 @@ app.include_router(public_purchase.router)  # CÔNG KHAI: đơn vị nhập giá
 _protected = [Depends(get_current_user)]
 app.include_router(prices.router, dependencies=_protected)
 app.include_router(floor.router, dependencies=_protected)
-app.include_router(floor_suggest.router, dependencies=_protected)
+# Các màn phân tích/bản tin gác theo quyền (admin=tất cả, editor=được-cấp, viewer=không) — cả đọc lẫn ghi.
+app.include_router(floor_suggest.router, dependencies=[Depends(require_cap("floor_suggest"))])
 app.include_router(member_unit.router, dependencies=_protected)
 app.include_router(member_region.router, dependencies=_protected)
 app.include_router(member_self.router, dependencies=_protected)  # đơn vị thành viên tự nhập giá của mình
+app.include_router(market_demand.router, dependencies=_protected)  # nhu cầu thị trường (editor có quyền: xem/sửa mọi đơn vị)
 app.include_router(settings_router.router, dependencies=_protected)  # cài đặt đọc-được (cửa sổ nhập liệu)
 app.include_router(inventory.router, dependencies=_protected)
-app.include_router(market_movement.router, dependencies=_protected)  # nhận định AI: per-route require_editor
+app.include_router(market_movement.router, dependencies=[Depends(require_cap("market_movement"))])
 app.include_router(market_quote.router, dependencies=_protected)
-app.include_router(weekly_reports.router, dependencies=_protected)  # nhận định AI + xuất PDF: per-route require_editor
+app.include_router(weekly_reports.router, dependencies=[Depends(require_cap("bulletin_weekly"))])
 app.include_router(users.router, dependencies=[Depends(require_admin)])  # quản trị: chỉ admin
 app.include_router(config.router, dependencies=[Depends(require_admin)])  # cấu hình: chỉ admin
 app.include_router(schedules.router, dependencies=[Depends(require_admin)])  # lịch chạy: chỉ admin

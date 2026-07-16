@@ -3,7 +3,7 @@
 import { apiFetch } from "./http";
 
 export type EditWindows = {
-  member_days: number; // số ngày sửa được — trang Giá mủ đơn vị (đơn vị thành viên)
+  member_days: number; // số ngày sửa được — trang Giá thu mua (đơn vị thành viên)
   editor_days: number; // số ngày sửa được — chuyên viên nhập liệu
   today: string;       // hôm nay (YYYY-MM-DD, giờ VN) để tính cửa sổ
 };

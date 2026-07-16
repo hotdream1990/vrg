@@ -133,6 +133,17 @@ CREATE TABLE IF NOT EXISTS weekly_report (
     updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- Nhu cầu thị trường: free text theo (đơn vị thành viên, ngày). Đơn vị tự nhập của mình;
+-- chuyên viên có quyền market_demand xem/sửa mọi đơn vị. `company` khớp tên đơn vị (member_unit).
+CREATE TABLE IF NOT EXISTS market_demand (
+    as_of       date NOT NULL,
+    company     text NOT NULL,
+    content     text NOT NULL DEFAULT '',
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    updated_by  text,
+    PRIMARY KEY (as_of, company)
+);
+
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS title text;
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS dispatch_no text;

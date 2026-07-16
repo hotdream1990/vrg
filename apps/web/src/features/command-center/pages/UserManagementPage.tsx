@@ -11,10 +11,12 @@ import {
   updateUser,
 } from "../../../lib/user-client";
 import { listUnits } from "../../../lib/member-unit-client";
-import { DATA_CAPS } from "../../../lib/permissions";
+import { CAP_GROUPS, DATA_CAPS } from "../../../lib/permissions";
 import { ROLE_COLOR, ROLE_LABEL, ROLES } from "../../../lib/roles";
 
 const CAP_LABEL: Record<string, string> = Object.fromEntries(DATA_CAPS.map((c) => [c.key, c.label]));
+const CAP_META: Record<string, { label: string; hint?: string }> =
+  Object.fromEntries(DATA_CAPS.map((c) => [c.key, { label: c.label, hint: c.hint }]));
 import { useAuth } from "../../auth/AuthContext";
 import PermissionMatrix from "../sections/PermissionMatrix";
 import "../../bulletin/bulletin.css";
@@ -192,11 +194,20 @@ export default function UserManagementPage() {
                 <Form.Item label="Quyền theo mục (chuyên viên nhập liệu)" name="permissions"
                   tooltip="Chỉ những mục được tích mới hiện menu và cho phép nhập/sửa.">
                   <Checkbox.Group style={{ width: "100%" }}>
-                    <Space direction="vertical" size={4}>
-                      {DATA_CAPS.map((c) => (
-                        <Checkbox key={c.key} value={c.key}>
-                          {c.label}{c.hint && <span style={{ color: "#999", fontSize: 12 }}> — {c.hint}</span>}
-                        </Checkbox>
+                    <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                      {CAP_GROUPS.map((g) => (
+                        <div key={g.title}>
+                          <div style={{ fontWeight: 600, fontSize: 11, color: "#0a9e48", letterSpacing: 0.4,
+                            textTransform: "uppercase", marginBottom: 4 }}>{g.title}</div>
+                          <Space direction="vertical" size={4} style={{ paddingLeft: 2 }}>
+                            {g.keys.map((k) => (
+                              <Checkbox key={k} value={k}>
+                                {CAP_META[k].label}
+                                {CAP_META[k].hint && <span style={{ color: "#999", fontSize: 12 }}> — {CAP_META[k].hint}</span>}
+                              </Checkbox>
+                            ))}
+                          </Space>
+                        </div>
                       ))}
                     </Space>
                   </Checkbox.Group>

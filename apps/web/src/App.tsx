@@ -9,6 +9,7 @@ import DashboardPage from "./features/command-center/pages/DashboardPage";
 import FloorSuggestPage from "./features/command-center/pages/FloorSuggestPage";
 import FxRatePage from "./features/command-center/pages/FxRatePage";
 import InventoryPage from "./features/command-center/pages/InventoryPage";
+import MarketDemandTimelinePage from "./features/command-center/pages/MarketDemandTimelinePage";
 import MarketMovementPage from "./features/command-center/pages/MarketMovementPage";
 import MarketQuotePage from "./features/command-center/pages/MarketQuotePage";
 import WeeklyReportPage from "./features/command-center/pages/WeeklyReportPage";
@@ -38,6 +39,13 @@ function HomeRoute() {
   return <DashboardPage />;
 }
 
+/** Nhu cầu thị trường (timeline): đơn vị thành viên → chỉ đơn vị của mình; chuyên viên có quyền → mọi đơn vị. */
+function MarketDemandRoute() {
+  const { user, can } = useAuth();
+  if (user?.role === "member" || can("market_demand")) return <MarketDemandTimelinePage />;
+  return <Navigate to="/" replace />;
+}
+
 export default function App() {
   return (
     <ConfigProvider theme={vrgTheme}>
@@ -56,6 +64,8 @@ export default function App() {
                   <Route element={<RequireRole roles={["member"]} />}>
                     <Route path="/don-vi/gia-mu" element={<MemberPricePage />} />
                   </Route>
+                  {/* Nhu cầu thị trường — đơn vị thành viên (đơn vị mình) hoặc chuyên viên có quyền */}
+                  <Route path="/nhu-cau-thi-truong" element={<MarketDemandRoute />} />
                   {/* Số liệu tự động (quét + bảng giá sàn + tỷ giá) — quyền auto_data */}
                   <Route element={<RequireCap caps={["auto_data"]} />}>
                     <Route path="/quet-da-san" element={<ScanPage />} />
@@ -65,7 +75,9 @@ export default function App() {
                   <Route element={<RequireCap caps={["floor"]} />}>
                     <Route path="/quan-ly-so-lieu/gia-san-tap-doan" element={<VrgFloorPage />} />
                   </Route>
-                  <Route path="/goi-y-gia-san" element={<FloorSuggestPage />} />
+                  <Route element={<RequireCap caps={["floor_suggest"]} />}>
+                    <Route path="/goi-y-gia-san" element={<FloorSuggestPage />} />
+                  </Route>
                   <Route element={<RequireCap caps={["raw_material"]} />}>
                     <Route path="/quan-ly-so-lieu/gia-mu-nguyen-lieu" element={<RawMaterialPage />} />
                   </Route>
@@ -83,11 +95,17 @@ export default function App() {
                     <Route path="/quan-ly-so-lieu/don-vi-thanh-vien" element={<MemberUnitPage />} />
                   </Route>
                   <Route path="/quet-da-san/records" element={<Navigate to="/quan-ly-so-lieu/bang-gia-san" replace />} />
-                  <Route path="/ban-tin" element={<BulletinListPage />} />
-                  <Route path="/ban-tin/tao" element={<BulletinPage />} />
-                  <Route path="/ban-tin/xem/:filename" element={<BulletinDetailPage />} />
-                  <Route path="/ban-tin-bien-dong" element={<MarketMovementPage />} />
-                  <Route path="/ban-tin/tuan" element={<WeeklyReportPage />} />
+                  <Route element={<RequireCap caps={["bulletin_daily"]} />}>
+                    <Route path="/ban-tin" element={<BulletinListPage />} />
+                    <Route path="/ban-tin/tao" element={<BulletinPage />} />
+                    <Route path="/ban-tin/xem/:filename" element={<BulletinDetailPage />} />
+                  </Route>
+                  <Route element={<RequireCap caps={["market_movement"]} />}>
+                    <Route path="/ban-tin-bien-dong" element={<MarketMovementPage />} />
+                  </Route>
+                  <Route element={<RequireCap caps={["bulletin_weekly"]} />}>
+                    <Route path="/ban-tin/tuan" element={<WeeklyReportPage />} />
+                  </Route>
                   {/* Khu quản trị — chỉ admin (chặn viewer/editor gõ thẳng URL) */}
                   <Route element={<RequireRole roles={["admin"]} />}>
                     <Route path="/quan-tri/nguoi-dung" element={<UserManagementPage />} />

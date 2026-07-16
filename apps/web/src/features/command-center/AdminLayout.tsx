@@ -59,20 +59,19 @@ function buildMenu(can: (cap: Cap) => boolean) {
     can("physical") && { key: "/quan-ly-so-lieu/gia-physical", icon: <FundOutlined />, label: "Giá Physical" },
     can("inventory") && { key: "/quan-ly-so-lieu/ton-kho", icon: <InboxOutlined />, label: "Tồn kho" },
     can("member_unit") && { key: "/quan-ly-so-lieu/don-vi-thanh-vien", icon: <TeamOutlined />, label: "Đơn vị thành viên" },
-    can("market_demand") && {
-      key: "market-demand", icon: <ApartmentOutlined />, disabled: true,
-      label: <span>Nhu cầu thị trường <em style={{ opacity: 0.6, fontSize: 11 }}>(đang phát triển)</em></span>,
-    },
+    can("market_demand") && { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
   ].filter(Boolean) as NonNullable<Parameters<typeof Menu>[0]["items"]>;
   if (manual.length) {
     items.push({ key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)", children: manual });
   }
-  items.push(
-    { key: "/goi-y-gia-san", icon: <BulbOutlined />, label: "Gợi ý giá sàn" },
-    { key: "/ban-tin", icon: <FileTextOutlined />, label: "Bản tin ngày" },
-    { key: "/ban-tin/tuan", icon: <FileDoneOutlined />, label: "Báo cáo tuần" },
-    { key: "/ban-tin-bien-dong", icon: <LineChartOutlined />, label: "Bản tin biến động" },
-  );
+  // Các màn phân tích/bản tin — hiện theo quyền (admin=tất cả, editor=được-cấp, viewer=không).
+  const analysis = [
+    can("floor_suggest") && { key: "/goi-y-gia-san", icon: <BulbOutlined />, label: "Gợi ý giá sàn" },
+    can("bulletin_daily") && { key: "/ban-tin", icon: <FileTextOutlined />, label: "Bản tin ngày" },
+    can("bulletin_weekly") && { key: "/ban-tin/tuan", icon: <FileDoneOutlined />, label: "Báo cáo tuần" },
+    can("market_movement") && { key: "/ban-tin-bien-dong", icon: <LineChartOutlined />, label: "Bản tin biến động" },
+  ].filter(Boolean) as NonNullable<Parameters<typeof Menu>[0]["items"]>;
+  items.push(...analysis);
   return items;
 }
 
@@ -91,11 +90,8 @@ const MEMBER_MENU = [
   {
     key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)",
     children: [
-      { key: "/don-vi/gia-mu", icon: <ExperimentOutlined />, label: "Giá mủ đơn vị" },
-      {
-        key: "market-demand", icon: <ApartmentOutlined />, disabled: true,
-        label: <span>Nhu cầu thị trường <em style={{ opacity: 0.6, fontSize: 11 }}>(đang phát triển)</em></span>,
-      },
+      { key: "/don-vi/gia-mu", icon: <ExperimentOutlined />, label: "Giá thu mua" },
+      { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
     ],
   },
 ];
@@ -122,7 +118,7 @@ export default function AdminLayout() {
     "/quan-ly-so-lieu/bang-gia-san", "/quan-ly-so-lieu/ty-gia", "/quan-ly-so-lieu/gia-san-tap-doan",
     "/quan-ly-so-lieu/gia-mu-nguyen-lieu", "/quan-ly-so-lieu/gia-physical",
     "/quan-ly-so-lieu/ton-kho", "/quan-ly-so-lieu/bao-gia-mu", "/quan-ly-so-lieu/don-vi-thanh-vien",
-    "/don-vi/gia-mu",
+    "/don-vi/gia-mu", "/nhu-cau-thi-truong",
     "/goi-y-gia-san", "/ban-tin-bien-dong", "/ban-tin/tuan", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
     "/quan-tri/lich-chay", "/ho-so",
   ];

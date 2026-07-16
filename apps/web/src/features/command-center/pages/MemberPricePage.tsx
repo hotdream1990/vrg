@@ -82,7 +82,7 @@ export default function MemberPricePage() {
     <div className="main">
       <div className="page-title">
         <div>
-          <h2><ExperimentOutlined style={{ marginRight: 8 }} />Giá mủ đơn vị</h2>
+          <h2><ExperimentOutlined style={{ marginRight: 8 }} />Giá thu mua</h2>
           <p>
             Tự nhập giá thu mua mủ nước (đồng/độ TSC) và mủ chén (đồng/kg) của các đơn vị được gán.
             Chỉ nhập/sửa được hôm nay và {win} ngày gần nhất; ngày cũ hơn chỉ để xem.

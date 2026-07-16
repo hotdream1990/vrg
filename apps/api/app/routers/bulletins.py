@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 
 from app.core.paths import data_dir
-from app.core.security import get_current_user, require_editor
+from app.core.security import require_cap
 from app.schemas.bulletin import BulletinDraft, BulletinDraftUpdate
 from app.services.bulletin_service import (
     create_draft,
@@ -27,10 +27,11 @@ logger = logging.getLogger("vrg.api")
 
 router = APIRouter(prefix="/api/bulletins", tags=["bulletins"])
 
-# Thao tác GHI cần admin/editor; các GET DỮ LIỆU cần đăng nhập (_auth); riêng phần phục vụ
-# ảnh thô <img> (GET /images/{slot}) để mở vì trình duyệt không gắn được Bearer.
-_editor = [Depends(require_editor)]
-_auth = [Depends(get_current_user)]
+# Bản tin ngày gác theo quyền `bulletin_daily` (admin=tất cả, editor=được-cấp, viewer=không) —
+# CẢ đọc (UI/tải) LẪN ghi. Riêng ảnh thô <img> (GET /images/{slot}) mở vì trình duyệt không gắn Bearer.
+_gate = [Depends(require_cap("bulletin_daily"))]
+_editor = _gate  # thao tác GHI (tạo/sửa/xuất PDF/AI)
+_auth = _gate    # đọc/UI (danh sách, nháp, tải file) — cùng quyền, không có thì ẩn cả xem
 
 # ── Image assets paths (ghi runtime → /app/data qua volume, xem paths.data_dir) ──
 _DATA_DIR = data_dir()
