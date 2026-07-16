@@ -11,9 +11,39 @@
 
 from __future__ import annotations
 
+import base64
+from pathlib import Path
+
 from .models import BulletinData
 
 PAGE_W, PAGE_H = "7.5in", "10.83in"
+
+# ── Font NHÚNG (OFL/Apache-2.0) — làm PDF hiển thị GIỐNG NHAU trên mọi máy ──
+# Tinos ~ Times New Roman, Arimo ~ Arial (cùng metric → không lệch bố cục), phủ đủ tiếng Việt.
+# Nhúng qua data-URI để Chromium embed vào PDF, KHÔNG phụ thuộc font hệ thống của máy render.
+_FONTS_DIR = Path(__file__).parent / "fonts"
+_FONT_FILES = [
+    ("Tinos", 400, "normal", "Tinos-Regular.ttf"),
+    ("Tinos", 700, "normal", "Tinos-Bold.ttf"),
+    ("Tinos", 400, "italic", "Tinos-Italic.ttf"),
+    ("Arimo", 400, "normal", "Arimo-Regular.ttf"),
+    ("Arimo", 700, "normal", "Arimo-Bold.ttf"),
+]
+
+
+def _font_faces() -> str:
+    """Sinh các @font-face (data-URI) một lần lúc import."""
+    out = []
+    for family, weight, style, fname in _FONT_FILES:
+        b64 = base64.b64encode((_FONTS_DIR / fname).read_bytes()).decode()
+        out.append(
+            f"@font-face{{font-family:'{family}';font-weight:{weight};font-style:{style};"
+            f"font-display:block;src:url(data:font/ttf;base64,{b64}) format('truetype');}}"
+        )
+    return "".join(out)
+
+
+_FONT_FACE_CSS = _font_faces()
 
 # Chiều cao body dùng được / trang (px CSS): 10.83in*96(≈1040) − header 148 − footer 56 − padding(14+6).
 # Chừa slack để không bao giờ tràn (overflow bị cắt) — packing conservative, thừa thì thêm trang.
@@ -48,9 +78,10 @@ _PHYS_ROWS = ["RSS3", "STR20", "SMR20", "SIR20",
 
 
 _CONTENT_CSS = f"""
+{_FONT_FACE_CSS}
 * {{ box-sizing: border-box; }}
 html,body {{ margin: 0; }}
-body {{ font-family: 'Times New Roman','Arial',sans-serif; color:#111; font-size: 13px; }}
+body {{ font-family: 'Tinos','Times New Roman',serif; color:#111; font-size: 13px; }}
 
 /* Mỗi .pg = đúng 1 trang (header xanh trên cùng + body + footer dưới cùng). */
 .pg {{ width:{PAGE_W}; height:{PAGE_H}; display:flex; flex-direction:column; overflow:hidden; break-after:page; }}
@@ -68,10 +99,10 @@ body {{ font-family: 'Times New Roman','Arial',sans-serif; color:#111; font-size
 .pg-hdr-logo {{ position:absolute; left:30px; top:50%; transform:translateY(-50%); height:100px; width:100px;
   border-radius:50%; background:#fff; object-fit:contain; }}
 .pg-hdr-t {{ position:absolute; left:150px; right:20px; top:0; height:148px; display:flex; align-items:center;
-  color:#ffffff; font-family:Arial,sans-serif; font-size:21px; font-weight:800; letter-spacing:.3px; }}
+  color:#ffffff; font-family:'Arimo',Arial,sans-serif; font-size:21px; font-weight:800; letter-spacing:.3px; }}
 /* Footer xanh full-width — cao 56px như mẫu */
 .pg-ftr {{ position:relative; width:100%; height:56px; flex:0 0 auto; background:#2e8b4f; background-size:100% 100%;
-  color:#fff; font-family:Arial,sans-serif; font-size:12px; font-weight:700; }}
+  color:#fff; font-family:'Arimo',Arial,sans-serif; font-size:12px; font-weight:700; }}
 .pg-ftr span {{ position:absolute; top:0; height:56px; display:flex; align-items:center; }}
 .pg-ftr .l {{ left:34px; }} .pg-ftr .r {{ right:34px; }}
 
@@ -82,6 +113,8 @@ thead {{ display: table-header-group; }}
 th,td {{ border:1px solid #b9c7bd; padding:9px 8px; font-size:13px; }}
 /* Bảng giá sàn (III.1) nén dòng vừa phải để III.1 + III.2 vừa 1 trang, không nhảy trang. */
 table.floor th, table.floor td {{ padding:5px 8px; line-height:1.3; }}
+/* Bảng II (giao ngay) giãn dòng để lấp khoảng trống cuối trang cho cân đối (chỉ riêng mục này). */
+table.phys th, table.phys td {{ padding-top:16px; padding-bottom:16px; }}
 th {{ background:#e8f0d8; color:#0a9e48; text-align:center; font-weight:700; }}
 td.r {{ text-align:right; }} td.c {{ text-align:center; }}
 ul.blt {{ margin:4px 0 10px; padding-left:24px; }}
@@ -145,7 +178,7 @@ def _physical_table(data: BulletinData) -> str:
             f"<td class='r'>{_chg(p.change_abs) if p else ''}</td>"
             f"<td class='r'>{_pct(p.change_pct) if p else ''}</td></tr>"
         )
-    return f"<table>{head}<tbody>{body}</tbody></table>"
+    return f"<table class='phys'>{head}<tbody>{body}</tbody></table>"
 
 
 # ── Section III — Giá sàn Tập đoàn (2 lần) ──

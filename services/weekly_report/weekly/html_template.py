@@ -9,9 +9,39 @@
 
 from __future__ import annotations
 
+import base64
+from pathlib import Path
+
 from .models import WeeklyReportData
 
 PAGE_W, PAGE_H = "8.27in", "11.69in"  # A4
+
+# ── Font NHÚNG (OFL/Apache-2.0) — làm PDF hiển thị GIỐNG NHAU trên mọi máy ──
+# Tinos ~ Times New Roman, Arimo ~ Arial (cùng metric → không lệch bố cục), phủ đủ tiếng Việt.
+# Nhúng qua data-URI để Chromium embed vào PDF, KHÔNG phụ thuộc font hệ thống của máy render.
+_FONTS_DIR = Path(__file__).parent / "fonts"
+_FONT_FILES = [
+    ("Tinos", 400, "normal", "Tinos-Regular.ttf"),
+    ("Tinos", 700, "normal", "Tinos-Bold.ttf"),
+    ("Tinos", 400, "italic", "Tinos-Italic.ttf"),
+    ("Arimo", 400, "normal", "Arimo-Regular.ttf"),
+    ("Arimo", 700, "normal", "Arimo-Bold.ttf"),
+]
+
+
+def _font_faces() -> str:
+    """Sinh các @font-face (data-URI) một lần lúc import."""
+    out = []
+    for family, weight, style, fname in _FONT_FILES:
+        b64 = base64.b64encode((_FONTS_DIR / fname).read_bytes()).decode()
+        out.append(
+            f"@font-face{{font-family:'{family}';font-weight:{weight};font-style:{style};"
+            f"font-display:block;src:url(data:font/ttf;base64,{b64}) format('truetype');}}"
+        )
+    return "".join(out)
+
+
+_FONT_FACE_CSS = _font_faces()
 # Body dùng được/trang (px CSS): 11.69in*96(≈1122) − header 76 − footer 16 − padding ~20 ≈ 1010; chừa ~15 slack.
 USABLE_PX = 995
 
@@ -52,11 +82,12 @@ _PHYS_ROWS = ["RSS3", "STR20", "SMR20", "LATEX"]
 
 
 _CSS = f"""
+{_FONT_FACE_CSS}
 * {{ box-sizing:border-box; }}
 /* Lề văn bản chuẩn VN: trái 3cm, phải 2cm (bám mẫu). */
 :root {{ --ml:3cm; --mr:2cm; }}
 html,body {{ margin:0; }}
-body {{ font-family:'Times New Roman','Arial',sans-serif; color:#111; font-size:13.5px; }}
+body {{ font-family:'Tinos','Times New Roman',serif; color:#111; font-size:13.5px; }}
 .pg {{ width:{PAGE_W}; height:{PAGE_H}; display:flex; flex-direction:column; overflow:hidden; break-after:page; }}
 .pg:last-child {{ break-after:auto; }}
 .pg-body {{ flex:1; padding:14px var(--mr) 6px var(--ml); overflow:hidden; }}
@@ -69,7 +100,7 @@ body {{ font-family:'Times New Roman','Arial',sans-serif; color:#111; font-size:
 .pg-hdr-logo {{ height:46px; width:46px; border-radius:50%; object-fit:contain; margin-right:10px; flex:0 0 auto; }}
 /* Màu XANH ĐẶC (không dùng background-clip:text — nhiều trình xem PDF, vd macOS Preview,
    render text-clip gradient thành khối đặc che chữ). Bám mẫu: tiêu đề xanh đậm. */
-.pg-hdr-t {{ font-family:Arial,sans-serif; font-size:21px; font-weight:800; letter-spacing:.3px;
+.pg-hdr-t {{ font-family:'Arimo',Arial,sans-serif; font-size:21px; font-weight:800; letter-spacing:.3px;
   color:#1a7a3a; }}
 .pg-hdr-rule {{ position:absolute; left:calc(var(--ml) + 56px); right:var(--mr); bottom:12px; height:3px;
   background:linear-gradient(90deg,#134f67,#43a83a); }}
@@ -77,8 +108,8 @@ body {{ font-family:'Times New Roman','Arial',sans-serif; color:#111; font-size:
 .pg-ftr {{ height:16px; flex:0 0 auto; }}
 /* Masthead đầu trang nội dung (1 lần): tiêu đề + Ban + kẻ ngang. */
 .masthead {{ margin:2px 0 6px; }}
-.mh-title {{ font-family:'Times New Roman',serif; font-weight:700; font-size:17px; color:#111; }}
-.mh-sub {{ font-family:'Times New Roman',serif; font-weight:700; font-size:14px; color:#1a7a3a; margin-top:1px; }}
+.mh-title {{ font-family:'Tinos','Times New Roman',serif; font-weight:700; font-size:17px; color:#111; }}
+.mh-sub {{ font-family:'Tinos','Times New Roman',serif; font-weight:700; font-size:14px; color:#1a7a3a; margin-top:1px; }}
 .mh-rule {{ border:0; border-top:2px solid #17667a; margin:7px 0 2px; }}
 
 h2.section {{ font-size:15px; color:#0a9e48; margin:6px 0 4px; font-weight:700; }}
@@ -320,9 +351,10 @@ def cover_html(d: WeeklyReportData, assets: dict[str, str]) -> str:
     bg = f"background-image:url('{img}');" if img else "background:#0b6b3a;"
     label = f"Tuần {d.week_no} năm {d.year} từ {d.date_range}"
     css = (
-        f"@page{{size:{PAGE_W} {PAGE_H};margin:0;}}html,body{{margin:0;height:100%;}}"
+        _FONT_FACE_CSS
+        + f"@page{{size:{PAGE_W} {PAGE_H};margin:0;}}html,body{{margin:0;height:100%;}}"
         f".pg{{width:{PAGE_W};height:{PAGE_H};" + bg + "background-size:cover;background-position:center;"
-        "position:relative;font-family:'Times New Roman',serif;}"
+        "position:relative;font-family:'Tinos','Times New Roman',serif;}"
         # Band trắng phủ hẳn dải đáy (đè nhãn tuần in sẵn trong ảnh mẫu) rồi in lại nhãn động.
         ".wk{position:absolute;left:0;right:0;bottom:1.5%;height:9%;background:#fff;"
         "display:flex;align-items:flex-start;justify-content:center;padding-top:1.2%;color:#0a3d1e;"
