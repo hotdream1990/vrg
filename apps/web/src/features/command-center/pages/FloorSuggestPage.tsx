@@ -39,6 +39,8 @@ export default function FloorSuggestPage() {
   const [chart, setChart] = useState<FloorChart | null>(null);
   const [corr, setCorr] = useState<CorrRow[]>([]);
   const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [chartLoading, setChartLoading] = useState(false);
   const [showToTrinh, setShowToTrinh] = useState(false);
 
   useEffect(() => {
@@ -48,13 +50,18 @@ export default function FloorSuggestPage() {
 
   const loadSuggest = useCallback(() => {
     if (!asOf) return;
-    fetchFloorSuggest(asOf, model, backtest).then(setSug).catch((e) => setErr(e.message));
+    setLoading(true);
+    fetchFloorSuggest(asOf, model, backtest).then(setSug)
+      .catch((e) => setErr(e.message)).finally(() => setLoading(false));
   }, [asOf, model, backtest]);
   useEffect(() => { loadSuggest(); }, [loadSuggest]);
 
   useEffect(() => {
-    fetchFloorChart(grade).then(setChart).catch((e) => setErr(e.message));
-    fetchFloorCorrelation(grade).then(setCorr).catch((e) => setErr(e.message));
+    setChartLoading(true);
+    Promise.all([
+      fetchFloorChart(grade).then(setChart),
+      fetchFloorCorrelation(grade).then(setCorr),
+    ]).catch((e) => setErr(e.message)).finally(() => setChartLoading(false));
   }, [grade]);
 
   const markIndex = useMemo(() => (chart ? chart.labels.indexOf(asOf) : -1), [chart, asOf]);
@@ -117,12 +124,16 @@ export default function FloorSuggestPage() {
             Backtest (chỉ dùng data trước lần này)
           </label>
         )}
-        {sug && !sug.error && (
+        {loading ? (
+          <span className="chip" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <span className="spinner" /> Đang tính toán theo dữ liệu mới…
+          </span>
+        ) : sug && !sug.error ? (
           <span className="chip">
             {sug.is_issuance === false ? "Ngày bất kỳ · so với lần " + (sug.prev_as_of ?? "—") + " · " : ""}
             Biến: {sug.feats.join(" · ") || "—"} · fit {sug.n_train} lần
           </span>
-        )}
+        ) : null}
         <button
           onClick={() => setShowToTrinh(true)}
           disabled={!asOf}
@@ -134,16 +145,18 @@ export default function FloorSuggestPage() {
         </button>
       </div>
 
-      <InventoryIndicator inv={sug?.inventory} />
+      <div style={{ opacity: loading ? 0.45 : 1, pointerEvents: loading ? "none" : "auto", transition: "opacity .2s" }} aria-busy={loading}>
+        <InventoryIndicator inv={sug?.inventory} />
 
-      <AdjustmentTable items={sug?.items ?? []} focus={grade} onFocus={setGrade} />
+        <AdjustmentTable items={sug?.items ?? []} focus={grade} onFocus={setGrade} />
 
-      <RecommendationRationale
-        item={focal}
-        prevAsOf={sug?.prev_as_of ?? null}
-        basketChangePct={sug?.basket_change_pct ?? null}
-        drivers={sug?.drivers ?? []}
-      />
+        <RecommendationRationale
+          item={focal}
+          prevAsOf={sug?.prev_as_of ?? null}
+          basketChangePct={sug?.basket_change_pct ?? null}
+          drivers={sug?.drivers ?? []}
+        />
+      </div>
 
       {asOf && <ScenarioMatrix asOf={asOf} model={model} />}
 
@@ -156,17 +169,26 @@ export default function FloorSuggestPage() {
             {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
         </div>
-        <div style={{ height: 340 }}>
+        <div style={{ height: 340, position: "relative", opacity: chartLoading ? 0.45 : 1, transition: "opacity .2s" }}>
+          {chartLoading && (
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+              gap: 8, color: "var(--muted)", zIndex: 2 }}>
+              <span className="spinner" /> Đang tải biểu đồ…
+            </div>
+          )}
           {chart && chart.labels.length > 0
             ? <CorrelationChart labels={chart.labels} series={chart.series} markIndex={markIndex} />
-            : <div className="scan-empty">Chưa có dữ liệu.</div>}
+            : chartLoading ? null : <div className="scan-empty">Chưa có dữ liệu.</div>}
         </div>
         <p style={{ fontSize: 12, color: "var(--muted)" }}>Chấm to = lần đang chọn. Đường xanh đậm = giá sàn {grade}.</p>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: "auto" }}>
-        <div style={{ padding: "12px 16px" }}><b>Hệ số tương quan — {grade}</b> (Pearson, mức giá)</div>
-        <table style={{ fontSize: 13 }}>
+        <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 8 }}>
+          <b>Hệ số tương quan — {grade}</b> (Pearson, mức giá)
+          {chartLoading && <span className="spinner" />}
+        </div>
+        <table style={{ fontSize: 13, opacity: chartLoading ? 0.45 : 1, transition: "opacity .2s" }}>
           <thead><tr><th>Chỉ số</th><th className="r">Tương quan (r)</th><th className="r">Số điểm</th></tr></thead>
           <tbody>
             {corr.map((c) => (

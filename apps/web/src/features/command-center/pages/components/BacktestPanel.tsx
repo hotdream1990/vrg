@@ -31,13 +31,15 @@ export default function BacktestPanel({ grade, model, onModel }: {
   const [v1f, setV1f] = useState<BacktestResult | null>(null);
   const [v2, setV2] = useState<BacktestResult | null>(null);
   const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setErr("");
+    setLoading(true);
     Promise.all([fetchFloorBacktest(grade, "v1"), fetchFloorBacktest(grade, "v1i"),
       fetchFloorBacktest(grade, "v1f"), fetchFloorBacktest(grade, "v2")])
       .then(([a, c, f, b]) => { setV1(a); setV1i(c); setV1f(f); setV2(b); })
-      .catch((e) => setErr(e.message));
+      .catch((e) => setErr(e.message)).finally(() => setLoading(false));
   }, [grade]);
 
   const cur = model === "v1" ? v1 : model === "v1i" ? v1i : model === "v1f" ? v1f : v2;
@@ -46,7 +48,10 @@ export default function BacktestPanel({ grade, model, onModel }: {
   return (
     <div className="card">
       <div className="card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-        <h3>Kiểm định mô hình (Backtest) — {grade}</h3>
+        <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          Kiểm định mô hình (Backtest) — {grade}
+          {loading && <span className="spinner" />}
+        </h3>
         <div style={{ display: "flex", gap: 6 }}>
           {(["v1", "v1i", "v1f", "v2"] as FloorModel[]).map((mo) => (
             <button
@@ -70,7 +75,7 @@ export default function BacktestPanel({ grade, model, onModel }: {
         rồi so với giá sàn thực tế. Mục tiêu đề án: MAPE ≤ 6%.
       </p>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14, opacity: loading ? 0.45 : 1, transition: "opacity .2s" }}>
         <Stat label="MAPE (sai số %)" value={m?.mape != null ? `${m.mape}%` : "—"} color={mapeColor(m?.mape)} />
         <Stat label="MAE (USD/T)" value={fmt(m?.mae ?? null)} />
         <Stat label="RMSE (USD/T)" value={fmt(m?.rmse ?? null)} />
@@ -78,7 +83,7 @@ export default function BacktestPanel({ grade, model, onModel }: {
         <Stat label="Số lần kiểm" value={fmt(m?.n ?? null)} />
       </div>
 
-      <div style={{ height: 300 }}>
+      <div style={{ height: 300, opacity: loading ? 0.45 : 1, transition: "opacity .2s" }}>
         {cur && cur.points.length > 0
           ? <BacktestChart
               labels={cur.points.map((p) => p.as_of)}

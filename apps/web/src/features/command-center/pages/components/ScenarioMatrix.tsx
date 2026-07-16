@@ -11,17 +11,22 @@ const delta = (v: number | null, base: number | null) =>
 export default function ScenarioMatrix({ asOf, model }: { asOf: string; model: FloorModel }) {
   const [data, setData] = useState<ScenarioResult | null>(null);
   const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setErr("");
-    fetchScenarios(asOf, model).then(setData).catch((e) => setErr(e.message));
+    setLoading(true);
+    fetchScenarios(asOf, model).then(setData).catch((e) => setErr(e.message)).finally(() => setLoading(false));
   }, [asOf, model]);
 
   const s = data?.shock_pct;
   return (
     <div className="card" style={{ padding: 0, overflow: "auto" }}>
       <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <h3 style={{ margin: 0 }}>Ma trận kịch bản giá sàn (Giảm / Cơ sở / Tăng)</h3>
+        <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+          Ma trận kịch bản giá sàn (Giảm / Cơ sở / Tăng)
+          {loading && <span className="spinner" />}
+        </h3>
         {s != null && (
           <span className="chip" style={{ fontSize: 12 }}>
             Giả định rổ chỉ số ±{String(s).replace(".", ",")}% (≈ 1 độ lệch chuẩn biến động giữa các lần)
@@ -30,7 +35,7 @@ export default function ScenarioMatrix({ asOf, model }: { asOf: string; model: F
       </div>
       {err && <div className="blt-error" style={{ margin: "0 16px 12px" }}>{err}</div>}
       {data?.error && <div className="blt-error" style={{ margin: "0 16px 12px" }}>{data.error}</div>}
-      <table style={{ fontSize: 13 }}>
+      <table style={{ fontSize: 13, opacity: loading ? 0.45 : 1, transition: "opacity .2s" }}>
         <thead><tr>
           <th>Chủng loại</th>
           <th className="r">Lần trước</th>
@@ -58,7 +63,9 @@ export default function ScenarioMatrix({ asOf, model }: { asOf: string; model: F
             </tr>
           ))}
           {!data?.items?.length && !err && !data?.error && (
-            <tr><td colSpan={5} style={{ textAlign: "center", padding: 18, color: "var(--muted)" }}>Đang tải…</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: "center", padding: 18, color: "var(--muted)" }}>
+              {loading ? "Đang tính kịch bản…" : "Chưa có dữ liệu."}
+            </td></tr>
           )}
         </tbody>
       </table>
