@@ -111,8 +111,9 @@ p.sub {{ font-weight:700; margin:10px 0 6px; line-height:1.45; font-size:13.5px;
 table {{ width:100%; border-collapse:collapse; margin:2px 0 10px; }}
 thead {{ display: table-header-group; }}
 th,td {{ border:1px solid #b9c7bd; padding:9px 8px; font-size:13px; }}
-/* Bảng giá sàn (III.1) nén dòng vừa phải để III.1 + III.2 vừa 1 trang, không nhảy trang. */
-table.floor th, table.floor td {{ padding:5px 8px; line-height:1.3; }}
+/* Bảng giá sàn (III.1): giãn dòng lấp bớt khoảng trống cuối trang. Ngưỡng đã đo trên prod (font Tinos,
+   Chromium): 7px là mức tối đa còn giữ III.1 + III.2 chung 1 trang; ≥8px đẩy III.2 sang trang sau. */
+table.floor th, table.floor td {{ padding:7px 8px; line-height:1.35; }}
 /* Bảng II (giao ngay) giãn dòng để lấp khoảng trống cuối trang cho cân đối (chỉ riêng mục này). */
 table.phys th, table.phys td {{ padding-top:16px; padding-bottom:16px; }}
 th {{ background:#e8f0d8; color:#0a9e48; text-align:center; font-weight:700; }}
