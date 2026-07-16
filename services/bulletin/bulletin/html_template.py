@@ -244,7 +244,10 @@ def item_html(it) -> str:
 
 def content_groups(data: BulletinData) -> list[list]:
     """Trả về các NHÓM item; mỗi nhóm bắt đầu 1 trang mới, item trong nhóm được xếp packing
-    (bảng dict được tách dòng vừa trang; str là block nguyên khối)."""
+    (bảng dict được tách dòng vừa trang; str là block nguyên khối).
+
+    Section III (giá sàn + mủ nguyên liệu) và Section IV (thông tin thị trường) nằm CHUNG 1
+    nhóm để IV chảy tiếp ngay sau mủ nguyên liệu, không ép sang trang mới (tránh trang gần trống)."""
     d = data.report_date.strftime("%d/%m/%Y")
     dd_mm = data.report_date.strftime("%d/%m")
     phys_dd_mm = (data.physical_curr_date or data.report_date).strftime("%d/%m")
@@ -275,7 +278,7 @@ def content_groups(data: BulletinData) -> list[list]:
             "- đồng/độ TSC:</p>" + rm_lines
         )
 
-    # Nhóm 3 — Section IV (tràn nhiều trang khi dài)
+    # Section IV — chảy tiếp trong nhóm 2 (không tách nhóm để khỏi ép trang mới); tràn nhiều trang khi dài.
     g_news: list[str] = []
     head_iv = '<h2 class="section">IV. Các thông tin thị trường liên quan:</h2>'
     ex = [s for s in data.market_exchange_summary if s]
@@ -304,7 +307,7 @@ def content_groups(data: BulletinData) -> list[list]:
     if urls:
         g_news.append('<p class="src"><b>Nguồn tin:</b> ' + "; ".join(urls) + "</p>")
 
-    return [g_top, g_local, g_news]
+    return [g_top, g_local + g_news]
 
 
 def measure_html(items: list) -> str:

@@ -42,7 +42,7 @@ def _pack(groups: list[list], measures: list[dict]) -> list[list[str]]:
 
     idx = 0
     for group in groups:
-        newpage()  # mỗi nhóm (I+II · III · IV) bắt đầu trang mới
+        newpage()  # mỗi nhóm (I+II · III+IV) bắt đầu trang mới
         for item in group:
             m = measures[idx] if idx < len(measures) else {}
             idx += 1

@@ -14,9 +14,9 @@ def _bd(summary):
 
 
 def _iv_html(summary) -> str:
-    """HTML của nhóm Section IV (khối cuối trong content_groups)."""
+    """HTML của nhóm chứa Section IV (khối cuối trong content_groups — nay gộp III+IV)."""
     from bulletin.html_template import content_groups
-    return "".join(content_groups(_bd(summary))[2])
+    return "".join(content_groups(_bd(summary))[-1])
 
 
 def test_news_physical_header_shows_prices_when_present() -> None:
