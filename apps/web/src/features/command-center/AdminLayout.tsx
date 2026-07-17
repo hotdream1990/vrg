@@ -17,6 +17,7 @@ import {
   MenuUnfoldOutlined,
   RobotOutlined,
   SafetyOutlined,
+  ScheduleOutlined,
   SettingOutlined,
   SolutionOutlined,
   SwapOutlined,
@@ -60,6 +61,7 @@ function buildMenu(can: (cap: Cap) => boolean) {
     can("inventory") && { key: "/quan-ly-so-lieu/ton-kho", icon: <InboxOutlined />, label: "Tồn kho" },
     can("member_unit") && { key: "/quan-ly-so-lieu/don-vi-thanh-vien", icon: <TeamOutlined />, label: "Đơn vị thành viên" },
     can("market_demand") && { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
+    can("unit_weekly") && { key: "/bao-cao-tuan-don-vi", icon: <ScheduleOutlined />, label: "Báo cáo tiêu thụ - tồn kho" },
   ].filter(Boolean) as NonNullable<Parameters<typeof Menu>[0]["items"]>;
   if (manual.length) {
     items.push({ key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)", children: manual });
@@ -91,6 +93,7 @@ const MEMBER_MENU = [
     key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)",
     children: [
       { key: "/don-vi/gia-mu", icon: <ExperimentOutlined />, label: "Giá thu mua" },
+      { key: "/bao-cao-tuan-don-vi", icon: <ScheduleOutlined />, label: "Báo cáo tiêu thụ - tồn kho" },
       { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
     ],
   },
@@ -118,7 +121,7 @@ export default function AdminLayout() {
     "/quan-ly-so-lieu/bang-gia-san", "/quan-ly-so-lieu/ty-gia", "/quan-ly-so-lieu/gia-san-tap-doan",
     "/quan-ly-so-lieu/gia-mu-nguyen-lieu", "/quan-ly-so-lieu/gia-physical",
     "/quan-ly-so-lieu/ton-kho", "/quan-ly-so-lieu/bao-gia-mu", "/quan-ly-so-lieu/don-vi-thanh-vien",
-    "/don-vi/gia-mu", "/nhu-cau-thi-truong",
+    "/don-vi/gia-mu", "/nhu-cau-thi-truong", "/bao-cao-tuan-don-vi",
     "/goi-y-gia-san", "/ban-tin-bien-dong", "/ban-tin/tuan", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
     "/quan-tri/lich-chay", "/ho-so",
   ];

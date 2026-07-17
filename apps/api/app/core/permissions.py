@@ -16,6 +16,7 @@ DATA_CAPS: dict[str, str] = {
     "member_unit": "Đơn vị thành viên",
     "auto_data": "Số liệu tự động (bảng giá sàn · tỷ giá · quét đa sàn)",
     "market_demand": "Nhu cầu thị trường (xem + sửa mọi đơn vị)",
+    "unit_weekly": "Báo cáo tiêu thụ - tồn kho (thu mua · tồn kho — xem/sửa mọi đơn vị)",
     # Quyền truy cập các màn phân tích/bản tin (xem + thao tác). Không có = ẩn khỏi menu + chặn API.
     "floor_suggest": "Gợi ý giá sàn",
     "bulletin_daily": "Bản tin ngày",

@@ -3,7 +3,7 @@
 
 export type Cap =
   | "market_quote" | "raw_material" | "floor" | "physical"
-  | "inventory" | "member_unit" | "auto_data" | "market_demand"
+  | "inventory" | "member_unit" | "auto_data" | "market_demand" | "unit_weekly"
   | "floor_suggest" | "bulletin_daily" | "bulletin_weekly" | "market_movement";
 
 /** Danh sách quyền + nhãn hiển thị (trang Quản trị người dùng, theo thứ tự này). */
@@ -16,6 +16,7 @@ export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
   { key: "member_unit", label: "Đơn vị thành viên" },
   { key: "auto_data", label: "Số liệu tự động", hint: "Bảng tính giá các sàn · Tỷ giá · Quét đa sàn" },
   { key: "market_demand", label: "Nhu cầu thị trường", hint: "xem + sửa nhu cầu của mọi đơn vị" },
+  { key: "unit_weekly", label: "Báo cáo tiêu thụ - tồn kho", hint: "thu mua · tiêu thụ – tồn kho (xem/sửa mọi đơn vị)" },
   { key: "floor_suggest", label: "Gợi ý giá sàn", hint: "màn phân tích" },
   { key: "bulletin_daily", label: "Bản tin ngày", hint: "màn phân tích" },
   { key: "bulletin_weekly", label: "Báo cáo tuần", hint: "màn phân tích" },
@@ -28,7 +29,7 @@ const CAP_SET = new Set<string>(CAP_KEYS);
 /** Gom quyền thành nhóm cho UI cấp quyền (theo cấu trúc menu — đỡ rối). */
 export const CAP_GROUPS: { title: string; keys: Cap[] }[] = [
   { title: "Quản lý số liệu (tự động)", keys: ["auto_data"] },
-  { title: "Quản lý số liệu (thủ công)", keys: ["market_quote", "raw_material", "floor", "physical", "inventory", "member_unit", "market_demand"] },
+  { title: "Quản lý số liệu (thủ công)", keys: ["market_quote", "raw_material", "floor", "physical", "inventory", "member_unit", "market_demand", "unit_weekly"] },
   { title: "Phân tích & Bản tin", keys: ["floor_suggest", "bulletin_daily", "bulletin_weekly", "market_movement"] },
 ];
 

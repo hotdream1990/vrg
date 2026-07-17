@@ -144,6 +144,30 @@ CREATE TABLE IF NOT EXISTS market_demand (
     PRIMARY KEY (as_of, company)
 );
 
+-- Báo cáo TUẦN của đơn vị thành viên — 2 loại: thu mua ('purchase') & tiêu thụ–tồn kho
+-- ('consumption'). Mỗi (tuần, đơn vị, loại) = 1 bản ghi, số liệu lưu jsonb {field: number}.
+-- Đơn vị tự nhập của mình; chuyên viên có quyền `unit_weekly` xem/sửa mọi đơn vị (realtime).
+CREATE TABLE IF NOT EXISTS unit_weekly_report (
+    week_key    text NOT NULL,         -- Thứ 2 ISO của tuần 'YYYY-MM-DD'
+    company     text NOT NULL,         -- tên đơn vị (khớp member_unit)
+    kind        text NOT NULL,         -- 'purchase' | 'consumption'
+    payload     jsonb NOT NULL DEFAULT '{}'::jsonb,
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    updated_by  text,
+    PRIMARY KEY (week_key, company, kind)
+);
+CREATE INDEX IF NOT EXISTS ix_unit_weekly_week ON unit_weekly_report (kind, week_key DESC);
+
+-- Chỉ tiêu KẾ HOẠCH thu mua theo năm cho từng đơn vị (dùng tính % thực hiện kế hoạch).
+CREATE TABLE IF NOT EXISTS unit_purchase_plan (
+    year        integer NOT NULL,
+    company     text NOT NULL,
+    plan_tonnes double precision,
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    updated_by  text,
+    PRIMARY KEY (year, company)
+);
+
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS title text;
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS dispatch_no text;

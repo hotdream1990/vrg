@@ -95,6 +95,15 @@ def assert_editor_window(username: str, as_of: str) -> None:
     edit_window.assert_editable(as_of, edit_window.editor_window())
 
 
+def assert_editor_week(username: str, week_key: str) -> None:
+    """Như `assert_editor_window` nhưng cho dữ liệu TUẦN (báo cáo tuần đơn vị); admin MIỄN."""
+    from app.core import edit_window
+
+    if _active_user(username).get("role") == "admin":
+        return
+    edit_window.assert_week_editable(week_key, edit_window.editor_window())
+
+
 def get_current_member(username: str = Depends(get_current_user)) -> dict:
     """Dependency cho tài khoản đơn vị thành viên — trả user dict (có `member_units`).
 

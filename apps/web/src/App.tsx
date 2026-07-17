@@ -22,6 +22,7 @@ import RawMaterialPage from "./features/command-center/pages/RawMaterialPage";
 import ScanPage from "./features/command-center/pages/ScanPage";
 import SchedulePage from "./features/command-center/pages/SchedulePage";
 import SystemConfigPage from "./features/command-center/pages/SystemConfigPage";
+import UnitWeeklyPage from "./features/command-center/pages/UnitWeeklyPage";
 import UserManagementPage from "./features/command-center/pages/UserManagementPage";
 import VrgFloorPage from "./features/command-center/pages/VrgFloorPage";
 import { AuthProvider, useAuth } from "./features/auth/AuthContext";
@@ -46,6 +47,13 @@ function MarketDemandRoute() {
   return <Navigate to="/" replace />;
 }
 
+/** Báo cáo tuần đơn vị: đơn vị thành viên nhập của mình; chuyên viên có quyền `unit_weekly` → mọi đơn vị. */
+function UnitWeeklyRoute() {
+  const { user, can } = useAuth();
+  if (user?.role === "member" || can("unit_weekly")) return <UnitWeeklyPage />;
+  return <Navigate to="/" replace />;
+}
+
 export default function App() {
   return (
     <ConfigProvider theme={vrgTheme}>
@@ -66,6 +74,8 @@ export default function App() {
                   </Route>
                   {/* Nhu cầu thị trường — đơn vị thành viên (đơn vị mình) hoặc chuyên viên có quyền */}
                   <Route path="/nhu-cau-thi-truong" element={<MarketDemandRoute />} />
+                  {/* Báo cáo tuần đơn vị (thu mua · tiêu thụ–tồn kho) — đơn vị thành viên hoặc chuyên viên có quyền */}
+                  <Route path="/bao-cao-tuan-don-vi" element={<UnitWeeklyRoute />} />
                   {/* Số liệu tự động (quét + bảng giá sàn + tỷ giá) — quyền auto_data */}
                   <Route element={<RequireCap caps={["auto_data"]} />}>
                     <Route path="/quet-da-san" element={<ScanPage />} />
