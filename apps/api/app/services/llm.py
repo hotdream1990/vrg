@@ -5,6 +5,8 @@ Tạm thời dùng OpenAI (provider mặc định 'openai'). Vẫn giữ nhánh 
 """
 from __future__ import annotations
 
+from typing import Any
+
 from app.core.config import settings
 from app.services import config_repo
 
@@ -27,6 +29,18 @@ def complete(system: str, user: str, max_tokens: int = 1024) -> str:
         f"Provider '{provider}' chưa được hỗ trợ — hiện dùng OpenAI. "
         "Vào Cấu hình hệ thống → tab AI, đặt LLM_PROVIDER=openai."
     )
+
+
+def openai_client() -> tuple[Any, str]:
+    """(client, model) OpenAI từ cấu hình — cho luồng tool-calling (Trợ lý AI)."""
+    api_key = config_repo.get_value("OPENAI_API_KEY") or (settings.openai_api_key or None)
+    if not api_key:
+        raise LLMNotConfigured(
+            "Chưa có OpenAI API Key. Vào Quản trị → Cấu hình hệ thống → tab AI để đặt khóa."
+        )
+    model = config_repo.get_value("OPENAI_MODEL", DEFAULT_OPENAI_MODEL) or DEFAULT_OPENAI_MODEL
+    from openai import OpenAI
+    return OpenAI(api_key=api_key), model
 
 
 def _openai(system: str, user: str, max_tokens: int) -> str:
