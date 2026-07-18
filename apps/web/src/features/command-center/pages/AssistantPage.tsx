@@ -57,7 +57,7 @@ export default function AssistantPage() {
   };
 
   return (
-    <div style={{ padding: 16, maxWidth: 1000, margin: "0 auto", display: "flex", flexDirection: "column", height: "calc(100vh - 96px)" }}>
+    <div style={{ padding: 16, maxWidth: 1000, margin: "0 auto", display: "flex", flexDirection: "column", height: "calc(100vh - 150px)" }}>
       <div style={{ marginBottom: 8 }}>
         <h2 style={{ margin: 0 }}><RobotOutlined style={{ marginRight: 8, color: "#0a9e48" }} />Trợ lý AI</h2>
         <p style={{ opacity: 0.7, margin: "4px 0 0" }}>
@@ -65,7 +65,7 @@ export default function AssistantPage() {
         </p>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "8px 4px" }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 4px" }}>
         {msgs.length === 0 && (
           <div style={{ opacity: 0.85, marginTop: 8 }}>
             <div style={{ marginBottom: 8, fontSize: 13 }}>Gợi ý câu hỏi:</div>
