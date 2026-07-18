@@ -131,7 +131,9 @@ export default function AdminLayout() {
     : (ROUTE_KEYS.find((k) => pathname === k || pathname.startsWith(k + "/")) ?? pathname);
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
+    // Khóa chiều cao = viewport + ẩn tràn để menu sidebar dài KHÔNG kéo giãn cả trang
+    // (menu tự cuộn trong Sider, nội dung cuộn trong Content) — xem CSS .ant-layout-sider .ant-menu.
+    <Layout style={{ height: "100vh", overflow: "hidden" }}>
       <Sider
         collapsible trigger={null} width={288}
         breakpoint="lg" collapsedWidth={broken ? 0 : 80}

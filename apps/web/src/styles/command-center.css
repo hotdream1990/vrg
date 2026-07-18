@@ -31,6 +31,9 @@ a{color:inherit;text-decoration:none}
 .nav-icon{width:18px;height:18px;display:inline-block}
 
 .main{padding:22px 26px;overflow:hidden}
+/* Sidebar dài hơn màn hình thì tự cuộn TRONG Sider, không đẩy cao cả layout (footer bám đáy). */
+.ant-layout-sider-children{display:flex;flex-direction:column}
+.ant-layout-sider .ant-menu{flex:1 1 auto;overflow-y:auto;overflow-x:hidden}
 .page-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
 .page-title h2{margin:0;font-size:22px;font-weight:700}
 .page-title p{margin:4px 0 0;color:var(--muted);font-size:13px}
