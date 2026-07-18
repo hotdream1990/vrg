@@ -47,14 +47,6 @@ export const workflow: { step: number; color: string; title: string; desc: strin
   { step: 3, color: "#a78bfa", title: "Quyết định · Ban Lãnh đạo", desc: "Kiểm duyệt cuối cùng, phê duyệt phương án tối ưu, ban hành chính sách điều tiết giá sàn toàn hệ thống." },
 ];
 
-export type RagMsg = { role: "user" | "ai"; text: string; cite?: string };
-export const ragMessages: RagMsg[] = [
-  { role: "user", text: "Tóm tắt diễn biến SGX tuần 20 và lý do giảm cuối tuần?" },
-  { role: "ai", text: "Sàn SGX tuần 20/2026 tăng +2.02% đối với RSS3 (đạt 2,716.2 USD/tấn) và +1.64% với TSR20. Đà tăng đầu tuần được hỗ trợ bởi rủi ro nguồn cung Thái Lan và dầu Brent vượt mốc. Tuy nhiên, hai phiên cuối tuần (14–15/5) bị áp lực chốt lời từ quỹ đầu tư và việc các nhà máy lốp xe dừng mua do biên lợi nhuận hạ nguồn bị siết chặt — kéo giá quay đầu giảm sâu.", cite: "📎 Nguồn: Báo cáo phân tích tuần 20-2026.pdf · trang 2–3 · VRG_Khao_sat_Hien_trang.xlsx · Q12" },
-  { role: "user", text: "Cán cân cung cầu 2026 theo Whatnext Rubber là bao nhiêu?" },
-  { role: "ai", text: "Theo Whatnext Rubber (cập nhật T7&8/2024), thiếu hụt nguồn cung 2026 vượt 1 triệu tấn, và đến 2030 mức thiếu hụt đạt hơn 2.6 triệu tấn. Mức tăng sản lượng hàng năm chậm hơn so với nhu cầu — đây là yếu tố nền tảng hỗ trợ chu kỳ tăng giá 2024–2030.", cite: "📎 Nguồn: Thị trường cao su phục hồi đến 2030 - Cập nhật.docx · Phần \"Cập nhật cung-cầu\"" },
-];
-
 export const security: { ico: string; h4: string; p: string }[] = [
   { ico: "🔒", h4: "On-Premise 100%", p: "Dữ liệu không lưu chuyển ra ngoài hạ tầng Tập đoàn" },
   { ico: "⌬", h4: "RBAC Đa lớp", p: "Phân tách dữ liệu nghiêm ngặt giữa đơn vị thành viên" },

@@ -7,9 +7,8 @@ import ConvergenceAndAlerts from "../sections/ConvergenceAndAlerts";
 import HeatmapAndVrg from "../sections/HeatmapAndVrg";
 import InventoryBalanceSection from "../sections/InventoryBalanceSection";
 import KpiRow from "../sections/KpiRow";
-import RagChat from "../sections/RagChat";
 
-/** Trang Dashboard — KPI/giá/heatmap/tồn kho dùng dữ liệu thật; RAG hỏi-đáp là tính năng sắp có. */
+/** Trang Dashboard — KPI/giá/heatmap/tồn kho dùng dữ liệu thật. Hỏi-đáp AI ở mục "Trợ lý AI". */
 export default function DashboardPage() {
   const { hash } = useLocation();
 
@@ -25,7 +24,7 @@ export default function DashboardPage() {
       <div className="page-title" id="top">
         <div>
           <h2>{pageTitle.h2}</h2>
-          <p>Thẻ KPI · biểu đồ giá · heatmap · tồn kho dùng <b>dữ liệu thật</b> từ kho giá. Trợ lý hỏi-đáp RAG là tính năng sắp tích hợp.</p>
+          <p>Thẻ KPI · biểu đồ giá · heatmap · tồn kho dùng <b>dữ liệu thật</b> từ kho giá. Hỏi-đáp AI xem ở mục <b>Trợ lý AI</b>.</p>
         </div>
         <div className="actions">
           <button className="btn" onClick={() => window.location.reload()}><ReloadOutlined /> Cập nhật</button>
@@ -36,7 +35,6 @@ export default function DashboardPage() {
       <ConvergenceAndAlerts />
       <HeatmapAndVrg />
       <InventoryBalanceSection />
-      <RagChat />
     </>
   );
 }
