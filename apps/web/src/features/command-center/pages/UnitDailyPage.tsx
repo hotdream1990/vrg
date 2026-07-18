@@ -1,20 +1,20 @@
-/* Báo cáo tuần đơn vị (thu mua · tiêu thụ–tồn kho).
-   - NHẬP LIỆU (đơn vị thành viên & chuyên viên GIỐNG NHAU): danh sách theo tuần (timeline) + modal nhập.
-   - TỔNG HỢP (chuyên viên/admin): lưới toàn đơn vị theo mỗi tuần. */
+/* Báo cáo tiêu thụ – tồn kho theo ngày (thu mua · tiêu thụ–tồn kho).
+   - NHẬP LIỆU (đơn vị thành viên & chuyên viên GIỐNG NHAU): danh sách theo ngày (timeline) + modal nhập.
+   - TỔNG HỢP (chuyên viên/admin): lưới toàn đơn vị theo mỗi ngày. */
 
 import { ReloadOutlined, SettingOutlined } from "@ant-design/icons";
-import { Button, Segmented, Select, Spin, message } from "antd";
+import { Button, Segmented, Spin, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../../auth/AuthContext";
 import { todayISO } from "../../../lib/date";
-import { type WeekData, fetchWeek } from "../../../lib/unit-weekly-client";
-import { KIND_LABEL, type Kind } from "../../../lib/unit-weekly-fields";
-import { mondayOf, recentWeeks, weekLabel } from "../../../lib/week";
-import UnitWeeklyEditModal from "./UnitWeeklyEditModal";
-import UnitWeeklyOverview from "./UnitWeeklyOverview";
-import UnitWeeklyPlanModal from "./UnitWeeklyPlanModal";
-import UnitWeeklyTimeline from "./UnitWeeklyTimeline";
+import { type DayData, fetchDay } from "../../../lib/unit-daily-client";
+import { KIND_LABEL, type Kind } from "../../../lib/unit-daily-fields";
+import DateInput from "../sections/DateInput";
+import UnitDailyEditModal from "./UnitDailyEditModal";
+import UnitDailyOverview from "./UnitDailyOverview";
+import UnitDailyPlanModal from "./UnitDailyPlanModal";
+import UnitDailyTimeline from "./UnitDailyTimeline";
 import "../../bulletin/bulletin.css";
 
 const KIND_OPTS = [
@@ -22,11 +22,11 @@ const KIND_OPTS = [
   { label: KIND_LABEL.consumption, value: "consumption" },
 ];
 const VIEW_OPTS = [
-  { label: "Danh sách theo tuần", value: "list" },
+  { label: "Danh sách theo ngày", value: "list" },
   { label: "Tổng hợp toàn đơn vị", value: "overview" },
 ];
 
-export default function UnitWeeklyPage() {
+export default function UnitDailyPage() {
   const { user } = useAuth();
   const isMember = user?.role === "member";
   const isAdmin = user?.role === "admin";
@@ -35,12 +35,12 @@ export default function UnitWeeklyPage() {
   const [kind, setKind] = useState<Kind>("purchase");
   const [view, setView] = useState<"list" | "overview">(isMember ? "list" : "overview");
   const [refreshKey, setRefreshKey] = useState(0);
-  const [edit, setEdit] = useState<{ week: string; company: string } | null>(null);
+  const [edit, setEdit] = useState<{ day: string; company: string } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
 
-  // Tổng hợp (chỉ HQ): lưới toàn đơn vị theo 1 tuần.
-  const [ovWeek, setOvWeek] = useState(mondayOf(todayISO()));
-  const [ov, setOv] = useState<WeekData | null>(null);
+  // Tổng hợp (chỉ HQ): lưới toàn đơn vị theo 1 ngày.
+  const [ovDay, setOvDay] = useState(todayISO());
+  const [ov, setOv] = useState<DayData | null>(null);
   const [ovLoading, setOvLoading] = useState(false);
 
   const reload = () => setRefreshKey((k) => k + 1);
@@ -48,19 +48,18 @@ export default function UnitWeeklyPage() {
   const loadOv = useCallback(() => {
     if (isMember || view !== "overview") return;
     setOvLoading(true);
-    fetchWeek(kind, ovWeek).then(setOv).catch((e) => message.error(e.message)).finally(() => setOvLoading(false));
-  }, [isMember, view, kind, ovWeek]);
+    fetchDay(kind, ovDay).then(setOv).catch((e) => message.error(e.message)).finally(() => setOvLoading(false));
+  }, [isMember, view, kind, ovDay]);
   useEffect(() => { loadOv(); }, [loadOv, refreshKey]);
 
-  const ovCanEdit = useMemo(() => isAdmin || (ov ? ovWeek <= ov.today_week : false), [isAdmin, ov, ovWeek]);
-  const weekOpts = recentWeeks(ov?.today_week ?? mondayOf(todayISO()), 20).map((w) => ({ value: w, label: weekLabel(w) }));
+  const ovCanEdit = useMemo(() => isAdmin || (ov ? ovDay <= ov.today : false), [isAdmin, ov, ovDay]);
 
   return (
     <div className="main">
       <div className="page-title">
         <h2 style={{ margin: 0 }}>Báo cáo tiêu thụ - tồn kho</h2>
         <p style={{ margin: "4px 0 0" }}>
-          Số liệu thu mua & tiêu thụ – tồn kho theo tuần, cập nhật realtime theo ngày.
+          Số liệu thu mua & tiêu thụ – tồn kho theo ngày, cập nhật realtime.
         </p>
       </div>
 
@@ -69,7 +68,7 @@ export default function UnitWeeklyPage() {
         {!isMember && <Segmented value={view} onChange={(v) => setView(v as "list" | "overview")} options={VIEW_OPTS} />}
         {!isMember && view === "overview" && (
           <>
-            <Select value={ovWeek} onChange={setOvWeek} options={weekOpts} style={{ width: 220 }} />
+            <DateInput value={ovDay} onChange={setOvDay} noFuture style={{ width: 190 }} />
             {kind === "purchase" && (
               <Button icon={<SettingOutlined />} onClick={() => setPlanOpen(true)}>Chỉ tiêu kế hoạch</Button>
             )}
@@ -79,29 +78,29 @@ export default function UnitWeeklyPage() {
       </div>
 
       {view === "list" || isMember ? (
-        <UnitWeeklyTimeline
+        <UnitDailyTimeline
           kind={kind} role={role} isAdmin={isAdmin} refreshKey={refreshKey}
-          onEdit={(week, company) => setEdit({ week, company })}
-          onAdd={() => setEdit({ week: mondayOf(todayISO()), company: "" })}
+          onEdit={(day, company) => setEdit({ day, company })}
+          onAdd={() => setEdit({ day: todayISO(), company: "" })}
         />
       ) : (
         <div className="card">
           <Spin spinning={ovLoading}>
-            {ov && <UnitWeeklyOverview kind={kind} data={ov} canEdit={ovCanEdit} onEdit={(week, company) => setEdit({ week, company })} />}
+            {ov && <UnitDailyOverview kind={kind} data={ov} canEdit={ovCanEdit} onEdit={(day, company) => setEdit({ day, company })} />}
           </Spin>
         </div>
       )}
 
       {edit && (
-        <UnitWeeklyEditModal
+        <UnitDailyEditModal
           open kind={kind} role={role} isAdmin={isAdmin}
-          initialWeek={edit.week} initialCompany={edit.company}
-          todayWeek={mondayOf(todayISO())}
+          initialDay={edit.day} initialCompany={edit.company}
+          today={todayISO()}
           onClose={() => setEdit(null)}
           onSaved={reload}
         />
       )}
-      <UnitWeeklyPlanModal open={planOpen} year={Number(ovWeek.slice(0, 4))} onClose={() => setPlanOpen(false)} />
+      <UnitDailyPlanModal open={planOpen} year={Number(ovDay.slice(0, 4))} onClose={() => setPlanOpen(false)} />
     </div>
   );
 }

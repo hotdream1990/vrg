@@ -1,4 +1,4 @@
-/* Form nhập số liệu 1 đơn vị / 1 tuần / 1 loại biểu mẫu (thu mua | tiêu thụ–tồn kho).
+/* Form nhập số liệu 1 đơn vị / 1 ngày / 1 loại biểu mẫu (thu mua | tiêu thụ–tồn kho).
    THỨ TỰ Ô GIỮ ĐÚNG NHƯ EXCEL; ô suy ra (chỉ đọc, nền mờ) nằm xen giữa đúng vị trí, tính realtime.
    Dùng chung: đơn vị thành viên nhập inline · chuyên viên sửa trong Modal. */
 
@@ -7,19 +7,19 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   type Column, INPUT_KEYS, type Kind, type Values, fmtNum, isDerived, segments,
-} from "../../../lib/unit-weekly-fields";
+} from "../../../lib/unit-daily-fields";
 
 type Props = {
   kind: Kind;
   values: Values;
   plan?: number | null;           // chỉ tiêu kế hoạch năm (tính % — chỉ thu mua)
   readOnly?: boolean;
-  formKey: string;                // đổi khi đổi đơn vị/tuần/loại → reset nháp
+  formKey: string;                // đổi khi đổi đơn vị/ngày/loại → reset nháp
   onDirty?: (dirty: boolean) => void;
   footer?: (dirty: boolean, current: Values) => React.ReactNode;
 };
 
-export default function UnitWeeklyForm({ kind, values, plan, readOnly, formKey, onDirty, footer }: Props) {
+export default function UnitDailyForm({ kind, values, plan, readOnly, formKey, onDirty, footer }: Props) {
   const [draft, setDraft] = useState<Values>(values ?? {});
   useEffect(() => { setDraft(values ?? {}); }, [formKey]); // eslint-disable-line react-hooks/exhaustive-deps
 

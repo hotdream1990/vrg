@@ -1,7 +1,7 @@
-"""Danh mục ô số liệu hợp lệ cho báo cáo tuần đơn vị (2 biểu mẫu).
+"""Danh mục ô số liệu hợp lệ cho báo cáo tiêu thụ–tồn kho theo ngày (2 biểu mẫu).
 
 Chỉ liệt kê các ô NHẬP TAY (đầu vào). Các ô suy ra (tổng tiêu thụ, % kế hoạch, giá BQ lũy kế…)
-được tính ở frontend nên KHÔNG lưu. Bộ key này PHẢI khớp `apps/web/src/lib/unit-weekly-fields.ts`.
+được tính ở frontend nên KHÔNG lưu. Bộ key này PHẢI khớp `apps/web/src/lib/unit-daily-fields.ts`.
 Server dùng bộ này để lọc payload (chỉ nhận key hợp lệ) — chống ghi rác/khoá ngoài ý muốn.
 """
 
@@ -9,8 +9,8 @@ from __future__ import annotations
 
 # Biểu mẫu Thu mua — số thời điểm/lũy kế (tấn), riêng doanh thu = tỷ đồng.
 PURCHASE_FIELDS: frozenset[str] = frozenset({
-    "latex_wet",        # thu mua mủ nước trong tuần (quy khô, tấn)
-    "coagulum",         # thu mua mủ đông trong tuần (quy khô, tấn)
+    "latex_wet",        # thu mua mủ nước trong ngày (quy khô, tấn)
+    "coagulum",         # thu mua mủ đông trong ngày (quy khô, tấn)
     "cum_purchase",     # lũy kế sản lượng mủ thu mua (tấn)
     "cum_consumption",  # sản lượng tiêu thụ lũy kế mủ thu mua (tấn)
     "cum_revenue",      # doanh thu tiêu thụ lũy kế mủ thu mua (tỷ đồng)
@@ -24,7 +24,7 @@ CONSUMPTION_FIELDS: frozenset[str] = frozenset({
     "spot_export",        # tiêu thụ HĐ chuyến — XK/UTXK (lũy kế)
     "spot_domestic",      # tiêu thụ HĐ chuyến — nội tiêu (lũy kế)
     "revenue",            # doanh thu cao su (tỷ đồng, lũy kế)
-    "price_week",         # giá bán BQ trong tuần (triệu đồng/tấn)
+    "price_day",          # giá bán BQ trong ngày (triệu đồng/tấn)
     "stock_finished",     # tồn kho thành phẩm (tấn)
     "stock_finished_hd",  # trong đó đã có hợp đồng (tấn)
     # tồn kho thành phẩm CHƯA có hợp đồng, tách theo chủng loại (tấn)

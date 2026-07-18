@@ -1,12 +1,12 @@
 /* Modal cấu hình CHỈ TIÊU KẾ HOẠCH thu mua năm cho từng đơn vị (dùng tính % thực hiện).
-   Chỉ chuyên viên có quyền `unit_weekly` / admin. */
+   Chỉ chuyên viên có quyền `unit_daily` / admin. */
 
 import { InputNumber, message, Modal, Table } from "antd";
 import { useEffect, useState } from "react";
 
-import { fetchPlan, savePlan } from "../../../lib/unit-weekly-client";
+import { fetchPlan, savePlan } from "../../../lib/unit-daily-client";
 
-export default function UnitWeeklyPlanModal(
+export default function UnitDailyPlanModal(
   { open, year, onClose }: { open: boolean; year: number; onClose: () => void },
 ) {
   const [units, setUnits] = useState<string[]>([]);

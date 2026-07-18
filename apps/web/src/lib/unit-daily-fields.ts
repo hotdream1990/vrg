@@ -1,6 +1,6 @@
-/* Danh mục cột 2 biểu mẫu báo cáo tuần đơn vị (thu mua · tiêu thụ–tồn kho).
+/* Danh mục cột 2 biểu mẫu báo cáo tiêu thụ–tồn kho theo ngày (thu mua · tiêu thụ–tồn kho).
    THỨ TỰ CỘT GIỮ ĐÚNG NHƯ FILE EXCEL, kể cả cột suy ra (compute) nằm XEN GIỮA đúng vị trí.
-   Bộ key input PHẢI khớp backend `app/services/unit_weekly_fields.py`. */
+   Bộ key input PHẢI khớp backend `app/services/unit_daily_fields.py`. */
 
 export type Kind = "purchase" | "consumption";
 export type Values = Record<string, number | null | undefined>;
@@ -23,8 +23,8 @@ const sum = (...xs: (number | null | undefined)[]): number | null => {
 
 // ── Thu mua — đúng thứ tự cột Excel (C→I): mủ nước · mủ đông · lũy kế · %KH · tiêu thụ · doanh thu · giá BQ ──
 const PURCHASE: Column[] = [
-  { key: "latex_wet", label: "Mủ nước (trong tuần, quy khô)", unit: "tấn" },
-  { key: "coagulum", label: "Mủ đông (trong tuần, quy khô)", unit: "tấn" },
+  { key: "latex_wet", label: "Mủ nước (trong ngày, quy khô)", unit: "tấn" },
+  { key: "coagulum", label: "Mủ đông (trong ngày, quy khô)", unit: "tấn" },
   { key: "cum_purchase", label: "Lũy kế SL mủ thu mua", unit: "tấn" },
   { key: "pct_plan", label: "% Kế hoạch thực hiện", unit: "%",
     compute: (v, plan) => (plan && n(v.cum_purchase) != null ? (v.cum_purchase! / plan) * 100 : null) },
@@ -47,7 +47,7 @@ const CONSUMPTION: Column[] = [
   { key: "total_consumption", label: "Tổng tiêu thụ", unit: "tấn",
     compute: (v) => sum(v.lt_export, v.lt_domestic, v.spot_export, v.spot_domestic) },
   { key: "revenue", label: "Doanh thu cao su (lũy kế)", unit: "tỷ đồng" },
-  { key: "price_week", label: "Giá bán BQ (trong tuần)", unit: "tr.đ/tấn" },
+  { key: "price_day", label: "Giá bán BQ (trong ngày)", unit: "tr.đ/tấn" },
   { key: "price_cum", label: "Giá bán BQ (lũy kế)", unit: "tr.đ/tấn",
     compute: (v) => { const t = sum(v.lt_export, v.lt_domestic, v.spot_export, v.spot_domestic); return t ? ((n(v.revenue) ?? 0) * 1000) / t : null; } },
   { key: "stock_finished", label: "Tồn kho thành phẩm", unit: "tấn" },
@@ -103,12 +103,12 @@ export const colValue = (kind: Kind, key: string, v: Values, plan?: number | nul
   return c.compute ? c.compute(v, plan) : (v[key] ?? null);
 };
 
-/** Dòng tóm tắt ngắn cho timeline (vài chỉ số chính của 1 đơn vị/tuần). */
+/** Dòng tóm tắt ngắn cho timeline (vài chỉ số chính của 1 đơn vị/ngày). */
 export function summaryLine(kind: Kind, v: Values, plan?: number | null): string {
   if (kind === "purchase") {
-    const week = (n(v.latex_wet) ?? 0) + (n(v.coagulum) ?? 0);
+    const day = (n(v.latex_wet) ?? 0) + (n(v.coagulum) ?? 0);
     const parts = [
-      `TM tuần ${fmtNum(week, 1)}t`,
+      `TM ngày ${fmtNum(day, 1)}t`,
       `Lũy kế ${fmtNum(v.cum_purchase, 1)}t`,
       plan && n(v.cum_purchase) != null ? `KH ${fmtNum(colValue(kind, "pct_plan", v, plan), 1)}%` : null,
       n(v.cum_revenue) != null ? `Giá BQ ${fmtNum(colValue(kind, "price_cum", v, plan), 1)}` : null,

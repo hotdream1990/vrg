@@ -144,19 +144,19 @@ CREATE TABLE IF NOT EXISTS market_demand (
     PRIMARY KEY (as_of, company)
 );
 
--- Báo cáo TUẦN của đơn vị thành viên — 2 loại: thu mua ('purchase') & tiêu thụ–tồn kho
--- ('consumption'). Mỗi (tuần, đơn vị, loại) = 1 bản ghi, số liệu lưu jsonb {field: number}.
--- Đơn vị tự nhập của mình; chuyên viên có quyền `unit_weekly` xem/sửa mọi đơn vị (realtime).
-CREATE TABLE IF NOT EXISTS unit_weekly_report (
-    week_key    text NOT NULL,         -- Thứ 2 ISO của tuần 'YYYY-MM-DD'
+-- Báo cáo tiêu thụ – tồn kho của đơn vị thành viên (theo NGÀY) — 2 loại: thu mua ('purchase')
+-- & tiêu thụ–tồn kho ('consumption'). Mỗi (ngày, đơn vị, loại) = 1 bản ghi, số liệu jsonb {field: number}.
+-- Đơn vị tự nhập của mình; chuyên viên có quyền `unit_daily` xem/sửa mọi đơn vị (realtime).
+CREATE TABLE IF NOT EXISTS unit_daily_report (
+    as_of       date NOT NULL,         -- ngày báo cáo 'YYYY-MM-DD'
     company     text NOT NULL,         -- tên đơn vị (khớp member_unit)
     kind        text NOT NULL,         -- 'purchase' | 'consumption'
     payload     jsonb NOT NULL DEFAULT '{}'::jsonb,
     updated_at  timestamptz NOT NULL DEFAULT now(),
     updated_by  text,
-    PRIMARY KEY (week_key, company, kind)
+    PRIMARY KEY (as_of, company, kind)
 );
-CREATE INDEX IF NOT EXISTS ix_unit_weekly_week ON unit_weekly_report (kind, week_key DESC);
+CREATE INDEX IF NOT EXISTS ix_unit_daily_date ON unit_daily_report (kind, as_of DESC);
 
 -- Chỉ tiêu KẾ HOẠCH thu mua theo năm cho từng đơn vị (dùng tính % thực hiện kế hoạch).
 CREATE TABLE IF NOT EXISTS unit_purchase_plan (
@@ -190,6 +190,10 @@ END $$;
 -- Đổi tên quyền cũ 'corridor_info' → 'market_demand' (Thông tin hành lang → Nhu cầu thị trường).
 UPDATE app_user SET permissions = REPLACE(permissions::text, 'corridor_info', 'market_demand')::jsonb
     WHERE permissions::text LIKE '%corridor_info%';
+-- Báo cáo tiêu thụ–tồn kho chuyển từ TUẦN → NGÀY: gỡ bảng tuần cũ (chưa có dữ liệu thật) + đổi tên quyền.
+DROP TABLE IF EXISTS unit_weekly_report;
+UPDATE app_user SET permissions = REPLACE(permissions::text, 'unit_weekly', 'unit_daily')::jsonb
+    WHERE permissions::text LIKE '%unit_weekly%';
 -- Đổi tên chủng loại giá sàn cho khớp báo cáo (idempotent).
 UPDATE vrg_floor_price SET grade = 'SVR 10 / CSR 10' WHERE grade = 'SVR 10';
 UPDATE vrg_floor_price SET grade = 'SVR 20 / CSR 20' WHERE grade = 'SVR 20';

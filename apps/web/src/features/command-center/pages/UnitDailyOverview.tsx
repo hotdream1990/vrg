@@ -1,19 +1,19 @@
-/* Lưới TỔNG HỢP toàn đơn vị của 1 tuần + dòng Tổng cộng (gộp cột tấn/tỷ đồng). Cột giữ đúng thứ tự
-   Excel (cột suy ra xen giữa). Bấm "Sửa" mở form nhập của đơn vị đó. Realtime theo tuần. */
+/* Lưới TỔNG HỢP toàn đơn vị của 1 ngày + dòng Tổng cộng (gộp cột tấn/tỷ đồng). Cột giữ đúng thứ tự
+   Excel (cột suy ra xen giữa). Bấm "Sửa" mở form nhập của đơn vị đó. Realtime theo ngày. */
 
 import { EditOutlined } from "@ant-design/icons";
 import { Button, Empty, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 
 import { dmy } from "../../../lib/date";
-import { dataColumns } from "../../../lib/unit-weekly-columns";
-import type { WeekData } from "../../../lib/unit-weekly-client";
-import { COLUMNS, type Column, type Kind, type Values, colValue, fmtNum, isSummable } from "../../../lib/unit-weekly-fields";
+import { dataColumns } from "../../../lib/unit-daily-columns";
+import type { DayData } from "../../../lib/unit-daily-client";
+import { COLUMNS, type Column, type Kind, type Values, colValue, fmtNum, isSummable } from "../../../lib/unit-daily-fields";
 
 type Row = { company: string; fields: Values; updated_at?: string; updated_by?: string | null };
 
-export default function UnitWeeklyOverview(
-  { kind, data, canEdit, onEdit }: { kind: Kind; data: WeekData; canEdit: boolean; onEdit: (week: string, company: string) => void },
+export default function UnitDailyOverview(
+  { kind, data, canEdit, onEdit }: { kind: Kind; data: DayData; canEdit: boolean; onEdit: (asOf: string, company: string) => void },
 ) {
   const rows: Row[] = data.units.map((u) => {
     const e = data.entries[u];
@@ -32,7 +32,7 @@ export default function UnitWeeklyOverview(
         ) : <span style={{ opacity: 0.4 }}>—</span> },
     { title: "", key: "act", fixed: "right", width: 74, align: "center",
       render: (_: unknown, r: Row) => (
-        <Button size="small" type="link" icon={<EditOutlined />} onClick={() => onEdit(data.week_key, r.company)}>
+        <Button size="small" type="link" icon={<EditOutlined />} onClick={() => onEdit(data.as_of, r.company)}>
           {canEdit ? "Sửa" : "Xem"}
         </Button>
       ) },

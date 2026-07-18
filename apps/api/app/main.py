@@ -15,6 +15,7 @@ from app.core.security import get_current_user, require_admin, require_cap
 from app.web_static import mount_spa
 from app.routers import (
     auth,
+    assistant,
     bulletins,
     config,
     floor,
@@ -31,7 +32,7 @@ from app.routers import (
     public_purchase,
     schedules,
     settings as settings_router,
-    unit_weekly,
+    unit_daily,
     users,
     weekly_reports,
 )
@@ -123,7 +124,8 @@ app.include_router(member_unit.router, dependencies=_protected)
 app.include_router(member_region.router, dependencies=_protected)
 app.include_router(member_self.router, dependencies=_protected)  # đơn vị thành viên tự nhập giá của mình
 app.include_router(market_demand.router, dependencies=_protected)  # nhu cầu thị trường (editor có quyền: xem/sửa mọi đơn vị)
-app.include_router(unit_weekly.router, dependencies=[Depends(require_cap("unit_weekly"))])  # báo cáo tuần đơn vị (chuyên viên xem/sửa mọi đơn vị)
+app.include_router(unit_daily.router, dependencies=[Depends(require_cap("unit_daily"))])  # báo cáo tiêu thụ–tồn kho theo ngày (chuyên viên xem/sửa mọi đơn vị)
+app.include_router(assistant.router, dependencies=[Depends(require_cap("assistant"))])  # Trợ lý AI (hỏi đáp số liệu + tư vấn giá sàn)
 app.include_router(settings_router.router, dependencies=_protected)  # cài đặt đọc-được (cửa sổ nhập liệu)
 app.include_router(inventory.router, dependencies=_protected)
 app.include_router(market_movement.router, dependencies=[Depends(require_cap("market_movement"))])

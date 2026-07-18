@@ -2,6 +2,7 @@ import { App as AntApp, ConfigProvider } from "antd";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import AdminLayout from "./features/command-center/AdminLayout";
+import AssistantPage from "./features/command-center/pages/AssistantPage";
 import BulletinDetailPage from "./features/command-center/pages/BulletinDetailPage";
 import BulletinListPage from "./features/command-center/pages/BulletinListPage";
 import BulletinPage from "./features/command-center/pages/BulletinPage";
@@ -22,7 +23,7 @@ import RawMaterialPage from "./features/command-center/pages/RawMaterialPage";
 import ScanPage from "./features/command-center/pages/ScanPage";
 import SchedulePage from "./features/command-center/pages/SchedulePage";
 import SystemConfigPage from "./features/command-center/pages/SystemConfigPage";
-import UnitWeeklyPage from "./features/command-center/pages/UnitWeeklyPage";
+import UnitDailyPage from "./features/command-center/pages/UnitDailyPage";
 import UserManagementPage from "./features/command-center/pages/UserManagementPage";
 import VrgFloorPage from "./features/command-center/pages/VrgFloorPage";
 import { AuthProvider, useAuth } from "./features/auth/AuthContext";
@@ -47,10 +48,10 @@ function MarketDemandRoute() {
   return <Navigate to="/" replace />;
 }
 
-/** Báo cáo tuần đơn vị: đơn vị thành viên nhập của mình; chuyên viên có quyền `unit_weekly` → mọi đơn vị. */
-function UnitWeeklyRoute() {
+/** Báo cáo tiêu thụ–tồn kho theo ngày: đơn vị thành viên nhập của mình; chuyên viên có quyền `unit_daily` → mọi đơn vị. */
+function UnitDailyRoute() {
   const { user, can } = useAuth();
-  if (user?.role === "member" || can("unit_weekly")) return <UnitWeeklyPage />;
+  if (user?.role === "member" || can("unit_daily")) return <UnitDailyPage />;
   return <Navigate to="/" replace />;
 }
 
@@ -74,8 +75,8 @@ export default function App() {
                   </Route>
                   {/* Nhu cầu thị trường — đơn vị thành viên (đơn vị mình) hoặc chuyên viên có quyền */}
                   <Route path="/nhu-cau-thi-truong" element={<MarketDemandRoute />} />
-                  {/* Báo cáo tuần đơn vị (thu mua · tiêu thụ–tồn kho) — đơn vị thành viên hoặc chuyên viên có quyền */}
-                  <Route path="/bao-cao-tuan-don-vi" element={<UnitWeeklyRoute />} />
+                  {/* Báo cáo tiêu thụ–tồn kho theo ngày (thu mua · tiêu thụ–tồn kho) — đơn vị thành viên hoặc chuyên viên có quyền */}
+                  <Route path="/bao-cao-tieu-thu-ton-kho" element={<UnitDailyRoute />} />
                   {/* Số liệu tự động (quét + bảng giá sàn + tỷ giá) — quyền auto_data */}
                   <Route element={<RequireCap caps={["auto_data"]} />}>
                     <Route path="/quet-da-san" element={<ScanPage />} />
@@ -112,6 +113,9 @@ export default function App() {
                   </Route>
                   <Route element={<RequireCap caps={["market_movement"]} />}>
                     <Route path="/ban-tin-bien-dong" element={<MarketMovementPage />} />
+                  </Route>
+                  <Route element={<RequireCap caps={["assistant"]} />}>
+                    <Route path="/tro-ly-ai" element={<AssistantPage />} />
                   </Route>
                   <Route element={<RequireCap caps={["bulletin_weekly"]} />}>
                     <Route path="/ban-tin/tuan" element={<WeeklyReportPage />} />

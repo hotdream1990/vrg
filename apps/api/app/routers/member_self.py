@@ -15,12 +15,8 @@ from app.core import edit_window
 from app.core.security import get_current_member
 from app.schemas.market_demand import MarketDemandEdit
 from app.schemas.member_self import MemberPriceEdit
-from app.schemas.unit_weekly import UnitWeeklyEdit
-from app.services import market_demand_repo, price_repo, unit_weekly_repo
-
-
-def _monday(d: date) -> str:
-    return (d - timedelta(days=d.weekday())).isoformat()
+from app.schemas.unit_daily import UnitDailyEdit
+from app.services import market_demand_repo, price_repo, unit_daily_repo
 
 router = APIRouter(prefix="/api/member", tags=["member-self"])
 
@@ -108,44 +104,44 @@ def upsert_my_market_demand(body: MarketDemandEdit,
     return {"ok": True}
 
 
-# ── Báo cáo tuần đơn vị (thu mua · tiêu thụ–tồn kho) ──
-@router.get("/weekly-report/timeline")
-def my_weekly_timeline(kind: str = Query(..., pattern="^(purchase|consumption)$"),
-                       weeks: int = Query(16, ge=1, le=104),
-                       member: dict = Depends(get_current_member)) -> dict:
-    """Timeline báo cáo tuần — CHỈ các đơn vị được gán (đa đơn vị), ẩn tuần trống."""
+# ── Báo cáo tiêu thụ–tồn kho theo ngày (thu mua · tiêu thụ–tồn kho) ──
+@router.get("/daily-report/timeline")
+def my_daily_timeline(kind: str = Query(..., pattern="^(purchase|consumption)$"),
+                      days: int = Query(90, ge=1, le=730),
+                      member: dict = Depends(get_current_member)) -> dict:
+    """Timeline báo cáo — CHỈ các đơn vị được gán (đa đơn vị), ẩn ngày trống."""
     units = list(member["member_units"])
     today = edit_window.today()
-    week_from = _monday(today - timedelta(weeks=weeks))
-    return {"today_week": _monday(today), "edit_window_days": edit_window.member_window(),
-            "units": units, "plans": unit_weekly_repo.plans_for_year(today.year),
-            "entries": unit_weekly_repo.recent(kind, week_from, companies=units)}
+    date_from = (today - timedelta(days=days)).isoformat()
+    return {"today": today.isoformat(), "edit_window_days": edit_window.member_window(),
+            "units": units, "plans": unit_daily_repo.plans_for_year(today.year),
+            "entries": unit_daily_repo.recent(kind, date_from, companies=units)}
 
 
-@router.get("/weekly-report")
-def my_weekly(kind: str = Query(..., pattern="^(purchase|consumption)$"),
-              week_key: str = Query(..., description="Thứ 2 ISO 'YYYY-MM-DD'"),
-              member: dict = Depends(get_current_member)) -> dict:
-    """Số liệu báo cáo tuần của CÁC đơn vị được gán cho 1 tuần."""
+@router.get("/daily-report")
+def my_daily(kind: str = Query(..., pattern="^(purchase|consumption)$"),
+             as_of: str = Query(..., description="Ngày 'YYYY-MM-DD'"),
+             member: dict = Depends(get_current_member)) -> dict:
+    """Số liệu báo cáo của CÁC đơn vị được gán cho 1 ngày."""
     units = list(member["member_units"])
     try:
-        wk = _monday(date.fromisoformat(week_key))
+        year = date.fromisoformat(as_of).year
     except ValueError as exc:
-        raise HTTPException(400, "Tuần không hợp lệ (YYYY-MM-DD).") from exc
-    entries = unit_weekly_repo.week_entries(kind, wk)
-    return {"week_key": wk, "today_week": _monday(edit_window.today()),
+        raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
+    entries = unit_daily_repo.entries_on(kind, as_of)
+    return {"as_of": as_of, "today": edit_window.today().isoformat(),
             "edit_window_days": edit_window.member_window(), "units": units,
-            "plans": unit_weekly_repo.plans_for_year(date.fromisoformat(wk).year),
+            "plans": unit_daily_repo.plans_for_year(year),
             "entries": {u: entries.get(u) for u in units}}
 
 
-@router.put("/weekly-report")
-def upsert_my_weekly(body: UnitWeeklyEdit,
-                     member: dict = Depends(get_current_member)) -> dict:
-    """Ghi/sửa số liệu 1 đơn vị được gán cho 1 tuần, trong cửa sổ sửa tuần. create_only → chống ghi trùng."""
+@router.put("/daily-report")
+def upsert_my_daily(body: UnitDailyEdit,
+                    member: dict = Depends(get_current_member)) -> dict:
+    """Ghi/sửa số liệu 1 đơn vị được gán cho 1 ngày, trong cửa sổ cho phép. create_only → chống ghi trùng."""
     _assert_company(member, body.company)
-    edit_window.assert_week_editable(body.week_key, edit_window.member_window())
-    if body.create_only and unit_weekly_repo.has_entry(body.kind, body.week_key, body.company):
-        raise HTTPException(409, "Đơn vị này đã có số liệu cho tuần này — vui lòng dùng chức năng Sửa.")
-    unit_weekly_repo.upsert(body.kind, body.week_key, body.company, body.fields, member.get("username"))
+    edit_window.assert_editable(body.as_of, edit_window.member_window())
+    if body.create_only and unit_daily_repo.has_entry(body.kind, body.as_of, body.company):
+        raise HTTPException(409, "Đơn vị này đã có số liệu cho ngày này — vui lòng dùng chức năng Sửa.")
+    unit_daily_repo.upsert(body.kind, body.as_of, body.company, body.fields, member.get("username"))
     return {"ok": True}

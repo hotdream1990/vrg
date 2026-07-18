@@ -8,7 +8,7 @@ Mặc định 7 ngày cho cả hai. Admin KHÔNG bị giới hạn (xem `securit
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
@@ -65,29 +65,4 @@ def assert_editable(as_of: str | date, window: int) -> None:
         raise HTTPException(
             403,
             f"Ngày này đã chuyển sang chế độ chỉ xem — chỉ được nhập/sửa trong {window} ngày gần nhất.",
-        )
-
-
-def assert_week_editable(week_key: str | date, window: int) -> None:
-    """Cửa sổ sửa cho DỮ LIỆU TUẦN: được sửa tuần hiện tại + `window` ngày sau khi tuần kết thúc.
-
-    `week_key` = ngày Thứ 2 (ISO) của tuần. Tuần tương lai bị chặn; tuần đã qua chỉ sửa được trong
-    `window` ngày kể từ Chủ nhật của tuần đó (mặc định 7 = còn sửa hết tuần kế tiếp).
-    """
-    if isinstance(week_key, date):
-        mon = week_key
-    else:
-        try:
-            mon = date.fromisoformat(str(week_key))
-        except ValueError as exc:
-            raise HTTPException(400, "Tuần không hợp lệ (Thứ 2 ISO 'YYYY-MM-DD').") from exc
-    t = today()
-    t_mon = t - timedelta(days=t.weekday())
-    if mon > t_mon:
-        raise HTTPException(400, "Không nhập số liệu cho tuần trong tương lai.")
-    sun = mon + timedelta(days=6)
-    if (t - sun).days > window:
-        raise HTTPException(
-            403,
-            f"Tuần này đã chuyển sang chế độ chỉ xem — chỉ được nhập/sửa tuần hiện tại và {window} ngày sau đó.",
         )

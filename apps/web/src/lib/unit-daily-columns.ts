@@ -1,9 +1,9 @@
 /* Dựng cột số liệu (nhóm theo Excel, cột suy ra xen giữa) DÙNG CHUNG cho bảng Tổng hợp và
-   bảng Danh sách theo tuần. Mỗi dòng cần có { fields, company } để tính giá trị + tra chỉ tiêu KH. */
+   bảng Danh sách theo ngày. Mỗi dòng cần có { fields, company } để tính giá trị + tra chỉ tiêu KH. */
 
 import type { ColumnsType } from "antd/es/table";
 
-import { type Column, type Kind, type Values, colValue, fmtNum, segments } from "./unit-weekly-fields";
+import { type Column, type Kind, type Values, colValue, fmtNum, segments } from "./unit-daily-fields";
 
 type Rowish = { fields: Values; company: string };
 

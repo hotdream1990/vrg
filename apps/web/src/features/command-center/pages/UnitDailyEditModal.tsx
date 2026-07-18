@@ -1,67 +1,65 @@
-/* Modal nhập/sửa số liệu 1 đơn vị / 1 tuần — DÙNG CHUNG cho timeline (danh sách theo tuần) và
-   trang tổng hợp. Chọn tuần + đơn vị → nạp số đã có (nếu có) → sửa → lưu (upsert). Role-aware. */
+/* Modal nhập/sửa số liệu 1 đơn vị / 1 ngày — DÙNG CHUNG cho timeline (danh sách theo ngày) và
+   trang tổng hợp. Chọn ngày + đơn vị → nạp số đã có (nếu có) → sửa → lưu (upsert). Role-aware. */
 
 import { Alert, Modal, Select, Spin, Tag, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  type WeekData, fetchMyWeek, fetchWeek, saveMyWeekly, saveWeekly,
-} from "../../../lib/unit-weekly-client";
-import { KIND_LABEL, type Kind, type Values } from "../../../lib/unit-weekly-fields";
-import { recentWeeks, weekLabel, weekRange } from "../../../lib/week";
-import { todayISO } from "../../../lib/date";
-import UnitWeeklyForm from "./UnitWeeklyForm";
+  type DayData, fetchMyDay, fetchDay, saveMyDaily, saveDaily,
+} from "../../../lib/unit-daily-client";
+import { KIND_LABEL, type Kind, type Values } from "../../../lib/unit-daily-fields";
+import DateInput from "../sections/DateInput";
+import UnitDailyForm from "./UnitDailyForm";
 
-const daysBetween = (a: string, b: string) =>
-  Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86_400_000);
+const daysBetween = (later: string, earlier: string) =>
+  Math.round((new Date(later + "T00:00:00").getTime() - new Date(earlier + "T00:00:00").getTime()) / 86_400_000);
 
 type Props = {
   open: boolean;
   kind: Kind;
   role: "member" | "hq";
   isAdmin: boolean;
-  initialWeek: string;
+  initialDay: string;
   initialCompany: string;
-  todayWeek: string;
+  today: string;
   onClose: () => void;
   onSaved: () => void;
 };
 
-export default function UnitWeeklyEditModal(
-  { open, kind, role, isAdmin, initialWeek, initialCompany, todayWeek, onClose, onSaved }: Props,
+export default function UnitDailyEditModal(
+  { open, kind, role, isAdmin, initialDay, initialCompany, today, onClose, onSaved }: Props,
 ) {
-  const [week, setWeek] = useState(initialWeek);
+  const [day, setDay] = useState(initialDay);
   const [company, setCompany] = useState(initialCompany);
-  const [data, setData] = useState<WeekData | null>(null);
+  const [data, setData] = useState<DayData | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { if (open) { setWeek(initialWeek); setCompany(initialCompany); } }, [open, initialWeek, initialCompany]);
+  useEffect(() => { if (open) { setDay(initialDay); setCompany(initialCompany); } }, [open, initialDay, initialCompany]);
 
-  const load = useCallback((wk: string) => {
+  const load = useCallback((asOf: string) => {
     setLoading(true);
-    (role === "member" ? fetchMyWeek : fetchWeek)(kind, wk)
+    (role === "member" ? fetchMyDay : fetchDay)(kind, asOf)
       .then((d) => { setData(d); setCompany((c) => (c && d.units.includes(c) ? c : d.units[0] ?? "")); })
       .catch((e) => message.error(e.message)).finally(() => setLoading(false));
   }, [role, kind]);
-  useEffect(() => { if (open) load(week); }, [open, week, load]);
+  useEffect(() => { if (open && day) load(day); }, [open, day, load]);
 
   const units = data?.units ?? [];
 
   const entry = data?.entries[company] ?? null;
   const exists = !!entry;
   const editable = useMemo(() => {
-    if (isAdmin) return week <= todayWeek;
-    if (week > todayWeek) return false;
-    return daysBetween(weekRange(week).end, week === todayWeek ? weekRange(week).end : todayISO())
-      <= (data?.edit_window_days ?? 7);
-  }, [isAdmin, week, todayWeek, data]);
+    if (!day || day > today) return false;
+    if (isAdmin) return true;
+    return daysBetween(today, day) <= (data?.edit_window_days ?? 7);
+  }, [isAdmin, day, today, data]);
 
   const save = async (fields: Values) => {
     setSaving(true);
     try {
-      await (role === "member" ? saveMyWeekly : saveWeekly)(kind, company, week, fields);
-      message.success("Đã lưu số liệu tuần");
+      await (role === "member" ? saveMyDaily : saveDaily)(kind, company, day, fields);
+      message.success("Đã lưu số liệu ngày");
       onSaved();
       onClose();
     } catch (e) {
@@ -71,29 +69,27 @@ export default function UnitWeeklyEditModal(
     }
   };
 
-  const weekOpts = recentWeeks(todayWeek, 20).map((w) => ({ value: w, label: weekLabel(w) }));
-
   return (
     <Modal open={open} onCancel={onClose} footer={null} width={880} destroyOnHidden
            title={`Nhập số liệu — ${KIND_LABEL[kind]}`}>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
-        <Select value={week} onChange={setWeek} options={weekOpts} style={{ width: 230 }} />
+        <DateInput value={day} onChange={setDay} noFuture style={{ width: 190 }} />
         <Select value={company} onChange={setCompany} showSearch style={{ minWidth: 220 }}
                 options={units.map((u) => ({ value: u, label: u }))}
                 filterOption={(i, o) => (o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
         {exists
           ? <Tag color="blue">Đang sửa số đã có</Tag>
-          : <Tag color="green">Tạo mới cho tuần này</Tag>}
+          : <Tag color="green">Tạo mới cho ngày này</Tag>}
       </div>
       {!editable && (
         <Alert type="info" showIcon style={{ marginBottom: 12 }}
-               message="Tuần này ở chế độ chỉ xem — ngoài cửa sổ nhập cho phép." />
+               message="Ngày này ở chế độ chỉ xem — ngoài cửa sổ nhập cho phép." />
       )}
       <Spin spinning={loading}>
         {data && (
-          <UnitWeeklyForm
+          <UnitDailyForm
             kind={kind}
-            formKey={`${kind}|${week}|${company}|${entry?.updated_at ?? "new"}`}
+            formKey={`${kind}|${day}|${company}|${entry?.updated_at ?? "new"}`}
             values={entry?.fields ?? {}}
             plan={data.plans[company] ?? null}
             readOnly={!editable}
