@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import pytest
 from sqlalchemy import text
 
@@ -9,6 +11,9 @@ from app.core.db import db_healthy, session_scope
 from app.services import price_repo
 
 pytestmark = pytest.mark.skipif(not db_healthy(), reason="DB không sẵn sàng")
+
+# Ngày TƯƠNG ĐỐI (gần đây) để test bền theo thời gian — luôn nằm trong cửa sổ history(days=30).
+_RECENT = (date.today() - timedelta(days=3)).isoformat()
 
 
 @pytest.fixture(autouse=True)
@@ -26,7 +31,7 @@ def test_upsert_and_latest_roundtrip() -> None:
     assert run_id > 0
 
     rec = {
-        "as_of": "2026-06-16",
+        "as_of": _RECENT,
         "source": "anrpc",
         "grade": "__TEST__",
         "contract": None,
@@ -55,7 +60,7 @@ def test_history_returns_points() -> None:
     run_id = price_repo.create_run("test")
     price_repo.upsert_prices(
         [{
-            "as_of": "2026-06-16", "source": "anrpc", "grade": "__TESTH__",
+            "as_of": _RECENT, "source": "anrpc", "grade": "__TESTH__",
             "contract": None, "price_type": "physical", "price": 2.0,
             "currency": "USD", "unit": "US$/kg", "source_ts": None,
         }],
