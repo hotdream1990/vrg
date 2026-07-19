@@ -25,3 +25,5 @@ class PurchasePlanEdit(BaseModel):
     company: str
     plan_tonnes: float | None = None        # kế hoạch thu mua năm (tấn)
     signed_lt_tonnes: float | None = None   # tổng SL đã ký HĐ dài hạn năm (tấn)
+    carry_lt_tonnes: float | None = None    # SL tiêu thụ HĐ dài hạn năm trước chuyển sang (tấn)
+    carry_spot_tonnes: float | None = None  # SL tiêu thụ HĐ chuyến năm trước chuyển sang (tấn)

@@ -410,6 +410,31 @@ def purchase_by_company_on_date(as_of: str, price_type: str = "purchase") -> dic
         return {m["grade"]: float(m["price"]) for m in result.mappings().all()}
 
 
+def purchase_prices_in_range(date_from: str, date_to: str) -> dict[tuple[str, str], dict[str, float]]:
+    """Đơn giá thu mua (source=vrg) trong khoảng → {(công ty, ngày): {latex, cup}}.
+
+    Dùng tính GIÁ BÌNH QUÂN GIA QUYỀN theo sản lượng cho báo cáo kỳ (1 query cho cả khoảng).
+    """
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(
+            text("""
+                SELECT DISTINCT ON (as_of, grade, price_type) as_of, grade, price_type, price
+                FROM fact_price
+                WHERE source = 'vrg' AND price_type IN ('purchase', 'purchase_cup')
+                  AND as_of BETWEEN CAST(:a AS date) AND CAST(:b AS date)
+                ORDER BY as_of, grade, price_type, ingested_at DESC
+            """),
+            {"a": date_from, "b": date_to},
+        ).mappings().all()
+    out: dict[tuple[str, str], dict[str, float]] = {}
+    for r in rows:
+        key = (r["grade"], str(r["as_of"]))
+        slot = out.setdefault(key, {})
+        slot["latex" if r["price_type"] == "purchase" else "cup"] = float(r["price"])
+    return out
+
+
 def member_price_history(company: str, days: int = 30) -> dict[str, Any]:
     """Lịch sử giá mủ nước + mủ chén của ĐÚNG 1 công ty (source=vrg) trong `days` ngày gần nhất.
 

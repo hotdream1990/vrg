@@ -53,7 +53,12 @@ export type Timeline = {
   plans: Record<string, number>; entries: TimelineRow[];
 };
 /** Số liệu NĂM của 1 đơn vị (nhập 1 lần, cập nhật khi có thay đổi). */
-export type YearPlanRow = { plan_tonnes: number | null; signed_lt_tonnes: number | null };
+export type YearPlanRow = {
+  plan_tonnes: number | null;        // kế hoạch thu mua năm (tấn)
+  signed_lt_tonnes: number | null;   // tổng SL đã ký HĐ dài hạn (tấn)
+  carry_lt_tonnes: number | null;    // HĐ dài hạn năm trước chuyển sang (tấn)
+  carry_spot_tonnes: number | null;  // HĐ chuyến năm trước chuyển sang (tấn)
+};
 export type YearPlanData = { year: number; units: string[]; plans: Record<string, YearPlanRow> };
 
 const J = { "Content-Type": "application/json" };
@@ -90,10 +95,42 @@ const planBase = (role: Role) => (role === "member" ? "/api/member/plan" : "/api
 export const fetchYearPlan = (role: Role, year: number) =>
   apiFetch<YearPlanData>(`${planBase(role)}?year=${year}`);
 
-export const saveYearPlan = (
-  role: Role, year: number, company: string, planTonnes: number | null, signedLtTonnes: number | null,
-) =>
+export const saveYearPlan = (role: Role, year: number, company: string, row: YearPlanRow) =>
   apiFetch<{ ok: boolean }>(planBase(role), {
     method: "PUT", headers: J,
-    body: JSON.stringify({ year, company, plan_tonnes: planTonnes, signed_lt_tonnes: signedLtTonnes }),
+    body: JSON.stringify({ year, company, ...row }),
   });
+
+// ── Báo cáo tổng hợp theo KỲ (tuần/tháng/năm/khoảng tự chọn) — trích xuất từ số liệu ngày ──
+export type PeriodRow = {
+  company: string; region: string | null; days: number; last_day: string | null;
+  stock_by_grade?: Record<string, number | null>;
+  [key: string]: unknown;
+};
+export type PeriodReport = {
+  kind: Kind; date_from: string; date_to: string; grades: string[]; rows: PeriodRow[];
+};
+
+const periodBase = (role: Role) =>
+  role === "member" ? "/api/member/period-report" : "/api/unit-daily/period-report";
+
+export const fetchPeriodReport = (role: Role, kind: Kind, dateFrom: string, dateTo: string) =>
+  apiFetch<PeriodReport>(`${periodBase(role)}?kind=${kind}&date_from=${dateFrom}&date_to=${dateTo}`);
+
+/** Tải Excel báo cáo kỳ (bám mẫu Biểu (1)/(2)) — fetch kèm token rồi lưu file. */
+export async function downloadPeriodXlsx(
+  role: Role, kind: Kind, dateFrom: string, dateTo: string,
+): Promise<void> {
+  const url = `${API}${periodBase(role)}.xlsx?kind=${kind}&date_from=${dateFrom}&date_to=${dateTo}`;
+  const res = await fetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Không tải được file Excel.");
+  const blob = await res.blob();
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = `bao-cao-${kind === "purchase" ? "thu-mua" : "tieu-thu-ton-kho"}-${dateFrom}-den-${dateTo}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 60_000);
+}

@@ -75,6 +75,22 @@ def recent(kind: str, date_from: str, companies: list[str] | None = None) -> lis
             for r in rows if keep is None or r["company"] in keep]
 
 
+def in_range(kind: str, date_from: str, date_to: str,
+             companies: list[str] | None = None) -> list[dict[str, Any]]:
+    """Các bản ghi CÓ số liệu trong khoảng [date_from, date_to] (ngày tăng dần) — cho báo cáo kỳ."""
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(
+            text("SELECT as_of, company, payload FROM unit_daily_report "
+                 "WHERE kind = :k AND as_of BETWEEN CAST(:a AS date) AND CAST(:b AS date) "
+                 "AND payload <> '{}'::jsonb ORDER BY as_of, company"),
+            {"k": kind, "a": date_from, "b": date_to},
+        ).mappings().all()
+    keep = set(companies) if companies is not None else None
+    return [{"as_of": str(r["as_of"]), "company": r["company"], "fields": dict(r["payload"] or {})}
+            for r in rows if keep is None or r["company"] in keep]
+
+
 def attach_purchase_prices(entries: list[dict[str, Any]], kind: str) -> None:
     """Gắn đơn giá mủ nước/mủ chén (link từ 'Giá mủ nguyên liệu') vào từng dòng timeline (chỉ đọc).
 
@@ -135,26 +151,33 @@ def year_plan(year: int, companies: list[str] | None = None) -> dict[str, dict[s
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(
-            text("SELECT company, plan_tonnes, signed_lt_tonnes FROM unit_purchase_plan WHERE year = :y"),
+            text("SELECT company, plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, carry_spot_tonnes "
+                 "FROM unit_purchase_plan WHERE year = :y"),
             {"y": year},
         ).mappings().all()
     keep = set(companies) if companies is not None else None
-    return {r["company"]: {"plan_tonnes": r["plan_tonnes"], "signed_lt_tonnes": r["signed_lt_tonnes"]}
+    return {r["company"]: {"plan_tonnes": r["plan_tonnes"], "signed_lt_tonnes": r["signed_lt_tonnes"],
+                           "carry_lt_tonnes": r["carry_lt_tonnes"], "carry_spot_tonnes": r["carry_spot_tonnes"]}
             for r in rows if keep is None or r["company"] in keep}
 
 
-def set_year_plan(year: int, company: str, plan_tonnes: float | None,
-                  signed_lt_tonnes: float | None, updated_by: str | None) -> None:
-    """Đặt số liệu năm cho 1 đơn vị (ghi đè cả 2 ô; None = xoá ô đó)."""
+def set_year_plan(year: int, company: str, plan_tonnes: float | None, signed_lt_tonnes: float | None,
+                  carry_lt_tonnes: float | None, carry_spot_tonnes: float | None,
+                  updated_by: str | None) -> None:
+    """Đặt số liệu năm cho 1 đơn vị (ghi đè các ô; None = xoá ô đó)."""
     ensure_schema()
     with session_scope() as db:
         db.execute(
-            text("INSERT INTO unit_purchase_plan (year, company, plan_tonnes, signed_lt_tonnes, updated_by, updated_at) "
-                 "VALUES (:y, :c, :p, :s, :by, now()) "
+            text("INSERT INTO unit_purchase_plan "
+                 "(year, company, plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, carry_spot_tonnes, "
+                 " updated_by, updated_at) "
+                 "VALUES (:y, :c, :p, :s, :cl, :cs, :by, now()) "
                  "ON CONFLICT (year, company) DO UPDATE SET "
                  "plan_tonnes = EXCLUDED.plan_tonnes, signed_lt_tonnes = EXCLUDED.signed_lt_tonnes, "
+                 "carry_lt_tonnes = EXCLUDED.carry_lt_tonnes, carry_spot_tonnes = EXCLUDED.carry_spot_tonnes, "
                  "updated_by = EXCLUDED.updated_by, updated_at = now()"),
-            {"y": year, "c": company, "p": plan_tonnes, "s": signed_lt_tonnes, "by": updated_by},
+            {"y": year, "c": company, "p": plan_tonnes, "s": signed_lt_tonnes,
+             "cl": carry_lt_tonnes, "cs": carry_spot_tonnes, "by": updated_by},
         )
 
 

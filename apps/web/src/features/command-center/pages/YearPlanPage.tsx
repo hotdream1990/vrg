@@ -33,7 +33,9 @@ export default function YearPlanPage() {
   }, [role, year]);
   useEffect(() => { load(); }, [load]);
 
-  const rowOf = (u: string): YearPlanRow => plans[u] ?? { plan_tonnes: null, signed_lt_tonnes: null };
+  const EMPTY: YearPlanRow = { plan_tonnes: null, signed_lt_tonnes: null, carry_lt_tonnes: null, carry_spot_tonnes: null };
+
+  const rowOf = (u: string): YearPlanRow => plans[u] ?? EMPTY;
 
   /** Sửa 1 ô trong nháp (chưa gọi API) — lưu khi rời ô. */
   const setCell = (u: string, key: keyof YearPlanRow, v: number | null) =>
@@ -43,7 +45,7 @@ export default function YearPlanPage() {
     const r = rowOf(u);
     setSavingUnit(u);
     try {
-      await saveYearPlan(role, year, u, r.plan_tonnes, r.signed_lt_tonnes);
+      await saveYearPlan(role, year, u, r);
       message.success(`Đã lưu kế hoạch ${year} — ${u}`);
     } catch (e) {
       message.error((e as Error).message);
@@ -87,7 +89,9 @@ export default function YearPlanPage() {
                 <th style={{ width: 60 }}>#</th>
                 <th>Đơn vị</th>
                 <th className="r" style={{ width: 240 }}>Kế hoạch thu mua (tấn)</th>
-                <th className="r" style={{ width: 260 }}>HĐ dài hạn đã ký (tấn)</th>
+                <th className="r" style={{ width: 220 }}>HĐ dài hạn đã ký (tấn)</th>
+                <th className="r" style={{ width: 220 }}>HĐ dài hạn 2025 chuyển sang (tấn)</th>
+                <th className="r" style={{ width: 220 }}>HĐ chuyến 2025 chuyển sang (tấn)</th>
               </tr>
             </thead>
             <tbody>
@@ -103,11 +107,17 @@ export default function YearPlanPage() {
                     <td onBlur={() => save(u)}>
                       {numInput(r.signed_lt_tonnes, (v) => setCell(u, "signed_lt_tonnes", v))}
                     </td>
+                    <td onBlur={() => save(u)}>
+                      {numInput(r.carry_lt_tonnes, (v) => setCell(u, "carry_lt_tonnes", v))}
+                    </td>
+                    <td onBlur={() => save(u)}>
+                      {numInput(r.carry_spot_tonnes, (v) => setCell(u, "carry_spot_tonnes", v))}
+                    </td>
                   </tr>
                 );
               })}
               {units.length === 0 && !loading && (
-                <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
+                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                   Chưa có đơn vị nào.
                 </td></tr>
               )}
@@ -117,6 +127,8 @@ export default function YearPlanPage() {
                   <td>Tổng cộng</td>
                   <td className="r">{fmtNum(total("plan_tonnes"), 2)}</td>
                   <td className="r">{fmtNum(total("signed_lt_tonnes"), 2)}</td>
+                  <td className="r">{fmtNum(total("carry_lt_tonnes"), 2)}</td>
+                  <td className="r">{fmtNum(total("carry_spot_tonnes"), 2)}</td>
                 </tr>
               )}
             </tbody>

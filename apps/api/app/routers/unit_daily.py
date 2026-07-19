@@ -9,16 +9,28 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 
 from app.core import edit_window
 from app.core.security import assert_editor_window, require_cap
 from app.schemas.unit_daily import PurchasePlanEdit, UnitDailyEdit
-from app.services import contract_files, member_unit_repo, unit_daily_repo
+from app.services import (
+    contract_files, member_unit_repo, unit_daily_repo, unit_period_excel, unit_period_report,
+)
 
 router = APIRouter(prefix="/api/unit-daily", tags=["unit-daily"])
 _require = require_cap("unit_daily")
+
+
+def _assert_range(date_from: str, date_to: str) -> None:
+    """Chặn khoảng ngày sai định dạng / ngược đầu."""
+    try:
+        a, b = date.fromisoformat(date_from), date.fromisoformat(date_to)
+    except ValueError as exc:
+        raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
+    if a > b:
+        raise HTTPException(400, "Khoảng ngày không hợp lệ: từ ngày sau đến ngày.")
 
 
 def _year_of(as_of: str) -> int:
@@ -92,6 +104,39 @@ def get_contract_file(name: str, username: str = Depends(_require)):
     return FileResponse(str(contract_files.path_for(name)))
 
 
+@router.get("/period-report")
+def period_report(kind: str = Query(..., pattern="^(purchase|consumption)$"),
+                  date_from: str = Query(..., description="Từ ngày 'YYYY-MM-DD'"),
+                  date_to: str = Query(..., description="Đến ngày 'YYYY-MM-DD'"),
+                  username: str = Depends(_require)) -> dict:
+    """Báo cáo tổng hợp theo kỳ (tuần/tháng/năm/khoảng tự chọn) — MỌI đơn vị."""
+    _assert_range(date_from, date_to)
+    return unit_period_report.period_report(kind, date_from, date_to)
+
+
+def _xlsx_response(rep: dict, kind: str, date_from: str, date_to: str) -> Response:
+    """Đóng gói .xlsx kèm tên file theo loại biểu + kỳ báo cáo."""
+    data = unit_period_excel.build_period_xlsx(rep)
+    slug = "thu-mua" if kind == "purchase" else "tieu-thu-ton-kho"
+    name = f"bao-cao-{slug}-{date_from}-den-{date_to}.xlsx"
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )
+
+
+
+@router.get("/period-report.xlsx")
+def period_report_xlsx(kind: str = Query(..., pattern="^(purchase|consumption)$"),
+                       date_from: str = Query(...), date_to: str = Query(...),
+                       username: str = Depends(_require)):
+    """Tải báo cáo kỳ dạng Excel (bám mẫu Biểu (1)/(2)) — MỌI đơn vị."""
+    _assert_range(date_from, date_to)
+    rep = unit_period_report.period_report(kind, date_from, date_to)
+    return _xlsx_response(rep, kind, date_from, date_to)
+
+
 @router.get("/plan")
 def get_plan(year: int = Query(..., ge=2020, le=2100),
              username: str = Depends(_require)) -> dict:
@@ -105,6 +150,6 @@ def set_plan(body: PurchasePlanEdit, username: str = Depends(_require)) -> dict:
     """Đặt/xoá số liệu năm của 1 đơn vị (chuyên viên có quyền `unit_daily`)."""
     if body.company not in member_unit_repo.active_names():
         raise HTTPException(400, "Đơn vị không hợp lệ.")
-    unit_daily_repo.set_year_plan(body.year, body.company, body.plan_tonnes,
-                                  body.signed_lt_tonnes, username)
+    unit_daily_repo.set_year_plan(body.year, body.company, body.plan_tonnes, body.signed_lt_tonnes,
+                                  body.carry_lt_tonnes, body.carry_spot_tonnes, username)
     return {"ok": True}

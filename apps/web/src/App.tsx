@@ -22,6 +22,7 @@ import RawMaterialPage from "./features/command-center/pages/RawMaterialPage";
 import ScanPage from "./features/command-center/pages/ScanPage";
 import SchedulePage from "./features/command-center/pages/SchedulePage";
 import SystemConfigPage from "./features/command-center/pages/SystemConfigPage";
+import PeriodReportPage from "./features/command-center/pages/PeriodReportPage";
 import UnitDailyPage from "./features/command-center/pages/UnitDailyPage";
 import YearPlanPage from "./features/command-center/pages/YearPlanPage";
 import UserManagementPage from "./features/command-center/pages/UserManagementPage";
@@ -52,6 +53,13 @@ function MarketDemandRoute() {
 function UnitDailyRoute(props: React.ComponentProps<typeof UnitDailyPage>) {
   const { user, can } = useAuth();
   if (user?.role === "member" || can("unit_daily")) return <UnitDailyPage {...props} />;
+  return <Navigate to="/" replace />;
+}
+
+/** Báo cáo tổng hợp theo kỳ: đơn vị thành viên → đơn vị mình; chuyên viên có quyền → mọi đơn vị. */
+function PeriodReportRoute() {
+  const { user, can } = useAuth();
+  if (user?.role === "member" || can("unit_daily")) return <PeriodReportPage />;
   return <Navigate to="/" replace />;
 }
 
@@ -89,6 +97,7 @@ export default function App() {
                     <UnitDailyRoute kind="consumption" defaultTab="stock" title="Báo cáo tồn kho"
                       subtitle="Tồn kho thành phẩm (đã/chưa có hợp đồng) và tồn kho nguyên liệu theo ngày." />} />
                   <Route path="/ke-hoach-nam" element={<YearPlanRoute />} />
+                  <Route path="/bao-cao-tong-hop" element={<PeriodReportRoute />} />
                   {/* Đường dẫn cũ → giữ cho link đã lưu */}
                   <Route path="/bao-cao-tieu-thu-ton-kho" element={<Navigate to="/bao-cao-tieu-thu" replace />} />
                   {/* Số liệu tự động (quét + bảng giá sàn + tỷ giá) — quyền auto_data */}
