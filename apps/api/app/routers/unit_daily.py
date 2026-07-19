@@ -9,12 +9,13 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 
 from app.core import edit_window
 from app.core.security import assert_editor_window, require_cap
 from app.schemas.unit_daily import PurchasePlanEdit, UnitDailyEdit
-from app.services import member_unit_repo, unit_daily_repo
+from app.services import contract_files, member_unit_repo, unit_daily_repo
 
 router = APIRouter(prefix="/api/unit-daily", tags=["unit-daily"])
 _require = require_cap("unit_daily")
@@ -77,6 +78,18 @@ def upsert(body: UnitDailyEdit, username: str = Depends(_require)) -> dict:
         raise HTTPException(409, "Đơn vị này đã có số liệu cho ngày này — vui lòng dùng chức năng Sửa.")
     unit_daily_repo.upsert(body.kind, body.as_of, body.company, body.fields, username)
     return {"ok": True}
+
+
+@router.post("/contract-file")
+def upload_contract_file(file: UploadFile, username: str = Depends(_require)) -> dict:
+    """Upload file Hợp đồng (PDF/ảnh) cho tồn kho đã có HĐ — trả tên file lưu để gắn vào dòng."""
+    return contract_files.save(file)
+
+
+@router.get("/contract-file/{name}")
+def get_contract_file(name: str, username: str = Depends(_require)):
+    """Tải file Hợp đồng đã upload (tên lưu uuid)."""
+    return FileResponse(str(contract_files.path_for(name)))
 
 
 @router.get("/plan")

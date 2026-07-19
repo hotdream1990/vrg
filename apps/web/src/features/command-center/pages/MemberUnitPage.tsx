@@ -15,6 +15,7 @@ import {
   deleteUnit,
   listUnits,
   reorderUnits,
+  setUnitFactory,
   setUnitLocale,
   setUnitRegion,
   updateUnit,
@@ -103,6 +104,16 @@ export default function MemberUnitPage() {
                     run(() => setUnitLocale(u.name, loc.country, loc.currency));
                   }}>
                   {LOCALES.map((l) => <option key={l.country} value={l.country}>{l.label}</option>)}
+                </select>
+              ),
+            },
+            {
+              header: "Nhà máy", width: 150,
+              render: (u, run) => (
+                <select className="blt-cell-input" style={{ minWidth: 130 }} value={u.has_factory ? "1" : "0"} disabled={!canEdit}
+                  onChange={(e) => run(() => setUnitFactory(u.name, e.target.value === "1"))}>
+                  <option value="1">Có nhà máy</option>
+                  <option value="0">Không có nhà máy</option>
                 </select>
               ),
             },

@@ -12,6 +12,7 @@ class MemberUnit(BaseModel):
     region: str | None = None       # khu vực đã gán (optional)
     country: str = "VN"             # quốc gia (VN/LA/KH)
     currency: str = "VND"           # loại tiền thu mua (VND/LAK/KHR) — ≠ VND ⇒ cần tỷ giá
+    has_factory: bool = True        # có nhà máy chế biến — False ⇒ nhập tồn kho nguyên liệu
 
 
 class MemberUnitAdd(BaseModel):
@@ -28,6 +29,8 @@ class MemberUnitUpdate(BaseModel):
     country: str | None = None      # quốc gia (VN/LA/KH)
     currency: str | None = None     # loại tiền (VND/LAK/KHR)
     set_locale: bool = False        # True = áp country + currency
+    has_factory: bool | None = None # có nhà máy chế biến (áp khi set_factory=True)
+    set_factory: bool = False       # True = áp has_factory
 
 
 class MemberUnitReorder(BaseModel):

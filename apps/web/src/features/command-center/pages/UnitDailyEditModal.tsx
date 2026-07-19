@@ -116,6 +116,8 @@ export default function UnitDailyEditModal(
             values={entry?.fields ?? {}}
             plan={data.plans[company] ?? null}
             currency={data.currencies?.[company] ?? "VND"}
+            hasFactory={data.factories?.[company] ?? true}
+            role={role}
             linkedPrice={data.prices?.[company] ?? null}
             readOnly={!editable}
             footer={(dirty, current, prices) => (

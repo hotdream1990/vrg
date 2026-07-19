@@ -98,7 +98,7 @@ export default function UserManagementPage() {
     { title: "Họ và tên", dataIndex: "full_name", render: (v: string | null) => v || <i style={{ color: "#999" }}>—</i> },
     { title: "Vai trò", dataIndex: "role", render: (v: string) =>
       <Tag color={ROLE_COLOR[v] ?? "default"}>{ROLE_LABEL[v] ?? v}</Tag> },
-    { title: "Quyền / Đơn vị", key: "perms", render: (_: unknown, u: AppUser) => {
+    { title: "Quyền / Đơn vị", key: "perms", width: 360, render: (_: unknown, u: AppUser) => {
       if (u.role === "admin") return <Tag color="green">Toàn quyền</Tag>;
       if (u.role === "member")
         return u.member_units?.length

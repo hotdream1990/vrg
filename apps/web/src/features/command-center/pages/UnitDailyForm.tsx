@@ -17,13 +17,15 @@ type Props = {
   readOnly?: boolean;
   formKey: string;                // đổi khi đổi đơn vị/ngày/loại → reset nháp
   currency?: string;              // loại tiền đơn vị (VND/LAK/KHR)
+  hasFactory?: boolean;           // có nhà máy? (Tiêu thụ: ẩn/hiện tồn kho nguyên liệu)
+  role?: "member" | "hq";         // upload file HĐ đúng endpoint
   linkedPrice?: UnitPurchasePrice | null; // đơn giá mủ nước/mủ chén đúng ngày (Thu mua)
   onDirty?: (dirty: boolean) => void;
   footer?: (dirty: boolean, current: Values, prices: PriceDraft) => React.ReactNode;
 };
 
 export default function UnitDailyForm(
-  { kind, values, readOnly, formKey, currency, linkedPrice, onDirty, footer }: Props,
+  { kind, values, readOnly, formKey, currency, hasFactory, role, linkedPrice, onDirty, footer }: Props,
 ) {
   if (kind === "purchase") {
     return (
@@ -33,6 +35,6 @@ export default function UnitDailyForm(
   }
   return (
     <ConsumptionForm values={values} readOnly={readOnly} formKey={formKey}
-      currency={currency} onDirty={onDirty} footer={footer} />
+      currency={currency} hasFactory={hasFactory} role={role} onDirty={onDirty} footer={footer} />
   );
 }

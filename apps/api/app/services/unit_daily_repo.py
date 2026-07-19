@@ -104,13 +104,15 @@ def day_extras(kind: str, as_of: str, units: list[str]) -> dict[str, Any]:
     from app.services import member_unit_repo, price_repo
 
     cur = member_unit_repo.currency_by_name()
+    fac = member_unit_repo.factory_by_name()
     currencies = {u: cur.get(u, "VND") for u in units}
+    factories = {u: fac.get(u, True) for u in units}   # có nhà máy? (Tiêu thụ: ẩn/hiện tồn kho nguyên liệu)
     prices: dict[str, dict[str, float | None]] = {}
     if kind == "purchase":
         latex = price_repo.purchase_by_company_on_date(as_of, "purchase")
         cup = price_repo.purchase_by_company_on_date(as_of, "purchase_cup")
         prices = {u: {"latex": latex.get(u), "cup": cup.get(u)} for u in units}
-    return {"currencies": currencies, "prices": prices}
+    return {"currencies": currencies, "factories": factories, "prices": prices}
 
 
 # ── Chỉ tiêu kế hoạch thu mua theo năm (tính % kế hoạch) ──

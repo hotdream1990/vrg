@@ -24,16 +24,13 @@ PURCHASE_FIELDS: frozenset[str] = frozenset({
     "fx_revenue",         # tỷ giá USD→VND (quy doanh thu USD ra VND)
 })
 
-# Biểu mẫu Tiêu thụ – Tồn kho — TIÊU THỤ nhập theo BẢNG NHIỀU DÒNG (`sales`); tổng doanh thu (VND, base=đồng)
-# tính lúc lưu vào `revenue`. TỒN KHO là ô phẳng (tấn). Đơn vị nước ngoài: tỷ giá USD→VND ở `fx_revenue`.
+# Biểu mẫu Tiêu thụ – Tồn kho — TIÊU THỤ = BẢNG NHIỀU DÒNG (`sales`); tổng doanh thu (VND, base=đồng) ở `revenue`.
+# TỒN KHO: `stock_no_contract` (chưa HĐ: chủng loại·loại bành·số lượng kg) + `stock_contract` (đã HĐ:
+# chủng loại·kg·đơn giá·lịch giao·file) + `stock_material_kg` (nguyên liệu, chỉ đơn vị KHÔNG có nhà máy).
 CONSUMPTION_FIELDS: frozenset[str] = frozenset({
     "revenue",            # tổng doanh thu tiêu thụ (BASE = đồng) — tính từ dòng bán
     "fx_revenue",         # tỷ giá USD→VND (nước ngoài)
-    "stock_finished",     # tồn kho thành phẩm (tấn)
-    "stock_finished_hd",  # trong đó đã có hợp đồng (tấn)
-    # tồn kho thành phẩm CHƯA có hợp đồng, tách theo chủng loại (tấn)
-    "g_cv", "g_10cv20cv", "g_l3l", "g_rss", "g_5_5s", "g_10_20", "g_latex", "g_skim", "g_other",
-    "stock_material",     # tồn kho nguyên liệu chưa có HĐ (đơn vị chưa có nhà máy)
+    "stock_material_kg",  # tồn kho nguyên liệu chưa có HĐ (kg) — đơn vị chưa có nhà máy
 })
 
 _SALE_CONTRACTS = {"long_term", "spot"}   # loại HĐ: Dài hạn | Chuyến
@@ -65,13 +62,48 @@ def _clean_sales(sales) -> list[dict]:
     return out
 
 
+def _clean_stock_no_contract(rows) -> list[dict]:
+    """Tồn kho thành phẩm CHƯA có HĐ: chủng loại · loại bành · số lượng (kg)."""
+    out: list[dict] = []
+    for r in rows if isinstance(rows, list) else []:
+        if not isinstance(r, dict):
+            continue
+        out.append({
+            "grade": str(r.get("grade") or "")[:60],
+            "bale": str(r.get("bale") or "")[:20],
+            "qty_kg": _to_float(r.get("qty_kg")),
+        })
+    return out
+
+
+def _clean_stock_contract(rows) -> list[dict]:
+    """Tồn kho thành phẩm ĐÃ có HĐ: chủng loại · kg · đơn giá · lịch giao · file HĐ (tên file đã upload)."""
+    out: list[dict] = []
+    for r in rows if isinstance(rows, list) else []:
+        if not isinstance(r, dict):
+            continue
+        out.append({
+            "grade": str(r.get("grade") or "")[:60],
+            "qty_kg": _to_float(r.get("qty_kg")),
+            "price": _to_float(r.get("price")),
+            "delivery_date": str(r.get("delivery_date") or "")[:10] or None,
+            "file": str(r.get("file") or "")[:120] or None,       # tên file lưu server
+            "filename": str(r.get("filename") or "")[:200] or None,  # tên gốc hiển thị
+        })
+    return out
+
+
 def clean_fields(kind: str, fields: dict) -> dict:
-    """Chuẩn hoá payload theo `kind` (chống ghi rác). Thu mua: ô phẳng. Tiêu thụ: dòng bán + ô tồn kho."""
+    """Chuẩn hoá payload theo `kind` (chống ghi rác). Thu mua: ô phẳng. Tiêu thụ: dòng bán + tồn kho (mảng)."""
     fields = fields or {}
     if kind == "consumption":
         out: dict = {}
         if "sales" in fields:
             out["sales"] = _clean_sales(fields.get("sales"))
+        if "stock_no_contract" in fields:
+            out["stock_no_contract"] = _clean_stock_no_contract(fields.get("stock_no_contract"))
+        if "stock_contract" in fields:
+            out["stock_contract"] = _clean_stock_contract(fields.get("stock_contract"))
         for k in CONSUMPTION_FIELDS:
             fv = _to_float(fields.get(k))
             if fv is not None:

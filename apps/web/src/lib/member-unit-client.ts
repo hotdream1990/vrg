@@ -5,6 +5,7 @@ import { apiFetch } from "./http";
 export type MemberUnit = {
   name: string; sort_order: number; is_active: boolean; region: string | null;
   country: string; currency: string;   // VN/VND mặc định; ≠VND ⇒ đơn vị nước ngoài cần tỷ giá
+  has_factory: boolean;                 // có nhà máy chế biến; false ⇒ nhập tồn kho nguyên liệu
 };
 
 const req = apiFetch;
@@ -33,6 +34,11 @@ export const setUnitRegion = (name: string, region: string | null) =>
 export const setUnitLocale = (name: string, country: string, currency: string) =>
   req<MemberUnit[]>(`/api/member-units/${encodeURIComponent(name)}`,
     { method: "PUT", headers: J, body: JSON.stringify({ set_locale: true, country, currency }) });
+
+/** Đặt cờ đơn vị có nhà máy chế biến (không nhà máy ⇒ nhập tồn kho nguyên liệu ở biểu Tiêu thụ). */
+export const setUnitFactory = (name: string, hasFactory: boolean) =>
+  req<MemberUnit[]>(`/api/member-units/${encodeURIComponent(name)}`,
+    { method: "PUT", headers: J, body: JSON.stringify({ set_factory: true, has_factory: hasFactory }) });
 
 /** Sắp xếp lại theo thứ tự danh sách tên. */
 export const reorderUnits = (names: string[]) =>

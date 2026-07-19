@@ -1,19 +1,20 @@
-/* Form nhập biểu TIÊU THỤ – TỒN KHO. TIÊU THỤ = BẢNG NHIỀU DÒNG (mỗi dòng 1 lần thực hiện HĐ:
-   loại HĐ · hình thức · loại mủ · số lượng · giá bán → doanh thu tự tính). Tổng hợp (SL theo hình thức,
-   doanh thu, giá BQ) tự cộng. Đơn vị nước ngoài: giá bán USD + tỷ giá USD→VND (nút lấy VCB) → VND.
-   TỒN KHO = ô phẳng. Tiền lưu BASE = đồng (VND). */
+/* Form nhập biểu TIÊU THỤ – TỒN KHO.
+   - TIÊU THỤ = bảng nhiều dòng (loại HĐ · hình thức · loại mủ · SL · giá bán → doanh thu tự tính).
+   - TỒN KHO chưa HĐ = bảng (chủng loại · loại bành · SL kg). Đã HĐ = bảng (chủng loại · kg · đơn giá ·
+     lịch giao · file HĐ). Nguyên liệu = 1 ô kg, chỉ đơn vị KHÔNG có nhà máy.
+   Nước ngoài: giá bán/đơn giá theo USD + tỷ giá USD→VND (nút lấy VCB). Tiền lưu BASE = đồng. */
 
-import { Select, message } from "antd";
-import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { DeleteOutlined, PlusOutlined, UploadOutlined } from "@ant-design/icons";
+import { Select, Tabs, Upload, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 import { fetchVcbRate } from "../../../lib/market-quote-client";
-import type { PriceDraft } from "../../../lib/unit-daily-client";
+import { type PriceDraft, openContractFile, uploadContractFile } from "../../../lib/unit-daily-client";
 import {
-  CHANNELS, CONTRACTS, GRADES, type ConsumptionData, type SaleLine,
-  lineRevenueVnd, toTyDong, totals,
+  BALES, CHANNELS, CONTRACTS, GRADES, type ConsumptionData, type SaleLine,
+  type StockContractLine, type StockNoContractLine, lineRevenueVnd, stockKgTotal, toTyDong, totals,
 } from "../../../lib/unit-daily-consumption";
-import { STOCK_COLUMNS, type Column, type Values, fmtNum, isDerived, toBase, toDisplay } from "../../../lib/unit-daily-fields";
+import { type Values, fmtNum } from "../../../lib/unit-daily-fields";
 import { fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
 
 const NO_PRICES: PriceDraft = { latex: null, cup: null };
@@ -23,42 +24,49 @@ type Props = {
   values: Values;
   readOnly?: boolean;
   formKey: string;
-  currency?: string;                       // VND/LAK/KHR — ≠VND ⇒ nước ngoài (giá bán USD)
+  currency?: string;                       // VND/LAK/KHR — ≠VND ⇒ nước ngoài (giá theo USD)
+  hasFactory?: boolean;                    // false ⇒ hiện tồn kho nguyên liệu
+  role?: "member" | "hq";                  // để upload đúng endpoint file HĐ
   onDirty?: (dirty: boolean) => void;
   footer?: (dirty: boolean, current: Values, prices: PriceDraft) => React.ReactNode;
 };
 
 function initData(values: Values): ConsumptionData {
   const v = values as unknown as ConsumptionData;
-  const out: ConsumptionData = {
+  return {
     sales: Array.isArray(v.sales) ? v.sales.map((l) => ({ ...l })) : [],
-    fx_revenue: (v.fx_revenue as number | null) ?? null,
+    fx_revenue: v.fx_revenue ?? null,
+    stock_no_contract: Array.isArray(v.stock_no_contract) ? v.stock_no_contract.map((r) => ({ ...r })) : [],
+    stock_contract: Array.isArray(v.stock_contract) ? v.stock_contract.map((r) => ({ ...r })) : [],
+    stock_material_kg: v.stock_material_kg ?? null,
   };
-  for (const c of STOCK_COLUMNS) if (!isDerived(c)) out[c.key] = (values[c.key] as number | null) ?? null;
-  return out;
 }
 
-export default function ConsumptionForm({ values, readOnly, formKey, currency, onDirty, footer }: Props) {
+export default function ConsumptionForm({ values, readOnly, formKey, currency, hasFactory = true, role = "member", onDirty, footer }: Props) {
   const foreign = (currency ?? "VND") !== "VND";
   const [data, setData] = useState<ConsumptionData>(() => initData(values));
   const [fxLoading, setFxLoading] = useState(false);
+  const [uploading, setUploading] = useState<number | null>(null);
   useEffect(() => { setData(initData(values)); }, [formKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sales = (data.sales ?? []) as SaleLine[];
+  const noHd = (data.stock_no_contract ?? []) as StockNoContractLine[];
+  const hd = (data.stock_contract ?? []) as StockContractLine[];
+
   const setSales = (next: SaleLine[]) => setData((d) => ({ ...d, sales: next }));
-  const updateLine = (i: number, patch: Partial<SaleLine>) => setSales(sales.map((l, j) => (j === i ? { ...l, ...patch } : l)));
-  const addLine = () => setSales([...sales, { contract: "long_term", channel: "export", grade: GRADES[0], qty: null, price: null }]);
-  const delLine = (i: number) => setSales(sales.filter((_, j) => j !== i));
-  const setStock = (key: string, v: number | null) => setData((d) => ({ ...d, [key]: v }));
+  const setNoHd = (next: StockNoContractLine[]) => setData((d) => ({ ...d, stock_no_contract: next }));
+  const setHd = (next: StockContractLine[]) => setData((d) => ({ ...d, stock_contract: next }));
 
   const agg = totals(sales, foreign, data.fx_revenue);
 
   const current = useMemo<Values>(() => {
-    const p: ConsumptionData = { sales, revenue: agg.revenueVnd };
+    const p: ConsumptionData = {
+      sales, revenue: agg.revenueVnd, stock_no_contract: noHd, stock_contract: hd,
+    };
     if (foreign) p.fx_revenue = data.fx_revenue ?? null;
-    for (const c of STOCK_COLUMNS) if (!isDerived(c) && num(data[c.key] as number) != null) p[c.key] = data[c.key];
+    if (!hasFactory) p.stock_material_kg = data.stock_material_kg ?? null;
     return p as unknown as Values;
-  }, [sales, agg.revenueVnd, foreign, data]);
+  }, [sales, agg.revenueVnd, noHd, hd, foreign, hasFactory, data]);
 
   const orig = useMemo(() => initData(values), [values]);
   const dirty = useMemo(() => JSON.stringify(data) !== JSON.stringify(orig), [data, orig]);
@@ -72,121 +80,175 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, o
       if (rate == null) throw new Error("VCB không có tỷ giá USD");
       setData((d) => ({ ...d, fx_revenue: rate }));
       message.success(`Đã lấy tỷ giá USD/VND (VCB ${r.date}): ${fmtNum(rate, 0)}`);
-    } catch (e) {
-      message.error((e as Error).message || "Không lấy được tỷ giá VCB — nhập tay giúp anh.");
-    } finally {
-      setFxLoading(false);
-    }
+    } catch (e) { message.error((e as Error).message || "Không lấy được tỷ giá VCB."); }
+    finally { setFxLoading(false); }
+  };
+
+  const doUpload = async (i: number, file: File) => {
+    setUploading(i);
+    try {
+      const r = await uploadContractFile(role, file);
+      setHd(hd.map((l, j) => (j === i ? { ...l, file: r.file, filename: r.filename } : l)));
+      message.success("Đã tải lên file hợp đồng.");
+    } catch (e) { message.error((e as Error).message || "Upload thất bại."); }
+    finally { setUploading(null); }
   };
 
   const head = (t: string, first?: boolean) => (
-    <div style={{ fontWeight: 600, fontSize: 12.5, opacity: 0.85, marginTop: first ? 0 : 16, marginBottom: 6, paddingBottom: 2, borderBottom: "1px solid rgba(125,125,125,.25)" }}>{t}</div>
+    <div style={{ fontWeight: 600, fontSize: 12.5, opacity: 0.85, marginTop: first ? 0 : 18, marginBottom: 6, paddingBottom: 2, borderBottom: "1px solid rgba(125,125,125,.25)" }}>{t}</div>
   );
-  const priceUnit = foreign ? "USD/tấn" : "triệu đ/tấn";
   const sel = { minWidth: 96, width: "100%" } as const;
-
+  const priceUnit = foreign ? "USD/tấn" : "triệu đ/tấn";
   const gridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10, alignItems: "end" } as const;
   const box = (label: string, unit: string, value: number | null, digits = 2) => (
     <label style={{ display: "block" }}>{fieldLabel(label, unit)}{readOnlyBox(fmtNum(value, digits), "tự tính")}</label>
   );
+  const gradeSel = (val: string, on: (v: string) => void) => (
+    <Select size="small" style={sel} value={val || undefined} placeholder="Loại mủ" disabled={readOnly} showSearch
+      onChange={on} options={GRADES.map((g) => ({ value: g, label: g }))} />
+  );
 
-  return (
+  const salesTab = (
     <div>
       {head("Tiêu thụ mủ thu mua", true)}
       <div style={{ overflowX: "auto" }}>
         <table className="ud-sales">
-          <thead>
-            <tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
-              <th style={{ width: 120 }}>Loại HĐ</th>
-              <th style={{ width: 130 }}>Hình thức</th>
-              <th style={{ width: 150 }}>Loại mủ</th>
-              <th style={{ width: 110 }} className="r">Số lượng (tấn)</th>
-              <th style={{ width: 130 }} className="r">Giá bán ({priceUnit})</th>
-              <th style={{ width: 130 }} className="r">Doanh thu (triệu đ)</th>
-              {!readOnly && <th style={{ width: 34 }} />}
-            </tr>
-          </thead>
+          <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
+            <th style={{ width: 116 }}>Loại HĐ</th><th style={{ width: 122 }}>Hình thức</th><th style={{ width: 150 }}>Loại mủ</th>
+            <th style={{ width: 100 }} className="r">SL (tấn)</th><th style={{ width: 120 }} className="r">Giá bán ({priceUnit})</th>
+            <th style={{ width: 120 }} className="r">Doanh thu (triệu đ)</th>{!readOnly && <th style={{ width: 34 }} />}
+          </tr></thead>
           <tbody>
             {sales.map((ln, i) => (
               <tr key={i}>
-                <td>
-                  <Select size="small" style={sel} value={ln.contract} disabled={readOnly}
-                    onChange={(v) => updateLine(i, { contract: v })} options={CONTRACTS} />
-                </td>
-                <td>
-                  <Select size="small" style={sel} value={ln.channel} disabled={readOnly}
-                    onChange={(v) => updateLine(i, { channel: v })} options={CHANNELS} />
-                </td>
-                <td>
-                  <Select size="small" style={sel} value={ln.grade} disabled={readOnly} showSearch
-                    onChange={(v) => updateLine(i, { grade: v })} options={GRADES.map((g) => ({ value: g, label: g }))} />
-                </td>
-                <td>{numInput(num(ln.qty), (v) => updateLine(i, { qty: v }), readOnly)}</td>
-                <td>{numInput(num(ln.price), (v) => updateLine(i, { price: v }), readOnly)}</td>
+                <td><Select size="small" style={sel} value={ln.contract} disabled={readOnly} onChange={(v) => setSales(sales.map((l, j) => j === i ? { ...l, contract: v } : l))} options={CONTRACTS} /></td>
+                <td><Select size="small" style={sel} value={ln.channel} disabled={readOnly} onChange={(v) => setSales(sales.map((l, j) => j === i ? { ...l, channel: v } : l))} options={CHANNELS} /></td>
+                <td>{gradeSel(ln.grade, (v) => setSales(sales.map((l, j) => j === i ? { ...l, grade: v } : l)))}</td>
+                <td>{numInput(num(ln.qty), (v) => setSales(sales.map((l, j) => j === i ? { ...l, qty: v } : l)), readOnly)}</td>
+                <td>{numInput(num(ln.price), (v) => setSales(sales.map((l, j) => j === i ? { ...l, price: v } : l)), readOnly)}</td>
                 <td className="r" style={{ paddingRight: 6, fontWeight: 600, whiteSpace: "nowrap" }}>
                   {(() => { const rv = lineRevenueVnd(ln, foreign, data.fx_revenue); return fmtNum(rv == null ? null : rv / 1_000_000, 1); })()}
                 </td>
-                {!readOnly && (
-                  <td className="r">
-                    <button type="button" className="btn" style={{ padding: "0 7px" }} title="Xoá dòng"
-                      onClick={() => delLine(i)}><DeleteOutlined /></button>
-                  </td>
-                )}
+                {!readOnly && <td className="r"><button type="button" className="btn" style={{ padding: "0 7px" }} title="Xoá dòng" onClick={() => setSales(sales.filter((_, j) => j !== i))}><DeleteOutlined /></button></td>}
               </tr>
             ))}
-            {sales.length === 0 && (
-              <tr><td colSpan={readOnly ? 6 : 7} style={{ textAlign: "center", color: "var(--muted)", padding: 12, fontSize: 12.5 }}>
-                Chưa có dòng tiêu thụ nào.
-              </td></tr>
-            )}
+            {sales.length === 0 && <tr><td colSpan={readOnly ? 6 : 7} style={{ textAlign: "center", color: "var(--muted)", padding: 12, fontSize: 12.5 }}>Chưa có dòng tiêu thụ nào.</td></tr>}
           </tbody>
         </table>
       </div>
-      {!readOnly && (
-        <button type="button" className="btn" style={{ marginTop: 8, fontSize: 12 }} onClick={addLine}>
-          <PlusOutlined /> Thêm dòng
-        </button>
-      )}
+      {!readOnly && <button type="button" className="btn" style={{ marginTop: 8, fontSize: 12 }} onClick={() => setSales([...sales, { contract: "long_term", channel: "export", grade: GRADES[0], qty: null, price: null }])}><PlusOutlined /> Thêm dòng</button>}
 
       {foreign && (
         <div style={{ marginTop: 12, maxWidth: 320 }}>
           <label style={{ display: "block" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginBottom: 2, minHeight: 18 }}>
               <span style={{ fontSize: 12, opacity: 0.75 }}>Tỷ giá <span style={{ opacity: 0.6 }}>(1 USD = ? VND)</span></span>
-              {!readOnly && (
-                <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 7px", lineHeight: "18px", whiteSpace: "nowrap" }}
-                  onClick={fetchFx} disabled={fxLoading}>{fxLoading ? "Đang lấy…" : "Lấy tỷ giá hiện tại"}</button>
-              )}
+              {!readOnly && <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 7px", lineHeight: "18px", whiteSpace: "nowrap" }} onClick={fetchFx} disabled={fxLoading}>{fxLoading ? "Đang lấy…" : "Lấy tỷ giá hiện tại"}</button>}
             </div>
-            {numInput(num(data.fx_revenue as number), (v) => setData((d) => ({ ...d, fx_revenue: v })), readOnly)}
+            {numInput(num(data.fx_revenue), (v) => setData((d) => ({ ...d, fx_revenue: v })), readOnly)}
           </label>
         </div>
       )}
 
       {head("Tổng hợp tiêu thụ")}
       <div style={gridStyle}>
-        {box("Tổng tiêu thụ", "tấn", agg.qty || null, 2)}
-        {box("Tổng XK / UTXK", "tấn", agg.qtyExport || null, 2)}
-        {box("Tổng nội tiêu", "tấn", agg.qtyDomestic || null, 2)}
-        {box("HĐ Dài hạn", "tấn", agg.qtyLongTerm || null, 2)}
-        {box("HĐ Chuyến", "tấn", agg.qtySpot || null, 2)}
+        {box("Tổng tiêu thụ", "tấn", agg.qty || null)}
+        {box("Tổng XK / UTXK", "tấn", agg.qtyExport || null)}
+        {box("Tổng nội tiêu", "tấn", agg.qtyDomestic || null)}
+        {box("HĐ Dài hạn", "tấn", agg.qtyLongTerm || null)}
+        {box("HĐ Chuyến", "tấn", agg.qtySpot || null)}
         {box("Tổng doanh thu", "tỷ đồng", toTyDong(agg.revenueVnd || null), 3)}
-        {box("Giá bán bình quân", "triệu đ/tấn", agg.avgPriceTrieu, 2)}
+        {box("Giá bán bình quân", "triệu đ/tấn", agg.avgPriceTrieu)}
       </div>
+    </div>
+  );
 
-      {head("Tồn kho")}
+  const stockTab = (
+    <div>
+      {/* ── TỒN KHO CHƯA HĐ ── */}
+      {head("Tồn kho thành phẩm — CHƯA có hợp đồng", true)}
+      <div style={{ overflowX: "auto" }}>
+        <table className="ud-sales">
+          <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
+            <th style={{ width: 180 }}>Chủng loại</th><th style={{ width: 120 }}>Loại bành</th>
+            <th style={{ width: 130 }} className="r">Số lượng (kg)</th>{!readOnly && <th style={{ width: 34 }} />}
+          </tr></thead>
+          <tbody>
+            {noHd.map((r, i) => (
+              <tr key={i}>
+                <td>{gradeSel(r.grade, (v) => setNoHd(noHd.map((x, j) => j === i ? { ...x, grade: v } : x)))}</td>
+                <td><Select size="small" style={sel} value={r.bale || undefined} placeholder="Loại bành" disabled={readOnly} onChange={(v) => setNoHd(noHd.map((x, j) => j === i ? { ...x, bale: v } : x))} options={BALES.map((b) => ({ value: b, label: b }))} /></td>
+                <td>{numInput(num(r.qty_kg), (v) => setNoHd(noHd.map((x, j) => j === i ? { ...x, qty_kg: v } : x)), readOnly)}</td>
+                {!readOnly && <td className="r"><button type="button" className="btn" style={{ padding: "0 7px" }} onClick={() => setNoHd(noHd.filter((_, j) => j !== i))}><DeleteOutlined /></button></td>}
+              </tr>
+            ))}
+            {noHd.length === 0 && <tr><td colSpan={readOnly ? 3 : 4} style={{ textAlign: "center", color: "var(--muted)", padding: 12, fontSize: 12.5 }}>Chưa có dòng.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      {!readOnly && <button type="button" className="btn" style={{ marginTop: 8, fontSize: 12 }} onClick={() => setNoHd([...noHd, { grade: GRADES[0], bale: BALES[0], qty_kg: null }])}><PlusOutlined /> Thêm dòng</button>}
+
+      {/* ── TỒN KHO ĐÃ HĐ ── */}
+      {head("Tồn kho thành phẩm — ĐÃ có hợp đồng")}
+      <div style={{ overflowX: "auto" }}>
+        <table className="ud-sales">
+          <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
+            <th style={{ width: 160 }}>Chủng loại</th><th style={{ width: 110 }} className="r">SL (kg)</th>
+            <th style={{ width: 120 }} className="r">Đơn giá ({priceUnit})</th><th style={{ width: 140 }}>Lịch giao</th>
+            <th style={{ width: 150 }}>File HĐ</th>{!readOnly && <th style={{ width: 34 }} />}
+          </tr></thead>
+          <tbody>
+            {hd.map((r, i) => (
+              <tr key={i}>
+                <td>{gradeSel(r.grade, (v) => setHd(hd.map((x, j) => j === i ? { ...x, grade: v } : x)))}</td>
+                <td>{numInput(num(r.qty_kg), (v) => setHd(hd.map((x, j) => j === i ? { ...x, qty_kg: v } : x)), readOnly)}</td>
+                <td>{numInput(num(r.price), (v) => setHd(hd.map((x, j) => j === i ? { ...x, price: v } : x)), readOnly)}</td>
+                <td><input type="date" className="blt-cell-input" style={{ width: "100%" }} value={r.delivery_date ?? ""} disabled={readOnly}
+                  onChange={(e) => setHd(hd.map((x, j) => j === i ? { ...x, delivery_date: e.target.value || null } : x))} /></td>
+                <td>
+                  {r.file
+                    ? <a onClick={() => openContractFile(role, r.file!)} style={{ cursor: "pointer", fontSize: 12 }} title={r.filename ?? ""}>📎 {(r.filename ?? "file").slice(0, 14)}</a>
+                    : <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>}
+                  {!readOnly && (
+                    <Upload showUploadList={false} accept=".pdf,image/jpeg,image/png" disabled={uploading === i}
+                      beforeUpload={(f) => { doUpload(i, f as File); return false; }}>
+                      <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 6px", marginLeft: 6 }}>
+                        <UploadOutlined /> {uploading === i ? "…" : (r.file ? "Đổi" : "Chọn")}
+                      </button>
+                    </Upload>
+                  )}
+                </td>
+                {!readOnly && <td className="r"><button type="button" className="btn" style={{ padding: "0 7px" }} onClick={() => setHd(hd.filter((_, j) => j !== i))}><DeleteOutlined /></button></td>}
+              </tr>
+            ))}
+            {hd.length === 0 && <tr><td colSpan={readOnly ? 5 : 6} style={{ textAlign: "center", color: "var(--muted)", padding: 12, fontSize: 12.5 }}>Chưa có dòng.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      {!readOnly && <button type="button" className="btn" style={{ marginTop: 8, fontSize: 12 }} onClick={() => setHd([...hd, { grade: GRADES[0], qty_kg: null, price: null, delivery_date: null, file: null, filename: null }])}><PlusOutlined /> Thêm dòng</button>}
+
+      {/* ── Tổng hợp tồn kho ── */}
+      {head("Tổng hợp tồn kho")}
       <div style={gridStyle}>
-        {STOCK_COLUMNS.map((c: Column) => (
-          <label key={c.key} style={{ display: "block" }}>
-            {fieldLabel(c.label, c.unit)}
-            {c.hint && <div style={{ fontSize: 11, opacity: 0.55, marginTop: -2, marginBottom: 2 }}>{c.hint}</div>}
-            {isDerived(c)
-              ? readOnlyBox(fmtNum(toDisplay(c, c.compute!(data as unknown as Values)), 2), "tự tính")
-              : numInput(toDisplay(c, num(data[c.key] as number)), (v) => setStock(c.key, toBase(c, v)), readOnly)}
+        {box("Tồn kho chưa HĐ", "kg", stockKgTotal(noHd) || null)}
+        {box("Tồn kho đã HĐ", "kg", stockKgTotal(hd) || null)}
+        {box("Tồn kho thành phẩm", "kg", (stockKgTotal(noHd) + stockKgTotal(hd)) || null)}
+        {!hasFactory && (
+          <label style={{ display: "block" }}>
+            {fieldLabel("Tồn kho nguyên liệu", "kg")}
+            {numInput(num(data.stock_material_kg), (v) => setData((d) => ({ ...d, stock_material_kg: v })), readOnly)}
           </label>
-        ))}
+        )}
       </div>
+    </div>
+  );
 
+  return (
+    <div>
+      <Tabs items={[
+        { key: "sales", label: "Tiêu thụ", children: salesTab },
+        { key: "stock", label: "Tồn kho", children: stockTab },
+      ]} />
       {!readOnly && footer?.(dirty, current, NO_PRICES)}
     </div>
   );

@@ -31,7 +31,7 @@ def list_units(include_inactive: bool = True) -> list[dict[str, Any]]:
         _seed_if_empty(db)
         clause = "" if include_inactive else "WHERE is_active"
         rows = db.execute(text(
-            f"SELECT name, sort_order, is_active, region, country, currency FROM member_unit {clause} "
+            f"SELECT name, sort_order, is_active, region, country, currency, has_factory FROM member_unit {clause} "
             "ORDER BY sort_order, name")).mappings().all()
         return [dict(r) for r in rows]
 
@@ -101,6 +101,19 @@ def set_locale(name: str, country: str | None, currency: str | None) -> None:
 def currency_by_name(include_inactive: bool = True) -> dict[str, str]:
     """Map tên đơn vị → loại tiền (VND/LAK/KHR) — form Thu mua dùng để ẩn/hiện ô tỷ giá."""
     return {u["name"]: (u.get("currency") or "VND") for u in list_units(include_inactive)}
+
+
+def set_factory(name: str, has_factory: bool) -> None:
+    """Đặt cờ đơn vị có nhà máy chế biến (không có → nhập tồn kho nguyên liệu)."""
+    ensure_schema()
+    with session_scope() as db:
+        db.execute(text("UPDATE member_unit SET has_factory = :f WHERE name = :n"),
+                   {"f": has_factory, "n": name})
+
+
+def factory_by_name(include_inactive: bool = True) -> dict[str, bool]:
+    """Map tên đơn vị → có nhà máy? — form Tiêu thụ dùng để ẩn/hiện ô tồn kho nguyên liệu."""
+    return {u["name"]: bool(u.get("has_factory", True)) for u in list_units(include_inactive)}
 
 
 def reorder(names: list[str]) -> None:

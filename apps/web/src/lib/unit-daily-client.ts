@@ -2,8 +2,29 @@
    - Đơn vị thành viên: `/api/member/daily-report` (server ép company ∈ đơn vị được gán).
    - Chuyên viên có quyền `unit_daily`: `/api/unit-daily` (xem/sửa mọi đơn vị + chỉ tiêu kế hoạch). */
 
-import { apiFetch } from "./http";
+import { authHeaders } from "./auth-token";
+import { API, apiFetch } from "./http";
 import type { Kind, Values } from "./unit-daily-fields";
+
+type Role = "member" | "hq";
+const contractBase = (role: Role) =>
+  role === "member" ? "/api/member/daily-report/contract-file" : "/api/unit-daily/contract-file";
+
+/** Upload file Hợp đồng (PDF/ảnh) — trả tên file lưu (uuid) + tên gốc để gắn vào dòng tồn kho. */
+export const uploadContractFile = (role: Role, file: File) => {
+  const fd = new FormData();
+  fd.append("file", file);
+  return apiFetch<{ file: string; filename: string; size: number }>(contractBase(role), { method: "POST", body: fd });
+};
+
+/** Mở file Hợp đồng đã upload trong tab mới (fetch kèm token → blob). */
+export async function openContractFile(role: Role, name: string): Promise<void> {
+  const res = await fetch(`${API}${contractBase(role)}/${encodeURIComponent(name)}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Không tải được file hợp đồng.");
+  const url = URL.createObjectURL(await res.blob());
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
 
 export type DailyEntry = { fields: Values; updated_at: string; updated_by: string | null };
 /** Đơn giá thu mua ĐÚNG NGÀY (đồng/độ TSC), link từ "Giá mủ nguyên liệu". */
@@ -18,6 +39,7 @@ export type DayData = {
   plans: Record<string, number>;            // chỉ tiêu kế hoạch thu mua năm (đơn vị: tấn)
   entries: Record<string, DailyEntry | null>;
   currencies?: Record<string, string>;      // {đơn vị: VND/LAK/KHR} — ≠VND ⇒ hiện ô tỷ giá
+  factories?: Record<string, boolean>;      // {đơn vị: có nhà máy?} — false ⇒ hiện tồn kho nguyên liệu
   prices?: Record<string, UnitPurchasePrice>; // {đơn vị: đơn giá mủ nước/mủ chén} (chỉ kind=purchase)
 };
 export type TimelineRow = {

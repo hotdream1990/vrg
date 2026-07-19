@@ -14,12 +14,31 @@ export type SaleLine = {
   price: number | null;          // giá bán (triệu đ/tấn nội địa · USD/tấn nước ngoài)
 };
 
-/** Payload tiêu thụ–tồn kho: dòng bán + tỷ giá (nước ngoài) + các ô tồn kho phẳng. */
+/** Tồn kho thành phẩm CHƯA có HĐ: chủng loại · loại bành · số lượng (kg). */
+export type StockNoContractLine = { grade: string; bale: string; qty_kg: number | null };
+/** Tồn kho thành phẩm ĐÃ có HĐ: chủng loại · kg · đơn giá (như sales) · lịch giao · file HĐ. */
+export type StockContractLine = {
+  grade: string; qty_kg: number | null; price: number | null;
+  delivery_date?: string | null;         // 'YYYY-MM-DD'
+  file?: string | null; filename?: string | null;  // tên file lưu (uuid) + tên gốc hiển thị
+};
+
+/** Payload tiêu thụ–tồn kho: dòng bán + tồn kho (2 bảng) + nguyên liệu. Tỷ giá (nước ngoài) chung. */
 export type ConsumptionData = {
   sales?: SaleLine[];
-  fx_revenue?: number | null;    // tỷ giá USD→VND (nước ngoài)
-  [stockKey: string]: unknown;   // ô tồn kho phẳng (stock_finished, g_cv, …)
+  fx_revenue?: number | null;            // tỷ giá USD→VND (nước ngoài)
+  revenue?: number | null;               // tổng doanh thu tiêu thụ (đồng)
+  stock_no_contract?: StockNoContractLine[];
+  stock_contract?: StockContractLine[];
+  stock_material_kg?: number | null;     // tồn kho nguyên liệu (đơn vị không nhà máy)
 };
+
+/** Loại bành (đóng gói) tồn kho. */
+export const BALES: string[] = ["33,33 kg", "35 kg"];
+
+/** Tổng số lượng (kg) 1 bảng tồn kho. */
+export const stockKgTotal = (rows: { qty_kg: number | null }[] | undefined): number =>
+  (rows ?? []).reduce((a, r) => a + (r.qty_kg ?? 0), 0);
 
 export const CONTRACTS: { value: SaleContract; label: string }[] = [
   { value: "long_term", label: "Dài hạn" },
