@@ -56,10 +56,10 @@ function UnitDailyRoute(props: React.ComponentProps<typeof UnitDailyPage>) {
   return <Navigate to="/" replace />;
 }
 
-/** Báo cáo tổng hợp theo kỳ: đơn vị thành viên → đơn vị mình; chuyên viên có quyền → mọi đơn vị. */
+/** Báo cáo tổng hợp theo kỳ — CHỈ admin / người được cấp quyền `unit_daily` (đơn vị thành viên KHÔNG xem). */
 function PeriodReportRoute() {
-  const { user, can } = useAuth();
-  if (user?.role === "member" || can("unit_daily")) return <PeriodReportPage />;
+  const { can } = useAuth();
+  if (can("unit_daily")) return <PeriodReportPage />;
   return <Navigate to="/" replace />;
 }
 

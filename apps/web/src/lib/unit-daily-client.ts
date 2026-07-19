@@ -111,17 +111,17 @@ export type PeriodReport = {
   kind: Kind; date_from: string; date_to: string; grades: string[]; rows: PeriodRow[];
 };
 
-const periodBase = (role: Role) =>
-  role === "member" ? "/api/member/period-report" : "/api/unit-daily/period-report";
+// CHỈ chuyên viên/admin có quyền `unit_daily` — đơn vị thành viên không có màn này.
+const PERIOD_BASE = "/api/unit-daily/period-report";
 
-export const fetchPeriodReport = (role: Role, kind: Kind, dateFrom: string, dateTo: string) =>
-  apiFetch<PeriodReport>(`${periodBase(role)}?kind=${kind}&date_from=${dateFrom}&date_to=${dateTo}`);
+export const fetchPeriodReport = (kind: Kind, dateFrom: string, dateTo: string) =>
+  apiFetch<PeriodReport>(`${PERIOD_BASE}?kind=${kind}&date_from=${dateFrom}&date_to=${dateTo}`);
 
 /** Tải Excel báo cáo kỳ (bám mẫu Biểu (1)/(2)) — fetch kèm token rồi lưu file. */
 export async function downloadPeriodXlsx(
-  role: Role, kind: Kind, dateFrom: string, dateTo: string,
+  kind: Kind, dateFrom: string, dateTo: string,
 ): Promise<void> {
-  const url = `${API}${periodBase(role)}.xlsx?kind=${kind}&date_from=${dateFrom}&date_to=${dateTo}`;
+  const url = `${API}${PERIOD_BASE}.xlsx?kind=${kind}&date_from=${dateFrom}&date_to=${dateTo}`;
   const res = await fetch(url, { headers: authHeaders() });
   if (!res.ok) throw new Error("Không tải được file Excel.");
   const blob = await res.blob();

@@ -84,11 +84,31 @@ def test_unit_daily_member_and_editor_flow() -> None:
                       headers=mh).status_code == 403
 
     # Chuyên viên sửa số của đơn vị (consumption) + timeline hiện bản ghi.
-    cons = {"kind": "consumption", "company": unit, "as_of": today,
-            "fields": {"stock_finished": 500, "stock_finished_hd": 300, "g_latex": 50}}
+    # Biểu tiêu thụ dùng BẢNG NHIỀU DÒNG: `sales` + tồn kho dạng mảng (không phải ô phẳng).
+    cons = {"kind": "consumption", "company": unit, "as_of": today, "fields": {
+        "sales": [{"contract": "long_term", "channel": "export", "grade": "RSS",
+                   "qty": 12.5, "price": 45}],
+        "revenue": 562_500_000,
+        "stock_no_contract": [{"grade": "RSS", "bale": "33,33 kg", "qty_kg": 24000}],
+    }}
     assert client.put("/api/unit-daily/report", json=cons, headers=eh).status_code == 200
     tl = client.get("/api/unit-daily/timeline?kind=consumption&days=30", headers=eh)
-    assert any(e["company"] == unit for e in tl.json()["entries"])
+    saved = next(e for e in tl.json()["entries"] if e["company"] == unit)["fields"]
+    assert saved["sales"][0]["qty"] == 12.5 and saved["stock_no_contract"][0]["qty_kg"] == 24000
+
+    # Báo cáo tổng hợp theo kỳ: cộng dồn sản lượng, tồn kho lấy thời điểm cuối kỳ.
+    pr = client.get(f"/api/unit-daily/period-report?kind=consumption&date_from={today}&date_to={today}",
+                    headers=eh)
+    assert pr.status_code == 200
+    row = next(r for r in pr.json()["rows"] if r["company"] == unit)
+    assert row["lt_export"] == 12.5 and row["total_consumption"] == 12.5
+    assert row["stock_no_hd"] == 24.0          # 24000 kg → 24 tấn (thời điểm)
+
+    # Đơn vị thành viên KHÔNG được xem báo cáo tổng hợp (chỉ admin / quyền unit_daily).
+    assert client.get(f"/api/unit-daily/period-report?kind=purchase&date_from={today}&date_to={today}",
+                      headers=mh).status_code == 403
+    assert client.get(f"/api/member/period-report?kind=purchase&date_from={today}&date_to={today}",
+                      headers=mh).status_code == 404
 
     # Editor KHÔNG quyền unit_daily bị chặn; member không vào được endpoint chuyên viên.
     assert client.get(f"/api/unit-daily/day?kind=purchase&as_of={today}", headers=nh).status_code == 403

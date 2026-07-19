@@ -7,10 +7,8 @@ import { DownloadOutlined, FileDoneOutlined, ReloadOutlined } from "@ant-design/
 import { Button, Segmented, Spin, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { useAuth } from "../../auth/AuthContext";
 import {
-  type PeriodReport, type PeriodRow, type Role,
-  downloadPeriodXlsx, fetchPeriodReport,
+  type PeriodReport, type PeriodRow, downloadPeriodXlsx, fetchPeriodReport,
 } from "../../../lib/unit-daily-client";
 import { type Kind, fmtNum } from "../../../lib/unit-daily-fields";
 import DateInput from "../sections/DateInput";
@@ -86,9 +84,6 @@ function rangeOf(p: Preset, today = new Date()): { from: string; to: string } | 
 }
 
 export default function PeriodReportPage() {
-  const { user } = useAuth();
-  const role: Role = user?.role === "member" ? "member" : "hq";
-
   const [kind, setKind] = useState<Kind>("purchase");
   const [preset, setPreset] = useState<Preset>("Tuần này");
   const init = rangeOf("Tuần này")!;
@@ -107,9 +102,9 @@ export default function PeriodReportPage() {
   const load = useCallback(() => {
     if (from > to) { message.warning("Khoảng ngày không hợp lệ: từ ngày sau đến ngày."); return; }
     setLoading(true);
-    fetchPeriodReport(role, kind, from, to)
+    fetchPeriodReport(kind, from, to)
       .then(setData).catch((e) => message.error(e.message)).finally(() => setLoading(false));
-  }, [role, kind, from, to]);
+  }, [kind, from, to]);
   useEffect(() => { load(); }, [load]);
 
   const cols: Col[] = useMemo(() => {
@@ -131,7 +126,7 @@ export default function PeriodReportPage() {
   const exportXlsx = async () => {
     setSaving(true);
     try {
-      await downloadPeriodXlsx(role, kind, from, to);
+      await downloadPeriodXlsx(kind, from, to);
       message.success("Đã tải file Excel.");
     } catch (e) { message.error((e as Error).message); } finally { setSaving(false); }
   };
