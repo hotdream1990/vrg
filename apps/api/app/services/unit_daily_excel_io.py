@@ -105,21 +105,34 @@ _HEAD_FILL = PatternFill("solid", fgColor="D9E7D5")
 _REQ_FILL = PatternFill("solid", fgColor="FCE9E7")
 
 
-def build_template(kind: str) -> bytes:
+def template_columns(kind: str, allowed_units: list[str] | None) -> tuple[list[Col], str | None]:
+    """Cột của file mẫu + đơn vị mặc định.
+
+    Tài khoản chỉ quản 1 đơn vị → BỎ cột 'Đơn vị' (khỏi gõ tên mình), khi nhập tự gán đơn vị đó.
+    """
+    spec = SPECS[kind]
+    only = allowed_units[0] if allowed_units and len(allowed_units) == 1 else None
+    cols = [c for c in spec.cols if not (only and c.key == "company")]
+    return cols, only
+
+
+def build_template(kind: str, allowed_units: list[str] | None = None) -> bytes:
     """Sinh file Excel mẫu: header + đơn vị tính + ô chọn sẵn (dropdown) + sheet Danh mục."""
     spec = SPECS[kind]
-    units = member_unit_repo.active_names()
+    units = allowed_units if allowed_units else member_unit_repo.active_names()
+    cols, only = template_columns(kind, allowed_units)
     wb = Workbook()
     ws = wb.active
     ws.title = spec.sheet
 
     ws.cell(row=1, column=1, value=spec.title).font = Font(bold=True, size=14)
-    ws.cell(row=2, column=1, value=spec.note).font = Font(italic=True, color="666666")
+    note = spec.note + (f"  ·  Áp dụng cho đơn vị: {only}" if only else "")
+    ws.cell(row=2, column=1, value=note).font = Font(italic=True, color="666666")
     ws.cell(row=3, column=1, value="Cột tô đỏ là BẮT BUỘC. Không đổi tên/thứ tự cột.").font = Font(
         italic=True, size=9, color="B03A2E")
 
     head = 5
-    for i, c in enumerate(spec.cols, start=1):
+    for i, c in enumerate(cols, start=1):
         cell = ws.cell(row=head, column=i, value=c.title)
         cell.font = Font(bold=True, size=10)
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -137,7 +150,7 @@ def build_template(kind: str) -> bytes:
     ref.column_dimensions["A"].width = 28
 
     first, last = head + 2, head + 501          # 500 dòng cho người dùng nhập
-    for i, c in enumerate(spec.cols, start=1):
+    for i, c in enumerate(cols, start=1):
         letter = get_column_letter(i)
         if c.key == "company" and units:
             dv = DataValidation(
@@ -203,14 +216,30 @@ def parse_upload(kind: str, data: bytes,
 
     units = set(member_unit_repo.active_names())
     allowed = set(allowed_units) if allowed_units is not None else None
-    rows: list[dict[str, Any]] = []
+    default_company = allowed_units[0] if allowed_units and len(allowed_units) == 1 else None
+
+    # Dò cột theo TIÊU ĐỀ (không theo vị trí cố định) → chịu được khi thiếu/đổi chỗ cột.
     head = 5
+    titles = {}
+    for i in range(1, ws.max_column + 1):
+        t = str(ws.cell(row=head, column=i).value or "").strip()
+        if t:
+            titles.setdefault(t, i)
+    idx: dict[str, int | None] = {c.key: titles.get(c.title) for c in spec.cols}
+    missing = [c.title for c in spec.cols
+               if c.required and idx[c.key] is None and not (c.key == "company" and default_company)]
+    if missing:
+        raise ValueError("File thiếu cột bắt buộc: " + ", ".join(missing) + ". Hãy dùng đúng file mẫu.")
+    rows: list[dict[str, Any]] = []
     for r in range(head + 2, ws.max_row + 1):
-        raw = [ws.cell(row=r, column=i).value for i in range(1, len(spec.cols) + 1)]
+        raw = [ws.cell(row=r, column=idx[c.key]).value if idx[c.key] else None for c in spec.cols]
         if all(v is None or str(v).strip() == "" for v in raw):
             continue
         rec: dict[str, Any] = {"_row": r, "_errors": []}
         for c, v in zip(spec.cols, raw):
+            if c.key == "company" and idx["company"] is None and default_company:
+                rec["company"] = default_company     # mẫu không có cột Đơn vị → gán đơn vị của tài khoản
+                continue
             if c.type == "date":
                 val = _as_date(v)
                 if val is None and (c.required or (v not in (None, ""))):
@@ -249,7 +278,8 @@ def parse_upload(kind: str, data: bytes,
     return {
         "kind": kind, "rows": rows,
         # Nhãn cột tiếng Việt để bảng xem trước hiển thị dễ đọc (không phải khoá thô).
-        "columns": [{"key": c.key, "title": c.title, "unit": c.unit} for c in spec.cols],
+        "columns": [{"key": c.key, "title": c.title, "unit": c.unit} for c in spec.cols
+                    if not (c.key == "company" and idx["company"] is None and default_company)],
         "summary": {"total": len(rows), "ok": ok, "error": len(rows) - ok},
     }
 

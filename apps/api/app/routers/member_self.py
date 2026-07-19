@@ -188,8 +188,8 @@ def get_my_contract_file(name: str, member: dict = Depends(get_current_member)):
 @router.get("/import/template")
 def my_import_template(kind: str = Query(..., pattern="^(purchase|sales|stock|plan)$"),
                        member: dict = Depends(get_current_member)):
-    """Tải file Excel MẪU."""
-    data = unit_daily_excel_io.build_template(kind)
+    """Tải file Excel MẪU — tài khoản 1 đơn vị thì mẫu bỏ luôn cột 'Đơn vị' (tự gán khi nhập)."""
+    data = unit_daily_excel_io.build_template(kind, allowed_units=list(member["member_units"]))
     return Response(
         content=data,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
