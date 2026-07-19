@@ -62,14 +62,25 @@ def test_unit_daily_member_and_editor_flow() -> None:
     dup = {**body, "create_only": True}
     assert client.put("/api/member/daily-report", json=dup, headers=mh).status_code == 409
 
-    # Chuyên viên có quyền: xem lưới cả ngày + đặt chỉ tiêu kế hoạch → tính % ở FE.
+    # Chuyên viên có quyền: xem lưới cả ngày + đặt SỐ LIỆU NĂM (kế hoạch thu mua + HĐ dài hạn đã ký).
     dy = client.get(f"/api/unit-daily/day?kind=purchase&as_of={today}", headers=eh)
     assert dy.status_code == 200 and unit in dy.json()["entries"]
     assert client.put("/api/unit-daily/plan",
-                      json={"year": date.today().year, "company": unit, "plan_tonnes": 2000},
+                      json={"year": date.today().year, "company": unit,
+                            "plan_tonnes": 2000, "signed_lt_tonnes": 1500},
                       headers=eh).status_code == 200
     pl = client.get(f"/api/unit-daily/plan?year={date.today().year}", headers=eh)
-    assert pl.json()["plans"][unit] == 2000
+    assert pl.json()["plans"][unit] == {"plan_tonnes": 2000, "signed_lt_tonnes": 1500}
+
+    # Đơn vị thành viên tự cập nhật số liệu năm của mình; không đụng được đơn vị khác.
+    assert client.put("/api/member/plan",
+                      json={"year": date.today().year, "company": unit, "plan_tonnes": 2500},
+                      headers=mh).status_code == 200
+    mp = client.get(f"/api/member/plan?year={date.today().year}", headers=mh)
+    assert mp.status_code == 200 and mp.json()["plans"][unit]["plan_tonnes"] == 2500
+    assert client.put("/api/member/plan",
+                      json={"year": date.today().year, "company": "Đơn vị khác", "plan_tonnes": 1},
+                      headers=mh).status_code == 403
 
     # Chuyên viên sửa số của đơn vị (consumption) + timeline hiện bản ghi.
     cons = {"kind": "consumption", "company": unit, "as_of": today,

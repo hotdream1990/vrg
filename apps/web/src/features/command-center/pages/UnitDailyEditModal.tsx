@@ -11,6 +11,7 @@ import {
 } from "../../../lib/unit-daily-client";
 import { KIND_LABEL, type Kind, type Values } from "../../../lib/unit-daily-fields";
 import DateInput from "../sections/DateInput";
+import type { ConsumptionTab } from "./ConsumptionForm";
 import UnitDailyForm, { type PriceDraft } from "./UnitDailyForm";
 
 const daysBetween = (later: string, earlier: string) =>
@@ -19,6 +20,7 @@ const daysBetween = (later: string, earlier: string) =>
 type Props = {
   open: boolean;
   kind: Kind;
+  defaultTab?: ConsumptionTab;    // Tiêu thụ–Tồn kho: tab mở sẵn theo mục menu
   role: "member" | "hq";
   isAdmin: boolean;
   initialDay: string;
@@ -29,7 +31,7 @@ type Props = {
 };
 
 export default function UnitDailyEditModal(
-  { open, kind, role, isAdmin, initialDay, initialCompany, today, onClose, onSaved }: Props,
+  { open, kind, defaultTab, role, isAdmin, initialDay, initialCompany, today, onClose, onSaved }: Props,
 ) {
   const [day, setDay] = useState(initialDay);
   const [company, setCompany] = useState(initialCompany);
@@ -118,6 +120,7 @@ export default function UnitDailyEditModal(
             currency={data.currencies?.[company] ?? "VND"}
             hasFactory={data.factories?.[company] ?? true}
             role={role}
+            defaultTab={defaultTab}
             linkedPrice={data.prices?.[company] ?? null}
             readOnly={!editable}
             footer={(dirty, current, prices) => (

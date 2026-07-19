@@ -95,15 +95,16 @@ def get_contract_file(name: str, username: str = Depends(_require)):
 @router.get("/plan")
 def get_plan(year: int = Query(..., ge=2020, le=2100),
              username: str = Depends(_require)) -> dict:
-    """Chỉ tiêu kế hoạch thu mua năm cho mọi đơn vị (để tính % + cấu hình)."""
+    """Số liệu NĂM (kế hoạch thu mua + HĐ dài hạn đã ký) của MỌI đơn vị."""
     return {"year": year, "units": member_unit_repo.active_names(),
-            "plans": unit_daily_repo.plans_for_year(year)}
+            "plans": unit_daily_repo.year_plan(year)}
 
 
 @router.put("/plan")
 def set_plan(body: PurchasePlanEdit, username: str = Depends(_require)) -> dict:
-    """Đặt/xoá chỉ tiêu kế hoạch thu mua năm cho 1 đơn vị."""
+    """Đặt/xoá số liệu năm của 1 đơn vị (chuyên viên có quyền `unit_daily`)."""
     if body.company not in member_unit_repo.active_names():
         raise HTTPException(400, "Đơn vị không hợp lệ.")
-    unit_daily_repo.set_plan(body.year, body.company, body.plan_tonnes, username)
+    unit_daily_repo.set_year_plan(body.year, body.company, body.plan_tonnes,
+                                  body.signed_lt_tonnes, username)
     return {"ok": True}

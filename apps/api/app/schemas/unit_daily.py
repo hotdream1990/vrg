@@ -19,6 +19,9 @@ class UnitDailyEdit(BaseModel):
 
 
 class PurchasePlanEdit(BaseModel):
+    """Số liệu NĂM của 1 đơn vị (nhập 1 lần, cập nhật khi có thay đổi). None = xoá ô đó."""
+
     year: int = Field(ge=2020, le=2100)
     company: str
-    plan_tonnes: float | None = None   # None = xoá chỉ tiêu
+    plan_tonnes: float | None = None        # kế hoạch thu mua năm (tấn)
+    signed_lt_tonnes: float | None = None   # tổng SL đã ký HĐ dài hạn năm (tấn)

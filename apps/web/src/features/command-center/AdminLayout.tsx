@@ -17,6 +17,7 @@ import {
   MenuUnfoldOutlined,
   RobotOutlined,
   SafetyOutlined,
+  ProfileOutlined,
   ScheduleOutlined,
   SettingOutlined,
   SolutionOutlined,
@@ -61,7 +62,10 @@ function buildMenu(can: (cap: Cap) => boolean) {
     can("inventory") && { key: "/quan-ly-so-lieu/ton-kho", icon: <InboxOutlined />, label: "Tồn kho" },
     can("member_unit") && { key: "/quan-ly-so-lieu/don-vi-thanh-vien", icon: <TeamOutlined />, label: "Đơn vị thành viên" },
     can("market_demand") && { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
-    can("unit_daily") && { key: "/bao-cao-tieu-thu-ton-kho", icon: <ScheduleOutlined />, label: "Báo cáo tiêu thụ - tồn kho" },
+    can("unit_daily") && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Báo cáo thu mua" },
+    can("unit_daily") && { key: "/bao-cao-tieu-thu", icon: <ScheduleOutlined />, label: "Báo cáo tiêu thụ" },
+    can("unit_daily") && { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Báo cáo tồn kho" },
+    can("unit_daily") && { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
   ].filter(Boolean) as NonNullable<Parameters<typeof Menu>[0]["items"]>;
   if (manual.length) {
     items.push({ key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)", children: manual });
@@ -88,13 +92,16 @@ const ADMIN_MENU = {
   ],
 };
 
-// Menu tối giản cho tài khoản Đơn vị thành viên: chỉ nhập giá của đơn vị + Nhu cầu thị trường.
+// Menu cho tài khoản Đơn vị thành viên: 3 báo cáo theo ngày + số liệu năm.
+// Giá thu mua nhập thẳng trong biểu "Báo cáo thu mua" nên không còn mục riêng.
 const MEMBER_MENU = [
   {
     key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)",
     children: [
-      { key: "/don-vi/gia-mu", icon: <ExperimentOutlined />, label: "Giá thu mua" },
-      { key: "/bao-cao-tieu-thu-ton-kho", icon: <ScheduleOutlined />, label: "Báo cáo tiêu thụ - tồn kho" },
+      { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Báo cáo thu mua" },
+      { key: "/bao-cao-tieu-thu", icon: <ScheduleOutlined />, label: "Báo cáo tiêu thụ" },
+      { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Báo cáo tồn kho" },
+      { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
       { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
     ],
   },
@@ -122,7 +129,7 @@ export default function AdminLayout() {
     "/quan-ly-so-lieu/bang-gia-san", "/quan-ly-so-lieu/ty-gia", "/quan-ly-so-lieu/gia-san-tap-doan",
     "/quan-ly-so-lieu/gia-mu-nguyen-lieu", "/quan-ly-so-lieu/gia-physical",
     "/quan-ly-so-lieu/ton-kho", "/quan-ly-so-lieu/bao-gia-mu", "/quan-ly-so-lieu/don-vi-thanh-vien",
-    "/don-vi/gia-mu", "/nhu-cau-thi-truong", "/bao-cao-tieu-thu-ton-kho",
+    "/nhu-cau-thi-truong", "/bao-cao-thu-mua", "/bao-cao-tieu-thu", "/bao-cao-ton-kho", "/ke-hoach-nam",
     "/goi-y-gia-san", "/ban-tin-bien-dong", "/tro-ly-ai", "/ban-tin/tuan", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
     "/quan-tri/lich-chay", "/ho-so",
   ];

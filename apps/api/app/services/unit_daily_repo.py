@@ -127,6 +127,37 @@ def plans_for_year(year: int) -> dict[str, float]:
     return {r["company"]: r["plan_tonnes"] for r in rows if r["plan_tonnes"] is not None}
 
 
+def year_plan(year: int, companies: list[str] | None = None) -> dict[str, dict[str, float | None]]:
+    """Số liệu NĂM (nhập 1 lần, không theo ngày) → {company: {plan_tonnes, signed_lt_tonnes}}.
+
+    `companies`=None → mọi đơn vị (chuyên viên); có danh sách → chỉ các đơn vị đó (đơn vị thành viên).
+    """
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(
+            text("SELECT company, plan_tonnes, signed_lt_tonnes FROM unit_purchase_plan WHERE year = :y"),
+            {"y": year},
+        ).mappings().all()
+    keep = set(companies) if companies is not None else None
+    return {r["company"]: {"plan_tonnes": r["plan_tonnes"], "signed_lt_tonnes": r["signed_lt_tonnes"]}
+            for r in rows if keep is None or r["company"] in keep}
+
+
+def set_year_plan(year: int, company: str, plan_tonnes: float | None,
+                  signed_lt_tonnes: float | None, updated_by: str | None) -> None:
+    """Đặt số liệu năm cho 1 đơn vị (ghi đè cả 2 ô; None = xoá ô đó)."""
+    ensure_schema()
+    with session_scope() as db:
+        db.execute(
+            text("INSERT INTO unit_purchase_plan (year, company, plan_tonnes, signed_lt_tonnes, updated_by, updated_at) "
+                 "VALUES (:y, :c, :p, :s, :by, now()) "
+                 "ON CONFLICT (year, company) DO UPDATE SET "
+                 "plan_tonnes = EXCLUDED.plan_tonnes, signed_lt_tonnes = EXCLUDED.signed_lt_tonnes, "
+                 "updated_by = EXCLUDED.updated_by, updated_at = now()"),
+            {"y": year, "c": company, "p": plan_tonnes, "s": signed_lt_tonnes, "by": updated_by},
+        )
+
+
 def set_plan(year: int, company: str, plan_tonnes: float | None, updated_by: str | None) -> None:
     """Đặt/xoá (None) chỉ tiêu kế hoạch thu mua năm cho 1 đơn vị."""
     ensure_schema()

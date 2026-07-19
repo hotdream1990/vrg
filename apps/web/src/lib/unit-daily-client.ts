@@ -6,7 +6,6 @@ import { authHeaders } from "./auth-token";
 import { API, apiFetch } from "./http";
 import type { Kind, Values } from "./unit-daily-fields";
 
-type Role = "member" | "hq";
 const contractBase = (role: Role) =>
   role === "member" ? "/api/member/daily-report/contract-file" : "/api/unit-daily/contract-file";
 
@@ -25,6 +24,9 @@ export async function openContractFile(role: Role, name: string): Promise<void> 
   window.open(url, "_blank");
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
+
+/** Vai trò gọi API: đơn vị thành viên (chỉ đơn vị mình) hay chuyên viên/HQ (mọi đơn vị). */
+export type Role = "member" | "hq";
 
 export type DailyEntry = { fields: Values; updated_at: string; updated_by: string | null };
 /** Đơn giá thu mua ĐÚNG NGÀY (đồng/độ TSC), link từ "Giá mủ nguyên liệu". */
@@ -50,7 +52,9 @@ export type Timeline = {
   today: string; edit_window_days: number; units: string[];
   plans: Record<string, number>; entries: TimelineRow[];
 };
-export type PlanData = { year: number; units: string[]; plans: Record<string, number> };
+/** Số liệu NĂM của 1 đơn vị (nhập 1 lần, cập nhật khi có thay đổi). */
+export type YearPlanRow = { plan_tonnes: number | null; signed_lt_tonnes: number | null };
+export type YearPlanData = { year: number; units: string[]; plans: Record<string, YearPlanRow> };
 
 const J = { "Content-Type": "application/json" };
 
@@ -80,10 +84,16 @@ export const saveDaily = (kind: Kind, company: string, asOf: string, fields: Val
     body: JSON.stringify({ kind, company, as_of: asOf, fields, create_only: createOnly }),
   });
 
-export const fetchPlan = (year: number) => apiFetch<PlanData>(`/api/unit-daily/plan?year=${year}`);
+// ── Số liệu NĂM (kế hoạch thu mua + HĐ dài hạn đã ký) — đơn vị tự cập nhật, chuyên viên xem/sửa mọi đơn vị ──
+const planBase = (role: Role) => (role === "member" ? "/api/member/plan" : "/api/unit-daily/plan");
 
-export const savePlan = (year: number, company: string, planTonnes: number | null) =>
-  apiFetch<{ ok: boolean }>(`/api/unit-daily/plan`, {
+export const fetchYearPlan = (role: Role, year: number) =>
+  apiFetch<YearPlanData>(`${planBase(role)}?year=${year}`);
+
+export const saveYearPlan = (
+  role: Role, year: number, company: string, planTonnes: number | null, signedLtTonnes: number | null,
+) =>
+  apiFetch<{ ok: boolean }>(planBase(role), {
     method: "PUT", headers: J,
-    body: JSON.stringify({ year, company, plan_tonnes: planTonnes }),
+    body: JSON.stringify({ year, company, plan_tonnes: planTonnes, signed_lt_tonnes: signedLtTonnes }),
   });

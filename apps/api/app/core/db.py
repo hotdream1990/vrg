@@ -162,7 +162,8 @@ CREATE INDEX IF NOT EXISTS ix_unit_daily_date ON unit_daily_report (kind, as_of 
 CREATE TABLE IF NOT EXISTS unit_purchase_plan (
     year        integer NOT NULL,
     company     text NOT NULL,
-    plan_tonnes double precision,
+    plan_tonnes double precision,       -- kế hoạch thu mua năm (tấn)
+    signed_lt_tonnes double precision,  -- tổng SL đã ký HĐ dài hạn năm (tấn)
     updated_at  timestamptz NOT NULL DEFAULT now(),
     updated_by  text,
     PRIMARY KEY (year, company)
@@ -178,6 +179,8 @@ ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS country text NOT NULL DEFAULT '
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS currency text NOT NULL DEFAULT 'VND';
 -- Đơn vị có nhà máy chế biến không (đơn vị KHÔNG có nhà máy mới nhập tồn kho nguyên liệu).
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS has_factory boolean NOT NULL DEFAULT true;
+-- Số liệu năm nhập 1 lần (không theo ngày): tổng SL đã ký HĐ dài hạn của năm.
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS signed_lt_tonnes double precision;
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS permissions jsonb NOT NULL DEFAULT '[]'::jsonb;
 -- Các đơn vị gắn với tài khoản (chỉ dùng cho role=member) — 1 tài khoản có thể gán NHIỀU đơn vị.
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS member_units jsonb NOT NULL DEFAULT '[]'::jsonb;

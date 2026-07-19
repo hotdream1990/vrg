@@ -20,6 +20,9 @@ import { fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
 const NO_PRICES: PriceDraft = { latex: null, cup: null };
 const num = (x: number | null | undefined): number | null => (x == null || Number.isNaN(x) ? null : x);
 
+/** Tab của biểu Tiêu thụ–Tồn kho (menu "Báo cáo tiêu thụ" / "Báo cáo tồn kho" mở sẵn tab tương ứng). */
+export type ConsumptionTab = "sales" | "stock";
+
 type Props = {
   values: Values;
   readOnly?: boolean;
@@ -27,6 +30,7 @@ type Props = {
   currency?: string;                       // VND/LAK/KHR — ≠VND ⇒ nước ngoài (giá theo USD)
   hasFactory?: boolean;                    // false ⇒ hiện tồn kho nguyên liệu
   role?: "member" | "hq";                  // để upload đúng endpoint file HĐ
+  defaultTab?: ConsumptionTab;             // tab mở sẵn (mặc định "sales")
   onDirty?: (dirty: boolean) => void;
   footer?: (dirty: boolean, current: Values, prices: PriceDraft) => React.ReactNode;
 };
@@ -42,7 +46,7 @@ function initData(values: Values): ConsumptionData {
   };
 }
 
-export default function ConsumptionForm({ values, readOnly, formKey, currency, hasFactory = true, role = "member", onDirty, footer }: Props) {
+export default function ConsumptionForm({ values, readOnly, formKey, currency, hasFactory = true, role = "member", defaultTab, onDirty, footer }: Props) {
   const foreign = (currency ?? "VND") !== "VND";
   const [data, setData] = useState<ConsumptionData>(() => initData(values));
   const [fxLoading, setFxLoading] = useState(false);
@@ -245,7 +249,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
 
   return (
     <div>
-      <Tabs items={[
+      <Tabs defaultActiveKey={defaultTab ?? "sales"} items={[
         { key: "sales", label: "Tiêu thụ", children: salesTab },
         { key: "stock", label: "Tồn kho", children: stockTab },
       ]} />

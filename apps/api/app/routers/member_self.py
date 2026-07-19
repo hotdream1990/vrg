@@ -16,7 +16,7 @@ from app.core import edit_window
 from app.core.security import get_current_member
 from app.schemas.market_demand import MarketDemandEdit
 from app.schemas.member_self import MemberPriceEdit
-from app.schemas.unit_daily import UnitDailyEdit
+from app.schemas.unit_daily import PurchasePlanEdit, UnitDailyEdit
 from app.services import contract_files, market_demand_repo, price_repo, unit_daily_repo
 
 router = APIRouter(prefix="/api/member", tags=["member-self"])
@@ -137,6 +137,25 @@ def my_daily(kind: str = Query(..., pattern="^(purchase|consumption)$"),
             "plans": unit_daily_repo.plans_for_year(year),
             "entries": {u: entries.get(u) for u in units},
             **unit_daily_repo.day_extras(kind, as_of, units)}
+
+
+# ── Số liệu NĂM (kế hoạch thu mua + HĐ dài hạn đã ký) — nhập 1 lần, cập nhật khi có thay đổi ──
+@router.get("/plan")
+def my_year_plan(year: int = Query(..., ge=2020, le=2100),
+                 member: dict = Depends(get_current_member)) -> dict:
+    """Số liệu năm của CÁC đơn vị được gán cho tài khoản này."""
+    units = list(member["member_units"])
+    return {"year": year, "units": units, "plans": unit_daily_repo.year_plan(year, companies=units)}
+
+
+@router.put("/plan")
+def upsert_my_year_plan(body: PurchasePlanEdit,
+                        member: dict = Depends(get_current_member)) -> dict:
+    """Đơn vị tự cập nhật số liệu năm của mình (không giới hạn cửa sổ ngày — số liệu năm)."""
+    _assert_company(member, body.company)
+    unit_daily_repo.set_year_plan(body.year, body.company, body.plan_tonnes,
+                                  body.signed_lt_tonnes, member.get("username"))
+    return {"ok": True}
 
 
 @router.put("/daily-report")
