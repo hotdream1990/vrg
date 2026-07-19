@@ -172,7 +172,7 @@ export async function buildSummaries(): Promise<GroupMeta[]> {
   const cup = Object.entries(mq?.c?.regions_cup ?? {}).filter(([, v]) => v != null) as [string, number][];
   if (cup.length) {
     const cv = cup.map((e) => e[1]);
-    rawLine += ` Mủ chén: ${vnum(Math.min(...cv))}–${vnum(Math.max(...cv))} đ/kg (${cup.length} đơn vị).`;
+    rawLine += ` Mủ chén: ${vnum(Math.min(...cv))}–${vnum(Math.max(...cv))} đ/độ TSC (${cup.length} đơn vị).`;
   }
 
   // Ngày dữ liệu thực đã nạp cho từng nhóm (để hiển thị "nạp gì · khoảng ngày nào").

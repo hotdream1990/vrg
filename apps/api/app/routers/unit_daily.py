@@ -32,12 +32,14 @@ def timeline(kind: str = Query(..., pattern="^(purchase|consumption)$"),
     """Timeline tổng quát: các bản ghi ĐÃ có số liệu (ẩn ngày trống) trong `days` ngày gần nhất."""
     today = edit_window.today()
     date_from = (today - timedelta(days=days)).isoformat()
+    entries = unit_daily_repo.recent(kind, date_from)
+    unit_daily_repo.attach_purchase_prices(entries, kind)
     return {
         "today": today.isoformat(),
         "edit_window_days": edit_window.editor_window(),
         "units": member_unit_repo.active_names(),
         "plans": unit_daily_repo.plans_for_year(today.year),
-        "entries": unit_daily_repo.recent(kind, date_from),
+        "entries": entries,
     }
 
 
@@ -50,13 +52,15 @@ def day(kind: str = Query(..., pattern="^(purchase|consumption)$"),
         date.fromisoformat(as_of)
     except ValueError as exc:
         raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
+    units = member_unit_repo.active_names()
     return {
         "as_of": as_of,
         "today": edit_window.today().isoformat(),
         "edit_window_days": edit_window.editor_window(),
-        "units": member_unit_repo.active_names(),
+        "units": units,
         "plans": unit_daily_repo.plans_for_year(_year_of(as_of)),
         "entries": unit_daily_repo.entries_on(kind, as_of),
+        **unit_daily_repo.day_extras(kind, as_of, units),
     }
 
 

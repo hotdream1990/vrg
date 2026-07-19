@@ -22,7 +22,7 @@ export default function CupLatexBlock() {
         setBars({ labels: entries.map((e) => e[0]), values: entries.map((e) => e[1]) });
         if (entries.length) {
           const vals = entries.map((e) => e[1]);
-          setCaption(`Ngày ${dm(list[0].as_of)}: ${vnum(Math.min(...vals))}–${vnum(Math.max(...vals))} đ/kg · ${entries.length} đơn vị.`);
+          setCaption(`Ngày ${dm(list[0].as_of)}: ${vnum(Math.min(...vals))}–${vnum(Math.max(...vals))} đ/độ TSC · ${entries.length} đơn vị.`);
         } else setCaption(`Phiếu ${dm(list[0].as_of)} chưa nhập mủ chén.`);
       } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi tải dữ liệu"); }
     })();
@@ -41,7 +41,7 @@ export default function CupLatexBlock() {
       {err ? <div className="scan-empty">{err}</div>
         : !bars ? <div className="scan-empty">Đang tải…</div>
         : !ready ? <div className="scan-empty">Phiếu gần nhất chưa nhập mủ chén.</div>
-        : <div className="chart-wrap"><GradeBarChart labels={bars.labels} values={bars.values} color="#a855f7" unit="đ/kg" /></div>}
+        : <div className="chart-wrap"><GradeBarChart labels={bars.labels} values={bars.values} color="#a855f7" unit="đ/độ TSC" /></div>}
     </div>
   );
 }

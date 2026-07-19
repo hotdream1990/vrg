@@ -20,7 +20,7 @@ from app.services import market_demand_repo, price_repo, unit_daily_repo
 
 router = APIRouter(prefix="/api/member", tags=["member-self"])
 
-_UNIT = {"purchase": "đồng/độ TSC", "purchase_cup": "đồng/kg"}
+_UNIT = {"purchase": "đồng/độ TSC", "purchase_cup": "đồng/độ TSC"}
 
 
 def _assert_company(member: dict, company: str) -> None:
@@ -113,9 +113,11 @@ def my_daily_timeline(kind: str = Query(..., pattern="^(purchase|consumption)$")
     units = list(member["member_units"])
     today = edit_window.today()
     date_from = (today - timedelta(days=days)).isoformat()
+    entries = unit_daily_repo.recent(kind, date_from, companies=units)
+    unit_daily_repo.attach_purchase_prices(entries, kind)
     return {"today": today.isoformat(), "edit_window_days": edit_window.member_window(),
             "units": units, "plans": unit_daily_repo.plans_for_year(today.year),
-            "entries": unit_daily_repo.recent(kind, date_from, companies=units)}
+            "entries": entries}
 
 
 @router.get("/daily-report")
@@ -132,7 +134,8 @@ def my_daily(kind: str = Query(..., pattern="^(purchase|consumption)$"),
     return {"as_of": as_of, "today": edit_window.today().isoformat(),
             "edit_window_days": edit_window.member_window(), "units": units,
             "plans": unit_daily_repo.plans_for_year(year),
-            "entries": {u: entries.get(u) for u in units}}
+            "entries": {u: entries.get(u) for u in units},
+            **unit_daily_repo.day_extras(kind, as_of, units)}
 
 
 @router.put("/daily-report")

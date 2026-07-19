@@ -43,6 +43,8 @@ def update_unit(name: str, body: MemberUnitUpdate):
         member_unit_repo.set_active(name, body.is_active)
     if body.set_region:
         member_unit_repo.set_region(name, body.region)
+    if body.set_locale:
+        member_unit_repo.set_locale(name, body.country, body.currency)
     return member_unit_repo.list_units()
 
 

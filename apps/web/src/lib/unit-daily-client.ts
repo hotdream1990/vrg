@@ -6,6 +6,10 @@ import { apiFetch } from "./http";
 import type { Kind, Values } from "./unit-daily-fields";
 
 export type DailyEntry = { fields: Values; updated_at: string; updated_by: string | null };
+/** Đơn giá thu mua ĐÚNG NGÀY (đồng/độ TSC), link từ "Giá mủ nguyên liệu". */
+export type UnitPurchasePrice = { latex: number | null; cup: number | null };
+/** Đơn giá VND (mủ nước/mủ chén) do form Thu mua ghi về kho "Giá mủ nguyên liệu". */
+export type PriceDraft = UnitPurchasePrice;
 export type DayData = {
   as_of: string;
   today: string;
@@ -13,8 +17,13 @@ export type DayData = {
   units: string[];
   plans: Record<string, number>;            // chỉ tiêu kế hoạch thu mua năm (đơn vị: tấn)
   entries: Record<string, DailyEntry | null>;
+  currencies?: Record<string, string>;      // {đơn vị: VND/LAK/KHR} — ≠VND ⇒ hiện ô tỷ giá
+  prices?: Record<string, UnitPurchasePrice>; // {đơn vị: đơn giá mủ nước/mủ chén} (chỉ kind=purchase)
 };
-export type TimelineRow = { as_of: string; company: string; fields: Values; updated_at: string; updated_by: string | null };
+export type TimelineRow = {
+  as_of: string; company: string; fields: Values; updated_at: string; updated_by: string | null;
+  prices?: UnitPurchasePrice;   // đơn giá mủ nước/mủ chén đúng ngày (link, chỉ đọc — chỉ kind=purchase)
+};
 export type Timeline = {
   today: string; edit_window_days: number; units: string[];
   plans: Record<string, number>; entries: TimelineRow[];

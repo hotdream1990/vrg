@@ -17,7 +17,7 @@ import "../../bulletin/bulletin.css";
 
 const COLS: { key: MemberPriceType; label: string; unit: string }[] = [
   { key: "purchase", label: "Giá mủ nước", unit: "đồng/độ TSC" },
-  { key: "purchase_cup", label: "Giá mủ chén", unit: "đồng/kg" },
+  { key: "purchase_cup", label: "Giá mủ chén", unit: "đồng/độ TSC" },
 ];
 const EMPTY_SHEET: UnitSheet = { purchase: {}, purchase_cup: {}, dates: [] };
 
@@ -84,7 +84,7 @@ export default function MemberPricePage() {
         <div>
           <h2><ExperimentOutlined style={{ marginRight: 8 }} />Giá thu mua</h2>
           <p>
-            Tự nhập giá thu mua mủ nước (đồng/độ TSC) và mủ chén (đồng/kg) của các đơn vị được gán.
+            Tự nhập giá thu mua mủ nước và mủ chén (đồng/độ TSC) của các đơn vị được gán.
             Chỉ nhập/sửa được hôm nay và {win} ngày gần nhất; ngày cũ hơn chỉ để xem.
           </p>
         </div>

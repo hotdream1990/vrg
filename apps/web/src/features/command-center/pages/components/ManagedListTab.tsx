@@ -12,6 +12,13 @@ export type ListApi<T extends ListItem> = {
   remove: (name: string) => Promise<T[]>;
 };
 
+/** Cột phụ tuỳ biến (vd Khu vực, Quốc gia/Tiền) chèn giữa Tên và Trạng thái. */
+export type ExtraCol<T extends ListItem> = {
+  header: string;
+  width?: number;
+  render: (it: T, run: (fn: () => Promise<T[]>) => void) => ReactNode;
+};
+
 type Props<T extends ListItem> = {
   api: ListApi<T>;
   canEdit: boolean;
@@ -20,8 +27,7 @@ type Props<T extends ListItem> = {
   countWord: string;
   nameHeader: string;
   confirmDelete: (name: string) => string;
-  extraHeader?: string;
-  renderExtra?: (it: T, run: (fn: () => Promise<T[]>) => void) => ReactNode;
+  extraCols?: ExtraCol<T>[];
   onItemsChange?: (items: T[]) => void;
 };
 
@@ -67,7 +73,8 @@ export default function ManagedListTab<T extends ListItem>(props: Props<T>) {
     run(() => api.reorder(names));
   };
 
-  const cols = 3 + (props.extraHeader ? 1 : 0) + (canEdit ? 1 : 0);
+  const extraCols = props.extraCols ?? [];
+  const cols = 3 + extraCols.length + (canEdit ? 1 : 0);
   return (
     <div>
       <div className="blt-toolbar">
@@ -90,7 +97,7 @@ export default function ManagedListTab<T extends ListItem>(props: Props<T>) {
             <tr>
               <th style={{ width: 50 }}>#</th>
               <th>{nameHeader}</th>
-              {props.extraHeader && <th style={{ width: 200 }}>{props.extraHeader}</th>}
+              {extraCols.map((c) => <th key={c.header} style={{ width: c.width ?? 200 }}>{c.header}</th>)}
               <th style={{ width: 110 }}>Trạng thái</th>
               {canEdit && <th className="r" style={{ width: 220 }}>Thao tác</th>}
             </tr>
@@ -115,7 +122,7 @@ export default function ManagedListTab<T extends ListItem>(props: Props<T>) {
                     <span style={{ fontWeight: 500 }}>{u.name}</span>
                   )}
                 </td>
-                {props.extraHeader && <td>{props.renderExtra?.(u, run)}</td>}
+                {extraCols.map((c) => <td key={c.header}>{c.render(u, run)}</td>)}
                 <td>
                   <span className={`chip ${u.is_active ? "" : "warn"}`} style={{ fontSize: 11 }}>
                     {u.is_active ? "Đang dùng" : "Đã ẩn"}

@@ -25,7 +25,7 @@ export type MarketQuote = {
   domestic_vrg: Section;
   customer_proposal: ProposalSection;
   regions: Record<string, number | null>; // mủ nước (đồng/độ TSC)
-  regions_cup: Record<string, number | null>; // mủ chén (đồng/kg)
+  regions_cup: Record<string, number | null>; // mủ chén (đồng/độ TSC)
   footer: string;
 };
 

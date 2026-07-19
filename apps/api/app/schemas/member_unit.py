@@ -10,6 +10,8 @@ class MemberUnit(BaseModel):
     sort_order: int = 0
     is_active: bool = True
     region: str | None = None       # khu vực đã gán (optional)
+    country: str = "VN"             # quốc gia (VN/LA/KH)
+    currency: str = "VND"           # loại tiền thu mua (VND/LAK/KHR) — ≠ VND ⇒ cần tỷ giá
 
 
 class MemberUnitAdd(BaseModel):
@@ -23,6 +25,9 @@ class MemberUnitUpdate(BaseModel):
     is_active: bool | None = None
     region: str | None = None       # "" hoặc None qua endpoint riêng để bỏ gán
     set_region: bool = False        # True = áp giá trị `region` (kể cả None để gỡ gán)
+    country: str | None = None      # quốc gia (VN/LA/KH)
+    currency: str | None = None     # loại tiền (VND/LAK/KHR)
+    set_locale: bool = False        # True = áp country + currency
 
 
 class MemberUnitReorder(BaseModel):

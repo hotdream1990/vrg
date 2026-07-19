@@ -2,7 +2,10 @@
 
 import { apiFetch } from "./http";
 
-export type MemberUnit = { name: string; sort_order: number; is_active: boolean; region: string | null };
+export type MemberUnit = {
+  name: string; sort_order: number; is_active: boolean; region: string | null;
+  country: string; currency: string;   // VN/VND mặc định; ≠VND ⇒ đơn vị nước ngoài cần tỷ giá
+};
 
 const req = apiFetch;
 
@@ -25,6 +28,11 @@ export const updateUnit = (name: string, body: { new_name?: string; is_active?: 
 export const setUnitRegion = (name: string, region: string | null) =>
   req<MemberUnit[]>(`/api/member-units/${encodeURIComponent(name)}`,
     { method: "PUT", headers: J, body: JSON.stringify({ set_region: true, region }) });
+
+/** Gán quốc gia + loại tiền cho đơn vị (đơn vị nước ngoài dùng để bật ô tỷ giá khi thu mua). */
+export const setUnitLocale = (name: string, country: string, currency: string) =>
+  req<MemberUnit[]>(`/api/member-units/${encodeURIComponent(name)}`,
+    { method: "PUT", headers: J, body: JSON.stringify({ set_locale: true, country, currency }) });
 
 /** Sắp xếp lại theo thứ tự danh sách tên. */
 export const reorderUnits = (names: string[]) =>

@@ -8,7 +8,7 @@ export type MemberPriceType = "purchase" | "purchase_cup";
 
 export type UnitSheet = {
   purchase: Record<string, number>;      // {date: giá mủ nước (đồng/độ TSC)}
-  purchase_cup: Record<string, number>;  // {date: giá mủ chén (đồng/kg)}
+  purchase_cup: Record<string, number>;  // {date: giá mủ chén (đồng/độ TSC)}
   dates: string[];                       // ngày có dữ liệu (mới → cũ)
 };
 

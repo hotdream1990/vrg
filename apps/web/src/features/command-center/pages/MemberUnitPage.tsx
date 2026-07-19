@@ -15,6 +15,7 @@ import {
   deleteUnit,
   listUnits,
   reorderUnits,
+  setUnitLocale,
   setUnitRegion,
   updateUnit,
 } from "../../../lib/member-unit-client";
@@ -23,6 +24,13 @@ import DataSourceNote from "../sections/DataSourceNote";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import ManagedListTab, { type ListApi } from "./components/ManagedListTab";
 import "../../bulletin/bulletin.css";
+
+// Quốc gia + loại tiền hỗ trợ (đơn vị VRG ở VN, Lào, Campuchia). ≠ VND ⇒ cần nhập tỷ giá khi thu mua.
+const LOCALES: { country: string; currency: string; label: string }[] = [
+  { country: "VN", currency: "VND", label: "Việt Nam (VND)" },
+  { country: "LA", currency: "LAK", label: "Lào (LAK)" },
+  { country: "KH", currency: "KHR", label: "Campuchia (KHR)" },
+];
 
 // Api ổn định (khai báo ngoài component) — tránh ManagedListTab list lại mỗi lần render.
 const unitApi: ListApi<MemberUnit> = {
@@ -73,16 +81,32 @@ export default function MemberUnitPage() {
           placeholder="Tên đơn vị mới (vd: Bình Long)" addLabel="Thêm đơn vị"
           countWord="đơn vị" nameHeader="Tên đơn vị"
           confirmDelete={(n) => `Xoá đơn vị "${n}" khỏi danh sách? (Giá đã nhập vẫn giữ trong kho)`}
-          extraHeader="Khu vực"
-          renderExtra={(u, run) => (
-            <select className="blt-cell-input" style={{ minWidth: 160 }} value={u.region ?? ""} disabled={!canEdit}
-              onChange={(e) => run(() => setUnitRegion(u.name, e.target.value || null))}>
-              <option value="">— Chưa gán —</option>
-              {regions.filter((r) => r.is_active || r.name === u.region).map((r) => (
-                <option key={r.name} value={r.name}>{r.name}</option>
-              ))}
-            </select>
-          )}
+          extraCols={[
+            {
+              header: "Khu vực", width: 200,
+              render: (u, run) => (
+                <select className="blt-cell-input" style={{ minWidth: 160 }} value={u.region ?? ""} disabled={!canEdit}
+                  onChange={(e) => run(() => setUnitRegion(u.name, e.target.value || null))}>
+                  <option value="">— Chưa gán —</option>
+                  {regions.filter((r) => r.is_active || r.name === u.region).map((r) => (
+                    <option key={r.name} value={r.name}>{r.name}</option>
+                  ))}
+                </select>
+              ),
+            },
+            {
+              header: "Quốc gia / Tiền", width: 170,
+              render: (u, run) => (
+                <select className="blt-cell-input" style={{ minWidth: 150 }} value={u.country || "VN"} disabled={!canEdit}
+                  onChange={(e) => {
+                    const loc = LOCALES.find((l) => l.country === e.target.value) ?? LOCALES[0];
+                    run(() => setUnitLocale(u.name, loc.country, loc.currency));
+                  }}>
+                  {LOCALES.map((l) => <option key={l.country} value={l.country}>{l.label}</option>)}
+                </select>
+              ),
+            },
+          ]}
         />
       ) : (
         <ManagedListTab<MemberRegion>

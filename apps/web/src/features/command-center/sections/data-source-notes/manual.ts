@@ -19,7 +19,7 @@ export const MANUAL_NOTES: Record<string, DataSourceNote> = {
           "Điền Mục 6 (giá mủ nước + mủ chén theo đơn vị) — tự ghi vào kho 'Giá mủ nguyên liệu'.",
           "Phiếu tự lưu khi nhập.",
         ],
-        field: "tỷ giá (mua_tm/mua_ck/bán); giá SVR theo chủng loại + bao bì + vận chuyển; đề xuất KH (số lượng/đơn giá); mủ nước (đồng/độ TSC) + mủ chén (đồng/kg) theo đơn vị; ghi chú.",
+        field: "tỷ giá (mua_tm/mua_ck/bán); giá SVR theo chủng loại + bao bì + vận chuyển; đề xuất KH (số lượng/đơn giá); mủ nước + mủ chén (đồng/độ TSC) theo đơn vị; ghi chú.",
         note: "Giá SVR còn được lưu chuỗi (source='market') làm đầu vào Bản tin/dự báo. Mục 6 (mủ nước=purchase, mủ chén=purchase_cup) dùng chung danh mục đơn vị thành viên.",
       },
     ],

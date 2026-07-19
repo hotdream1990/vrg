@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS member_unit (
     sort_order  integer NOT NULL DEFAULT 0,
     is_active   boolean NOT NULL DEFAULT true,
     note        text,
+    country     text NOT NULL DEFAULT 'VN',   -- quốc gia (VN/LA/KH) — nước ngoài cần tỷ giá
+    currency    text NOT NULL DEFAULT 'VND',  -- loại tiền thu mua (VND/LAK/KHR)
     created_at  timestamptz NOT NULL DEFAULT now()
 );
 

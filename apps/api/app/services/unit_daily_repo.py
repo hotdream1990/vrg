@@ -75,6 +75,44 @@ def recent(kind: str, date_from: str, companies: list[str] | None = None) -> lis
             for r in rows if keep is None or r["company"] in keep]
 
 
+def attach_purchase_prices(entries: list[dict[str, Any]], kind: str) -> None:
+    """Gắn đơn giá mủ nước/mủ chén (link từ 'Giá mủ nguyên liệu') vào từng dòng timeline (chỉ đọc).
+
+    Chỉ áp cho kind='purchase'. Mỗi dòng có `as_of`+`company` → `prices={latex,cup}` đúng ngày dòng đó.
+    """
+    if kind != "purchase" or not entries:
+        return
+    from app.services import price_repo
+
+    cache: dict[str, tuple[dict, dict]] = {}
+    for e in entries:
+        d = e["as_of"]
+        if d not in cache:
+            cache[d] = (price_repo.purchase_by_company_on_date(d, "purchase"),
+                        price_repo.purchase_by_company_on_date(d, "purchase_cup"))
+        latex, cup = cache[d]
+        e["prices"] = {"latex": latex.get(e["company"]), "cup": cup.get(e["company"])}
+
+
+def day_extras(kind: str, as_of: str, units: list[str]) -> dict[str, Any]:
+    """Phụ trợ form Thu mua cho 1 ngày: loại tiền mỗi đơn vị + đơn giá thu mua (link, chỉ đọc).
+
+    - currencies: {đơn vị: 'VND'|'LAK'|'KHR'} — ≠VND ⇒ đơn vị nước ngoài, form hiện ô tỷ giá.
+    - prices (chỉ kind='purchase'): {đơn vị: {latex, cup}} đơn giá mủ nước/mủ chén ĐÚNG NGÀY
+      (đồng/độ TSC), lấy từ kho 'Giá mủ nguyên liệu' — hiển thị lại, KHÔNG nhập/lưu trùng.
+    """
+    from app.services import member_unit_repo, price_repo
+
+    cur = member_unit_repo.currency_by_name()
+    currencies = {u: cur.get(u, "VND") for u in units}
+    prices: dict[str, dict[str, float | None]] = {}
+    if kind == "purchase":
+        latex = price_repo.purchase_by_company_on_date(as_of, "purchase")
+        cup = price_repo.purchase_by_company_on_date(as_of, "purchase_cup")
+        prices = {u: {"latex": latex.get(u), "cup": cup.get(u)} for u in units}
+    return {"currencies": currencies, "prices": prices}
+
+
 # ── Chỉ tiêu kế hoạch thu mua theo năm (tính % kế hoạch) ──
 def plans_for_year(year: int) -> dict[str, float]:
     """{company: plan_tonnes} cho 1 năm (bỏ đơn vị chưa cấu hình)."""

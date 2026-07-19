@@ -4,12 +4,14 @@
 import { Alert, Modal, Select, Spin, Tag, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { deleteRecord, upsertRecord } from "../../../lib/api-client";
+import { type MemberPriceType, clearMyPrice, upsertMyPrice } from "../../../lib/member-client";
 import {
   type DayData, fetchMyDay, fetchDay, saveMyDaily, saveDaily,
 } from "../../../lib/unit-daily-client";
 import { KIND_LABEL, type Kind, type Values } from "../../../lib/unit-daily-fields";
 import DateInput from "../sections/DateInput";
-import UnitDailyForm from "./UnitDailyForm";
+import UnitDailyForm, { type PriceDraft } from "./UnitDailyForm";
 
 const daysBetween = (later: string, earlier: string) =>
   Math.round((new Date(later + "T00:00:00").getTime() - new Date(earlier + "T00:00:00").getTime()) / 86_400_000);
@@ -55,10 +57,31 @@ export default function UnitDailyEditModal(
     return daysBetween(today, day) <= (data?.edit_window_days ?? 7);
   }, [isAdmin, day, today, data]);
 
-  const save = async (fields: Values) => {
+  // Đơn giá mủ nước/mủ chén → ghi thẳng kho "Giá mủ nguyên liệu" (đúng đơn vị + ngày), chỉ khi đổi.
+  const savePrices = async (prices: PriceDraft) => {
+    const orig = data?.prices?.[company];
+    const jobs: Promise<unknown>[] = [];
+    const each = (nv: number | null, ov: number | null, pt: MemberPriceType) => {
+      if ((nv ?? null) === (ov ?? null)) return;
+      if (role === "member") {
+        jobs.push(nv == null ? clearMyPrice(company, day, pt) : upsertMyPrice(company, day, pt, nv));
+      } else {
+        jobs.push(nv == null
+          ? deleteRecord({ as_of: day, source: "vrg", grade: company, contract: "", price_type: pt })
+          : upsertRecord({ as_of: day, source: "vrg", grade: company, contract: "",
+                           price_type: pt, price: nv, currency: "VND", unit: "đồng/độ TSC" }));
+      }
+    };
+    each(prices.latex, orig?.latex ?? null, "purchase");
+    each(prices.cup, orig?.cup ?? null, "purchase_cup");
+    await Promise.all(jobs);
+  };
+
+  const save = async (fields: Values, prices: PriceDraft) => {
     setSaving(true);
     try {
       await (role === "member" ? saveMyDaily : saveDaily)(kind, company, day, fields);
+      if (kind === "purchase") await savePrices(prices);
       message.success("Đã lưu số liệu ngày");
       onSaved();
       onClose();
@@ -92,11 +115,13 @@ export default function UnitDailyEditModal(
             formKey={`${kind}|${day}|${company}|${entry?.updated_at ?? "new"}`}
             values={entry?.fields ?? {}}
             plan={data.plans[company] ?? null}
+            currency={data.currencies?.[company] ?? "VND"}
+            linkedPrice={data.prices?.[company] ?? null}
             readOnly={!editable}
-            footer={(dirty, current) => (
+            footer={(dirty, current, prices) => (
               <div style={{ marginTop: 14, textAlign: "right" }}>
                 <button className="btn btn-primary" disabled={!dirty || saving}
-                        onClick={() => save(current)}>
+                        onClick={() => save(current, prices)}>
                   {saving ? "Đang lưu…" : "Lưu số liệu"}
                 </button>
               </div>

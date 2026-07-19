@@ -26,7 +26,7 @@ _SECTION_MODES = {
     "domestic_vrg": ("market_domestic_vrg", "VND", "đồng/tấn"),
 }
 _PURCHASE = {"source": "vrg", "price_type": "purchase", "currency": "VND", "unit": "đồng/độ TSC"}
-_PURCHASE_CUP = {"source": "vrg", "price_type": "purchase_cup", "currency": "VND", "unit": "đồng/kg"}
+_PURCHASE_CUP = {"source": "vrg", "price_type": "purchase_cup", "currency": "VND", "unit": "đồng/độ TSC"}
 
 
 def meta() -> dict[str, Any]:

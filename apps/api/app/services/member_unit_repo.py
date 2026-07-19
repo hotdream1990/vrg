@@ -31,7 +31,7 @@ def list_units(include_inactive: bool = True) -> list[dict[str, Any]]:
         _seed_if_empty(db)
         clause = "" if include_inactive else "WHERE is_active"
         rows = db.execute(text(
-            f"SELECT name, sort_order, is_active, region FROM member_unit {clause} "
+            f"SELECT name, sort_order, is_active, region, country, currency FROM member_unit {clause} "
             "ORDER BY sort_order, name")).mappings().all()
         return [dict(r) for r in rows]
 
@@ -86,6 +86,21 @@ def set_region(name: str, region: str | None) -> None:
     with session_scope() as db:
         db.execute(text("UPDATE member_unit SET region = :r WHERE name = :n"),
                    {"r": region, "n": name})
+
+
+def set_locale(name: str, country: str | None, currency: str | None) -> None:
+    """Gán quốc gia + loại tiền cho đơn vị (mặc định VN/VND nếu trống)."""
+    ensure_schema()
+    country = (country or "").strip().upper() or "VN"
+    currency = (currency or "").strip().upper() or "VND"
+    with session_scope() as db:
+        db.execute(text("UPDATE member_unit SET country = :c, currency = :cur WHERE name = :n"),
+                   {"c": country, "cur": currency, "n": name})
+
+
+def currency_by_name(include_inactive: bool = True) -> dict[str, str]:
+    """Map tên đơn vị → loại tiền (VND/LAK/KHR) — form Thu mua dùng để ẩn/hiện ô tỷ giá."""
+    return {u["name"]: (u.get("currency") or "VND") for u in list_units(include_inactive)}
 
 
 def reorder(names: list[str]) -> None:
