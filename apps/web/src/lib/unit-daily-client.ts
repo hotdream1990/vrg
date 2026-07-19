@@ -134,3 +134,45 @@ export async function downloadPeriodXlsx(
   a.remove();
   setTimeout(() => URL.revokeObjectURL(href), 60_000);
 }
+
+// ── Nhập liệu bằng Excel (tải mẫu · xem trước · ghi) ──
+export type ImportKind = "purchase" | "sales" | "stock" | "plan";
+export type ImportRow = {
+  _row: number; _errors: string[]; _action?: "create" | "update";
+  [key: string]: unknown;
+};
+export type ImportColumn = { key: string; title: string; unit: string };
+export type ImportPreview = {
+  kind: ImportKind; rows: ImportRow[]; columns: ImportColumn[];
+  summary: { total: number; ok: number; error: number };
+};
+
+const importBase = (role: Role) =>
+  role === "member" ? "/api/member/import" : "/api/unit-daily/import";
+
+/** Tải file Excel mẫu của 1 loại biểu. */
+export async function downloadImportTemplate(role: Role, kind: ImportKind): Promise<void> {
+  const res = await fetch(`${API}${importBase(role)}/template?kind=${kind}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Không tải được file mẫu.");
+  const href = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = `mau-nhap-${kind}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 60_000);
+}
+
+/** Đọc file người dùng chọn → dữ liệu XEM TRƯỚC (chưa ghi gì vào hệ thống). */
+export async function previewImport(role: Role, kind: ImportKind, file: File): Promise<ImportPreview> {
+  const fd = new FormData();
+  fd.append("file", file);
+  return apiFetch<ImportPreview>(`${importBase(role)}/preview?kind=${kind}`, { method: "POST", body: fd });
+}
+
+/** Ghi các dòng đã xem trước (server bỏ qua dòng lỗi + kiểm lại quyền đơn vị). */
+export const commitImport = (role: Role, kind: ImportKind, rows: ImportRow[]) =>
+  apiFetch<{ saved: number; skipped: number; warnings?: string[] }>(
+    `${importBase(role)}/commit`,
+    { method: "POST", headers: J, body: JSON.stringify({ kind, rows }) });

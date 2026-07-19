@@ -9,16 +9,16 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 
 from app.core import edit_window
 from app.core.security import get_current_member
 from app.schemas.market_demand import MarketDemandEdit
 from app.schemas.member_self import MemberPriceEdit
-from app.schemas.unit_daily import PurchasePlanEdit, UnitDailyEdit
+from app.schemas.unit_daily import ExcelImportCommit, PurchasePlanEdit, UnitDailyEdit
 from app.services import (
-    contract_files, market_demand_repo, price_repo, unit_daily_repo,
+    contract_files, market_demand_repo, price_repo, unit_daily_excel_io, unit_daily_repo,
 )
 
 router = APIRouter(prefix="/api/member", tags=["member-self"])
@@ -182,3 +182,36 @@ def upload_my_contract_file(file: UploadFile, member: dict = Depends(get_current
 def get_my_contract_file(name: str, member: dict = Depends(get_current_member)):
     """Tải file Hợp đồng đã upload (tên lưu uuid)."""
     return FileResponse(str(contract_files.path_for(name)))
+
+
+# ── Nhập liệu bằng Excel — CHỈ các đơn vị được gán cho tài khoản ──
+@router.get("/import/template")
+def my_import_template(kind: str = Query(..., pattern="^(purchase|sales|stock|plan)$"),
+                       member: dict = Depends(get_current_member)):
+    """Tải file Excel MẪU."""
+    data = unit_daily_excel_io.build_template(kind)
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="mau-nhap-{kind}.xlsx"'})
+
+
+@router.post("/import/preview")
+async def my_import_preview(kind: str = Query(..., pattern="^(purchase|sales|stock|plan)$"),
+                            file: UploadFile = File(...),
+                            member: dict = Depends(get_current_member)) -> dict:
+    """Xem trước file nộp — dòng của đơn vị khác bị đánh dấu lỗi."""
+    try:
+        return unit_daily_excel_io.parse_upload(kind, await file.read(),
+                                                allowed_units=list(member["member_units"]))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/import/commit")
+def my_import_commit(body: ExcelImportCommit,
+                     member: dict = Depends(get_current_member)) -> dict:
+    """Ghi các dòng hợp lệ — server ép lại đơn vị thuộc quyền tài khoản."""
+    return unit_daily_excel_io.commit_rows(body.kind, body.rows, member.get("username"),
+                                           allowed_units=list(member["member_units"]))
+

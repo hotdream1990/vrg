@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../auth/AuthContext";
 import { type Role, type YearPlanRow, fetchYearPlan, saveYearPlan } from "../../../lib/unit-daily-client";
 import { fmtNum } from "../../../lib/unit-daily-fields";
+import ExcelImportBar from "./components/ExcelImportBar";
 import { numInput } from "./unit-daily-inputs";
 import "../../bulletin/bulletin.css";
 
@@ -79,6 +80,7 @@ export default function YearPlanPage() {
         <span style={{ fontSize: 13, color: "var(--muted)" }}>Năm:</span>
         <Select value={year} onChange={setYear} options={yearOpts} style={{ width: 140 }} />
         <span style={{ color: "var(--muted)", fontSize: 13 }}>{units.length} đơn vị</span>
+        <ExcelImportBar kind="plan" role={role} label="Kế hoạch năm" onDone={load} />
       </div>
 
       <Spin spinning={loading}>

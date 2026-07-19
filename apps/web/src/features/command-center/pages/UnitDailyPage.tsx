@@ -13,6 +13,8 @@ import { todayISO } from "../../../lib/date";
 import { type DayData, type Role, fetchDay } from "../../../lib/unit-daily-client";
 import type { Kind } from "../../../lib/unit-daily-fields";
 import DateInput from "../sections/DateInput";
+import type { ImportKind } from "../../../lib/unit-daily-client";
+import ExcelImportBar from "./components/ExcelImportBar";
 import type { ConsumptionTab } from "./ConsumptionForm";
 import UnitDailyEditModal from "./UnitDailyEditModal";
 import UnitDailyOverview from "./UnitDailyOverview";
@@ -55,6 +57,9 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
   }, [isMember, view, kind, ovDay]);
   useEffect(() => { loadOv(); }, [loadOv, refreshKey]);
 
+  // Loại biểu để nhập Excel: Thu mua → purchase; Tiêu thụ → sales; Tồn kho → stock.
+  const importKind: ImportKind = kind === "purchase" ? "purchase" : (defaultTab ?? "sales");
+
   const ovCanEdit = useMemo(() => isAdmin || (ov ? ovDay <= ov.today : false), [isAdmin, ov, ovDay]);
 
   return (
@@ -64,15 +69,17 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
         <p style={{ margin: "4px 0 0" }}>{subtitle}</p>
       </div>
 
-      {!isMember && (
-        <div className="card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        {!isMember && (
           <Segmented value={view} onChange={(v) => setView(v as "list" | "overview")} options={VIEW_OPTS} />
-          {view === "overview" && (
-            <>
-              <DateInput value={ovDay} onChange={setOvDay} noFuture style={{ width: 190 }} />
-              <Button icon={<ReloadOutlined />} onClick={loadOv}>Làm mới</Button>
-            </>
-          )}
+        )}
+        <ExcelImportBar kind={importKind} role={role} label={title} onDone={reload} />
+      </div>
+
+      {!isMember && view === "overview" && (
+        <div className="card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <DateInput value={ovDay} onChange={setOvDay} noFuture style={{ width: 190 }} />
+          <Button icon={<ReloadOutlined />} onClick={loadOv}>Làm mới</Button>
         </div>
       )}
 

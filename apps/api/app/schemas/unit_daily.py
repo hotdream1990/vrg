@@ -27,3 +27,10 @@ class PurchasePlanEdit(BaseModel):
     signed_lt_tonnes: float | None = None   # tổng SL đã ký HĐ dài hạn năm (tấn)
     carry_lt_tonnes: float | None = None    # SL tiêu thụ HĐ dài hạn năm trước chuyển sang (tấn)
     carry_spot_tonnes: float | None = None  # SL tiêu thụ HĐ chuyến năm trước chuyển sang (tấn)
+
+
+class ExcelImportCommit(BaseModel):
+    """Ghi các dòng đã XEM TRƯỚC từ file Excel (client gửi lại nguyên danh sách đã đọc)."""
+
+    kind: str = Field(pattern="^(purchase|sales|stock|plan)$")
+    rows: list[dict[str, Any]] = Field(default_factory=list, max_length=5000)
