@@ -1,6 +1,6 @@
 # Hướng dẫn nhập liệu — Đơn vị thành viên
 
-Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm). Tài liệu bám theo phiên bản 0.2.69. Riêng 4 mục báo cáo còn có thể tải mẫu Excel về điền rồi nhập lên thay vì gõ tay (xem mục 9).
+Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm). Tài liệu bám theo phiên bản 0.2.71. Riêng 4 mục báo cáo còn có thể tải mẫu Excel về điền rồi nhập lên thay vì gõ tay (xem mục 9).
 
 > Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-don-vi-thanh-vien.docx](./Huong-dan-nhap-lieu-don-vi-thanh-vien.docx)
 
@@ -131,9 +131,9 @@ Tồn kho là số liệu **tại thời điểm cuối ngày** (không cộng d
 5. **Đơn giá nhập bằng** — chọn *VND* hoặc *USD* cho đơn giá ở khối 3 (chọn USD thì hiện ô tỷ giá).
 6. **4. Tồn kho nguyên liệu chưa sản xuất** — 1 ô số lượng (tấn). Xong bấm **Lưu số liệu**.
 
-> - Khối **4** chỉ hiện với **đơn vị chưa có nhà máy chế biến**. Đơn vị có nhà máy sẽ không thấy khối này — nếu đơn vị mình cần nhập mà không thấy, báo quản trị viên đặt lại ở mục *Đơn vị thành viên*.
+> - Khối **4** hiện với **mọi đơn vị**. Câu “đối với các đơn vị chưa có nhà máy chế biến” là ghi chú của biểu mẫu cho biết ai thường có số này — đơn vị đã có nhà máy cứ **để trống ô đó**.
 > - Nút **Lấy tồn ngày trước** chỉ chép **tồn kho**, KHÔNG chép các dòng bán ở tab Tiêu thụ — vì tiêu thụ là số phát sinh trong ngày, chép sang sẽ thành khai khống.
-> - Khối **Tổng hợp tồn kho** tự tính: *Tồn kho thành phẩm* = khối 1 + khối 2.
+> - Khối **Tổng hợp tồn kho** tự tính: *Tồn kho thành phẩm* = khối 1 + khối 2. Khối 3 (**đã ký HĐ chưa giao**) là **cam kết giao hàng**, đứng riêng — không cộng vào và không trừ khỏi tồn kho thành phẩm, nên ký nhiều hơn lượng đang có cũng không sao.
 > - Chủng loại tách theo từng loại giống bảng Giá sàn Tập đoàn — **SVR CV 50** và **SVR CV60** là 2 loại riêng.
 
 ## 7. Nhập Kế hoạch năm
@@ -181,25 +181,26 @@ Mục này ghi lại nhu cầu và tín hiệu thị trường mà đơn vị n�
 
 **Vị trí:** Có ở 4 màn báo cáo: Thu mua / Tiêu thụ / Tồn kho / Kế hoạch năm
 
-Khi cần nhập nhiều ngày cùng lúc, nên dùng Excel thay vì gõ từng phiếu. Quy trình 3 bước: tải mẫu → điền ngoại tuyến → nhập lên và xem trước.
+Thay vì gõ tay từng ngày, có thể tải file Excel mẫu về điền rồi nhập lên. Hệ thống đọc file và cho **xem trước** — dòng nào sai sẽ chỉ rõ sai ở đâu, chỉ những dòng hợp lệ mới được ghi.
 
-![Hình 8. Bảng xem trước trước khi ghi vào hệ thống](img/08-import-xem-truoc.png)
+![Hình 9. Bảng xem trước trước khi ghi](img/08-import-xem-truoc.png)
 
-*Hình 8. Bảng xem trước trước khi ghi vào hệ thống*
+*Hình 9. Bảng xem trước trước khi ghi*
 
 **Cách làm:**
 
-1. Bấm **Tải mẫu Excel** ở màn tương ứng, mở file và điền số liệu. Cột tô đỏ là **bắt buộc**; các ô Đơn vị / Loại HĐ / Chủng loại có sẵn danh sách chọn.
-2. Bấm **Nhập từ Excel** và chọn file vừa điền. Hệ thống đọc file và hiện **bảng xem trước** — chưa ghi gì.
-3. Đọc dòng tóm tắt: **số dòng hợp lệ và số dòng lỗi**.
-4. Dòng ghi **“Tạo mới”** là ngày chưa có số liệu; dòng ghi **“Ghi đè”** sẽ thay số đã có của ngày đó.
-5. Dòng nền đỏ ghi **“Lỗi”** kèm lý do ở cột Ghi chú (ví dụ ngày sai định dạng). Các dòng này **sẽ bị bỏ qua**.
-6. Bấm **Xác nhận ghi** để lưu các dòng hợp lệ vào hệ thống.
+1. **Tải mẫu Excel** ở màn danh sách → điền số vào file (mỗi biểu một mẫu riêng).
+2. **Nhập từ Excel** → chọn file vừa điền, hệ thống mở bảng **xem trước**.
+3. Dòng tóm tắt cho biết đọc được bao nhiêu dòng, **bao nhiêu hợp lệ / bao nhiêu lỗi**.
+4. Các cột **chọn từ danh sách** (vd *Đơn giá mủ chén tính theo*) hiện đúng giá trị đã điền — để trống thì hệ thống dùng mặc định ghi ngay trên tiêu đề cột.
+5. Cột **Ghi chú** nói rõ dòng lỗi sai ở đâu (vd *Ngày: ngày không hợp lệ*).
+6. Bấm **Xác nhận ghi N dòng** — chỉ ghi các dòng hợp lệ, dòng lỗi bị bỏ qua.
 
 > - File mẫu của đơn vị **không có cột “Đơn vị”** — hệ thống tự gán đúng đơn vị của tài khoản, không cần gõ tên.
 > - **Không đổi tên hoặc xoá dòng tiêu đề** của file mẫu; nếu thiếu cột bắt buộc hệ thống sẽ báo và không đọc file.
 > - Muốn sửa dòng lỗi: sửa lại trong file Excel rồi nhập lên lần nữa — các dòng đã ghi đúng sẽ được ghi đè, không bị nhân đôi.
 > - Nhập Tiêu thụ không làm mất số Tồn kho của cùng ngày và ngược lại.
-> - **Mẫu Excel đã đổi cột ở bản mới** — luôn bấm *Tải mẫu Excel* để lấy file mới nhất, đừng dùng lại file mẫu tải từ trước (sai cột sẽ báo lỗi khi nhập lên).
-> - Mẫu **Tồn kho** có cột *Nhóm* với 3 lựa chọn: Chế biến chưa nhập kho · Đã nhập kho · Đã ký HĐ chưa giao. Số lượng tính bằng **tấn**.
-> - Mẫu **Tiêu thụ** có thêm cột *Ngày xuất hoá đơn*. Riêng **file bộ Hợp đồng phải đính kèm trên web** — file Excel không mang theo file đính kèm được.
+> - **Mẫu Excel đã đổi cột** — luôn bấm *Tải mẫu Excel* để lấy file mới nhất, đừng dùng lại file tải từ trước (sai cột sẽ báo lỗi khi nhập lên).
+> - Ba cột **chọn từ danh sách** mới có, phải điền đúng thì số mới vào đúng đơn vị tính: *Đơn giá mủ chén tính theo* (Độ TSC / Độ DRC) ở mẫu **Thu mua**; *Giá bán bằng* (VND / USD) ở mẫu **Tiêu thụ**; *Đơn giá bằng* (VND / USD) ở mẫu **Tồn kho**. Bỏ trống thì hệ thống hiểu là Độ TSC và VND.
+> - Mẫu **Tồn kho**: cột *Nhóm* có 3 lựa chọn — Chế biến chưa nhập kho · Đã nhập kho · Đã ký HĐ chưa giao. Số lượng tính bằng **tấn**. Riêng *Tồn kho nguyên liệu chưa sản xuất* là cột cuối, điền ở 1 dòng bất kỳ của ngày đó.
+> - Mẫu **Tiêu thụ** có cột *Ngày xuất hoá đơn*. Riêng **file bộ Hợp đồng phải đính kèm trên web** — file Excel không mang theo file đính kèm được.
