@@ -60,7 +60,11 @@ def _to_float(v) -> float | None:
 
 
 def _clean_sales(sales) -> list[dict]:
-    """Lọc/chuẩn hoá các dòng tiêu thụ (loại HĐ, hình thức, loại mủ, số lượng, giá bán)."""
+    """Lọc/chuẩn hoá các dòng tiêu thụ.
+
+    Mỗi dòng: loại HĐ · hình thức · loại mủ · số lượng · giá bán · NGÀY XUẤT HOÁ ĐƠN ·
+    file bộ Hợp đồng đã upload (tên lưu uuid + tên gốc hiển thị).
+    """
     out: list[dict] = []
     for ln in sales if isinstance(sales, list) else []:
         if not isinstance(ln, dict):
@@ -71,6 +75,9 @@ def _clean_sales(sales) -> list[dict]:
             "grade": str(ln.get("grade") or "")[:60],
             "qty": _to_float(ln.get("qty")),
             "price": _to_float(ln.get("price")),
+            "invoice_date": str(ln.get("invoice_date") or "")[:10] or None,
+            "file": str(ln.get("file") or "")[:120] or None,
+            "filename": str(ln.get("filename") or "")[:200] or None,
         })
     return out
 

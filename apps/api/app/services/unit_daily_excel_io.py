@@ -76,14 +76,16 @@ SPECS: dict[str, Spec] = {
          Col("revenue_ty", "Doanh thu", "tỷ đồng")]),
     "sales": Spec(
         "BIỂU NHẬP — TIÊU THỤ", "Tiêu thụ",
-        "Mỗi dòng = 1 hợp đồng bán. Cùng (đơn vị, ngày) có thể nhiều dòng — hệ thống tự gộp.",
+        "Mỗi dòng = 1 hợp đồng bán. Cùng (đơn vị, ngày) có thể nhiều dòng — hệ thống tự gộp. "
+        "File bộ Hợp đồng đính kèm trên web (Excel không mang file được).",
         [_UNIT_COL, _DATE_COL,
          Col("contract", "Loại HĐ", required=True, type="enum", choices=CONTRACTS),
          Col("channel", "Hình thức", required=True, type="enum", choices=CHANNELS, width=18),
          Col("grade", "Loại mủ", required=True, type="enum",
              choices={g: g for g in GRADES}, width=20),
          Col("qty", "Số lượng", "tấn"),
-         Col("price", "Giá bán", "triệu đ/tấn (VND) · USD/tấn (nước ngoài)", width=26)]),
+         Col("price", "Giá bán", "triệu đ/tấn (VND) · USD/tấn (nước ngoài)", width=26),
+         Col("invoice_date", "Ngày xuất hoá đơn", "dd/mm/yyyy", type="date", width=18)]),
     "stock": Spec(
         "BIỂU NHẬP — TỒN KHO", "Tồn kho",
         "Mỗi dòng = 1 dòng tồn kho (số THỜI ĐIỂM cuối ngày, không cộng dồn). "
@@ -359,7 +361,8 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
             fields = dict(cur.get("fields") or {})
             if kind == "sales":
                 lines = [{"contract": r["contract"], "channel": r["channel"], "grade": r["grade"],
-                          "qty": r.get("qty"), "price": r.get("price")} for r in items]
+                          "qty": r.get("qty"), "price": r.get("price"),
+                          "invoice_date": r.get("invoice_date")} for r in items]
                 fields["sales"] = lines
                 # Doanh thu về BASE = đồng. Loại tiền của giá bán lấy theo ô đã chọn trên form
                 # (`sales_ccy`); bản ghi chưa có thì suy từ đơn vị (nước ngoài → USD).

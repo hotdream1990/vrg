@@ -21,6 +21,9 @@ export type SaleLine = {
   grade: string;                 // loại mủ
   qty: number | null;            // số lượng (tấn)
   price: number | null;          // giá bán (triệu đ/tấn khi VND · USD/tấn khi USD)
+  invoice_date?: string | null;  // ngày xuất hoá đơn 'YYYY-MM-DD'
+  file?: string | null;          // file bộ Hợp đồng đã upload (tên lưu uuid)
+  filename?: string | null;      // tên gốc để hiển thị
 };
 
 /** Khối tồn kho chỉ có số lượng (khối 1 & 2): chủng loại · số lượng (TẤN). */

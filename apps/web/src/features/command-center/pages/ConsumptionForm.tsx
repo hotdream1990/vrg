@@ -65,7 +65,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
   const [data, setData] = useState<ConsumptionData>(() => initData(values, currency));
   const [fxLoading, setFxLoading] = useState(false);
   const [prevLoading, setPrevLoading] = useState(false);
-  const [uploading, setUploading] = useState<number | null>(null);
+  const [uploading, setUploading] = useState<string | null>(null);  // "sales:0" | "signed:0"
   useEffect(() => { setData(initData(values, currency)); }, [formKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const salesCcy: Ccy = data.sales_ccy ?? defaultCcy(currency);
@@ -136,15 +136,34 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
     finally { setPrevLoading(false); }
   };
 
-  const doUpload = async (i: number, file: File) => {
-    setUploading(i);
+  /** Upload file HĐ cho 1 dòng — dùng chung bảng Tiêu thụ ("sales") và Tồn kho đã ký HĐ ("signed"). */
+  const doUpload = async (which: "sales" | "signed", i: number, file: File) => {
+    setUploading(`${which}:${i}`);
     try {
       const r = await uploadContractFile(role, file);
-      setSigned(signed.map((l, j) => (j === i ? { ...l, file: r.file, filename: r.filename } : l)));
+      if (which === "sales") setSales(sales.map((l, j) => (j === i ? { ...l, file: r.file, filename: r.filename } : l)));
+      else setSigned(signed.map((l, j) => (j === i ? { ...l, file: r.file, filename: r.filename } : l)));
       message.success("Đã tải lên file hợp đồng.");
     } catch (e) { message.error((e as Error).message || "Upload thất bại."); }
     finally { setUploading(null); }
   };
+
+  /** Ô đính kèm file HĐ của 1 dòng (mở lại file đã có + nút đổi/chọn). */
+  const fileCell = (which: "sales" | "signed", i: number, r: { file?: string | null; filename?: string | null }) => (
+    <>
+      {r.file
+        ? <a onClick={() => openContractFile(role, r.file!)} style={{ cursor: "pointer", fontSize: 12 }} title={r.filename ?? ""}>{(r.filename ?? "file").slice(0, 14)}</a>
+        : <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>}
+      {!readOnly && (
+        <Upload showUploadList={false} accept=".pdf,image/jpeg,image/png" disabled={uploading === `${which}:${i}`}
+          beforeUpload={(fl) => { doUpload(which, i, fl as File); return false; }}>
+          <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 6px", marginLeft: 6 }}>
+            <UploadOutlined /> {uploading === `${which}:${i}` ? "…" : (r.file ? "Đổi" : "Chọn")}
+          </button>
+        </Upload>
+      )}
+    </>
+  );
 
   const head = (t: string, first?: boolean) => (
     <div style={{ fontWeight: 600, fontSize: 12.5, opacity: 0.85, marginTop: first ? 0 : 18, marginBottom: 6, paddingBottom: 2, borderBottom: "1px solid rgba(125,125,125,.25)" }}>{t}</div>
@@ -186,7 +205,8 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
           <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
             <th style={{ width: 116 }}>Loại HĐ</th><th style={{ width: 122 }}>Hình thức</th><th style={{ width: 150 }}>Loại mủ</th>
             <th style={{ width: 100 }} className="r">SL (tấn)</th><th style={{ width: 120 }} className="r">Giá bán ({priceUnitOf(salesCcy)})</th>
-            <th style={{ width: 120 }} className="r">Doanh thu (triệu đ)</th>{!readOnly && <th style={{ width: 34 }} />}
+            <th style={{ width: 120 }} className="r">Doanh thu (triệu đ)</th>
+            <th style={{ width: 140 }}>Ngày xuất hoá đơn</th><th style={{ width: 170 }}>Bộ Hợp đồng</th>{!readOnly && <th style={{ width: 34 }} />}
           </tr></thead>
           <tbody>
             {sales.map((ln, i) => (
@@ -199,14 +219,17 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
                 <td className="r" style={{ paddingRight: 6, fontWeight: 600, whiteSpace: "nowrap" }}>
                   {(() => { const rv = lineRevenueVnd(ln, salesCcy, data.fx_revenue); return fmtNum(rv == null ? null : rv / 1_000_000, 1); })()}
                 </td>
+                <td><input type="date" className="blt-cell-input" style={{ width: "100%" }} value={ln.invoice_date ?? ""} disabled={readOnly}
+                  onChange={(e) => setSales(sales.map((l, j) => j === i ? { ...l, invoice_date: e.target.value || null } : l))} /></td>
+                <td>{fileCell("sales", i, ln)}</td>
                 {!readOnly && <td className="r"><button type="button" className="btn" style={{ padding: "0 7px" }} title="Xoá dòng" onClick={() => setSales(sales.filter((_, j) => j !== i))}><DeleteOutlined /></button></td>}
               </tr>
             ))}
-            {sales.length === 0 && <tr><td colSpan={readOnly ? 6 : 7} style={{ textAlign: "center", color: "var(--muted)", padding: 12, fontSize: 12.5 }}>Chưa có dòng tiêu thụ nào.</td></tr>}
+            {sales.length === 0 && <tr><td colSpan={readOnly ? 8 : 9} style={{ textAlign: "center", color: "var(--muted)", padding: 12, fontSize: 12.5 }}>Chưa có dòng tiêu thụ nào.</td></tr>}
           </tbody>
         </table>
       </div>
-      {!readOnly && <button type="button" className="btn" style={{ marginTop: 8, fontSize: 12 }} onClick={() => setSales([...sales, { contract: "long_term", channel: "export", grade: GRADES[0], qty: null, price: null }])}><PlusOutlined /> Thêm dòng</button>}
+      {!readOnly && <button type="button" className="btn" style={{ marginTop: 8, fontSize: 12 }} onClick={() => setSales([...sales, { contract: "long_term", channel: "export", grade: GRADES[0], qty: null, price: null, invoice_date: null, file: null, filename: null }])}><PlusOutlined /> Thêm dòng</button>}
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
         {ccySel("Giá bán nhập bằng", salesCcy, (v) => setData((d) => ({ ...d, sales_ccy: v })))}
@@ -298,19 +321,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
                 </td>
                 <td><input type="date" className="blt-cell-input" style={{ width: "100%" }} value={r.delivery_date ?? ""} disabled={readOnly}
                   onChange={(e) => setSigned(signed.map((x, j) => j === i ? { ...x, delivery_date: e.target.value || null } : x))} /></td>
-                <td>
-                  {r.file
-                    ? <a onClick={() => openContractFile(role, r.file!)} style={{ cursor: "pointer", fontSize: 12 }} title={r.filename ?? ""}>{(r.filename ?? "file").slice(0, 14)}</a>
-                    : <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>}
-                  {!readOnly && (
-                    <Upload showUploadList={false} accept=".pdf,image/jpeg,image/png" disabled={uploading === i}
-                      beforeUpload={(f) => { doUpload(i, f as File); return false; }}>
-                      <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 6px", marginLeft: 6 }}>
-                        <UploadOutlined /> {uploading === i ? "…" : (r.file ? "Đổi" : "Chọn")}
-                      </button>
-                    </Upload>
-                  )}
-                </td>
+                <td>{fileCell("signed", i, r)}</td>
                 {!readOnly && <td className="r"><button type="button" className="btn" style={{ padding: "0 7px" }} onClick={() => setSigned(signed.filter((_, j) => j !== i))}><DeleteOutlined /></button></td>}
               </tr>
             ))}
