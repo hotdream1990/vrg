@@ -23,25 +23,27 @@ export type SaleLine = {
   price: number | null;          // giá bán (triệu đ/tấn khi VND · USD/tấn khi USD)
 };
 
-/** Tồn kho thành phẩm CHƯA có HĐ: chủng loại · số lượng (TẤN). */
-export type StockNoContractLine = { grade: string; qty: number | null };
-/** Tồn kho thành phẩm ĐÃ có HĐ: chủng loại · tấn · đơn giá (theo `stock_ccy`) · lịch giao · file HĐ. */
-export type StockContractLine = {
+/** Khối tồn kho chỉ có số lượng (khối 1 & 2): chủng loại · số lượng (TẤN). */
+export type StockQtyLine = { grade: string; qty: number | null };
+/** Khối 3 — đã ký HĐ chưa giao: chủng loại · tấn · đơn giá (theo `stock_ccy`) · lịch giao · HĐ scan. */
+export type StockSignedLine = {
   grade: string; qty: number | null; price: number | null;
   delivery_date?: string | null;         // 'YYYY-MM-DD'
   file?: string | null; filename?: string | null;  // tên file lưu (uuid) + tên gốc hiển thị
 };
 
-/** Payload tiêu thụ–tồn kho: dòng bán + tồn kho (2 bảng) + nguyên liệu. Tồn kho = số THỜI ĐIỂM. */
+/** Payload tiêu thụ–tồn kho. TỒN KHO = số THỜI ĐIỂM, chia 4 khối:
+    1 chế biến chưa nhập kho · 2 đã nhập kho · 3 đã ký HĐ chưa giao · 4 nguyên liệu chưa sản xuất. */
 export type ConsumptionData = {
   sales?: SaleLine[];
-  sales_ccy?: Ccy;                       // loại tiền của giá bán
-  stock_ccy?: Ccy;                       // loại tiền của đơn giá tồn kho đã có HĐ
-  fx_revenue?: number | null;            // tỷ giá USD→VND (dùng chung cho cả 2 khi chọn USD)
-  revenue?: number | null;               // tổng doanh thu tiêu thụ (đồng)
-  stock_no_contract?: StockNoContractLine[];
-  stock_contract?: StockContractLine[];
-  stock_material?: number | null;        // mục 14: tồn kho nguyên liệu chưa có HĐ (tấn)
+  sales_ccy?: Ccy;                        // loại tiền của giá bán
+  stock_ccy?: Ccy;                        // loại tiền của đơn giá khối 3
+  fx_revenue?: number | null;             // tỷ giá USD→VND (dùng chung khi chọn USD)
+  revenue?: number | null;                // tổng doanh thu tiêu thụ (đồng)
+  stock_not_warehoused?: StockQtyLine[];  // 1 — thành phẩm chế biến CHƯA nhập kho
+  stock_warehoused?: StockQtyLine[];      // 2 — thành phẩm ĐÃ nhập kho
+  stock_signed_undelivered?: StockSignedLine[]; // 3 — đã ký HĐ chưa giao (kèm HĐ scan)
+  stock_material?: number | null;         // 4 — nguyên liệu chưa sản xuất (tấn)
 };
 
 /** Tổng số lượng (TẤN) 1 bảng tồn kho. */

@@ -28,10 +28,14 @@ PURCHASE_FIELDS: frozenset[str] = frozenset({
 PURCHASE_TEXT: dict[str, frozenset[str]] = {"cup_basis": frozenset({"tsc", "drc"})}
 
 # Biểu mẫu Tiêu thụ – Tồn kho — TIÊU THỤ = BẢNG NHIỀU DÒNG (`sales`); tổng doanh thu (VND, base=đồng) ở `revenue`.
-# TỒN KHO (chỉ tiêu THỜI ĐIỂM, đơn vị TẤN như mẫu tuần mục 11–14):
-#   `stock_no_contract` (chưa HĐ: chủng loại · số lượng tấn)
-#   `stock_contract`    (đã HĐ: chủng loại · tấn · đơn giá · lịch giao · file)
-#   `stock_material`    (mục 14: tồn kho nguyên liệu CHƯA SẢN XUẤT — chỉ đơn vị KHÔNG có nhà máy, tấn)
+# TỒN KHO (chỉ tiêu THỜI ĐIỂM, đơn vị TẤN) chia 4 khối theo yêu cầu nghiệp vụ:
+#   1 `stock_not_warehoused`     Tồn kho thành phẩm chế biến CHƯA nhập kho (chủng loại · tấn)
+#   2 `stock_warehoused`         Tồn kho thành phẩm ĐÃ nhập kho          (chủng loại · tấn)
+#   3 `stock_signed_undelivered` Số lượng ĐÃ KÝ HĐ CHƯA GIAO (chủng loại · tấn · đơn giá · lịch giao
+#                                · file HĐ scan đóng dấu)
+#   4 `stock_material`           Tồn kho nguyên liệu CHƯA SẢN XUẤT — chỉ đơn vị KHÔNG có nhà máy
+# Quy về mẫu tuần: mục 11 (tồn thành phẩm) = khối 1 + khối 2 · mục 12 (đã có HĐ) = khối 3 ·
+# mục 13 = 11 − 12 · mục 14 = khối 4.
 CONSUMPTION_FIELDS: frozenset[str] = frozenset({
     "revenue",            # tổng doanh thu tiêu thụ (BASE = đồng) — tính từ dòng bán
     "fx_revenue",         # tỷ giá USD→VND (khi giá bán / đơn giá tồn kho nhập bằng USD)
@@ -71,8 +75,8 @@ def _clean_sales(sales) -> list[dict]:
     return out
 
 
-def _clean_stock_no_contract(rows) -> list[dict]:
-    """Tồn kho thành phẩm CHƯA có HĐ: chủng loại · số lượng (TẤN)."""
+def _clean_stock_qty(rows) -> list[dict]:
+    """Khối tồn kho chỉ có SỐ LƯỢNG: chủng loại · số lượng (TẤN) — dùng cho khối 1 và khối 2."""
     out: list[dict] = []
     for r in rows if isinstance(rows, list) else []:
         if not isinstance(r, dict):
@@ -84,8 +88,8 @@ def _clean_stock_no_contract(rows) -> list[dict]:
     return out
 
 
-def _clean_stock_contract(rows) -> list[dict]:
-    """Tồn kho thành phẩm ĐÃ có HĐ: chủng loại · TẤN · đơn giá · lịch giao · file HĐ (tên file đã upload)."""
+def _clean_stock_signed(rows) -> list[dict]:
+    """Khối 3 — đã ký HĐ chưa giao: chủng loại · TẤN · đơn giá · lịch giao · file HĐ scan (tên file lưu)."""
     out: list[dict] = []
     for r in rows if isinstance(rows, list) else []:
         if not isinstance(r, dict):
@@ -116,10 +120,11 @@ def clean_fields(kind: str, fields: dict) -> dict:
         out: dict = {}
         if "sales" in fields:
             out["sales"] = _clean_sales(fields.get("sales"))
-        if "stock_no_contract" in fields:
-            out["stock_no_contract"] = _clean_stock_no_contract(fields.get("stock_no_contract"))
-        if "stock_contract" in fields:
-            out["stock_contract"] = _clean_stock_contract(fields.get("stock_contract"))
+        for key in ("stock_not_warehoused", "stock_warehoused"):
+            if key in fields:
+                out[key] = _clean_stock_qty(fields.get(key))
+        if "stock_signed_undelivered" in fields:
+            out["stock_signed_undelivered"] = _clean_stock_signed(fields.get("stock_signed_undelivered"))
         for k in CONSUMPTION_FIELDS:
             fv = _to_float(fields.get(k))
             if fv is not None:

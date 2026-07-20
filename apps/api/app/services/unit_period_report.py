@@ -110,17 +110,21 @@ def _consumption_rows(entries: list[dict], plan: dict) -> dict[str, Any]:
 
     # Tồn kho = THỜI ĐIỂM: lấy ngày cuối có số liệu trong kỳ (KHÔNG cộng dồn các ngày).
     last = _latest(entries)
-    no_hd = last.get("stock_no_contract") or []
-    hd = last.get("stock_contract") or []
     tonnes = lambda rows: sum((_num(r.get("qty")) or 0.0) for r in rows)  # noqa: E731
+    not_wh = last.get("stock_not_warehoused") or []      # khối 1: chế biến chưa nhập kho
+    wh = last.get("stock_warehoused") or []              # khối 2: đã nhập kho
+    signed = last.get("stock_signed_undelivered") or []  # khối 3: đã ký HĐ chưa giao
+    # Mẫu tuần: mục 11 = khối 1 + khối 2 · mục 12 = khối 3 · mục 13 = 11 − 12.
     by_grade = {g: 0.0 for g in GRADES}
-    for r in no_hd:
+    for r in [*not_wh, *wh]:
         g = r.get("grade")
         if g in by_grade:
             by_grade[g] += _num(r.get("qty")) or 0.0
     t = lambda v: v or None  # số liệu đã ở TẤN — chỉ đổi 0 thành None  # noqa: E731
 
-    stock_no_hd, stock_hd = tonnes(no_hd), tonnes(hd)
+    stock_finished = tonnes(not_wh) + tonnes(wh)
+    stock_hd = tonnes(signed)
+    stock_no_hd = stock_finished - stock_hd
     return {
         "signed_lt_tonnes": _num(plan.get("signed_lt_tonnes")),
         "lt_export": lt_e or None, "lt_domestic": lt_d or None,
@@ -132,9 +136,11 @@ def _consumption_rows(entries: list[dict], plan: dict) -> dict[str, Any]:
         "domestic_total": (lt_d + sp_d) or None,
         "revenue_ty": (revenue / TY) if revenue is not None else None,
         "avg_sell_price": (r / TRIEU if (r := _ratio(revenue, total)) is not None else None),
-        "stock_finished": t(stock_no_hd + stock_hd),
+        "stock_finished": t(stock_finished),
         "stock_finished_hd": t(stock_hd),
         "stock_no_hd": t(stock_no_hd),
+        "stock_not_warehoused": t(tonnes(not_wh)),
+        "stock_warehoused": t(tonnes(wh)),
         "stock_by_grade": {g: t(v) for g, v in by_grade.items()},
         "stock_material": t(_num(last.get("stock_material")) or 0.0),
         "carry_lt_tonnes": _num(plan.get("carry_lt_tonnes")),

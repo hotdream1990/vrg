@@ -110,13 +110,14 @@ def prev_stock(company: str, before: str) -> dict[str, Any] | None:
         return None
     f = dict(row["payload"] or {})
     stock = {
-        "stock_no_contract": f.get("stock_no_contract") or [],
-        "stock_contract": f.get("stock_contract") or [],
+        "stock_not_warehoused": f.get("stock_not_warehoused") or [],
+        "stock_warehoused": f.get("stock_warehoused") or [],
+        "stock_signed_undelivered": f.get("stock_signed_undelivered") or [],
         "stock_material": f.get("stock_material"),
         "stock_ccy": f.get("stock_ccy"),
     }
-    if not (stock["stock_no_contract"] or stock["stock_contract"]
-            or stock["stock_material"] is not None):
+    if not any([stock["stock_not_warehoused"], stock["stock_warehoused"],
+                stock["stock_signed_undelivered"], stock["stock_material"] is not None]):
         return None
     return {"as_of": str(row["as_of"]), **stock}
 

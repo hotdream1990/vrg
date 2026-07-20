@@ -32,7 +32,12 @@ KG_PER_TONNE = 1000
 
 CONTRACTS = {"Dài hạn": "long_term", "Chuyến": "spot"}
 CHANNELS = {"XK / UTXK": "export", "Nội tiêu": "domestic"}
-STOCK_GROUPS = {"Chưa có hợp đồng": "no_contract", "Đã có hợp đồng": "contract"}
+# 3 khối tồn kho nhập theo dòng (khối 4 "nguyên liệu chưa sản xuất" là 1 ô riêng, không theo dòng).
+STOCK_GROUPS = {
+    "Chế biến chưa nhập kho": "not_warehoused",
+    "Đã nhập kho": "warehoused",
+    "Đã ký HĐ chưa giao": "signed_undelivered",
+}
 GRADES = list(UNIT_STOCK_GRADES)
 
 
@@ -82,13 +87,13 @@ SPECS: dict[str, Spec] = {
     "stock": Spec(
         "BIỂU NHẬP — TỒN KHO", "Tồn kho",
         "Mỗi dòng = 1 dòng tồn kho (số THỜI ĐIỂM cuối ngày, không cộng dồn). "
-        "Nhóm 'Đã có hợp đồng' mới cần Đơn giá / Lịch giao.",
+        "Nhóm 'Đã ký HĐ chưa giao' mới cần Đơn giá / Lịch giao (file HĐ scan đính kèm trên web).",
         [_UNIT_COL, _DATE_COL,
          Col("group", "Nhóm", required=True, type="enum", choices=STOCK_GROUPS, width=20),
          Col("grade", "Chủng loại", required=True, type="enum",
              choices={g: g for g in GRADES}, width=20),
          Col("qty", "Số lượng", "tấn"),
-         Col("price", "Đơn giá", "triệu đ/tấn (VND) · USD/tấn — chỉ nhóm đã có HĐ", width=26),
+         Col("price", "Đơn giá", "triệu đ/tấn (VND) · USD/tấn — chỉ nhóm đã ký HĐ", width=26),
          Col("delivery_date", "Lịch giao", "dd/mm/yyyy", type="date"),
          Col("stock_material", "Tồn kho nguyên liệu chưa sản xuất",
              "tấn — đối với các đơn vị chưa có nhà máy chế biến", width=34)]),
@@ -373,13 +378,14 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
                         f"(nhập tỷ giá ở màn Báo cáo tiêu thụ rồi lưu lại).")
             else:
                 # Tồn kho = số THỜI ĐIỂM, đơn vị TẤN (mẫu tuần mục 11–14).
-                no_hd = [{"grade": r["grade"], "qty": r.get("qty")}
-                         for r in items if r.get("group") == "no_contract"]
-                hd = [{"grade": r["grade"], "qty": r.get("qty"), "price": r.get("price"),
-                       "delivery_date": r.get("delivery_date")}
-                      for r in items if r.get("group") == "contract"]
-                fields["stock_no_contract"] = no_hd
-                fields["stock_contract"] = hd
+                pick = lambda g: [r for r in items if r.get("group") == g]  # noqa: E731
+                fields["stock_not_warehoused"] = [
+                    {"grade": r["grade"], "qty": r.get("qty")} for r in pick("not_warehoused")]
+                fields["stock_warehoused"] = [
+                    {"grade": r["grade"], "qty": r.get("qty")} for r in pick("warehoused")]
+                fields["stock_signed_undelivered"] = [
+                    {"grade": r["grade"], "qty": r.get("qty"), "price": r.get("price"),
+                     "delivery_date": r.get("delivery_date")} for r in pick("signed_undelivered")]
                 mat = next((r.get("stock_material") for r in items
                             if r.get("stock_material") is not None), None)
                 if mat is not None:

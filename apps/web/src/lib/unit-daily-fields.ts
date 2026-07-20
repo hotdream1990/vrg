@@ -76,10 +76,11 @@ const CONSUMPTION: Column[] = [
   { key: "avg_price", label: "Giá bán bình quân", unit: "triệu đ/tấn", group: _TT, scale: 1_000_000,
     compute: (v) => { const q = salesQty(v); return q ? (n(v.revenue) ?? 0) / q : null; } },
   // Tồn kho = chỉ tiêu THỜI ĐIỂM (mẫu tuần mục 11–14), đơn vị TẤN — KHÔNG cộng dồn giữa các ngày.
-  { key: "stock_no_contract_t", label: "Tồn kho chưa HĐ", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_no_contract") || null },
-  { key: "stock_contract_t", label: "Tồn kho đã HĐ", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_contract") || null },
+  { key: "stock_not_warehoused_t", label: "Chế biến chưa nhập kho", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_not_warehoused") || null },
+  { key: "stock_warehoused_t", label: "Đã nhập kho", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_warehoused") || null },
   { key: "stock_finished_t", label: "Tồn kho thành phẩm", unit: "tấn", group: _TK,
-    compute: (v) => (stockTonnes(v, "stock_no_contract") + stockTonnes(v, "stock_contract")) || null },
+    compute: (v) => (stockTonnes(v, "stock_not_warehoused") + stockTonnes(v, "stock_warehoused")) || null },
+  { key: "stock_signed_t", label: "Đã ký HĐ chưa giao", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_signed_undelivered") || null },
   { key: "stock_material", label: "Tồn kho nguyên liệu chưa sản xuất", unit: "tấn", group: _TK,
     hint: "đối với các đơn vị chưa có nhà máy chế biến" },
 ];
@@ -139,7 +140,7 @@ export function summaryLine(kind: Kind, v: Values): string {
   }
   const parts = [
     `Tổng tiêu thụ ${fmtNum(colValue(kind, "total_consumption", v), 1)}t`,
-    `Tồn kho TP ${fmtNum(colValue(kind, "stock_finished_t", v), 1)}t (chưa HĐ ${fmtNum(colValue(kind, "stock_no_contract_t", v), 1)}t)`,
+    `Tồn kho TP ${fmtNum(colValue(kind, "stock_finished_t", v), 1)}t (đã ký HĐ ${fmtNum(colValue(kind, "stock_signed_t", v), 1)}t)`,
   ];
   return parts.join(" · ");
 }

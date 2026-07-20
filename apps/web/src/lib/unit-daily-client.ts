@@ -4,7 +4,7 @@
 
 import { authHeaders } from "./auth-token";
 import { API, apiFetch } from "./http";
-import type { Ccy, StockContractLine, StockNoContractLine } from "./unit-daily-consumption";
+import type { Ccy, StockQtyLine, StockSignedLine } from "./unit-daily-consumption";
 import type { Kind, Values } from "./unit-daily-fields";
 
 const contractBase = (role: Role) =>
@@ -98,8 +98,9 @@ export const saveDaily = (kind: Kind, company: string, asOf: string, fields: Val
 export type PrevStock = {
   found: boolean;
   as_of?: string;
-  stock_no_contract?: StockNoContractLine[];
-  stock_contract?: StockContractLine[];
+  stock_not_warehoused?: StockQtyLine[];
+  stock_warehoused?: StockQtyLine[];
+  stock_signed_undelivered?: StockSignedLine[];
   stock_material?: number | null;
   stock_ccy?: Ccy;
 };

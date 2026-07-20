@@ -48,7 +48,9 @@ _CONSUMPTION_COLS: list[tuple[str, str, str]] = [
     ("revenue_ty", "Doanh thu cao su", "cộng dồn"),
     ("avg_sell_price", "Giá bán bình quân", "= doanh thu / tiêu thụ"),
     ("stock_finished", "Tồn kho thành phẩm", "thời điểm"),
-    ("stock_finished_hd", "Trong đó đã có hợp đồng", "thời điểm"),
+    ("stock_not_warehoused", "Trong đó chế biến chưa nhập kho", "thời điểm"),
+    ("stock_warehoused", "Trong đó đã nhập kho", "thời điểm"),
+    ("stock_finished_hd", "Đã ký hợp đồng chưa giao", "thời điểm"),
     ("stock_no_hd", "Thành phẩm chưa có hợp đồng", "= tồn kho − đã có HĐ"),
 ]
 _CONSUMPTION_UNITS = ["tấn", "tấn", "tấn", "tấn", "tấn", "tấn", "tấn", "tấn",
