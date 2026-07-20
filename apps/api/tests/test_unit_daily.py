@@ -102,11 +102,11 @@ def test_unit_daily_member_and_editor_flow() -> None:
     # Biểu tiêu thụ dùng BẢNG NHIỀU DÒNG: `sales` + tồn kho dạng mảng. Tồn kho tính bằng TẤN
     # và KHÔNG còn "loại bành"; giá bán chọn loại tiền qua `sales_ccy`.
     cons = {"kind": "consumption", "company": unit, "as_of": today, "fields": {
-        "sales": [{"contract": "long_term", "channel": "export", "grade": "RSS",
+        "sales": [{"contract": "long_term", "channel": "export", "grade": "RSS 3",
                    "qty": 12.5, "price": 45}],
         "sales_ccy": "VND", "stock_ccy": "VND",
         "revenue": 562_500_000,
-        "stock_no_contract": [{"grade": "RSS", "bale": "bỏ đi", "qty": 24}],
+        "stock_no_contract": [{"grade": "RSS 3", "bale": "bỏ đi", "qty": 24}],
         "stock_material": 3.5,
     }}
     assert client.put("/api/unit-daily/report", json=cons, headers=eh).status_code == 200
@@ -191,8 +191,8 @@ def test_cup_basis_and_prev_stock() -> None:
     # 2) Tồn kho hôm qua → "Lấy tồn ngày trước" của HÔM NAY phải trả đúng số đó (đơn vị tấn).
     assert client.put("/api/member/daily-report", headers=mh, json={
         "kind": "consumption", "company": unit, "as_of": y_day, "fields": {
-            "stock_no_contract": [{"grade": "RSS", "qty": 30}],
-            "stock_contract": [{"grade": "SVR 10 / 20", "qty": 12, "price": 40}],
+            "stock_no_contract": [{"grade": "RSS 3", "qty": 30}],
+            "stock_contract": [{"grade": "SVR 10 / CSR 10", "qty": 12, "price": 40}],
             "stock_material": 5, "stock_ccy": "USD"}}).status_code == 200
     prev = client.get(f"/api/member/daily-report/prev-stock?company={unit}&before={t_day}",
                       headers=mh).json()

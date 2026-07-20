@@ -24,6 +24,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
+from app.core.market_meta import UNIT_STOCK_GRADES
 from app.services import member_unit_repo, price_repo, unit_daily_repo
 
 TY = 1_000_000_000
@@ -32,8 +33,7 @@ KG_PER_TONNE = 1000
 CONTRACTS = {"Dài hạn": "long_term", "Chuyến": "spot"}
 CHANNELS = {"XK / UTXK": "export", "Nội tiêu": "domestic"}
 STOCK_GROUPS = {"Chưa có hợp đồng": "no_contract", "Đã có hợp đồng": "contract"}
-GRADES = ["SVR CV50/CV60", "SVR 10CV/20CV", "SVR L / 3L", "RSS",
-          "SVR 5 / 5S", "SVR 10 / 20", "Latex (quy khô)", "Ngoại lệ / Skim", "Chủng loại khác"]
+GRADES = list(UNIT_STOCK_GRADES)
 
 
 @dataclass

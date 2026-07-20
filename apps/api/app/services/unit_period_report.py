@@ -15,16 +15,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.core.market_meta import UNIT_STOCK_GRADES
 from app.services import member_unit_repo, price_repo, unit_daily_repo
 
 TY = 1_000_000_000      # 1 tỷ đồng
 TRIEU = 1_000_000       # 1 triệu đồng
 
-# 9 chủng loại tồn kho — khớp GRADES ở web và cột 13.1–13.8 của mẫu.
-GRADES: list[str] = [
-    "SVR CV50/CV60", "SVR 10CV/20CV", "SVR L / 3L", "RSS",
-    "SVR 5 / 5S", "SVR 10 / 20", "Latex (quy khô)", "Ngoại lệ / Skim", "Chủng loại khác",
-]
+# Chủng loại tồn kho — tách theo từng loại như bảng Giá sàn (khớp GRADES ở web).
+GRADES: list[str] = list(UNIT_STOCK_GRADES)
 
 
 def _num(v: Any) -> float | None:

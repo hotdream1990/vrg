@@ -56,10 +56,13 @@ export const CHANNELS: { value: SaleChannel; label: string }[] = [
   { value: "export", label: "XK / UTXK" },
   { value: "domestic", label: "Nội tiêu" },
 ];
-/** Loại mủ (đồng bộ nhãn với nhóm tồn kho theo chủng loại). */
+/** Chủng loại mủ — TÁCH THEO TỪNG LOẠI y như bảng Giá sàn Tập đoàn (SVR CV 50 và SVR CV60 là
+    2 loại riêng, không gộp), thêm "SVR 10CV / 20CV" + "Chủng loại khác" cho đủ biểu mẫu tuần.
+    PHẢI khớp `UNIT_STOCK_GRADES` ở backend (app/core/market_meta.py). */
 export const GRADES: string[] = [
-  "SVR CV50/CV60", "SVR 10CV/20CV", "SVR L / 3L", "RSS",
-  "SVR 5 / 5S", "SVR 10 / 20", "Latex (quy khô)", "Ngoại lệ / Skim", "Chủng loại khác",
+  "SVR CV 50", "SVR CV60", "SVR L", "SVR 3L Mix", "SVR 3L", "SVR 5S", "SVR 5",
+  "SVR 10 Mix", "SVR 10 / CSR 10", "SVR 20 / CSR 20", "RSS 3", "RSS 1", "LATEX", "Skim Block",
+  "SVR 10CV / 20CV", "Chủng loại khác",
 ];
 
 const TY = 1_000_000_000;   // 1 tỷ đồng

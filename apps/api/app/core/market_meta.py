@@ -104,6 +104,14 @@ VRG_FLOOR_GRADES = [
 VRG_DOMESTIC_ONLY_GRADES = {"Skim Block"}
 
 
+# Chủng loại cho báo cáo TIÊU THỤ – TỒN KHO của đơn vị thành viên — TÁCH THEO TỪNG LOẠI y như
+# bảng Giá sàn Tập đoàn (SVR CV 50 và SVR CV60 là 2 loại riêng, không gộp). Bám thẳng
+# `VRG_FLOOR_GRADES` để hai nơi luôn khớp nhau, thêm 2 mục biểu mẫu tuần cần mà giá sàn không có:
+#   - "SVR 10CV / 20CV": dòng 13.2 của biểu mẫu tuần.
+#   - "Chủng loại khác": gom phần còn lại (dòng 13.8).
+UNIT_STOCK_GRADES = [*VRG_FLOOR_GRADES, "SVR 10CV / 20CV", "Chủng loại khác"]
+
+
 # Chủng loại cho "Báo giá mủ thị trường" (Mục 1-3: giá tư nhân/VRG XK/VRG nội địa) — theo phiếu Excel.
 MARKET_QUOTE_GRADES = ["SVR CV 50", "SVR CV 60", "SVR 3L", "SVR 10", "RSS3", "LATEX"]
 
