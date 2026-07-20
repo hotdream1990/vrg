@@ -91,6 +91,36 @@ def in_range(kind: str, date_from: str, date_to: str,
             for r in rows if keep is None or r["company"] in keep]
 
 
+def prev_stock(company: str, before: str) -> dict[str, Any] | None:
+    """Tồn kho của ngày GẦN NHẤT TRƯỚC `before` cho 1 đơn vị (cho nút 'Lấy tồn ngày trước').
+
+    Tồn kho là chỉ tiêu THỜI ĐIỂM: ngày mới thường gần giống ngày trước, nên cho phép chép sang
+    rồi sửa. Chỉ trả 3 khối tồn kho — KHÔNG kèm dòng bán (tiêu thụ là số phát sinh trong ngày,
+    chép sang sẽ thành khai khống).
+    """
+    ensure_schema()
+    with session_scope() as db:
+        row = db.execute(
+            text("SELECT as_of, payload FROM unit_daily_report "
+                 "WHERE kind = 'consumption' AND company = :c AND as_of < CAST(:d AS date) "
+                 "AND payload <> '{}'::jsonb ORDER BY as_of DESC LIMIT 1"),
+            {"c": company, "d": before},
+        ).mappings().first()
+    if not row:
+        return None
+    f = dict(row["payload"] or {})
+    stock = {
+        "stock_no_contract": f.get("stock_no_contract") or [],
+        "stock_contract": f.get("stock_contract") or [],
+        "stock_material": f.get("stock_material"),
+        "stock_ccy": f.get("stock_ccy"),
+    }
+    if not (stock["stock_no_contract"] or stock["stock_contract"]
+            or stock["stock_material"] is not None):
+        return None
+    return {"as_of": str(row["as_of"]), **stock}
+
+
 def attach_purchase_prices(entries: list[dict[str, Any]], kind: str) -> None:
     """Gắn đơn giá mủ nước/mủ chén (link từ 'Giá mủ nguyên liệu') vào từng dòng timeline (chỉ đọc).
 

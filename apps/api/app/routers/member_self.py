@@ -26,6 +26,13 @@ router = APIRouter(prefix="/api/member", tags=["member-self"])
 _UNIT = {"purchase": "đồng/độ TSC", "purchase_cup": "đồng/độ TSC"}
 
 
+def _price_unit(price_type: str, basis: str | None) -> str:
+    """Nhãn đơn vị lưu kèm giá — mủ chén có thể tính theo độ TSC hoặc độ DRC."""
+    if price_type == "purchase_cup" and basis == "drc":
+        return "đồng/độ DRC"
+    return _UNIT[price_type]
+
+
 def _assert_company(member: dict, company: str) -> None:
     """Chặn ghi cho đơn vị không được gán cho tài khoản này."""
     if company not in (member.get("member_units") or []):
@@ -51,7 +58,7 @@ def upsert_my_price(body: MemberPriceEdit,
     price_repo.upsert_record({
         "as_of": body.as_of, "source": "vrg", "grade": body.company, "contract": "",
         "price_type": body.price_type, "price": float(body.price),
-        "currency": "VND", "unit": _UNIT[body.price_type],
+        "currency": "VND", "unit": _price_unit(body.price_type, body.basis),
     })
     return {"ok": True}
 
@@ -158,6 +165,20 @@ def upsert_my_year_plan(body: PurchasePlanEdit,
     unit_daily_repo.set_year_plan(body.year, body.company, body.plan_tonnes, body.signed_lt_tonnes,
                                   body.carry_lt_tonnes, body.carry_spot_tonnes, member.get("username"))
     return {"ok": True}
+
+
+@router.get("/daily-report/prev-stock")
+def my_prev_stock(company: str = Query(...),
+                  before: str = Query(..., description="Ngày 'YYYY-MM-DD'"),
+                  member: dict = Depends(get_current_member)) -> dict:
+    """Tồn kho ngày gần nhất trước `before` của 1 đơn vị được gán (nút 'Lấy tồn ngày trước')."""
+    _assert_company(member, company)
+    try:
+        date.fromisoformat(before)
+    except ValueError as exc:
+        raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
+    got = unit_daily_repo.prev_stock(company, before)
+    return {"found": got is not None, **(got or {})}
 
 
 @router.put("/daily-report")

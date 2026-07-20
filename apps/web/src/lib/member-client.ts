@@ -25,10 +25,12 @@ const J = { "Content-Type": "application/json" };
 export const fetchMyPrices = (days = 30) =>
   apiFetch<MemberPrices>(`/api/member/prices?days=${days}`);
 
-/** Nhập/sửa 1 ô giá cho 1 đơn vị được gán, ngày trong cửa sổ cho phép. */
-export const upsertMyPrice = (company: string, as_of: string, price_type: MemberPriceType, price: number) =>
+/** Nhập/sửa 1 ô giá cho 1 đơn vị được gán, ngày trong cửa sổ cho phép.
+    `basis` (chỉ mủ chén) = tsc|drc — đổi nhãn đơn vị lưu kèm giá. */
+export const upsertMyPrice = (company: string, as_of: string, price_type: MemberPriceType,
+                              price: number, basis?: "tsc" | "drc") =>
   apiFetch<{ ok: boolean }>(`/api/member/prices`,
-    { method: "PUT", headers: J, body: JSON.stringify({ company, as_of, price_type, price }) });
+    { method: "PUT", headers: J, body: JSON.stringify({ company, as_of, price_type, price, basis }) });
 
 /** Xoá 1 ô giá của 1 đơn vị được gán. */
 export const clearMyPrice = (company: string, as_of: string, price_type: MemberPriceType) =>

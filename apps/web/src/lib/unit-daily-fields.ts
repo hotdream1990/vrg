@@ -40,7 +40,9 @@ const PURCHASE: Column[] = [
   { key: "latex_wet", label: "Sản lượng thu mua", unit: "tấn", group: _MU_NUOC },
   { key: "price_latex", label: "Đơn giá thu mua", unit: "đồng/độ TSC", group: _MU_NUOC, linked: "latex" },
   { key: "coagulum", label: "Sản lượng thu mua", unit: "tấn", group: _MU_CHEN },
-  { key: "price_cup", label: "Đơn giá thu mua", unit: "đồng/độ TSC", group: _MU_CHEN, linked: "cup" },
+  // Mủ chén tính theo độ TSC hoặc độ DRC — đơn vị tự chọn ở form (`cup_basis`), nên nhãn cột để chung.
+  { key: "price_cup", label: "Đơn giá thu mua", unit: "đồng/độ", group: _MU_CHEN, linked: "cup",
+    hint: "theo độ TSC hoặc DRC — đơn vị tự chọn" },
   { key: "consumption", label: "Sản lượng tiêu thụ", unit: "tấn", group: _TT_TM },
   // Doanh thu lưu BASE = đồng (VND), hiển thị "tỷ đồng" (scale 1e9). Giá BQ = Doanh thu(đồng) ÷ SL(tấn)
   // = đồng/tấn, hiển thị "triệu đ/tấn" (scale 1e6).
@@ -60,10 +62,10 @@ const salesOf = (v: Values): SaleLine[] => {
 };
 const salesQty = (v: Values, keep?: (l: SaleLine) => boolean): number =>
   salesOf(v).reduce((a, l) => a + (keep && !keep(l) ? 0 : (n(l.qty) ?? 0)), 0);
-/** Tổng số lượng (kg) 1 bảng tồn kho (`stock_no_contract` | `stock_contract`). */
-const stockKg = (v: Values, key: string): number => {
+/** Tổng số lượng (TẤN) 1 bảng tồn kho (`stock_no_contract` | `stock_contract`). */
+const stockTonnes = (v: Values, key: string): number => {
   const rows = (v as Record<string, unknown>)[key];
-  return Array.isArray(rows) ? rows.reduce((a: number, r) => a + (n((r as { qty_kg?: number }).qty_kg) ?? 0), 0) : 0;
+  return Array.isArray(rows) ? rows.reduce((a: number, r) => a + (n((r as { qty?: number }).qty) ?? 0), 0) : 0;
 };
 
 const CONSUMPTION: Column[] = [
@@ -73,11 +75,13 @@ const CONSUMPTION: Column[] = [
   { key: "revenue", label: "Doanh thu", unit: "tỷ đồng", group: _TT, scale: 1_000_000_000 },
   { key: "avg_price", label: "Giá bán bình quân", unit: "triệu đ/tấn", group: _TT, scale: 1_000_000,
     compute: (v) => { const q = salesQty(v); return q ? (n(v.revenue) ?? 0) / q : null; } },
-  { key: "stock_no_contract_kg", label: "Tồn kho chưa HĐ", unit: "kg", group: _TK, compute: (v) => stockKg(v, "stock_no_contract") || null },
-  { key: "stock_contract_kg", label: "Tồn kho đã HĐ", unit: "kg", group: _TK, compute: (v) => stockKg(v, "stock_contract") || null },
-  { key: "stock_finished_kg", label: "Tồn kho thành phẩm", unit: "kg", group: _TK,
-    compute: (v) => (stockKg(v, "stock_no_contract") + stockKg(v, "stock_contract")) || null },
-  { key: "stock_material_kg", label: "Tồn kho nguyên liệu", unit: "kg", group: _TK },
+  // Tồn kho = chỉ tiêu THỜI ĐIỂM (mẫu tuần mục 11–14), đơn vị TẤN — KHÔNG cộng dồn giữa các ngày.
+  { key: "stock_no_contract_t", label: "Tồn kho chưa HĐ", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_no_contract") || null },
+  { key: "stock_contract_t", label: "Tồn kho đã HĐ", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_contract") || null },
+  { key: "stock_finished_t", label: "Tồn kho thành phẩm", unit: "tấn", group: _TK,
+    compute: (v) => (stockTonnes(v, "stock_no_contract") + stockTonnes(v, "stock_contract")) || null },
+  { key: "stock_material", label: "Tồn kho nguyên liệu chưa có HĐ", unit: "tấn", group: _TK,
+    hint: "đối với các đơn vị chưa có nhà máy chế biến" },
 ];
 
 export const COLUMNS: Record<Kind, Column[]> = { purchase: PURCHASE, consumption: CONSUMPTION };
@@ -135,7 +139,7 @@ export function summaryLine(kind: Kind, v: Values): string {
   }
   const parts = [
     `Tổng tiêu thụ ${fmtNum(colValue(kind, "total_consumption", v), 1)}t`,
-    `Tồn kho TP ${fmtNum(v.stock_finished, 1)}t (chưa HĐ ${fmtNum(colValue(kind, "stock_no_hd", v), 1)}t)`,
+    `Tồn kho TP ${fmtNum(colValue(kind, "stock_finished_t", v), 1)}t (chưa HĐ ${fmtNum(colValue(kind, "stock_no_contract_t", v), 1)}t)`,
   ];
   return parts.join(" · ");
 }

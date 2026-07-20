@@ -19,7 +19,6 @@ from app.services import member_unit_repo, price_repo, unit_daily_repo
 
 TY = 1_000_000_000      # 1 tỷ đồng
 TRIEU = 1_000_000       # 1 triệu đồng
-KG_PER_TONNE = 1000
 
 # 9 chủng loại tồn kho — khớp GRADES ở web và cột 13.1–13.8 của mẫu.
 GRADES: list[str] = [
@@ -111,19 +110,19 @@ def _consumption_rows(entries: list[dict], plan: dict) -> dict[str, Any]:
     total = lt_e + lt_d + sp_e + sp_d
     revenue = acc.get("revenue")
 
-    # Tồn kho = THỜI ĐIỂM: lấy ngày cuối có số liệu trong kỳ.
+    # Tồn kho = THỜI ĐIỂM: lấy ngày cuối có số liệu trong kỳ (KHÔNG cộng dồn các ngày).
     last = _latest(entries)
     no_hd = last.get("stock_no_contract") or []
     hd = last.get("stock_contract") or []
-    kg = lambda rows: sum((_num(r.get("qty_kg")) or 0.0) for r in rows)  # noqa: E731
+    tonnes = lambda rows: sum((_num(r.get("qty")) or 0.0) for r in rows)  # noqa: E731
     by_grade = {g: 0.0 for g in GRADES}
     for r in no_hd:
         g = r.get("grade")
         if g in by_grade:
-            by_grade[g] += _num(r.get("qty_kg")) or 0.0
-    t = lambda v: (v / KG_PER_TONNE) if v else None  # kg → tấn  # noqa: E731
+            by_grade[g] += _num(r.get("qty")) or 0.0
+    t = lambda v: v or None  # số liệu đã ở TẤN — chỉ đổi 0 thành None  # noqa: E731
 
-    stock_no_hd, stock_hd = kg(no_hd), kg(hd)
+    stock_no_hd, stock_hd = tonnes(no_hd), tonnes(hd)
     return {
         "signed_lt_tonnes": _num(plan.get("signed_lt_tonnes")),
         "lt_export": lt_e or None, "lt_domestic": lt_d or None,
@@ -139,7 +138,7 @@ def _consumption_rows(entries: list[dict], plan: dict) -> dict[str, Any]:
         "stock_finished_hd": t(stock_hd),
         "stock_no_hd": t(stock_no_hd),
         "stock_by_grade": {g: t(v) for g, v in by_grade.items()},
-        "stock_material": t(_num(last.get("stock_material_kg")) or 0.0),
+        "stock_material": t(_num(last.get("stock_material")) or 0.0),
         "carry_lt_tonnes": _num(plan.get("carry_lt_tonnes")),
         "carry_spot_tonnes": _num(plan.get("carry_spot_tonnes")),
     }

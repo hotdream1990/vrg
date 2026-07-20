@@ -12,3 +12,5 @@ class MemberPriceEdit(BaseModel):
     as_of: str  # YYYY-MM-DD
     price_type: Literal["purchase", "purchase_cup"]  # mủ nước | mủ chén
     price: float = Field(gt=0)
+    # Mủ chén tính theo độ TSC hay độ DRC — chỉ đổi NHÃN đơn vị lưu kèm giá (mặc định TSC).
+    basis: Literal["tsc", "drc"] | None = None

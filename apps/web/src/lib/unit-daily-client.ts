@@ -4,6 +4,7 @@
 
 import { authHeaders } from "./auth-token";
 import { API, apiFetch } from "./http";
+import type { Ccy, StockContractLine, StockNoContractLine } from "./unit-daily-consumption";
 import type { Kind, Values } from "./unit-daily-fields";
 
 const contractBase = (role: Role) =>
@@ -29,10 +30,12 @@ export async function openContractFile(role: Role, name: string): Promise<void> 
 export type Role = "member" | "hq";
 
 export type DailyEntry = { fields: Values; updated_at: string; updated_by: string | null };
-/** Đơn giá thu mua ĐÚNG NGÀY (đồng/độ TSC), link từ "Giá mủ nguyên liệu". */
+/** Đơn giá thu mua ĐÚNG NGÀY (đồng/độ), link từ "Giá mủ nguyên liệu". */
 export type UnitPurchasePrice = { latex: number | null; cup: number | null };
+/** Mủ chén tính theo độ TSC hay độ DRC (đổi nhãn đơn vị lưu kèm giá). */
+export type CupBasis = "tsc" | "drc";
 /** Đơn giá VND (mủ nước/mủ chén) do form Thu mua ghi về kho "Giá mủ nguyên liệu". */
-export type PriceDraft = UnitPurchasePrice;
+export type PriceDraft = UnitPurchasePrice & { cupBasis?: CupBasis };
 export type DayData = {
   as_of: string;
   today: string;
@@ -88,6 +91,23 @@ export const saveDaily = (kind: Kind, company: string, asOf: string, fields: Val
     method: "PUT", headers: J,
     body: JSON.stringify({ kind, company, as_of: asOf, fields, create_only: createOnly }),
   });
+
+// ── Tồn kho ngày trước (nút "Lấy tồn ngày trước") ──
+/** Tồn kho là số THỜI ĐIỂM: ngày mới thường gần giống ngày trước → cho chép sang rồi sửa.
+    Chỉ trả 3 khối tồn kho, KHÔNG kèm dòng bán (tiêu thụ là số phát sinh trong ngày). */
+export type PrevStock = {
+  found: boolean;
+  as_of?: string;
+  stock_no_contract?: StockNoContractLine[];
+  stock_contract?: StockContractLine[];
+  stock_material?: number | null;
+  stock_ccy?: Ccy;
+};
+
+export const fetchPrevStock = (role: Role, company: string, before: string) =>
+  apiFetch<PrevStock>(
+    `${role === "member" ? "/api/member/daily-report" : "/api/unit-daily"}/prev-stock`
+    + `?company=${encodeURIComponent(company)}&before=${before}`);
 
 // ── Số liệu NĂM (kế hoạch thu mua + HĐ dài hạn đã ký) — đơn vị tự cập nhật, chuyên viên xem/sửa mọi đơn vị ──
 const planBase = (role: Role) => (role === "member" ? "/api/member/plan" : "/api/unit-daily/plan");

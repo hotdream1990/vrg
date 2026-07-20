@@ -5,40 +5,48 @@
 export type SaleContract = "long_term" | "spot";       // loại HĐ: Dài hạn | Chuyến
 export type SaleChannel = "export" | "domestic";       // hình thức: XK/UTXK | Nội tiêu
 
-/** 1 dòng tiêu thụ. `price` = giá bán (đơn vị VN: triệu đ/tấn · nước ngoài: USD/tấn). */
+/** Loại tiền người dùng CHỌN khi nhập giá (giá bán tiêu thụ · đơn giá tồn kho đã có HĐ). */
+export type Ccy = "VND" | "USD";
+export const CCYS: { value: Ccy; label: string }[] = [
+  { value: "VND", label: "VND" },
+  { value: "USD", label: "USD" },
+];
+/** Đơn vị hiển thị của ô giá theo loại tiền đã chọn. */
+export const priceUnitOf = (ccy: Ccy): string => (ccy === "USD" ? "USD/tấn" : "triệu đ/tấn");
+
+/** 1 dòng tiêu thụ. `price` = giá bán, đơn vị theo `sales_ccy` (VND→triệu đ/tấn · USD→USD/tấn). */
 export type SaleLine = {
   contract: SaleContract;
   channel: SaleChannel;
   grade: string;                 // loại mủ
   qty: number | null;            // số lượng (tấn)
-  price: number | null;          // giá bán (triệu đ/tấn nội địa · USD/tấn nước ngoài)
+  price: number | null;          // giá bán (triệu đ/tấn khi VND · USD/tấn khi USD)
 };
 
-/** Tồn kho thành phẩm CHƯA có HĐ: chủng loại · loại bành · số lượng (kg). */
-export type StockNoContractLine = { grade: string; bale: string; qty_kg: number | null };
-/** Tồn kho thành phẩm ĐÃ có HĐ: chủng loại · kg · đơn giá (như sales) · lịch giao · file HĐ. */
+/** Tồn kho thành phẩm CHƯA có HĐ: chủng loại · số lượng (TẤN). */
+export type StockNoContractLine = { grade: string; qty: number | null };
+/** Tồn kho thành phẩm ĐÃ có HĐ: chủng loại · tấn · đơn giá (theo `stock_ccy`) · lịch giao · file HĐ. */
 export type StockContractLine = {
-  grade: string; qty_kg: number | null; price: number | null;
+  grade: string; qty: number | null; price: number | null;
   delivery_date?: string | null;         // 'YYYY-MM-DD'
   file?: string | null; filename?: string | null;  // tên file lưu (uuid) + tên gốc hiển thị
 };
 
-/** Payload tiêu thụ–tồn kho: dòng bán + tồn kho (2 bảng) + nguyên liệu. Tỷ giá (nước ngoài) chung. */
+/** Payload tiêu thụ–tồn kho: dòng bán + tồn kho (2 bảng) + nguyên liệu. Tồn kho = số THỜI ĐIỂM. */
 export type ConsumptionData = {
   sales?: SaleLine[];
-  fx_revenue?: number | null;            // tỷ giá USD→VND (nước ngoài)
+  sales_ccy?: Ccy;                       // loại tiền của giá bán
+  stock_ccy?: Ccy;                       // loại tiền của đơn giá tồn kho đã có HĐ
+  fx_revenue?: number | null;            // tỷ giá USD→VND (dùng chung cho cả 2 khi chọn USD)
   revenue?: number | null;               // tổng doanh thu tiêu thụ (đồng)
   stock_no_contract?: StockNoContractLine[];
   stock_contract?: StockContractLine[];
-  stock_material_kg?: number | null;     // tồn kho nguyên liệu (đơn vị không nhà máy)
+  stock_material?: number | null;        // mục 14: tồn kho nguyên liệu chưa có HĐ (tấn)
 };
 
-/** Loại bành (đóng gói) tồn kho. */
-export const BALES: string[] = ["33,33 kg", "35 kg"];
-
-/** Tổng số lượng (kg) 1 bảng tồn kho. */
-export const stockKgTotal = (rows: { qty_kg: number | null }[] | undefined): number =>
-  (rows ?? []).reduce((a, r) => a + (r.qty_kg ?? 0), 0);
+/** Tổng số lượng (TẤN) 1 bảng tồn kho. */
+export const stockTonnesTotal = (rows: { qty: number | null }[] | undefined): number =>
+  (rows ?? []).reduce((a, r) => a + (r.qty ?? 0), 0);
 
 export const CONTRACTS: { value: SaleContract; label: string }[] = [
   { value: "long_term", label: "Dài hạn" },
@@ -58,11 +66,11 @@ const TY = 1_000_000_000;   // 1 tỷ đồng
 const TRIEU = 1_000_000;    // 1 triệu đồng
 const n = (x: number | null | undefined): number | null => (x == null || Number.isNaN(x) ? null : x);
 
-/** Doanh thu 1 dòng, quy về BASE = đồng (VND). Nước ngoài = qty × giá(USD) × tỷ giá; nội địa = qty × giá(triệu) × 1e6. */
-export function lineRevenueVnd(line: SaleLine, foreign: boolean, fx: number | null | undefined): number | null {
+/** Doanh thu 1 dòng, quy về BASE = đồng (VND). USD = qty × giá(USD) × tỷ giá; VND = qty × giá(triệu) × 1e6. */
+export function lineRevenueVnd(line: SaleLine, ccy: Ccy, fx: number | null | undefined): number | null {
   if (n(line.qty) == null || n(line.price) == null) return null;
   const q = line.qty as number, p = line.price as number;
-  return foreign ? (n(fx) == null ? null : q * p * (fx as number)) : q * p * TRIEU;
+  return ccy === "USD" ? (n(fx) == null ? null : q * p * (fx as number)) : q * p * TRIEU;
 }
 
 export type ConsumptionTotals = {
@@ -73,7 +81,7 @@ export type ConsumptionTotals = {
 };
 
 /** Cộng tổng các dòng tiêu thụ (SL theo hình thức/loại HĐ + doanh thu + giá BQ). */
-export function totals(sales: SaleLine[] | undefined, foreign: boolean, fx: number | null | undefined): ConsumptionTotals {
+export function totals(sales: SaleLine[] | undefined, ccy: Ccy, fx: number | null | undefined): ConsumptionTotals {
   const t: ConsumptionTotals = {
     qty: 0, qtyExport: 0, qtyDomestic: 0, qtyLongTerm: 0, qtySpot: 0, revenueVnd: 0, avgPriceTrieu: null,
   };
@@ -82,7 +90,7 @@ export function totals(sales: SaleLine[] | undefined, foreign: boolean, fx: numb
     t.qty += q;
     if (ln.channel === "export") t.qtyExport += q; else if (ln.channel === "domestic") t.qtyDomestic += q;
     if (ln.contract === "long_term") t.qtyLongTerm += q; else if (ln.contract === "spot") t.qtySpot += q;
-    t.revenueVnd += lineRevenueVnd(ln, foreign, fx) ?? 0;
+    t.revenueVnd += lineRevenueVnd(ln, ccy, fx) ?? 0;
   }
   t.avgPriceTrieu = t.qty > 0 ? t.revenueVnd / t.qty / TRIEU : null;
   return t;

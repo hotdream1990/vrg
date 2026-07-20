@@ -78,6 +78,19 @@ def day(kind: str = Query(..., pattern="^(purchase|consumption)$"),
     }
 
 
+@router.get("/prev-stock")
+def prev_stock(company: str = Query(...),
+               before: str = Query(..., description="Ngày 'YYYY-MM-DD' — lấy tồn kho TRƯỚC ngày này"),
+               username: str = Depends(_require)) -> dict:
+    """Tồn kho của ngày gần nhất trước `before` (nút 'Lấy tồn ngày trước'). Không có → found=false."""
+    try:
+        date.fromisoformat(before)
+    except ValueError as exc:
+        raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
+    got = unit_daily_repo.prev_stock(company, before)
+    return {"found": got is not None, **(got or {})}
+
+
 @router.put("/report")
 def upsert(body: UnitDailyEdit, username: str = Depends(_require)) -> dict:
     """Ghi/sửa số liệu 1 đơn vị (trong cửa sổ sửa theo ngày của chuyên viên; admin miễn).

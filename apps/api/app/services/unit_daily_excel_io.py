@@ -81,16 +81,17 @@ SPECS: dict[str, Spec] = {
          Col("price", "Giá bán", "triệu đ/tấn (VND) · USD/tấn (nước ngoài)", width=26)]),
     "stock": Spec(
         "BIỂU NHẬP — TỒN KHO", "Tồn kho",
-        "Mỗi dòng = 1 dòng tồn kho. Nhóm 'Đã có hợp đồng' mới cần Đơn giá / Lịch giao.",
+        "Mỗi dòng = 1 dòng tồn kho (số THỜI ĐIỂM cuối ngày, không cộng dồn). "
+        "Nhóm 'Đã có hợp đồng' mới cần Đơn giá / Lịch giao.",
         [_UNIT_COL, _DATE_COL,
          Col("group", "Nhóm", required=True, type="enum", choices=STOCK_GROUPS, width=20),
          Col("grade", "Chủng loại", required=True, type="enum",
              choices={g: g for g in GRADES}, width=20),
-         Col("bale", "Loại bành", type="text"),
-         Col("qty_kg", "Số lượng", "kg"),
-         Col("price", "Đơn giá", "chỉ nhóm đã có HĐ", width=18),
+         Col("qty", "Số lượng", "tấn"),
+         Col("price", "Đơn giá", "triệu đ/tấn (VND) · USD/tấn — chỉ nhóm đã có HĐ", width=26),
          Col("delivery_date", "Lịch giao", "dd/mm/yyyy", type="date"),
-         Col("stock_material_kg", "Tồn kho nguyên liệu", "kg — đơn vị chưa có nhà máy", width=24)]),
+         Col("stock_material", "Tồn kho nguyên liệu chưa có HĐ",
+             "tấn — đơn vị chưa có nhà máy chế biến", width=30)]),
     "plan": Spec(
         "BIỂU NHẬP — KẾ HOẠCH NĂM", "Kế hoạch năm",
         "Mỗi dòng = 1 đơn vị / 1 năm. Số liệu nhập 1 lần, cập nhật khi có thay đổi.",
@@ -355,11 +356,14 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
                 lines = [{"contract": r["contract"], "channel": r["channel"], "grade": r["grade"],
                           "qty": r.get("qty"), "price": r.get("price")} for r in items]
                 fields["sales"] = lines
-                # Doanh thu về BASE = đồng. Đơn vị VN: giá là triệu đ/tấn (×1e6).
-                # Đơn vị nước ngoài: giá là USD/tấn → cần tỷ giá USD đã lưu ở bản ghi ngày đó.
+                # Doanh thu về BASE = đồng. Loại tiền của giá bán lấy theo ô đã chọn trên form
+                # (`sales_ccy`); bản ghi chưa có thì suy từ đơn vị (nước ngoài → USD).
+                ccy = fields.get("sales_ccy") or (
+                    "VND" if currencies.get(company, "VND") == "VND" else "USD")
+                fields["sales_ccy"] = ccy
                 gross = sum((r.get("qty") or 0) * (r.get("price") or 0) for r in items)
-                if currencies.get(company, "VND") == "VND":
-                    fields["revenue"] = round(gross * 1_000_000)
+                if ccy == "VND":
+                    fields["revenue"] = round(gross * 1_000_000)   # giá là triệu đ/tấn
                 elif fields.get("fx_revenue"):
                     fields["revenue"] = round(gross * float(fields["fx_revenue"]))
                 else:
@@ -368,17 +372,18 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
                         f"{company} {as_of}: chưa có tỷ giá USD nên chưa tính được doanh thu "
                         f"(nhập tỷ giá ở màn Báo cáo tiêu thụ rồi lưu lại).")
             else:
-                no_hd = [{"grade": r["grade"], "bale": r.get("bale"), "qty_kg": r.get("qty_kg")}
+                # Tồn kho = số THỜI ĐIỂM, đơn vị TẤN (mẫu tuần mục 11–14).
+                no_hd = [{"grade": r["grade"], "qty": r.get("qty")}
                          for r in items if r.get("group") == "no_contract"]
-                hd = [{"grade": r["grade"], "qty_kg": r.get("qty_kg"), "price": r.get("price"),
+                hd = [{"grade": r["grade"], "qty": r.get("qty"), "price": r.get("price"),
                        "delivery_date": r.get("delivery_date")}
                       for r in items if r.get("group") == "contract"]
                 fields["stock_no_contract"] = no_hd
                 fields["stock_contract"] = hd
-                mat = next((r.get("stock_material_kg") for r in items
-                            if r.get("stock_material_kg") is not None), None)
+                mat = next((r.get("stock_material") for r in items
+                            if r.get("stock_material") is not None), None)
                 if mat is not None:
-                    fields["stock_material_kg"] = mat
+                    fields["stock_material"] = mat
             unit_daily_repo.upsert("consumption", as_of, company, fields, username)
         saved += 1
     return {"saved": saved, "skipped": len(rows) - len(good), "warnings": warnings}

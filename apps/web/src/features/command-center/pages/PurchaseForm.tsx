@@ -3,11 +3,11 @@
    - Doanh thu nhập theo USD + tỷ giá USD→VND (nút "Lấy tỷ giá hiện tại" từ VCB) → doanh thu VND (cột chính).
    Tiền lưu BASE = đồng (VND). Đơn vị Việt Nam: nhập thẳng đơn giá VND + doanh thu tỷ đồng. */
 
-import { message } from "antd";
+import { Select, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 import { fetchVcbRate } from "../../../lib/market-quote-client";
-import type { PriceDraft, UnitPurchasePrice } from "../../../lib/unit-daily-client";
+import type { CupBasis, PriceDraft, UnitPurchasePrice } from "../../../lib/unit-daily-client";
 import { type Values, fmtNum } from "../../../lib/unit-daily-fields";
 import { fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
 
@@ -25,6 +25,12 @@ const TY = 1_000_000_000; // 1 tỷ đồng = 1e9 đồng
 const num = (x: number | null | undefined): number | null => (x == null || Number.isNaN(x) ? null : x);
 const mul = (a?: number | null, b?: number | null): number | null =>
   num(a) == null || num(b) == null ? null : (a as number) * (b as number);
+
+/** Cách tính độ của mủ chén — đổi nhãn đơn giá + đơn vị ghi kèm khi ghi vào kho "Giá mủ nguyên liệu". */
+const CUP_BASES: { value: CupBasis; label: string }[] = [
+  { value: "tsc", label: "Độ TSC" },
+  { value: "drc", label: "Độ DRC" },
+];
 
 /** Dựng nháp ban đầu từ payload đã lưu + đơn giá VND (đơn vị VN prefill đơn giá VND, nước ngoài prefill nội tệ). */
 function initDraft(values: Values, linked: UnitPurchasePrice | null | undefined, foreign: boolean): Values {
@@ -49,9 +55,15 @@ export default function PurchaseForm({
   values, readOnly, formKey, currency, linkedPrice, onDirty, footer,
 }: Props) {
   const foreign = (currency ?? "VND") !== "VND";
+  const origBasis = ((values as Record<string, unknown>).cup_basis as CupBasis) ?? "tsc";
   const [draft, setDraft] = useState<Values>(() => initDraft(values, linkedPrice, foreign));
+  const [cupBasis, setCupBasis] = useState<CupBasis>(origBasis);
   const [fxLoading, setFxLoading] = useState(false);
-  useEffect(() => { setDraft(initDraft(values, linkedPrice, foreign)); }, [formKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setDraft(initDraft(values, linkedPrice, foreign));
+    setCupBasis(((values as Record<string, unknown>).cup_basis as CupBasis) ?? "tsc");
+  }, [formKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cupUnit = cupBasis === "drc" ? "độ DRC" : "độ TSC";
 
   const set = (key: string, v: number | null) => setDraft((d) => ({ ...d, [key]: v ?? undefined }));
 
@@ -75,15 +87,17 @@ export default function PurchaseForm({
         fx_purchase: draft.fx_purchase, revenue_usd: draft.revenue_usd, fx_revenue: draft.fx_revenue,
       });
     }
+    (p as Record<string, unknown>).cup_basis = cupBasis;
     return p;
-  }, [draft, revenueVnd, foreign]);
-  const prices: PriceDraft = { latex: priceLatexVnd, cup: priceCupVnd };
+  }, [draft, revenueVnd, foreign, cupBasis]);
+  const prices: PriceDraft = { latex: priceLatexVnd, cup: priceCupVnd, cupBasis };
 
   const dirty = useMemo(() => {
     const orig = initDraft(values, linkedPrice, foreign);
     const keys = new Set([...Object.keys(orig), ...Object.keys(draft)]);
-    return [...keys].some((k) => (num(draft[k]) ?? null) !== (num(orig[k]) ?? null));
-  }, [draft, values, linkedPrice, foreign]);
+    return cupBasis !== origBasis
+      || [...keys].some((k) => (num(draft[k]) ?? null) !== (num(orig[k]) ?? null));
+  }, [draft, values, linkedPrice, foreign, cupBasis, origBasis]);
   useEffect(() => { onDirty?.(dirty); }, [dirty]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchFx = async () => {
@@ -128,13 +142,18 @@ export default function PurchaseForm({
 
         {head("Mủ chén")}
         {field("Sản lượng thu mua", "tấn", numInput(num(draft.coagulum), (v) => set("coagulum", v), readOnly))}
+        {/* Mủ chén tính theo độ TSC hoặc độ DRC — đơn vị tự chọn, đổi luôn nhãn các ô đơn giá bên dưới. */}
+        {field("Đơn giá tính theo", undefined, (
+          <Select size="small" style={{ width: "100%" }} value={cupBasis} disabled={readOnly}
+                  onChange={(v) => setCupBasis(v)} options={CUP_BASES} />
+        ))}
         {foreign ? (
           <>
-            {field("Đơn giá thu mua", `${currency}/độ TSC`, numInput(num(draft.price_cup_local), (v) => set("price_cup_local", v), readOnly))}
-            {field("Đơn giá thu mua", "đồng/độ TSC", readOnlyBox(fmtNum(priceCupVnd, 0), "tự quy đổi"))}
+            {field("Đơn giá thu mua", `${currency}/${cupUnit}`, numInput(num(draft.price_cup_local), (v) => set("price_cup_local", v), readOnly))}
+            {field("Đơn giá thu mua", `đồng/${cupUnit}`, readOnlyBox(fmtNum(priceCupVnd, 0), "tự quy đổi"))}
           </>
         ) : (
-          field("Đơn giá thu mua", "đồng/độ TSC", numInput(num(draft.price_cup_vnd), (v) => set("price_cup_vnd", v), readOnly))
+          field("Đơn giá thu mua", `đồng/${cupUnit}`, numInput(num(draft.price_cup_vnd), (v) => set("price_cup_vnd", v), readOnly))
         )}
 
         {foreign && (

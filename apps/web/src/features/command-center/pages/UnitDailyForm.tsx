@@ -19,6 +19,8 @@ type Props = {
   currency?: string;              // loại tiền đơn vị (VND/LAK/KHR)
   hasFactory?: boolean;           // có nhà máy? (Tiêu thụ: ẩn/hiện tồn kho nguyên liệu)
   role?: "member" | "hq";         // upload file HĐ đúng endpoint
+  company?: string;               // đơn vị đang nhập (Tồn kho: nút "Lấy tồn ngày trước")
+  day?: string;                   // ngày đang nhập  (Tồn kho: nút "Lấy tồn ngày trước")
   defaultTab?: ConsumptionTab;    // Tiêu thụ–Tồn kho: tab mở sẵn
   linkedPrice?: UnitPurchasePrice | null; // đơn giá mủ nước/mủ chén đúng ngày (Thu mua)
   onDirty?: (dirty: boolean) => void;
@@ -26,7 +28,7 @@ type Props = {
 };
 
 export default function UnitDailyForm(
-  { kind, values, readOnly, formKey, currency, hasFactory, role, defaultTab, linkedPrice, onDirty, footer }: Props,
+  { kind, values, readOnly, formKey, currency, hasFactory, role, company, day, defaultTab, linkedPrice, onDirty, footer }: Props,
 ) {
   if (kind === "purchase") {
     return (
@@ -36,7 +38,7 @@ export default function UnitDailyForm(
   }
   return (
     <ConsumptionForm values={values} readOnly={readOnly} formKey={formKey}
-      currency={currency} hasFactory={hasFactory} role={role} defaultTab={defaultTab}
-      onDirty={onDirty} footer={footer} />
+      currency={currency} hasFactory={hasFactory} role={role} company={company} day={day}
+      defaultTab={defaultTab} onDirty={onDirty} footer={footer} />
   );
 }

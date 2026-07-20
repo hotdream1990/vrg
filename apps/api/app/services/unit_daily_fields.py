@@ -24,14 +24,23 @@ PURCHASE_FIELDS: frozenset[str] = frozenset({
     "fx_revenue",         # tỷ giá USD→VND (quy doanh thu USD ra VND)
 })
 
+# Ô CHỮ của biểu Thu mua: mủ chén tính theo độ TSC hay độ DRC (đổi nhãn đơn giá + đơn vị lưu kho giá).
+PURCHASE_TEXT: dict[str, frozenset[str]] = {"cup_basis": frozenset({"tsc", "drc"})}
+
 # Biểu mẫu Tiêu thụ – Tồn kho — TIÊU THỤ = BẢNG NHIỀU DÒNG (`sales`); tổng doanh thu (VND, base=đồng) ở `revenue`.
-# TỒN KHO: `stock_no_contract` (chưa HĐ: chủng loại·loại bành·số lượng kg) + `stock_contract` (đã HĐ:
-# chủng loại·kg·đơn giá·lịch giao·file) + `stock_material_kg` (nguyên liệu, chỉ đơn vị KHÔNG có nhà máy).
+# TỒN KHO (chỉ tiêu THỜI ĐIỂM, đơn vị TẤN như mẫu tuần mục 11–14):
+#   `stock_no_contract` (chưa HĐ: chủng loại · số lượng tấn)
+#   `stock_contract`    (đã HĐ: chủng loại · tấn · đơn giá · lịch giao · file)
+#   `stock_material`    (mục 14: tồn kho nguyên liệu chưa có HĐ — chỉ đơn vị KHÔNG có nhà máy, tấn)
 CONSUMPTION_FIELDS: frozenset[str] = frozenset({
     "revenue",            # tổng doanh thu tiêu thụ (BASE = đồng) — tính từ dòng bán
-    "fx_revenue",         # tỷ giá USD→VND (nước ngoài)
-    "stock_material_kg",  # tồn kho nguyên liệu chưa có HĐ (kg) — đơn vị chưa có nhà máy
+    "fx_revenue",         # tỷ giá USD→VND (khi giá bán / đơn giá tồn kho nhập bằng USD)
+    "stock_material",     # tồn kho nguyên liệu chưa có HĐ (tấn) — đơn vị chưa có nhà máy
 })
+
+# Loại tiền người dùng CHỌN khi nhập giá bán (tiêu thụ) và đơn giá tồn kho đã có HĐ.
+_CCY = frozenset({"VND", "USD"})
+CONSUMPTION_TEXT: dict[str, frozenset[str]] = {"sales_ccy": _CCY, "stock_ccy": _CCY}
 
 _SALE_CONTRACTS = {"long_term", "spot"}   # loại HĐ: Dài hạn | Chuyến
 _SALE_CHANNELS = {"export", "domestic"}   # hình thức: XK/UTXK | Nội tiêu
@@ -63,34 +72,41 @@ def _clean_sales(sales) -> list[dict]:
 
 
 def _clean_stock_no_contract(rows) -> list[dict]:
-    """Tồn kho thành phẩm CHƯA có HĐ: chủng loại · loại bành · số lượng (kg)."""
+    """Tồn kho thành phẩm CHƯA có HĐ: chủng loại · số lượng (TẤN)."""
     out: list[dict] = []
     for r in rows if isinstance(rows, list) else []:
         if not isinstance(r, dict):
             continue
         out.append({
             "grade": str(r.get("grade") or "")[:60],
-            "bale": str(r.get("bale") or "")[:20],
-            "qty_kg": _to_float(r.get("qty_kg")),
+            "qty": _to_float(r.get("qty")),
         })
     return out
 
 
 def _clean_stock_contract(rows) -> list[dict]:
-    """Tồn kho thành phẩm ĐÃ có HĐ: chủng loại · kg · đơn giá · lịch giao · file HĐ (tên file đã upload)."""
+    """Tồn kho thành phẩm ĐÃ có HĐ: chủng loại · TẤN · đơn giá · lịch giao · file HĐ (tên file đã upload)."""
     out: list[dict] = []
     for r in rows if isinstance(rows, list) else []:
         if not isinstance(r, dict):
             continue
         out.append({
             "grade": str(r.get("grade") or "")[:60],
-            "qty_kg": _to_float(r.get("qty_kg")),
+            "qty": _to_float(r.get("qty")),
             "price": _to_float(r.get("price")),
             "delivery_date": str(r.get("delivery_date") or "")[:10] or None,
             "file": str(r.get("file") or "")[:120] or None,       # tên file lưu server
             "filename": str(r.get("filename") or "")[:200] or None,  # tên gốc hiển thị
         })
     return out
+
+
+def _pick_text(fields: dict, spec: dict[str, frozenset[str]], out: dict) -> None:
+    """Nhận các ô CHỮ có tập giá trị đóng (loại tiền, cách tính độ) — sai giá trị thì bỏ qua."""
+    for k, choices in spec.items():
+        v = fields.get(k)
+        if isinstance(v, str) and v in choices:
+            out[k] = v
 
 
 def clean_fields(kind: str, fields: dict) -> dict:
@@ -108,6 +124,7 @@ def clean_fields(kind: str, fields: dict) -> dict:
             fv = _to_float(fields.get(k))
             if fv is not None:
                 out[k] = fv
+        _pick_text(fields, CONSUMPTION_TEXT, out)
         return out
     allow = ALLOWED.get(kind, frozenset())
     out = {}
@@ -117,4 +134,6 @@ def clean_fields(kind: str, fields: dict) -> dict:
         fv = _to_float(v)
         if fv is not None:
             out[k] = fv
+    if kind == "purchase":
+        _pick_text(fields, PURCHASE_TEXT, out)
     return out
