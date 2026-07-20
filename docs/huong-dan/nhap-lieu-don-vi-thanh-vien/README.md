@@ -1,6 +1,6 @@
 # Hướng dẫn nhập liệu — Đơn vị thành viên
 
-Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 4 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho (nhập theo NGÀY) và Kế hoạch năm (nhập 1 lần cho cả năm). Mỗi mục đều có 2 cách nhập: gõ trực tiếp trên màn hình, hoặc tải mẫu Excel về điền rồi nhập lên (xem mục 8).
+Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm). Riêng 4 mục báo cáo còn có thể tải mẫu Excel về điền rồi nhập lên thay vì gõ tay (xem mục 9).
 
 > Bản Word để in/gửi đơn vị: **Huong-dan-nhap-lieu-don-vi-thanh-vien.docx**
 
@@ -14,12 +14,13 @@ Sau khi đăng nhập bằng tài khoản đơn vị, menu bên trái hiển th�
 
 *Hình 1. Menu của tài khoản đơn vị thành viên*
 
-Bốn mục cần nhập:
+Năm mục cần nhập:
 
 1. **Báo cáo thu mua** — sản lượng và đơn giá thu mua mủ nguyên liệu **theo ngày**.
 2. **Báo cáo tiêu thụ** — sản lượng bán theo từng hợp đồng, giá bán và doanh thu **theo ngày**.
 3. **Báo cáo tồn kho** — tồn kho thành phẩm (đã / chưa có hợp đồng) và tồn kho nguyên liệu **theo ngày**.
 4. **Kế hoạch năm** — kế hoạch thu mua và hợp đồng dài hạn đã ký, **nhập 1 lần cho cả năm**.
+5. **Nhu cầu thị trường** — ghi nhận nhu cầu/tín hiệu thị trường của đơn vị, nhập **tự do bằng chữ**.
 
 **Lưu ý:**
 
@@ -161,9 +162,33 @@ Tồn kho là số liệu tại thời điểm cuối ngày, tách thành hai b�
 
 - Nếu tài khoản được giao nhiều đơn vị thì màn này hiện đủ các đơn vị đó.
 
-## 8. Nhập nhanh bằng Excel (tải mẫu → nhập lên)
+## 8. Nhập Nhu cầu thị trường
 
-**Vị trí:** Có ở cả 4 màn: Báo cáo thu mua / tiêu thụ / tồn kho / Kế hoạch năm
+**Vị trí:** Menu → Nhu cầu thị trường
+
+Mục này ghi lại nhu cầu và tín hiệu thị trường mà đơn vị nắm được: khách hỏi mua, chào giá, đơn hàng sắp ký… Đây là phần nhập **tự do bằng chữ**, không có ô số liệu, giúp Ban Thị trường Kinh doanh nắm tình hình thực tế tại đơn vị.
+
+![Hình 9. Nhập Nhu cầu thị trường](img/09-nhu-cau-thi-truong.png)
+
+*Hình 9. Nhập Nhu cầu thị trường*
+
+1. Bấm **Thêm nhu cầu** để mở ô nhập.
+2. Chọn **ngày** ghi nhận nhu cầu.
+3. Chọn **đơn vị** (tài khoản chỉ có đơn vị của mình).
+4. Nhập **nội dung** — viết tự do, nên ghi rõ: khách hàng, chủng loại, số lượng, giá chào và thời điểm giao.
+5. Bấm **Lưu**.
+6. Muốn sửa nội dung đã ghi: bấm **biểu tượng bút** ở dòng tương ứng trong danh sách bên dưới.
+
+**Lưu ý:**
+
+- Danh sách bên dưới xếp theo **dòng thời gian**, chỉ hiện những ngày đã có nhập.
+- Mỗi ngày mỗi đơn vị chỉ có **một nội dung**; nhập lại cho ngày đã có sẽ được nhắc dùng chức năng Sửa.
+- Mục này **không có nhập bằng Excel** — chỉ nhập trực tiếp trên màn hình.
+- Cũng áp dụng cửa sổ thời gian như các báo cáo khác: ngày quá cũ chỉ để xem.
+
+## 9. Nhập nhanh bằng Excel (tải mẫu → nhập lên)
+
+**Vị trí:** Có ở 4 màn báo cáo: Thu mua / Tiêu thụ / Tồn kho / Kế hoạch năm
 
 Khi cần nhập nhiều ngày cùng lúc, nên dùng Excel thay vì gõ từng phiếu. Quy trình 3 bước: tải mẫu → điền ngoại tuyến → nhập lên và xem trước.
 
