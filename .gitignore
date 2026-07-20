@@ -34,6 +34,8 @@ build/
 
 # ─── OS / IDE ────────────────────────────────────────────────
 .DS_Store
+# File khoá tạm của Word/Excel khi đang mở tài liệu
+~$*
 .idea/
 .vscode/
 
