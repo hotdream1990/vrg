@@ -114,7 +114,8 @@ def _consumption_rows(entries: list[dict], plan: dict) -> dict[str, Any]:
     not_wh = last.get("stock_not_warehoused") or []      # khối 1: chế biến chưa nhập kho
     wh = last.get("stock_warehoused") or []              # khối 2: đã nhập kho
     signed = last.get("stock_signed_undelivered") or []  # khối 3: đã ký HĐ chưa giao
-    # Mẫu tuần: mục 11 = khối 1 + khối 2 · mục 12 = khối 3 · mục 13 = 11 − 12.
+    # Khối 3 là CAM KẾT giao hàng (ký trước, sản xuất sau) — KHÔNG nằm trong tồn kho thành phẩm,
+    # nên KHÔNG trừ ra. Mục 11 = mục 13 = khối 1 + khối 2; mục 12 = khối 3 báo riêng.
     by_grade = {g: 0.0 for g in GRADES}
     for r in [*not_wh, *wh]:
         g = r.get("grade")
@@ -123,8 +124,8 @@ def _consumption_rows(entries: list[dict], plan: dict) -> dict[str, Any]:
     t = lambda v: v or None  # số liệu đã ở TẤN — chỉ đổi 0 thành None  # noqa: E731
 
     stock_finished = tonnes(not_wh) + tonnes(wh)
-    stock_hd = tonnes(signed)
-    stock_no_hd = stock_finished - stock_hd
+    stock_hd = tonnes(signed)          # số độc lập, không trừ khỏi tồn kho
+    stock_no_hd = stock_finished
     return {
         "signed_lt_tonnes": _num(plan.get("signed_lt_tonnes")),
         "lt_export": lt_e or None, "lt_domestic": lt_d or None,

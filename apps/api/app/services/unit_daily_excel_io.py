@@ -6,7 +6,8 @@ người dùng nộp → mẫu và bộ đọc không bao giờ lệch nhau.
 4 loại (`kind`):
   purchase   — Thu mua: 1 dòng / (đơn vị, ngày)
   sales      — Tiêu thụ: NHIỀU dòng / (đơn vị, ngày) → gom thành mảng `sales`
-  stock      — Tồn kho: NHIỀU dòng / (đơn vị, ngày) → gom thành `stock_no_contract` / `stock_contract`
+  stock      — Tồn kho: NHIỀU dòng / (đơn vị, ngày) → gom thành 3 khối tồn kho (chưa nhập kho ·
+               đã nhập kho · đã ký HĐ chưa giao) + ô nguyên liệu chưa sản xuất
   plan       — Kế hoạch năm: 1 dòng / (đơn vị, năm)
 
 Ghi có MERGE: nhập Tiêu thụ không xoá Tồn kho của cùng bản ghi ngày đó và ngược lại.
@@ -28,11 +29,12 @@ from app.core.market_meta import UNIT_STOCK_GRADES
 from app.services import member_unit_repo, price_repo, unit_daily_repo
 
 TY = 1_000_000_000
-KG_PER_TONNE = 1000
 
 CONTRACTS = {"Dài hạn": "long_term", "Chuyến": "spot"}
 CHANNELS = {"XK / UTXK": "export", "Nội tiêu": "domestic"}
 # 3 khối tồn kho nhập theo dòng (khối 4 "nguyên liệu chưa sản xuất" là 1 ô riêng, không theo dòng).
+CUP_BASES = {"Độ TSC": "tsc", "Độ DRC": "drc"}
+CCYS = {"VND": "VND", "USD": "USD"}
 STOCK_GROUPS = {
     "Chế biến chưa nhập kho": "not_warehoused",
     "Đã nhập kho": "warehoused",
@@ -66,12 +68,15 @@ _DATE_COL = Col("as_of", "Ngày", "dd/mm/yyyy", required=True, type="date")
 SPECS: dict[str, Spec] = {
     "purchase": Spec(
         "BIỂU NHẬP — THU MUA", "Thu mua",
-        "Mỗi dòng = 1 đơn vị / 1 ngày. Đơn giá ghi vào kho 'Giá mủ nguyên liệu' (đồng/độ TSC).",
+        "Mỗi dòng = 1 đơn vị / 1 ngày. Đơn giá ghi vào kho 'Giá mủ nguyên liệu'. "
+        "Mủ nước luôn theo độ TSC; mủ chén theo cột 'Đơn giá mủ chén tính theo'.",
         [_UNIT_COL, _DATE_COL,
          Col("latex_wet", "SL thu mua mủ nước", "tấn"),
          Col("coagulum", "SL thu mua mủ chén", "tấn"),
          Col("price_latex", "Đơn giá mủ nước", "đồng/độ TSC", width=18),
-         Col("price_cup", "Đơn giá mủ chén", "đồng/độ TSC", width=18),
+         Col("price_cup", "Đơn giá mủ chén", "đồng/độ", width=18),
+         Col("cup_basis", "Đơn giá mủ chén tính theo", "mặc định Độ TSC", type="enum",
+             choices=CUP_BASES, width=22),
          Col("consumption", "SL tiêu thụ mủ thu mua", "tấn", width=20),
          Col("revenue_ty", "Doanh thu", "tỷ đồng")]),
     "sales": Spec(
@@ -84,7 +89,8 @@ SPECS: dict[str, Spec] = {
          Col("grade", "Loại mủ", required=True, type="enum",
              choices={g: g for g in GRADES}, width=20),
          Col("qty", "Số lượng", "tấn"),
-         Col("price", "Giá bán", "triệu đ/tấn (VND) · USD/tấn (nước ngoài)", width=26),
+         Col("price", "Giá bán", "triệu đ/tấn khi VND · USD/tấn khi USD", width=26),
+         Col("sales_ccy", "Giá bán bằng", "VND | USD", type="enum", choices=CCYS, width=14),
          Col("invoice_date", "Ngày xuất hoá đơn", "dd/mm/yyyy", type="date", width=18)]),
     "stock": Spec(
         "BIỂU NHẬP — TỒN KHO", "Tồn kho",
@@ -95,7 +101,8 @@ SPECS: dict[str, Spec] = {
          Col("grade", "Chủng loại", required=True, type="enum",
              choices={g: g for g in GRADES}, width=20),
          Col("qty", "Số lượng", "tấn"),
-         Col("price", "Đơn giá", "triệu đ/tấn (VND) · USD/tấn — chỉ nhóm đã ký HĐ", width=26),
+         Col("price", "Đơn giá", "chỉ nhóm đã ký HĐ", width=18),
+         Col("stock_ccy", "Đơn giá bằng", "VND | USD", type="enum", choices=CCYS, width=14),
          Col("delivery_date", "Lịch giao", "dd/mm/yyyy", type="date"),
          Col("stock_material", "Tồn kho nguyên liệu chưa sản xuất",
              "tấn — đối với các đơn vị chưa có nhà máy chế biến", width=34)]),
@@ -349,12 +356,17 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
             if it.get("revenue_ty") is not None:
                 fields["revenue"] = round(it["revenue_ty"] * TY)   # tỷ đồng → base đồng (làm tròn số thực)
             unit_daily_repo.upsert("purchase", as_of, company, fields, username)
+            basis = next((r.get("cup_basis") for r in items if r.get("cup_basis")), None)
+            if basis:
+                fields["cup_basis"] = basis
             for key, ptype in (("price_latex", "purchase"), ("price_cup", "purchase_cup")):
                 if it.get(key) is not None:
                     price_repo.upsert_record({
                         "as_of": as_of, "source": "vrg", "grade": company, "contract": "",
                         "price_type": ptype, "price": float(it[key]),
-                        "currency": "VND", "unit": "đồng/độ TSC"})
+                        "currency": "VND",
+                        "unit": ("đồng/độ DRC" if ptype == "purchase_cup" and basis == "drc"
+                                 else "đồng/độ TSC")})
         else:
             # MERGE: giữ nguyên phần còn lại của bản ghi ngày đó.
             cur = unit_daily_repo.entries_on("consumption", as_of).get(company) or {}
@@ -366,8 +378,9 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
                 fields["sales"] = lines
                 # Doanh thu về BASE = đồng. Loại tiền của giá bán lấy theo ô đã chọn trên form
                 # (`sales_ccy`); bản ghi chưa có thì suy từ đơn vị (nước ngoài → USD).
-                ccy = fields.get("sales_ccy") or (
-                    "VND" if currencies.get(company, "VND") == "VND" else "USD")
+                ccy = (next((r.get("sales_ccy") for r in items if r.get("sales_ccy")), None)
+                       or fields.get("sales_ccy")
+                       or ("VND" if currencies.get(company, "VND") == "VND" else "USD"))
                 fields["sales_ccy"] = ccy
                 gross = sum((r.get("qty") or 0) * (r.get("price") or 0) for r in items)
                 if ccy == "VND":
@@ -381,6 +394,9 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
                         f"(nhập tỷ giá ở màn Báo cáo tiêu thụ rồi lưu lại).")
             else:
                 # Tồn kho = số THỜI ĐIỂM, đơn vị TẤN (mẫu tuần mục 11–14).
+                sccy = next((r.get("stock_ccy") for r in items if r.get("stock_ccy")), None)
+                if sccy:
+                    fields["stock_ccy"] = sccy
                 pick = lambda g: [r for r in items if r.get("group") == g]  # noqa: E731
                 fields["stock_not_warehoused"] = [
                     {"grade": r["grade"], "qty": r.get("qty")} for r in pick("not_warehoused")]

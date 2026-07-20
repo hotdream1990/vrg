@@ -106,15 +106,17 @@ def test_unit_daily_member_and_editor_flow() -> None:
                    "qty": 12.5, "price": 45}],
         "sales_ccy": "VND", "stock_ccy": "VND",
         "revenue": 562_500_000,
-        "stock_no_contract": [{"grade": "RSS 3", "bale": "bỏ đi", "qty": 24}],
+        "stock_not_warehoused": [{"grade": "RSS 3", "bale": "bỏ đi", "qty": 9}],
+        "stock_warehoused": [{"grade": "RSS 3", "qty": 15}],
+        "stock_signed_undelivered": [{"grade": "RSS 3", "qty": 6, "price": 48}],
         "stock_material": 3.5,
     }}
     assert client.put("/api/unit-daily/report", json=cons, headers=eh).status_code == 200
     tl = client.get("/api/unit-daily/timeline?kind=consumption&days=30", headers=eh)
     saved = next(e for e in tl.json()["entries"] if e["company"] == unit)["fields"]
     assert saved["sales"][0]["qty"] == 12.5
-    assert saved["stock_no_contract"][0]["qty"] == 24
-    assert "bale" not in saved["stock_no_contract"][0]     # cột loại bành đã bỏ hẳn
+    assert saved["stock_not_warehoused"][0]["qty"] == 9 and saved["stock_warehoused"][0]["qty"] == 15
+    assert "bale" not in saved["stock_not_warehoused"][0]  # cột loại bành đã bỏ hẳn
     assert saved["sales_ccy"] == "VND" and saved["stock_material"] == 3.5
 
     # Báo cáo tổng hợp theo kỳ: cộng dồn sản lượng, tồn kho lấy thời điểm cuối kỳ (đã là tấn).
@@ -123,7 +125,9 @@ def test_unit_daily_member_and_editor_flow() -> None:
     assert pr.status_code == 200
     row = next(r for r in pr.json()["rows"] if r["company"] == unit)
     assert row["lt_export"] == 12.5 and row["total_consumption"] == 12.5
-    assert row["stock_no_hd"] == 24.0 and row["stock_material"] == 3.5   # thời điểm, đơn vị tấn
+    # Tồn kho thành phẩm = khối 1 + khối 2 = 24; khối 3 (đã ký HĐ) báo RIÊNG, không trừ ra.
+    assert row["stock_finished"] == 24.0 and row["stock_no_hd"] == 24.0
+    assert row["stock_finished_hd"] == 6.0 and row["stock_material"] == 3.5
 
     # Đơn vị thành viên KHÔNG được xem báo cáo tổng hợp (chỉ admin / quyền unit_daily).
     assert client.get(f"/api/unit-daily/period-report?kind=purchase&date_from={today}&date_to={today}",
@@ -191,13 +195,14 @@ def test_cup_basis_and_prev_stock() -> None:
     # 2) Tồn kho hôm qua → "Lấy tồn ngày trước" của HÔM NAY phải trả đúng số đó (đơn vị tấn).
     assert client.put("/api/member/daily-report", headers=mh, json={
         "kind": "consumption", "company": unit, "as_of": y_day, "fields": {
-            "stock_no_contract": [{"grade": "RSS 3", "qty": 30}],
-            "stock_contract": [{"grade": "SVR 10 / CSR 10", "qty": 12, "price": 40}],
+            "stock_not_warehoused": [{"grade": "RSS 3", "qty": 30}],
+            "stock_signed_undelivered": [{"grade": "SVR 10 / CSR 10", "qty": 12, "price": 40}],
             "stock_material": 5, "stock_ccy": "USD"}}).status_code == 200
     prev = client.get(f"/api/member/daily-report/prev-stock?company={unit}&before={t_day}",
                       headers=mh).json()
     assert prev["found"] and prev["as_of"] == y_day
-    assert prev["stock_no_contract"][0]["qty"] == 30 and prev["stock_material"] == 5
+    assert prev["stock_not_warehoused"][0]["qty"] == 30 and prev["stock_material"] == 5
+    assert prev["stock_signed_undelivered"][0]["qty"] == 12
     assert prev["stock_ccy"] == "USD"
     assert "sales" not in prev          # KHÔNG chép dòng bán sang ngày mới (số phát sinh)
 
