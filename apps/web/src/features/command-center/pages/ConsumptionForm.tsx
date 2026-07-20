@@ -34,7 +34,6 @@ type Props = {
   readOnly?: boolean;
   formKey: string;
   currency?: string;                       // VND/LAK/KHR — ≠VND ⇒ mặc định giá bán theo USD
-  hasFactory?: boolean;                    // (không dùng nữa — mục 14 hiện cho mọi đơn vị)
   role?: Role;                             // để upload file HĐ + lấy tồn ngày trước đúng endpoint
   company?: string;                        // đơn vị đang nhập (lấy tồn ngày trước)
   day?: string;                            // ngày đang nhập  (lấy tồn ngày trước)
@@ -61,7 +60,7 @@ function initData(values: Values, currency?: string): ConsumptionData {
   };
 }
 
-export default function ConsumptionForm({ values, readOnly, formKey, currency, hasFactory = true, role = "member", company, day, defaultTab, onDirty, footer }: Props) {
+export default function ConsumptionForm({ values, readOnly, formKey, currency, role = "member", company, day, defaultTab, onDirty, footer }: Props) {
   const [data, setData] = useState<ConsumptionData>(() => initData(values, currency));
   const [fxLoading, setFxLoading] = useState(false);
   const [prevLoading, setPrevLoading] = useState(false);
@@ -96,9 +95,9 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
       stock_not_warehoused: notWh, stock_warehoused: wh, stock_signed_undelivered: signed,
     };
     if (needFx) p.fx_revenue = data.fx_revenue ?? null;
-    if (!hasFactory) p.stock_material = data.stock_material ?? null;  // khối 4 chỉ cho đơn vị không nhà máy
+    p.stock_material = data.stock_material ?? null;   // khối 4 — mọi đơn vị đều nhập được
     return p as unknown as Values;
-  }, [sales, agg.revenueVnd, notWh, wh, signed, salesCcy, stockCcy, needFx, hasFactory, data]);
+  }, [sales, agg.revenueVnd, notWh, wh, signed, salesCcy, stockCcy, needFx, data]);
 
   const orig = useMemo(() => initData(values, currency), [values, currency]);
   const dirty = useMemo(() => JSON.stringify(data) !== JSON.stringify(orig), [data, orig]);
@@ -337,19 +336,16 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
         {stockCcy === "USD" && fxBox}
       </div>
 
-      {/* Khối 4 — chỉ đơn vị CHƯA có nhà máy chế biến (cấu hình ở Quản lý số liệu → Đơn vị thành viên). */}
-      {!hasFactory && (
-        <>
-          {head("4. Tồn kho nguyên liệu chưa sản xuất")}
-          <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 6 }}>
-            Đối với các đơn vị chưa có nhà máy chế biến.
-          </div>
-          <label style={{ display: "block", maxWidth: 260 }}>
-            {fieldLabel("Số lượng", "tấn")}
-            {numInput(num(data.stock_material), (v) => setData((d) => ({ ...d, stock_material: v })), readOnly)}
-          </label>
-        </>
-      )}
+      {/* Khối 4 — hiện cho MỌI đơn vị; câu "chưa có nhà máy" là ghi chú của biểu mẫu, không phải
+          điều kiện ẩn. Đơn vị nào không có số thì để trống. */}
+      {head("4. Tồn kho nguyên liệu chưa sản xuất")}
+      <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 6 }}>
+        Đối với các đơn vị chưa có nhà máy chế biến — đơn vị đã có nhà máy để trống ô này.
+      </div>
+      <label style={{ display: "block", maxWidth: 260 }}>
+        {fieldLabel("Số lượng", "tấn")}
+        {numInput(num(data.stock_material), (v) => setData((d) => ({ ...d, stock_material: v })), readOnly)}
+      </label>
 
       {head("Tổng hợp tồn kho")}
       <div style={gridStyle}>

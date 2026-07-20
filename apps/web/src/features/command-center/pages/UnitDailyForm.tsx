@@ -17,7 +17,6 @@ type Props = {
   readOnly?: boolean;
   formKey: string;                // đổi khi đổi đơn vị/ngày/loại → reset nháp
   currency?: string;              // loại tiền đơn vị (VND/LAK/KHR)
-  hasFactory?: boolean;           // có nhà máy? (Tiêu thụ: ẩn/hiện tồn kho nguyên liệu)
   role?: "member" | "hq";         // upload file HĐ đúng endpoint
   company?: string;               // đơn vị đang nhập (Tồn kho: nút "Lấy tồn ngày trước")
   day?: string;                   // ngày đang nhập  (Tồn kho: nút "Lấy tồn ngày trước")
@@ -28,7 +27,7 @@ type Props = {
 };
 
 export default function UnitDailyForm(
-  { kind, values, readOnly, formKey, currency, hasFactory, role, company, day, defaultTab, linkedPrice, onDirty, footer }: Props,
+  { kind, values, readOnly, formKey, currency, role, company, day, defaultTab, linkedPrice, onDirty, footer }: Props,
 ) {
   if (kind === "purchase") {
     return (
@@ -38,7 +37,7 @@ export default function UnitDailyForm(
   }
   return (
     <ConsumptionForm values={values} readOnly={readOnly} formKey={formKey}
-      currency={currency} hasFactory={hasFactory} role={role} company={company} day={day}
+      currency={currency} role={role} company={company} day={day}
       defaultTab={defaultTab} onDirty={onDirty} footer={footer} />
   );
 }
