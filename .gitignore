@@ -41,6 +41,8 @@ build/
 
 # ─── Claude Code (local, không commit; launch.json + commands/ thì commit) ───
 .claude/settings.local.json
+# Cấu hình deploy chứa thông tin server (SSH/compose id) — TUYỆT ĐỐI không commit
+*.local.*
 data/bulletins/
 data/weekly-reports/
 data/unit-daily-contracts/
