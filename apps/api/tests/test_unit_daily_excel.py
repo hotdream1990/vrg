@@ -113,3 +113,59 @@ def test_excel_import_single_unit_and_permission() -> None:
                    {"a": UNIT, "b": OTHER})
         db.execute(text("DELETE FROM fact_price WHERE source = 'vrg' AND grade IN (:a, :b)"),
                    {"a": UNIT, "b": OTHER})
+
+
+def test_template_download_then_import_roundtrip() -> None:
+    """Tải mẫu → điền vào ĐÚNG file mẫu → xem trước → ghi → đọc lại: số phải khớp.
+
+    Khoá lại 2 lỗi từng gặp: (1) thêm cột vào mẫu nhưng bộ ghi bỏ qua (cup_basis từng bị gán
+    SAU lệnh upsert nên không lưu); (2) mẫu và bộ đọc lệch cột.
+    """
+    from datetime import timedelta
+    h = _admin()
+    unit = "_zz_xl_rt"
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    d = date.today() - timedelta(days=2)
+    dmy, iso = d.strftime("%d/%m/%Y"), d.isoformat()
+
+    cases = {
+        "purchase": [(unit, dmy, 120.0, 50.0, 540, 510, "Độ DRC", 90, 4.3)],
+        "sales": [(unit, dmy, "Dài hạn", "XK / UTXK", "SVR CV 50", 25, 1800, "USD", dmy)],
+        "stock": [(unit, dmy, "Chế biến chưa nhập kho", "SVR CV 50", 33, None, None, None, None),
+                  (unit, dmy, "Đã nhập kho", "SVR 3L", 66, None, None, None, None),
+                  (unit, dmy, "Đã ký HĐ chưa giao", "RSS 3", 12, 1750, "USD", dmy, 21)],
+    }
+    for kind, rows in cases.items():
+        tpl = client.get(f"/api/unit-daily/import/template?kind={kind}", headers=h)
+        assert tpl.status_code == 200
+        wb = load_workbook(io.BytesIO(tpl.content))
+        ws = wb.active
+        for i, r in enumerate(rows, start=7):
+            for j, v in enumerate(r, start=1):
+                if v is not None:
+                    ws.cell(row=i, column=j, value=v)
+        buf = io.BytesIO()
+        wb.save(buf)
+        prev = client.post(f"/api/unit-daily/import/preview?kind={kind}", headers=h,
+                           files={"file": ("f.xlsx", buf.getvalue())}).json()
+        assert prev["summary"]["error"] == 0, (kind, prev["rows"])
+        assert client.post("/api/unit-daily/import/commit", headers=h,
+                           json={"kind": kind, "rows": prev["rows"]}).json()["saved"] >= 1
+
+    pur = client.get(f"/api/unit-daily/day?kind=purchase&as_of={iso}",
+                     headers=h).json()["entries"][unit]["fields"]
+    assert pur["cup_basis"] == "drc" and pur["latex_wet"] == 120.0
+
+    con = client.get(f"/api/unit-daily/day?kind=consumption&as_of={iso}",
+                     headers=h).json()["entries"][unit]["fields"]
+    assert con["sales_ccy"] == "USD" and con["sales"][0]["invoice_date"] == iso
+    assert con["stock_ccy"] == "USD"
+    assert con["stock_not_warehoused"][0]["qty"] == 33
+    assert con["stock_warehoused"][0]["qty"] == 66
+    assert con["stock_signed_undelivered"][0]["qty"] == 12
+    assert con["stock_material"] == 21
+
+    with session_scope() as db:
+        db.execute(text("DELETE FROM unit_daily_report WHERE company = :u"), {"u": unit})
+        db.execute(text("DELETE FROM fact_price WHERE source='vrg' AND grade = :u"), {"u": unit})
+    client.delete(f"/api/member-units/{unit}", headers=h)

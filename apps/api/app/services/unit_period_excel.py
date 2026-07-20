@@ -20,45 +20,44 @@ _THIN = Side(style="thin", color="9AA5A0")
 _BORDER = Border(left=_THIN, right=_THIN, top=_THIN, bottom=_THIN)
 _NUM = "#,##0.00"
 
-# (khoá dữ liệu, tiêu đề cột, ghi chú công thức của mẫu)
-_PURCHASE_COLS: list[tuple[str, str, str]] = [
-    ("latex_wet", "Sản lượng thu mua mủ nước", "cộng dồn"),
-    ("coagulum", "Sản lượng thu mua mủ chén", "cộng dồn"),
-    ("total_purchase", "Tổng sản lượng thu mua", "= mủ nước + mủ chén"),
-    ("price_latex_avg", "Giá thu mua mủ nước BQ", "bình quân gia quyền"),
-    ("price_cup_avg", "Giá thu mua mủ chén BQ", "bình quân gia quyền"),
-    ("plan_tonnes", "Kế hoạch thu mua", "số liệu năm"),
-    ("pct_plan", "% thực hiện kế hoạch", "= thực hiện / kế hoạch"),
-    ("consumption", "Sản lượng tiêu thụ mủ thu mua", "cộng dồn"),
-    ("revenue_ty", "Doanh thu tiêu thụ mủ thu mua", "cộng dồn"),
-    ("avg_sell_price", "Giá bán bình quân", "= doanh thu / sản lượng"),
+# (khoá dữ liệu, tiêu đề cột, ghi chú công thức của mẫu, ĐƠN VỊ TÍNH)
+# Đơn vị tính nằm CHUNG tuple với cột — trước đây tách thành list riêng nên thêm cột mà quên
+# thêm đơn vị là cả bảng lệch nhãn mà không ai biết.
+_PURCHASE_COLS: list[tuple[str, str, str, str]] = [
+    ("latex_wet", "Sản lượng thu mua mủ nước", "cộng dồn", "tấn"),
+    ("coagulum", "Sản lượng thu mua mủ chén", "cộng dồn", "tấn"),
+    ("total_purchase", "Tổng sản lượng thu mua", "= mủ nước + mủ chén", "tấn"),
+    ("price_latex_avg", "Giá thu mua mủ nước BQ", "bình quân gia quyền", "đồng/độ TSC"),
+    ("price_cup_avg", "Giá thu mua mủ chén BQ", "bình quân gia quyền", "đồng/độ"),
+    ("plan_tonnes", "Kế hoạch thu mua", "số liệu năm", "tấn"),
+    ("pct_plan", "% thực hiện kế hoạch", "= thực hiện / kế hoạch", "%"),
+    ("consumption", "Sản lượng tiêu thụ mủ thu mua", "cộng dồn", "tấn"),
+    ("revenue_ty", "Doanh thu tiêu thụ mủ thu mua", "cộng dồn", "tỷ đồng"),
+    ("avg_sell_price", "Giá bán bình quân", "= doanh thu / sản lượng", "triệu đ/tấn"),
 ]
-_PURCHASE_UNITS = ["tấn", "tấn", "tấn", "đồng/độ TSC", "đồng/độ TSC", "tấn", "%",
-                   "tấn", "tỷ đồng", "triệu đ/tấn"]
 
-_CONSUMPTION_COLS: list[tuple[str, str, str]] = [
-    ("signed_lt_tonnes", "Tổng SL đã ký HĐ dài hạn", "số liệu năm"),
-    ("lt_export", "HĐ dài hạn — XK/UTXK", "cộng dồn"),
-    ("lt_domestic", "HĐ dài hạn — Nội tiêu", "cộng dồn"),
-    ("spot_export", "HĐ chuyến — XK/UTXK", "cộng dồn"),
-    ("spot_domestic", "HĐ chuyến — Nội tiêu", "cộng dồn"),
-    ("total_consumption", "Tổng tiêu thụ", "= tổng 4 cột trên"),
-    ("export_total", "Tổng XK/UTXK", "= dài hạn + chuyến"),
-    ("domestic_total", "Tổng Nội tiêu", "= dài hạn + chuyến"),
-    ("revenue_ty", "Doanh thu cao su", "cộng dồn"),
-    ("avg_sell_price", "Giá bán bình quân", "= doanh thu / tiêu thụ"),
-    ("stock_finished", "Tồn kho thành phẩm", "thời điểm"),
-    ("stock_not_warehoused", "Trong đó chế biến chưa nhập kho", "thời điểm"),
-    ("stock_warehoused", "Trong đó đã nhập kho", "thời điểm"),
-    ("stock_finished_hd", "Đã ký hợp đồng chưa giao", "thời điểm — cam kết, không nằm trong tồn kho"),
-    ("stock_no_hd", "Thành phẩm tồn kho chưa có hợp đồng", "thời điểm"),
+# TỒN KHO: khối 1 và khối 2 là HAI chỉ tiêu khác nhau → mỗi khối một dòng riêng, rồi mới tới tổng.
+# Khối 3 (đã ký HĐ chưa giao) là CAM KẾT, đứng riêng, không cộng vào tổng và không trừ ra.
+_CONSUMPTION_COLS: list[tuple[str, str, str, str]] = [
+    ("signed_lt_tonnes", "Tổng SL đã ký HĐ dài hạn", "số liệu năm", "tấn"),
+    ("lt_export", "HĐ dài hạn — XK/UTXK", "cộng dồn", "tấn"),
+    ("lt_domestic", "HĐ dài hạn — Nội tiêu", "cộng dồn", "tấn"),
+    ("spot_export", "HĐ chuyến — XK/UTXK", "cộng dồn", "tấn"),
+    ("spot_domestic", "HĐ chuyến — Nội tiêu", "cộng dồn", "tấn"),
+    ("total_consumption", "Tổng tiêu thụ", "= tổng 4 cột trên", "tấn"),
+    ("export_total", "Tổng XK/UTXK", "= dài hạn + chuyến", "tấn"),
+    ("domestic_total", "Tổng Nội tiêu", "= dài hạn + chuyến", "tấn"),
+    ("revenue_ty", "Doanh thu cao su", "cộng dồn", "tỷ đồng"),
+    ("avg_sell_price", "Giá bán bình quân", "= doanh thu / tiêu thụ", "triệu đ/tấn"),
+    ("stock_not_warehoused", "Tồn kho thành phẩm chế biến chưa nhập kho", "thời điểm", "tấn"),
+    ("stock_warehoused", "Tồn kho thành phẩm đã nhập kho", "thời điểm", "tấn"),
+    ("stock_finished", "Tổng tồn kho thành phẩm", "= chưa nhập kho + đã nhập kho", "tấn"),
+    ("stock_finished_hd", "Số lượng đã ký HĐ chưa giao", "thời điểm — cam kết, ngoài tồn kho", "tấn"),
 ]
-_CONSUMPTION_UNITS = ["tấn", "tấn", "tấn", "tấn", "tấn", "tấn", "tấn", "tấn",
-                      "tỷ đồng", "triệu đ/tấn", "tấn", "tấn", "tấn"]
-_TAIL_COLS: list[tuple[str, str, str]] = [
-    ("stock_material", "Tồn kho nguyên liệu chưa sản xuất", "thời điểm"),
-    ("carry_lt_tonnes", "HĐ dài hạn năm trước chuyển sang", "số liệu năm"),
-    ("carry_spot_tonnes", "HĐ chuyến năm trước chuyển sang", "số liệu năm"),
+_TAIL_COLS: list[tuple[str, str, str, str]] = [
+    ("stock_material", "Tồn kho nguyên liệu chưa sản xuất", "thời điểm", "tấn"),
+    ("carry_lt_tonnes", "HĐ dài hạn năm trước chuyển sang", "số liệu năm", "tấn"),
+    ("carry_spot_tonnes", "HĐ chuyến năm trước chuyển sang", "số liệu năm", "tấn"),
 ]
 
 _TITLE = {
@@ -69,18 +68,16 @@ _TITLE = {
 _NO_SUM = {"price_latex_avg", "price_cup_avg", "pct_plan", "avg_sell_price"}
 
 
-def _columns(kind: str, grades: list[str]) -> tuple[list[tuple[str, str, str]], list[str]]:
-    """Cột dữ liệu + đơn vị tính. Biểu tiêu thụ chèn 9 chủng loại tồn kho vào giữa."""
+def _columns(kind: str, grades: list[str]) -> tuple[list[tuple[str, str, str, str]], list[str]]:
+    """Cột dữ liệu + đơn vị tính. Biểu tiêu thụ chèn tồn kho theo chủng loại vào giữa."""
     if kind == "purchase":
-        return list(_PURCHASE_COLS), list(_PURCHASE_UNITS)
-    cols = list(_CONSUMPTION_COLS)
-    units = list(_CONSUMPTION_UNITS)
-    for g in grades:                       # 13.1–13.8: tồn kho chưa HĐ theo chủng loại
-        cols.append((f"grade::{g}", g, "thời điểm"))
-        units.append("tấn")
-    cols += _TAIL_COLS
-    units += ["tấn", "tấn", "tấn"]
-    return cols, units
+        cols = list(_PURCHASE_COLS)
+    else:
+        cols = list(_CONSUMPTION_COLS)
+        # Tồn kho thành phẩm tách theo chủng loại (khối 1 + khối 2 gộp lại theo từng loại).
+        cols += [(f"grade::{g}", g, "thời điểm", "tấn") for g in grades]
+        cols += _TAIL_COLS
+    return cols, [c[3] for c in cols]      # đơn vị suy thẳng từ cột → không thể lệch
 
 
 def _value(row: dict, key: str) -> Any:
@@ -126,7 +123,7 @@ def build_period_xlsx(report: dict) -> bytes:
     for row in rows:
         ws.cell(row=r, column=1, value=row.get("region") or "").border = _BORDER
         ws.cell(row=r, column=2, value=row.get("company")).border = _BORDER
-        for i, (key, _, _) in enumerate(cols, start=3):
+        for i, (key, *_) in enumerate(cols, start=3):
             c = ws.cell(row=r, column=i, value=_value(row, key))
             c.number_format = _NUM
             c.border = _BORDER
@@ -136,7 +133,7 @@ def build_period_xlsx(report: dict) -> bytes:
     ws.cell(row=r, column=2, value="Tổng cộng").font = Font(bold=True)
     ws.cell(row=r, column=1).fill = _TOTAL_FILL
     ws.cell(row=r, column=2).fill = _TOTAL_FILL
-    for i, (key, _, _) in enumerate(cols, start=3):
+    for i, (key, *_) in enumerate(cols, start=3):
         total = None
         if key not in _NO_SUM:
             vals = [v for v in (_value(x, key) for x in rows) if isinstance(v, (int, float))]

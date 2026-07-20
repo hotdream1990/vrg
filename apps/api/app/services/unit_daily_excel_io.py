@@ -355,10 +355,11 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
                       if it.get(k) is not None}
             if it.get("revenue_ty") is not None:
                 fields["revenue"] = round(it["revenue_ty"] * TY)   # tỷ đồng → base đồng (làm tròn số thực)
-            unit_daily_repo.upsert("purchase", as_of, company, fields, username)
+            # Cách tính độ của mủ chén phải gán TRƯỚC khi ghi, không thì không được lưu.
             basis = next((r.get("cup_basis") for r in items if r.get("cup_basis")), None)
             if basis:
                 fields["cup_basis"] = basis
+            unit_daily_repo.upsert("purchase", as_of, company, fields, username)
             for key, ptype in (("price_latex", "purchase"), ("price_cup", "purchase_cup")):
                 if it.get(key) is not None:
                     price_repo.upsert_record({
