@@ -54,7 +54,7 @@ _CONSUMPTION_COLS: list[tuple[str, str, str]] = [
 _CONSUMPTION_UNITS = ["tấn", "tấn", "tấn", "tấn", "tấn", "tấn", "tấn", "tấn",
                       "tỷ đồng", "triệu đ/tấn", "tấn", "tấn", "tấn"]
 _TAIL_COLS: list[tuple[str, str, str]] = [
-    ("stock_material", "Tồn kho nguyên liệu chưa có HĐ", "thời điểm"),
+    ("stock_material", "Tồn kho nguyên liệu chưa sản xuất", "thời điểm"),
     ("carry_lt_tonnes", "HĐ dài hạn năm trước chuyển sang", "số liệu năm"),
     ("carry_spot_tonnes", "HĐ chuyến năm trước chuyển sang", "số liệu năm"),
 ]

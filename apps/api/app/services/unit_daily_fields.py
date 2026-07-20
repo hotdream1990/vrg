@@ -31,11 +31,11 @@ PURCHASE_TEXT: dict[str, frozenset[str]] = {"cup_basis": frozenset({"tsc", "drc"
 # TỒN KHO (chỉ tiêu THỜI ĐIỂM, đơn vị TẤN như mẫu tuần mục 11–14):
 #   `stock_no_contract` (chưa HĐ: chủng loại · số lượng tấn)
 #   `stock_contract`    (đã HĐ: chủng loại · tấn · đơn giá · lịch giao · file)
-#   `stock_material`    (mục 14: tồn kho nguyên liệu chưa có HĐ — chỉ đơn vị KHÔNG có nhà máy, tấn)
+#   `stock_material`    (mục 14: tồn kho nguyên liệu CHƯA SẢN XUẤT — chỉ đơn vị KHÔNG có nhà máy, tấn)
 CONSUMPTION_FIELDS: frozenset[str] = frozenset({
     "revenue",            # tổng doanh thu tiêu thụ (BASE = đồng) — tính từ dòng bán
     "fx_revenue",         # tỷ giá USD→VND (khi giá bán / đơn giá tồn kho nhập bằng USD)
-    "stock_material",     # tồn kho nguyên liệu chưa có HĐ (tấn) — đơn vị chưa có nhà máy
+    "stock_material",     # tồn kho nguyên liệu chưa sản xuất (tấn) — đơn vị chưa có nhà máy chế biến
 })
 
 # Loại tiền người dùng CHỌN khi nhập giá bán (tiêu thụ) và đơn giá tồn kho đã có HĐ.

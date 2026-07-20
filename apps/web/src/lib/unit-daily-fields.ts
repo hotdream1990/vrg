@@ -80,7 +80,7 @@ const CONSUMPTION: Column[] = [
   { key: "stock_contract_t", label: "Tồn kho đã HĐ", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_contract") || null },
   { key: "stock_finished_t", label: "Tồn kho thành phẩm", unit: "tấn", group: _TK,
     compute: (v) => (stockTonnes(v, "stock_no_contract") + stockTonnes(v, "stock_contract")) || null },
-  { key: "stock_material", label: "Tồn kho nguyên liệu chưa có HĐ", unit: "tấn", group: _TK,
+  { key: "stock_material", label: "Tồn kho nguyên liệu chưa sản xuất", unit: "tấn", group: _TK,
     hint: "đối với các đơn vị chưa có nhà máy chế biến" },
 ];
 

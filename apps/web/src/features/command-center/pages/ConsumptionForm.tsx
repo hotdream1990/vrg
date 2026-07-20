@@ -81,6 +81,12 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
 
   const agg = totals(sales, salesCcy, data.fx_revenue);
 
+  /** Giá trị 1 dòng tồn kho đã có HĐ, quy về đồng (USD cần tỷ giá; thiếu tỷ giá → null, không đoán). */
+  const stockLineVnd = (r: StockContractLine): number | null =>
+    lineRevenueVnd({ contract: "long_term", channel: "export", grade: r.grade, qty: r.qty, price: r.price },
+                   stockCcy, data.fx_revenue);
+  const stockValueVnd = hd.reduce((a, r) => a + (stockLineVnd(r) ?? 0), 0);
+
   const current = useMemo<Values>(() => {
     const p: ConsumptionData = {
       sales, revenue: agg.revenueVnd, stock_no_contract: noHd, stock_contract: hd,
@@ -258,7 +264,8 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
         <table className="ud-sales">
           <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
             <th style={{ width: 160 }}>Chủng loại</th><th style={{ width: 110 }} className="r">SL (tấn)</th>
-            <th style={{ width: 130 }} className="r">Đơn giá ({priceUnitOf(stockCcy)})</th><th style={{ width: 140 }}>Lịch giao</th>
+            <th style={{ width: 130 }} className="r">Đơn giá ({priceUnitOf(stockCcy)})</th>
+            <th style={{ width: 120 }} className="r">Thành tiền (triệu đ)</th><th style={{ width: 140 }}>Lịch giao</th>
             <th style={{ width: 150 }}>File HĐ</th>{!readOnly && <th style={{ width: 34 }} />}
           </tr></thead>
           <tbody>
@@ -267,6 +274,9 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
                 <td>{gradeSel(r.grade, (v) => setHd(hd.map((x, j) => j === i ? { ...x, grade: v } : x)))}</td>
                 <td>{numInput(num(r.qty), (v) => setHd(hd.map((x, j) => j === i ? { ...x, qty: v } : x)), readOnly)}</td>
                 <td>{numInput(num(r.price), (v) => setHd(hd.map((x, j) => j === i ? { ...x, price: v } : x)), readOnly)}</td>
+                <td className="r" style={{ paddingRight: 6, fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {(() => { const vnd = stockLineVnd(r); return fmtNum(vnd == null ? null : vnd / 1_000_000, 1); })()}
+                </td>
                 <td><input type="date" className="blt-cell-input" style={{ width: "100%" }} value={r.delivery_date ?? ""} disabled={readOnly}
                   onChange={(e) => setHd(hd.map((x, j) => j === i ? { ...x, delivery_date: e.target.value || null } : x))} /></td>
                 <td>
@@ -285,7 +295,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
                 {!readOnly && <td className="r"><button type="button" className="btn" style={{ padding: "0 7px" }} onClick={() => setHd(hd.filter((_, j) => j !== i))}><DeleteOutlined /></button></td>}
               </tr>
             ))}
-            {hd.length === 0 && <tr><td colSpan={readOnly ? 5 : 6} style={{ textAlign: "center", color: "var(--muted)", padding: 12, fontSize: 12.5 }}>Chưa có dòng.</td></tr>}
+            {hd.length === 0 && <tr><td colSpan={readOnly ? 6 : 7} style={{ textAlign: "center", color: "var(--muted)", padding: 12, fontSize: 12.5 }}>Chưa có dòng.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -293,7 +303,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
         {ccySel("Đơn giá nhập bằng", stockCcy, (v) => setData((d) => ({ ...d, stock_ccy: v })))}
-        {stockCcy === "USD" && salesCcy !== "USD" && fxBox}
+        {stockCcy === "USD" && fxBox}
       </div>
 
       {/* ── Tổng hợp tồn kho ── */}
@@ -302,10 +312,11 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, h
         {box("Tồn kho chưa HĐ", "tấn", stockTonnesTotal(noHd) || null)}
         {box("Tồn kho đã HĐ", "tấn", stockTonnesTotal(hd) || null)}
         {box("Tồn kho thành phẩm", "tấn", (stockTonnesTotal(noHd) + stockTonnesTotal(hd)) || null)}
+        {stockValueVnd > 0 && box("Giá trị tồn kho đã HĐ", "tỷ đồng", toTyDong(stockValueVnd), 3)}
         {/* Mục 14 mẫu tuần — chỉ đơn vị CHƯA có nhà máy chế biến (cấu hình ở Đơn vị thành viên). */}
         {!hasFactory && (
           <label style={{ display: "block" }}>
-            {fieldLabel("Tồn kho nguyên liệu chưa có HĐ", "tấn")}
+            {fieldLabel("Tồn kho nguyên liệu chưa sản xuất", "tấn")}
             {numInput(num(data.stock_material), (v) => setData((d) => ({ ...d, stock_material: v })), readOnly)}
           </label>
         )}

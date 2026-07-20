@@ -90,8 +90,8 @@ SPECS: dict[str, Spec] = {
          Col("qty", "Số lượng", "tấn"),
          Col("price", "Đơn giá", "triệu đ/tấn (VND) · USD/tấn — chỉ nhóm đã có HĐ", width=26),
          Col("delivery_date", "Lịch giao", "dd/mm/yyyy", type="date"),
-         Col("stock_material", "Tồn kho nguyên liệu chưa có HĐ",
-             "tấn — đơn vị chưa có nhà máy chế biến", width=30)]),
+         Col("stock_material", "Tồn kho nguyên liệu chưa sản xuất",
+             "tấn — đối với các đơn vị chưa có nhà máy chế biến", width=34)]),
     "plan": Spec(
         "BIỂU NHẬP — KẾ HOẠCH NĂM", "Kế hoạch năm",
         "Mỗi dòng = 1 đơn vị / 1 năm. Số liệu nhập 1 lần, cập nhật khi có thay đổi.",
