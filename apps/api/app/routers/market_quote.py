@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.core.permissions import LEVEL_EDIT
 from app.core.security import assert_editor_window, require_any_cap
 from app.schemas.market_quote import (
     MarketQuote,
@@ -15,8 +16,8 @@ from app.services import market_quote_repo, vcb_rate
 
 router = APIRouter(prefix="/api/market-quote", tags=["market-quote"])
 
-# cần 1 trong 2 quyền (Mục 1-4 hoặc Mục 5); trả username để áp cửa sổ sửa
-_editor_dep = Depends(require_any_cap("market_quote", "raw_material"))
+# ghi: cần 1 trong 2 quyền (Mục 1-4 hoặc Mục 5) ở mức Sửa; trả username để áp cửa sổ sửa
+_editor_dep = Depends(require_any_cap("market_quote", "raw_material", level=LEVEL_EDIT))
 
 
 @router.get("", response_model=list[MarketQuoteSummary])

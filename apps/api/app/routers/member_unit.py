@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.core.security import require_cap
+from app.core.security import require_cap_edit
 from app.schemas.member_unit import (
     MemberUnit,
     MemberUnitAdd,
@@ -15,7 +15,7 @@ from app.services import member_unit_repo
 
 router = APIRouter(prefix="/api/member-units", tags=["member-units"])
 
-_editor = [Depends(require_cap("member_unit"))]  # ghi: cần quyền 'member_unit'
+_editor = [Depends(require_cap_edit("member_unit"))]  # ghi: cần 'member_unit' mức Sửa
 
 
 @router.get("", response_model=list[MemberUnit])

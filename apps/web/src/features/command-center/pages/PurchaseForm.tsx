@@ -141,7 +141,8 @@ export default function PurchaseForm({
         </Checkbox>
         <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 6, lineHeight: 1.55 }}>
           Chỉ tích khi <b>không tổ chức thu mua</b>. Nếu có công bố giá và có tổ chức mua nhưng
-          <b> không mua được</b> thì <b>đừng tích</b> — hãy nhập <b>sản lượng 0</b> kèm <b>đúng mức giá đã công bố</b>
+          <b> không mua được</b> thì <b>đừng tích</b> — hãy nhập <b>sản lượng 0</b> kèm{" "}
+          <b>đúng mức giá đã công bố</b>{" "}
           (không mua được ở mọi mức thì nhập 0 với <b>mức giá thấp nhất</b> đang công bố).
           Hai trường hợp này khác nhau khi tổng hợp báo cáo.
         </div>

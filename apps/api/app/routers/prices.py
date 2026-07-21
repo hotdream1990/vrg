@@ -11,7 +11,14 @@ import tempfile
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.paths import crawlers_dir
-from app.core.security import assert_cap, assert_editor_window, get_current_user, require_cap
+from app.core.permissions import LEVEL_EDIT
+from app.core.security import (
+    assert_cap,
+    assert_editor_window,
+    get_current_user,
+    require_cap,
+    require_cap_edit,
+)
 
 # Các mục nhập tay của chuyên viên bị áp cửa sổ sửa (N ngày gần nhất); auto_data thì không.
 _WINDOWED_CAPS = {"raw_material", "physical"}
@@ -29,9 +36,13 @@ logger = logging.getLogger("vrg.api")
 
 router = APIRouter(prefix="/api/prices", tags=["prices"])
 
-# Quyền ghi theo mục dữ liệu (admin=tất cả). Router này phục vụ nhiều màn hình khác nhau:
-_auto = [Depends(require_cap("auto_data"))]      # quét đa sàn · bảng tính giá các sàn
-_phys = [Depends(require_cap("physical"))]       # giá physical (preview Reuters)
+# Quyền GHI theo mục dữ liệu — mức Sửa (admin=tất cả). Router này phục vụ nhiều màn hình khác nhau:
+_auto = [Depends(require_cap_edit("auto_data"))]  # quét đa sàn · bảng tính giá các sàn
+_phys = [Depends(require_cap_edit("physical"))]   # giá physical (preview Reuters)
+# Quyền ĐỌC — chỉ gác các endpoint phục vụ DUY NHẤT màn 'Quét đa sàn' (auto_data).
+# Các lưới đọc dùng chung (sheet · board · purchase-sheet · physical-sheet) KHÔNG gác vì
+# Dashboard và Bản tin biến động cũng đọc chúng — gác sẽ vỡ 2 màn đó.
+_auto_view = [Depends(require_cap("auto_data"))]
 
 _CRAWLER_DIR = crawlers_dir()
 
@@ -87,13 +98,13 @@ def backfill(
             "persisted": persisted, "run_id": run_id, "db": db_note}
 
 
-@router.get("/latest")
+@router.get("/latest", dependencies=_auto_view)
 def latest() -> dict:
     """Giá mới nhất mỗi (sàn, mặt hàng) đã ghi trong DB."""
     return {"records": price_repo.latest()}
 
 
-@router.get("/crawl-runs")
+@router.get("/crawl-runs", dependencies=_auto_view)
 def crawl_runs(limit: int = Query(20, ge=1, le=100)) -> dict:
     """Nhật ký các lần quét gần nhất (manual + cron) từ meta_crawl_run."""
     return {"runs": price_repo.recent_runs(limit)}
@@ -116,7 +127,7 @@ def purchase_sheet(
 
 @router.delete("/purchase")
 def delete_purchase(as_of: str = Query(..., description="YYYY-MM-DD"),
-                    username: str = Depends(require_cap("raw_material"))) -> dict:
+                    username: str = Depends(require_cap_edit("raw_material"))) -> dict:
     """Xoá toàn bộ giá thu mua mủ nước của 1 ngày (trong cửa sổ sửa; admin miễn)."""
     assert_editor_window(username, as_of)
     return {"deleted": price_repo.delete_purchase_date(as_of)}
@@ -133,7 +144,7 @@ def physical_sheet(
 
 @router.delete("/physical")
 def delete_physical(as_of: str = Query(..., description="YYYY-MM-DD"),
-                    username: str = Depends(require_cap("physical"))) -> dict:
+                    username: str = Depends(require_cap_edit("physical"))) -> dict:
     """Xoá toàn bộ giá physical của 1 ngày (trong cửa sổ sửa; admin miễn)."""
     assert_editor_window(username, as_of)
     return {"deleted": price_repo.delete_physical_date(as_of)}
@@ -157,7 +168,7 @@ def sheet(
     return price_sheet.build_sheet(days, date_from, date_to)
 
 
-@router.get("/records")
+@router.get("/records", dependencies=_auto_view)
 def list_records(
     source: str | None = Query(None, description="lọc theo nguồn"),
     grade: str | None = Query(None, description="lọc theo chỉ số (chứa)"),
@@ -175,7 +186,7 @@ def list_records(
 def upsert_record(rec: PriceRecordEdit, username: str = Depends(get_current_user)) -> dict:
     """Thêm mới hoặc sửa 1 bản ghi giá (theo khóa as_of+source+grade+contract+price_type)."""
     cap = _cap_for_record(rec.source, rec.price_type)
-    assert_cap(username, cap)
+    assert_cap(username, cap, LEVEL_EDIT)
     if cap in _WINDOWED_CAPS:
         assert_editor_window(username, rec.as_of)
     price_repo.upsert_record(rec.model_dump())
@@ -193,7 +204,7 @@ def delete_record(
 ) -> dict:
     """Xóa 1 bản ghi giá theo khóa."""
     cap = _cap_for_record(source, price_type)
-    assert_cap(username, cap)
+    assert_cap(username, cap, LEVEL_EDIT)
     if cap in _WINDOWED_CAPS:
         assert_editor_window(username, as_of)
     if not price_repo.delete_record(as_of, source, grade, contract, price_type):

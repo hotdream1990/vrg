@@ -11,12 +11,13 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core import edit_window
-from app.core.security import assert_editor_window, require_cap
+from app.core.security import assert_editor_window, require_cap, require_cap_edit
 from app.schemas.market_demand import MarketDemandEdit
 from app.services import market_demand_repo, member_unit_repo
 
 router = APIRouter(prefix="/api/market-demand", tags=["market-demand"])
-_require_md = require_cap("market_demand")
+_require_md = require_cap("market_demand")            # đọc: mức Xem là đủ
+_require_md_edit = require_cap_edit("market_demand")  # ghi: bắt buộc mức Sửa
 
 
 @router.get("/timeline")
@@ -47,7 +48,7 @@ def list_all(as_of: str = Query(..., description="YYYY-MM-DD"),
 
 
 @router.put("")
-def upsert(body: MarketDemandEdit, username: str = Depends(_require_md)) -> dict:
+def upsert(body: MarketDemandEdit, username: str = Depends(_require_md_edit)) -> dict:
     """Ghi/sửa nhu cầu 1 đơn vị (trong cửa sổ sửa của chuyên viên; admin miễn).
 
     `create_only=True` (nút Thêm nhu cầu) → chặn 409 nếu đơn vị đã có nhu cầu ngày đó (chống ghi trùng).

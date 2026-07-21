@@ -7,7 +7,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.core.security import assert_editor_window, require_cap
+from app.core.security import assert_editor_window, require_cap_edit
 from app.services import inventory_repo
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
@@ -27,7 +27,7 @@ def list_weeks(limit: int | None = None) -> list[dict]:
 
 
 @router.post("")
-def upsert_week(body: InventoryIn, username: str = Depends(require_cap("inventory"))) -> dict:
+def upsert_week(body: InventoryIn, username: str = Depends(require_cap_edit("inventory"))) -> dict:
     """Thêm/sửa 1 tuần (khóa = as_of) — trong cửa sổ sửa; admin miễn."""
     if not body.as_of.strip():
         raise HTTPException(400, "Thiếu ngày tuần")
@@ -36,7 +36,7 @@ def upsert_week(body: InventoryIn, username: str = Depends(require_cap("inventor
 
 
 @router.delete("/{as_of}")
-def delete_week(as_of: str, username: str = Depends(require_cap("inventory"))) -> dict:
+def delete_week(as_of: str, username: str = Depends(require_cap_edit("inventory"))) -> dict:
     """Xoá 1 tuần (trong cửa sổ sửa; admin miễn)."""
     assert_editor_window(username, as_of)
     if not inventory_repo.delete(as_of):

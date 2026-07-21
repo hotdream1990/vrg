@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, Up
 from fastapi.responses import FileResponse
 
 from app.core import edit_window
-from app.core.security import assert_editor_window, require_cap
+from app.core.security import assert_editor_window, require_cap, require_cap_edit
 from app.schemas.unit_daily import ExcelImportCommit, PurchasePlanEdit, UnitDailyEdit
 from app.services import (
     contract_files, member_unit_repo, unit_daily_excel_io, unit_daily_repo,
@@ -21,7 +21,8 @@ from app.services import (
 )
 
 router = APIRouter(prefix="/api/unit-daily", tags=["unit-daily"])
-_require = require_cap("unit_daily")
+_require = require_cap("unit_daily")            # đọc: mức Xem là đủ
+_require_edit = require_cap_edit("unit_daily")  # ghi: bắt buộc mức Sửa
 
 
 def _assert_range(date_from: str, date_to: str) -> None:
@@ -92,7 +93,7 @@ def prev_stock(company: str = Query(...),
 
 
 @router.put("/report")
-def upsert(body: UnitDailyEdit, username: str = Depends(_require)) -> dict:
+def upsert(body: UnitDailyEdit, username: str = Depends(_require_edit)) -> dict:
     """Ghi/sửa số liệu 1 đơn vị (trong cửa sổ sửa theo ngày của chuyên viên; admin miễn).
 
     `create_only=True` (nút Thêm) → 409 nếu (ngày, đơn vị, loại) đã có số (chống ghi trùng).
@@ -107,7 +108,7 @@ def upsert(body: UnitDailyEdit, username: str = Depends(_require)) -> dict:
 
 
 @router.post("/contract-file")
-def upload_contract_file(file: UploadFile, username: str = Depends(_require)) -> dict:
+def upload_contract_file(file: UploadFile, username: str = Depends(_require_edit)) -> dict:
     """Upload file Hợp đồng (PDF/ảnh) cho tồn kho đã có HĐ — trả tên file lưu để gắn vào dòng."""
     return contract_files.save(file)
 
@@ -160,7 +161,7 @@ def get_plan(year: int = Query(..., ge=2020, le=2100),
 
 
 @router.put("/plan")
-def set_plan(body: PurchasePlanEdit, username: str = Depends(_require)) -> dict:
+def set_plan(body: PurchasePlanEdit, username: str = Depends(_require_edit)) -> dict:
     """Đặt/xoá số liệu năm của 1 đơn vị (chuyên viên có quyền `unit_daily`)."""
     if body.company not in member_unit_repo.active_names():
         raise HTTPException(400, "Đơn vị không hợp lệ.")
@@ -184,7 +185,7 @@ def import_template(kind: str = Query(..., pattern="^(purchase|sales|stock|plan)
 @router.post("/import/preview")
 async def import_preview(kind: str = Query(..., pattern="^(purchase|sales|stock|plan)$"),
                          file: UploadFile = File(...),
-                         username: str = Depends(_require)) -> dict:
+                         username: str = Depends(_require_edit)) -> dict:
     """Đọc file người dùng nộp → trả các dòng + lỗi để XEM TRƯỚC (chưa ghi gì)."""
     try:
         return unit_daily_excel_io.parse_upload(kind, await file.read())
@@ -194,7 +195,7 @@ async def import_preview(kind: str = Query(..., pattern="^(purchase|sales|stock|
 
 @router.post("/import/commit")
 def import_commit(body: ExcelImportCommit,
-                  username: str = Depends(_require)) -> dict:
+                  username: str = Depends(_require_edit)) -> dict:
     """Ghi các dòng hợp lệ đã xem trước (bỏ qua dòng lỗi)."""
     return unit_daily_excel_io.commit_rows(body.kind, body.rows, username)
 

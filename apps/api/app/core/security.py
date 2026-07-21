@@ -10,7 +10,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
-from app.core.permissions import effective_caps
+from app.core.permissions import LEVEL_EDIT, LEVEL_VIEW, effective_caps, has_cap
 
 _bearer = HTTPBearer(auto_error=False)
 _ALGO = "HS256"
@@ -111,34 +111,42 @@ def get_current_member(username: str = Depends(get_current_user)) -> dict:
 
 
 # ── Phân quyền theo mục dữ liệu (chuyên viên nhập liệu) ──
-_NO_CAP = HTTPException(403, "Bạn không được phân quyền với mục dữ liệu này")
+# Hai cấp: Xem (`require_cap`) và Sửa (`require_cap_edit`) — xem app/core/permissions.py.
+_NO_VIEW = HTTPException(403, "Bạn không được phân quyền với mục dữ liệu này")
+_NO_EDIT = HTTPException(403, "Bạn chỉ có quyền xem mục dữ liệu này — không được nhập/sửa")
 
 
-def user_caps(username: str) -> set[str]:
-    """Quyền THỰC của tài khoản (admin=tất cả, editor=theo list, viewer=rỗng)."""
+def user_caps(username: str) -> dict[str, str]:
+    """Quyền THỰC của tài khoản dạng `{key: level}` (admin=tất cả mức Sửa, viewer=rỗng)."""
     u = _active_user(username)
     return effective_caps(u.get("role", ""), u.get("permissions"))
 
 
-def assert_cap(username: str, cap: str) -> None:
-    """Ném 403 nếu tài khoản không có quyền `cap`. Dùng trong handler (khi cap phụ thuộc payload)."""
-    if cap not in user_caps(username):
-        raise _NO_CAP
+def assert_cap(username: str, cap: str, level: str = LEVEL_VIEW) -> None:
+    """Ném 403 nếu tài khoản chưa đạt mức quyền yêu cầu. Dùng trong handler (khi cap phụ thuộc payload)."""
+    if not has_cap(user_caps(username), cap, level):
+        raise _NO_EDIT if level == LEVEL_EDIT else _NO_VIEW
 
 
-def require_cap(cap: str):
-    """Factory dependency: chỉ cho ghi nếu tài khoản có quyền `cap` (admin=tất cả, viewer=chặn)."""
+def require_cap(cap: str, level: str = LEVEL_VIEW):
+    """Factory dependency: cho qua nếu tài khoản đạt mức `level` với quyền `cap` (mặc định: Xem)."""
     def dep(username: str = Depends(get_current_user)) -> str:
-        assert_cap(username, cap)
+        assert_cap(username, cap, level)
         return username
     return dep
 
 
-def require_any_cap(*caps: str):
-    """Factory dependency: cho ghi nếu tài khoản có ÍT NHẤT MỘT trong các quyền (vd Báo giá: market_quote|raw_material)."""
+def require_cap_edit(cap: str):
+    """Factory dependency cho endpoint GHI: bắt buộc mức Sửa (chỉ-Xem sẽ bị chặn 403)."""
+    return require_cap(cap, LEVEL_EDIT)
+
+
+def require_any_cap(*caps: str, level: str = LEVEL_VIEW):
+    """Factory dependency: cho qua nếu đạt mức `level` với ÍT NHẤT MỘT quyền (vd Báo giá: market_quote|raw_material)."""
     def dep(username: str = Depends(get_current_user)) -> str:
-        if not (user_caps(username) & set(caps)):
-            raise _NO_CAP
+        got = user_caps(username)
+        if not any(has_cap(got, c, level) for c in caps):
+            raise _NO_EDIT if level == LEVEL_EDIT else _NO_VIEW
         return username
     return dep
 
