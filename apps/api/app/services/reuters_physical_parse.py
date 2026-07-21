@@ -1,11 +1,21 @@
 """Phân giải nhanh chuỗi giá physical Reuters (copy từ MarketScreener) → bản ghi USD/tấn.
 
-Ngày do NGƯỜI DÙNG chọn trên trang (không lấy từ text). Mẫu text (mỗi dòng 1 grade):
+Ngày do NGƯỜI DÙNG chọn trên trang (không lấy từ text). Nhận 2 dạng text:
+
+Dạng 1 — mỗi dòng có tiền tố 'Grade:' và dấu gạch trước giá:
     Grade: Thai RSS3 (August) - 97.39 baht/kg
     Grade: Thai STR20 (August) - 78.88 baht/kg
     Grade: Thai 60-percent latex (bulk/August) - 57.90 baht/kg
     Grade: Malaysia SMR20 (August) - $2.21/kg
     Grade: Indonesia SIR20 - NA
+
+Dạng 2 — bảng 2 cột (chủng loại / giá) ngăn nhau bằng khoảng trắng, có thể kèm ghi chú sau dấu '*':
+    July 20 (Reuters) -
+    Grade Prices
+    RSS3        NA
+    60% latex (bulk) NA
+    SMR20      $2.24/kg
+    SIR20         $2.34/kg * Prices as of July 16
 
 Quy đổi về USD/tấn (nhất quán data cũ + ô nhập tay): US$/kg ×1000; baht/kg ÷ USD/THB
 (kéo tỷ giá gần nhất ≤ ngày). NA/không khớp grade/thiếu tỷ giá → đánh dấu, KHÔNG nhập.
@@ -41,8 +51,26 @@ _LATEX_DRUMS = "Thai Latex 60% (Drums)"
 # Giá+đơn vị nằm ở CUỐI dòng (grade chứa số như RSS3/STR20 → phải neo cuối, tránh bắt nhầm).
 _BAHT = re.compile(r"(\d+(?:[.,]\d+)?)\s*baht\s*/?\s*kg\s*$", re.I)
 _USD_KG = re.compile(r"(?:us)?\$\s*(\d+(?:[.,]\d+)?)\s*/\s*kg\s*$", re.I)
-_NA_END = re.compile(r"[-:–]\s*(?:n/?a|na|-|—|null)\s*$", re.I)
+# NA có thể ngăn bằng dấu ('- NA') hoặc chỉ khoảng trắng ('RSS3    NA' — dạng bảng 2 cột).
+_NA_END = re.compile(r"(?:[-:–]\s*)?(?:\b(?:n/?a|null)\b|[-—])\s*$", re.I)
 _GRADE_PREFIX = re.compile(r"^\s*grade\s*[:\-–]?\s*", re.I)  # bỏ tiền tố 'Grade:' nếu có
+_TAIL_NOTE = re.compile(r"\s*\*\s*(\S.*?)\s*$")              # ghi chú cuối dòng, vd '* Prices as of July 16'
+
+
+def _note_date(note: str, as_of: date) -> date | None:
+    """Ngày trong ghi chú 'Prices as of July 16' → date. Reuters không ghi năm → suy từ `as_of`
+    (nếu vượt as_of thì lùi 1 năm). Dùng để CẢNH BÁO khi giá thuộc ngày khác ngày người dùng chọn."""
+    m = re.search(r"as\s+of\s+([A-Za-z]+)\s+(\d{1,2})\b", note, re.I)
+    if not m:
+        return None
+    month = _MONTHS.get(m.group(1).lower())
+    if not month:
+        return None
+    try:
+        d = date(as_of.year, month, int(m.group(2)))
+    except ValueError:
+        return None
+    return d.replace(year=d.year - 1) if d > as_of else d
 
 
 def _match_grade(label: str) -> str | None:
@@ -92,17 +120,26 @@ def _is_na(line: str) -> bool:
 
 
 def parse(text: str, as_of: date | None = None) -> dict:
-    """Phân giải text Reuters → {as_of, rows}. Ngày `as_of` do người dùng chọn (mặc định hôm nay).
-    Nhận cả 2 dạng dòng: 'Thai RSS3 (August): 100.83 baht/kg' và 'Grade: Thai RSS3 (August) - 97.39 baht/kg'.
+    """Phân giải text Reuters → {as_of, usd_thb, note, rows}. Ngày `as_of` do người dùng chọn (mặc định hôm nay).
+    Nhận các dạng dòng: 'Thai RSS3 (August): 100.83 baht/kg', 'Grade: Thai RSS3 (August) - 97.39 baht/kg'
+    và dạng bảng 2 cột 'SMR20    $2.24/kg' (NA chỉ ngăn bằng khoảng trắng, ghi chú sau dấu '*').
+    `note` = ghi chú Reuters kèm trong text (vd 'Prices as of July 16') — báo cho người nhập tự đối chiếu ngày.
     """
     d = as_of or date.today()
     thb = _thb_at(d)
     rows: list[dict] = []
+    notes: list[str] = []
     for raw in text.splitlines():
         line = raw.strip()
         if not line or "reuters" in line.lower():
             continue
         body = _GRADE_PREFIX.sub("", line)          # bỏ 'Grade:' rồi soi grade + giá trên cả dòng
+        m_note = _TAIL_NOTE.search(body)
+        if m_note:                                  # tách ghi chú cuối dòng để giá vẫn nằm ở cuối
+            note = m_note.group(1)
+            if note not in notes:
+                notes.append(note)
+            body = body[:m_note.start()].strip()
         grade = _match_grade(body)
         price, unit = _native(body)
         na = _is_na(body)
@@ -122,7 +159,9 @@ def parse(text: str, as_of: date | None = None) -> dict:
                 row["status"] = "no_fx"
         rows.append(row)
     _add_drums(rows)
-    return {"as_of": d, "usd_thb": thb, "rows": rows}
+    note = "; ".join(notes) or None
+    return {"as_of": d, "usd_thb": thb, "note": note,
+            "note_as_of": _note_date(note, d) if note else None, "rows": rows}
 
 
 def _add_drums(rows: list[dict]) -> None:

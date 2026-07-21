@@ -134,6 +134,8 @@ export type ReutersParsedRow = {
 export type ReutersParseResult = {
   as_of: string;
   usd_thb: number | null;
+  note: string | null;                                // ghi chú Reuters, vd "Prices as of July 16"
+  note_as_of: string | null;                          // ngày suy từ ghi chú (lệch ngày chọn ⇒ cảnh báo)
   rows: ReutersParsedRow[];
 };
 

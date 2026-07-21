@@ -78,8 +78,10 @@ export default function ReutersPasteImport({ defaultDate, onImported }: {
         <div style={{ padding: "4px 4px 8px" }}>
           <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 8px" }}>
             Copy các dòng giá bên MarketScreener (không cần dòng ngày) rồi dán vào đây, <b>chọn ngày</b> ở ô bên
-            dưới. Hệ thống tự tách chủng loại + quy đổi <b>USD/tấn</b> (baht/kg ÷ USD/THB, $/kg ×1000), tự
-            <b> nội suy Latex Drums = Bulk + 100</b>. Dòng thiếu tỷ giá USD/THB sẽ <b>không được nhập</b>.
+            dưới. Nhận cả dạng <code>Grade: Thai RSS3 (August) - 97.39 baht/kg</code> lẫn dạng bảng 2 cột
+            <code> SMR20 $2.24/kg</code>. Hệ thống tự tách chủng loại + quy đổi <b>USD/tấn</b> (baht/kg ÷ USD/THB,
+            $/kg ×1000), tự <b>nội suy Latex Drums = Bulk + 100</b>. Dòng thiếu tỷ giá USD/THB sẽ
+            <b> không được nhập</b>.
           </p>
           <textarea className="blt-date-input" style={{ width: "100%", minHeight: 120, resize: "vertical", fontFamily: "monospace", fontSize: 12 }}
             value={text} placeholder={PLACEHOLDER} onChange={(e) => setText(e.target.value)} />
@@ -106,6 +108,22 @@ export default function ReutersPasteImport({ defaultDate, onImported }: {
 
           {err && <div className="blt-error">{err}</div>}
           {msg && <div className="blt-info">{msg}</div>}
+
+          {res?.note && (
+            <div style={{ background: res.note_as_of && res.note_as_of !== date ? "#4a1f1f" : "#4a3410",
+              border: `1px solid ${res.note_as_of && res.note_as_of !== date ? "#c0504d" : "#d08a1a"}`,
+              color: res.note_as_of && res.note_as_of !== date ? "#f0a0a0" : "#f0c26a",
+              borderRadius: 6, padding: "8px 12px", margin: "8px 0", fontSize: 13 }}>
+              ⚠ Reuters ghi chú: <b>“{res.note}”</b>.{" "}
+              {res.note_as_of && res.note_as_of !== date ? (
+                <>Giá này là của <b>ngày {dmy(res.note_as_of)}</b>, không phải ngày bạn chọn
+                  ({dmy(date)}). Đổi ô <b>Ngày</b> về {dmy(res.note_as_of)} rồi phân giải lại — không nhập
+                  giá của ngày này sang ngày khác.</>
+              ) : (
+                <>Kiểm tra ngày đang chọn ({dmy(date)}) có đúng ngày của giá không.</>
+              )}
+            </div>
+          )}
 
           {res && noFxCount > 0 && (
             <div style={{ background: "#4a3410", border: "1px solid #d08a1a", color: "#f0c26a",

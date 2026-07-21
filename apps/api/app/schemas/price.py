@@ -51,6 +51,8 @@ class ReutersParsedRow(BaseModel):
 class ReutersParseResult(BaseModel):
     as_of: date
     usd_thb: float | None = None       # USD/THB ĐÚNG NGÀY as_of (None nếu chưa có → baht/kg không nhập)
+    note: str | None = None            # ghi chú kèm trong text Reuters, vd 'Prices as of July 16'
+    note_as_of: date | None = None     # ngày suy từ ghi chú — lệch as_of ⇒ cảnh báo (giá của ngày khác)
     rows: list[ReutersParsedRow]
 
 
