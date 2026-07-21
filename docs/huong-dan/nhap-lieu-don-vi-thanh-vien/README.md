@@ -36,8 +36,8 @@ Mỗi màn báo cáo đều có danh sách các ngày đã nhập và 3 nút tha
 *Hình 2. Danh sách theo ngày và các nút thao tác*
 
 1. **Thêm số liệu ngày** — mở phiếu nhập cho một ngày mới.
-2. **Tải mẫu Excel** — tải file mẫu về để điền ngoại tuyến (xem mục 8).
-3. **Nhập từ Excel** — nhập file đã điền lên hệ thống (xem mục 8).
+2. **Tải mẫu Excel** — tải file mẫu về để điền ngoại tuyến (xem mục 9).
+3. **Nhập từ Excel** — nhập file đã điền lên hệ thống (xem mục 9).
 4. **Biểu tượng bút** ở cuối mỗi dòng — mở lại phiếu của ngày đó để sửa.
 
 > - Danh sách chỉ hiện những ngày **đã có số liệu**; ngày chưa nhập sẽ không xuất hiện.
@@ -89,21 +89,25 @@ Mỗi màn báo cáo đều có danh sách các ngày đã nhập và 3 nút tha
 
 **Vị trí:** Menu → Báo cáo tiêu thụ → Thêm số liệu ngày
 
-Mỗi hợp đồng bán là một dòng, hệ thống tự cộng lại. Bên dưới là bảng tiêu thụ mủ thu mua và mủ thành phẩm (phần này trước nằm ở phiếu Thu mua).
+Mỗi hợp đồng bán là một dòng, hệ thống tự cộng lại. Phiếu có **2 bảng nhập tách riêng** — **Tiêu thụ mủ thu mua** và **Tiêu thụ mủ khai thác** — để lưu trữ riêng từng nguồn mủ; phần **Tổng hợp tiêu thụ** vẫn cộng chung cả hai. Bên dưới là bảng tiêu thụ mủ thu mua và mủ thành phẩm (phần này trước nằm ở phiếu Thu mua).
 
-![Hình 5. Phiếu Tiêu thụ — bảng nhiều dòng](img/05-tieu-thu.png)
+Vì mỗi hợp đồng có nhiều thông tin nên một bản ghi được bố trí **2 hàng**: hàng trên là số liệu bán, hàng dưới là chứng từ đi kèm.
 
-*Hình 5. Phiếu Tiêu thụ — bảng nhiều dòng*
+![Hình 5. Phiếu Tiêu thụ — 2 bảng theo nguồn mủ, mỗi bản ghi 2 hàng](img/05-tieu-thu.png)
 
-1. **Loại HĐ** (Dài hạn / Chuyến) · **Hình thức** (XK-UTXK / Nội tiêu) · **Loại mủ** · **SL (tấn)** · **Giá bán**.
-2. **Ngày xuất hoá đơn** — chưa xuất thì để trống.
-3. **Bộ Hợp đồng** — đính kèm PDF hoặc ảnh; bấm tên file để mở lại.
-4. **Tiêu thụ mủ thu mua & mủ thành phẩm** — bảng 2 dòng cố định, nhập SL tiêu thụ và doanh thu cho từng loại.
-5. **Loại tiền** — chọn VND hoặc USD **cho từng dòng**; chọn USD thì nhập **Tỷ giá** ngay ở dòng đó.
-6. **Giá BQ** hệ thống tự tính = doanh thu ÷ sản lượng. Xong bấm **Lưu số liệu**.
+*Hình 5. Phiếu Tiêu thụ — 2 bảng theo nguồn mủ, mỗi bản ghi 2 hàng*
 
+1. *(Hàng trên)* **Loại HĐ** (Dài hạn / Chuyến) · **Hình thức** (XK-UTXK / Nội tiêu) · **Loại mủ** · **SL (tấn)** · **Giá bán**.
+2. *(Hàng trên)* **Loại tiền** — chọn VND hoặc USD **cho từng dòng**; chọn USD thì nhập **Tỷ giá** ngay ở dòng đó.
+3. *(Hàng dưới)* **Ngày xuất kho** và **Ngày xuất hoá đơn** — chưa có thì để trống.
+4. *(Hàng dưới)* 3 chứng từ đính kèm: **Bộ Hợp đồng** · **Phiếu xuất kho** · **Hoá đơn** — PDF hoặc ảnh; bấm tên file để mở lại.
+5. **Tiêu thụ mủ khai thác** — bảng riêng ngay bên dưới, nhập y hệt bảng mủ thu mua.
+6. **Tiêu thụ mủ thu mua & mủ thành phẩm** — bảng 2 dòng cố định, nhập SL tiêu thụ và doanh thu cho từng loại.
+7. **Giá BQ** hệ thống tự tính = doanh thu ÷ sản lượng. Xong bấm **Lưu số liệu**.
+
+> - **Mủ thu mua và mủ khai thác nhập ở 2 bảng riêng** để lưu trữ tách bạch, nhưng mọi số tổng (SL · doanh thu · giá BQ) đều cộng chung cả hai.
 > - **Loại tiền chọn theo từng dòng** — trong ngày vừa bán USD vừa bán VNĐ vẫn nhập chung một phiếu.
-> - Nút **Lấy tỷ giá VCB cho các dòng USD** điền tỷ giá Vietcombank cho mọi dòng đang chọn USD.
+> - Nút **Lấy tỷ giá VCB cho các dòng USD** điền tỷ giá Vietcombank cho mọi dòng đang chọn USD của **cả 2 bảng**.
 > - Doanh thu nhập theo **tỷ đồng** khi chọn VND, theo **USD** khi chọn USD (thiếu tỷ giá thì để trống, hệ thống không tự đoán).
 > - Khối **Tổng hợp tiêu thụ** và cột **Doanh thu** từng dòng đều tự tính — không nhập tay.
 
@@ -156,9 +160,9 @@ Tồn kho là số liệu **tại thời điểm cuối ngày** (không cộng d
 
 Ghi nhận **các lời chào hàng từ khách hàng, nhà sản xuất** và nhu cầu thị trường mà đơn vị nắm được trong ngày — dùng để phân tích yếu tố **Cầu** trong quan hệ Cung – Cầu.
 
-![Hình 9. Nhập Nhu cầu thị trường](img/09-nhu-cau-thi-truong.png)
+![Hình 8. Nhập Nhu cầu thị trường](img/09-nhu-cau-thi-truong.png)
 
-*Hình 9. Nhập Nhu cầu thị trường*
+*Hình 8. Nhập Nhu cầu thị trường*
 
 1. Bấm **Thêm nhu cầu** để mở ô nhập.
 2. Chọn **ngày** ghi nhận nhu cầu.
@@ -195,8 +199,9 @@ Thay vì gõ tay từng ngày, có thể tải file Excel mẫu về điền r�
 > - **Không đổi tên hoặc xoá dòng tiêu đề** của file mẫu; nếu thiếu cột bắt buộc hệ thống sẽ báo và không đọc file.
 > - Muốn sửa dòng lỗi: sửa lại trong file Excel rồi nhập lên lần nữa — các dòng đã ghi đúng sẽ được ghi đè, không bị nhân đôi.
 > - Nhập Tiêu thụ không làm mất số Tồn kho của cùng ngày và ngược lại.
+> - ⚠️ File **Tiêu thụ** ghi đè **toàn bộ** phần tiêu thụ của ngày đó, **cả mủ thu mua lẫn mủ khai thác**. Dòng nào đã nhập trên web mà không có trong file sẽ bị xoá — nên chép đủ cả 2 nguồn mủ vào file trước khi nhập lên.
 > - **Mẫu Excel đã đổi cột** — luôn bấm *Tải mẫu Excel* để lấy file mới nhất, đừng dùng lại file tải từ trước (sai cột sẽ báo lỗi khi nhập lên).
-> - Ba cột **chọn từ danh sách** mới có, phải điền đúng thì số mới vào đúng đơn vị tính: *Đơn giá mủ chén tính theo* (Độ TSC / Độ DRC) ở mẫu **Thu mua**; *Giá bán bằng* (VND / USD) ở mẫu **Tiêu thụ**; *Đơn giá bằng* (VND / USD) ở mẫu **Tồn kho**. Bỏ trống thì hệ thống hiểu là Độ TSC và VND.
+> - Bốn cột **chọn từ danh sách** để trống được, nhưng phải điền đúng thì số mới vào đúng chỗ: *Đơn giá mủ chén tính theo* (Độ TSC / Độ DRC) ở mẫu **Thu mua**; *Nguồn mủ* (Mủ thu mua / Mủ khai thác) và *Giá bán bằng* (VND / USD) ở mẫu **Tiêu thụ**; *Đơn giá bằng* (VND / USD) ở mẫu **Tồn kho**. Bỏ trống thì hệ thống hiểu là Độ TSC · Mủ thu mua · VND.
 > - Mẫu **Thu mua** đã bỏ 2 cột *SL tiêu thụ* và *Doanh thu* (chuyển sang biểu Tiêu thụ), thêm 3 cột: *SL thu mua thành phẩm* · *Đơn giá thành phẩm (VNĐ)* · *Đơn giá thành phẩm (ngoại tệ)*.
 > - Mẫu **Tồn kho**: cột *Nhóm* có 3 lựa chọn — Chế biến chưa nhập kho · Đã nhập kho · **Đã ký HĐ**. Số lượng tính bằng **tấn**.
-> - Mẫu **Tiêu thụ** có cột *Ngày xuất hoá đơn*. Riêng **file bộ Hợp đồng phải đính kèm trên web** — file Excel không mang theo file đính kèm được.
+> - Mẫu **Tiêu thụ** có cột *Nguồn mủ* (chọn *Mủ thu mua* hoặc *Mủ khai thác* — để trống thì hiểu là **mủ thu mua**), cùng 2 cột ngày: *Ngày xuất kho* và *Ngày xuất hoá đơn*. Riêng **3 file đính kèm — bộ Hợp đồng · phiếu xuất kho · hoá đơn — phải tải lên trên web**, file Excel không mang theo file đính kèm được.
