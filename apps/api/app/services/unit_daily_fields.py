@@ -27,6 +27,11 @@ PURCHASE_FIELDS: frozenset[str] = frozenset({
 # Ô CHỮ của biểu Thu mua: mủ chén tính theo độ TSC hay độ DRC (đổi nhãn đơn giá + đơn vị lưu kho giá).
 PURCHASE_TEXT: dict[str, frozenset[str]] = {"cup_basis": frozenset({"tsc", "drc"})}
 
+# Cờ đánh dấu ngày KHÔNG tổ chức thu mua. Phân biệt rõ 2 tình huống khác nhau về nghiệp vụ:
+#   - có công bố giá, có tổ chức mua, nhưng KHÔNG mua được → nhập sản lượng 0 kèm ĐÚNG giá đã công bố
+#   - hôm đó KHÔNG tổ chức thu mua                        → bật cờ này, không có giá nào cả
+PURCHASE_FLAGS: frozenset[str] = frozenset({"no_purchase"})
+
 # Biểu mẫu Tiêu thụ – Tồn kho — TIÊU THỤ = BẢNG NHIỀU DÒNG (`sales`); tổng doanh thu (VND, base=đồng) ở `revenue`.
 # TỒN KHO (chỉ tiêu THỜI ĐIỂM, đơn vị TẤN) chia 4 khối theo yêu cầu nghiệp vụ:
 #   1 `stock_not_warehoused`     Tồn kho thành phẩm chế biến CHƯA nhập kho (chủng loại · tấn)
@@ -75,6 +80,9 @@ def _clean_sales(sales) -> list[dict]:
             "grade": str(ln.get("grade") or "")[:60],
             "qty": _to_float(ln.get("qty")),
             "price": _to_float(ln.get("price")),
+            # Loại tiền + tỷ giá theo TỪNG DÒNG: một ngày có thể vừa bán USD vừa bán VNĐ.
+            "ccy": ln.get("ccy") if ln.get("ccy") in _CCY else "VND",
+            "fx": _to_float(ln.get("fx")),
             "invoice_date": str(ln.get("invoice_date") or "")[:10] or None,
             "file": str(ln.get("file") or "")[:120] or None,
             "filename": str(ln.get("filename") or "")[:200] or None,
@@ -105,6 +113,8 @@ def _clean_stock_signed(rows) -> list[dict]:
             "grade": str(r.get("grade") or "")[:60],
             "qty": _to_float(r.get("qty")),
             "price": _to_float(r.get("price")),
+            "ccy": r.get("ccy") if r.get("ccy") in _CCY else "VND",
+            "fx": _to_float(r.get("fx")),
             "delivery_date": str(r.get("delivery_date") or "")[:10] or None,
             "file": str(r.get("file") or "")[:120] or None,       # tên file lưu server
             "filename": str(r.get("filename") or "")[:200] or None,  # tên gốc hiển thị
@@ -148,4 +158,7 @@ def clean_fields(kind: str, fields: dict) -> dict:
             out[k] = fv
     if kind == "purchase":
         _pick_text(fields, PURCHASE_TEXT, out)
+        for k in PURCHASE_FLAGS:
+            if fields.get(k) is True:
+                out[k] = True
     return out

@@ -3,7 +3,7 @@
    - Doanh thu nhập theo USD + tỷ giá USD→VND (nút "Lấy tỷ giá hiện tại" từ VCB) → doanh thu VND (cột chính).
    Tiền lưu BASE = đồng (VND). Đơn vị Việt Nam: nhập thẳng đơn giá VND + doanh thu tỷ đồng. */
 
-import { Select, message } from "antd";
+import { Checkbox, Select, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 import { fetchVcbRate } from "../../../lib/market-quote-client";
@@ -56,12 +56,16 @@ export default function PurchaseForm({
 }: Props) {
   const foreign = (currency ?? "VND") !== "VND";
   const origBasis = ((values as Record<string, unknown>).cup_basis as CupBasis) ?? "tsc";
+  const origNoPurchase = (values as Record<string, unknown>).no_purchase === true;
   const [draft, setDraft] = useState<Values>(() => initDraft(values, linkedPrice, foreign));
   const [cupBasis, setCupBasis] = useState<CupBasis>(origBasis);
+  // Hôm nay KHÔNG tổ chức thu mua — khác hẳn "có tổ chức, có công bố giá nhưng mua được 0 tấn".
+  const [noPurchase, setNoPurchase] = useState(origNoPurchase);
   const [fxLoading, setFxLoading] = useState(false);
   useEffect(() => {
     setDraft(initDraft(values, linkedPrice, foreign));
     setCupBasis(((values as Record<string, unknown>).cup_basis as CupBasis) ?? "tsc");
+    setNoPurchase((values as Record<string, unknown>).no_purchase === true);
   }, [formKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const cupUnit = cupBasis === "drc" ? "độ DRC" : "độ TSC";
 
@@ -88,16 +92,17 @@ export default function PurchaseForm({
       });
     }
     (p as Record<string, unknown>).cup_basis = cupBasis;
+    if (noPurchase) (p as Record<string, unknown>).no_purchase = true;
     return p;
-  }, [draft, revenueVnd, foreign, cupBasis]);
+  }, [draft, revenueVnd, foreign, cupBasis, noPurchase]);
   const prices: PriceDraft = { latex: priceLatexVnd, cup: priceCupVnd, cupBasis };
 
   const dirty = useMemo(() => {
     const orig = initDraft(values, linkedPrice, foreign);
     const keys = new Set([...Object.keys(orig), ...Object.keys(draft)]);
-    return cupBasis !== origBasis
+    return cupBasis !== origBasis || noPurchase !== origNoPurchase
       || [...keys].some((k) => (num(draft[k]) ?? null) !== (num(orig[k]) ?? null));
-  }, [draft, values, linkedPrice, foreign, cupBasis, origBasis]);
+  }, [draft, values, linkedPrice, foreign, cupBasis, origBasis, noPurchase, origNoPurchase]);
   useEffect(() => { onDirty?.(dirty); }, [dirty]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchFx = async () => {
@@ -128,7 +133,21 @@ export default function PurchaseForm({
 
   return (
     <div>
-      <div style={gridStyle}>
+      <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8,
+                    background: "rgba(125,125,125,.08)", border: "1px solid rgba(125,125,125,.2)" }}>
+        <Checkbox checked={noPurchase} disabled={readOnly}
+                  onChange={(e) => setNoPurchase(e.target.checked)}>
+          <b>Hôm nay đơn vị KHÔNG tổ chức thu mua</b>
+        </Checkbox>
+        <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 6, lineHeight: 1.55 }}>
+          Chỉ tích khi <b>không tổ chức thu mua</b>. Nếu có công bố giá và có tổ chức mua nhưng
+          <b> không mua được</b> thì <b>đừng tích</b> — hãy nhập <b>sản lượng 0</b> kèm <b>đúng mức giá đã công bố</b>
+          (không mua được ở mọi mức thì nhập 0 với <b>mức giá thấp nhất</b> đang công bố).
+          Hai trường hợp này khác nhau khi tổng hợp báo cáo.
+        </div>
+      </div>
+
+      <div style={{ ...gridStyle, opacity: noPurchase ? 0.5 : 1 }}>
         {head("Mủ nước", true)}
         {field("Sản lượng thu mua", "tấn", numInput(num(draft.latex_wet), (v) => set("latex_wet", v), readOnly))}
         {foreign ? (

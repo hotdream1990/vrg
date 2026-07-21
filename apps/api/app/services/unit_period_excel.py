@@ -29,6 +29,7 @@ _PURCHASE_COLS: list[tuple[str, str, str, str]] = [
     ("total_purchase", "Tổng sản lượng thu mua", "= mủ nước + mủ chén", "tấn"),
     ("price_latex_avg", "Giá thu mua mủ nước BQ", "bình quân gia quyền", "đồng/độ TSC"),
     ("price_cup_avg", "Giá thu mua mủ chén BQ", "bình quân gia quyền", "đồng/độ"),
+    ("no_purchase_days", "Số ngày không tổ chức thu mua", "đếm ngày", "ngày"),
     ("plan_tonnes", "Kế hoạch thu mua", "số liệu năm", "tấn"),
     ("pct_plan", "% thực hiện kế hoạch", "= thực hiện / kế hoạch", "%"),
     ("consumption", "Sản lượng tiêu thụ mủ thu mua", "cộng dồn", "tấn"),

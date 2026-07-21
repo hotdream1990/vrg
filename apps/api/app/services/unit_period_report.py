@@ -58,6 +58,7 @@ def _latest(entries: list[dict]) -> dict:
 # ── Biểu (2): Thu mua ──────────────────────────────────────────────────────────
 def _purchase_rows(entries: list[dict], prices: dict, plan: dict) -> dict[str, Any]:
     acc: dict[str, float] = {}
+    no_days = 0        # số ngày đơn vị KHÔNG tổ chức thu mua (khác ngày có mua nhưng được 0 tấn)
     # bình quân gia quyền: Σ(giá ngày × sản lượng ngày) ÷ Σ(sản lượng ngày)
     wsum = {"latex": 0.0, "cup": 0.0}
     wqty = {"latex": 0.0, "cup": 0.0}
@@ -67,6 +68,8 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict) -> dict[str, A
         _add(acc, "coagulum", f.get("coagulum"))
         _add(acc, "consumption", f.get("consumption"))
         _add(acc, "revenue", f.get("revenue"))
+        if f.get("no_purchase") is True:
+            no_days += 1
         day_px = prices.get((e["company"], e["as_of"]), {})
         for slot, qty_key in (("latex", "latex_wet"), ("cup", "coagulum")):
             px, qty = _num(day_px.get(slot)), _num(f.get(qty_key))
@@ -87,6 +90,7 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict) -> dict[str, A
         "plan_tonnes": plan_tonnes,
         "pct_plan": (total / plan_tonnes * 100) if plan_tonnes else None,
         "consumption": consumption,
+        "no_purchase_days": no_days or None,
         "revenue_ty": (revenue / TY) if revenue is not None else None,
         # giá bán bình quân = doanh thu ÷ sản lượng tiêu thụ (triệu đ/tấn)
         "avg_sell_price": (r / TRIEU if (r := _ratio(revenue, consumption)) is not None else None),

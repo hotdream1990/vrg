@@ -85,9 +85,11 @@ export default function MarketDemandTimelinePage() {
       <div className="page-title">
         <div>
           <h2><ApartmentOutlined style={{ marginRight: 8 }} />Nhu cầu thị trường</h2>
-          <p>{isMember
-            ? "Nhu cầu thị trường của đơn vị bạn theo dòng thời gian — chỉ hiện ngày đã có nhập; nhập tự do trong cửa sổ cho phép."
-            : "Tổng quan nhu cầu thị trường của các đơn vị theo dòng thời gian — chỉ hiện ngày đã có nhập."}</p>
+          <p>Ghi nhận <b>các lời chào hàng từ khách hàng, nhà sản xuất</b> và nhu cầu thị trường mà đơn vị
+            nắm được — dùng để phân tích yếu tố <b>Cầu</b> trong quan hệ Cung – Cầu.</p>
+          <p style={{ marginTop: 4 }}>{isMember
+            ? "Nhập tự do theo ngày, trong cửa sổ cho phép — chỉ hiện những ngày đã có nhập."
+            : "Tổng quan theo dòng thời gian của các đơn vị — chỉ hiện ngày đã có nhập."}</p>
         </div>
       </div>
       {err && <div className="blt-error">{err}</div>}
@@ -123,7 +125,8 @@ export default function MarketDemandTimelinePage() {
             </div>
           )}
           <textarea value={addForm.content} rows={4} style={taStyle}
-            placeholder="Nhập nhu cầu thị trường của đơn vị cho ngày này…"
+            placeholder={"Lời chào hàng / nhu cầu nghe được trong ngày. Nên ghi rõ: khách hàng hoặc nhà sản xuất nào · "
+              + "chủng loại · số lượng · mức giá chào · thời điểm giao hàng."}
             onChange={(e) => setAddForm((f) => ({ ...f, content: e.target.value }))} />
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-primary"

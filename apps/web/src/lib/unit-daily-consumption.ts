@@ -21,6 +21,8 @@ export type SaleLine = {
   grade: string;                 // loại mủ
   qty: number | null;            // số lượng (tấn)
   price: number | null;          // giá bán (triệu đ/tấn khi VND · USD/tấn khi USD)
+  ccy?: Ccy;                     // loại tiền của DÒNG này (1 ngày có thể vừa bán USD vừa bán VNĐ)
+  fx?: number | null;            // tỷ giá USD→VND của dòng này (chỉ cần khi ccy = USD)
   invoice_date?: string | null;  // ngày xuất hoá đơn 'YYYY-MM-DD'
   file?: string | null;          // file bộ Hợp đồng đã upload (tên lưu uuid)
   filename?: string | null;      // tên gốc để hiển thị
@@ -31,6 +33,7 @@ export type StockQtyLine = { grade: string; qty: number | null };
 /** Khối 3 — đã ký HĐ chưa giao: chủng loại · tấn · đơn giá (theo `stock_ccy`) · lịch giao · HĐ scan. */
 export type StockSignedLine = {
   grade: string; qty: number | null; price: number | null;
+  ccy?: Ccy; fx?: number | null;         // loại tiền + tỷ giá của DÒNG này
   delivery_date?: string | null;         // 'YYYY-MM-DD'
   file?: string | null; filename?: string | null;  // tên file lưu (uuid) + tên gốc hiển thị
 };
@@ -74,11 +77,15 @@ const TY = 1_000_000_000;   // 1 tỷ đồng
 const TRIEU = 1_000_000;    // 1 triệu đồng
 const n = (x: number | null | undefined): number | null => (x == null || Number.isNaN(x) ? null : x);
 
-/** Doanh thu 1 dòng, quy về BASE = đồng (VND). USD = qty × giá(USD) × tỷ giá; VND = qty × giá(triệu) × 1e6. */
-export function lineRevenueVnd(line: SaleLine, ccy: Ccy, fx: number | null | undefined): number | null {
+/** Doanh thu 1 dòng, quy về BASE = đồng (VND) — loại tiền & tỷ giá lấy NGAY TRÊN DÒNG đó.
+    USD = qty × giá(USD) × tỷ giá (thiếu tỷ giá → null, KHÔNG đoán); VND = qty × giá(triệu) × 1e6. */
+export function lineRevenueVnd(
+  line: { qty: number | null; price: number | null; ccy?: Ccy; fx?: number | null },
+): number | null {
   if (n(line.qty) == null || n(line.price) == null) return null;
   const q = line.qty as number, p = line.price as number;
-  return ccy === "USD" ? (n(fx) == null ? null : q * p * (fx as number)) : q * p * TRIEU;
+  if ((line.ccy ?? "VND") !== "USD") return q * p * TRIEU;
+  return n(line.fx) == null ? null : q * p * (line.fx as number);
 }
 
 export type ConsumptionTotals = {
@@ -89,7 +96,7 @@ export type ConsumptionTotals = {
 };
 
 /** Cộng tổng các dòng tiêu thụ (SL theo hình thức/loại HĐ + doanh thu + giá BQ). */
-export function totals(sales: SaleLine[] | undefined, ccy: Ccy, fx: number | null | undefined): ConsumptionTotals {
+export function totals(sales: SaleLine[] | undefined): ConsumptionTotals {
   const t: ConsumptionTotals = {
     qty: 0, qtyExport: 0, qtyDomestic: 0, qtyLongTerm: 0, qtySpot: 0, revenueVnd: 0, avgPriceTrieu: null,
   };
@@ -98,7 +105,7 @@ export function totals(sales: SaleLine[] | undefined, ccy: Ccy, fx: number | nul
     t.qty += q;
     if (ln.channel === "export") t.qtyExport += q; else if (ln.channel === "domestic") t.qtyDomestic += q;
     if (ln.contract === "long_term") t.qtyLongTerm += q; else if (ln.contract === "spot") t.qtySpot += q;
-    t.revenueVnd += lineRevenueVnd(ln, ccy, fx) ?? 0;
+    t.revenueVnd += lineRevenueVnd(ln) ?? 0;
   }
   t.avgPriceTrieu = t.qty > 0 ? t.revenueVnd / t.qty / TRIEU : null;
   return t;
