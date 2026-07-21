@@ -213,6 +213,7 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                 from bulletin.convert import (
                     cny_tonne_to_usd_tonne,
                     jpy_kg_to_usd_tonne,
+                    r0,
                     usd_kg_to_usd_tonne,
                     uscents_kg_to_usd_tonne,
                 )
@@ -239,21 +240,26 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                     return fx_by_day.get(pair, {}).get(d)
 
                 def _convert_to_usd_tonne(price: float, unit: str, as_of: str) -> int | None:
-                    """Quy đổi giá gốc → USD/tấn dùng tỷ giá của ĐÚNG ngày `as_of`."""
+                    """Quy đổi giá gốc → USD/tấn dùng tỷ giá của ĐÚNG ngày `as_of`.
+
+                    Bản tin in số NGUYÊN (mẫu của Ban TTKD), nên làm tròn ở đây — nhưng nửa LÊN
+                    (`r0`), không dùng round() vì round() làm tròn về số chẵn nên giá kết thúc
+                    bằng ,5 luôn bị hạ xuống.
+                    """
                     if unit == "US$/kg":
-                        return usd_kg_to_usd_tonne(price)
+                        return r0(usd_kg_to_usd_tonne(price))
                     if unit == "US cents/kg":
-                        return uscents_kg_to_usd_tonne(price)
+                        return r0(uscents_kg_to_usd_tonne(price))
                     if unit == "Sen/kg":
                         rate = _fx_at("USD/MYR", as_of)
-                        return round(price * 10 / rate) if rate else None
+                        return r0(price * 10 / rate) if rate else None
                     if unit == "CNY/tonne":
                         rate = _fx_at("USD/CNY", as_of)
-                        return cny_tonne_to_usd_tonne(price, rate) if rate else None
+                        return r0(cny_tonne_to_usd_tonne(price, rate)) if rate else None
                     if unit == "JPY/kg":
                         rate = _fx_at("USD/JPY", as_of)
-                        return jpy_kg_to_usd_tonne(price, rate) if rate else None
-                    return round(price)
+                        return r0(jpy_kg_to_usd_tonne(price, rate)) if rate else None
+                    return r0(price)
 
                 real_dates = sorted({d for dp in price_map.values() for d in dp})
                 latest_label = (

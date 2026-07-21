@@ -137,7 +137,9 @@ export default function PriceSheetGrid({
                         </td>
                       )}
                       <td className="r" style={{ fontWeight: 600, borderLeft: c.show_native || c.show_fx ? LINE : GRP }}>
-                        {cell(`${row.as_of}|${c.key}|u`, cv.usd, 0,
+                        {/* 1 số lẻ: nguồn yết cents/kg 2 số lẻ nên USD/tấn có thể lẻ ,5
+                            (MRB SMR20 223,85 → 2.238,5) — để 0 số lẻ là sai lệch so với nguồn. */}
+                        {cell(`${row.as_of}|${c.key}|u`, cv.usd, 1,
                           (n) => commit({ as_of: row.as_of, source: e.source, grade: e.grade, contract: "", price_type: e.price_type, price: n * e.scale, currency: e.currency, unit: e.unit }))}
                       </td>
                     </Fragment>

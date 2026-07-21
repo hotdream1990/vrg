@@ -10,25 +10,43 @@ Crawlers trả về đơn vị gốc của sàn:
 
 from __future__ import annotations
 
+from decimal import Decimal, ROUND_HALF_UP
 
-def cny_tonne_to_usd_tonne(price_cny: float, usd_cny: float) -> int:
+
+def r1(x: float) -> float:
+    """Làm tròn 1 SỐ LẺ, nửa LÊN.
+
+    Giữ 1 số lẻ vì nguồn yết tới đó: MRB cho US cents/kg 2 số lẻ (223,85) → 2238,5 USD/tấn.
+    Trước đây trả số nguyên nên mất đúng 0,5 — chuyên viên đối chiếu với MRB thấy lệch.
+    Dùng ROUND_HALF_UP vì `round()` của Python làm tròn về số CHẴN: round(2238.5) = 2238 và
+    round(2288.5) = 2288, tức luôn thiệt xuống ở các giá kết thúc bằng ,5.
+    """
+    return float(Decimal(str(x)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+
+
+def r0(x: float) -> int:
+    """Làm tròn về SỐ NGUYÊN, nửa LÊN — cho nơi bắt buộc số nguyên (vd bản tin)."""
+    return int(Decimal(str(x)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
+def cny_tonne_to_usd_tonne(price_cny: float, usd_cny: float) -> float:
     """CNY/tấn → USD/tấn (SHFE)."""
-    return round(price_cny / usd_cny)
+    return r1(price_cny / usd_cny)
 
 
-def jpy_kg_to_usd_tonne(price_jpy_per_kg: float, usd_jpy: float) -> int:
+def jpy_kg_to_usd_tonne(price_jpy_per_kg: float, usd_jpy: float) -> float:
     """JPY/kg → USD/tấn (TOCOM/OSE).  1 tấn = 1000 kg."""
-    return round(price_jpy_per_kg * 1000 / usd_jpy)
+    return r1(price_jpy_per_kg * 1000 / usd_jpy)
 
 
-def uscents_kg_to_usd_tonne(price_cents: float) -> int:
+def uscents_kg_to_usd_tonne(price_cents: float) -> float:
     """US cents/kg → USD/tấn (LGM).  100 cents = 1 USD, 1 tấn = 1000 kg."""
-    return round(price_cents * 1000 / 100)
+    return r1(price_cents * 1000 / 100)
 
 
-def usd_kg_to_usd_tonne(price_usd_per_kg: float) -> int:
+def usd_kg_to_usd_tonne(price_usd_per_kg: float) -> float:
     """US$/kg → USD/tấn (ANRPC physical)."""
-    return round(price_usd_per_kg * 1000)
+    return r1(price_usd_per_kg * 1000)
 
 
 # Đơn vị gốc của sàn → cặp tỷ giá cần để quy đổi sang USD (None nếu đã là USD).
@@ -37,14 +55,15 @@ _FX_PAIR_FOR_UNIT = {"CNY/tonne": "USD/CNY", "JPY/kg": "USD/JPY"}
 
 def to_usd_tonne_detail(
     price: float, unit: str, fx_rates: dict[str, float]
-) -> tuple[int | None, str | None, float | None]:
+) -> tuple[float | None, str | None, float | None]:
     """Quy đổi 1 giá gốc → (usd_tonne, fx_pair, fx_rate). 1 NGUỒN quy đổi dùng chung.
 
+    usd_tonne giữ 1 số lẻ (xem `r1`) — nơi nào cần số nguyên thì tự làm tròn bằng `r0`.
     fx_pair/fx_rate = None khi đơn vị đã ở hệ USD (US$/kg, US cents/kg).
     Thiếu tỷ giá → usd_tonne None nhưng vẫn trả fx_pair để UI báo rõ.
     """
     if unit in ("USD/tonne", "USD/T"):
-        return round(price), None, None
+        return r1(price), None, None
     if unit == "US$/kg":
         return usd_kg_to_usd_tonne(price), None, None
     if unit == "US cents/kg":
@@ -52,10 +71,10 @@ def to_usd_tonne_detail(
     if unit == "Sen/kg":
         # LGM Latex yết Sen/kg (Malaysia). Sen ÷ (USD/MYR) × 10 = USD/tấn.
         rate = fx_rates.get("USD/MYR")
-        return (round(price * 10 / rate) if rate else None), "USD/MYR", rate
+        return (r1(price * 10 / rate) if rate else None), "USD/MYR", rate
     if unit == "baht/kg":
         rate = fx_rates.get("USD/THB")
-        return (round(price * 1000 / rate) if rate else None), "USD/THB", rate
+        return (r1(price * 1000 / rate) if rate else None), "USD/THB", rate
     if unit == "CNY/tonne":
         rate = fx_rates.get("USD/CNY")
         return (cny_tonne_to_usd_tonne(price, rate) if rate else None), "USD/CNY", rate
@@ -63,4 +82,4 @@ def to_usd_tonne_detail(
         rate = fx_rates.get("USD/JPY")
         return (jpy_kg_to_usd_tonne(price, rate) if rate else None), "USD/JPY", rate
     # Đơn vị lạ → giả định đã ~USD/tấn.
-    return round(price), None, None
+    return r1(price), None, None

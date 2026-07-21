@@ -6,11 +6,19 @@ không tạo bản ghi trùng. Mọi query tham số hóa (tránh SQL injection)
 
 from __future__ import annotations
 
+import sys
 from typing import Any
 
 from sqlalchemy import bindparam, text
 
 from app.core.db import ensure_schema, session_scope
+from app.core.paths import bulletin_dir
+
+_BULLETIN = bulletin_dir()
+if str(_BULLETIN) not in sys.path:
+    sys.path.insert(0, str(_BULLETIN))
+
+from bulletin.convert import r1  # noqa: E402 - 1 nguồn làm tròn dùng chung với lưới giá/bản tin
 
 _UPSERT = text("""
     INSERT INTO fact_price
@@ -313,17 +321,21 @@ _PHYSICAL_ORDER = ["RSS3", "STR20", "SMR20", "SIR20", "USS",
                    "Thai Latex 60% (Bulk)", "Thai Latex 60% (Drums)", "Thai Latex 60%"]
 
 
-def _to_usd_tonne(price: float, unit: str, thb: float | None) -> int | None:
-    """Quy đổi 1 giá physical → USD/tấn theo đơn vị gốc. baht/kg cần tỷ giá USD/THB."""
+def _to_usd_tonne(price: float, unit: str, thb: float | None) -> float | None:
+    """Quy đổi 1 giá physical → USD/tấn theo đơn vị gốc. baht/kg cần tỷ giá USD/THB.
+
+    Giữ 1 số lẻ (`r1`): nguồn yết 2 số lẻ ở cents/kg nên số nguyên làm mất đúng 0,5
+    (vd MRB SMR20 223,85 → 2238,5 chứ không phải 2238).
+    """
     if unit in ("USD/tonne", "USD/T"):
-        return round(price)
+        return r1(price)
     if unit == "US$/kg":
-        return round(price * 1000)
+        return r1(price * 1000)
     if unit == "US cents/kg":
-        return round(price * 10)
+        return r1(price * 10)
     if unit == "baht/kg":
-        return round(price * 1000 / thb) if thb else None
-    return round(price)  # đơn vị lạ → giả định đã USD/tấn
+        return r1(price * 1000 / thb) if thb else None
+    return r1(price)  # đơn vị lạ → giả định đã USD/tấn
 
 
 def physical_sheet(date_from: str | None = None, date_to: str | None = None) -> dict[str, Any]:
