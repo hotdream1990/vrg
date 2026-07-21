@@ -1,6 +1,6 @@
 # Hướng dẫn nhập liệu — Đơn vị thành viên
 
-Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm). Tài liệu bám theo phiên bản 0.2.71. Riêng 4 mục báo cáo còn có thể tải mẫu Excel về điền rồi nhập lên thay vì gõ tay (xem mục 9).
+Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm). Tài liệu bám theo phiên bản 0.2.72. Riêng 4 mục báo cáo còn có thể tải mẫu Excel về điền rồi nhập lên thay vì gõ tay (xem mục 9).
 
 > Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-don-vi-thanh-vien.docx](./Huong-dan-nhap-lieu-don-vi-thanh-vien.docx)
 
@@ -46,23 +46,23 @@ Mỗi màn báo cáo đều có danh sách các ngày đã nhập và 3 nút tha
 
 **Vị trí:** Báo cáo thu mua → Thêm số liệu ngày
 
-Áp dụng cho các đơn vị tại Việt Nam (giao dịch bằng đồng Việt Nam). Phiếu chia theo loại mủ: mỗi loại nhập sản lượng và đơn giá đi liền nhau. Riêng mủ chén phải chọn đơn giá tính theo độ TSC hay độ DRC trước khi nhập giá.
+Áp dụng cho các đơn vị tại Việt Nam (giao dịch bằng đồng Việt Nam). Trước khi nhập số, xác định rõ hôm nay đơn vị **có tổ chức thu mua hay không** — hai trường hợp ghi khác nhau.
 
 ![Hình 3. Phiếu Thu mua của đơn vị trong nước](img/03-thu-mua-vn.png)
 
 *Hình 3. Phiếu Thu mua của đơn vị trong nước*
 
-1. Chọn **ngày báo cáo**.
+1. **Hôm nay đơn vị KHÔNG tổ chức thu mua** — chỉ tích ô này khi thật sự không tổ chức mua.
 2. **Mủ nước — Sản lượng thu mua** (tấn, quy khô).
 3. **Mủ nước — Đơn giá thu mua** (đồng/độ TSC).
-4. **Mủ chén — Sản lượng thu mua** (tấn, quy khô).
-5. **Mủ chén — Đơn giá tính theo**: chọn *Độ TSC* hoặc *Độ DRC* theo cách đơn vị đang tính.
-6. **Mủ chén — Đơn giá thu mua**: nhãn ô này đổi theo bước 5 (*đồng/độ TSC* hoặc *đồng/độ DRC*).
-7. **Sản lượng tiêu thụ mủ thu mua** (tấn).
-8. **Doanh thu** (tỷ đồng) — doanh thu đã xuất hóa đơn. Xong bấm **Lưu số liệu**.
+4. **Mủ chén — Đơn giá tính theo**: chọn *Độ TSC* hoặc *Độ DRC* theo cách đơn vị đang tính.
+5. **Mủ chén — Đơn giá thu mua**: nhãn ô đổi theo lựa chọn ở bước 4.
+6. Nhập nốt **Sản lượng tiêu thụ** và **Doanh thu**, rồi bấm **Lưu số liệu**.
 
-> - Ô **Giá bán bình quân** hệ thống **tự tính** = Doanh thu ÷ Sản lượng tiêu thụ — không cần nhập.
-> - Đơn giá nhập ở đây đồng thời được ghi vào kho “Giá mủ nguyên liệu”, không phải nhập lại ở nơi khác. Đơn vị tính (TSC hay DRC) được lưu kèm giá nên về sau vẫn biết giá đó tính theo độ nào.
+> - **Có công bố giá, có tổ chức mua nhưng KHÔNG mua được** → **đừng tích** ô ở bước 1. Hãy nhập **sản lượng 0** kèm **đúng mức giá đã công bố**. Không mua được ở mọi mức giá thì nhập 0 với **mức giá thấp nhất** đang công bố.
+> - Hai tình huống này **khác nhau khi tổng hợp báo cáo**: ngày không tổ chức mua được đếm riêng, còn ngày mua 0 tấn vẫn giữ lại mức giá đã công bố để theo dõi mặt bằng giá.
+> - Ô **Giá bán bình quân** hệ thống **tự tính** = Doanh thu ÷ Sản lượng tiêu thụ.
+> - Đơn giá nhập ở đây đồng thời ghi vào kho “Giá mủ nguyên liệu”, kèm đúng đơn vị tính (TSC hay DRC).
 > - Mủ nước luôn tính theo **độ TSC** — chỉ mủ chén mới có lựa chọn TSC/DRC.
 
 ## 4. Nhập Báo cáo thu mua — đơn vị ngoài Việt Nam
@@ -93,23 +93,22 @@ Mỗi màn báo cáo đều có danh sách các ngày đã nhập và 3 nút tha
 
 **Vị trí:** Menu → Báo cáo tiêu thụ → Thêm số liệu ngày
 
-Mỗi hợp đồng bán là một dòng. Trong ngày bán bao nhiêu hợp đồng thì thêm bấy nhiêu dòng, hệ thống tự cộng lại. Mỗi dòng ghi kèm ngày xuất hoá đơn và file bộ Hợp đồng.
+Mỗi hợp đồng bán là một dòng. **Loại tiền và tỷ giá đặt riêng cho từng dòng**, nên trong cùng một ngày vừa bán USD vừa bán VNĐ vẫn nhập chung một phiếu.
 
 ![Hình 5. Phiếu Tiêu thụ — bảng nhiều dòng](img/05-tieu-thu.png)
 
 *Hình 5. Phiếu Tiêu thụ — bảng nhiều dòng*
 
-1. **Loại HĐ** (Dài hạn / Chuyến) · **Hình thức** (XK-UTXK / Nội tiêu) · **Loại mủ**.
-2. **SL (tấn)** — số lượng bán của dòng này.
-3. **Giá bán** — đơn vị tính theo loại tiền chọn ở bước 7 (triệu đ/tấn hoặc USD/tấn).
-4. **Ngày xuất hoá đơn** — ngày hoá đơn của dòng bán này; chưa xuất thì để trống.
-5. **Bộ Hợp đồng** — bấm *Chọn* để đính kèm file (PDF hoặc ảnh); bấm vào tên file để mở lại.
-6. **Thêm dòng** nếu trong ngày có nhiều hợp đồng.
-7. **Giá bán nhập bằng** — chọn *VND* hoặc *USD*. Chọn USD thì hiện thêm ô **Tỷ giá** (có nút lấy tỷ giá Vietcombank). Xong bấm **Lưu số liệu**.
+1. **Giá bán** của dòng — đơn vị tính theo loại tiền chọn ở cột kế bên.
+2. **Tiền** — chọn *VND* (giá tính bằng triệu đ/tấn) hoặc *USD* (giá tính bằng USD/tấn).
+3. **Tỷ giá** — chỉ hiện khi dòng đó chọn USD; dòng VND để dấu gạch ngang.
+4. **Doanh thu** của dòng hệ thống **tự tính**.
+5. **Lấy tỷ giá VCB cho các dòng USD** — điền tỷ giá Vietcombank vào mọi dòng đang chọn USD một lượt.
+6. Nhập nốt **Ngày xuất hoá đơn** và đính kèm **Bộ Hợp đồng**, rồi bấm **Lưu số liệu**.
 
-> - Cột **Doanh thu** của từng dòng và toàn bộ khối **Tổng hợp tiêu thụ** đều **tự tính** — không nhập tay.
-> - Chọn USD mà **chưa nhập tỷ giá** thì doanh thu để trống, hệ thống không tự đoán tỷ giá.
-> - Loại tiền áp cho **cả phiếu**, không phải từng dòng — trong ngày có cả bán USD lẫn VNĐ thì nhập thành 2 ngày phiếu hoặc quy về một loại tiền.
+> - Dòng chọn USD mà **chưa nhập tỷ giá** thì doanh thu dòng đó để trống — hệ thống không tự đoán tỷ giá.
+> - Bảng **Tồn kho đã ký HĐ chưa giao** cũng có cột *Tiền* và *Tỷ giá* riêng cho từng dòng.
+> - Cột **Doanh thu** từng dòng và khối **Tổng hợp tiêu thụ** đều tự tính — không nhập tay.
 > - Xoá một dòng bằng biểu tượng thùng rác ở cuối dòng.
 
 ## 6. Nhập Báo cáo tồn kho
@@ -159,7 +158,7 @@ Tồn kho là số liệu **tại thời điểm cuối ngày** (không cộng d
 
 **Vị trí:** Menu → Nhu cầu thị trường
 
-Mục này ghi lại nhu cầu và tín hiệu thị trường mà đơn vị nắm được: khách hỏi mua, chào giá, đơn hàng sắp ký… Đây là phần nhập **tự do bằng chữ**, không có ô số liệu, giúp Ban Thị trường Kinh doanh nắm tình hình thực tế tại đơn vị.
+Ghi nhận **các lời chào hàng từ khách hàng, nhà sản xuất** và nhu cầu thị trường mà đơn vị nắm được trong ngày — dùng để phân tích yếu tố **Cầu** trong quan hệ Cung – Cầu.
 
 ![Hình 9. Nhập Nhu cầu thị trường](img/09-nhu-cau-thi-truong.png)
 
@@ -172,10 +171,10 @@ Mục này ghi lại nhu cầu và tín hiệu thị trường mà đơn vị n�
 5. Bấm **Lưu**.
 6. Muốn sửa nội dung đã ghi: bấm **biểu tượng bút** ở dòng tương ứng trong danh sách bên dưới.
 
-> - Danh sách bên dưới xếp theo **dòng thời gian**, chỉ hiện những ngày đã có nhập.
-> - Mỗi ngày mỗi đơn vị chỉ có **một nội dung**; nhập lại cho ngày đã có sẽ được nhắc dùng chức năng Sửa.
-> - Mục này **không có nhập bằng Excel** — chỉ nhập trực tiếp trên màn hình.
-> - Cũng áp dụng cửa sổ thời gian như các báo cáo khác: ngày quá cũ chỉ để xem.
+> - Nên ghi rõ: **khách hàng hoặc nhà sản xuất nào · chủng loại · số lượng · mức giá chào · thời điểm giao hàng**. Càng cụ thể thì phần phân tích Cung – Cầu càng dùng được.
+> - Đây là mục nhập **tự do bằng chữ**, không có ô số liệu.
+> - Mỗi ngày mỗi đơn vị chỉ có **một nội dung** — nhập lại ngày đã có sẽ được nhắc dùng chức năng Sửa.
+> - Mục này **không có nhập bằng Excel**.
 
 ## 9. Nhập nhanh bằng Excel (tải mẫu → nhập lên)
 
