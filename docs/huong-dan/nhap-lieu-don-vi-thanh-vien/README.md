@@ -195,6 +195,7 @@ Thay vì gõ tay từng ngày, có thể tải file Excel mẫu về điền r�
 5. Cột **Ghi chú** nói rõ dòng lỗi sai ở đâu (vd *Ngày: ngày không hợp lệ*).
 6. Bấm **Xác nhận ghi N dòng** — chỉ ghi các dòng hợp lệ, dòng lỗi bị bỏ qua.
 
+> - Chi tiết từng cột của ba biểu mẫu (kèm file mẫu và cách xử lý dòng lỗi): xem tài liệu riêng **Hướng dẫn nhập liệu bằng Excel** trong thư mục `docs/huong-dan/nhap-lieu-bang-excel/`.
 > - File mẫu của đơn vị **không có cột “Đơn vị”** — hệ thống tự gán đúng đơn vị của tài khoản, không cần gõ tên.
 > - **Không đổi tên hoặc xoá dòng tiêu đề** của file mẫu; nếu thiếu cột bắt buộc hệ thống sẽ báo và không đọc file.
 > - Muốn sửa dòng lỗi: sửa lại trong file Excel rồi nhập lên lần nữa — các dòng đã ghi đúng sẽ được ghi đè, không bị nhân đôi.
