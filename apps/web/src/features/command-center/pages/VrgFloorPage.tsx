@@ -29,7 +29,8 @@ const fill = (grades: string[], items: FloorItem[]): FloorItem[] => {
 
 /** Quản lý số liệu → Giá sàn Tập đoàn: biểu giá theo "lần" (số tự nhảy), nhập tay. */
 export default function VrgFloorPage() {
-  const { canEdit } = useAuth();
+  const { canEditCap } = useAuth();
+  const canEdit = canEditCap("floor"); // mức Xem của mục này → khoá toàn bộ thao tác ghi
   const [list, setList] = useState<FloorSummary[]>([]);
   const [grades, setGrades] = useState<string[]>([]);
   const [nextLan, setNextLan] = useState(1);
@@ -126,7 +127,7 @@ export default function VrgFloorPage() {
         )}
       </div>
 
-      <ReadOnlyNotice />
+      <ReadOnlyNotice cap="floor" />
       <DataSourceNote page="vrg-floor" />
 
       <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo}

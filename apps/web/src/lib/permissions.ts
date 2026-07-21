@@ -1,10 +1,18 @@
 /* Quyền theo mục dữ liệu (phân quyền chuyên viên nhập liệu). Khớp backend app/core/permissions.py.
-   admin = tất cả · editor = theo danh sách · viewer (Người xem) = không có mục nào. */
+   admin = tất cả (mức Sửa) · editor = theo danh sách · viewer (Người xem) = không có mục nào.
+
+   Hai cấp: các mục NHẬP LIỆU (SPLIT_CAPS) tách Xem / Sửa. Dạng lưu trong `permissions`:
+     "physical"       → mức Sửa (xem + nhập/sửa/xoá)
+     "physical:view"  → mức Xem (chỉ đọc)
+   Mục ngoài SPLIT_CAPS (màn phân tích/bản tin) chỉ 1 cấp — luôn quy về Sửa.
+   Key trần = mức Sửa nên dữ liệu cũ giữ nguyên quyền (không cần migration). */
 
 export type Cap =
   | "market_quote" | "raw_material" | "floor" | "physical"
   | "inventory" | "member_unit" | "auto_data" | "market_demand" | "unit_daily"
   | "floor_suggest" | "bulletin_daily" | "bulletin_weekly" | "market_movement" | "assistant";
+
+export type CapLevel = "view" | "edit";
 
 /** Danh sách quyền + nhãn hiển thị (trang Quản trị người dùng, theo thứ tự này). */
 export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
@@ -15,8 +23,8 @@ export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
   { key: "inventory", label: "Tồn kho" },
   { key: "member_unit", label: "Đơn vị thành viên" },
   { key: "auto_data", label: "Số liệu tự động", hint: "Bảng tính giá các sàn · Tỷ giá · Quét đa sàn" },
-  { key: "market_demand", label: "Nhu cầu thị trường", hint: "xem + sửa nhu cầu của mọi đơn vị" },
-  { key: "unit_daily", label: "Báo cáo tiêu thụ - tồn kho", hint: "thu mua · tiêu thụ – tồn kho (xem/sửa mọi đơn vị)" },
+  { key: "market_demand", label: "Nhu cầu thị trường", hint: "nhu cầu của mọi đơn vị" },
+  { key: "unit_daily", label: "Báo cáo tiêu thụ - tồn kho", hint: "thu mua · tiêu thụ – tồn kho (mọi đơn vị)" },
   { key: "floor_suggest", label: "Gợi ý giá sàn", hint: "màn phân tích" },
   { key: "bulletin_daily", label: "Bản tin ngày", hint: "màn phân tích" },
   { key: "bulletin_weekly", label: "Báo cáo tuần", hint: "màn phân tích" },
@@ -27,6 +35,15 @@ export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
 export const CAP_KEYS: Cap[] = DATA_CAPS.map((c) => c.key);
 const CAP_SET = new Set<string>(CAP_KEYS);
 
+/** Các mục nhập liệu có tách 2 cấp Xem/Sửa (khớp SPLIT_CAPS ở backend). */
+export const SPLIT_CAPS = new Set<Cap>([
+  "market_quote", "raw_material", "floor", "physical", "inventory",
+  "member_unit", "auto_data", "market_demand", "unit_daily",
+]);
+
+/** Mục này có cho chọn mức Xem riêng không (false = chỉ 1 cấp, luôn là Sửa). */
+export const isSplitCap = (key: Cap): boolean => SPLIT_CAPS.has(key);
+
 /** Gom quyền thành nhóm cho UI cấp quyền (theo cấu trúc menu — đỡ rối). */
 export const CAP_GROUPS: { title: string; keys: Cap[] }[] = [
   { title: "Quản lý số liệu (tự động)", keys: ["auto_data"] },
@@ -34,9 +51,37 @@ export const CAP_GROUPS: { title: string; keys: Cap[] }[] = [
   { title: "Phân tích & Bản tin", keys: ["floor_suggest", "bulletin_daily", "bulletin_weekly", "market_movement", "assistant"] },
 ];
 
-/** Quyền THỰC của tài khoản: admin→tất cả, editor→theo list, viewer→rỗng. */
-export function effectiveCaps(role: string | undefined, permissions: string[] | undefined): Set<string> {
-  if (role === "admin") return new Set<string>(CAP_KEYS);
-  if (role === "editor") return new Set((permissions ?? []).filter((c) => CAP_SET.has(c)));
-  return new Set();
+const RANK: Record<string, number> = { view: 1, edit: 2 };
+
+/** `"physical:view"` → `["physical","view"]`. Key trần → mức Sửa. Sai định dạng → null. */
+export function parseCap(entry: string): [Cap, CapLevel] | null {
+  const idx = entry.indexOf(":");
+  const key = idx < 0 ? entry : entry.slice(0, idx);
+  const suffix = idx < 0 ? "" : entry.slice(idx + 1);
+  if (!CAP_SET.has(key)) return null;
+  const cap = key as Cap;
+  if (!SPLIT_CAPS.has(cap) || !suffix) return [cap, "edit"];
+  return suffix in RANK ? [cap, suffix as CapLevel] : null;
 }
+
+/** Chuẩn hoá về dạng lưu: mức Sửa = key trần, mức Xem = `key:view`. */
+export const formatCap = (key: Cap, level: CapLevel): string => (level === "edit" ? key : `${key}:${level}`);
+
+/** Quyền THỰC của tài khoản dạng `{key: level}`: admin→tất cả (Sửa), editor→theo list, còn lại→rỗng. */
+export function effectiveCaps(role: string | undefined, permissions: string[] | undefined): Map<Cap, CapLevel> {
+  const out = new Map<Cap, CapLevel>();
+  if (role === "admin") {
+    for (const k of CAP_KEYS) out.set(k, "edit");
+    return out;
+  }
+  if (role !== "editor") return out;
+  for (const entry of permissions ?? []) {
+    const parsed = parseCap(entry);
+    if (parsed && RANK[parsed[1]] > (RANK[out.get(parsed[0]) ?? ""] ?? 0)) out.set(parsed[0], parsed[1]);
+  }
+  return out;
+}
+
+/** Tài khoản có đạt mức quyền yêu cầu cho mục `key` không (mặc định: mức Xem). */
+export const hasCap = (caps: Map<Cap, CapLevel>, key: Cap, level: CapLevel = "view"): boolean =>
+  (RANK[caps.get(key) ?? ""] ?? 0) >= RANK[level];

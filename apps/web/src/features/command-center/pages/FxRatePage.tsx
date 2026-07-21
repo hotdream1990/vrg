@@ -11,7 +11,8 @@ import "../../bulletin/bulletin.css";
 
 /** Quản lý số liệu → Tỷ giá (USD/JPY·CNY·MYR·THB·VND theo ngày). */
 export default function FxRatePage() {
-  const { canEdit } = useAuth();
+  const { canEditCap } = useAuth();
+  const canEdit = canEditCap("auto_data"); // mức Xem của mục này → khoá toàn bộ thao tác ghi
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
@@ -25,7 +26,7 @@ export default function FxRatePage() {
         </div>
       </div>
 
-      <ReadOnlyNotice />
+      <ReadOnlyNotice cap="auto_data" />
       <DataSourceNote page="fx" />
       <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo}>
         {canEdit && (

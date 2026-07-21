@@ -30,7 +30,7 @@ export type SaleLine = {
 
 /** Khối tồn kho chỉ có số lượng (khối 1 & 2): chủng loại · số lượng (TẤN). */
 export type StockQtyLine = { grade: string; qty: number | null };
-/** Khối 3 — đã ký HĐ chưa giao: chủng loại · tấn · đơn giá (theo `stock_ccy`) · lịch giao · HĐ scan. */
+/** Khối 3 — đã ký hợp đồng: chủng loại · tấn · đơn giá (theo `stock_ccy`) · lịch giao · HĐ scan. */
 export type StockSignedLine = {
   grade: string; qty: number | null; price: number | null;
   ccy?: Ccy; fx?: number | null;         // loại tiền + tỷ giá của DÒNG này
@@ -39,7 +39,7 @@ export type StockSignedLine = {
 };
 
 /** Payload tiêu thụ–tồn kho. TỒN KHO = số THỜI ĐIỂM, chia 4 khối:
-    1 chế biến chưa nhập kho · 2 đã nhập kho · 3 đã ký HĐ chưa giao · 4 nguyên liệu chưa sản xuất. */
+    1 chế biến chưa nhập kho · 2 đã nhập kho · 3 đã ký hợp đồng · 4 nguyên liệu chưa sản xuất (quy khô). */
 export type ConsumptionData = {
   sales?: SaleLine[];
   sales_ccy?: Ccy;                        // loại tiền của giá bán
@@ -48,8 +48,21 @@ export type ConsumptionData = {
   revenue?: number | null;                // tổng doanh thu tiêu thụ (đồng)
   stock_not_warehoused?: StockQtyLine[];  // 1 — thành phẩm chế biến CHƯA nhập kho
   stock_warehoused?: StockQtyLine[];      // 2 — thành phẩm ĐÃ nhập kho
-  stock_signed_undelivered?: StockSignedLine[]; // 3 — đã ký HĐ chưa giao (kèm HĐ scan)
-  stock_material?: number | null;         // 4 — nguyên liệu chưa sản xuất (tấn)
+  stock_signed_undelivered?: StockSignedLine[]; // 3 — đã ký hợp đồng (kèm HĐ scan)
+  stock_material?: number | null;         // 4 — nguyên liệu chưa sản xuất, quy khô (tấn)
+
+  // ── Tiêu thụ mủ THU MUA và mủ THÀNH PHẨM (chuyển từ biểu Thu mua sang) ──
+  // `*_raw` = số user gõ (tỷ đồng khi VND · USD khi USD); `*_revenue` = đã quy về đồng để báo cáo.
+  purchased_sold_qty?: number | null;
+  purchased_sold_raw?: number | null;
+  purchased_sold_ccy?: Ccy;
+  purchased_sold_fx?: number | null;
+  purchased_sold_revenue?: number | null;
+  finished_sold_qty?: number | null;
+  finished_sold_raw?: number | null;
+  finished_sold_ccy?: Ccy;
+  finished_sold_fx?: number | null;
+  finished_sold_revenue?: number | null;
 };
 
 /** Tổng số lượng (TẤN) 1 bảng tồn kho. */

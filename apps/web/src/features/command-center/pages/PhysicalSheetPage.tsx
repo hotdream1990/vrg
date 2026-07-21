@@ -25,7 +25,8 @@ const STICKY = { position: "sticky" as const, left: 0, background: "var(--card, 
 
 /** Quản lý số liệu → Giá Physical (giao ngay): lưới hàng=ngày × cột=grade (RSS3/STR20/SMR20…). */
 export default function PhysicalSheetPage() {
-  const { canEdit } = useAuth();
+  const { canEditCap } = useAuth();
+  const canEdit = canEditCap("physical"); // mức Xem của mục này → khoá toàn bộ thao tác ghi
   const ew = useEditorWindow(); // cửa sổ sửa: ngày cũ hơn N ngày → chỉ xem (admin miễn)
   const [sheet, setSheet] = useState<PhysicalSheet | null>(null);
   const [from, setFrom] = useState("");
@@ -83,7 +84,7 @@ export default function PhysicalSheetPage() {
         </div>
       </div>
 
-      <ReadOnlyNotice />
+      <ReadOnlyNotice cap="physical" />
       <DataSourceNote page="physical" />
 
       {canEdit && <ReutersPasteImport defaultDate={newDate} onImported={load} />}

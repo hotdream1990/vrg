@@ -29,7 +29,7 @@ const taStyle: React.CSSProperties = {
  *  Chuyên viên/admin: mọi đơn vị (cửa sổ editor, admin miễn). Đơn vị thành viên: CHỈ đơn vị được gán
  *  (đa đơn vị/1 tài khoản), cửa sổ member — dùng chung 1 component, đổi nguồn dữ liệu theo vai trò. */
 export default function MarketDemandTimelinePage() {
-  const { user } = useAuth();
+  const { user, canEditCap } = useAuth();
   const isAdmin = user?.role === "admin";
   const isMember = user?.role === "member";
 
@@ -51,8 +51,11 @@ export default function MarketDemandTimelinePage() {
   }, [days, isMember]);
   useEffect(() => { load(); }, [load]);
 
+  // Chuyên viên chỉ được cấp mức Xem → khoá ghi ở mọi ngày (đơn vị thành viên không xét cap).
+  const mayEdit = isMember || canEditCap("market_demand");
   const canEdit = (as_of: string) =>
-    isAdmin || (!!data && as_of <= data.today && daysBetween(data.today, as_of) <= data.edit_window_days);
+    mayEdit
+    && (isAdmin || (!!data && as_of <= data.today && daysBetween(data.today, as_of) <= data.edit_window_days));
 
   // Gom entries theo ngày (đã sort DESC ở backend).
   const groups = useMemo(() => {
@@ -101,10 +104,12 @@ export default function MarketDemandTimelinePage() {
             {RANGES.map((d) => <option key={d} value={d}>{d} ngày gần nhất</option>)}
           </select>
         </label>
-        <button className="btn btn-primary" onClick={() => setAdding((a) => !a)}
-          style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <PlusOutlined /> Thêm nhu cầu
-        </button>
+        {mayEdit && (
+          <button className="btn btn-primary" onClick={() => setAdding((a) => !a)}
+            style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <PlusOutlined /> Thêm nhu cầu
+          </button>
+        )}
       </div>
 
       {adding && (

@@ -26,6 +26,7 @@ _NUM = "#,##0.00"
 _PURCHASE_COLS: list[tuple[str, str, str, str]] = [
     ("latex_wet", "Sản lượng thu mua mủ nước", "cộng dồn", "tấn"),
     ("coagulum", "Sản lượng thu mua mủ chén", "cộng dồn", "tấn"),
+    ("finished_qty", "Sản lượng thu mua thành phẩm", "cộng dồn", "tấn"),
     ("total_purchase", "Tổng sản lượng thu mua", "= mủ nước + mủ chén", "tấn"),
     ("price_latex_avg", "Giá thu mua mủ nước BQ", "bình quân gia quyền", "đồng/độ TSC"),
     ("price_cup_avg", "Giá thu mua mủ chén BQ", "bình quân gia quyền", "đồng/độ"),
@@ -38,7 +39,7 @@ _PURCHASE_COLS: list[tuple[str, str, str, str]] = [
 ]
 
 # TỒN KHO: khối 1 và khối 2 là HAI chỉ tiêu khác nhau → mỗi khối một dòng riêng, rồi mới tới tổng.
-# Khối 3 (đã ký HĐ chưa giao) là CAM KẾT, đứng riêng, không cộng vào tổng và không trừ ra.
+# Khối 3 (đã ký hợp đồng) là CAM KẾT, đứng riêng, không cộng vào tổng và không trừ ra.
 _CONSUMPTION_COLS: list[tuple[str, str, str, str]] = [
     ("signed_lt_tonnes", "Tổng SL đã ký HĐ dài hạn", "số liệu năm", "tấn"),
     ("lt_export", "HĐ dài hạn — XK/UTXK", "cộng dồn", "tấn"),
@@ -53,10 +54,10 @@ _CONSUMPTION_COLS: list[tuple[str, str, str, str]] = [
     ("stock_not_warehoused", "Tồn kho thành phẩm chế biến chưa nhập kho", "thời điểm", "tấn"),
     ("stock_warehoused", "Tồn kho thành phẩm đã nhập kho", "thời điểm", "tấn"),
     ("stock_finished", "Tổng tồn kho thành phẩm", "= chưa nhập kho + đã nhập kho", "tấn"),
-    ("stock_finished_hd", "Số lượng đã ký HĐ chưa giao", "thời điểm — cam kết, ngoài tồn kho", "tấn"),
+    ("stock_finished_hd", "Số lượng đã ký hợp đồng", "thời điểm — cam kết, ngoài tồn kho", "tấn"),
 ]
 _TAIL_COLS: list[tuple[str, str, str, str]] = [
-    ("stock_material", "Tồn kho nguyên liệu chưa sản xuất", "thời điểm", "tấn"),
+    ("stock_material", "Tồn kho nguyên liệu chưa sản xuất (quy khô)", "thời điểm", "tấn"),
     ("carry_lt_tonnes", "HĐ dài hạn năm trước chuyển sang", "số liệu năm", "tấn"),
     ("carry_spot_tonnes", "HĐ chuyến năm trước chuyển sang", "số liệu năm", "tấn"),
 ]

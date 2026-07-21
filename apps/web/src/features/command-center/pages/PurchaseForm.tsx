@@ -1,7 +1,8 @@
-/* Form nhập biểu THU MUA (1 đơn vị / 1 ngày). Bố trí theo loại mủ; xử lý ĐƠN VỊ NƯỚC NGOÀI:
-   - Đơn giá thu mua nhập theo NỘI TỆ (LAK/KHR) + tỷ giá nội tệ→VND → đơn giá VND tự quy đổi (ghi vào kho giá).
-   - Doanh thu nhập theo USD + tỷ giá USD→VND (nút "Lấy tỷ giá hiện tại" từ VCB) → doanh thu VND (cột chính).
-   Tiền lưu BASE = đồng (VND). Đơn vị Việt Nam: nhập thẳng đơn giá VND + doanh thu tỷ đồng. */
+/* Form nhập biểu THU MUA (1 đơn vị / 1 ngày): mủ nước · mủ chén · THÀNH PHẨM (mua lại mủ đã chế biến).
+   - Đơn vị nước ngoài: đơn giá mủ nước/mủ chén nhập theo NỘI TỆ (LAK/KHR) + tỷ giá nội tệ→VND
+     → đơn giá VND tự quy đổi và ghi vào kho "Giá mủ nguyên liệu".
+   - Thu mua thành phẩm nhập được CẢ đơn giá VNĐ lẫn ngoại tệ (kèm tỷ giá, có nút lấy VCB).
+   - Phần TIÊU THỤ mủ thu mua/thành phẩm đã chuyển sang biểu Tiêu thụ (ConsumptionForm). */
 
 import { Checkbox, Select, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
@@ -21,7 +22,6 @@ type Props = {
   footer?: (dirty: boolean, current: Values, prices: PriceDraft) => React.ReactNode;
 };
 
-const TY = 1_000_000_000; // 1 tỷ đồng = 1e9 đồng
 const num = (x: number | null | undefined): number | null => (x == null || Number.isNaN(x) ? null : x);
 const mul = (a?: number | null, b?: number | null): number | null =>
   num(a) == null || num(b) == null ? null : (a as number) * (b as number);
@@ -35,18 +35,20 @@ const CUP_BASES: { value: CupBasis; label: string }[] = [
 /** Dựng nháp ban đầu từ payload đã lưu + đơn giá VND (đơn vị VN prefill đơn giá VND, nước ngoài prefill nội tệ). */
 function initDraft(values: Values, linked: UnitPurchasePrice | null | undefined, foreign: boolean): Values {
   const base: Values = {
-    latex_wet: values.latex_wet, coagulum: values.coagulum, consumption: values.consumption,
+    latex_wet: values.latex_wet, coagulum: values.coagulum,
+    // Thu mua thành phẩm — nhập được cả đơn giá VNĐ lẫn ngoại tệ.
+    finished_qty: values.finished_qty, price_finished_vnd: values.price_finished_vnd,
+    price_finished_fx: values.price_finished_fx, fx_finished: values.fx_finished,
   };
   if (foreign) {
     return {
       ...base,
       price_latex_local: values.price_latex_local, price_cup_local: values.price_cup_local,
-      fx_purchase: values.fx_purchase, revenue_usd: values.revenue_usd, fx_revenue: values.fx_revenue,
+      fx_purchase: values.fx_purchase,
     };
   }
   return {
     ...base,
-    revenue_ty: values.revenue != null ? (values.revenue as number) / TY : undefined,
     price_latex_vnd: linked?.latex ?? undefined, price_cup_vnd: linked?.cup ?? undefined,
   };
 }
@@ -74,27 +76,24 @@ export default function PurchaseForm({
   // Quy đổi về VND (base đồng).
   const priceLatexVnd = foreign ? mul(draft.price_latex_local, draft.fx_purchase) : num(draft.price_latex_vnd);
   const priceCupVnd = foreign ? mul(draft.price_cup_local, draft.fx_purchase) : num(draft.price_cup_vnd);
-  const revenueVnd = foreign
-    ? mul(draft.revenue_usd, draft.fx_revenue)
-    : (num(draft.revenue_ty) != null ? (draft.revenue_ty as number) * TY : null);
-  const giaBQ = revenueVnd != null && num(draft.consumption) ? revenueVnd / (draft.consumption as number) / 1_000_000 : null;
 
   // Payload lưu (đồng) + đơn giá VND ghi kho giá.
   const current = useMemo<Values>(() => {
     const p: Values = {
-      latex_wet: draft.latex_wet, coagulum: draft.coagulum, consumption: draft.consumption,
-      revenue: revenueVnd ?? undefined,
+      latex_wet: draft.latex_wet, coagulum: draft.coagulum,
+      finished_qty: draft.finished_qty, price_finished_vnd: draft.price_finished_vnd,
+      price_finished_fx: draft.price_finished_fx, fx_finished: draft.fx_finished,
     };
     if (foreign) {
       Object.assign(p, {
         price_latex_local: draft.price_latex_local, price_cup_local: draft.price_cup_local,
-        fx_purchase: draft.fx_purchase, revenue_usd: draft.revenue_usd, fx_revenue: draft.fx_revenue,
+        fx_purchase: draft.fx_purchase,
       });
     }
     (p as Record<string, unknown>).cup_basis = cupBasis;
     if (noPurchase) (p as Record<string, unknown>).no_purchase = true;
     return p;
-  }, [draft, revenueVnd, foreign, cupBasis, noPurchase]);
+  }, [draft, foreign, cupBasis, noPurchase]);
   const prices: PriceDraft = { latex: priceLatexVnd, cup: priceCupVnd, cupBasis };
 
   const dirty = useMemo(() => {
@@ -111,7 +110,7 @@ export default function PurchaseForm({
       const r = await fetchVcbRate();
       const rate = r.mua_ck ?? r.ban ?? r.mua_tm;
       if (rate == null) throw new Error("VCB không có tỷ giá USD");
-      set("fx_revenue", rate);
+      set("fx_finished", rate);
       message.success(`Đã lấy tỷ giá USD/VND (VCB ${r.date}): ${fmtNum(rate, 0)}`);
     } catch (e) {
       message.error((e as Error).message || "Không lấy được tỷ giá VCB — nhập tay giúp anh.");
@@ -184,29 +183,23 @@ export default function PurchaseForm({
           </>
         )}
 
-        {head("Tiêu thụ mủ thu mua")}
-        {field("Sản lượng tiêu thụ", "tấn", numInput(num(draft.consumption), (v) => set("consumption", v), readOnly))}
-        {foreign ? (
-          <>
-            {field("Doanh thu", "USD", numInput(num(draft.revenue_usd), (v) => set("revenue_usd", v), readOnly))}
-            <label style={{ display: "block" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginBottom: 2, minHeight: 18 }}>
-                <span style={{ fontSize: 12, opacity: 0.75 }}>Tỷ giá <span style={{ opacity: 0.6 }}>(1 USD = ? VND)</span></span>
-                {!readOnly && (
-                  <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 7px", lineHeight: "18px", whiteSpace: "nowrap" }}
-                          onClick={fetchFx} disabled={fxLoading}>
-                    {fxLoading ? "Đang lấy…" : "Lấy tỷ giá hiện tại"}
-                  </button>
-                )}
-              </div>
-              {numInput(num(draft.fx_revenue), (v) => set("fx_revenue", v), readOnly)}
-            </label>
-            {field("Doanh thu", "tỷ đồng", readOnlyBox(fmtNum(revenueVnd != null ? revenueVnd / TY : null, 3), "tự quy đổi"))}
-          </>
-        ) : (
-          field("Doanh thu", "tỷ đồng", numInput(num(draft.revenue_ty), (v) => set("revenue_ty", v), readOnly))
-        )}
-        {field("Giá bán bình quân", "triệu đ/tấn", readOnlyBox(fmtNum(giaBQ, 2), "tự tính"))}
+        {/* Thu mua THÀNH PHẨM — mua lại mủ đã chế biến; cho nhập cả đơn giá VNĐ lẫn ngoại tệ. */}
+        {head("Thu mua thành phẩm")}
+        {field("Sản lượng thu mua", "tấn", numInput(num(draft.finished_qty), (v) => set("finished_qty", v), readOnly))}
+        {field("Đơn giá (VNĐ)", "triệu đ/tấn", numInput(num(draft.price_finished_vnd), (v) => set("price_finished_vnd", v), readOnly))}
+        {field("Đơn giá (ngoại tệ)", "USD/tấn", numInput(num(draft.price_finished_fx), (v) => set("price_finished_fx", v), readOnly))}
+        <label style={{ display: "block" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginBottom: 2, minHeight: 18 }}>
+            <span style={{ fontSize: 12, opacity: 0.75 }}>Tỷ giá <span style={{ opacity: 0.6 }}>(1 USD = ? VND)</span></span>
+            {!readOnly && (
+              <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 7px", lineHeight: "18px", whiteSpace: "nowrap" }}
+                      onClick={fetchFx} disabled={fxLoading}>
+                {fxLoading ? "Đang lấy…" : "Lấy tỷ giá hiện tại"}
+              </button>
+            )}
+          </div>
+          {numInput(num(draft.fx_finished), (v) => set("fx_finished", v), readOnly)}
+        </label>
       </div>
 
       {!readOnly && footer?.(dirty, current, prices)}

@@ -1,5 +1,5 @@
 import { PlusOutlined, SafetyOutlined } from "@ant-design/icons";
-import { Alert, App, Button, Checkbox, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag } from "antd";
+import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -11,15 +11,28 @@ import {
   updateUser,
 } from "../../../lib/user-client";
 import { listUnits } from "../../../lib/member-unit-client";
-import { CAP_GROUPS, DATA_CAPS } from "../../../lib/permissions";
+import { DATA_CAPS, isSplitCap, parseCap } from "../../../lib/permissions";
 import { ROLE_COLOR, ROLE_LABEL, ROLES } from "../../../lib/roles";
 
-const CAP_LABEL: Record<string, string> = Object.fromEntries(DATA_CAPS.map((c) => [c.key, c.label]));
-const CAP_META: Record<string, { label: string; hint?: string }> =
-  Object.fromEntries(DATA_CAPS.map((c) => [c.key, { label: c.label, hint: c.hint }]));
 import { useAuth } from "../../auth/AuthContext";
+import CapPermissionPicker from "../sections/CapPermissionPicker";
 import PermissionMatrix from "../sections/PermissionMatrix";
 import "../../bulletin/bulletin.css";
+
+const CAP_LABEL: Record<string, string> = Object.fromEntries(DATA_CAPS.map((c) => [c.key, c.label]));
+
+/** Thẻ quyền trong bảng: nhãn mục + mức (Xem = xám, Sửa = xanh) — mục 1 cấp thì không hiện mức. */
+const capTag = (entry: string) => {
+  const parsed = parseCap(entry);
+  if (!parsed) return <Tag key={entry}>{entry}</Tag>;
+  const [key, level] = parsed;
+  const viewOnly = level === "view";
+  return (
+    <Tag key={entry} color={viewOnly ? "default" : "blue"}>
+      {CAP_LABEL[key]}{isSplitCap(key) && ` · ${viewOnly ? "Xem" : "Sửa"}`}
+    </Tag>
+  );
+};
 
 /** Quản trị → Người dùng: liệt kê + tạo/sửa/xoá tài khoản, đặt lại mật khẩu (chỉ admin). */
 export default function UserManagementPage() {
@@ -107,8 +120,7 @@ export default function UserManagementPage() {
           : <Tag color="warning">Chưa gán đơn vị</Tag>;
       if (u.role !== "editor") return <span style={{ color: "#999" }}>—</span>;
       if (!u.permissions?.length) return <Tag>Chưa cấp quyền</Tag>;
-      return <Space size={[4, 4]} wrap>{u.permissions.map((p) =>
-        <Tag key={p} color="blue">{CAP_LABEL[p] ?? p}</Tag>)}</Space>;
+      return <Space size={[4, 4]} wrap>{u.permissions.map(capTag)}</Space>;
     } },
     { title: "Trạng thái", dataIndex: "is_active", render: (v: boolean) =>
       <Tag color={v ? "success" : "error"}>{v ? "Đang dùng" : "Đã khoá"}</Tag> },
@@ -192,25 +204,8 @@ export default function UserManagementPage() {
                 );
               return (
                 <Form.Item label="Quyền theo mục (chuyên viên nhập liệu)" name="permissions"
-                  tooltip="Chỉ những mục được tích mới hiện menu và cho phép nhập/sửa.">
-                  <Checkbox.Group style={{ width: "100%" }}>
-                    <Space direction="vertical" size={12} style={{ width: "100%" }}>
-                      {CAP_GROUPS.map((g) => (
-                        <div key={g.title}>
-                          <div style={{ fontWeight: 600, fontSize: 11, color: "#0a9e48", letterSpacing: 0.4,
-                            textTransform: "uppercase", marginBottom: 4 }}>{g.title}</div>
-                          <Space direction="vertical" size={4} style={{ paddingLeft: 2 }}>
-                            {g.keys.map((k) => (
-                              <Checkbox key={k} value={k}>
-                                {CAP_META[k].label}
-                                {CAP_META[k].hint && <span style={{ color: "#999", fontSize: 12 }}> — {CAP_META[k].hint}</span>}
-                              </Checkbox>
-                            ))}
-                          </Space>
-                        </div>
-                      ))}
-                    </Space>
-                  </Checkbox.Group>
+                  tooltip="Mục nhập liệu chọn được 2 mức: Xem (chỉ đọc) hoặc Sửa (nhập/sửa/xoá). Mục không chọn sẽ ẩn khỏi menu.">
+                  <CapPermissionPicker />
                 </Form.Item>
               );
             }}

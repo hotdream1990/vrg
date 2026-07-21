@@ -133,7 +133,7 @@ def test_template_download_then_import_roundtrip() -> None:
         "sales": [(unit, dmy, "Dài hạn", "XK / UTXK", "SVR CV 50", 25, 1800, "USD", dmy)],
         "stock": [(unit, dmy, "Chế biến chưa nhập kho", "SVR CV 50", 33, None, None, None, None),
                   (unit, dmy, "Đã nhập kho", "SVR 3L", 66, None, None, None, None),
-                  (unit, dmy, "Đã ký HĐ chưa giao", "RSS 3", 12, 1750, "USD", dmy, 21)],
+                  (unit, dmy, "Đã ký HĐ", "RSS 3", 12, 1750, "USD", dmy, 21)],
     }
     for kind, rows in cases.items():
         tpl = client.get(f"/api/unit-daily/import/template?kind={kind}", headers=h)

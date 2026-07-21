@@ -11,7 +11,8 @@ import "../../bulletin/bulletin.css";
 
 /** Quản lý số liệu → Bảng tính giá các sàn (Native·Tỷ giá·USD/T theo ngày, giống file mẫu). */
 export default function PriceSheetPage() {
-  const { canEdit } = useAuth();
+  const { canEditCap } = useAuth();
+  const canEdit = canEditCap("auto_data"); // mức Xem của mục này → khoá toàn bộ thao tác ghi
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
@@ -25,7 +26,7 @@ export default function PriceSheetPage() {
         </div>
       </div>
 
-      <ReadOnlyNotice />
+      <ReadOnlyNotice cap="auto_data" />
       <DataSourceNote page="price-sheet" />
       <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo}>
         {canEdit && (

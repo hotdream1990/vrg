@@ -36,10 +36,12 @@ const pickEdited = (m: Record<string, number | null>, keys: Set<string>): Record
 
 /** Quản lý số liệu → Báo giá mủ thị trường: 1 phiếu/ngày, TỰ LƯU (auto-save) khi nhập. */
 export default function MarketQuotePage() {
-  const { canEdit, can } = useAuth();
+  const { can, canEditCap } = useAuth();
   const ew = useEditorWindow();            // cửa sổ sửa: phiếu ngày cũ hơn N ngày → chỉ xem (admin miễn)
   const canBasic = can("market_quote");   // Mục 1–4 + tỷ giá + đề xuất KH
   const canRegion = can("raw_material");  // Mục 5 — giá mủ khu vực
+  // Ghi được nếu ÍT NHẤT MỘT trong 2 mục ở mức Sửa (khớp require_any_cap ở backend).
+  const canEdit = canEditCap("market_quote") || canEditCap("raw_material");
   const [grades, setGrades] = useState<string[]>([]);
   const [units, setUnits] = useState<string[]>([]);
   const [packOpts, setPackOpts] = useState<string[]>([]);
@@ -63,7 +65,10 @@ export default function MarketQuotePage() {
 
   // Phiếu của ngày ngoài cửa sổ sửa → chỉ xem (khoá toàn bộ form + tự-lưu). Admin miễn.
   const outOfWindow = !!draft && !ew.isEditable(draft.as_of);
-  const editable = canEdit && !outOfWindow;
+  // Hai khối thuộc hai quyền khác nhau → khoá riêng (backend cũng bỏ qua khối không đủ quyền).
+  const editableBasic = canEditCap("market_quote") && !outOfWindow;   // Mục 1–4 + tỷ giá + đề xuất KH
+  const editableRegion = canEditCap("raw_material") && !outOfWindow;  // Mục 5 — giá mủ khu vực
+  const editable = editableBasic || editableRegion; // tạo/xoá phiếu + tự-lưu: cần ít nhất 1 khối
 
   useEffect(() => {
     fetchQuoteMeta()
@@ -204,7 +209,7 @@ export default function MarketQuotePage() {
         )}
       </div>
 
-      <ReadOnlyNotice />
+      <ReadOnlyNotice cap={["market_quote", "raw_material"]} />
       <DataSourceNote page="market-quote" />
 
       <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo} info={`${list.length} phiếu`} />
@@ -247,18 +252,19 @@ export default function MarketQuotePage() {
                     Chỉ xem — ngoài cửa sổ sửa {ew.days ?? 7} ngày
                   </span>
                 )}
-                {editable && <button className="btn" onClick={remove} disabled={busy}>Xoá phiếu</button>}
+                {/* Xoá phiếu = xoá Mục 1-4 → cần đúng quyền 'market_quote' mức Sửa (khớp backend). */}
+                {editableBasic && <button className="btn" onClick={remove} disabled={busy}>Xoá phiếu</button>}
               </div>
             </div>
           </div>
 
           {canBasic && (
           <>
-          <VcbRateBar fx={draft.fx} date={draft.as_of} readOnly={!editable} prevFx={prev?.fx}
+          <VcbRateBar fx={draft.fx} date={draft.as_of} readOnly={!editableBasic} prevFx={prev?.fx}
             onChange={(fx) => setDraft((d) => d && { ...d, fx })} />
 
           <GradePriceTable title="1. Giá nội địa — hàng tư nhân" subtitle="VNĐ/tấn + tình trạng" grades={grades}
-            section={draft.domestic_private} unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editable}
+            section={draft.domestic_private} unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editableBasic}
             prevPrices={prev?.domestic_private?.prices}
             onPrice={(g, v) => setPrice("domestic_private", g, v)}
             onPackaging={(g, v) => setPackaging("domestic_private", g, v)}
@@ -268,7 +274,7 @@ export default function MarketQuotePage() {
 
           <GradePriceTable title="2. Giá nội địa — hàng xuất khẩu" subtitle="VNĐ/tấn + tình trạng" grades={grades}
             section={draft.domestic_export ?? { prices: {}, packaging: {}, shipping: {}, status: {}, note: "" }}
-            unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editable}
+            unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editableBasic}
             prevPrices={prev?.domestic_export?.prices}
             onPrice={(g, v) => setPrice("domestic_export", g, v)}
             onPackaging={(g, v) => setPackaging("domestic_export", g, v)}
@@ -277,7 +283,7 @@ export default function MarketQuotePage() {
             onNote={(v) => setSect("domestic_export", { note: v })} />
 
           <GradePriceTable title="3. Giá xuất khẩu — hàng VRG" subtitle="USD/tấn (FOB) + tình trạng" grades={grades}
-            section={draft.export_vrg} unitLabel="USD/tấn" packagingOptions={packOpts} withStatus readOnly={!editable}
+            section={draft.export_vrg} unitLabel="USD/tấn" packagingOptions={packOpts} withStatus readOnly={!editableBasic}
             prevPrices={prev?.export_vrg?.prices}
             onPrice={(g, v) => setPrice("export_vrg", g, v)}
             onPackaging={(g, v) => setPackaging("export_vrg", g, v)}
@@ -286,7 +292,7 @@ export default function MarketQuotePage() {
             onNote={(v) => setSect("export_vrg", { note: v })} />
 
           <GradePriceTable title="4. Giá nội địa — hàng VRG" subtitle="VNĐ/tấn + tình trạng" grades={grades}
-            section={draft.domestic_vrg} unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editable}
+            section={draft.domestic_vrg} unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editableBasic}
             prevPrices={prev?.domestic_vrg?.prices}
             onPrice={(g, v) => setPrice("domestic_vrg", g, v)}
             onPackaging={(g, v) => setPackaging("domestic_vrg", g, v)}
@@ -295,13 +301,13 @@ export default function MarketQuotePage() {
             onNote={(v) => setSect("domestic_vrg", { note: v })} />
 
           <ProposalTable grades={grades} section={draft.customer_proposal ?? { qty: {}, prices: {}, note: "" }}
-            readOnly={!editable} prevQty={prev?.customer_proposal?.qty} prevPrices={prev?.customer_proposal?.prices}
+            readOnly={!editableBasic} prevQty={prev?.customer_proposal?.qty} prevPrices={prev?.customer_proposal?.prices}
             onQty={setPropQty} onPrice={setPropPrice} onNote={(v) => setProp({ note: v })} />
 
           <div className="card blt-section" style={{ marginBottom: 16 }}>
             <label className="blt-date-label" style={{ display: "block" }}>Ghi chú chung / Cảnh báo
               <textarea className="blt-date-input" style={{ width: "100%", minHeight: 52, resize: "vertical" }}
-                value={draft.footer} readOnly={!editable} placeholder="Ghi chú cuối phiếu…"
+                value={draft.footer} readOnly={!editableBasic} placeholder="Ghi chú cuối phiếu…"
                 onChange={(e) => setDraft((d) => d && { ...d, footer: e.target.value })} />
             </label>
           </div>
@@ -310,7 +316,7 @@ export default function MarketQuotePage() {
 
           {canRegion && (
             <RegionLatexTable units={units} regions={draft.regions ?? {}} regionsCup={draft.regions_cup ?? {}}
-              readOnly={!editable} prevRegions={prev?.regions} prevRegionsCup={prev?.regions_cup}
+              readOnly={!editableRegion} prevRegions={prev?.regions} prevRegionsCup={prev?.regions_cup}
               onPrice={setRegion} onPriceCup={setRegionCup} />
           )}
         </>

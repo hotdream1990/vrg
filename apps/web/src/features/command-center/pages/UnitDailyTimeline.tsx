@@ -22,12 +22,13 @@ type Props = {
   kind: Kind;
   role: "member" | "hq";
   isAdmin: boolean;
+  canEdit: boolean; // false = chỉ được cấp mức Xem → ẩn nút Thêm/Sửa
   refreshKey: number;
   onEdit: (asOf: string, company: string) => void;
   onAdd: () => void;
 };
 
-export default function UnitDailyTimeline({ kind, role, refreshKey, onEdit, onAdd }: Props) {
+export default function UnitDailyTimeline({ kind, role, canEdit, refreshKey, onEdit, onAdd }: Props) {
   const [days, setDays] = useState(90);
   const [data, setData] = useState<Timeline | null>(null);
   const [loading, setLoading] = useState(false);
@@ -66,10 +67,10 @@ export default function UnitDailyTimeline({ kind, role, refreshKey, onEdit, onAd
           <span style={{ fontSize: 12 }}>{dmy(r.updated_at)}</span>
         </Tooltip>
       ) },
-    { title: "", key: "act", fixed: "right", width: 66, align: "center",
+    ...(canEdit ? [{ title: "", key: "act", fixed: "right" as const, width: 66, align: "center" as const,
       render: (_: unknown, r: Row) => (
         <Button size="small" type="link" icon={<EditOutlined />} onClick={() => onEdit(r.as_of, r.company)} />
-      ) },
+      ) }] : []),
   ];
 
   return (
@@ -82,10 +83,12 @@ export default function UnitDailyTimeline({ kind, role, refreshKey, onEdit, onAd
             {DAY_RANGES.map((d) => <option key={d} value={d}>{d} ngày gần nhất</option>)}
           </select>
         </label>
-        <button className="btn btn-primary" onClick={onAdd}
-                style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <PlusOutlined /> Thêm số liệu ngày
-        </button>
+        {canEdit && (
+          <button className="btn btn-primary" onClick={onAdd}
+                  style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <PlusOutlined /> Thêm số liệu ngày
+          </button>
+        )}
       </div>
 
       <div className="card">

@@ -39,7 +39,7 @@ Màn hình liệt kê toàn bộ tài khoản của hệ thống. Nhìn vào đ�
 4. **Trạng thái** — *Đang dùng* hoặc *Đã khoá*.
 
 > - **Quản trị viên** — toàn quyền, không cần cấp quyền lẻ.
-> - **Chuyên viên nhập liệu** — chỉ vào được những mục được tích quyền.
+> - **Chuyên viên nhập liệu** — chỉ vào được những mục được cấp quyền; mỗi mục nhập liệu cấp ở mức **Xem** hoặc **Sửa**.
 > - **Người xem** — chỉ xem, không nhập/sửa số liệu.
 > - **Đơn vị thành viên** — tài khoản của công ty thành viên, chỉ nhập số liệu của đơn vị được gán.
 
@@ -56,10 +56,18 @@ Dùng cho cán bộ Ban/Phòng tại Tập đoàn. Điểm quan trọng nhất l
 1. **Tên đăng nhập** — nên dùng email công việc, tối thiểu 3 ký tự.
 2. **Mật khẩu** — tối thiểu 6 ký tự; nhắc người dùng tự đổi sau lần đăng nhập đầu.
 3. **Vai trò** — chọn *Chuyên viên nhập liệu*.
-4. **Quyền theo mục** — tích các mục được phép. Danh sách chia ba nhóm: Quản lý số liệu (tự động) · Quản lý số liệu (thủ công) · Phân tích & Bản tin.
+4. **Quyền theo mục** — chọn mức cho từng mục. Danh sách chia ba nhóm: Quản lý số liệu (tự động) · Quản lý số liệu (thủ công) · Phân tích & Bản tin.
+   Mỗi mục **nhập liệu** có ba lựa chọn:
+   - **Không** — ẩn khỏi menu, gõ thẳng địa chỉ màn hình cũng không vào được.
+   - **Xem** — vào được màn hình và đọc số liệu, nhưng mọi ô nhập bị khoá và các nút Thêm/Sửa/Xoá đều ẩn.
+     Quyền này chặn ở cả giao diện lẫn API — người dùng không thể lách bằng cách gọi thẳng API để ghi.
+   - **Sửa** — xem và nhập/sửa/xoá (vẫn theo cửa sổ nhập liệu N ngày như trước).
+
+   Các mục ở nhóm **Phân tích & Bản tin** chỉ có **Không** / **Có quyền** (không tách hai mức).
 5. Kéo xuống cuối cửa sổ, bấm **Lưu**.
 
-> - **Không tích mục nào thì tài khoản gần như trống** — đăng nhập được nhưng menu không có gì để làm.
+> - **Không cấp mục nào thì tài khoản gần như trống** — đăng nhập được nhưng menu không có gì để làm.
+> - Mức **Xem** hợp cho lãnh đạo Ban hoặc người cần đối chiếu số liệu mà không được sửa; muốn thu hồi quyền nhập của một người, hạ từ *Sửa* xuống *Xem* thay vì bỏ hẳn mục.
 > - Quyền **Báo cáo tiêu thụ - tồn kho** cho phép xem/sửa số liệu của **mọi** đơn vị, gồm cả màn *Báo cáo tổng hợp*. Chỉ cấp cho người thực sự cần tổng hợp toàn Tập đoàn.
 > - Quyền **Đơn vị thành viên** cho phép sửa danh mục đơn vị (mục 7) — nên giữ ở phạm vi hẹp.
 
@@ -93,7 +101,7 @@ Dùng khi cán bộ đổi nhiệm vụ, nghỉ việc hoặc cần bổ sung/th
 *Hình 5. Cửa sổ sửa tài khoản*
 
 1. **Vai trò** — đổi vai trò nếu cần (đổi sang *Đơn vị thành viên* thì phải gán đơn vị).
-2. **Quyền theo mục** — tích thêm hoặc bỏ tích để thu hồi quyền.
+2. **Quyền theo mục** — nâng/hạ mức từng mục (Không · Xem · Sửa) để cấp thêm hoặc thu hồi quyền.
 3. **Trạng thái** — chuyển *Đã khoá* để chặn đăng nhập mà vẫn giữ lịch sử số liệu đã nhập.
 
 > - **Ưu tiên khoá thay vì xoá** khi cán bộ nghỉ việc — xoá tài khoản sẽ mất dấu vết người nhập.

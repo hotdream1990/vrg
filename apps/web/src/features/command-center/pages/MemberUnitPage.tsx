@@ -53,7 +53,8 @@ const regionApi: ListApi<MemberRegion> = {
 
 /** Quản lý số liệu → Đơn vị thành viên: 2 tab — Đơn vị (gán khu vực) + Khu vực (nhóm đơn vị). */
 export default function MemberUnitPage() {
-  const { canEdit } = useAuth();
+  const { canEditCap } = useAuth();
+  const canEdit = canEditCap("member_unit"); // mức Xem của mục này → khoá toàn bộ thao tác ghi
   const [tab, setTab] = useState<"units" | "regions">("units");
   const [regions, setRegions] = useState<MemberRegion[]>([]);
 
@@ -68,7 +69,7 @@ export default function MemberUnitPage() {
         </div>
       </div>
 
-      <ReadOnlyNotice />
+      <ReadOnlyNotice cap="member_unit" />
       <DataSourceNote page="member-unit" />
 
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>

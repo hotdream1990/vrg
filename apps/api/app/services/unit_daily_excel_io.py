@@ -7,7 +7,7 @@ người dùng nộp → mẫu và bộ đọc không bao giờ lệch nhau.
   purchase   — Thu mua: 1 dòng / (đơn vị, ngày)
   sales      — Tiêu thụ: NHIỀU dòng / (đơn vị, ngày) → gom thành mảng `sales`
   stock      — Tồn kho: NHIỀU dòng / (đơn vị, ngày) → gom thành 3 khối tồn kho (chưa nhập kho ·
-               đã nhập kho · đã ký HĐ chưa giao) + ô nguyên liệu chưa sản xuất
+               đã nhập kho · đã ký HĐ) + ô nguyên liệu chưa sản xuất
   plan       — Kế hoạch năm: 1 dòng / (đơn vị, năm)
 
 Ghi có MERGE: nhập Tiêu thụ không xoá Tồn kho của cùng bản ghi ngày đó và ngược lại.
@@ -38,7 +38,7 @@ CCYS = {"VND": "VND", "USD": "USD"}
 STOCK_GROUPS = {
     "Chế biến chưa nhập kho": "not_warehoused",
     "Đã nhập kho": "warehoused",
-    "Đã ký HĐ chưa giao": "signed_undelivered",
+    "Đã ký HĐ": "signed_undelivered",
 }
 GRADES = list(UNIT_STOCK_GRADES)
 
@@ -77,8 +77,9 @@ SPECS: dict[str, Spec] = {
          Col("price_cup", "Đơn giá mủ chén", "đồng/độ", width=18),
          Col("cup_basis", "Đơn giá mủ chén tính theo", "mặc định Độ TSC", type="enum",
              choices=CUP_BASES, width=22),
-         Col("consumption", "SL tiêu thụ mủ thu mua", "tấn", width=20),
-         Col("revenue_ty", "Doanh thu", "tỷ đồng")]),
+         Col("finished_qty", "SL thu mua thành phẩm", "tấn", width=20),
+         Col("price_finished_vnd", "Đơn giá thành phẩm (VNĐ)", "triệu đ/tấn", width=22),
+         Col("price_finished_fx", "Đơn giá thành phẩm (ngoại tệ)", "USD/tấn", width=24)]),
     "sales": Spec(
         "BIỂU NHẬP — TIÊU THỤ", "Tiêu thụ",
         "Mỗi dòng = 1 hợp đồng bán. Cùng (đơn vị, ngày) có thể nhiều dòng — hệ thống tự gộp. "
@@ -95,7 +96,7 @@ SPECS: dict[str, Spec] = {
     "stock": Spec(
         "BIỂU NHẬP — TỒN KHO", "Tồn kho",
         "Mỗi dòng = 1 dòng tồn kho (số THỜI ĐIỂM cuối ngày, không cộng dồn). "
-        "Nhóm 'Đã ký HĐ chưa giao' mới cần Đơn giá / Lịch giao (file HĐ scan đính kèm trên web).",
+        "Nhóm 'Đã ký HĐ' mới cần Đơn giá / Lịch giao (file HĐ scan đính kèm trên web).",
         [_UNIT_COL, _DATE_COL,
          Col("group", "Nhóm", required=True, type="enum", choices=STOCK_GROUPS, width=20),
          Col("grade", "Chủng loại", required=True, type="enum",
@@ -104,8 +105,8 @@ SPECS: dict[str, Spec] = {
          Col("price", "Đơn giá", "chỉ nhóm đã ký HĐ", width=18),
          Col("stock_ccy", "Đơn giá bằng", "VND | USD", type="enum", choices=CCYS, width=14),
          Col("delivery_date", "Lịch giao", "dd/mm/yyyy", type="date"),
-         Col("stock_material", "Tồn kho nguyên liệu chưa sản xuất",
-             "tấn — đối với các đơn vị chưa có nhà máy chế biến", width=34)]),
+         Col("stock_material", "Tồn kho nguyên liệu chưa sản xuất (quy khô)",
+             "tấn", width=34)]),
     "plan": Spec(
         "BIỂU NHẬP — KẾ HOẠCH NĂM", "Kế hoạch năm",
         "Mỗi dòng = 1 đơn vị / 1 năm. Số liệu nhập 1 lần, cập nhật khi có thay đổi.",
@@ -351,10 +352,9 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
     for (company, as_of), items in grouped.items():
         if kind == "purchase":
             it = items[-1]                                     # 1 dòng / ngày (lấy dòng cuối)
-            fields = {k: it.get(k) for k in ("latex_wet", "coagulum", "consumption")
+            fields = {k: it.get(k) for k in
+                      ("latex_wet", "coagulum", "finished_qty", "price_finished_vnd", "price_finished_fx")
                       if it.get(k) is not None}
-            if it.get("revenue_ty") is not None:
-                fields["revenue"] = round(it["revenue_ty"] * TY)   # tỷ đồng → base đồng (làm tròn số thực)
             # Cách tính độ của mủ chén phải gán TRƯỚC khi ghi, không thì không được lưu.
             basis = next((r.get("cup_basis") for r in items if r.get("cup_basis")), None)
             if basis:

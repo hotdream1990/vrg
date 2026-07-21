@@ -29,7 +29,8 @@ const pct = (pts: Point[]): number | undefined =>
 /** Route "Quét Đa sàn" — dashboard giá THẬT: KPI + nhiều chart (settlement sàn, vĩ mô FX,
     physical theo grade) backfill từ sàn + bảng chi tiết. Mở trang tự nạp từ DB. */
 export default function ScanPage() {
-  const { canEdit } = useAuth();
+  const { canEditCap } = useAuth();
+  const canEdit = canEditCap("auto_data"); // mức Xem của mục này → không cho bấm quét/backfill
   const [latest, setLatest] = useState<LatestRow[]>([]);
   const [shfe, setShfe] = useState<Point[]>([]);
   const [rss3, setRss3] = useState<Point[]>([]);
@@ -126,7 +127,7 @@ export default function ScanPage() {
         </div>
       </div>
 
-      <ReadOnlyNotice />
+      <ReadOnlyNotice cap="auto_data" />
 
       {error && <div className="scan-err" style={{ marginBottom: 12 }}>Lỗi: {error} — kiểm tra API (8390) &amp; DB.</div>}
 

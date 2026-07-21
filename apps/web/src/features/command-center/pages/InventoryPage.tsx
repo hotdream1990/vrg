@@ -21,7 +21,8 @@ const EMPTY = { as_of: "", ton_kho: "", ton_kho_hd: "", note: "" };
 
 /** Quản lý số liệu → Tồn kho Tập đoàn: chuỗi tuần (tồn kho + tồn kho đã có hợp đồng), nhập/sửa/xoá. */
 export default function InventoryPage() {
-  const { canEdit } = useAuth();
+  const { canEditCap } = useAuth();
+  const canEdit = canEditCap("inventory"); // mức Xem của mục này → khoá toàn bộ thao tác ghi
   const ew = useEditorWindow(); // cửa sổ sửa: tuần cũ hơn N ngày → chỉ xem (admin miễn)
   const [weeks, setWeeks] = useState<InventoryWeek[]>([]);
   const [form, setForm] = useState({ ...EMPTY });
@@ -80,7 +81,7 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      <ReadOnlyNotice />
+      <ReadOnlyNotice cap="inventory" />
       <DataSourceNote page="inventory" />
 
       {canEdit && (

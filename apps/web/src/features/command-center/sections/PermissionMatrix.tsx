@@ -15,7 +15,7 @@ const CAPS: Cap[] = [
   { key: "scan", label: "Quét giá đa sàn & bảng tính giá các sàn (auto_data)", allow: { viewer: false, editor: "grant", admin: true } },
   { key: "data", label: "Nhập / sửa số liệu theo mục (Báo giá · mủ nguyên liệu · Physical · Tồn kho)", allow: { viewer: false, editor: "grant", admin: true } },
   { key: "master", label: "Giá sàn Tập đoàn & Đơn vị thành viên", allow: { viewer: false, editor: "grant", admin: true } },
-  { key: "bulletin", label: "Soạn / sửa / xuất bản tin (PDF)", allow: { viewer: false, editor: true, admin: true } },
+  { key: "bulletin", label: "Soạn / sửa / xuất bản tin (PDF)", allow: { viewer: false, editor: "grant", admin: true } },
   { key: "users", label: "Quản trị người dùng (tạo / sửa / khoá / xoá tài khoản)", allow: { viewer: false, editor: false, admin: true } },
   { key: "config", label: "Cấu hình hệ thống (AI / LLM, nguồn dữ liệu)", allow: { viewer: false, editor: false, admin: true } },
   { key: "schedule", label: "Lịch chạy tự động (scheduler)", allow: { viewer: false, editor: false, admin: true } },
@@ -48,7 +48,8 @@ export default function PermissionMatrix() {
       </h3>
       <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 10px" }}>
         Quyền hệ thống áp dụng cho từng vai trò — enforce ở cả giao diện lẫn API (không chỉ ẩn menu).{" "}
-        <Tag color="blue" style={{ margin: 0 }}>Tuỳ cấp</Tag> = chuyên viên chỉ thấy/nhập mục được tích quyền khi tạo/sửa tài khoản ở trên.
+        <Tag color="blue" style={{ margin: 0 }}>Tuỳ cấp</Tag> = chuyên viên chỉ thấy/nhập mục được cấp quyền khi tạo/sửa tài khoản ở trên.
+        Mỗi mục nhập liệu cấp được <b>2 mức</b>: <b>Xem</b> (chỉ đọc) hoặc <b>Sửa</b> (nhập/sửa/xoá).
       </p>
       <div className="card" style={{ padding: 0 }}>
         <Table rowKey="key" size="small" columns={columns} dataSource={CAPS}

@@ -56,7 +56,8 @@ def _latest(entries: list[dict]) -> dict:
 
 
 # ── Biểu (2): Thu mua ──────────────────────────────────────────────────────────
-def _purchase_rows(entries: list[dict], prices: dict, plan: dict) -> dict[str, Any]:
+def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
+                   sold: list[dict] | None = None) -> dict[str, Any]:
     acc: dict[str, float] = {}
     no_days = 0        # số ngày đơn vị KHÔNG tổ chức thu mua (khác ngày có mua nhưng được 0 tấn)
     # bình quân gia quyền: Σ(giá ngày × sản lượng ngày) ÷ Σ(sản lượng ngày)
@@ -66,8 +67,7 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict) -> dict[str, A
         f = e["fields"]
         _add(acc, "latex_wet", f.get("latex_wet"))
         _add(acc, "coagulum", f.get("coagulum"))
-        _add(acc, "consumption", f.get("consumption"))
-        _add(acc, "revenue", f.get("revenue"))
+
         if f.get("no_purchase") is True:
             no_days += 1
         day_px = prices.get((e["company"], e["as_of"]), {})
@@ -76,6 +76,13 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict) -> dict[str, A
             if px is not None and qty:
                 wsum[slot] += px * qty
                 wqty[slot] += qty
+
+    # Tiêu thụ mủ thu mua đã chuyển sang biểu Tiêu thụ → cộng dồn từ bản ghi bên đó.
+    for e in sold or []:
+        f = e["fields"]
+        _add(acc, "consumption", f.get("purchased_sold_qty"))
+        _add(acc, "revenue", f.get("purchased_sold_revenue"))
+        _add(acc, "finished_qty", f.get("finished_sold_qty"))
 
     total = acc.get("latex_wet", 0.0) + acc.get("coagulum", 0.0)
     revenue = acc.get("revenue")
@@ -166,14 +173,17 @@ def period_report(kind: str, date_from: str, date_to: str,
         units = [u for u in units if u["name"] in keep]
     prices = (price_repo.purchase_prices_in_range(date_from, date_to)
               if kind == "purchase" else {})
+    # Biểu Thu mua cần số tiêu thụ mủ thu mua — nay nằm ở bản ghi 'consumption'.
+    sold_by_company = (_by_company(unit_daily_repo.in_range("consumption", date_from, date_to, companies))
+                       if kind == "purchase" else {})
 
     rows = []
     for u in units:
         name = u["name"]
         ent = grouped.get(name, [])
         plan = plans.get(name, {})
-        data = (_purchase_rows(ent, prices, plan) if kind == "purchase"
-                else _consumption_rows(ent, plan))
+        data = (_purchase_rows(ent, prices, plan, sold_by_company.get(name, []))
+                if kind == "purchase" else _consumption_rows(ent, plan))
         rows.append({
             "company": name, "region": u.get("region"),
             "days": len(ent), "last_day": max((e["as_of"] for e in ent), default=None),

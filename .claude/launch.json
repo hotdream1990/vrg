@@ -10,10 +10,10 @@
     },
     {
       "name": "vrg-web",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "apps/web", "dev"],
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd apps/web && exec node_modules/.bin/vite --port 5390 --host"],
       "port": 5390,
-      "autoPort": true
+      "autoPort": false
     }
   ]
 }

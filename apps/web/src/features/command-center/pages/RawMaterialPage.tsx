@@ -25,7 +25,8 @@ const STICKY = { position: "sticky" as const, left: 0, background: "var(--card, 
 
 /** Quản lý số liệu → Giá mủ nguyên liệu: lưới hàng=ngày × cột=đơn vị (đồng/độ TSC). */
 export default function RawMaterialPage() {
-  const { canEdit } = useAuth();
+  const { canEditCap } = useAuth();
+  const canEdit = canEditCap("raw_material"); // mức Xem của mục này → khoá toàn bộ thao tác ghi
   const ew = useEditorWindow(); // cửa sổ sửa: ngày cũ hơn N ngày → chỉ xem (admin miễn)
   const [sheet, setSheet] = useState<PurchaseSheet | null>(null);
   const [from, setFrom] = useState("");
@@ -88,7 +89,7 @@ export default function RawMaterialPage() {
         )}
       </div>
 
-      <ReadOnlyNotice />
+      <ReadOnlyNotice cap="raw_material" />
       <DataSourceNote page="raw-material" />
 
       <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo} onReload={load}

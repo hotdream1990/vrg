@@ -14,14 +14,15 @@ from __future__ import annotations
 PURCHASE_FIELDS: frozenset[str] = frozenset({
     "latex_wet",         # sản lượng thu mua mủ nước trong ngày (tấn)
     "coagulum",          # sản lượng thu mua mủ chén trong ngày (tấn)
-    "consumption",       # sản lượng tiêu thụ mủ thu mua trong ngày (tấn)
-    "revenue",           # doanh thu tiêu thụ — LƯU BASE = đồng (VND); nước ngoài = revenue_usd × fx_revenue
+    # Thu mua THÀNH PHẨM (mua lại mủ đã chế biến) — nhập được cả đơn giá VNĐ lẫn ngoại tệ.
+    "finished_qty",           # sản lượng thu mua thành phẩm (tấn)
+    "price_finished_vnd",     # đơn giá thành phẩm theo VNĐ (triệu đ/tấn)
+    "price_finished_fx",      # đơn giá thành phẩm theo ngoại tệ (USD/tấn)
+    "fx_finished",            # tỷ giá ngoại tệ→VND cho đơn giá thành phẩm
     # ── Chỉ đơn vị nước ngoài ──
     "price_latex_local",  # đơn giá mủ nước theo nội tệ (vd LAK/độ TSC)
     "price_cup_local",    # đơn giá mủ chén theo nội tệ
     "fx_purchase",        # tỷ giá nội tệ→VND (quy đơn giá nội tệ ra VND)
-    "revenue_usd",        # doanh thu theo USD
-    "fx_revenue",         # tỷ giá USD→VND (quy doanh thu USD ra VND)
 })
 
 # Ô CHỮ của biểu Thu mua: mủ chén tính theo độ TSC hay độ DRC (đổi nhãn đơn giá + đơn vị lưu kho giá).
@@ -44,12 +45,24 @@ PURCHASE_FLAGS: frozenset[str] = frozenset({"no_purchase"})
 CONSUMPTION_FIELDS: frozenset[str] = frozenset({
     "revenue",            # tổng doanh thu tiêu thụ (BASE = đồng) — tính từ dòng bán
     "fx_revenue",         # tỷ giá USD→VND (khi giá bán / đơn giá tồn kho nhập bằng USD)
-    "stock_material",     # tồn kho nguyên liệu chưa sản xuất (tấn) — đơn vị chưa có nhà máy chế biến
+    "stock_material",     # tồn kho nguyên liệu chưa sản xuất, quy khô (tấn) — mọi đơn vị
+    # ── Tiêu thụ mủ THU MUA và mủ THÀNH PHẨM (trước ở biểu Thu mua, chuyển sang đây) ──
+    "purchased_sold_qty",       # SL tiêu thụ mủ thu mua (tấn)
+    "purchased_sold_raw",       # số user gõ (tỷ đồng khi VND · USD khi USD) — giữ để mở lại form
+    "purchased_sold_revenue",   # doanh thu tương ứng — BASE = đồng
+    "purchased_sold_fx",        # tỷ giá USD→VND (khi doanh thu nhập bằng USD)
+    "finished_sold_qty",        # SL tiêu thụ mủ thành phẩm (tấn)
+    "finished_sold_raw",        # số user gõ — giữ để mở lại form
+    "finished_sold_revenue",    # doanh thu tương ứng — BASE = đồng
+    "finished_sold_fx",         # tỷ giá USD→VND
 })
 
 # Loại tiền người dùng CHỌN khi nhập giá bán (tiêu thụ) và đơn giá tồn kho đã có HĐ.
 _CCY = frozenset({"VND", "USD"})
-CONSUMPTION_TEXT: dict[str, frozenset[str]] = {"sales_ccy": _CCY, "stock_ccy": _CCY}
+CONSUMPTION_TEXT: dict[str, frozenset[str]] = {
+    "sales_ccy": _CCY, "stock_ccy": _CCY,
+    "purchased_sold_ccy": _CCY, "finished_sold_ccy": _CCY,
+}
 
 _SALE_CONTRACTS = {"long_term", "spot"}   # loại HĐ: Dài hạn | Chuyến
 _SALE_CHANNELS = {"export", "domestic"}   # hình thức: XK/UTXK | Nội tiêu
@@ -104,7 +117,7 @@ def _clean_stock_qty(rows) -> list[dict]:
 
 
 def _clean_stock_signed(rows) -> list[dict]:
-    """Khối 3 — đã ký HĐ chưa giao: chủng loại · TẤN · đơn giá · lịch giao · file HĐ scan (tên file lưu)."""
+    """Khối 3 — đã ký hợp đồng: chủng loại · TẤN · đơn giá · lịch giao · file HĐ scan (tên file lưu)."""
     out: list[dict] = []
     for r in rows if isinstance(rows, list) else []:
         if not isinstance(r, dict):

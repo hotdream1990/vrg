@@ -16,8 +16,10 @@ import "../../bulletin/bulletin.css";
 const YEARS = 6; // năm hiện tại + 2 năm trước/sau để chọn
 
 export default function YearPlanPage() {
-  const { user } = useAuth();
+  const { user, canEditCap } = useAuth();
   const role: Role = user?.role === "member" ? "member" : "hq";
+  // Chuyên viên chỉ được cấp mức Xem → khoá ô nhập (đơn vị thành viên không xét cap).
+  const canEdit = role === "member" || canEditCap("unit_daily");
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(thisYear);
   const [units, setUnits] = useState<string[]>([]);
@@ -103,17 +105,17 @@ export default function YearPlanPage() {
                   <tr key={u} style={{ opacity: savingUnit === u ? 0.6 : 1 }}>
                     <td>{i + 1}</td>
                     <td style={{ fontWeight: 500 }}>{u}</td>
-                    <td onBlur={() => save(u)}>
-                      {numInput(r.plan_tonnes, (v) => setCell(u, "plan_tonnes", v))}
+                    <td onBlur={() => canEdit && save(u)}>
+                      {numInput(r.plan_tonnes, (v) => setCell(u, "plan_tonnes", v), !canEdit)}
                     </td>
-                    <td onBlur={() => save(u)}>
-                      {numInput(r.signed_lt_tonnes, (v) => setCell(u, "signed_lt_tonnes", v))}
+                    <td onBlur={() => canEdit && save(u)}>
+                      {numInput(r.signed_lt_tonnes, (v) => setCell(u, "signed_lt_tonnes", v), !canEdit)}
                     </td>
-                    <td onBlur={() => save(u)}>
-                      {numInput(r.carry_lt_tonnes, (v) => setCell(u, "carry_lt_tonnes", v))}
+                    <td onBlur={() => canEdit && save(u)}>
+                      {numInput(r.carry_lt_tonnes, (v) => setCell(u, "carry_lt_tonnes", v), !canEdit)}
                     </td>
-                    <td onBlur={() => save(u)}>
-                      {numInput(r.carry_spot_tonnes, (v) => setCell(u, "carry_spot_tonnes", v))}
+                    <td onBlur={() => canEdit && save(u)}>
+                      {numInput(r.carry_spot_tonnes, (v) => setCell(u, "carry_spot_tonnes", v), !canEdit)}
                     </td>
                   </tr>
                 );

@@ -34,7 +34,7 @@ type Props = {
 };
 
 export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Props) {
-  const { user } = useAuth();
+  const { user, canEditCap } = useAuth();
   const isMember = user?.role === "member";
   const isAdmin = user?.role === "admin";
   const role: Role = isMember ? "member" : "hq";
@@ -60,7 +60,12 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
   // Loại biểu để nhập Excel: Thu mua → purchase; Tiêu thụ → sales; Tồn kho → stock.
   const importKind: ImportKind = kind === "purchase" ? "purchase" : (defaultTab ?? "sales");
 
-  const ovCanEdit = useMemo(() => isAdmin || (ov ? ovDay <= ov.today : false), [isAdmin, ov, ovDay]);
+  // Chuyên viên chỉ được cấp mức Xem → luôn "Xem" dù ngày còn trong cửa sổ sửa.
+  const mayEdit = isMember || canEditCap("unit_daily");
+  const ovCanEdit = useMemo(
+    () => mayEdit && (isAdmin || (ov ? ovDay <= ov.today : false)),
+    [mayEdit, isAdmin, ov, ovDay],
+  );
 
   return (
     <div className="main">
@@ -73,7 +78,7 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
         {!isMember && (
           <Segmented value={view} onChange={(v) => setView(v as "list" | "overview")} options={VIEW_OPTS} />
         )}
-        <ExcelImportBar kind={importKind} role={role} label={title} onDone={reload} />
+        {mayEdit && <ExcelImportBar kind={importKind} role={role} label={title} onDone={reload} />}
       </div>
 
       {!isMember && view === "overview" && (
@@ -85,7 +90,7 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
 
       {view === "list" || isMember ? (
         <UnitDailyTimeline
-          kind={kind} role={role} isAdmin={isAdmin} refreshKey={refreshKey}
+          kind={kind} role={role} isAdmin={isAdmin} canEdit={mayEdit} refreshKey={refreshKey}
           onEdit={(day, company) => setEdit({ day, company })}
           onAdd={() => setEdit({ day: todayISO(), company: "" })}
         />
@@ -99,7 +104,7 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
 
       {edit && (
         <UnitDailyEditModal
-          open kind={kind} role={role} isAdmin={isAdmin} defaultTab={defaultTab}
+          open kind={kind} role={role} isAdmin={isAdmin} canEdit={mayEdit} defaultTab={defaultTab}
           initialDay={edit.day} initialCompany={edit.company}
           today={todayISO()}
           onClose={() => setEdit(null)}

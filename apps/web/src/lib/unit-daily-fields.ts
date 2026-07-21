@@ -80,9 +80,8 @@ const CONSUMPTION: Column[] = [
   { key: "stock_warehoused_t", label: "Đã nhập kho", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_warehoused") || null },
   { key: "stock_finished_t", label: "Tồn kho thành phẩm", unit: "tấn", group: _TK,
     compute: (v) => (stockTonnes(v, "stock_not_warehoused") + stockTonnes(v, "stock_warehoused")) || null },
-  { key: "stock_signed_t", label: "Đã ký HĐ chưa giao", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_signed_undelivered") || null },
-  { key: "stock_material", label: "Tồn kho nguyên liệu chưa sản xuất", unit: "tấn", group: _TK,
-    hint: "đối với các đơn vị chưa có nhà máy chế biến" },
+  { key: "stock_signed_t", label: "Đã ký hợp đồng", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_signed_undelivered") || null },
+  { key: "stock_material", label: "Tồn kho nguyên liệu chưa sản xuất (quy khô)", unit: "tấn", group: _TK },
 ];
 
 export const COLUMNS: Record<Kind, Column[]> = { purchase: PURCHASE, consumption: CONSUMPTION };

@@ -19,9 +19,6 @@ from app.core.security import (
     require_cap,
     require_cap_edit,
 )
-
-# Các mục nhập tay của chuyên viên bị áp cửa sổ sửa (N ngày gần nhất); auto_data thì không.
-_WINDOWED_CAPS = {"raw_material", "physical"}
 from app.schemas.price import (
     HistorySeries,
     PriceBoard,
@@ -35,6 +32,9 @@ from app.services import price_board, price_repo, reuters_physical_parse, scan_s
 logger = logging.getLogger("vrg.api")
 
 router = APIRouter(prefix="/api/prices", tags=["prices"])
+
+# Các mục nhập tay của chuyên viên bị áp cửa sổ sửa (N ngày gần nhất); auto_data thì không.
+_WINDOWED_CAPS = {"raw_material", "physical"}
 
 # Quyền GHI theo mục dữ liệu — mức Sửa (admin=tất cả). Router này phục vụ nhiều màn hình khác nhau:
 _auto = [Depends(require_cap_edit("auto_data"))]  # quét đa sàn · bảng tính giá các sàn

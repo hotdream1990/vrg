@@ -1,14 +1,15 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { type User, fetchMe, login as apiLogin } from "../../lib/auth-client";
 import { clearToken, getToken, setToken } from "../../lib/auth-token";
-import { type Cap, effectiveCaps } from "../../lib/permissions";
+import { type Cap, effectiveCaps, hasCap } from "../../lib/permissions";
 
 type AuthCtx = {
   user: User | null;
   loading: boolean;
   canEdit: boolean; // admin hoặc editor (chuyên viên nhập liệu) — viewer = chỉ xem
-  can: (cap: Cap) => boolean; // có quyền theo mục dữ liệu (admin=tất cả, viewer=không)
+  can: (cap: Cap) => boolean; // TRUY CẬP mục dữ liệu (mức Xem trở lên) — dùng cho menu + gác route
+  canEditCap: (cap: Cap) => boolean; // được NHẬP/SỬA mục dữ liệu (mức Sửa) — dùng để khoá form/nút
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -37,8 +38,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => { clearToken(); setUser(null); };
   const refreshUser = async () => { setUser(await fetchMe()); };
   const canEdit = user?.role === "admin" || user?.role === "editor";
-  const caps = effectiveCaps(user?.role, user?.permissions);
-  const can = (cap: Cap) => caps.has(cap);
+  const caps = useMemo(() => effectiveCaps(user?.role, user?.permissions), [user?.role, user?.permissions]);
+  const can = (cap: Cap) => hasCap(caps, cap);
+  const canEditCap = (cap: Cap) => hasCap(caps, cap, "edit");
 
-  return <Ctx.Provider value={{ user, loading, canEdit, can, login, logout, refreshUser }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ user, loading, canEdit, can, canEditCap, login, logout, refreshUser }}>
+      {children}
+    </Ctx.Provider>
+  );
 }

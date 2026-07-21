@@ -83,6 +83,23 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
 
   const agg = totals(sales);
 
+  /** 2 dòng của khối "Tiêu thụ mủ thu mua & mủ thành phẩm" — khoá lưu tương ứng trong payload. */
+  const SOLD_ROWS = [
+    { label: "Mủ thu mua", qtyKey: "purchased_sold_qty", rawKey: "purchased_sold_raw",
+      ccyKey: "purchased_sold_ccy", fxKey: "purchased_sold_fx", outKey: "purchased_sold_revenue" },
+    { label: "Mủ thành phẩm", qtyKey: "finished_sold_qty", rawKey: "finished_sold_raw",
+      ccyKey: "finished_sold_ccy", fxKey: "finished_sold_fx", outKey: "finished_sold_revenue" },
+  ] as const;
+
+  /** Doanh thu 1 dòng về BASE = đồng. VND: nhập tỷ đồng (×1e9). USD: × tỷ giá (thiếu tỷ giá → null). */
+  const soldRevenueVnd = (r: (typeof SOLD_ROWS)[number]): number | null => {
+    const raw = num(data[r.rawKey] as number | null);
+    if (raw == null) return null;
+    if (((data[r.ccyKey] as Ccy) ?? "VND") !== "USD") return raw * 1_000_000_000;
+    const fx = num(data[r.fxKey] as number | null);
+    return fx == null ? null : raw * fx;
+  };
+
   /** Giá trị 1 dòng tồn kho đã có HĐ, quy về đồng (USD cần tỷ giá; thiếu tỷ giá → null, không đoán). */
   const stockLineVnd = (r: StockSignedLine): number | null => lineRevenueVnd(r);
   const stockValueVnd = signed.reduce((a, r) => a + (stockLineVnd(r) ?? 0), 0);
@@ -242,6 +259,49 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
         Dòng nào chọn USD thì nhập tỷ giá ngay ở dòng đó{!readOnly && " (nút bên dưới lấy tỷ giá Vietcombank)"}.
       </div>
 
+      {/* Chuyển từ biểu Thu mua sang: tiêu thụ mủ THU MUA và mủ THÀNH PHẨM.
+          Mỗi loại có loại tiền + tỷ giá riêng; giá bình quân tự tính = doanh thu ÷ sản lượng. */}
+      {head("Tiêu thụ mủ thu mua & mủ thành phẩm")}
+      <div style={{ overflowX: "auto" }}>
+        <table className="ud-sales">
+          <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
+            <th style={{ width: 180 }}>Loại</th>
+            <th style={{ width: 110 }} className="r">SL tiêu thụ (tấn)</th>
+            <th style={{ width: 130 }} className="r">Doanh thu</th>
+            <th style={{ width: 100 }}>Loại tiền</th>
+            <th style={{ width: 130 }} className="r">Tỷ giá (1 USD = ? VND)</th>
+            <th style={{ width: 130 }} className="r">Giá BQ (triệu đ/tấn)</th>
+          </tr></thead>
+          <tbody>
+            {SOLD_ROWS.map((r) => {
+              const ccy = (data[r.ccyKey] as Ccy) ?? "VND";
+              const qty = num(data[r.qtyKey] as number | null);
+              const vnd = soldRevenueVnd(r);
+              return (
+                <tr key={r.qtyKey}>
+                  <td style={{ fontWeight: 600 }}>{r.label}</td>
+                  <td>{numInput(qty, (v) => setData((d) => ({ ...d, [r.qtyKey]: v })), readOnly)}</td>
+                  <td>{numInput(num(data[r.rawKey] as number | null), (v) => setData((d) => ({ ...d, [r.rawKey]: v })), readOnly)}</td>
+                  <td>
+                    <Select size="small" style={sel} value={ccy} disabled={readOnly}
+                            onChange={(v) => setData((d) => ({ ...d, [r.ccyKey]: v }))} options={CCYS} />
+                  </td>
+                  <td>{ccy === "USD"
+                    ? numInput(num(data[r.fxKey] as number | null), (v) => setData((d) => ({ ...d, [r.fxKey]: v })), readOnly)
+                    : <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>}</td>
+                  <td className="r" style={{ paddingRight: 6, fontWeight: 600, whiteSpace: "nowrap" }}>
+                    {fmtNum(vnd != null && qty ? vnd / qty / 1_000_000 : null, 2)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 6 }}>
+        Doanh thu nhập theo <b>tỷ đồng</b> khi chọn VND, theo <b>USD</b> khi chọn USD (cần tỷ giá để quy đổi).
+      </div>
+
       {head("Tổng hợp tiêu thụ")}
       <div style={gridStyle}>
         {box("Tổng tiêu thụ", "tấn", agg.qty || null)}
@@ -304,7 +364,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       {head("2. Tồn kho thành phẩm đã nhập kho")}
       {qtyTable(wh, setWh, "Thêm dòng")}
 
-      {head("3. Số lượng đã ký hợp đồng chưa giao")}
+      {head("3. Số lượng đã ký hợp đồng")}
       <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 6 }}>
         Đính kèm bản Hợp đồng đã ký scan có đóng dấu cho từng dòng (PDF hoặc ảnh).
       </div>
@@ -344,7 +404,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
 
       {/* Khối 4 — hiện cho MỌI đơn vị; câu "chưa có nhà máy" là ghi chú của biểu mẫu, không phải
           điều kiện ẩn. Đơn vị nào không có số thì để trống. */}
-      {head("4. Tồn kho nguyên liệu chưa sản xuất")}
+      {head("4. Tồn kho nguyên liệu chưa sản xuất (quy khô)")}
       <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 6 }}>
         Đối với các đơn vị chưa có nhà máy chế biến — đơn vị đã có nhà máy để trống ô này.
       </div>
@@ -356,7 +416,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       {head("Tổng hợp tồn kho")}
       <div style={gridStyle}>
         {box("Tồn kho thành phẩm", "tấn", (stockTonnesTotal(notWh) + stockTonnesTotal(wh)) || null)}
-        {box("Đã ký HĐ chưa giao", "tấn", stockTonnesTotal(signed) || null)}
+        {box("Đã ký hợp đồng", "tấn", stockTonnesTotal(signed) || null)}
         {stockValueVnd > 0 && box("Giá trị đã ký HĐ", "tỷ đồng", toTyDong(stockValueVnd), 3)}
       </div>
     </div>

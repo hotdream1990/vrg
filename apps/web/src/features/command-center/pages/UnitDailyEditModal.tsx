@@ -23,6 +23,7 @@ type Props = {
   defaultTab?: ConsumptionTab;    // Tiêu thụ–Tồn kho: tab mở sẵn theo mục menu
   role: "member" | "hq";
   isAdmin: boolean;
+  canEdit: boolean; // false = chỉ được cấp mức Xem → mở ở chế độ chỉ đọc
   initialDay: string;
   initialCompany: string;
   today: string;
@@ -31,7 +32,7 @@ type Props = {
 };
 
 export default function UnitDailyEditModal(
-  { open, kind, defaultTab, role, isAdmin, initialDay, initialCompany, today, onClose, onSaved }: Props,
+  { open, kind, defaultTab, role, isAdmin, canEdit, initialDay, initialCompany, today, onClose, onSaved }: Props,
 ) {
   const [day, setDay] = useState(initialDay);
   const [company, setCompany] = useState(initialCompany);
@@ -54,10 +55,10 @@ export default function UnitDailyEditModal(
   const entry = data?.entries[company] ?? null;
   const exists = !!entry;
   const editable = useMemo(() => {
-    if (!day || day > today) return false;
+    if (!canEdit || !day || day > today) return false;
     if (isAdmin) return true;
     return daysBetween(today, day) <= (data?.edit_window_days ?? 7);
-  }, [isAdmin, day, today, data]);
+  }, [canEdit, isAdmin, day, today, data]);
 
   // Đơn giá mủ nước/mủ chén → ghi thẳng kho "Giá mủ nguyên liệu" (đúng đơn vị + ngày), chỉ khi đổi.
   const savePrices = async (prices: PriceDraft) => {
