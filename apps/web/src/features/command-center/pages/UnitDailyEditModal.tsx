@@ -100,8 +100,10 @@ export default function UnitDailyEditModal(
     }
   };
 
+  // Biểu Tiêu thụ–Tồn kho nhiều cột hơn (loại tiền · tỷ giá · ngày HĐ · file) → cần modal rộng hơn.
   return (
-    <Modal open={open} onCancel={onClose} footer={null} width={880} destroyOnHidden
+    <Modal open={open} onCancel={onClose} footer={null}
+           width={kind === "consumption" ? 1180 : 880} destroyOnHidden
            title={`Nhập số liệu — ${KIND_LABEL[kind]}`}>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
         <DateInput value={day} onChange={setDay} noFuture style={{ width: 190 }} />

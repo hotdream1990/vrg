@@ -57,6 +57,16 @@ function initData(values: Values, currency?: string): ConsumptionData {
     stock_warehoused: Array.isArray(v.stock_warehoused) ? v.stock_warehoused.map((r) => ({ ...r })) : [],
     stock_signed_undelivered: Array.isArray(v.stock_signed_undelivered) ? v.stock_signed_undelivered.map((r) => ({ ...r })) : [],
     stock_material: v.stock_material ?? null,
+    // Tiêu thụ mủ thu mua / mủ thành phẩm — PHẢI nạp lại, không thì mở phiếu cũ mất số đã lưu
+    // và lần lưu sau sẽ ghi đè thành rỗng.
+    purchased_sold_qty: v.purchased_sold_qty ?? null,
+    purchased_sold_raw: v.purchased_sold_raw ?? null,
+    purchased_sold_ccy: v.purchased_sold_ccy ?? dc,
+    purchased_sold_fx: v.purchased_sold_fx ?? null,
+    finished_sold_qty: v.finished_sold_qty ?? null,
+    finished_sold_raw: v.finished_sold_raw ?? null,
+    finished_sold_ccy: v.finished_sold_ccy ?? dc,
+    finished_sold_fx: v.finished_sold_fx ?? null,
   };
 }
 
