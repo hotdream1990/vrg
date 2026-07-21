@@ -332,6 +332,17 @@ def _mark_actions(kind: str, rows: list[dict]) -> None:
         r["_action"] = "update" if seen[key] else "create"
 
 
+def _line_revenue_vnd(qty, price, ccy: str, fx: float | None) -> float | None:
+    """Doanh thu 1 dòng bán → BASE = đồng. Cùng công thức với web (`lineRevenueVnd`) để mở phiếu
+    ra lưu lại KHÔNG đổi số. VND: giá là triệu đ/tấn. USD: cần tỷ giá, thiếu → None (không đoán)."""
+    q, p = _as_num(qty), _as_num(price)
+    if q is None or p is None:
+        return 0.0                       # dòng chưa điền số → không đóng góp doanh thu
+    if ccy != "USD":
+        return q * p * 1_000_000
+    return None if fx is None else q * p * fx
+
+
 def _sale_line(r: dict, ccy: str, fx: float | None) -> dict:
     """1 dòng Excel → 1 dòng bán để lưu.
 
@@ -398,28 +409,36 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
             cur = unit_daily_repo.entries_on("consumption", as_of).get(company) or {}
             fields = dict(cur.get("fields") or {})
             if kind == "sales":
-                # Doanh thu về BASE = đồng. Loại tiền của giá bán lấy theo ô đã chọn trên form
-                # (`sales_ccy`); bản ghi chưa có thì suy từ đơn vị (nước ngoài → USD).
-                ccy = (next((r.get("sales_ccy") for r in items if r.get("sales_ccy")), None)
-                       or fields.get("sales_ccy")
-                       or ("VND" if currencies.get(company, "VND") == "VND" else "USD"))
-                fields["sales_ccy"] = ccy
-                fx = _as_num(fields.get("fx_revenue")) if ccy == "USD" else None
+                # "Giá bán bằng" là cột của TỪNG DÒNG → loại tiền theo từng dòng, y như form web
+                # (một ngày có thể vừa bán USD vừa bán VNĐ). Dòng để trống thì lấy loại tiền của
+                # bản ghi, cuối cùng mới suy từ đơn vị (nước ngoài → USD).
+                default_ccy = (next((r.get("sales_ccy") for r in items if r.get("sales_ccy")), None)
+                               or fields.get("sales_ccy")
+                               or ("VND" if currencies.get(company, "VND") == "VND" else "USD"))
+                fields["sales_ccy"] = default_ccy   # loại tiền mặc định cho dòng thêm mới trên web
+                fx = _as_num(fields.get("fx_revenue"))
                 # File Tiêu thụ mang CẢ 2 nguồn mủ (cột "Nguồn mủ") → ghi đè trọn phần tiêu thụ;
                 # nguồn nào không có dòng nào trong file thì thành rỗng.
+                lines: dict[str, list[dict]] = {t: [] for t in SALE_TABLES}
+                revenue, missing_fx = 0.0, False
+                for r in items:
+                    rc = r.get("sales_ccy") or default_ccy
+                    table = r.get("source") or "sales"
+                    if table not in lines:
+                        table = "sales"
+                    lines[table].append(_sale_line(r, rc, fx if rc == "USD" else None))
+                    got = _line_revenue_vnd(r.get("qty"), r.get("price"), rc, fx)
+                    if got is None:
+                        missing_fx = True      # dòng USD thiếu tỷ giá → không cộng, KHÔNG đoán bừa
+                    else:
+                        revenue += got
                 for table in SALE_TABLES:
-                    fields[table] = [_sale_line(r, ccy, fx) for r in items
-                                     if (r.get("source") or "sales") == table]
-                gross = sum((r.get("qty") or 0) * (r.get("price") or 0) for r in items)
-                if ccy == "VND":
-                    fields["revenue"] = round(gross * 1_000_000)   # giá là triệu đ/tấn
-                elif fx:
-                    fields["revenue"] = round(gross * fx)
-                else:
-                    fields.pop("revenue", None)   # thiếu tỷ giá → không đoán bừa doanh thu
+                    fields[table] = lines[table]
+                fields["revenue"] = round(revenue)
+                if missing_fx:
                     warnings.append(
-                        f"{company} {as_of}: chưa có tỷ giá USD nên chưa tính được doanh thu "
-                        f"(nhập tỷ giá ở màn Báo cáo tiêu thụ rồi lưu lại).")
+                        f"{company} {as_of}: có dòng bán bằng USD chưa có tỷ giá nên chưa cộng "
+                        f"vào doanh thu (nhập tỷ giá ở màn Báo cáo tiêu thụ rồi lưu lại).")
             else:
                 # Tồn kho = số THỜI ĐIỂM, đơn vị TẤN (mẫu tuần mục 11–14).
                 sccy = next((r.get("stock_ccy") for r in items if r.get("stock_ccy")), None)

@@ -221,3 +221,47 @@ def test_sales_import_old_file_without_source_column() -> None:
     with session_scope() as db:
         db.execute(text("DELETE FROM unit_daily_report WHERE company = :u"), {"u": unit})
     client.delete(f"/api/member-units/{unit}", headers=h)
+
+
+def test_sales_import_giu_loai_tien_theo_TUNG_DONG() -> None:
+    """Cột 'Giá bán bằng' là cột CỦA TỪNG DÒNG — một ngày có thể vừa bán USD vừa bán VNĐ.
+
+    Lỗi đã gặp: bộ ghi lấy loại tiền của dòng ĐẦU rồi áp cho mọi dòng, nên dòng VNĐ bị biến
+    thành USD và doanh thu tính sai theo loại tiền không phải của nó.
+    """
+    from datetime import timedelta
+    h = _admin()
+    unit = "_zz_xl_ccy"
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    d = date.today() - timedelta(days=4)
+    dmy, iso = d.strftime("%d/%m/%Y"), d.isoformat()
+
+    tpl = client.get("/api/unit-daily/import/template?kind=sales", headers=h)
+    wb = load_workbook(io.BytesIO(tpl.content))
+    ws = wb.active
+    rows = [
+        (unit, dmy, "Mủ thu mua", "Dài hạn", "XK / UTXK", "SVR CV 50", 25, 1800, "USD", dmy, dmy),
+        (unit, dmy, "Mủ khai thác", "Chuyến", "Nội tiêu", "SVR 3L", 10, 40, "VND", dmy, dmy),
+    ]
+    for i, r in enumerate(rows, start=7):
+        for j, v in enumerate(r, start=1):
+            ws.cell(row=i, column=j, value=v)
+    buf = io.BytesIO()
+    wb.save(buf)
+
+    prev = client.post("/api/unit-daily/import/preview?kind=sales", headers=h,
+                       files={"file": ("f.xlsx", buf.getvalue())}).json()
+    assert prev["summary"]["error"] == 0, prev["rows"]
+    assert client.post("/api/unit-daily/import/commit", headers=h,
+                       json={"kind": "sales", "rows": prev["rows"]}).json()["saved"] == 1
+
+    con = client.get(f"/api/unit-daily/day?kind=consumption&as_of={iso}",
+                     headers=h).json()["entries"][unit]["fields"]
+    assert con["sales"][0]["ccy"] == "USD"        # dòng mủ thu mua giữ USD
+    assert con["sales_own"][0]["ccy"] == "VND"    # dòng mủ khai thác giữ VNĐ, KHÔNG bị ép sang USD
+    # Doanh thu chỉ cộng dòng tính được: 10 tấn × 40 triệu = 400 triệu (dòng USD thiếu tỷ giá).
+    assert con["revenue"] == 400_000_000
+
+    with session_scope() as db:
+        db.execute(text("DELETE FROM unit_daily_report WHERE company = :u"), {"u": unit})
+    client.delete(f"/api/member-units/{unit}", headers=h)
