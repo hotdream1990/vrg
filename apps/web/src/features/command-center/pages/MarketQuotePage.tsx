@@ -1,4 +1,4 @@
-import { CheckCircleOutlined, SolutionOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, CopyOutlined, SolutionOutlined } from "@ant-design/icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { dmy } from "../../../lib/date";
@@ -6,6 +6,7 @@ import {
   type MarketQuote,
   type MarketQuoteSummary,
   type Section,
+  copyFromPrevQuote,
   deleteQuote,
   emptyQuote,
   fetchQuoteMeta,
@@ -179,6 +180,24 @@ export default function MarketQuotePage() {
   const setPropPrice = (g: string, v: number | null) =>
     setDraft((d) => d && { ...d, customer_proposal: { ...d.customer_proposal, prices: { ...d.customer_proposal.prices, [g]: v } } });
 
+  /** Lấy số liệu phiếu gần nhất trước đó điền vào các ô CÒN TRỐNG (không đè số đã nhập).
+   *  Không lấy tỷ giá VCB và giá mủ khu vực — 2 nhóm này là số riêng của từng ngày. */
+  const copyPrev = () => {
+    if (!draft || !prev) return;
+    const ok = confirm(
+      `Lấy số liệu phiếu ngày ${dmy(prev.as_of)} điền vào phiếu ngày ${dmy(draft.as_of)}?\n\n`
+      + "• Chỉ điền các ô đang TRỐNG — không đè số anh/chị đã nhập.\n"
+      + "• KHÔNG lấy: tỷ giá VCB (bấm \"Lấy tỷ giá VCB\") và giá mủ khu vực (mủ nước/mủ chén).\n\n"
+      + "Phiếu TỰ LƯU sau khi điền — hãy soát lại số trước khi rời trang.");
+    if (!ok) return;
+    const [merged, n] = copyFromPrevQuote(draft, prev);
+    setErr("");
+    if (n === 0) { setInfo(`Phiếu ngày ${dmy(prev.as_of)} không có số nào để điền thêm (các ô đã có dữ liệu).`); return; }
+    setDraft(merged);
+    setInfo(`Đã điền ${n} ô từ phiếu ngày ${dmy(prev.as_of)} — hãy SOÁT LẠI và sửa cho đúng ngày ${dmy(draft.as_of)} `
+      + "trước khi phiếu tự lưu. Tỷ giá VCB và giá mủ khu vực không được lấy sang.");
+  };
+
   const remove = async () => {
     if (!draft || !confirm(`Xoá phiếu báo giá ngày ${dmy(draft.as_of)}? (Giá mủ nước đã đồng bộ vẫn giữ)`)) return;
     setBusy(true);
@@ -251,6 +270,14 @@ export default function MarketQuotePage() {
                   <span className="db-badge" style={{ color: "var(--muted)" }}>
                     Chỉ xem — ngoài cửa sổ sửa {ew.days ?? 7} ngày
                   </span>
+                )}
+                {/* Điền nhanh từ phiếu gần nhất trước đó (Mục 1–4 + đề xuất KH). */}
+                {editableBasic && prev && (
+                  <button className="btn" onClick={copyPrev} disabled={busy}
+                    title={`Điền các ô còn trống bằng số của phiếu ngày ${dmy(prev.as_of)} `
+                      + "(không lấy tỷ giá VCB và giá mủ khu vực)"}>
+                    <CopyOutlined style={{ marginRight: 6 }} />Lấy số liệu phiếu ngày {dmy(prev.as_of)}
+                  </button>
                 )}
                 {/* Xoá phiếu = xoá Mục 1-4 → cần đúng quyền 'market_quote' mức Sửa (khớp backend). */}
                 {editableBasic && <button className="btn" onClick={remove} disabled={busy}>Xoá phiếu</button>}

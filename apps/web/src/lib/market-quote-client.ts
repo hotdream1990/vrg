@@ -98,6 +98,60 @@ export const isEmptyQuote = (q: MarketQuote): boolean => {
     && numMapEmpty(q.regions) && numMapEmpty(q.regions_cup) && !q.footer.trim();
 };
 
+// ── Lấy số liệu từ phiếu ngày trước (điền nhanh phiếu mới) ──
+type NumMap = Record<string, number | null>;
+type TxtMap = Record<string, string>;
+
+/** Điền các ô SỐ còn trống từ phiếu nguồn (không đè ô đã có). → [kết quả, số ô đã điền] */
+const fillNums = (dst: NumMap, src?: NumMap): [NumMap, number] => {
+  const out = { ...dst };
+  let n = 0;
+  for (const [k, v] of Object.entries(src ?? {})) if (v != null && out[k] == null) { out[k] = v; n++; }
+  return [out, n];
+};
+/** Điền các ô CHỮ còn trống (bao bì / vận chuyển / tình trạng). */
+const fillTexts = (dst: TxtMap, src?: TxtMap): [TxtMap, number] => {
+  const out = { ...dst };
+  let n = 0;
+  for (const [k, v] of Object.entries(src ?? {})) if (v?.trim() && !out[k]?.trim()) { out[k] = v; n++; }
+  return [out, n];
+};
+/** Điền ô ghi chú nếu đang trống. → [ghi chú, 1 nếu vừa điền] */
+const fillNote = (dst?: string, src?: string): [string, number] =>
+  dst?.trim() ? [dst, 0] : src?.trim() ? [src, 1] : [dst ?? "", 0];
+
+const fillSection = (dst: Section, src?: Section): [Section, number] => {
+  const [prices, a] = fillNums(dst.prices ?? {}, src?.prices);
+  const [packaging, b] = fillTexts(dst.packaging ?? {}, src?.packaging);
+  const [shipping, c] = fillTexts(dst.shipping ?? {}, src?.shipping);
+  const [status, d] = fillTexts(dst.status ?? {}, src?.status);
+  const [note, e] = fillNote(dst.note, src?.note);
+  return [{ ...dst, prices, packaging, shipping, status, note }, a + b + c + d + e];
+};
+
+/** Chép số liệu phiếu ngày trước sang phiếu đang mở — CHỈ điền ô còn TRỐNG (không đè số đã nhập).
+ *  KHÔNG chép 2 nhóm là số riêng của từng ngày:
+ *  · tỷ giá VCB — bấm "Lấy tỷ giá VCB" để lấy đúng ngày;
+ *  · giá mủ khu vực (mủ nước/mủ chén) — chép sang ngày khác là dựng dữ liệu sai ngày.
+ *  → [phiếu sau khi điền, số ô đã điền] */
+export const copyFromPrevQuote = (draft: MarketQuote, prev: MarketQuote): [MarketQuote, number] => {
+  const [domestic_private, a] = fillSection(draft.domestic_private, prev.domestic_private);
+  const [domestic_export, b] = fillSection(draft.domestic_export, prev.domestic_export);
+  const [export_vrg, c] = fillSection(draft.export_vrg, prev.export_vrg);
+  const [domestic_vrg, d] = fillSection(draft.domestic_vrg, prev.domestic_vrg);
+  const [qty, e] = fillNums(draft.customer_proposal?.qty ?? {}, prev.customer_proposal?.qty);
+  const [prices, f] = fillNums(draft.customer_proposal?.prices ?? {}, prev.customer_proposal?.prices);
+  const [propNote, g] = fillNote(draft.customer_proposal?.note, prev.customer_proposal?.note);
+  const [footer, h] = fillNote(draft.footer, prev.footer);
+  return [{
+    ...draft,
+    domestic_private, domestic_export, export_vrg, domestic_vrg,
+    customer_proposal: { ...draft.customer_proposal, qty, prices, note: propNote },
+    footer,
+    // fx / regions / regions_cup: giữ nguyên phiếu đang mở — KHÔNG lấy từ ngày khác.
+  }, a + b + c + d + e + f + g + h];
+};
+
 /** Phiếu rỗng để tạo mới (giá theo chủng loại = null). */
 export const emptyQuote = (as_of: string, grades: string[]): MarketQuote => {
   const blankNum = () => Object.fromEntries(grades.map((g) => [g, null]));
