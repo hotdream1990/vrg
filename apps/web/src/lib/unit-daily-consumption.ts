@@ -14,19 +14,45 @@ export const CCYS: { value: Ccy; label: string }[] = [
 /** Đơn vị hiển thị của ô giá theo loại tiền đã chọn. */
 export const priceUnitOf = (ccy: Ccy): string => (ccy === "USD" ? "USD/tấn" : "triệu đ/tấn");
 
-/** 1 dòng tiêu thụ. `price` = giá bán, đơn vị theo `sales_ccy` (VND→triệu đ/tấn · USD→USD/tấn). */
+/** 1 dòng tiêu thụ. `price` = giá bán, đơn vị theo `sales_ccy` (VND→triệu đ/tấn · USD→USD/tấn).
+    Dùng chung cho 2 bảng nhập tách riêng: mủ THU MUA (`sales`) và mủ KHAI THÁC (`sales_own`). */
 export type SaleLine = {
   contract: SaleContract;
   channel: SaleChannel;
-  grade: string;                 // loại mủ
-  qty: number | null;            // số lượng (tấn)
-  price: number | null;          // giá bán (triệu đ/tấn khi VND · USD/tấn khi USD)
-  ccy?: Ccy;                     // loại tiền của DÒNG này (1 ngày có thể vừa bán USD vừa bán VNĐ)
-  fx?: number | null;            // tỷ giá USD→VND của dòng này (chỉ cần khi ccy = USD)
-  invoice_date?: string | null;  // ngày xuất hoá đơn 'YYYY-MM-DD'
-  file?: string | null;          // file bộ Hợp đồng đã upload (tên lưu uuid)
-  filename?: string | null;      // tên gốc để hiển thị
+  grade: string;                  // loại mủ
+  qty: number | null;             // số lượng (tấn)
+  price: number | null;           // giá bán (triệu đ/tấn khi VND · USD/tấn khi USD)
+  ccy?: Ccy;                      // loại tiền của DÒNG này (1 ngày có thể vừa bán USD vừa bán VNĐ)
+  fx?: number | null;             // tỷ giá USD→VND của dòng này (chỉ cần khi ccy = USD)
+  warehouse_date?: string | null; // ngày xuất kho 'YYYY-MM-DD'
+  invoice_date?: string | null;   // ngày xuất hoá đơn 'YYYY-MM-DD'
+  file?: string | null;           // file bộ Hợp đồng đã upload (tên lưu uuid)
+  filename?: string | null;       // tên gốc để hiển thị
+  wh_file?: string | null;        // phiếu xuất kho
+  wh_filename?: string | null;
+  inv_file?: string | null;       // hoá đơn
+  inv_filename?: string | null;
 };
+
+/** 3 chứng từ đính kèm mỗi dòng bán — khớp `SALE_DOC_SLOTS` ở backend. */
+export const SALE_DOCS: { fileKey: keyof SaleLine; nameKey: keyof SaleLine; label: string }[] = [
+  { fileKey: "file", nameKey: "filename", label: "Bộ Hợp đồng" },
+  { fileKey: "wh_file", nameKey: "wh_filename", label: "Phiếu xuất kho" },
+  { fileKey: "inv_file", nameKey: "inv_filename", label: "Hoá đơn" },
+];
+
+/** 2 mốc ngày của mỗi dòng bán. */
+export const SALE_DATES: { key: keyof SaleLine; label: string }[] = [
+  { key: "warehouse_date", label: "Ngày xuất kho" },
+  { key: "invoice_date", label: "Ngày xuất hoá đơn" },
+];
+
+/** Dòng bán rỗng (nút "Thêm dòng" của cả 2 bảng). */
+export const emptySaleLine = (): SaleLine => ({
+  contract: "long_term", channel: "export", grade: GRADES[0], qty: null, price: null,
+  warehouse_date: null, invoice_date: null,
+  file: null, filename: null, wh_file: null, wh_filename: null, inv_file: null, inv_filename: null,
+});
 
 /** Khối tồn kho chỉ có số lượng (khối 1 & 2): chủng loại · số lượng (TẤN). */
 export type StockQtyLine = { grade: string; qty: number | null };
@@ -38,10 +64,13 @@ export type StockSignedLine = {
   file?: string | null; filename?: string | null;  // tên file lưu (uuid) + tên gốc hiển thị
 };
 
-/** Payload tiêu thụ–tồn kho. TỒN KHO = số THỜI ĐIỂM, chia 4 khối:
+/** Payload tiêu thụ–tồn kho. TIÊU THỤ = 2 bảng nhập tách riêng (`sales` mủ thu mua ·
+    `sales_own` mủ khai thác), tổng hợp và `revenue` GỘP CHUNG cả hai.
+    TỒN KHO = số THỜI ĐIỂM, chia 4 khối:
     1 chế biến chưa nhập kho · 2 đã nhập kho · 3 đã ký hợp đồng · 4 nguyên liệu chưa sản xuất (quy khô). */
 export type ConsumptionData = {
-  sales?: SaleLine[];
+  sales?: SaleLine[];                     // tiêu thụ mủ THU MUA
+  sales_own?: SaleLine[];                 // tiêu thụ mủ KHAI THÁC — nhập riêng, tổng cộng chung
   sales_ccy?: Ccy;                        // loại tiền của giá bán
   stock_ccy?: Ccy;                        // loại tiền của đơn giá khối 3
   fx_revenue?: number | null;             // tỷ giá USD→VND (dùng chung khi chọn USD)

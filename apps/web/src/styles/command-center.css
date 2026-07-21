@@ -112,6 +112,33 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;padding:10px 8px;color:var(--muted);font-weight:500;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
 td{padding:10px 8px;border-bottom:1px solid var(--line)}
 tr:hover td{background:#f3f7f4}
+/* Bảng nhập theo dòng của biểu đơn vị (tiêu thụ · tồn kho).
+   `fixed` để cột đúng bề rộng đã khai báo ở <th> — để `auto` thì trình duyệt chia theo nội dung,
+   cột số bị bóp còn nửa bề rộng trong khi cột chọn phình ra. */
+/* min-width = ngưỡng để nhãn dài nhất ("SVR 10 / CSR 20", "XK / UTXK") còn đọc được;
+   màn hẹp hơn thì cuộn ngang (wrapper có overflow-x) chứ KHÔNG bóp ô làm cụt chữ. */
+.ud-sales{table-layout:fixed;min-width:880px}
+/* Bảng ít cột (chủng loại + số lượng): chặn bề rộng, không thì ô trải hết màn hình. */
+.ud-sales.ud-narrow{min-width:360px;max-width:560px}
+.ud-sales td{padding:6px;vertical-align:middle}
+/* MỌI ô trong bảng cao bằng nhau (24px = chiều cao Select size="small" của antd):
+   ô ngày là input thuần của trình duyệt (27px) và nút .btn (18px) phải kéo về cùng mức. */
+.ud-sales .ant-input-number,
+.ud-sales input[type="date"]{height:24px;font-size:12.5px}
+.ud-sales .ant-input-number-input{height:22px;line-height:22px}
+.ud-sales .btn{height:24px;padding:0 8px;line-height:1;display:inline-flex;align-items:center;gap:4px}
+
+/* Tiêu thụ: MỖI BẢN GHI TRẢI 2 HÀNG (số liệu nhiều) — hàng 1 số bán, hàng 2 chứng từ.
+   Bỏ viền giữa 2 hàng để chúng đọc như một khối; chỉ kẻ viền dưới hàng chứng từ. */
+.ud-sale2 td{border-bottom:0}
+.ud-sale2 tr:hover td{background:transparent}
+.ud-sale2 tr.ud-docs-row>td{padding:0 6px 10px;border-bottom:1px solid var(--line)}
+.ud-docs{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding-left:2px}
+.ud-doc{display:flex;align-items:center;gap:6px;font-size:12px;min-height:24px}
+.ud-doc-lb{color:var(--muted);font-size:11px;white-space:nowrap}
+/* Ô ngày ở hàng chứng từ: cho thấy viền để nhận ra là ô nhập (mặc định .blt-cell-input trong suốt). */
+.ud-docs input[type="date"]{border-color:var(--line);background:var(--bg)}
+
 td.up{color:#0b7a3b;font-weight:600}
 td.down{color:#c0392b;font-weight:600}
 td.flat{color:#64748b}

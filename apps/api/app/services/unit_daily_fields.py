@@ -33,7 +33,8 @@ PURCHASE_TEXT: dict[str, frozenset[str]] = {"cup_basis": frozenset({"tsc", "drc"
 #   - hôm đó KHÔNG tổ chức thu mua                        → bật cờ này, không có giá nào cả
 PURCHASE_FLAGS: frozenset[str] = frozenset({"no_purchase"})
 
-# Biểu mẫu Tiêu thụ – Tồn kho — TIÊU THỤ = BẢNG NHIỀU DÒNG (`sales`); tổng doanh thu (VND, base=đồng) ở `revenue`.
+# Biểu mẫu Tiêu thụ – Tồn kho — TIÊU THỤ = 2 BẢNG NHIỀU DÒNG nhập tách riêng: `sales` (mủ THU MUA)
+# và `sales_own` (mủ KHAI THÁC); tổng doanh thu của CẢ HAI (VND, base=đồng) gộp chung ở `revenue`.
 # TỒN KHO (chỉ tiêu THỜI ĐIỂM, đơn vị TẤN) chia 4 khối theo yêu cầu nghiệp vụ:
 #   1 `stock_not_warehoused`     Tồn kho thành phẩm chế biến CHƯA nhập kho (chủng loại · tấn)
 #   2 `stock_warehoused`         Tồn kho thành phẩm ĐÃ nhập kho          (chủng loại · tấn)
@@ -67,6 +68,17 @@ CONSUMPTION_TEXT: dict[str, frozenset[str]] = {
 _SALE_CONTRACTS = {"long_term", "spot"}   # loại HĐ: Dài hạn | Chuyến
 _SALE_CHANNELS = {"export", "domestic"}   # hình thức: XK/UTXK | Nội tiêu
 
+# 2 bảng tiêu thụ nhập TÁCH RIÊNG (để lưu trữ riêng), tổng vẫn cộng chung:
+#   `sales`     — tiêu thụ mủ THU MUA
+#   `sales_own` — tiêu thụ mủ KHAI THÁC
+SALE_TABLES: tuple[str, ...] = ("sales", "sales_own")
+# 3 file đính kèm mỗi dòng bán: (khoá file lưu server, khoá tên gốc hiển thị).
+SALE_DOC_SLOTS: tuple[tuple[str, str], ...] = (
+    ("file", "filename"),            # bộ Hợp đồng
+    ("wh_file", "wh_filename"),      # phiếu xuất kho
+    ("inv_file", "inv_filename"),    # hoá đơn
+)
+
 ALLOWED: dict[str, frozenset[str]] = {"purchase": PURCHASE_FIELDS}
 
 
@@ -78,16 +90,17 @@ def _to_float(v) -> float | None:
 
 
 def _clean_sales(sales) -> list[dict]:
-    """Lọc/chuẩn hoá các dòng tiêu thụ.
+    """Lọc/chuẩn hoá các dòng tiêu thụ (dùng chung `sales` = mủ thu mua và `sales_own` = mủ khai thác).
 
-    Mỗi dòng: loại HĐ · hình thức · loại mủ · số lượng · giá bán · NGÀY XUẤT HOÁ ĐƠN ·
-    file bộ Hợp đồng đã upload (tên lưu uuid + tên gốc hiển thị).
+    Mỗi dòng: loại HĐ · hình thức · loại mủ · số lượng · giá bán · NGÀY XUẤT KHO ·
+    NGÀY XUẤT HOÁ ĐƠN · 3 file đính kèm (bộ Hợp đồng · phiếu xuất kho · hoá đơn),
+    mỗi file lưu tên uuid trên server + tên gốc để hiển thị.
     """
     out: list[dict] = []
     for ln in sales if isinstance(sales, list) else []:
         if not isinstance(ln, dict):
             continue
-        out.append({
+        row = {
             "contract": ln.get("contract") if ln.get("contract") in _SALE_CONTRACTS else "long_term",
             "channel": ln.get("channel") if ln.get("channel") in _SALE_CHANNELS else "export",
             "grade": str(ln.get("grade") or "")[:60],
@@ -96,10 +109,13 @@ def _clean_sales(sales) -> list[dict]:
             # Loại tiền + tỷ giá theo TỪNG DÒNG: một ngày có thể vừa bán USD vừa bán VNĐ.
             "ccy": ln.get("ccy") if ln.get("ccy") in _CCY else "VND",
             "fx": _to_float(ln.get("fx")),
+            "warehouse_date": str(ln.get("warehouse_date") or "")[:10] or None,
             "invoice_date": str(ln.get("invoice_date") or "")[:10] or None,
-            "file": str(ln.get("file") or "")[:120] or None,
-            "filename": str(ln.get("filename") or "")[:200] or None,
-        })
+        }
+        for fk, nk in SALE_DOC_SLOTS:
+            row[fk] = str(ln.get(fk) or "")[:120] or None
+            row[nk] = str(ln.get(nk) or "")[:200] or None
+        out.append(row)
     return out
 
 
@@ -148,8 +164,9 @@ def clean_fields(kind: str, fields: dict) -> dict:
     fields = fields or {}
     if kind == "consumption":
         out: dict = {}
-        if "sales" in fields:
-            out["sales"] = _clean_sales(fields.get("sales"))
+        for key in SALE_TABLES:
+            if key in fields:
+                out[key] = _clean_sales(fields.get(key))
         for key in ("stock_not_warehoused", "stock_warehoused"):
             if key in fields:
                 out[key] = _clean_stock_qty(fields.get(key))

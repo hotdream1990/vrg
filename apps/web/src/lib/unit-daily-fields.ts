@@ -52,13 +52,15 @@ const PURCHASE: Column[] = [
 ];
 
 // ── Tiêu thụ – Tồn kho ─────────────────────────────────────────────────────────────────
-// TIÊU THỤ nhập theo BẢNG NHIỀU DÒNG (ConsumptionForm) — bảng chỉ hiển thị TỔNG HỢP suy ra từ `sales`
-// (số lượng theo hình thức) + `revenue` (tổng doanh thu VND đã tính lúc lưu). TỒN KHO là ô phẳng.
+// TIÊU THỤ nhập theo 2 BẢNG NHIỀU DÒNG (ConsumptionForm): `sales` = mủ thu mua · `sales_own` = mủ
+// khai thác. Bảng chỉ hiển thị TỔNG HỢP GỘP CHUNG cả hai (số lượng theo hình thức) + `revenue`
+// (tổng doanh thu VND đã tính lúc lưu). TỒN KHO là ô phẳng.
 const _TT = "Tiêu thụ (tổng hợp)";
 const _TK = "Tồn kho";
+/** Dòng bán của CẢ 2 bảng: mủ thu mua (`sales`) + mủ khai thác (`sales_own`) — tổng cộng chung. */
 const salesOf = (v: Values): SaleLine[] => {
-  const s = (v as { sales?: unknown }).sales;
-  return Array.isArray(s) ? (s as SaleLine[]) : [];
+  const rec = v as Record<string, unknown>;
+  return ["sales", "sales_own"].flatMap((k) => (Array.isArray(rec[k]) ? (rec[k] as SaleLine[]) : []));
 };
 const salesQty = (v: Values, keep?: (l: SaleLine) => boolean): number =>
   salesOf(v).reduce((a, l) => a + (keep && !keep(l) ? 0 : (n(l.qty) ?? 0)), 0);

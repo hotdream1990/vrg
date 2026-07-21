@@ -101,11 +101,17 @@ def test_unit_daily_member_and_editor_flow() -> None:
     # Chuyên viên sửa số của đơn vị (consumption) + timeline hiện bản ghi.
     # Biểu tiêu thụ dùng BẢNG NHIỀU DÒNG: `sales` + tồn kho dạng mảng. Tồn kho tính bằng TẤN
     # và KHÔNG còn "loại bành"; giá bán chọn loại tiền qua `sales_ccy`.
+    # Mủ THU MUA (`sales`) và mủ KHAI THÁC (`sales_own`) nhập tách riêng, tổng thì cộng chung.
     cons = {"kind": "consumption", "company": unit, "as_of": today, "fields": {
         "sales": [{"contract": "long_term", "channel": "export", "grade": "RSS 3",
                    "qty": 12.5, "price": 45}],
+        "sales_own": [{"contract": "spot", "channel": "domestic", "grade": "SVR 3L",
+                       "qty": 7.5, "price": 40,
+                       "warehouse_date": "2026-07-20", "invoice_date": "2026-07-21",
+                       "wh_file": "px.pdf", "wh_filename": "phieu-xuat-kho.pdf",
+                       "inv_file": "hd.pdf", "inv_filename": "hoa-don.pdf"}],
         "sales_ccy": "VND", "stock_ccy": "VND",
-        "revenue": 562_500_000,
+        "revenue": 862_500_000,
         "stock_not_warehoused": [{"grade": "RSS 3", "bale": "bỏ đi", "qty": 9}],
         "stock_warehoused": [{"grade": "RSS 3", "qty": 15}],
         "stock_signed_undelivered": [{"grade": "RSS 3", "qty": 6, "price": 48}],
@@ -115,6 +121,11 @@ def test_unit_daily_member_and_editor_flow() -> None:
     tl = client.get("/api/unit-daily/timeline?kind=consumption&days=30", headers=eh)
     saved = next(e for e in tl.json()["entries"] if e["company"] == unit)["fields"]
     assert saved["sales"][0]["qty"] == 12.5
+    # Dòng mủ khai thác lưu riêng, giữ đủ 2 mốc ngày + các file chứng từ đính kèm.
+    own = saved["sales_own"][0]
+    assert own["qty"] == 7.5 and own["contract"] == "spot" and own["channel"] == "domestic"
+    assert own["warehouse_date"] == "2026-07-20" and own["invoice_date"] == "2026-07-21"
+    assert own["wh_filename"] == "phieu-xuat-kho.pdf" and own["inv_filename"] == "hoa-don.pdf"
     assert saved["stock_not_warehoused"][0]["qty"] == 9 and saved["stock_warehoused"][0]["qty"] == 15
     assert "bale" not in saved["stock_not_warehoused"][0]  # cột loại bành đã bỏ hẳn
     assert saved["sales_ccy"] == "VND" and saved["stock_material"] == 3.5
@@ -124,7 +135,9 @@ def test_unit_daily_member_and_editor_flow() -> None:
                     headers=eh)
     assert pr.status_code == 200
     row = next(r for r in pr.json()["rows"] if r["company"] == unit)
-    assert row["lt_export"] == 12.5 and row["total_consumption"] == 12.5
+    # Tổng tiêu thụ = mủ thu mua (12.5) + mủ khai thác (7.5), tách đúng theo loại HĐ / hình thức.
+    assert row["lt_export"] == 12.5 and row["spot_domestic"] == 7.5
+    assert row["total_consumption"] == 20.0
     # Tồn kho thành phẩm = khối 1 + khối 2 = 24; khối 3 (đã ký HĐ) báo RIÊNG, không trừ ra.
     assert row["stock_finished"] == 24.0 and row["stock_no_hd"] == 24.0
     assert row["stock_finished_hd"] == 6.0 and row["stock_material"] == 3.5

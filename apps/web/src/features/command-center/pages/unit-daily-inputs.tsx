@@ -24,14 +24,17 @@ export const readOnlyBox = (text: string, tag: string) => (
   </div>
 );
 
-/** Ô nhập số (vi-VN). */
+/** Ô nhập số (vi-VN). `size="small"` cho ô nằm TRONG BẢNG — để cao bằng Select/nút cùng dòng
+    (mặc định của antd là 32px, lệch hẳn so với Select size="small" 24px). */
 export const numInput = (
   value: number | null, onChange: (v: number | null) => void, readOnly?: boolean,
+  size?: "small",
 ) => (
   <InputNumber
     value={value}
     onChange={(v) => onChange(v as number | null)}
     disabled={readOnly}
+    size={size}
     controls={false}
     min={0}
     formatter={fmtInput}

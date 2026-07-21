@@ -1,5 +1,8 @@
 /* Form nhập biểu TIÊU THỤ – TỒN KHO.
-   - TIÊU THỤ = bảng nhiều dòng (loại HĐ · hình thức · loại mủ · SL · giá bán → doanh thu tự tính).
+   - TIÊU THỤ = 2 bảng nhiều dòng nhập TÁCH RIÊNG (mủ THU MUA `sales` · mủ KHAI THÁC `sales_own`)
+     để lưu trữ riêng, còn phần Tổng hợp thì CỘNG CHUNG cả hai. Mỗi bản ghi trải 2 hàng: hàng trên
+     là số liệu bán (loại HĐ · hình thức · loại mủ · SL · giá bán → doanh thu tự tính), hàng dưới là
+     chứng từ (ngày xuất kho · ngày xuất hoá đơn · bộ HĐ · phiếu xuất kho · hoá đơn).
    - TỒN KHO (số THỜI ĐIỂM cuối ngày, đơn vị TẤN — mẫu tuần mục 11–14): chưa HĐ = bảng (chủng loại ·
      SL tấn); đã HĐ = bảng (chủng loại · tấn · đơn giá · lịch giao · file HĐ); mục 14 = tồn kho nguyên
      liệu chưa có HĐ (tấn), chỉ đơn vị CHƯA có nhà máy chế biến.
@@ -9,16 +12,16 @@
 
 import { DeleteOutlined, PlusOutlined, UploadOutlined } from "@ant-design/icons";
 import { Select, Tabs, Upload, message } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 import { fetchVcbRate } from "../../../lib/market-quote-client";
 import {
   type PriceDraft, type Role, fetchPrevStock, openContractFile, uploadContractFile,
 } from "../../../lib/unit-daily-client";
 import {
-  CCYS, CHANNELS, CONTRACTS, GRADES, type Ccy, type ConsumptionData, type SaleLine,
-  type StockQtyLine, type StockSignedLine, lineRevenueVnd, stockTonnesTotal,
-  toTyDong, totals,
+  CCYS, CHANNELS, CONTRACTS, GRADES, SALE_DATES, SALE_DOCS, type Ccy, type ConsumptionData,
+  type SaleLine, type StockQtyLine, type StockSignedLine, emptySaleLine, lineRevenueVnd,
+  stockTonnesTotal, toTyDong, totals,
 } from "../../../lib/unit-daily-consumption";
 import { type Values, fmtNum } from "../../../lib/unit-daily-fields";
 import { fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
@@ -50,6 +53,7 @@ function initData(values: Values, currency?: string): ConsumptionData {
   const dc = defaultCcy(currency);
   return {
     sales: Array.isArray(v.sales) ? v.sales.map((l) => ({ ...l })) : [],
+    sales_own: Array.isArray(v.sales_own) ? v.sales_own.map((l) => ({ ...l })) : [],
     sales_ccy: v.sales_ccy ?? dc,
     stock_ccy: v.stock_ccy ?? dc,
     fx_revenue: v.fx_revenue ?? null,
@@ -81,17 +85,20 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
   const stockCcy: Ccy = data.stock_ccy ?? defaultCcy(currency);
   const needFx = salesCcy === "USD" || stockCcy === "USD";
 
-  const sales = (data.sales ?? []) as SaleLine[];
+  const sales = (data.sales ?? []) as SaleLine[];                         // tiêu thụ mủ THU MUA
+  const salesOwn = (data.sales_own ?? []) as SaleLine[];                  // tiêu thụ mủ KHAI THÁC
   const notWh = (data.stock_not_warehoused ?? []) as StockQtyLine[];      // 1 chế biến chưa nhập kho
   const wh = (data.stock_warehoused ?? []) as StockQtyLine[];             // 2 đã nhập kho
   const signed = (data.stock_signed_undelivered ?? []) as StockSignedLine[]; // 3 đã ký HĐ chưa giao
 
   const setSales = (next: SaleLine[]) => setData((d) => ({ ...d, sales: next }));
+  const setSalesOwn = (next: SaleLine[]) => setData((d) => ({ ...d, sales_own: next }));
   const setNotWh = (next: StockQtyLine[]) => setData((d) => ({ ...d, stock_not_warehoused: next }));
   const setWh = (next: StockQtyLine[]) => setData((d) => ({ ...d, stock_warehoused: next }));
   const setSigned = (next: StockSignedLine[]) => setData((d) => ({ ...d, stock_signed_undelivered: next }));
 
-  const agg = totals(sales);
+  // Nhập tách riêng 2 bảng nhưng phần Tổng hợp (SL · doanh thu · giá BQ) là số GỘP CHUNG.
+  const agg = totals([...sales, ...salesOwn]);
 
   /** 2 dòng của khối "Tiêu thụ mủ thu mua & mủ thành phẩm" — khoá lưu tương ứng trong payload. */
   const SOLD_ROWS = [
@@ -116,13 +123,13 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
 
   const current = useMemo<Values>(() => {
     const p: ConsumptionData = {
-      sales, revenue: agg.revenueVnd, sales_ccy: salesCcy, stock_ccy: stockCcy,
+      sales, sales_own: salesOwn, revenue: agg.revenueVnd, sales_ccy: salesCcy, stock_ccy: stockCcy,
       stock_not_warehoused: notWh, stock_warehoused: wh, stock_signed_undelivered: signed,
     };
     if (needFx) p.fx_revenue = data.fx_revenue ?? null;
     p.stock_material = data.stock_material ?? null;   // khối 4 — mọi đơn vị đều nhập được
     return p as unknown as Values;
-  }, [sales, agg.revenueVnd, notWh, wh, signed, salesCcy, stockCcy, needFx, data]);
+  }, [sales, salesOwn, agg.revenueVnd, notWh, wh, signed, salesCcy, stockCcy, needFx, data]);
 
   const orig = useMemo(() => initData(values, currency), [values, currency]);
   const dirty = useMemo(() => JSON.stringify(data) !== JSON.stringify(orig), [data, orig]);
@@ -140,6 +147,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       setData((d) => ({
         ...d,
         sales: fill((d.sales ?? []) as SaleLine[]),
+        sales_own: fill((d.sales_own ?? []) as SaleLine[]),
         stock_signed_undelivered: fill((d.stock_signed_undelivered ?? []) as StockSignedLine[]),
       }));
       message.success(`Đã điền tỷ giá USD/VND (VCB ${r.date}): ${fmtNum(rate, 0)} cho các dòng USD.`);
@@ -167,48 +175,57 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
     finally { setPrevLoading(false); }
   };
 
-  /** Upload file HĐ cho 1 dòng — dùng chung bảng Tiêu thụ ("sales") và Tồn kho đã ký HĐ ("signed"). */
-  const doUpload = async (which: "sales" | "signed", i: number, file: File) => {
-    setUploading(`${which}:${i}`);
-    try {
-      const r = await uploadContractFile(role, file);
-      if (which === "sales") setSales(sales.map((l, j) => (j === i ? { ...l, file: r.file, filename: r.filename } : l)));
-      else setSigned(signed.map((l, j) => (j === i ? { ...l, file: r.file, filename: r.filename } : l)));
-      message.success("Đã tải lên file hợp đồng.");
-    } catch (e) { message.error((e as Error).message || "Upload thất bại."); }
-    finally { setUploading(null); }
+  /** Ô đính kèm 1 chứng từ (mở lại file đã có + nút đổi/chọn). Dùng chung cho mọi bảng/mọi loại
+      chứng từ: `slot` là id duy nhất để biết ô nào đang tải, `set` gán cặp (file, tên gốc) vào dòng. */
+  const fileCell = (
+    slot: string,
+    cur: { file?: string | null; filename?: string | null },
+    set: (v: { file: string; filename: string }) => void,
+  ) => {
+    const busy = uploading === slot;
+    const upload = async (file: File) => {
+      setUploading(slot);
+      try {
+        const r = await uploadContractFile(role, file);
+        set({ file: r.file, filename: r.filename });
+        message.success("Đã tải lên chứng từ.");
+      } catch (e) { message.error((e as Error).message || "Upload thất bại."); }
+      finally { setUploading(null); }
+    };
+    return (
+      <>
+        {cur.file
+          ? <a onClick={() => openContractFile(role, cur.file!)} style={{ cursor: "pointer", fontSize: 12 }} title={cur.filename ?? ""}>{(cur.filename ?? "file").slice(0, 14)}</a>
+          : <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>}
+        {!readOnly && (
+          <Upload showUploadList={false} accept=".pdf,image/jpeg,image/png" disabled={busy}
+            beforeUpload={(fl) => { upload(fl as File); return false; }}>
+            <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 6px", marginLeft: 6 }}>
+              <UploadOutlined /> {busy ? "…" : (cur.file ? "Đổi" : "Chọn")}
+            </button>
+          </Upload>
+        )}
+      </>
+    );
   };
-
-  /** Ô đính kèm file HĐ của 1 dòng (mở lại file đã có + nút đổi/chọn). */
-  const fileCell = (which: "sales" | "signed", i: number, r: { file?: string | null; filename?: string | null }) => (
-    <>
-      {r.file
-        ? <a onClick={() => openContractFile(role, r.file!)} style={{ cursor: "pointer", fontSize: 12 }} title={r.filename ?? ""}>{(r.filename ?? "file").slice(0, 14)}</a>
-        : <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>}
-      {!readOnly && (
-        <Upload showUploadList={false} accept=".pdf,image/jpeg,image/png" disabled={uploading === `${which}:${i}`}
-          beforeUpload={(fl) => { doUpload(which, i, fl as File); return false; }}>
-          <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 6px", marginLeft: 6 }}>
-            <UploadOutlined /> {uploading === `${which}:${i}` ? "…" : (r.file ? "Đổi" : "Chọn")}
-          </button>
-        </Upload>
-      )}
-    </>
-  );
 
   const head = (t: string, first?: boolean) => (
     <div style={{ fontWeight: 600, fontSize: 12.5, opacity: 0.85, marginTop: first ? 0 : 18, marginBottom: 6, paddingBottom: 2, borderBottom: "1px solid rgba(125,125,125,.25)" }}>{t}</div>
   );
-  const sel = { minWidth: 96, width: "100%" } as const;
+  // Ô trong bảng để width 100% cho khớp bề rộng cột (cột đã khai báo ở <th>, bảng chạy
+  // table-layout: fixed). KHÔNG đặt minWidth — minWidth ép cột phình ra, làm các cột số bị bóp lại.
+  const sel = { width: "100%" } as const;
+
+  /** Ô nhập số NẰM TRONG BẢNG — luôn size "small" để cao bằng Select/nút cùng dòng (24px). */
+  const cellNum = (v: number | null, on: (v: number | null) => void) => numInput(v, on, readOnly, "small");
 
   /** Ô chọn loại tiền NGAY TRONG DÒNG + ô tỷ giá đi kèm (chỉ hiện khi dòng đó chọn USD). */
   const rowCcy = (v: Ccy | undefined, on: (c: Ccy) => void) => (
-    <Select size="small" style={{ minWidth: 78, width: "100%" }} value={v ?? "VND"} disabled={readOnly}
-            onChange={on} options={CCYS} />
+    <Select size="small" style={sel} value={v ?? "VND"} disabled={readOnly} onChange={on} options={CCYS} />
   );
   const rowFx = (line: { ccy?: Ccy; fx?: number | null }, on: (v: number | null) => void) =>
     (line.ccy ?? "VND") === "USD"
-      ? numInput(num(line.fx), on, readOnly)
+      ? cellNum(num(line.fx), on)
       : <span style={{ fontSize: 11.5, color: "var(--muted)" }}>—</span>;
 
   /** Ô chọn loại tiền cho 1 khối giá (giá bán tiêu thụ · đơn giá tồn kho). */
@@ -221,52 +238,98 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       onChange={on} options={GRADES.map((g) => ({ value: g, label: g }))} />
   );
 
+  /** Bảng tiêu thụ — dùng chung cho mủ THU MUA (`sales`) và mủ KHAI THÁC (`sales_own`).
+      Mỗi bản ghi trải 2 HÀNG vì số liệu nhiều: hàng 1 = số bán, hàng 2 = chứng từ (2 ngày + 3 file). */
+  const salesTable = (id: "sales" | "sales_own", rows: SaleLine[], setRows: (n: SaleLine[]) => void) => {
+    const patch = (i: number, p: Partial<SaleLine>) => setRows(rows.map((l, j) => (j === i ? { ...l, ...p } : l)));
+    const cols = readOnly ? 8 : 9;
+    return (
+      <>
+        <div style={{ overflowX: "auto" }}>
+          <table className="ud-sales ud-sale2">
+            {/* Bề rộng cột theo % (bảng chạy table-layout: fixed) — vừa khít mọi khổ màn hình,
+                hẹp hơn `min-width` của bảng thì cuộn ngang chứ không bóp méo ô.
+                % chọn sao cho ở đúng ngưỡng min-width nhãn dài nhất của từng cột vẫn đủ chỗ
+                ("SVR 10 / CSR 20" 96px · "XK / UTXK" 62px — cộng ~44px khung chọn + lề ô). */}
+            <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
+              <th style={{ width: "11%" }}>Loại HĐ</th><th style={{ width: "13%" }}>Hình thức</th><th style={{ width: "17%" }}>Loại mủ</th>
+              <th style={{ width: "9.5%" }} className="r">SL (tấn)</th><th style={{ width: "10.5%" }} className="r">Giá bán</th>
+              <th style={{ width: "8.5%" }}>Tiền</th><th style={{ width: "10%" }} className="r">Tỷ giá</th>
+              <th style={{ width: "14.5%" }} className="r">Doanh thu (triệu đ)</th>{!readOnly && <th style={{ width: "6%" }} />}
+            </tr></thead>
+            <tbody>
+              {rows.map((ln, i) => (
+                <Fragment key={i}>
+                  <tr>
+                    <td><Select size="small" style={sel} value={ln.contract} disabled={readOnly} onChange={(v) => patch(i, { contract: v })} options={CONTRACTS} /></td>
+                    <td><Select size="small" style={sel} value={ln.channel} disabled={readOnly} onChange={(v) => patch(i, { channel: v })} options={CHANNELS} /></td>
+                    <td>{gradeSel(ln.grade, (v) => patch(i, { grade: v }))}</td>
+                    <td>{cellNum(num(ln.qty), (v) => patch(i, { qty: v }))}</td>
+                    <td>{cellNum(num(ln.price), (v) => patch(i, { price: v }))}</td>
+                    <td>{rowCcy(ln.ccy, (v) => patch(i, { ccy: v }))}</td>
+                    <td>{rowFx(ln, (v) => patch(i, { fx: v }))}</td>
+                    <td className="r" style={{ paddingRight: 6, fontWeight: 600, whiteSpace: "nowrap" }}>
+                      {(() => { const rv = lineRevenueVnd(ln); return fmtNum(rv == null ? null : rv / 1_000_000, 1); })()}
+                    </td>
+                    {!readOnly && <td className="r"><button type="button" className="btn" style={{ padding: "0 7px" }} title="Xoá dòng" onClick={() => setRows(rows.filter((_, j) => j !== i))}><DeleteOutlined /></button></td>}
+                  </tr>
+                  {/* Hàng 2 — chứng từ của CHÍNH dòng bên trên. */}
+                  <tr className="ud-docs-row">
+                    <td colSpan={cols}>
+                      <div className="ud-docs">
+                        {SALE_DATES.map((d) => (
+                          <label key={d.key} className="ud-doc">
+                            <span className="ud-doc-lb">{d.label}</span>
+                            <input type="date" className="blt-cell-input" style={{ width: 150 }} disabled={readOnly}
+                              value={(ln[d.key] as string | null) ?? ""}
+                              onChange={(e) => patch(i, { [d.key]: e.target.value || null } as Partial<SaleLine>)} />
+                          </label>
+                        ))}
+                        {SALE_DOCS.map((dc) => (
+                          <div key={dc.fileKey} className="ud-doc">
+                            <span className="ud-doc-lb">{dc.label}</span>
+                            <span>{fileCell(
+                              `${id}:${i}:${dc.fileKey}`,
+                              { file: ln[dc.fileKey] as string | null, filename: ln[dc.nameKey] as string | null },
+                              (v) => patch(i, { [dc.fileKey]: v.file, [dc.nameKey]: v.filename } as Partial<SaleLine>),
+                            )}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                </Fragment>
+              ))}
+              {rows.length === 0 && <tr><td colSpan={cols} style={{ textAlign: "center", color: "var(--muted)", padding: 12, fontSize: 12.5 }}>Chưa có dòng tiêu thụ nào.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        {!readOnly && <button type="button" className="btn" style={{ marginTop: 8, fontSize: 12 }} onClick={() => setRows([...rows, emptySaleLine()])}><PlusOutlined /> Thêm dòng</button>}
+      </>
+    );
+  };
+
   const salesTab = (
     <div>
       {head("Tiêu thụ mủ thu mua", true)}
-      <div style={{ overflowX: "auto" }}>
-        <table className="ud-sales">
-          <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
-            <th style={{ width: 116 }}>Loại HĐ</th><th style={{ width: 122 }}>Hình thức</th><th style={{ width: 150 }}>Loại mủ</th>
-            <th style={{ width: 92 }} className="r">SL (tấn)</th><th style={{ width: 110 }} className="r">Giá bán</th>
-            <th style={{ width: 86 }}>Tiền</th><th style={{ width: 104 }} className="r">Tỷ giá</th>
-            <th style={{ width: 120 }} className="r">Doanh thu (triệu đ)</th>
-            <th style={{ width: 140 }}>Ngày xuất hoá đơn</th><th style={{ width: 170 }}>Bộ Hợp đồng</th>{!readOnly && <th style={{ width: 34 }} />}
-          </tr></thead>
-          <tbody>
-            {sales.map((ln, i) => (
-              <tr key={i}>
-                <td><Select size="small" style={sel} value={ln.contract} disabled={readOnly} onChange={(v) => setSales(sales.map((l, j) => j === i ? { ...l, contract: v } : l))} options={CONTRACTS} /></td>
-                <td><Select size="small" style={sel} value={ln.channel} disabled={readOnly} onChange={(v) => setSales(sales.map((l, j) => j === i ? { ...l, channel: v } : l))} options={CHANNELS} /></td>
-                <td>{gradeSel(ln.grade, (v) => setSales(sales.map((l, j) => j === i ? { ...l, grade: v } : l)))}</td>
-                <td>{numInput(num(ln.qty), (v) => setSales(sales.map((l, j) => j === i ? { ...l, qty: v } : l)), readOnly)}</td>
-                <td>{numInput(num(ln.price), (v) => setSales(sales.map((l, j) => j === i ? { ...l, price: v } : l)), readOnly)}</td>
-                <td>{rowCcy(ln.ccy, (v) => setSales(sales.map((l, j) => j === i ? { ...l, ccy: v } : l)))}</td>
-                <td>{rowFx(ln, (v) => setSales(sales.map((l, j) => j === i ? { ...l, fx: v } : l)))}</td>
-                <td className="r" style={{ paddingRight: 6, fontWeight: 600, whiteSpace: "nowrap" }}>
-                  {(() => { const rv = lineRevenueVnd(ln); return fmtNum(rv == null ? null : rv / 1_000_000, 1); })()}
-                </td>
-                <td><input type="date" className="blt-cell-input" style={{ width: "100%" }} value={ln.invoice_date ?? ""} disabled={readOnly}
-                  onChange={(e) => setSales(sales.map((l, j) => j === i ? { ...l, invoice_date: e.target.value || null } : l))} /></td>
-                <td>{fileCell("sales", i, ln)}</td>
-                {!readOnly && <td className="r"><button type="button" className="btn" style={{ padding: "0 7px" }} title="Xoá dòng" onClick={() => setSales(sales.filter((_, j) => j !== i))}><DeleteOutlined /></button></td>}
-              </tr>
-            ))}
-            {sales.length === 0 && <tr><td colSpan={readOnly ? 10 : 11} style={{ textAlign: "center", color: "var(--muted)", padding: 12, fontSize: 12.5 }}>Chưa có dòng tiêu thụ nào.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-      {!readOnly && <button type="button" className="btn" style={{ marginTop: 8, fontSize: 12 }} onClick={() => setSales([...sales, { contract: "long_term", channel: "export", grade: GRADES[0], qty: null, price: null, invoice_date: null, file: null, filename: null }])}><PlusOutlined /> Thêm dòng</button>}
+      {salesTable("sales", sales, setSales)}
+
+      {/* Nhập TÁCH RIÊNG với mủ thu mua để lưu trữ riêng — Tổng hợp bên dưới vẫn cộng chung. */}
+      {head("Tiêu thụ mủ khai thác")}
+      {salesTable("sales_own", salesOwn, setSalesOwn)}
 
       {!readOnly && (
-        <button type="button" className="btn" style={{ marginTop: 10, marginLeft: 8, fontSize: 12 }}
-                onClick={fetchFx} disabled={fxLoading}>
-          {fxLoading ? "Đang lấy…" : "Lấy tỷ giá VCB cho các dòng USD"}
-        </button>
+        <div style={{ marginTop: 12 }}>
+          <button type="button" className="btn" style={{ fontSize: 12 }} onClick={fetchFx} disabled={fxLoading}>
+            {fxLoading ? "Đang lấy…" : "Lấy tỷ giá VCB cho các dòng USD"}
+          </button>
+        </div>
       )}
       <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 10 }}>
-        Mỗi dòng chọn loại tiền riêng — trong ngày vừa bán USD vừa bán VNĐ vẫn nhập chung một phiếu.
-        Dòng nào chọn USD thì nhập tỷ giá ngay ở dòng đó{!readOnly && " (nút bên dưới lấy tỷ giá Vietcombank)"}.
+        Mủ thu mua và mủ khai thác nhập ở 2 bảng riêng để lưu trữ tách bạch — phần Tổng hợp bên dưới
+        cộng chung cả hai. Mỗi dòng chọn loại tiền riêng: trong ngày vừa bán USD vừa bán VNĐ vẫn nhập
+        chung một phiếu; dòng nào chọn USD thì nhập tỷ giá ngay ở dòng đó
+        {!readOnly && " (nút trên điền tỷ giá Vietcombank cho mọi dòng USD của cả 2 bảng)"}.
       </div>
 
       {/* Chuyển từ biểu Thu mua sang: tiêu thụ mủ THU MUA và mủ THÀNH PHẨM.
@@ -275,12 +338,12 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       <div style={{ overflowX: "auto" }}>
         <table className="ud-sales">
           <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
-            <th style={{ width: 180 }}>Loại</th>
-            <th style={{ width: 110 }} className="r">SL tiêu thụ (tấn)</th>
-            <th style={{ width: 130 }} className="r">Doanh thu</th>
-            <th style={{ width: 100 }}>Loại tiền</th>
-            <th style={{ width: 130 }} className="r">Tỷ giá (1 USD = ? VND)</th>
-            <th style={{ width: 130 }} className="r">Giá BQ (triệu đ/tấn)</th>
+            <th style={{ width: "23%" }}>Loại</th>
+            <th style={{ width: "14%" }} className="r">SL tiêu thụ (tấn)</th>
+            <th style={{ width: "16.5%" }} className="r">Doanh thu</th>
+            <th style={{ width: "13%" }}>Loại tiền</th>
+            <th style={{ width: "17%" }} className="r">Tỷ giá (1 USD = ? VND)</th>
+            <th style={{ width: "16.5%" }} className="r">Giá BQ (triệu đ/tấn)</th>
           </tr></thead>
           <tbody>
             {SOLD_ROWS.map((r) => {
@@ -290,14 +353,14 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
               return (
                 <tr key={r.qtyKey}>
                   <td style={{ fontWeight: 600 }}>{r.label}</td>
-                  <td>{numInput(qty, (v) => setData((d) => ({ ...d, [r.qtyKey]: v })), readOnly)}</td>
-                  <td>{numInput(num(data[r.rawKey] as number | null), (v) => setData((d) => ({ ...d, [r.rawKey]: v })), readOnly)}</td>
+                  <td>{cellNum(qty, (v) => setData((d) => ({ ...d, [r.qtyKey]: v })))}</td>
+                  <td>{cellNum(num(data[r.rawKey] as number | null), (v) => setData((d) => ({ ...d, [r.rawKey]: v })))}</td>
                   <td>
                     <Select size="small" style={sel} value={ccy} disabled={readOnly}
                             onChange={(v) => setData((d) => ({ ...d, [r.ccyKey]: v }))} options={CCYS} />
                   </td>
                   <td>{ccy === "USD"
-                    ? numInput(num(data[r.fxKey] as number | null), (v) => setData((d) => ({ ...d, [r.fxKey]: v })), readOnly)
+                    ? cellNum(num(data[r.fxKey] as number | null), (v) => setData((d) => ({ ...d, [r.fxKey]: v })))
                     : <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>}</td>
                   <td className="r" style={{ paddingRight: 6, fontWeight: 600, whiteSpace: "nowrap" }}>
                     {fmtNum(vnd != null && qty ? vnd / qty / 1_000_000 : null, 2)}
@@ -332,16 +395,17 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
   ) => (
     <>
       <div style={{ overflowX: "auto" }}>
-        <table className="ud-sales">
+        {/* Bảng chỉ 2 cột — chặn bề rộng để ô không bị kéo dài lê thê trên màn rộng. */}
+        <table className="ud-sales ud-narrow">
           <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
-            <th style={{ width: 240 }}>Chủng loại</th>
-            <th style={{ width: 130 }} className="r">Số lượng (tấn)</th>{!readOnly && <th style={{ width: 34 }} />}
+            <th style={{ width: "60%" }}>Chủng loại</th>
+            <th style={{ width: "33%" }} className="r">Số lượng (tấn)</th>{!readOnly && <th style={{ width: "7%" }} />}
           </tr></thead>
           <tbody>
             {rows.map((r, i) => (
               <tr key={i}>
                 <td>{gradeSel(r.grade, (v) => setRows(rows.map((x, j) => j === i ? { ...x, grade: v } : x)))}</td>
-                <td>{numInput(num(r.qty), (v) => setRows(rows.map((x, j) => j === i ? { ...x, qty: v } : x)), readOnly)}</td>
+                <td>{cellNum(num(r.qty), (v) => setRows(rows.map((x, j) => j === i ? { ...x, qty: v } : x)))}</td>
                 {!readOnly && <td className="r"><button type="button" className="btn" style={{ padding: "0 7px" }} onClick={() => setRows(rows.filter((_, j) => j !== i))}><DeleteOutlined /></button></td>}
               </tr>
             ))}
@@ -381,18 +445,18 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       <div style={{ overflowX: "auto" }}>
         <table className="ud-sales">
           <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
-            <th style={{ width: 160 }}>Chủng loại</th><th style={{ width: 110 }} className="r">SL (tấn)</th>
-            <th style={{ width: 110 }} className="r">Đơn giá</th>
-            <th style={{ width: 86 }}>Tiền</th><th style={{ width: 104 }} className="r">Tỷ giá</th>
-            <th style={{ width: 120 }} className="r">Thành tiền (triệu đ)</th><th style={{ width: 140 }}>Lịch giao</th>
-            <th style={{ width: 170 }}>HĐ đã ký (scan)</th>{!readOnly && <th style={{ width: 34 }} />}
+            <th style={{ width: "15.5%" }}>Chủng loại</th><th style={{ width: "10.5%" }} className="r">SL (tấn)</th>
+            <th style={{ width: "10.5%" }} className="r">Đơn giá</th>
+            <th style={{ width: "8.5%" }}>Tiền</th><th style={{ width: "10%" }} className="r">Tỷ giá</th>
+            <th style={{ width: "11.5%" }} className="r">Thành tiền (triệu đ)</th><th style={{ width: "13.5%" }}>Lịch giao</th>
+            <th style={{ width: "14%" }}>HĐ đã ký (scan)</th>{!readOnly && <th style={{ width: "6%" }} />}
           </tr></thead>
           <tbody>
             {signed.map((r, i) => (
               <tr key={i}>
                 <td>{gradeSel(r.grade, (v) => setSigned(signed.map((x, j) => j === i ? { ...x, grade: v } : x)))}</td>
-                <td>{numInput(num(r.qty), (v) => setSigned(signed.map((x, j) => j === i ? { ...x, qty: v } : x)), readOnly)}</td>
-                <td>{numInput(num(r.price), (v) => setSigned(signed.map((x, j) => j === i ? { ...x, price: v } : x)), readOnly)}</td>
+                <td>{cellNum(num(r.qty), (v) => setSigned(signed.map((x, j) => j === i ? { ...x, qty: v } : x)))}</td>
+                <td>{cellNum(num(r.price), (v) => setSigned(signed.map((x, j) => j === i ? { ...x, price: v } : x)))}</td>
                 <td>{rowCcy(r.ccy, (v) => setSigned(signed.map((x, j) => j === i ? { ...x, ccy: v } : x)))}</td>
                 <td>{rowFx(r, (v) => setSigned(signed.map((x, j) => j === i ? { ...x, fx: v } : x)))}</td>
                 <td className="r" style={{ paddingRight: 6, fontWeight: 600, whiteSpace: "nowrap" }}>
@@ -400,7 +464,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
                 </td>
                 <td><input type="date" className="blt-cell-input" style={{ width: "100%" }} value={r.delivery_date ?? ""} disabled={readOnly}
                   onChange={(e) => setSigned(signed.map((x, j) => j === i ? { ...x, delivery_date: e.target.value || null } : x))} /></td>
-                <td>{fileCell("signed", i, r)}</td>
+                <td>{fileCell(`signed:${i}`, r, (v) => setSigned(signed.map((x, j) => j === i ? { ...x, ...v } : x)))}</td>
                 {!readOnly && <td className="r"><button type="button" className="btn" style={{ padding: "0 7px" }} onClick={() => setSigned(signed.filter((_, j) => j !== i))}><DeleteOutlined /></button></td>}
               </tr>
             ))}

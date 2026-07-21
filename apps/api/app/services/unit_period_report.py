@@ -17,6 +17,7 @@ from typing import Any
 
 from app.core.market_meta import UNIT_STOCK_GRADES
 from app.services import member_unit_repo, price_repo, unit_daily_repo
+from app.services.unit_daily_fields import SALE_TABLES
 
 TY = 1_000_000_000      # 1 tỷ đồng
 TRIEU = 1_000_000       # 1 triệu đồng
@@ -110,9 +111,11 @@ def _consumption_rows(entries: list[dict], plan: dict) -> dict[str, Any]:
     for e in entries:
         f = e["fields"]
         _add(acc, "revenue", f.get("revenue"))
-        for ln in f.get("sales") or []:
-            key = f"{ln.get('contract') or 'long_term'}_{ln.get('channel') or 'export'}"
-            _add(acc, key, ln.get("qty"))
+        # Mủ THU MUA (`sales`) và mủ KHAI THÁC (`sales_own`) nhập tách riêng nhưng CỘNG CHUNG vào tổng.
+        for key in SALE_TABLES:
+            for ln in f.get(key) or []:
+                k = f"{ln.get('contract') or 'long_term'}_{ln.get('channel') or 'export'}"
+                _add(acc, k, ln.get("qty"))
 
     lt_e, lt_d = acc.get("long_term_export", 0.0), acc.get("long_term_domestic", 0.0)
     sp_e, sp_d = acc.get("spot_export", 0.0), acc.get("spot_domestic", 0.0)

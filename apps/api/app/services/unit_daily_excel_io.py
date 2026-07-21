@@ -5,7 +5,8 @@ người dùng nộp → mẫu và bộ đọc không bao giờ lệch nhau.
 
 4 loại (`kind`):
   purchase   — Thu mua: 1 dòng / (đơn vị, ngày)
-  sales      — Tiêu thụ: NHIỀU dòng / (đơn vị, ngày) → gom thành mảng `sales`
+  sales      — Tiêu thụ: NHIỀU dòng / (đơn vị, ngày) → tách theo cột "Nguồn mủ" thành 2 mảng
+               `sales` (mủ thu mua) và `sales_own` (mủ khai thác)
   stock      — Tồn kho: NHIỀU dòng / (đơn vị, ngày) → gom thành 3 khối tồn kho (chưa nhập kho ·
                đã nhập kho · đã ký HĐ) + ô nguyên liệu chưa sản xuất
   plan       — Kế hoạch năm: 1 dòng / (đơn vị, năm)
@@ -27,11 +28,15 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from app.core.market_meta import UNIT_STOCK_GRADES
 from app.services import member_unit_repo, price_repo, unit_daily_repo
+from app.services.unit_daily_fields import SALE_TABLES
 
 TY = 1_000_000_000
 
 CONTRACTS = {"Dài hạn": "long_term", "Chuyến": "spot"}
 CHANNELS = {"XK / UTXK": "export", "Nội tiêu": "domestic"}
+# Nguồn mủ của dòng tiêu thụ → ghi vào bảng nào (khớp `SALE_TABLES` ở unit_daily_fields).
+# File cũ không có cột này: dòng trống mặc định là mủ thu mua (giữ nguyên cách hiểu trước đây).
+SALE_SOURCES = {"Mủ thu mua": "sales", "Mủ khai thác": "sales_own"}
 # 3 khối tồn kho nhập theo dòng (khối 4 "nguyên liệu chưa sản xuất" là 1 ô riêng, không theo dòng).
 CUP_BASES = {"Độ TSC": "tsc", "Độ DRC": "drc"}
 CCYS = {"VND": "VND", "USD": "USD"}
@@ -83,8 +88,14 @@ SPECS: dict[str, Spec] = {
     "sales": Spec(
         "BIỂU NHẬP — TIÊU THỤ", "Tiêu thụ",
         "Mỗi dòng = 1 hợp đồng bán. Cùng (đơn vị, ngày) có thể nhiều dòng — hệ thống tự gộp. "
-        "File bộ Hợp đồng đính kèm trên web (Excel không mang file được).",
+        "Cột 'Nguồn mủ' tách mủ thu mua / mủ khai thác (lưu riêng, tổng vẫn cộng chung). "
+        "File này GHI ĐÈ TOÀN BỘ phần Tiêu thụ của ngày đó (cả 2 nguồn mủ) — dòng nào không có "
+        "trong file sẽ bị xoá; phần Tồn kho giữ nguyên. "
+        "Các file đính kèm (bộ Hợp đồng · phiếu xuất kho · hoá đơn) tải lên trên web — "
+        "Excel không mang file được.",
         [_UNIT_COL, _DATE_COL,
+         Col("source", "Nguồn mủ", "để trống = mủ thu mua", type="enum",
+             choices=SALE_SOURCES, width=18),
          Col("contract", "Loại HĐ", required=True, type="enum", choices=CONTRACTS),
          Col("channel", "Hình thức", required=True, type="enum", choices=CHANNELS, width=18),
          Col("grade", "Loại mủ", required=True, type="enum",
@@ -92,6 +103,7 @@ SPECS: dict[str, Spec] = {
          Col("qty", "Số lượng", "tấn"),
          Col("price", "Giá bán", "triệu đ/tấn khi VND · USD/tấn khi USD", width=26),
          Col("sales_ccy", "Giá bán bằng", "VND | USD", type="enum", choices=CCYS, width=14),
+         Col("warehouse_date", "Ngày xuất kho", "dd/mm/yyyy", type="date", width=18),
          Col("invoice_date", "Ngày xuất hoá đơn", "dd/mm/yyyy", type="date", width=18)]),
     "stock": Spec(
         "BIỂU NHẬP — TỒN KHO", "Tồn kho",
@@ -320,6 +332,19 @@ def _mark_actions(kind: str, rows: list[dict]) -> None:
         r["_action"] = "update" if seen[key] else "create"
 
 
+def _sale_line(r: dict, ccy: str, fx: float | None) -> dict:
+    """1 dòng Excel → 1 dòng bán để lưu.
+
+    Gán loại tiền + tỷ giá xuống TỪNG DÒNG (Excel chỉ hỏi 1 lần cho cả file) để số đã lưu khớp
+    đúng cách web tính lại doanh thu — mở phiếu ra lưu lại không bị đổi số.
+    """
+    return {
+        "contract": r["contract"], "channel": r["channel"], "grade": r["grade"],
+        "qty": r.get("qty"), "price": r.get("price"), "ccy": ccy, "fx": fx,
+        "warehouse_date": r.get("warehouse_date"), "invoice_date": r.get("invoice_date"),
+    }
+
+
 def commit_rows(kind: str, rows: list[dict], username: str | None,
                 allowed_units: list[str] | None = None) -> dict[str, Any]:
     """Ghi các dòng HỢP LỆ vào hệ thống (bỏ qua dòng có lỗi). Trả số bản ghi đã ghi."""
@@ -373,21 +398,23 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
             cur = unit_daily_repo.entries_on("consumption", as_of).get(company) or {}
             fields = dict(cur.get("fields") or {})
             if kind == "sales":
-                lines = [{"contract": r["contract"], "channel": r["channel"], "grade": r["grade"],
-                          "qty": r.get("qty"), "price": r.get("price"),
-                          "invoice_date": r.get("invoice_date")} for r in items]
-                fields["sales"] = lines
                 # Doanh thu về BASE = đồng. Loại tiền của giá bán lấy theo ô đã chọn trên form
                 # (`sales_ccy`); bản ghi chưa có thì suy từ đơn vị (nước ngoài → USD).
                 ccy = (next((r.get("sales_ccy") for r in items if r.get("sales_ccy")), None)
                        or fields.get("sales_ccy")
                        or ("VND" if currencies.get(company, "VND") == "VND" else "USD"))
                 fields["sales_ccy"] = ccy
+                fx = _as_num(fields.get("fx_revenue")) if ccy == "USD" else None
+                # File Tiêu thụ mang CẢ 2 nguồn mủ (cột "Nguồn mủ") → ghi đè trọn phần tiêu thụ;
+                # nguồn nào không có dòng nào trong file thì thành rỗng.
+                for table in SALE_TABLES:
+                    fields[table] = [_sale_line(r, ccy, fx) for r in items
+                                     if (r.get("source") or "sales") == table]
                 gross = sum((r.get("qty") or 0) * (r.get("price") or 0) for r in items)
                 if ccy == "VND":
                     fields["revenue"] = round(gross * 1_000_000)   # giá là triệu đ/tấn
-                elif fields.get("fx_revenue"):
-                    fields["revenue"] = round(gross * float(fields["fx_revenue"]))
+                elif fx:
+                    fields["revenue"] = round(gross * fx)
                 else:
                     fields.pop("revenue", None)   # thiếu tỷ giá → không đoán bừa doanh thu
                     warnings.append(
