@@ -30,6 +30,7 @@ node_modules/
 dist/
 build/
 .vite/
+*.tsbuildinfo
 *.local
 
 # ─── OS / IDE ────────────────────────────────────────────────

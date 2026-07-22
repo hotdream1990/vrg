@@ -81,7 +81,7 @@ Mỗi dòng = một hợp đồng bán. Cùng một đơn vị và một ngày c
 6. **Giá bán bằng** — *VND* hoặc *USD*, chọn cho **TỪNG DÒNG**. Trong một ngày vừa bán USD vừa bán VNĐ vẫn nhập chung một file.
 7. **Ngày xuất kho** · **Ngày xuất hoá đơn** — dd/mm/yyyy, chưa có thì để trống.
 
-> - ⚠️ File Tiêu thụ **ghi đè toàn bộ** phần tiêu thụ của ngày đó, **cả mủ thu mua lẫn mủ khai thác**. Dòng nào đã nhập trên web mà không có trong file sẽ bị xoá — hãy chép đủ cả hai nguồn vào file trước khi nhập.
+> - File Tiêu thụ **ghi đè toàn bộ** phần tiêu thụ của ngày đó, **cả mủ thu mua lẫn mủ khai thác**. Dòng nào đã nhập trên web mà không có trong file sẽ bị xoá — hãy chép đủ cả hai nguồn vào file trước khi nhập.
 > - Dòng bán bằng **USD** cần tỷ giá USD/VNĐ mới tính được doanh thu. Tỷ giá nhập trên web (màn Báo cáo tiêu thụ, nút *Lấy tỷ giá VCB*), Excel không mang theo. Thiếu tỷ giá thì dòng đó chưa được cộng vào doanh thu và hệ thống sẽ báo lại.
 > - **Ba file đính kèm — bộ Hợp đồng · phiếu xuất kho · hoá đơn — phải tải lên trên web**, file Excel không mang theo file đính kèm được.
 

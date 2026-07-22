@@ -233,7 +233,7 @@
         "**Không đổi tên hoặc xoá dòng tiêu đề** của file mẫu; nếu thiếu cột bắt buộc hệ thống sẽ báo và không đọc file.",
         "Muốn sửa dòng lỗi: sửa lại trong file Excel rồi nhập lên lần nữa — các dòng đã ghi đúng sẽ được ghi đè, không bị nhân đôi.",
         "Nhập Tiêu thụ không làm mất số Tồn kho của cùng ngày và ngược lại.",
-        "⚠️ File **Tiêu thụ** ghi đè **toàn bộ** phần tiêu thụ của ngày đó, **cả mủ thu mua lẫn mủ khai thác**. Dòng nào đã nhập trên web mà không có trong file sẽ bị xoá — nên chép đủ cả 2 nguồn mủ vào file trước khi nhập lên.",
+        "File **Tiêu thụ** ghi đè **toàn bộ** phần tiêu thụ của ngày đó, **cả mủ thu mua lẫn mủ khai thác**. Dòng nào đã nhập trên web mà không có trong file sẽ bị xoá — nên chép đủ cả 2 nguồn mủ vào file trước khi nhập lên.",
         "**Mẫu Excel đã đổi cột** — luôn bấm *Tải mẫu Excel* để lấy file mới nhất, đừng dùng lại file tải từ trước (sai cột sẽ báo lỗi khi nhập lên).",
         "Bốn cột **chọn từ danh sách** để trống được, nhưng phải điền đúng thì số mới vào đúng chỗ: *Đơn giá mủ chén tính theo* (Độ TSC / Độ DRC) ở mẫu **Thu mua**; *Nguồn mủ* (Mủ thu mua / Mủ khai thác) và *Giá bán bằng* (VND / USD) ở mẫu **Tiêu thụ**; *Đơn giá bằng* (VND / USD) ở mẫu **Tồn kho**. Bỏ trống thì hệ thống hiểu là Độ TSC · Mủ thu mua · VND.",
         "Mẫu **Thu mua** đã bỏ 2 cột *SL tiêu thụ* và *Doanh thu* (chuyển sang biểu Tiêu thụ), thêm 3 cột: *SL thu mua thành phẩm* · *Đơn giá thành phẩm (VNĐ)* · *Đơn giá thành phẩm (ngoại tệ)*.",
