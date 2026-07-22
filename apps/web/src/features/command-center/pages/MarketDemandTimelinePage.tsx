@@ -10,12 +10,11 @@ import {
   saveDemand,
   saveMyDemand,
 } from "../../../lib/market-demand-client";
-import { dmy } from "../../../lib/date";
+import { dmy, todayISO } from "../../../lib/date";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
 import "../../bulletin/bulletin.css";
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
 const daysBetween = (later: string, earlier: string) =>
   Math.round((new Date(later + "T00:00:00").getTime() - new Date(earlier + "T00:00:00").getTime()) / 86400000);
 const RANGES = [30, 60, 90, 180, 365];
@@ -129,9 +128,10 @@ export default function MarketDemandTimelinePage() {
               Đơn vị này đã có nhu cầu cho ngày này — hãy bấm nút Sửa ở dòng tương ứng thay vì tạo mới.
             </div>
           )}
-          <textarea value={addForm.content} rows={4} style={taStyle}
-            placeholder={"Lời chào hàng / nhu cầu nghe được trong ngày. Nên ghi rõ: khách hàng hoặc nhà sản xuất nào · "
-              + "chủng loại · số lượng · mức giá chào · thời điểm giao hàng."}
+          <textarea value={addForm.content} rows={6} style={taStyle}
+            placeholder={"Mỗi nhu cầu ghi 1 dòng, nêu rõ: khách hàng/nhà sản xuất · chủng loại · số lượng · mức giá chào · thời điểm giao hàng. Ví dụ:\n"
+              + "1. Công ty ... hỏi mua hàng ... với giá 50tr, giao tại ..., thời gian ...\n"
+              + "2. Công ty ..."}
             onChange={(e) => setAddForm((f) => ({ ...f, content: e.target.value }))} />
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-primary"

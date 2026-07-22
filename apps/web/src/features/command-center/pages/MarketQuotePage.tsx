@@ -1,7 +1,7 @@
 import { CheckCircleOutlined, CopyOutlined, SolutionOutlined } from "@ant-design/icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { dmy } from "../../../lib/date";
+import { dmy, todayISO } from "../../../lib/date";
 import {
   type MarketQuote,
   type MarketQuoteSummary,
@@ -27,7 +27,6 @@ import RegionLatexTable from "./components/RegionLatexTable";
 import VcbRateBar from "./components/VcbRateBar";
 import "../../bulletin/bulletin.css";
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
 type SectKey = "domestic_private" | "domestic_export" | "export_vrg" | "domestic_vrg";
 
 /** Chỉ giữ các ô người dùng đã sửa trong phiên — để phiếu KHÔNG ghi đè kho "Giá mủ nguyên liệu"

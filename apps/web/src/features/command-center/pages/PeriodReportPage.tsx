@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   type PeriodReport, type PeriodRow, downloadPeriodXlsx, fetchPeriodReport,
 } from "../../../lib/unit-daily-client";
+import { isoDate } from "../../../lib/date";
 import { type Kind, fmtNum } from "../../../lib/unit-daily-fields";
 import DateInput from "../sections/DateInput";
 import "../../bulletin/bulletin.css";
@@ -60,9 +61,6 @@ const KIND_OPTS = [
 const PRESETS = ["Tuần này", "Tuần trước", "Tháng này", "Tháng trước", "Năm nay", "Tự chọn"] as const;
 type Preset = (typeof PRESETS)[number];
 
-// Lấy ngày theo giờ ĐỊA PHƯƠNG (toISOString() quy về UTC → lệch 1 ngày ở VN, UTC+7).
-const iso = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 /** Khoảng ngày của preset — tuần tính theo Thứ 2 → Chủ nhật (ISO). */
 function rangeOf(p: Preset, today = new Date()): { from: string; to: string } | null {
   const d = new Date(today);
@@ -71,11 +69,11 @@ function rangeOf(p: Preset, today = new Date()): { from: string; to: string } | 
     const mon = new Date(d); mon.setDate(d.getDate() - dow);
     if (p === "Tuần trước") mon.setDate(mon.getDate() - 7);
     const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-    return { from: iso(mon), to: iso(sun) };
+    return { from: isoDate(mon), to: isoDate(sun) };
   }
   if (p === "Tháng này" || p === "Tháng trước") {
     const m = d.getMonth() - (p === "Tháng trước" ? 1 : 0);
-    return { from: iso(new Date(d.getFullYear(), m, 1)), to: iso(new Date(d.getFullYear(), m + 1, 0)) };
+    return { from: isoDate(new Date(d.getFullYear(), m, 1)), to: isoDate(new Date(d.getFullYear(), m + 1, 0)) };
   }
   if (p === "Năm nay") {
     return { from: `${d.getFullYear()}-01-01`, to: `${d.getFullYear()}-12-31` };

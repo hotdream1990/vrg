@@ -9,7 +9,7 @@ import {
   upsertRecord,
 } from "../../../lib/api-client";
 import { buildGridPrevMap } from "../../../lib/change-warning";
-import { dmy } from "../../../lib/date";
+import { dmy, todayISO } from "../../../lib/date";
 import { useEditorWindow } from "../../../lib/edit-window";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
@@ -20,7 +20,6 @@ import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import ReutersPasteImport from "./components/ReutersPasteImport";
 import "../../bulletin/bulletin.css";
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
 const STICKY = { position: "sticky" as const, left: 0, background: "var(--card, #0d1117)", zIndex: 1 };
 
 /** Quản lý số liệu → Giá Physical (giao ngay): lưới hàng=ngày × cột=grade (RSS3/STR20/SMR20…). */
@@ -145,7 +144,7 @@ export default function PhysicalSheetPage() {
         </table>
       </div>
 
-      <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
+      <p className="form-note" style={{ fontSize: 12, marginTop: 8 }}>
         Đơn vị: USD/tấn (chuỗi Reuters, đã quy đổi sẵn). Lịch sử 14/05/2024 → 29/12/2025 nạp từ Excel chuyên viên;
         số liệu mới <b>nhập tay trực tiếp tại đây</b> — chọn ngày rồi bấm ô để nhập.
       </p>

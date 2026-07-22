@@ -10,7 +10,7 @@ import {
   upsertRecord,
 } from "../../../lib/api-client";
 import { buildGridPrevMap } from "../../../lib/change-warning";
-import { dmy } from "../../../lib/date";
+import { dmy, todayISO } from "../../../lib/date";
 import { useEditorWindow } from "../../../lib/edit-window";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
@@ -20,7 +20,6 @@ import EditableCell from "../sections/EditableCell";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import "../../bulletin/bulletin.css";
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
 const STICKY = { position: "sticky" as const, left: 0, background: "var(--card, #0d1117)", zIndex: 1 };
 
 /** Quản lý số liệu → Giá mủ nguyên liệu: lưới hàng=ngày × cột=đơn vị (đồng/độ TSC). */

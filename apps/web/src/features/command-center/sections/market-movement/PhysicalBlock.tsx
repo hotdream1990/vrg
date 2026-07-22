@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 
 import { fetchPhysicalSheet } from "../../../../lib/api-client";
-import { dm, dmy } from "../../../../lib/date";
+import { daysAgoISO, dm, dmy } from "../../../../lib/date";
 import MultiLineChart from "../../charts/MultiLineChart";
 
 type Chart = { labels: string[]; series: { name: string; values: (number | null)[] }[] };
 const vnum = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
-const daysAgoISO = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 
 /** Giá physical (Reuters, giao ngay) — diễn biến 30 ngày các chủng loại, USD/tấn. */
 export default function PhysicalBlock() {

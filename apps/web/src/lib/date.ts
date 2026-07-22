@@ -14,5 +14,17 @@ export const dm = (v?: string | null): string => {
   return m && d ? `${d}/${m}` : v;
 };
 
-/** Hôm nay dạng YYYY-MM-DD (cho state ô nhập ngày). */
-export const todayISO = (): string => new Date().toISOString().slice(0, 10);
+/** Date → 'YYYY-MM-DD' theo giờ ĐỊA PHƯƠNG. KHÔNG dùng toISOString(): nó quy về UTC nên lệch 1 ngày
+ *  vào sáng sớm ở VN (UTC+7) — làm ngày mặc định lùi về hôm trước. */
+export const isoDate = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Hôm nay dạng YYYY-MM-DD (cho state ô nhập ngày) — theo giờ địa phương. */
+export const todayISO = (): string => isoDate(new Date());
+
+/** N ngày trước dạng YYYY-MM-DD — theo giờ địa phương. */
+export const daysAgoISO = (n: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return isoDate(d);
+};

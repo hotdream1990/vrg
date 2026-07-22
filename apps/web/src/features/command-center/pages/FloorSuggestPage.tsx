@@ -12,7 +12,7 @@ import {
   fetchFloorPoints,
   fetchFloorSuggest,
 } from "../../../lib/floor-suggest-client";
-import { dmy } from "../../../lib/date";
+import { dmy, todayISO } from "../../../lib/date";
 import CorrelationChart from "../charts/CorrelationChart";
 import DateInput from "../sections/DateInput";
 import AdjustmentTable from "./components/AdjustmentTable";
@@ -93,7 +93,7 @@ export default function FloorSuggestPage() {
             const m = e.target.value as "issuance" | "custom";
             setMode(m);
             if (m === "issuance") { if (points[0]) setAsOf(points[0].as_of); }
-            else setAsOf(new Date().toISOString().slice(0, 10));
+            else setAsOf(todayISO());
           }}>
             <option value="issuance">Lần đã ban hành</option>
             <option value="custom">Ngày bất kỳ (gợi ý mới)</option>

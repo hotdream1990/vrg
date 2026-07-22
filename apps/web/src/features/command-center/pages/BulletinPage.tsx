@@ -9,6 +9,7 @@ import {
   updateDraft,
 } from "../../../lib/bulletin-client";
 
+import { daysAgoISO } from "../../../lib/date";
 import { useAuth } from "../../auth/AuthContext";
 import BulletinImageSettings from "../../bulletin/BulletinImageSettings";
 import DateInput from "../sections/DateInput";
@@ -83,9 +84,7 @@ export default function BulletinPage() {
   const [dateInput, setDateInput] = useState(() => {
     const q = searchParams.get("date"); // mở lại nháp từ danh sách: ?date=YYYY-MM-DD
     if (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) return q;
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return d.toISOString().slice(0, 10); // YYYY-MM-DD for <input type=date>
+    return daysAgoISO(1); // mặc định = hôm qua (giờ địa phương), dạng YYYY-MM-DD
   });
 
   const dateStr = useCallback(() => {

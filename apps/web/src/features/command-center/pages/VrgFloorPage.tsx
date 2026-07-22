@@ -12,6 +12,7 @@ import {
   nextFloorMeta,
   updateFloor,
 } from "../../../lib/floor-client";
+import { todayISO } from "../../../lib/date";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
 import DataSourceNote from "../sections/DataSourceNote";
@@ -19,8 +20,6 @@ import DateRangeBar from "../sections/DateRangeBar";
 import NumInput from "../sections/NumInput";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import "../../bulletin/bulletin.css";
-
-const todayISO = () => new Date().toISOString().slice(0, 10);
 /** Dựng items đủ chủng loại (grade thiếu → null) để form luôn hiện đủ dòng. */
 const fill = (grades: string[], items: FloorItem[]): FloorItem[] => {
   const m = new Map(items.map((it) => [it.grade, it]));

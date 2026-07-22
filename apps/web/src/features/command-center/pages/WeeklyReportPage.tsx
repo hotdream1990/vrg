@@ -14,13 +14,12 @@ import {
   resolveWeek,
   saveWeeklyReport,
 } from "../../../lib/weekly-report-client";
+import { todayISO } from "../../../lib/date";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import WeeklyTables from "./components/WeeklyTables";
 import "../../bulletin/bulletin.css";
-
-const todayISO = () => new Date().toISOString().slice(0, 10);
 
 /** Textarea sửa list đoạn/gạch đầu dòng (mỗi dòng = 1 ý; ">" đầu dòng = gạch phụ). */
 function ListField({ label, hint, items, readOnly, busy, onChange, onAI }: {
