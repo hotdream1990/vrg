@@ -61,10 +61,10 @@ function buildMenu(can: (cap: Cap) => boolean) {
     can("physical") && { key: "/quan-ly-so-lieu/gia-physical", icon: <FundOutlined />, label: "Giá Physical" },
     can("inventory") && { key: "/quan-ly-so-lieu/ton-kho", icon: <InboxOutlined />, label: "Tồn kho" },
     can("member_unit") && { key: "/quan-ly-so-lieu/don-vi-thanh-vien", icon: <TeamOutlined />, label: "Đơn vị thành viên" },
-    can("market_demand") && { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
     can("unit_daily") && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Báo cáo thu mua" },
     can("unit_daily") && { key: "/bao-cao-tieu-thu", icon: <ScheduleOutlined />, label: "Báo cáo tiêu thụ" },
     can("unit_daily") && { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Báo cáo tồn kho" },
+    can("market_demand") && { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
     can("unit_daily") && { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
     can("unit_daily") && { key: "/bao-cao-tong-hop", icon: <FileDoneOutlined />, label: "Báo cáo tổng hợp" },
   ].filter(Boolean) as NonNullable<Parameters<typeof Menu>[0]["items"]>;
@@ -102,8 +102,8 @@ const MEMBER_MENU = [
       { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Báo cáo thu mua" },
       { key: "/bao-cao-tieu-thu", icon: <ScheduleOutlined />, label: "Báo cáo tiêu thụ" },
       { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Báo cáo tồn kho" },
-      { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
       { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
+      { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
     ],
   },
 ];
