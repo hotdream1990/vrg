@@ -7,6 +7,7 @@ from datetime import date
 import pytest
 
 from app.core.db import db_healthy
+from app.schemas.price import ReutersParseResult
 from app.services import reuters_physical_parse as R
 
 _SAMPLE = """Grade: Thai RSS3 (August) - 97.39 baht/kg
@@ -77,6 +78,17 @@ def test_add_drums():
     rows_nofx = [{"grade": "Thai Latex 60% (Bulk)", "status": "no_fx", "usd_tonne": None, "contract": ""}]
     R._add_drums(rows_nofx)
     assert len(rows_nofx) == 1
+
+
+def test_response_model_accepts_fractional_usd_tonne(monkeypatch):
+    """Quy đổi baht/kg giữ 1 SỐ LẺ (vd 2980.9) → schema `usd_tonne` phải là float.
+    Nếu để int, khi có tỷ giá USD/THB (baht/kg quy đổi ra số lẻ) `response_model` sẽ 500.
+    Test cũ gọi thẳng parse() nên KHÔNG bắt được — đây là chốt chặn qua Pydantic."""
+    monkeypatch.setattr(R, "_thb_at", lambda _d: 32.5)
+    res = R.parse("Grade: Thai RSS3 (August) - 96.88 baht/kg\n", as_of=date(2026, 7, 20))
+    rss = next(r for r in res["rows"] if r["grade"] == "RSS3")
+    assert isinstance(rss["usd_tonne"], float) and rss["usd_tonne"] % 1 != 0   # có phần thập phân
+    ReutersParseResult.model_validate(res)   # KHÔNG được ném ValidationError (int_from_float)
 
 
 @pytest.mark.skipif(not db_healthy(), reason="DB không sẵn sàng")

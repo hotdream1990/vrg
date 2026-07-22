@@ -44,7 +44,7 @@ class ReutersParsedRow(BaseModel):
     native_price: float | None = None
     native_unit: str | None = None
     contract: str = ""
-    usd_tonne: int | None = None
+    usd_tonne: float | None = None     # USD/tấn đã quy đổi (giữ 1 số lẻ — xem _to_usd_tonne)
     status: str                        # ok | na | unmatched | no_unit | no_fx
 
 
