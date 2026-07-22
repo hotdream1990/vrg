@@ -5,7 +5,7 @@
      chứng từ (ngày xuất kho · ngày xuất hoá đơn · bộ HĐ · phiếu xuất kho · hoá đơn).
    - TỒN KHO (số THỜI ĐIỂM cuối ngày, đơn vị TẤN — mẫu tuần mục 11–14): chưa HĐ = bảng (chủng loại ·
      SL tấn); đã HĐ = bảng (chủng loại · tấn · đơn giá · lịch giao · file HĐ); mục 14 = tồn kho nguyên
-     liệu chưa có HĐ (tấn), chỉ đơn vị CHƯA có nhà máy chế biến.
+     liệu chưa có HĐ (tấn), nhập chung cho mọi đơn vị.
    - Giá bán (tiêu thụ) và đơn giá (tồn kho đã HĐ) cho CHỌN VND hay USD; chọn USD thì nhập tỷ giá
      USD→VND (nút lấy VCB) — tỷ giá dùng chung cho cả 2 khối. Tiền lưu BASE = đồng.
    - Tồn kho KHÔNG cộng dồn giữa các ngày; có nút "Lấy tồn ngày trước" để chép sang rồi sửa. */
@@ -61,16 +61,6 @@ function initData(values: Values, currency?: string): ConsumptionData {
     stock_warehoused: Array.isArray(v.stock_warehoused) ? v.stock_warehoused.map((r) => ({ ...r })) : [],
     stock_signed_undelivered: Array.isArray(v.stock_signed_undelivered) ? v.stock_signed_undelivered.map((r) => ({ ...r })) : [],
     stock_material: v.stock_material ?? null,
-    // Tiêu thụ mủ thu mua / mủ thành phẩm — PHẢI nạp lại, không thì mở phiếu cũ mất số đã lưu
-    // và lần lưu sau sẽ ghi đè thành rỗng.
-    purchased_sold_qty: v.purchased_sold_qty ?? null,
-    purchased_sold_raw: v.purchased_sold_raw ?? null,
-    purchased_sold_ccy: v.purchased_sold_ccy ?? dc,
-    purchased_sold_fx: v.purchased_sold_fx ?? null,
-    finished_sold_qty: v.finished_sold_qty ?? null,
-    finished_sold_raw: v.finished_sold_raw ?? null,
-    finished_sold_ccy: v.finished_sold_ccy ?? dc,
-    finished_sold_fx: v.finished_sold_fx ?? null,
   };
 }
 
@@ -99,23 +89,6 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
 
   // Nhập tách riêng 2 bảng nhưng phần Tổng hợp (SL · doanh thu · giá BQ) là số GỘP CHUNG.
   const agg = totals([...sales, ...salesOwn]);
-
-  /** 2 dòng của khối "Tiêu thụ mủ thu mua & mủ thành phẩm" — khoá lưu tương ứng trong payload. */
-  const SOLD_ROWS = [
-    { label: "Mủ thu mua", qtyKey: "purchased_sold_qty", rawKey: "purchased_sold_raw",
-      ccyKey: "purchased_sold_ccy", fxKey: "purchased_sold_fx", outKey: "purchased_sold_revenue" },
-    { label: "Mủ thành phẩm", qtyKey: "finished_sold_qty", rawKey: "finished_sold_raw",
-      ccyKey: "finished_sold_ccy", fxKey: "finished_sold_fx", outKey: "finished_sold_revenue" },
-  ] as const;
-
-  /** Doanh thu 1 dòng về BASE = đồng. VND: nhập tỷ đồng (×1e9). USD: × tỷ giá (thiếu tỷ giá → null). */
-  const soldRevenueVnd = (r: (typeof SOLD_ROWS)[number]): number | null => {
-    const raw = num(data[r.rawKey] as number | null);
-    if (raw == null) return null;
-    if (((data[r.ccyKey] as Ccy) ?? "VND") !== "USD") return raw * 1_000_000_000;
-    const fx = num(data[r.fxKey] as number | null);
-    return fx == null ? null : raw * fx;
-  };
 
   /** Giá trị 1 dòng tồn kho đã có HĐ, quy về đồng (USD cần tỷ giá; thiếu tỷ giá → null, không đoán). */
   const stockLineVnd = (r: StockSignedLine): number | null => lineRevenueVnd(r);
@@ -311,12 +284,12 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
 
   const salesTab = (
     <div>
-      {head("Tiêu thụ mủ thu mua", true)}
-      {salesTable("sales", sales, setSales)}
-
-      {/* Nhập TÁCH RIÊNG với mủ thu mua để lưu trữ riêng — Tổng hợp bên dưới vẫn cộng chung. */}
-      {head("Tiêu thụ mủ khai thác")}
+      {head("Tiêu thụ mủ khai thác", true)}
       {salesTable("sales_own", salesOwn, setSalesOwn)}
+
+      {/* Nhập TÁCH RIÊNG với mủ khai thác để lưu trữ riêng — Tổng hợp bên dưới vẫn cộng chung. */}
+      {head("Tiêu thụ mủ thu mua")}
+      {salesTable("sales", sales, setSales)}
 
       {!readOnly && (
         <div style={{ marginTop: 12 }}>
@@ -325,54 +298,11 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
           </button>
         </div>
       )}
-      <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 10 }}>
+      <div className="form-note" style={{ fontSize: 11.5, marginTop: 10 }}>
         Mủ thu mua và mủ khai thác nhập ở 2 bảng riêng để lưu trữ tách bạch — phần Tổng hợp bên dưới
         cộng chung cả hai. Mỗi dòng chọn loại tiền riêng: trong ngày vừa bán USD vừa bán VNĐ vẫn nhập
         chung một phiếu; dòng nào chọn USD thì nhập tỷ giá ngay ở dòng đó
         {!readOnly && " (nút trên điền tỷ giá Vietcombank cho mọi dòng USD của cả 2 bảng)"}.
-      </div>
-
-      {/* Chuyển từ biểu Thu mua sang: tiêu thụ mủ THU MUA và mủ THÀNH PHẨM.
-          Mỗi loại có loại tiền + tỷ giá riêng; giá bình quân tự tính = doanh thu ÷ sản lượng. */}
-      {head("Tiêu thụ mủ thu mua & mủ thành phẩm")}
-      <div style={{ overflowX: "auto" }}>
-        <table className="ud-sales">
-          <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
-            <th style={{ width: "23%" }}>Loại</th>
-            <th style={{ width: "14%" }} className="r">SL tiêu thụ (tấn)</th>
-            <th style={{ width: "16.5%" }} className="r">Doanh thu</th>
-            <th style={{ width: "13%" }}>Loại tiền</th>
-            <th style={{ width: "17%" }} className="r">Tỷ giá (1 USD = ? VND)</th>
-            <th style={{ width: "16.5%" }} className="r">Giá BQ (triệu đ/tấn)</th>
-          </tr></thead>
-          <tbody>
-            {SOLD_ROWS.map((r) => {
-              const ccy = (data[r.ccyKey] as Ccy) ?? "VND";
-              const qty = num(data[r.qtyKey] as number | null);
-              const vnd = soldRevenueVnd(r);
-              return (
-                <tr key={r.qtyKey}>
-                  <td style={{ fontWeight: 600 }}>{r.label}</td>
-                  <td>{cellNum(qty, (v) => setData((d) => ({ ...d, [r.qtyKey]: v })))}</td>
-                  <td>{cellNum(num(data[r.rawKey] as number | null), (v) => setData((d) => ({ ...d, [r.rawKey]: v })))}</td>
-                  <td>
-                    <Select size="small" style={sel} value={ccy} disabled={readOnly}
-                            onChange={(v) => setData((d) => ({ ...d, [r.ccyKey]: v }))} options={CCYS} />
-                  </td>
-                  <td>{ccy === "USD"
-                    ? cellNum(num(data[r.fxKey] as number | null), (v) => setData((d) => ({ ...d, [r.fxKey]: v })))
-                    : <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>}</td>
-                  <td className="r" style={{ paddingRight: 6, fontWeight: 600, whiteSpace: "nowrap" }}>
-                    {fmtNum(vnd != null && qty ? vnd / qty / 1_000_000 : null, 2)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 6 }}>
-        Doanh thu nhập theo <b>tỷ đồng</b> khi chọn VND, theo <b>USD</b> khi chọn USD (cần tỷ giá để quy đổi).
       </div>
 
       {head("Tổng hợp tiêu thụ")}
@@ -426,7 +356,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
           <button type="button" className="btn" style={{ fontSize: 12 }} onClick={loadPrevStock} disabled={prevLoading}>
             {prevLoading ? "Đang lấy…" : "Lấy tồn ngày trước"}
           </button>
-          <span style={{ fontSize: 11.5, color: "var(--muted)" }}>
+          <span className="form-note" style={{ fontSize: 11.5 }}>
             Tồn kho là số tại thời điểm cuối ngày — chép sang rồi sửa cho đúng ngày này.
           </span>
         </div>
@@ -439,7 +369,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       {qtyTable(wh, setWh, "Thêm dòng")}
 
       {head("3. Số lượng đã ký hợp đồng")}
-      <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 6 }}>
+      <div className="form-note" style={{ fontSize: 11.5, marginBottom: 6 }}>
         Đính kèm bản Hợp đồng đã ký scan có đóng dấu cho từng dòng (PDF hoặc ảnh).
       </div>
       <div style={{ overflowX: "auto" }}>
@@ -476,12 +406,8 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
         onClick={() => setSigned([...signed, { grade: GRADES[0], qty: null, price: null, delivery_date: null, file: null, filename: null }])}><PlusOutlined /> Thêm dòng</button>}
 
 
-      {/* Khối 4 — hiện cho MỌI đơn vị; câu "chưa có nhà máy" là ghi chú của biểu mẫu, không phải
-          điều kiện ẩn. Đơn vị nào không có số thì để trống. */}
+      {/* Khối 4 — nhập chung cho MỌI đơn vị; đơn vị nào không có số thì để trống. */}
       {head("4. Tồn kho nguyên liệu chưa sản xuất (quy khô)")}
-      <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 6 }}>
-        Đối với các đơn vị chưa có nhà máy chế biến — đơn vị đã có nhà máy để trống ô này.
-      </div>
       <label style={{ display: "block", maxWidth: 260 }}>
         {fieldLabel("Số lượng", "tấn")}
         {numInput(num(data.stock_material), (v) => setData((d) => ({ ...d, stock_material: v })), readOnly)}
