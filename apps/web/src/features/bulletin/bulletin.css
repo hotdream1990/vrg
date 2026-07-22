@@ -431,7 +431,7 @@ th.r, td.r {
 .wk-field { margin: 12px 0; }
 .wk-field-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
 .wk-field-head label { font-weight: 600; color: var(--text); }
-.wk-hint { font-size: 12px; color: var(--muted); margin-bottom: 4px; font-style: italic; }
+.wk-hint { font-size: 12px; color: var(--danger); margin-bottom: 4px; font-style: italic; }
 .btn-sm { padding: 2px 10px; font-size: 12px; }
 
 /* Dòng lỗi trong bảng xem trước khi nhập Excel */

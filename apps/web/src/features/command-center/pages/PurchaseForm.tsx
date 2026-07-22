@@ -138,7 +138,7 @@ export default function PurchaseForm({
                   onChange={(e) => setNoPurchase(e.target.checked)}>
           <b>Hôm nay đơn vị KHÔNG tổ chức thu mua</b>
         </Checkbox>
-        <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 6, lineHeight: 1.55 }}>
+        <div className="form-note" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
           Chỉ tích khi <b>không tổ chức thu mua</b>. Nếu có công bố giá và có tổ chức mua nhưng
           <b> không mua được</b> thì <b>đừng tích</b> — hãy nhập <b>sản lượng 0</b> kèm{" "}
           <b>đúng mức giá đã công bố</b>{" "}
