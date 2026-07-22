@@ -6,6 +6,7 @@ export type MemberUnit = {
   name: string; sort_order: number; is_active: boolean; region: string | null;
   country: string; currency: string;   // VN/VND mặc định; ≠VND ⇒ đơn vị nước ngoài cần tỷ giá
   has_factory: boolean;                 // có nhà máy chế biến; false ⇒ nhập tồn kho nguyên liệu
+  has_purchase_plan: boolean;           // có giao kế hoạch thu mua năm; chỉ đơn vị bật cờ mới hiện ở "Kế hoạch năm"
 };
 
 const req = apiFetch;
@@ -39,6 +40,11 @@ export const setUnitLocale = (name: string, country: string, currency: string) =
 export const setUnitFactory = (name: string, hasFactory: boolean) =>
   req<MemberUnit[]>(`/api/member-units/${encodeURIComponent(name)}`,
     { method: "PUT", headers: J, body: JSON.stringify({ set_factory: true, has_factory: hasFactory }) });
+
+/** Đặt cờ đơn vị có giao kế hoạch thu mua năm (bật ⇒ hiện ở màn "Kế hoạch năm"). */
+export const setUnitPurchasePlan = (name: string, hasPurchasePlan: boolean) =>
+  req<MemberUnit[]>(`/api/member-units/${encodeURIComponent(name)}`,
+    { method: "PUT", headers: J, body: JSON.stringify({ set_purchase_plan: true, has_purchase_plan: hasPurchasePlan }) });
 
 /** Sắp xếp lại theo thứ tự danh sách tên. */
 export const reorderUnits = (names: string[]) =>

@@ -155,8 +155,8 @@ def period_report_xlsx(kind: str = Query(..., pattern="^(purchase|consumption)$"
 @router.get("/plan")
 def get_plan(year: int = Query(..., ge=2020, le=2100),
              username: str = Depends(_require)) -> dict:
-    """Số liệu NĂM (kế hoạch thu mua + HĐ dài hạn đã ký) của MỌI đơn vị."""
-    return {"year": year, "units": member_unit_repo.active_names(),
+    """Số liệu NĂM (kế hoạch thu mua + HĐ dài hạn đã ký) — chỉ đơn vị CÓ giao kế hoạch thu mua."""
+    return {"year": year, "units": member_unit_repo.plan_names(),
             "plans": unit_daily_repo.year_plan(year)}
 
 

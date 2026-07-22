@@ -47,6 +47,8 @@ def update_unit(name: str, body: MemberUnitUpdate):
         member_unit_repo.set_locale(name, body.country, body.currency)
     if body.set_factory and body.has_factory is not None:
         member_unit_repo.set_factory(name, body.has_factory)
+    if body.set_purchase_plan and body.has_purchase_plan is not None:
+        member_unit_repo.set_purchase_plan(name, body.has_purchase_plan)
     return member_unit_repo.list_units()
 
 

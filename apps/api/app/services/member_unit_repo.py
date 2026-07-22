@@ -31,7 +31,8 @@ def list_units(include_inactive: bool = True) -> list[dict[str, Any]]:
         _seed_if_empty(db)
         clause = "" if include_inactive else "WHERE is_active"
         rows = db.execute(text(
-            f"SELECT name, sort_order, is_active, region, country, currency, has_factory FROM member_unit {clause} "
+            "SELECT name, sort_order, is_active, region, country, currency, has_factory, "
+            f"has_purchase_plan FROM member_unit {clause} "
             "ORDER BY sort_order, name")).mappings().all()
         return [dict(r) for r in rows]
 
@@ -39,6 +40,11 @@ def list_units(include_inactive: bool = True) -> list[dict[str, Any]]:
 def active_names() -> list[str]:
     """Tên các đơn vị đang active (theo thứ tự) — dùng cho purchase_sheet + bản tin."""
     return [u["name"] for u in list_units(include_inactive=False)]
+
+
+def plan_names() -> list[str]:
+    """Tên các đơn vị active CÓ giao kế hoạch thu mua (theo thứ tự) — dùng cho màn Kế hoạch năm."""
+    return [u["name"] for u in list_units(include_inactive=False) if u.get("has_purchase_plan", True)]
 
 
 def add_unit(name: str) -> None:
@@ -114,6 +120,14 @@ def set_factory(name: str, has_factory: bool) -> None:
 def factory_by_name(include_inactive: bool = True) -> dict[str, bool]:
     """Map tên đơn vị → có nhà máy? — form Tiêu thụ dùng để ẩn/hiện ô tồn kho nguyên liệu."""
     return {u["name"]: bool(u.get("has_factory", True)) for u in list_units(include_inactive)}
+
+
+def set_purchase_plan(name: str, has_purchase_plan: bool) -> None:
+    """Đặt cờ đơn vị có giao kế hoạch thu mua năm (bật ⇒ hiện ở màn Kế hoạch năm)."""
+    ensure_schema()
+    with session_scope() as db:
+        db.execute(text("UPDATE member_unit SET has_purchase_plan = :p WHERE name = :n"),
+                   {"p": has_purchase_plan, "n": name})
 
 
 def reorder(names: list[str]) -> None:

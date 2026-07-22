@@ -229,3 +229,35 @@ def test_cup_basis_and_prev_stock() -> None:
                       headers=mh).status_code == 403
 
     _cleanup(h, ["ud_basis"], [unit])
+
+
+def test_year_plan_respects_has_purchase_plan_flag() -> None:
+    """Chỉ đơn vị bật cờ 'có giao kế hoạch thu mua' mới hiện ở màn Kế hoạch năm (HQ + member)."""
+    h = _admin()
+    unit = "_zz_ud_plan_flag"
+    year = date.today().year
+    client.delete("/api/users/ud_pf", headers=h)
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    client.post("/api/users", json={"username": "ud_pf", "password": "pass123",
+                                    "role": "member", "member_units": [unit]}, headers=h)
+    mh = _bearer("ud_pf", "pass123")
+
+    hq_units = lambda: client.get(f"/api/unit-daily/plan?year={year}", headers=h).json()["units"]
+    my_units = lambda: client.get(f"/api/member/plan?year={year}", headers=mh).json()["units"]
+
+    # Mặc định BẬT → đơn vị hiện ở cả danh sách HQ lẫn danh sách đơn vị thành viên.
+    assert unit in hq_units() and unit in my_units()
+
+    # TẮT cờ → đơn vị biến mất khỏi cả hai danh sách Kế hoạch năm.
+    assert client.put(f"/api/member-units/{unit}",
+                      json={"set_purchase_plan": True, "has_purchase_plan": False},
+                      headers=h).status_code == 200
+    assert unit not in hq_units() and unit not in my_units()
+
+    # BẬT lại → đơn vị trở lại danh sách.
+    assert client.put(f"/api/member-units/{unit}",
+                      json={"set_purchase_plan": True, "has_purchase_plan": True},
+                      headers=h).status_code == 200
+    assert unit in hq_units() and unit in my_units()
+
+    _cleanup(h, ["ud_pf"], [unit])

@@ -17,6 +17,7 @@ import {
   reorderUnits,
   setUnitFactory,
   setUnitLocale,
+  setUnitPurchasePlan,
   setUnitRegion,
   updateUnit,
 } from "../../../lib/member-unit-client";
@@ -116,6 +117,16 @@ export default function MemberUnitPage() {
                   <option value="1">Có nhà máy</option>
                   <option value="0">Không có nhà máy</option>
                 </select>
+              ),
+            },
+            {
+              header: "Kế hoạch thu mua", width: 140,
+              render: (u, run) => (
+                <label style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", cursor: canEdit ? "pointer" : "default" }}>
+                  <input type="checkbox" checked={u.has_purchase_plan} disabled={!canEdit}
+                    onChange={(e) => run(() => setUnitPurchasePlan(u.name, e.target.checked))} />
+                  <span style={{ fontSize: 13, color: "var(--muted)" }}>Có giao KH</span>
+                </label>
               ),
             },
           ]}

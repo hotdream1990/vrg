@@ -18,7 +18,8 @@ from app.schemas.market_demand import MarketDemandEdit
 from app.schemas.member_self import MemberPriceEdit
 from app.schemas.unit_daily import ExcelImportCommit, PurchasePlanEdit, UnitDailyEdit
 from app.services import (
-    contract_files, market_demand_repo, price_repo, unit_daily_excel_io, unit_daily_repo,
+    contract_files, market_demand_repo, member_unit_repo, price_repo, unit_daily_excel_io,
+    unit_daily_repo,
 )
 
 router = APIRouter(prefix="/api/member", tags=["member-self"])
@@ -152,8 +153,9 @@ def my_daily(kind: str = Query(..., pattern="^(purchase|consumption)$"),
 @router.get("/plan")
 def my_year_plan(year: int = Query(..., ge=2020, le=2100),
                  member: dict = Depends(get_current_member)) -> dict:
-    """Số liệu năm của CÁC đơn vị được gán cho tài khoản này."""
-    units = list(member["member_units"])
+    """Số liệu năm của CÁC đơn vị được gán — chỉ đơn vị CÓ giao kế hoạch thu mua."""
+    plan_set = set(member_unit_repo.plan_names())
+    units = [u for u in member["member_units"] if u in plan_set]
     return {"year": year, "units": units, "plans": unit_daily_repo.year_plan(year, companies=units)}
 
 
