@@ -1,6 +1,6 @@
 # Hướng dẫn nhập liệu — Đơn vị thành viên
 
-Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm). Tài liệu bám theo phiên bản 0.2.76. Riêng 4 mục báo cáo còn có thể tải mẫu Excel về điền rồi nhập lên thay vì gõ tay (xem mục 9).
+Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm). Tài liệu bám theo phiên bản 0.2.77. Riêng 4 mục báo cáo còn có thể tải mẫu Excel về điền rồi nhập lên thay vì gõ tay (xem mục 9).
 
 > Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-don-vi-thanh-vien.docx](./Huong-dan-nhap-lieu-don-vi-thanh-vien.docx)
 
@@ -46,7 +46,7 @@ Mỗi màn báo cáo đều có danh sách các ngày đã nhập và 3 nút tha
 
 **Vị trí:** Báo cáo thu mua → Thêm số liệu ngày
 
-Áp dụng cho các đơn vị tại Việt Nam. Phiếu chia theo loại mủ: mỗi loại nhập sản lượng và đơn giá đi liền nhau. Mủ chén phải chọn tính theo độ TSC hay độ DRC. Cuối phiếu là khối thu mua THÀNH PHẨM (mua lại mủ đã chế biến).
+Áp dụng cho các đơn vị tại Việt Nam. Phiếu chia theo loại mủ: mỗi loại nhập sản lượng và đơn giá đi liền nhau. Mủ chén phải chọn tính theo độ TSC hay độ DRC. Cuối phiếu là khối thu mua THÀNH PHẨM (mua lại mủ đã chế biến) — nhập theo **bảng, mỗi chủng loại một dòng**.
 
 ![Hình 3. Phiếu Thu mua của đơn vị trong nước](img/03-thu-mua-vn.png)
 
@@ -55,10 +55,13 @@ Mỗi màn báo cáo đều có danh sách các ngày đã nhập và 3 nút tha
 1. Chọn **ngày báo cáo**.
 2. **Mủ nước** — sản lượng (tấn, quy khô) và đơn giá (đồng/độ TSC).
 3. **Mủ chén — Đơn giá tính theo**: chọn *Độ TSC* hoặc *Độ DRC*; nhãn ô đơn giá đổi theo lựa chọn này.
-4. **Thu mua thành phẩm** — sản lượng mủ thành phẩm mua vào (tấn).
-5. **Đơn giá (VNĐ)** — triệu đ/tấn.
-6. **Đơn giá (ngoại tệ)** — USD/tấn; kèm ô **Tỷ giá** có nút *Lấy tỷ giá hiện tại* (Vietcombank). Xong bấm **Lưu số liệu**.
+4. **Thu mua thành phẩm** — bảng nhập, **mỗi chủng loại mua trong ngày là một dòng riêng**.
+5. **Một dòng chủng loại**: chọn **Chủng loại** · **SL thu mua** (tấn) · **Đơn giá** · **Tiền** (VNĐ hay USD) · **Tỷ giá** (chỉ hiện khi dòng đó chọn USD). Cột **Thành tiền** tự tính.
+6. **Thêm chủng loại** — mua mấy chủng loại thì thêm bấy nhiêu dòng; nút thùng rác ở cuối dòng để xoá.
+7. **Lấy tỷ giá VCB cho các dòng USD** — điền tỷ giá Vietcombank cho mọi dòng đang chọn USD. Xong bấm **Lưu số liệu**.
 
+> - **Đơn giá đi theo loại tiền của từng dòng**: chọn VNĐ thì nhập **triệu đ/tấn**, chọn USD thì nhập **USD/tấn**. Trong một ngày có thể vừa mua bằng VNĐ vừa mua bằng USD.
+> - Ba ô cuối khối — **Tổng SL thành phẩm · Tổng giá trị · Đơn giá bình quân** — hệ thống tự cộng, không nhập tay.
 > - Đơn giá mủ nước/mủ chén nhập ở đây đồng thời ghi vào kho “Giá mủ nguyên liệu”, kèm đúng đơn vị tính (độ TSC hay độ DRC) đã chọn.
 > - **Sản lượng tiêu thụ và doanh thu đã chuyển sang biểu Tiêu thụ** — không còn nhập ở phiếu Thu mua nữa.
 > - Ô **Hôm nay đơn vị KHÔNG tổ chức thu mua** chỉ tích khi thật sự không tổ chức mua. Có công bố giá, có tổ chức mua nhưng không mua được thì **đừng tích** — nhập **sản lượng 0** kèm **đúng mức giá đã công bố** (không mua được ở mọi mức thì nhập 0 với **mức giá thấp nhất**). Hai trường hợp này khác nhau khi tổng hợp báo cáo.
@@ -78,10 +81,10 @@ Mỗi màn báo cáo đều có danh sách các ngày đã nhập và 3 nút tha
 1. **Đơn giá theo nội tệ** (LAK/KHR trên độ) — giá mua thực tế tại nước sở tại.
 2. **Mủ chén — Đơn giá tính theo**: *Độ TSC* hoặc *Độ DRC*.
 3. **Tỷ giá thu mua** (1 nội tệ = ? VND) — quy đơn giá về đồng.
-4. **Đơn giá thành phẩm (ngoại tệ)** — USD/tấn cho phần thu mua thành phẩm.
-5. **Tỷ giá** (1 USD = ? VND) — có nút *Lấy tỷ giá hiện tại*.
+4. **Thu mua thành phẩm** — bảng theo chủng loại, nhập y như đơn vị trong nước (mục 3).
+5. **Một dòng chủng loại**: chọn **Tiền** là *USD* thì nhập **Tỷ giá** (1 USD = ? VND) ngay ở dòng đó — hoặc bấm *Lấy tỷ giá VCB cho các dòng USD*.
 
-> - Hai tỷ giá **khác nhau và độc lập**: tỷ giá nội tệ cho đơn giá mủ nước/mủ chén; tỷ giá USD cho thành phẩm.
+> - Hai tỷ giá **khác nhau và độc lập**: tỷ giá nội tệ cho đơn giá mủ nước/mủ chén; tỷ giá USD nằm trên từng dòng thành phẩm.
 > - Ô nền xám là hệ thống **tự quy đổi**, chỉ để xem.
 > - Sản lượng và cách lưu giống đơn vị trong nước (mục 3).
 
@@ -112,23 +115,27 @@ Vì mỗi hợp đồng có nhiều thông tin nên một bản ghi được b�
 
 **Vị trí:** Menu → Báo cáo tồn kho → Thêm số liệu ngày
 
-Tồn kho là số liệu **tại thời điểm cuối ngày** (không cộng dồn giữa các ngày), đơn vị tính là **tấn**. Phiếu chia thành 4 khối theo tình trạng hàng.
+Tồn kho là số liệu **tại thời điểm cuối ngày** (không cộng dồn giữa các ngày), đơn vị tính là **tấn**. Phiếu chia thành 4 khối theo tình trạng hàng. Riêng khối 3 — **hợp đồng đã ký** — **không phải nhập lại mỗi ngày**: mỗi hợp đồng nhập **một lần** rồi hệ thống tự tính vào tồn kho cho tới khi giao hàng.
 
-![Hình 6. Phiếu Tồn kho — hai bảng theo tình trạng hợp đồng](img/06-ton-kho.png)
+![Hình 6. Phiếu Tồn kho — khối 3 là hợp đồng có vòng đời riêng](img/06-ton-kho.png)
 
-*Hình 6. Phiếu Tồn kho — hai bảng theo tình trạng hợp đồng*
+*Hình 6. Phiếu Tồn kho — khối 3 là hợp đồng có vòng đời riêng*
 
 **Bốn khối tồn kho:**
 
-1. **Lấy tồn ngày trước** — chép toàn bộ tồn kho ngày gần nhất sang rồi sửa lại cho đúng ngày này.
+1. **Lấy tồn ngày trước** — chép khối 1, 2 và 4 của ngày gần nhất sang rồi sửa lại cho đúng ngày này.
 2. **1. Tồn kho thành phẩm chế biến chưa nhập kho** — chủng loại + số lượng (tấn).
 3. **2. Tồn kho thành phẩm đã nhập kho** — chủng loại + số lượng (tấn).
-4. **3. Số lượng đã ký hợp đồng** — thêm đơn giá, lịch giao và **file Hợp đồng đã ký scan có đóng dấu**.
-5. **Tiền** — mỗi dòng ở khối 3 tự chọn VND hoặc USD; chọn USD thì nhập **Tỷ giá** ngay ở dòng đó.
-6. **4. Tồn kho nguyên liệu chưa sản xuất (quy khô)** — 1 ô số lượng (tấn). Xong bấm **Lưu số liệu**.
+4. **3. Số lượng đã ký hợp đồng** — nhập **một lần cho mỗi hợp đồng**, mỗi hợp đồng trải **2 hàng**.
+5. *(Hàng trên)* **Chủng loại** · **Mã HĐ/PL** · **SL (tấn)** · **Đơn giá** · **Tiền** (VND/USD) · **Tỷ giá** khi chọn USD; **Thành tiền** tự tính. Cuối hàng có nút **lưu** và **xoá** của riêng hợp đồng đó.
+6. *(Hàng dưới)* **Bắt đầu tồn kho** · **Lịch giao** · **Ngày giao** · **HĐ đã ký (scan)** — đính kèm bản Hợp đồng đã ký có đóng dấu (PDF hoặc ảnh).
+7. **4. Tồn kho nguyên liệu chưa sản xuất (quy khô)** — 1 ô số lượng (tấn). Xong bấm **Lưu số liệu**.
 
+> - **Hợp đồng đã ký tính vào tồn kho từ *Bắt đầu tồn kho* đến hết ngày TRƯỚC *Ngày giao*.** Lúc mới ký chỉ cần điền *Bắt đầu tồn kho* (để trống *Ngày giao*) — hợp đồng sẽ tự hiện ở tồn kho mọi ngày sau đó. Khi đã xuất kho thì **chỉ cần mở ra điền *Ngày giao*** là xong, không phải nhập lại gì nữa.
+> - **Ngày bắt đầu phải trước *Ngày giao* (và *Lịch giao*) ít nhất 1 ngày** — nhập sai hệ thống sẽ báo và không cho lưu.
+> - Mỗi hợp đồng **lưu riêng bằng nút lưu ở cuối hàng trên**, KHÔNG đi kèm nút *Lưu số liệu* của phiếu ngày (vì hợp đồng không thuộc riêng một ngày nào).
+> - Nút **Lấy tồn ngày trước** KHÔNG chép khối 3 — hợp đồng tự nối sang ngày mới theo vòng đời của nó, chép lại sẽ thành nhân đôi. Nút này cũng không chép các dòng bán ở tab Tiêu thụ, vì tiêu thụ là số phát sinh trong ngày.
 > - Khối **4** hiện với **mọi đơn vị**, **không phân biệt** đơn vị có nhà máy hay không. Đơn vị nào không có số thì để trống.
-> - Nút **Lấy tồn ngày trước** chỉ chép **tồn kho**, KHÔNG chép các dòng bán ở tab Tiêu thụ — vì tiêu thụ là số phát sinh trong ngày, chép sang sẽ thành khai khống.
 > - Khối **Tổng hợp tồn kho**: *Tồn kho thành phẩm* = khối 1 + khối 2. Khối 3 là **cam kết giao hàng**, đứng riêng — không cộng vào và không trừ khỏi tồn kho, nên ký nhiều hơn lượng đang có cũng không sao.
 > - Chủng loại tách theo từng loại giống bảng Giá sàn Tập đoàn — **SVR CV 50** và **SVR CV60** là 2 loại riêng.
 
