@@ -1,6 +1,6 @@
 # Hướng dẫn nhập liệu — Đơn vị thành viên
 
-Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm). Tài liệu bám theo phiên bản 0.2.74. Riêng 4 mục báo cáo còn có thể tải mẫu Excel về điền rồi nhập lên thay vì gõ tay (xem mục 9).
+Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm). Tài liệu bám theo phiên bản 0.2.76. Riêng 4 mục báo cáo còn có thể tải mẫu Excel về điền rồi nhập lên thay vì gõ tay (xem mục 9).
 
 > Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-don-vi-thanh-vien.docx](./Huong-dan-nhap-lieu-don-vi-thanh-vien.docx)
 
@@ -19,8 +19,8 @@ Sau khi đăng nhập bằng tài khoản đơn vị, menu bên trái hiển th�
 1. **Báo cáo thu mua** — sản lượng và đơn giá thu mua mủ nguyên liệu **theo ngày**.
 2. **Báo cáo tiêu thụ** — sản lượng bán theo từng hợp đồng, giá bán và doanh thu **theo ngày**.
 3. **Báo cáo tồn kho** — tồn kho thành phẩm (đã / chưa có hợp đồng) và tồn kho nguyên liệu **theo ngày**.
-4. **Kế hoạch năm** — kế hoạch thu mua và hợp đồng dài hạn đã ký, **nhập 1 lần cho cả năm**.
-5. **Nhu cầu thị trường** — ghi nhận nhu cầu/tín hiệu thị trường của đơn vị, nhập **tự do bằng chữ**.
+4. **Nhu cầu thị trường** — ghi nhận nhu cầu/tín hiệu thị trường của đơn vị, nhập **tự do bằng chữ**.
+5. **Kế hoạch năm** — kế hoạch thu mua và hợp đồng dài hạn đã ký, **nhập 1 lần cho cả năm**.
 
 > - Báo cáo tiêu thụ và Báo cáo tồn kho là **hai tab của cùng một phiếu ngày** — nhập bên này không làm mất số bên kia.
 > - Chỉ nhập/sửa được ngày hôm nay và một số ngày gần nhất theo quy định; ngày cũ hơn chỉ để xem.
@@ -89,7 +89,7 @@ Mỗi màn báo cáo đều có danh sách các ngày đã nhập và 3 nút tha
 
 **Vị trí:** Menu → Báo cáo tiêu thụ → Thêm số liệu ngày
 
-Mỗi hợp đồng bán là một dòng, hệ thống tự cộng lại. Phiếu có **2 bảng nhập tách riêng** — **Tiêu thụ mủ thu mua** và **Tiêu thụ mủ khai thác** — để lưu trữ riêng từng nguồn mủ; phần **Tổng hợp tiêu thụ** vẫn cộng chung cả hai. Bên dưới là bảng tiêu thụ mủ thu mua và mủ thành phẩm (phần này trước nằm ở phiếu Thu mua).
+Mỗi hợp đồng bán là một dòng, hệ thống tự cộng lại. Phiếu có **2 bảng nhập tách riêng** — **Tiêu thụ mủ khai thác** và **Tiêu thụ mủ thu mua** — để lưu trữ riêng từng nguồn mủ; phần **Tổng hợp tiêu thụ** vẫn cộng chung cả hai.
 
 Vì mỗi hợp đồng có nhiều thông tin nên một bản ghi được bố trí **2 hàng**: hàng trên là số liệu bán, hàng dưới là chứng từ đi kèm.
 
@@ -99,16 +99,13 @@ Vì mỗi hợp đồng có nhiều thông tin nên một bản ghi được b�
 
 1. *(Hàng trên)* **Loại HĐ** (Dài hạn / Chuyến) · **Hình thức** (XK-UTXK / Nội tiêu) · **Loại mủ** · **SL (tấn)** · **Giá bán**.
 2. *(Hàng trên)* **Loại tiền** — chọn VND hoặc USD **cho từng dòng**; chọn USD thì nhập **Tỷ giá** ngay ở dòng đó.
-3. *(Hàng dưới)* **Ngày xuất kho** và **Ngày xuất hoá đơn** — chưa có thì để trống.
-4. *(Hàng dưới)* 3 chứng từ đính kèm: **Bộ Hợp đồng** · **Phiếu xuất kho** · **Hoá đơn** — PDF hoặc ảnh; bấm tên file để mở lại.
-5. **Tiêu thụ mủ khai thác** — bảng riêng ngay bên dưới, nhập y hệt bảng mủ thu mua.
-6. **Tiêu thụ mủ thu mua & mủ thành phẩm** — bảng 2 dòng cố định, nhập SL tiêu thụ và doanh thu cho từng loại.
-7. **Giá BQ** hệ thống tự tính = doanh thu ÷ sản lượng. Xong bấm **Lưu số liệu**.
+3. *(Hàng dưới)* **Ngày xuất kho** · **Ngày xuất hoá đơn** và 3 chứng từ đính kèm **Bộ Hợp đồng** · **Phiếu xuất kho** · **Hoá đơn** (PDF hoặc ảnh) — chưa có thì để trống; bấm tên file để mở lại.
+4. **Tiêu thụ mủ thu mua** — bảng riêng ngay bên dưới, nhập y hệt bảng mủ khai thác.
+5. **Tổng hợp tiêu thụ** — hệ thống tự cộng cả 2 bảng; **Giá BQ** = doanh thu ÷ sản lượng. Xong bấm **Lưu số liệu**.
 
-> - **Mủ thu mua và mủ khai thác nhập ở 2 bảng riêng** để lưu trữ tách bạch, nhưng mọi số tổng (SL · doanh thu · giá BQ) đều cộng chung cả hai.
+> - **Mủ khai thác và mủ thu mua nhập ở 2 bảng riêng** để lưu trữ tách bạch, nhưng mọi số tổng (SL · doanh thu · giá BQ) đều cộng chung cả hai.
 > - **Loại tiền chọn theo từng dòng** — trong ngày vừa bán USD vừa bán VNĐ vẫn nhập chung một phiếu.
 > - Nút **Lấy tỷ giá VCB cho các dòng USD** điền tỷ giá Vietcombank cho mọi dòng đang chọn USD của **cả 2 bảng**.
-> - Doanh thu nhập theo **tỷ đồng** khi chọn VND, theo **USD** khi chọn USD (thiếu tỷ giá thì để trống, hệ thống không tự đoán).
 > - Khối **Tổng hợp tiêu thụ** và cột **Doanh thu** từng dòng đều tự tính — không nhập tay.
 
 ## 6. Nhập Báo cáo tồn kho
@@ -127,7 +124,7 @@ Tồn kho là số liệu **tại thời điểm cuối ngày** (không cộng d
 2. **1. Tồn kho thành phẩm chế biến chưa nhập kho** — chủng loại + số lượng (tấn).
 3. **2. Tồn kho thành phẩm đã nhập kho** — chủng loại + số lượng (tấn).
 4. **3. Số lượng đã ký hợp đồng** — thêm đơn giá, lịch giao và **file Hợp đồng đã ký scan có đóng dấu**.
-5. **Đơn giá nhập bằng** — chọn VND hoặc USD cho đơn giá ở khối 3.
+5. **Tiền** — mỗi dòng ở khối 3 tự chọn VND hoặc USD; chọn USD thì nhập **Tỷ giá** ngay ở dòng đó.
 6. **4. Tồn kho nguyên liệu chưa sản xuất (quy khô)** — 1 ô số lượng (tấn). Xong bấm **Lưu số liệu**.
 
 > - Khối **4** hiện với **mọi đơn vị**, **không phân biệt** đơn vị có nhà máy hay không. Đơn vị nào không có số thì để trống.
@@ -135,34 +132,15 @@ Tồn kho là số liệu **tại thời điểm cuối ngày** (không cộng d
 > - Khối **Tổng hợp tồn kho**: *Tồn kho thành phẩm* = khối 1 + khối 2. Khối 3 là **cam kết giao hàng**, đứng riêng — không cộng vào và không trừ khỏi tồn kho, nên ký nhiều hơn lượng đang có cũng không sao.
 > - Chủng loại tách theo từng loại giống bảng Giá sàn Tập đoàn — **SVR CV 50** và **SVR CV60** là 2 loại riêng.
 
-## 7. Nhập Kế hoạch năm
-
-**Vị trí:** Menu → Kế hoạch năm
-
-Đây là số liệu của cả năm, chỉ nhập một lần và cập nhật lại khi có thay đổi — KHÔNG nhập hằng ngày. Số liệu này dùng để tính % thực hiện kế hoạch trong báo cáo.
-
-![Hình 7. Màn Kế hoạch năm](img/07-ke-hoach-nam.png)
-
-*Hình 7. Màn Kế hoạch năm*
-
-1. Chọn **năm** cần khai.
-2. **Kế hoạch thu mua** (tấn) — chỉ tiêu Tập đoàn giao hoặc kế hoạch của công ty.
-3. **HĐ dài hạn đã ký** (tấn) — tổng sản lượng đã ký hợp đồng dài hạn trong năm.
-4. **HĐ dài hạn năm trước chuyển sang** (tấn).
-5. **HĐ chuyến năm trước chuyển sang** (tấn).
-6. Số liệu **tự lưu khi rời khỏi ô** — không có nút Lưu riêng.
-
-> - Nếu tài khoản được giao nhiều đơn vị thì màn này hiện đủ các đơn vị đó.
-
-## 8. Nhập Nhu cầu thị trường
+## 7. Nhập Nhu cầu thị trường
 
 **Vị trí:** Menu → Nhu cầu thị trường
 
 Ghi nhận **các lời chào hàng từ khách hàng, nhà sản xuất** và nhu cầu thị trường mà đơn vị nắm được trong ngày — dùng để phân tích yếu tố **Cầu** trong quan hệ Cung – Cầu.
 
-![Hình 8. Nhập Nhu cầu thị trường](img/09-nhu-cau-thi-truong.png)
+![Hình 7. Nhập Nhu cầu thị trường](img/09-nhu-cau-thi-truong.png)
 
-*Hình 8. Nhập Nhu cầu thị trường*
+*Hình 7. Nhập Nhu cầu thị trường*
 
 1. Bấm **Thêm nhu cầu** để mở ô nhập.
 2. Chọn **ngày** ghi nhận nhu cầu.
@@ -175,6 +153,26 @@ Ghi nhận **các lời chào hàng từ khách hàng, nhà sản xuất** và n
 > - Đây là mục nhập **tự do bằng chữ**, không có ô số liệu.
 > - Mỗi ngày mỗi đơn vị chỉ có **một nội dung** — nhập lại ngày đã có sẽ được nhắc dùng chức năng Sửa.
 > - Mục này **không có nhập bằng Excel**.
+
+## 8. Nhập Kế hoạch năm
+
+**Vị trí:** Menu → Kế hoạch năm
+
+Đây là số liệu của cả năm, chỉ nhập một lần và cập nhật lại khi có thay đổi — KHÔNG nhập hằng ngày. Số liệu này dùng để tính % thực hiện kế hoạch trong báo cáo.
+
+![Hình 8. Màn Kế hoạch năm](img/07-ke-hoach-nam.png)
+
+*Hình 8. Màn Kế hoạch năm*
+
+1. Chọn **năm** cần khai.
+2. **Kế hoạch thu mua** (tấn) — chỉ tiêu Tập đoàn giao hoặc kế hoạch của công ty.
+3. **HĐ dài hạn đã ký** (tấn) — tổng sản lượng đã ký hợp đồng dài hạn trong năm.
+4. **HĐ dài hạn năm trước chuyển sang** (tấn).
+5. **HĐ chuyến năm trước chuyển sang** (tấn).
+
+> - Số liệu **tự lưu khi rời khỏi ô** — không có nút Lưu riêng.
+> - Màn này **chỉ hiện những đơn vị được giao kế hoạch thu mua**. Nếu không thấy đơn vị của mình, đề nghị quản trị viên bật ô **Có giao KH** ở Quản trị → Đơn vị thành viên.
+> - Nếu tài khoản được giao nhiều đơn vị thì màn này hiện đủ các đơn vị đó (trừ đơn vị không được giao kế hoạch).
 
 ## 9. Nhập nhanh bằng Excel (tải mẫu → nhập lên)
 
