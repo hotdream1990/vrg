@@ -21,12 +21,14 @@ type Col = { key: string; label: string; unit: string; note: string };
 const PURCHASE_COLS: Col[] = [
   { key: "latex_wet", label: "SL thu mua mủ nước", unit: "tấn", note: "cộng dồn" },
   { key: "coagulum", label: "SL thu mua mủ chén", unit: "tấn", note: "cộng dồn" },
+  { key: "finished_qty", label: "SL thu mua thành phẩm", unit: "tấn", note: "cộng dồn chủng loại" },
   { key: "total_purchase", label: "Tổng SL thu mua", unit: "tấn", note: "= nước + chén" },
   { key: "price_latex_avg", label: "Giá mủ nước BQ", unit: "đồng/độ TSC", note: "BQ gia quyền" },
   { key: "price_cup_avg", label: "Giá mủ chén BQ", unit: "đồng/độ TSC", note: "BQ gia quyền" },
   { key: "plan_tonnes", label: "Kế hoạch thu mua", unit: "tấn", note: "số liệu năm" },
   { key: "pct_plan", label: "% thực hiện KH", unit: "%", note: "= TH / KH" },
   { key: "consumption", label: "SL tiêu thụ mủ thu mua", unit: "tấn", note: "cộng dồn" },
+  { key: "finished_sold_qty", label: "SL tiêu thụ mủ thành phẩm", unit: "tấn", note: "cộng dồn" },
   { key: "revenue_ty", label: "Doanh thu", unit: "tỷ đồng", note: "cộng dồn" },
   { key: "avg_sell_price", label: "Giá bán BQ", unit: "triệu đ/tấn", note: "= DT / SL" },
 ];

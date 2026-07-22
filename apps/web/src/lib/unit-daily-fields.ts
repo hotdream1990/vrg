@@ -35,7 +35,22 @@ const n = (x: number | null | undefined): number | null => (x == null || Number.
 // (đơn vị nước ngoài nhập đơn giá nội tệ + USD + 2 tỷ giá, tự quy về VND). Tiền lưu BASE = đồng.
 const _MU_NUOC = "Mủ nước";
 const _MU_CHEN = "Mủ chén";
+const _TP = "Thu mua thành phẩm";
 const _TT_TM = "Tiêu thụ mủ thu mua";
+/** Bảng thu mua thành phẩm (nhiều dòng, mỗi dòng 1 chủng loại) → tổng SL + giá trị (đồng). */
+const finishedRows = (v: Values): { qty?: number | null; price?: number | null; ccy?: string; fx?: number | null }[] => {
+  const rows = (v as Record<string, unknown>).finished;
+  return Array.isArray(rows) ? rows : [];
+};
+const finishedQty = (v: Values): number => finishedRows(v).reduce((a, r) => a + (n(r.qty) ?? 0), 0);
+const finishedVnd = (v: Values): number =>
+  finishedRows(v).reduce((a, r) => {
+    const q = n(r.qty), p = n(r.price);
+    if (q == null || p == null) return a;
+    if ((r.ccy ?? "VND") !== "USD") return a + q * p * 1_000_000;
+    return n(r.fx) == null ? a : a + q * p * (r.fx as number);
+  }, 0);
+
 const PURCHASE: Column[] = [
   { key: "latex_wet", label: "Sản lượng thu mua", unit: "tấn", group: _MU_NUOC },
   { key: "price_latex", label: "Đơn giá thu mua", unit: "đồng/độ TSC", group: _MU_NUOC, linked: "latex" },
@@ -43,6 +58,11 @@ const PURCHASE: Column[] = [
   // Mủ chén tính theo độ TSC hoặc độ DRC — đơn vị tự chọn ở form (`cup_basis`), nên nhãn cột để chung.
   { key: "price_cup", label: "Đơn giá thu mua", unit: "đồng/độ", group: _MU_CHEN, linked: "cup",
     hint: "theo độ TSC hoặc DRC — đơn vị tự chọn" },
+  // Thu mua thành phẩm nhập theo CHỦNG LOẠI (bảng nhiều dòng) → bảng tổng hợp chỉ hiện số cộng lại.
+  { key: "finished_qty", label: "Sản lượng thu mua", unit: "tấn", group: _TP,
+    compute: (v) => finishedQty(v) || null },
+  { key: "finished_price_avg", label: "Đơn giá bình quân", unit: "triệu đ/tấn", group: _TP,
+    scale: 1_000_000, compute: (v) => (finishedQty(v) ? finishedVnd(v) / finishedQty(v) : null) },
   { key: "consumption", label: "Sản lượng tiêu thụ", unit: "tấn", group: _TT_TM },
   // Doanh thu lưu BASE = đồng (VND), hiển thị "tỷ đồng" (scale 1e9). Giá BQ = Doanh thu(đồng) ÷ SL(tấn)
   // = đồng/tấn, hiển thị "triệu đ/tấn" (scale 1e6).

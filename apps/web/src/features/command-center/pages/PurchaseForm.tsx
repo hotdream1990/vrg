@@ -1,7 +1,8 @@
 /* Form nhập biểu THU MUA (1 đơn vị / 1 ngày): mủ nước · mủ chén · THÀNH PHẨM (mua lại mủ đã chế biến).
    - Đơn vị nước ngoài: đơn giá mủ nước/mủ chén nhập theo NỘI TỆ (LAK/KHR) + tỷ giá nội tệ→VND
      → đơn giá VND tự quy đổi và ghi vào kho "Giá mủ nguyên liệu".
-   - Thu mua thành phẩm nhập được CẢ đơn giá VNĐ lẫn ngoại tệ (kèm tỷ giá, có nút lấy VCB).
+   - Thu mua thành phẩm = BẢNG NHIỀU DÒNG theo CHỦNG LOẠI (mỗi dòng chọn VNĐ hay USD + tỷ giá,
+     có nút lấy tỷ giá VCB cho mọi dòng USD) — giống bảng tiêu thụ/tồn kho.
    - Phần TIÊU THỤ mủ thu mua/thành phẩm đã chuyển sang biểu Tiêu thụ (ConsumptionForm). */
 
 import { Checkbox, Select, message } from "antd";
@@ -10,6 +11,8 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchVcbRate } from "../../../lib/market-quote-client";
 import type { CupBasis, PriceDraft, UnitPurchasePrice } from "../../../lib/unit-daily-client";
 import { type Values, fmtNum } from "../../../lib/unit-daily-fields";
+import { type FinishedLine, finishedTotals } from "../../../lib/unit-daily-purchase";
+import FinishedPurchaseTable from "./FinishedPurchaseTable";
 import { fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
 
 type Props = {
@@ -32,14 +35,15 @@ const CUP_BASES: { value: CupBasis; label: string }[] = [
   { value: "drc", label: "Độ DRC" },
 ];
 
+/** Các dòng thu mua thành phẩm đã lưu (bảng nhiều dòng — nằm ngoài các ô số phẳng). */
+const initFinished = (values: Values): FinishedLine[] => {
+  const rows = (values as unknown as { finished?: FinishedLine[] }).finished;
+  return Array.isArray(rows) ? rows.map((r) => ({ ...r })) : [];
+};
+
 /** Dựng nháp ban đầu từ payload đã lưu + đơn giá VND (đơn vị VN prefill đơn giá VND, nước ngoài prefill nội tệ). */
 function initDraft(values: Values, linked: UnitPurchasePrice | null | undefined, foreign: boolean): Values {
-  const base: Values = {
-    latex_wet: values.latex_wet, coagulum: values.coagulum,
-    // Thu mua thành phẩm — nhập được cả đơn giá VNĐ lẫn ngoại tệ.
-    finished_qty: values.finished_qty, price_finished_vnd: values.price_finished_vnd,
-    price_finished_fx: values.price_finished_fx, fx_finished: values.fx_finished,
-  };
+  const base: Values = { latex_wet: values.latex_wet, coagulum: values.coagulum };
   if (foreign) {
     return {
       ...base,
@@ -60,12 +64,15 @@ export default function PurchaseForm({
   const origBasis = ((values as Record<string, unknown>).cup_basis as CupBasis) ?? "tsc";
   const origNoPurchase = (values as Record<string, unknown>).no_purchase === true;
   const [draft, setDraft] = useState<Values>(() => initDraft(values, linkedPrice, foreign));
+  // Thu mua thành phẩm: bảng nhiều dòng theo chủng loại (giữ state riêng với các ô số phẳng).
+  const [finished, setFinished] = useState<FinishedLine[]>(() => initFinished(values));
   const [cupBasis, setCupBasis] = useState<CupBasis>(origBasis);
   // Hôm nay KHÔNG tổ chức thu mua — khác hẳn "có tổ chức, có công bố giá nhưng mua được 0 tấn".
   const [noPurchase, setNoPurchase] = useState(origNoPurchase);
   const [fxLoading, setFxLoading] = useState(false);
   useEffect(() => {
     setDraft(initDraft(values, linkedPrice, foreign));
+    setFinished(initFinished(values));
     setCupBasis(((values as Record<string, unknown>).cup_basis as CupBasis) ?? "tsc");
     setNoPurchase((values as Record<string, unknown>).no_purchase === true);
   }, [formKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -77,41 +84,42 @@ export default function PurchaseForm({
   const priceLatexVnd = foreign ? mul(draft.price_latex_local, draft.fx_purchase) : num(draft.price_latex_vnd);
   const priceCupVnd = foreign ? mul(draft.price_cup_local, draft.fx_purchase) : num(draft.price_cup_vnd);
 
+  const fin = finishedTotals(finished);
+
   // Payload lưu (đồng) + đơn giá VND ghi kho giá.
   const current = useMemo<Values>(() => {
-    const p: Values = {
-      latex_wet: draft.latex_wet, coagulum: draft.coagulum,
-      finished_qty: draft.finished_qty, price_finished_vnd: draft.price_finished_vnd,
-      price_finished_fx: draft.price_finished_fx, fx_finished: draft.fx_finished,
-    };
+    const p: Values = { latex_wet: draft.latex_wet, coagulum: draft.coagulum };
     if (foreign) {
       Object.assign(p, {
         price_latex_local: draft.price_latex_local, price_cup_local: draft.price_cup_local,
         fx_purchase: draft.fx_purchase,
       });
     }
+    (p as Record<string, unknown>).finished = finished;
     (p as Record<string, unknown>).cup_basis = cupBasis;
     if (noPurchase) (p as Record<string, unknown>).no_purchase = true;
     return p;
-  }, [draft, foreign, cupBasis, noPurchase]);
+  }, [draft, finished, foreign, cupBasis, noPurchase]);
   const prices: PriceDraft = { latex: priceLatexVnd, cup: priceCupVnd, cupBasis };
 
   const dirty = useMemo(() => {
     const orig = initDraft(values, linkedPrice, foreign);
     const keys = new Set([...Object.keys(orig), ...Object.keys(draft)]);
     return cupBasis !== origBasis || noPurchase !== origNoPurchase
+      || JSON.stringify(finished) !== JSON.stringify(initFinished(values))
       || [...keys].some((k) => (num(draft[k]) ?? null) !== (num(orig[k]) ?? null));
-  }, [draft, values, linkedPrice, foreign, cupBasis, origBasis, noPurchase, origNoPurchase]);
+  }, [draft, finished, values, linkedPrice, foreign, cupBasis, origBasis, noPurchase, origNoPurchase]);
   useEffect(() => { onDirty?.(dirty); }, [dirty]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** Lấy tỷ giá VCB rồi điền cho MỌI dòng thành phẩm đang chọn USD — khỏi gõ lại từng dòng. */
   const fetchFx = async () => {
     setFxLoading(true);
     try {
       const r = await fetchVcbRate();
       const rate = r.mua_ck ?? r.ban ?? r.mua_tm;
       if (rate == null) throw new Error("VCB không có tỷ giá USD");
-      set("fx_finished", rate);
-      message.success(`Đã lấy tỷ giá USD/VND (VCB ${r.date}): ${fmtNum(rate, 0)}`);
+      setFinished((rows) => rows.map((l) => ((l.ccy ?? "VND") === "USD" ? { ...l, fx: rate } : l)));
+      message.success(`Đã điền tỷ giá USD/VND (VCB ${r.date}): ${fmtNum(rate, 0)} cho các dòng USD.`);
     } catch (e) {
       message.error((e as Error).message || "Không lấy được tỷ giá VCB — nhập tay giúp anh.");
     } finally {
@@ -183,23 +191,32 @@ export default function PurchaseForm({
           </>
         )}
 
-        {/* Thu mua THÀNH PHẨM — mua lại mủ đã chế biến; cho nhập cả đơn giá VNĐ lẫn ngoại tệ. */}
-        {head("Thu mua thành phẩm")}
-        {field("Sản lượng thu mua", "tấn", numInput(num(draft.finished_qty), (v) => set("finished_qty", v), readOnly))}
-        {field("Đơn giá (VNĐ)", "triệu đ/tấn", numInput(num(draft.price_finished_vnd), (v) => set("price_finished_vnd", v), readOnly))}
-        {field("Đơn giá (ngoại tệ)", "USD/tấn", numInput(num(draft.price_finished_fx), (v) => set("price_finished_fx", v), readOnly))}
-        <label style={{ display: "block" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginBottom: 2, minHeight: 18 }}>
-            <span style={{ fontSize: 12, opacity: 0.75 }}>Tỷ giá <span style={{ opacity: 0.6 }}>(1 USD = ? VND)</span></span>
-            {!readOnly && (
-              <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 7px", lineHeight: "18px", whiteSpace: "nowrap" }}
-                      onClick={fetchFx} disabled={fxLoading}>
-                {fxLoading ? "Đang lấy…" : "Lấy tỷ giá hiện tại"}
-              </button>
-            )}
+      </div>
+
+      {/* Thu mua THÀNH PHẨM — mua lại mủ đã chế biến; mỗi CHỦNG LOẠI 1 dòng, đơn giá theo VNĐ hay USD. */}
+      <div style={{ opacity: noPurchase ? 0.5 : 1, marginTop: 14 }}>
+        {head("Thu mua thành phẩm", true)}
+        <FinishedPurchaseTable rows={finished} setRows={setFinished} readOnly={readOnly} />
+        {!readOnly && (
+          <div style={{ marginTop: 8 }}>
+            <button type="button" className="btn" style={{ fontSize: 12 }} onClick={fetchFx} disabled={fxLoading}>
+              {fxLoading ? "Đang lấy…" : "Lấy tỷ giá VCB cho các dòng USD"}
+            </button>
           </div>
-          {numInput(num(draft.fx_finished), (v) => set("fx_finished", v), readOnly)}
-        </label>
+        )}
+        <div className="form-note" style={{ fontSize: 11.5, marginTop: 8 }}>
+          Mỗi chủng loại mua trong ngày là <b>một dòng riêng</b>. Đơn giá nhập theo loại tiền chọn ở
+          cột <b>Tiền</b>: VNĐ thì <b>triệu đ/tấn</b>, USD thì <b>USD/tấn</b> — dòng nào chọn USD thì
+          nhập <b>tỷ giá</b> ngay ở dòng đó{!readOnly && " (nút trên điền tỷ giá Vietcombank cho mọi dòng USD)"}.
+        </div>
+
+        {fin.qty > 0 && (
+          <div style={{ ...gridStyle, marginTop: 10 }}>
+            {field("Tổng SL thành phẩm", "tấn", readOnlyBox(fmtNum(fin.qty, 2), "tự tính"))}
+            {field("Tổng giá trị", "triệu đồng", readOnlyBox(fmtNum(fin.valueVnd / 1_000_000, 1), "tự tính"))}
+            {field("Đơn giá bình quân", "triệu đ/tấn", readOnlyBox(fmtNum(fin.avgPriceTrieu, 2), "tự tính"))}
+          </div>
+        )}
       </div>
 
       {!readOnly && footer?.(dirty, current, prices)}

@@ -16,10 +16,12 @@ from app.core import edit_window
 from app.core.security import get_current_member
 from app.schemas.market_demand import MarketDemandEdit
 from app.schemas.member_self import MemberPriceEdit
-from app.schemas.unit_daily import ExcelImportCommit, PurchasePlanEdit, UnitDailyEdit
+from app.schemas.unit_daily import (
+    ExcelImportCommit, PurchasePlanEdit, StockContractEdit, UnitDailyEdit,
+)
 from app.services import (
     contract_files, market_demand_repo, member_unit_repo, price_repo, unit_daily_excel_io,
-    unit_daily_repo,
+    unit_daily_repo, unit_stock_contract_repo,
 )
 
 router = APIRouter(prefix="/api/member", tags=["member-self"])
@@ -166,6 +168,42 @@ def upsert_my_year_plan(body: PurchasePlanEdit,
     _assert_company(member, body.company)
     unit_daily_repo.set_year_plan(body.year, body.company, body.plan_tonnes, body.signed_lt_tonnes,
                                   body.carry_lt_tonnes, body.carry_spot_tonnes, member.get("username"))
+    return {"ok": True}
+
+
+# ── Tồn kho ĐÃ KÝ HỢP ĐỒNG của CÁC đơn vị được gán — nhập 1 lần, sau chỉ điền ngày giao ──
+@router.get("/stock-contracts")
+def my_stock_contracts(as_of: str | None = Query(None, description="Chỉ HĐ đang tồn ngày này"),
+                       member: dict = Depends(get_current_member)) -> dict:
+    """Hợp đồng đã ký của các đơn vị được gán (kèm cả HĐ đã giao để đơn vị tra cứu lại)."""
+    if as_of:
+        try:
+            date.fromisoformat(as_of)
+        except ValueError as exc:
+            raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
+    units = list(member["member_units"])
+    return {"as_of": as_of,
+            "contracts": unit_stock_contract_repo.list_contracts(companies=units, as_of=as_of)}
+
+
+@router.put("/stock-contracts")
+def save_my_stock_contract(body: StockContractEdit,
+                           member: dict = Depends(get_current_member)) -> dict:
+    """Đơn vị thêm HĐ mới hoặc cập nhật NGÀY GIAO khi đã xuất kho."""
+    _assert_company(member, body.company)
+    try:
+        return {"contract": unit_stock_contract_repo.save(
+            body.model_dump(), body.company, member.get("username"))}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.delete("/stock-contracts/{contract_id}")
+def delete_my_stock_contract(contract_id: int,
+                             member: dict = Depends(get_current_member)) -> dict:
+    """Xoá 1 hợp đồng của đơn vị mình (nhập nhầm)."""
+    if not unit_stock_contract_repo.delete(contract_id, list(member["member_units"])):
+        raise HTTPException(404, "Không tìm thấy hợp đồng này.")
     return {"ok": True}
 
 

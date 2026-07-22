@@ -100,7 +100,6 @@ export type PrevStock = {
   as_of?: string;
   stock_not_warehoused?: StockQtyLine[];
   stock_warehoused?: StockQtyLine[];
-  stock_signed_undelivered?: StockSignedLine[];
   stock_material?: number | null;
   stock_ccy?: Ccy;
 };
@@ -109,6 +108,32 @@ export const fetchPrevStock = (role: Role, company: string, before: string) =>
   apiFetch<PrevStock>(
     `${role === "member" ? "/api/member/daily-report" : "/api/unit-daily"}/prev-stock`
     + `?company=${encodeURIComponent(company)}&before=${before}`);
+
+// ── Tồn kho ĐÃ KÝ HỢP ĐỒNG — bản ghi có vòng đời riêng, KHÔNG nhập lại mỗi ngày ──
+/** Hợp đồng nằm trong tồn kho từ `start_date` đến HẾT NGÀY TRƯỚC `delivered_date`
+    (chưa giao → còn tồn). Nhập 1 lần; khi xuất kho chỉ cập nhật `delivered_date`. */
+export type StockContract = StockSignedLine & {
+  id?: number | null;
+  company?: string;
+  start_date: string;             // ngày bắt đầu tồn kho 'YYYY-MM-DD'
+  delivered_date?: string | null; // ngày giao THỰC TẾ (trống = chưa giao)
+};
+
+const stockContractBase = (role: Role) =>
+  role === "member" ? "/api/member/stock-contracts" : "/api/unit-daily/stock-contracts";
+
+export const fetchStockContracts = (role: Role, asOf?: string, company?: string) =>
+  apiFetch<{ as_of: string | null; contracts: StockContract[] }>(
+    `${stockContractBase(role)}?${asOf ? `as_of=${asOf}` : ""}`
+    + `${company ? `&company=${encodeURIComponent(company)}` : ""}`);
+
+export const saveStockContract = (role: Role, company: string, row: StockContract) =>
+  apiFetch<{ contract: StockContract }>(stockContractBase(role), {
+    method: "PUT", headers: J, body: JSON.stringify({ ...row, company }),
+  });
+
+export const deleteStockContract = (role: Role, id: number) =>
+  apiFetch<{ ok: boolean }>(`${stockContractBase(role)}/${id}`, { method: "DELETE" });
 
 // ── Số liệu NĂM (kế hoạch thu mua + HĐ dài hạn đã ký) — đơn vị tự cập nhật, chuyên viên xem/sửa mọi đơn vị ──
 const planBase = (role: Role) => (role === "member" ? "/api/member/plan" : "/api/unit-daily/plan");

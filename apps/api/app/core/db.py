@@ -158,6 +158,28 @@ CREATE TABLE IF NOT EXISTS unit_daily_report (
 );
 CREATE INDEX IF NOT EXISTS ix_unit_daily_date ON unit_daily_report (kind, as_of DESC);
 
+-- Tồn kho ĐÃ KÝ HỢP ĐỒNG chưa giao — KHÔNG nhập lại mỗi ngày (hợp đồng có file scan, nhập lại
+-- hằng ngày sẽ phình dữ liệu). Mỗi hợp đồng là 1 BẢN GHI có vòng đời: tính vào tồn kho từ
+-- `start_date` đến HẾT ngày TRƯỚC `delivered_date`; chưa giao (`delivered_date` NULL) thì còn tồn.
+CREATE TABLE IF NOT EXISTS unit_stock_contract (
+    id          bigserial PRIMARY KEY,
+    company     text NOT NULL,          -- đơn vị (khớp member_unit)
+    code        text,                   -- mã Hợp đồng / Phụ lục
+    grade       text NOT NULL,          -- chủng loại
+    qty         double precision,       -- số lượng (tấn)
+    price       double precision,       -- đơn giá (theo `ccy`)
+    ccy         text NOT NULL DEFAULT 'VND',
+    fx          double precision,       -- tỷ giá USD→VND (khi ccy = USD)
+    start_date  date NOT NULL,          -- ngày bắt đầu tồn kho
+    delivery_date  date,                -- lịch giao (dự kiến)
+    delivered_date date,                -- ngày giao THỰC TẾ (trống = chưa giao, vẫn đang tồn)
+    file        text,                   -- HĐ đã ký scan (tên file lưu server)
+    filename    text,                   -- tên gốc để hiển thị
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    updated_by  text
+);
+CREATE INDEX IF NOT EXISTS ix_stock_contract_company ON unit_stock_contract (company, start_date);
+
 -- Chỉ tiêu KẾ HOẠCH thu mua theo năm cho từng đơn vị (dùng tính % thực hiện kế hoạch).
 CREATE TABLE IF NOT EXISTS unit_purchase_plan (
     year        integer NOT NULL,

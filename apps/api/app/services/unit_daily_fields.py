@@ -7,6 +7,9 @@ Server dùng bộ này để lọc payload (chỉ nhận key hợp lệ) — ch�
 
 from __future__ import annotations
 
+# Loại tiền người dùng CHỌN khi nhập đơn giá (thu mua thành phẩm · giá bán tiêu thụ · tồn kho đã HĐ).
+_CCY = frozenset({"VND", "USD"})
+
 # Biểu mẫu Thu mua ("Chỉ tiêu Biểu (2)-ngày") — số THỜI ĐIỂM theo ngày (KHÔNG lũy kế, KHÔNG %KH).
 # Đơn giá VND đồng bộ kho "Giá mủ nguyên liệu" (không ở đây). Tiền lưu BASE = đồng (VND). Giá BQ = cột suy ra.
 # Đơn vị nước ngoài (Lào/Campuchia): thêm đơn giá theo nội tệ + 2 tỷ giá (nội tệ→VND cho đơn giá,
@@ -14,16 +17,15 @@ from __future__ import annotations
 PURCHASE_FIELDS: frozenset[str] = frozenset({
     "latex_wet",         # sản lượng thu mua mủ nước trong ngày (tấn)
     "coagulum",          # sản lượng thu mua mủ chén trong ngày (tấn)
-    # Thu mua THÀNH PHẨM (mua lại mủ đã chế biến) — nhập được cả đơn giá VNĐ lẫn ngoại tệ.
-    "finished_qty",           # sản lượng thu mua thành phẩm (tấn)
-    "price_finished_vnd",     # đơn giá thành phẩm theo VNĐ (triệu đ/tấn)
-    "price_finished_fx",      # đơn giá thành phẩm theo ngoại tệ (USD/tấn)
-    "fx_finished",            # tỷ giá ngoại tệ→VND cho đơn giá thành phẩm
     # ── Chỉ đơn vị nước ngoài ──
     "price_latex_local",  # đơn giá mủ nước theo nội tệ (vd LAK/độ TSC)
     "price_cup_local",    # đơn giá mủ chén theo nội tệ
     "fx_purchase",        # tỷ giá nội tệ→VND (quy đơn giá nội tệ ra VND)
 })
+
+# Thu mua THÀNH PHẨM (mua lại mủ đã chế biến) — BẢNG NHIỀU DÒNG như tiêu thụ/tồn kho, vì một ngày
+# mua nhiều CHỦNG LOẠI với đơn giá khác nhau. Mỗi dòng: chủng loại · tấn · đơn giá · loại tiền · tỷ giá.
+FINISHED_TABLE = "finished"
 
 # Ô CHỮ của biểu Thu mua: mủ chén tính theo độ TSC hay độ DRC (đổi nhãn đơn giá + đơn vị lưu kho giá).
 PURCHASE_TEXT: dict[str, frozenset[str]] = {"cup_basis": frozenset({"tsc", "drc"})}
@@ -38,8 +40,10 @@ PURCHASE_FLAGS: frozenset[str] = frozenset({"no_purchase"})
 # TỒN KHO (chỉ tiêu THỜI ĐIỂM, đơn vị TẤN) chia 4 khối theo yêu cầu nghiệp vụ:
 #   1 `stock_not_warehoused`     Tồn kho thành phẩm chế biến CHƯA nhập kho (chủng loại · tấn)
 #   2 `stock_warehoused`         Tồn kho thành phẩm ĐÃ nhập kho          (chủng loại · tấn)
-#   3 `stock_signed_undelivered` Số lượng ĐÃ KÝ HĐ CHƯA GIAO (chủng loại · tấn · đơn giá · lịch giao
-#                                · file HĐ scan đóng dấu)
+#   3 `stock_signed_undelivered` Số lượng ĐÃ KÝ HĐ CHƯA GIAO — KHÔNG lưu ở đây nữa: mỗi hợp đồng là
+#                                1 bản ghi có vòng đời riêng ở bảng `unit_stock_contract` (nhập 1 lần,
+#                                tự nằm trong tồn kho tới hết ngày trước ngày giao). Khi ĐỌC báo cáo
+#                                ngày, khối này được tính và gắn vào (unit_daily_repo._attach_contracts).
 #   4 `stock_material`           Tồn kho nguyên liệu CHƯA SẢN XUẤT — chỉ đơn vị KHÔNG có nhà máy
 # Quy về mẫu tuần: mục 11 (tồn thành phẩm) = khối 1 + khối 2 · mục 12 (đã có HĐ) = khối 3 ·
 # mục 13 = 11 − 12 · mục 14 = khối 4.
@@ -58,8 +62,6 @@ CONSUMPTION_FIELDS: frozenset[str] = frozenset({
     "finished_sold_fx",         # tỷ giá USD→VND
 })
 
-# Loại tiền người dùng CHỌN khi nhập giá bán (tiêu thụ) và đơn giá tồn kho đã có HĐ.
-_CCY = frozenset({"VND", "USD"})
 CONSUMPTION_TEXT: dict[str, frozenset[str]] = {
     "sales_ccy": _CCY, "stock_ccy": _CCY,
     "purchased_sold_ccy": _CCY, "finished_sold_ccy": _CCY,
@@ -89,10 +91,15 @@ def _to_float(v) -> float | None:
         return None
 
 
+def _code(v) -> str | None:
+    """Mã Hợp đồng / Phụ lục người dùng gõ tay — chuỗi ngắn, rỗng thì lưu None."""
+    return str(v or "").strip()[:60] or None
+
+
 def _clean_sales(sales) -> list[dict]:
     """Lọc/chuẩn hoá các dòng tiêu thụ (dùng chung `sales` = mủ thu mua và `sales_own` = mủ khai thác).
 
-    Mỗi dòng: loại HĐ · hình thức · loại mủ · số lượng · giá bán · NGÀY XUẤT KHO ·
+    Mỗi dòng: MÃ HĐ/PL · loại HĐ · hình thức · loại mủ · số lượng · giá bán · NGÀY XUẤT KHO ·
     NGÀY XUẤT HOÁ ĐƠN · 3 file đính kèm (bộ Hợp đồng · phiếu xuất kho · hoá đơn),
     mỗi file lưu tên uuid trên server + tên gốc để hiển thị.
     """
@@ -101,6 +108,7 @@ def _clean_sales(sales) -> list[dict]:
         if not isinstance(ln, dict):
             continue
         row = {
+            "code": _code(ln.get("code")),   # mã Hợp đồng / Phụ lục của dòng bán
             "contract": ln.get("contract") if ln.get("contract") in _SALE_CONTRACTS else "long_term",
             "channel": ln.get("channel") if ln.get("channel") in _SALE_CHANNELS else "export",
             "grade": str(ln.get("grade") or "")[:60],
@@ -119,6 +127,26 @@ def _clean_sales(sales) -> list[dict]:
     return out
 
 
+def _clean_finished(rows) -> list[dict]:
+    """Thu mua thành phẩm — mỗi dòng 1 CHỦNG LOẠI: chủng loại · TẤN · đơn giá · loại tiền · tỷ giá.
+
+    Đơn giá theo loại tiền của DÒNG (VND → triệu đ/tấn · USD → USD/tấn), y hệt dòng bán tiêu thụ:
+    một ngày có thể mua chủng loại này bằng VNĐ, chủng loại kia bằng USD.
+    """
+    out: list[dict] = []
+    for r in rows if isinstance(rows, list) else []:
+        if not isinstance(r, dict):
+            continue
+        out.append({
+            "grade": str(r.get("grade") or "")[:60],
+            "qty": _to_float(r.get("qty")),
+            "price": _to_float(r.get("price")),
+            "ccy": r.get("ccy") if r.get("ccy") in _CCY else "VND",
+            "fx": _to_float(r.get("fx")),
+        })
+    return out
+
+
 def _clean_stock_qty(rows) -> list[dict]:
     """Khối tồn kho chỉ có SỐ LƯỢNG: chủng loại · số lượng (TẤN) — dùng cho khối 1 và khối 2."""
     out: list[dict] = []
@@ -132,25 +160,6 @@ def _clean_stock_qty(rows) -> list[dict]:
     return out
 
 
-def _clean_stock_signed(rows) -> list[dict]:
-    """Khối 3 — đã ký hợp đồng: chủng loại · TẤN · đơn giá · lịch giao · file HĐ scan (tên file lưu)."""
-    out: list[dict] = []
-    for r in rows if isinstance(rows, list) else []:
-        if not isinstance(r, dict):
-            continue
-        out.append({
-            "grade": str(r.get("grade") or "")[:60],
-            "qty": _to_float(r.get("qty")),
-            "price": _to_float(r.get("price")),
-            "ccy": r.get("ccy") if r.get("ccy") in _CCY else "VND",
-            "fx": _to_float(r.get("fx")),
-            "delivery_date": str(r.get("delivery_date") or "")[:10] or None,
-            "file": str(r.get("file") or "")[:120] or None,       # tên file lưu server
-            "filename": str(r.get("filename") or "")[:200] or None,  # tên gốc hiển thị
-        })
-    return out
-
-
 def _pick_text(fields: dict, spec: dict[str, frozenset[str]], out: dict) -> None:
     """Nhận các ô CHỮ có tập giá trị đóng (loại tiền, cách tính độ) — sai giá trị thì bỏ qua."""
     for k, choices in spec.items():
@@ -160,7 +169,11 @@ def _pick_text(fields: dict, spec: dict[str, frozenset[str]], out: dict) -> None
 
 
 def clean_fields(kind: str, fields: dict) -> dict:
-    """Chuẩn hoá payload theo `kind` (chống ghi rác). Thu mua: ô phẳng. Tiêu thụ: dòng bán + tồn kho (mảng)."""
+    """Chuẩn hoá payload theo `kind` (chống ghi rác).
+
+    Thu mua: ô phẳng + bảng `finished` (thu mua thành phẩm theo chủng loại).
+    Tiêu thụ: dòng bán + tồn kho (mảng).
+    """
     fields = fields or {}
     if kind == "consumption":
         out: dict = {}
@@ -170,8 +183,7 @@ def clean_fields(kind: str, fields: dict) -> dict:
         for key in ("stock_not_warehoused", "stock_warehoused"):
             if key in fields:
                 out[key] = _clean_stock_qty(fields.get(key))
-        if "stock_signed_undelivered" in fields:
-            out["stock_signed_undelivered"] = _clean_stock_signed(fields.get("stock_signed_undelivered"))
+        # Khối 3 (đã ký HĐ) KHÔNG lưu trong payload ngày — client có gửi kèm cũng bỏ qua.
         for k in CONSUMPTION_FIELDS:
             fv = _to_float(fields.get(k))
             if fv is not None:
@@ -187,6 +199,8 @@ def clean_fields(kind: str, fields: dict) -> dict:
         if fv is not None:
             out[k] = fv
     if kind == "purchase":
+        if FINISHED_TABLE in fields:
+            out[FINISHED_TABLE] = _clean_finished(fields.get(FINISHED_TABLE))
         _pick_text(fields, PURCHASE_TEXT, out)
         for k in PURCHASE_FLAGS:
             if fields.get(k) is True:

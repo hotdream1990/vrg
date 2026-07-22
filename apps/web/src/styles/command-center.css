@@ -119,13 +119,18 @@ tr:hover td{background:#f3f7f4}
    cột số bị bóp còn nửa bề rộng trong khi cột chọn phình ra. */
 /* min-width = ngưỡng để nhãn dài nhất ("SVR 10 / CSR 20", "XK / UTXK") còn đọc được;
    màn hẹp hơn thì cuộn ngang (wrapper có overflow-x) chứ KHÔNG bóp ô làm cụt chữ. */
-.ud-sales{table-layout:fixed;min-width:880px}
+.ud-sales{table-layout:fixed;min-width:980px}
 /* Bảng ít cột (chủng loại + số lượng): chặn bề rộng, không thì ô trải hết màn hình. */
 .ud-sales.ud-narrow{min-width:360px;max-width:560px}
+/* Thu mua thành phẩm (7 cột) — hẹp hơn bảng tiêu thụ để vừa khung nhập, khỏi cuộn ngang. */
+.ud-sales.ud-finished{min-width:700px}
+/* Tồn kho đã ký HĐ: 7 cột số liệu ở hàng trên, các mốc ngày + HĐ scan xuống hàng dưới. */
+.ud-sales.ud-contract{min-width:760px}
 .ud-sales td{padding:6px;vertical-align:middle}
 /* MỌI ô trong bảng cao bằng nhau (24px = chiều cao Select size="small" của antd):
    ô ngày là input thuần của trình duyệt (27px) và nút .btn (18px) phải kéo về cùng mức. */
 .ud-sales .ant-input-number,
+.ud-sales .ant-input,
 .ud-sales input[type="date"]{height:24px;font-size:12.5px}
 .ud-sales .ant-input-number-input{height:22px;line-height:22px}
 .ud-sales .btn{height:24px;padding:0 8px;line-height:1;display:inline-flex;align-items:center;gap:4px}

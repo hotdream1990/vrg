@@ -4,7 +4,8 @@ Mỗi loại biểu khai báo cột MỘT chỗ (`SPECS`) rồi dùng chung cho 
 người dùng nộp → mẫu và bộ đọc không bao giờ lệch nhau.
 
 4 loại (`kind`):
-  purchase   — Thu mua: 1 dòng / (đơn vị, ngày)
+  purchase   — Thu mua: phần mủ nước/mủ chén 1 dòng / (đơn vị, ngày); thu mua THÀNH PHẨM nhiều
+               dòng (mỗi chủng loại 1 dòng) → gom thành mảng `finished`
   sales      — Tiêu thụ: NHIỀU dòng / (đơn vị, ngày) → tách theo cột "Nguồn mủ" thành 2 mảng
                `sales` (mủ thu mua) và `sales_own` (mủ khai thác)
   stock      — Tồn kho: NHIỀU dòng / (đơn vị, ngày) → gom thành 3 khối tồn kho (chưa nhập kho ·
@@ -28,7 +29,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from app.core.market_meta import UNIT_STOCK_GRADES
 from app.services import member_unit_repo, price_repo, unit_daily_repo
-from app.services.unit_daily_fields import SALE_TABLES
+from app.services.unit_daily_fields import FINISHED_TABLE, SALE_TABLES
 
 TY = 1_000_000_000
 
@@ -73,8 +74,12 @@ _DATE_COL = Col("as_of", "Ngày", "dd/mm/yyyy", required=True, type="date")
 SPECS: dict[str, Spec] = {
     "purchase": Spec(
         "BIỂU NHẬP — THU MUA", "Thu mua",
-        "Mỗi dòng = 1 đơn vị / 1 ngày. Đơn giá ghi vào kho 'Giá mủ nguyên liệu'. "
-        "Mủ nước luôn theo độ TSC; mủ chén theo cột 'Đơn giá mủ chén tính theo'.",
+        "Mủ nước / mủ chén: mỗi đơn vị 1 dòng / 1 ngày. Đơn giá ghi vào kho 'Giá mủ nguyên liệu'. "
+        "Mủ nước luôn theo độ TSC; mủ chén theo cột 'Đơn giá mủ chén tính theo'. "
+        "THU MUA THÀNH PHẨM tính theo CHỦNG LOẠI: mua mấy chủng loại thì thêm bấy nhiêu dòng cho "
+        "cùng (đơn vị, ngày) — các cột mủ nước/mủ chén chỉ điền ở dòng đầu, dòng sau để trống. "
+        "File có dòng thành phẩm sẽ GHI ĐÈ toàn bộ phần thành phẩm của ngày đó; không có dòng nào "
+        "thì phần thành phẩm đã nhập trên web được giữ nguyên.",
         [_UNIT_COL, _DATE_COL,
          Col("latex_wet", "SL thu mua mủ nước", "tấn"),
          Col("coagulum", "SL thu mua mủ chén", "tấn"),
@@ -82,9 +87,13 @@ SPECS: dict[str, Spec] = {
          Col("price_cup", "Đơn giá mủ chén", "đồng/độ", width=18),
          Col("cup_basis", "Đơn giá mủ chén tính theo", "mặc định Độ TSC", type="enum",
              choices=CUP_BASES, width=22),
+         Col("finished_grade", "Chủng loại thành phẩm", "chỉ dòng thu mua thành phẩm",
+             type="enum", choices={g: g for g in GRADES}, width=22),
          Col("finished_qty", "SL thu mua thành phẩm", "tấn", width=20),
-         Col("price_finished_vnd", "Đơn giá thành phẩm (VNĐ)", "triệu đ/tấn", width=22),
-         Col("price_finished_fx", "Đơn giá thành phẩm (ngoại tệ)", "USD/tấn", width=24)]),
+         Col("finished_price", "Đơn giá thành phẩm",
+             "triệu đ/tấn khi VND · USD/tấn khi USD", width=26),
+         Col("finished_ccy", "Đơn giá thành phẩm bằng", "VND | USD", type="enum",
+             choices=CCYS, width=20)]),
     "sales": Spec(
         "BIỂU NHẬP — TIÊU THỤ", "Tiêu thụ",
         "Mỗi dòng = 1 hợp đồng bán. Cùng (đơn vị, ngày) có thể nhiều dòng — hệ thống tự gộp. "
@@ -94,6 +103,7 @@ SPECS: dict[str, Spec] = {
         "Các file đính kèm (bộ Hợp đồng · phiếu xuất kho · hoá đơn) tải lên trên web — "
         "Excel không mang file được.",
         [_UNIT_COL, _DATE_COL,
+         Col("code", "Mã HĐ/PL", "số hợp đồng / phụ lục", type="text", width=20),
          Col("source", "Nguồn mủ", "để trống = mủ thu mua", type="enum",
              choices=SALE_SOURCES, width=18),
          Col("contract", "Loại HĐ", required=True, type="enum", choices=CONTRACTS),
@@ -108,15 +118,21 @@ SPECS: dict[str, Spec] = {
     "stock": Spec(
         "BIỂU NHẬP — TỒN KHO", "Tồn kho",
         "Mỗi dòng = 1 dòng tồn kho (số THỜI ĐIỂM cuối ngày, không cộng dồn). "
-        "Nhóm 'Đã ký HĐ' mới cần Đơn giá / Lịch giao (file HĐ scan đính kèm trên web).",
+        "Riêng nhóm 'Đã ký HĐ' là HỢP ĐỒNG có vòng đời: nhập MỘT LẦN, hệ thống tự tính vào tồn kho "
+        "từ cột 'Ngày' (= ngày bắt đầu tồn kho) đến HẾT NGÀY TRƯỚC 'Ngày giao'; chưa giao thì để "
+        "trống 'Ngày giao'. KHÔNG nhập lại hợp đồng đó cho các ngày sau. "
+        "File HĐ scan đính kèm trên web.",
         [_UNIT_COL, _DATE_COL,
          Col("group", "Nhóm", required=True, type="enum", choices=STOCK_GROUPS, width=20),
          Col("grade", "Chủng loại", required=True, type="enum",
              choices={g: g for g in GRADES}, width=20),
+         Col("code", "Mã HĐ/PL", "chỉ nhóm đã ký HĐ", type="text", width=20),
          Col("qty", "Số lượng", "tấn"),
          Col("price", "Đơn giá", "chỉ nhóm đã ký HĐ", width=18),
          Col("stock_ccy", "Đơn giá bằng", "VND | USD", type="enum", choices=CCYS, width=14),
-         Col("delivery_date", "Lịch giao", "dd/mm/yyyy", type="date"),
+         Col("delivery_date", "Lịch giao", "dd/mm/yyyy · dự kiến", type="date", width=18),
+         Col("delivered_date", "Ngày giao", "dd/mm/yyyy · để trống nếu chưa giao",
+             type="date", width=22),
          Col("stock_material", "Tồn kho nguyên liệu chưa sản xuất (quy khô)",
              "tấn", width=34)]),
     "plan": Spec(
@@ -343,6 +359,30 @@ def _line_revenue_vnd(qty, price, ccy: str, fx: float | None) -> float | None:
     return None if fx is None else q * p * fx
 
 
+def _upsert_contract(r: dict, company: str, start_date: str, ccy: str | None,
+                     username: str | None) -> None:
+    """1 dòng Excel nhóm 'Đã ký HĐ' → thêm/cập nhật hợp đồng (bảng `unit_stock_contract`).
+
+    Khớp lại hợp đồng cũ theo (đơn vị, mã HĐ/PL, chủng loại, ngày bắt đầu) để nhập lại cùng file
+    KHÔNG sinh bản sao — nhập lại là SỬA, đúng như cách các biểu khác ghi đè theo (đơn vị, ngày).
+    """
+    from app.services import unit_stock_contract_repo
+
+    existing = unit_stock_contract_repo.list_contracts(companies=[company])
+    match = next((c for c in existing
+                  if c["start_date"] == start_date and c["grade"] == r["grade"]
+                  and (c["code"] or "") == (r.get("code") or "")), None)
+    unit_stock_contract_repo.save({
+        "id": match["id"] if match else None,
+        "code": r.get("code"), "grade": r["grade"], "qty": r.get("qty"), "price": r.get("price"),
+        "ccy": ccy or "VND", "fx": match.get("fx") if match else None,
+        "start_date": start_date, "delivery_date": r.get("delivery_date"),
+        "delivered_date": r.get("delivered_date"),
+        "file": match.get("file") if match else None,        # file HĐ scan chỉ đính kèm trên web
+        "filename": match.get("filename") if match else None,
+    }, company, username)
+
+
 def _sale_line(r: dict, ccy: str, fx: float | None) -> dict:
     """1 dòng Excel → 1 dòng bán để lưu.
 
@@ -350,6 +390,7 @@ def _sale_line(r: dict, ccy: str, fx: float | None) -> dict:
     đúng cách web tính lại doanh thu — mở phiếu ra lưu lại không bị đổi số.
     """
     return {
+        "code": r.get("code"),
         "contract": r["contract"], "channel": r["channel"], "grade": r["grade"],
         "qty": r.get("qty"), "price": r.get("price"), "ccy": ccy, "fx": fx,
         "warehouse_date": r.get("warehouse_date"), "invoice_date": r.get("invoice_date"),
@@ -387,14 +428,33 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
     saved = 0
     for (company, as_of), items in grouped.items():
         if kind == "purchase":
-            it = items[-1]                                     # 1 dòng / ngày (lấy dòng cuối)
-            fields = {k: it.get(k) for k in
-                      ("latex_wet", "coagulum", "finished_qty", "price_finished_vnd", "price_finished_fx")
-                      if it.get(k) is not None}
+            # Mủ nước/mủ chén là số CỦA NGÀY (1 giá trị), thành phẩm là NHIỀU DÒNG theo chủng loại
+            # → lấy ô đầu tiên có số cho phần theo ngày, gom mọi dòng có chủng loại cho thành phẩm.
+            first = lambda k: next((r.get(k) for r in items if r.get(k) is not None), None)  # noqa: E731
+            it = {k: first(k) for k in ("latex_wet", "coagulum", "price_latex", "price_cup")}
+            # MERGE: giữ các ô đã nhập trên web mà file không có (cờ không thu mua, đơn giá nội tệ…).
+            cur = unit_daily_repo.entries_on("purchase", as_of).get(company) or {}
+            fields = dict(cur.get("fields") or {})
+            fields.update({k: v for k, v in it.items()
+                           if v is not None and k in ("latex_wet", "coagulum")})
             # Cách tính độ của mủ chén phải gán TRƯỚC khi ghi, không thì không được lưu.
-            basis = next((r.get("cup_basis") for r in items if r.get("cup_basis")), None)
+            basis = first("cup_basis") or fields.get("cup_basis")
             if basis:
                 fields["cup_basis"] = basis
+            # Thành phẩm: tỷ giá không có trong file → lấy lại tỷ giá đã nhập trên web (nếu có).
+            old_fx = next((r.get("fx") for r in (fields.get(FINISHED_TABLE) or [])
+                           if isinstance(r, dict) and r.get("fx")), None)
+            finished = [{"grade": r["finished_grade"], "qty": r.get("finished_qty"),
+                         "price": r.get("finished_price"),
+                         "ccy": (ccy := r.get("finished_ccy") or "VND"),
+                         "fx": old_fx if ccy == "USD" else None}
+                        for r in items if r.get("finished_grade")]
+            if finished:
+                fields[FINISHED_TABLE] = finished
+                if old_fx is None and any(r["ccy"] == "USD" for r in finished):
+                    warnings.append(
+                        f"{company} {as_of}: có dòng thành phẩm bằng USD chưa có tỷ giá "
+                        f"(nhập tỷ giá ở màn Thu mua rồi lưu lại).")
             unit_daily_repo.upsert("purchase", as_of, company, fields, username)
             for key, ptype in (("price_latex", "purchase"), ("price_cup", "purchase_cup")):
                 if it.get(key) is not None:
@@ -449,9 +509,14 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
                     {"grade": r["grade"], "qty": r.get("qty")} for r in pick("not_warehoused")]
                 fields["stock_warehoused"] = [
                     {"grade": r["grade"], "qty": r.get("qty")} for r in pick("warehoused")]
-                fields["stock_signed_undelivered"] = [
-                    {"grade": r["grade"], "qty": r.get("qty"), "price": r.get("price"),
-                     "delivery_date": r.get("delivery_date")} for r in pick("signed_undelivered")]
+                # Nhóm "Đã ký HĐ" KHÔNG nằm trong payload ngày nữa — mỗi dòng là 1 HỢP ĐỒNG có
+                # vòng đời riêng: cột "Ngày" = ngày bắt đầu tồn kho. Trùng (đơn vị, mã HĐ, chủng
+                # loại, ngày bắt đầu) thì cập nhật lại chính hợp đồng đó, không tạo bản sao.
+                for r in pick("signed_undelivered"):
+                    try:
+                        _upsert_contract(r, company, as_of, sccy, username)
+                    except ValueError as exc:
+                        warnings.append(f"{company} {as_of}: {exc}")
                 mat = next((r.get("stock_material") for r in items
                             if r.get("stock_material") is not None), None)
                 if mat is not None:

@@ -26,7 +26,7 @@ _NUM = "#,##0.00"
 _PURCHASE_COLS: list[tuple[str, str, str, str]] = [
     ("latex_wet", "Sản lượng thu mua mủ nước", "cộng dồn", "tấn"),
     ("coagulum", "Sản lượng thu mua mủ chén", "cộng dồn", "tấn"),
-    ("finished_qty", "Sản lượng thu mua thành phẩm", "cộng dồn", "tấn"),
+    ("finished_qty", "Sản lượng thu mua thành phẩm", "cộng dồn các chủng loại", "tấn"),
     ("total_purchase", "Tổng sản lượng thu mua", "= mủ nước + mủ chén", "tấn"),
     ("price_latex_avg", "Giá thu mua mủ nước BQ", "bình quân gia quyền", "đồng/độ TSC"),
     ("price_cup_avg", "Giá thu mua mủ chén BQ", "bình quân gia quyền", "đồng/độ"),
@@ -34,6 +34,7 @@ _PURCHASE_COLS: list[tuple[str, str, str, str]] = [
     ("plan_tonnes", "Kế hoạch thu mua", "số liệu năm", "tấn"),
     ("pct_plan", "% thực hiện kế hoạch", "= thực hiện / kế hoạch", "%"),
     ("consumption", "Sản lượng tiêu thụ mủ thu mua", "cộng dồn", "tấn"),
+    ("finished_sold_qty", "Sản lượng tiêu thụ mủ thành phẩm", "cộng dồn", "tấn"),
     ("revenue_ty", "Doanh thu tiêu thụ mủ thu mua", "cộng dồn", "tỷ đồng"),
     ("avg_sell_price", "Giá bán bình quân", "= doanh thu / sản lượng", "triệu đ/tấn"),
 ]

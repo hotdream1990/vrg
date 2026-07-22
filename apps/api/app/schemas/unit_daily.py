@@ -29,6 +29,27 @@ class PurchasePlanEdit(BaseModel):
     carry_spot_tonnes: float | None = None  # SL tiêu thụ HĐ chuyến năm trước chuyển sang (tấn)
 
 
+class StockContractEdit(BaseModel):
+    """1 hợp đồng đã ký chưa giao — nhập MỘT LẦN, tự nằm trong tồn kho tới hết ngày trước ngày giao.
+
+    `id` trống = thêm mới. Khi xuất kho chỉ cần cập nhật `delivered_date` (ngày giao thực tế).
+    """
+
+    id: int | None = None
+    company: str
+    code: str | None = None                 # mã Hợp đồng / Phụ lục
+    grade: str                              # chủng loại
+    qty: float | None = None                # số lượng (tấn)
+    price: float | None = None              # đơn giá (theo `ccy`)
+    ccy: Literal["VND", "USD"] = "VND"
+    fx: float | None = None                 # tỷ giá USD→VND (khi ccy = USD)
+    start_date: str                         # ngày bắt đầu tồn kho 'YYYY-MM-DD'
+    delivery_date: str | None = None        # lịch giao (dự kiến)
+    delivered_date: str | None = None       # ngày giao THỰC TẾ (trống = chưa giao)
+    file: str | None = None                 # HĐ scan (tên file lưu server)
+    filename: str | None = None
+
+
 class ExcelImportCommit(BaseModel):
     """Ghi các dòng đã XEM TRƯỚC từ file Excel (client gửi lại nguyên danh sách đã đọc)."""
 

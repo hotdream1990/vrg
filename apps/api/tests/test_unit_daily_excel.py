@@ -40,7 +40,9 @@ def _admin() -> dict[str, str]:
 
 # Tiêu đề cột đúng như file mẫu (bộ đọc dò cột THEO TIÊU ĐỀ nên bắt buộc phải có dòng này).
 _PURCHASE_HEAD = ["Đơn vị", "Ngày", "SL thu mua mủ nước", "SL thu mua mủ chén",
-                  "Đơn giá mủ nước", "Đơn giá mủ chén", "SL tiêu thụ mủ thu mua", "Doanh thu"]
+                  "Đơn giá mủ nước", "Đơn giá mủ chén", "Đơn giá mủ chén tính theo",
+                  "Chủng loại thành phẩm", "SL thu mua thành phẩm", "Đơn giá thành phẩm",
+                  "Đơn giá thành phẩm bằng"]
 
 
 def _rows_to_xlsx(sheet: str, head: list[str], rows: list[tuple], header_row: int = 5) -> bytes:
@@ -80,7 +82,7 @@ def test_excel_import_single_unit_and_permission() -> None:
 
     # 2) Nhập file không có cột 'Đơn vị' → server tự gán đơn vị của tài khoản.
     data = _rows_to_xlsx("Thu mua", _PURCHASE_HEAD[1:],   # mẫu 1 đơn vị: bỏ cột "Đơn vị"
-                          [(today, 12.5, 4.5, 500, 450, 9, 0.4)])
+                          [(today, 12.5, 4.5, 500, 450, None, "SVR CV 50", 9, 40.5, "VND")])
     prev = client.post("/api/member/import/preview?kind=purchase", headers=mh,
                        files={"file": ("f.xlsx", data)}).json()
     assert prev["summary"] == {"total": 1, "ok": 1, "error": 0}
@@ -93,7 +95,7 @@ def test_excel_import_single_unit_and_permission() -> None:
     ws2 = load_workbook(io.BytesIO(admin_tpl.content))["Thu mua"]
     assert ws2.cell(row=5, column=1).value == "Đơn vị"      # mẫu chuyên viên vẫn có cột này
     bad = _rows_to_xlsx("Thu mua", _PURCHASE_HEAD,
-                         [(OTHER, today, 99, 99, 900, 900, 99, 9.9)])
+                         [(OTHER, today, 99, 99, 900, 900, None, "SVR 3L", 99, 9.9, "VND")])
     prev2 = client.post("/api/member/import/preview?kind=purchase", headers=mh,
                         files={"file": ("f.xlsx", bad)}).json()
     assert prev2["rows"][0]["_errors"], "phải báo lỗi đơn vị ngoài quyền"
@@ -127,17 +129,25 @@ def test_template_download_then_import_roundtrip() -> None:
     client.post("/api/member-units", json={"name": unit}, headers=h)
     d = date.today() - timedelta(days=2)
     dmy, iso = d.strftime("%d/%m/%Y"), d.isoformat()
+    later = (d + timedelta(days=20)).strftime("%d/%m/%Y")   # lịch giao — phải SAU ngày bắt đầu
 
     cases = {
-        "purchase": [(unit, dmy, 120.0, 50.0, 540, 510, "Độ DRC", 90, 4.3)],
+        # Thu mua thành phẩm theo CHỦNG LOẠI: 2 dòng cho cùng (đơn vị, ngày) — số mủ nước/mủ chén
+        # chỉ điền ở dòng đầu, dòng sau để trống (đúng cách hướng dẫn trong file mẫu).
+        "purchase": [(unit, dmy, 120.0, 50.0, 540, 510, "Độ DRC", "SVR CV 50", 30, 41.2, "VND"),
+                     (unit, dmy, None, None, None, None, None, "SVR 3L", 20, 1800, "USD")],
         # Cột "Nguồn mủ" tách mủ thu mua / mủ khai thác thành 2 bảng lưu riêng.
-        "sales": [(unit, dmy, "Mủ thu mua", "Dài hạn", "XK / UTXK", "SVR CV 50",
+        # Cột "Mã HĐ/PL" = số hợp đồng / phụ lục của dòng bán (và của dòng tồn kho đã ký HĐ).
+        "sales": [(unit, dmy, "HĐ-01/2026", "Mủ thu mua", "Dài hạn", "XK / UTXK", "SVR CV 50",
                    25, 1800, "USD", dmy, dmy),
-                  (unit, dmy, "Mủ khai thác", "Chuyến", "Nội tiêu", "SVR 3L",
+                  (unit, dmy, "PL-02/2026", "Mủ khai thác", "Chuyến", "Nội tiêu", "SVR 3L",
                    10, 1700, "USD", dmy, dmy)],
-        "stock": [(unit, dmy, "Chế biến chưa nhập kho", "SVR CV 50", 33, None, None, None, None),
-                  (unit, dmy, "Đã nhập kho", "SVR 3L", 66, None, None, None, None),
-                  (unit, dmy, "Đã ký HĐ", "RSS 3", 12, 1750, "USD", dmy, 21)],
+        # Nhóm "Đã ký HĐ": cột Ngày = ngày BẮT ĐẦU tồn kho, thêm cột Lịch giao + Ngày giao.
+        "stock": [(unit, dmy, "Chế biến chưa nhập kho", "SVR CV 50", None, 33,
+                   None, None, None, None, None),
+                  (unit, dmy, "Đã nhập kho", "SVR 3L", None, 66, None, None, None, None, None),
+                  (unit, dmy, "Đã ký HĐ", "RSS 3", "HĐ-03/2026", 12, 1750, "USD",
+                   later, None, 21)],
     }
     for kind, rows in cases.items():
         tpl = client.get(f"/api/unit-daily/import/template?kind={kind}", headers=h)
@@ -159,31 +169,43 @@ def test_template_download_then_import_roundtrip() -> None:
     pur = client.get(f"/api/unit-daily/day?kind=purchase&as_of={iso}",
                      headers=h).json()["entries"][unit]["fields"]
     assert pur["cup_basis"] == "drc" and pur["latex_wet"] == 120.0
+    # Nhiều dòng thành phẩm của cùng 1 ngày phải gom vào MẢNG, không đè lẫn nhau.
+    assert [(r["grade"], r["qty"], r["ccy"]) for r in pur["finished"]] == [
+        ("SVR CV 50", 30, "VND"), ("SVR 3L", 20, "USD")]
 
     con = client.get(f"/api/unit-daily/day?kind=consumption&as_of={iso}",
                      headers=h).json()["entries"][unit]["fields"]
     assert con["sales_ccy"] == "USD" and con["sales"][0]["invoice_date"] == iso
     assert con["sales"][0]["warehouse_date"] == iso
+    # Mã HĐ/PL đi theo TỪNG DÒNG (cả bảng tiêu thụ lẫn khối tồn kho đã ký HĐ).
+    assert con["sales"][0]["code"] == "HĐ-01/2026"
     # Loại tiền phải xuống TỪNG DÒNG, không thì web tính lại doanh thu ra số khác.
     assert con["sales"][0]["ccy"] == "USD"
     # Dòng "Mủ khai thác" vào bảng riêng, không lẫn với mủ thu mua.
     assert len(con["sales"]) == 1 and len(con["sales_own"]) == 1
     own = con["sales_own"][0]
     assert own["qty"] == 10 and own["contract"] == "spot" and own["channel"] == "domestic"
+    assert own["code"] == "PL-02/2026"
     assert con["stock_ccy"] == "USD"
     assert con["stock_not_warehoused"][0]["qty"] == 33
     assert con["stock_warehoused"][0]["qty"] == 66
-    assert con["stock_signed_undelivered"][0]["qty"] == 12
     assert con["stock_material"] == 21
+    # Nhóm "Đã ký HĐ" nhập từ Excel thành HỢP ĐỒNG có vòng đời — báo cáo ngày tự hiển thị lại.
+    assert con["stock_signed_undelivered"][0]["qty"] == 12
+    assert con["stock_signed_undelivered"][0]["code"] == "HĐ-03/2026"
+    ctr = client.get("/api/unit-daily/stock-contracts", headers=h).json()["contracts"]
+    mine = [c for c in ctr if c["company"] == unit]
+    assert len(mine) == 1 and mine[0]["start_date"] == iso and mine[0]["delivered_date"] is None
 
     with session_scope() as db:
+        db.execute(text("DELETE FROM unit_stock_contract WHERE company = :u"), {"u": unit})
         db.execute(text("DELETE FROM unit_daily_report WHERE company = :u"), {"u": unit})
         db.execute(text("DELETE FROM fact_price WHERE source='vrg' AND grade = :u"), {"u": unit})
     client.delete(f"/api/member-units/{unit}", headers=h)
 
 
 def test_sales_import_old_file_without_source_column() -> None:
-    """File mẫu CŨ (chưa có cột 'Nguồn mủ') vẫn nhập được — mọi dòng vào bảng mủ thu mua.
+    """File mẫu CŨ (chưa có cột 'Nguồn mủ' và 'Mã HĐ/PL') vẫn nhập được — mọi dòng vào bảng mủ thu mua.
 
     Bộ đọc dò cột theo TIÊU ĐỀ nên thiếu cột không phải là lỗi; giữ đúng cách hiểu trước đây
     để đơn vị đang dùng file cũ không bị gãy.
@@ -198,9 +220,12 @@ def test_sales_import_old_file_without_source_column() -> None:
     tpl = client.get("/api/unit-daily/import/template?kind=sales", headers=h)
     wb = load_workbook(io.BytesIO(tpl.content))
     ws = wb.active
-    src = next(i for i in range(1, ws.max_column + 1)
-               if str(ws.cell(row=5, column=i).value or "").strip() == "Nguồn mủ")
-    ws.delete_cols(src)                                   # dựng lại đúng file mẫu đời trước
+    # Dựng lại đúng file mẫu đời trước: bỏ các cột thêm sau này (dò lại vị trí theo TIÊU ĐỀ
+    # sau mỗi lần xoá, vì xoá cột làm các cột sau dịch chỗ).
+    for title in ("Nguồn mủ", "Mã HĐ/PL"):
+        col = next(i for i in range(1, ws.max_column + 1)
+                   if str(ws.cell(row=5, column=i).value or "").strip() == title)
+        ws.delete_cols(col)
     for j, v in enumerate((unit, dmy, "Dài hạn", "XK / UTXK", "SVR CV 50", 25, 40, "VND"), start=1):
         ws.cell(row=7, column=j, value=v)
     buf = io.BytesIO()
@@ -215,6 +240,7 @@ def test_sales_import_old_file_without_source_column() -> None:
     con = client.get(f"/api/unit-daily/day?kind=consumption&as_of={iso}",
                      headers=h).json()["entries"][unit]["fields"]
     assert len(con["sales"]) == 1 and con["sales"][0]["qty"] == 25
+    assert con["sales"][0]["code"] is None                # file cũ không có cột mã HĐ → để trống
     assert con["sales_own"] == []
     assert con["revenue"] == 25 * 40 * 1_000_000          # 25 tấn × 40 triệu đ/tấn
 
@@ -240,8 +266,10 @@ def test_sales_import_giu_loai_tien_theo_TUNG_DONG() -> None:
     wb = load_workbook(io.BytesIO(tpl.content))
     ws = wb.active
     rows = [
-        (unit, dmy, "Mủ thu mua", "Dài hạn", "XK / UTXK", "SVR CV 50", 25, 1800, "USD", dmy, dmy),
-        (unit, dmy, "Mủ khai thác", "Chuyến", "Nội tiêu", "SVR 3L", 10, 40, "VND", dmy, dmy),
+        (unit, dmy, "HĐ-USD", "Mủ thu mua", "Dài hạn", "XK / UTXK", "SVR CV 50",
+         25, 1800, "USD", dmy, dmy),
+        (unit, dmy, "HĐ-VND", "Mủ khai thác", "Chuyến", "Nội tiêu", "SVR 3L",
+         10, 40, "VND", dmy, dmy),
     ]
     for i, r in enumerate(rows, start=7):
         for j, v in enumerate(r, start=1):

@@ -44,6 +44,41 @@ def has_entry(kind: str, as_of: str, company: str) -> bool:
     return bool(row)
 
 
+def _attach_contracts(entries: dict[str, dict[str, Any]], as_of: str, create_missing: bool) -> None:
+    """Gắn khối 3 (tồn kho ĐÃ KÝ HĐ) — số TỰ TÍNH từ bảng hợp đồng, KHÔNG lưu trong payload ngày.
+
+    Hợp đồng nhập 1 lần và tự nằm trong tồn kho từ ngày bắt đầu đến hết ngày trước ngày giao
+    (xem `unit_stock_contract_repo`). `create_missing`=True: đơn vị chỉ có hợp đồng, chưa nhập số
+    liệu ngày đó vẫn hiện ra (dùng cho màn nhập/lưới theo ngày).
+    """
+    from app.services import unit_stock_contract_repo
+
+    by_company = unit_stock_contract_repo.active_on(as_of)
+    for company, rows in by_company.items():
+        e = entries.get(company)
+        if e is None:
+            if not create_missing:
+                continue
+            e = entries[company] = {"fields": {}, "updated_at": None, "updated_by": None}
+        e["fields"]["stock_signed_undelivered"] = rows
+    for e in entries.values():
+        e["fields"].setdefault("stock_signed_undelivered", [])
+
+
+def _attach_contracts_to_list(items: list[dict[str, Any]], kind: str) -> None:
+    """Như `_attach_contracts` nhưng cho danh sách bản ghi nhiều ngày (timeline / báo cáo kỳ)."""
+    if kind != "consumption" or not items:
+        return
+    from app.services import unit_stock_contract_repo
+
+    cache: dict[str, dict[str, list[dict[str, Any]]]] = {}
+    for it in items:
+        d = it["as_of"]
+        if d not in cache:
+            cache[d] = unit_stock_contract_repo.active_on(d)
+        it["fields"]["stock_signed_undelivered"] = cache[d].get(it["company"], [])
+
+
 def entries_on(kind: str, as_of: str) -> dict[str, dict[str, Any]]:
     """Số liệu mọi đơn vị cho 1 ngày → {company: {fields, updated_at, updated_by}}."""
     ensure_schema()
@@ -53,9 +88,12 @@ def entries_on(kind: str, as_of: str) -> dict[str, dict[str, Any]]:
                  "WHERE kind = :k AND as_of = :d"),
             {"k": kind, "d": as_of},
         ).mappings().all()
-    return {r["company"]: {"fields": dict(r["payload"] or {}),
-                           "updated_at": str(r["updated_at"]), "updated_by": r["updated_by"]}
-            for r in rows}
+    entries = {r["company"]: {"fields": dict(r["payload"] or {}),
+                              "updated_at": str(r["updated_at"]), "updated_by": r["updated_by"]}
+               for r in rows}
+    if kind == "consumption":
+        _attach_contracts(entries, as_of, create_missing=True)
+    return entries
 
 
 def recent(kind: str, date_from: str, companies: list[str] | None = None) -> list[dict[str, Any]]:
@@ -70,9 +108,11 @@ def recent(kind: str, date_from: str, companies: list[str] | None = None) -> lis
             {"k": kind, "d": date_from},
         ).mappings().all()
     keep = set(companies) if companies is not None else None
-    return [{"as_of": str(r["as_of"]), "company": r["company"], "fields": dict(r["payload"] or {}),
-             "updated_at": str(r["updated_at"]), "updated_by": r["updated_by"]}
-            for r in rows if keep is None or r["company"] in keep]
+    out = [{"as_of": str(r["as_of"]), "company": r["company"], "fields": dict(r["payload"] or {}),
+            "updated_at": str(r["updated_at"]), "updated_by": r["updated_by"]}
+           for r in rows if keep is None or r["company"] in keep]
+    _attach_contracts_to_list(out, kind)
+    return out
 
 
 def in_range(kind: str, date_from: str, date_to: str,
@@ -87,16 +127,19 @@ def in_range(kind: str, date_from: str, date_to: str,
             {"k": kind, "a": date_from, "b": date_to},
         ).mappings().all()
     keep = set(companies) if companies is not None else None
-    return [{"as_of": str(r["as_of"]), "company": r["company"], "fields": dict(r["payload"] or {})}
-            for r in rows if keep is None or r["company"] in keep]
+    out = [{"as_of": str(r["as_of"]), "company": r["company"], "fields": dict(r["payload"] or {})}
+           for r in rows if keep is None or r["company"] in keep]
+    _attach_contracts_to_list(out, kind)
+    return out
 
 
 def prev_stock(company: str, before: str) -> dict[str, Any] | None:
     """Tồn kho của ngày GẦN NHẤT TRƯỚC `before` cho 1 đơn vị (cho nút 'Lấy tồn ngày trước').
 
     Tồn kho là chỉ tiêu THỜI ĐIỂM: ngày mới thường gần giống ngày trước, nên cho phép chép sang
-    rồi sửa. Chỉ trả 3 khối tồn kho — KHÔNG kèm dòng bán (tiêu thụ là số phát sinh trong ngày,
-    chép sang sẽ thành khai khống).
+    rồi sửa. Chỉ trả 2 khối nhập tay + ô nguyên liệu — KHÔNG kèm dòng bán (tiêu thụ là số phát
+    sinh trong ngày, chép sang sẽ thành khai khống) và KHÔNG kèm khối 3 (hợp đồng đã ký tự nối
+    sang ngày mới theo vòng đời của nó, chép lại sẽ thành nhân đôi).
     """
     ensure_schema()
     with session_scope() as db:
@@ -112,12 +155,11 @@ def prev_stock(company: str, before: str) -> dict[str, Any] | None:
     stock = {
         "stock_not_warehoused": f.get("stock_not_warehoused") or [],
         "stock_warehoused": f.get("stock_warehoused") or [],
-        "stock_signed_undelivered": f.get("stock_signed_undelivered") or [],
         "stock_material": f.get("stock_material"),
         "stock_ccy": f.get("stock_ccy"),
     }
     if not any([stock["stock_not_warehoused"], stock["stock_warehoused"],
-                stock["stock_signed_undelivered"], stock["stock_material"] is not None]):
+                stock["stock_material"] is not None]):
         return None
     return {"as_of": str(row["as_of"]), **stock}
 

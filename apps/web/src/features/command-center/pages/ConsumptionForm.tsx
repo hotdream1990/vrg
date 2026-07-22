@@ -1,29 +1,31 @@
 /* Form nhập biểu TIÊU THỤ – TỒN KHO.
    - TIÊU THỤ = 2 bảng nhiều dòng nhập TÁCH RIÊNG (mủ THU MUA `sales` · mủ KHAI THÁC `sales_own`)
      để lưu trữ riêng, còn phần Tổng hợp thì CỘNG CHUNG cả hai. Mỗi bản ghi trải 2 hàng: hàng trên
-     là số liệu bán (loại HĐ · hình thức · loại mủ · SL · giá bán → doanh thu tự tính), hàng dưới là
-     chứng từ (ngày xuất kho · ngày xuất hoá đơn · bộ HĐ · phiếu xuất kho · hoá đơn).
+     là số liệu bán (mã HĐ/PL · loại HĐ · hình thức · loại mủ · SL · giá bán → doanh thu tự tính),
+     hàng dưới là chứng từ (ngày xuất kho · ngày xuất hoá đơn · bộ HĐ · phiếu xuất kho · hoá đơn).
    - TỒN KHO (số THỜI ĐIỂM cuối ngày, đơn vị TẤN — mẫu tuần mục 11–14): chưa HĐ = bảng (chủng loại ·
-     SL tấn); đã HĐ = bảng (chủng loại · tấn · đơn giá · lịch giao · file HĐ); mục 14 = tồn kho nguyên
-     liệu chưa có HĐ (tấn), nhập chung cho mọi đơn vị.
+     SL tấn); đã HĐ = bảng (chủng loại · mã HĐ/PL · tấn · đơn giá · lịch giao · file HĐ); mục 14 =
+     tồn kho nguyên liệu chưa có HĐ (tấn), nhập chung cho mọi đơn vị.
    - Giá bán (tiêu thụ) và đơn giá (tồn kho đã HĐ) cho CHỌN VND hay USD; chọn USD thì nhập tỷ giá
      USD→VND (nút lấy VCB) — tỷ giá dùng chung cho cả 2 khối. Tiền lưu BASE = đồng.
    - Tồn kho KHÔNG cộng dồn giữa các ngày; có nút "Lấy tồn ngày trước" để chép sang rồi sửa. */
 
 import { DeleteOutlined, PlusOutlined, UploadOutlined } from "@ant-design/icons";
-import { Select, Tabs, Upload, message } from "antd";
+import { Input, Select, Tabs, Upload, message } from "antd";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
 import { fetchVcbRate } from "../../../lib/market-quote-client";
 import {
-  type PriceDraft, type Role, fetchPrevStock, openContractFile, uploadContractFile,
+  type PriceDraft, type Role, type StockContract, fetchPrevStock, openContractFile,
+  uploadContractFile,
 } from "../../../lib/unit-daily-client";
 import {
   CCYS, CHANNELS, CONTRACTS, GRADES, SALE_DATES, SALE_DOCS, type Ccy, type ConsumptionData,
-  type SaleLine, type StockQtyLine, type StockSignedLine, emptySaleLine, lineRevenueVnd,
+  type SaleLine, type StockQtyLine, emptySaleLine, lineRevenueVnd,
   stockTonnesTotal, toTyDong, totals,
 } from "../../../lib/unit-daily-consumption";
 import { type Values, fmtNum } from "../../../lib/unit-daily-fields";
+import StockContractTable from "./StockContractTable";
 import { fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
 
 const NO_PRICES: PriceDraft = { latex: null, cup: null };
@@ -59,7 +61,6 @@ function initData(values: Values, currency?: string): ConsumptionData {
     fx_revenue: v.fx_revenue ?? null,
     stock_not_warehoused: Array.isArray(v.stock_not_warehoused) ? v.stock_not_warehoused.map((r) => ({ ...r })) : [],
     stock_warehoused: Array.isArray(v.stock_warehoused) ? v.stock_warehoused.map((r) => ({ ...r })) : [],
-    stock_signed_undelivered: Array.isArray(v.stock_signed_undelivered) ? v.stock_signed_undelivered.map((r) => ({ ...r })) : [],
     stock_material: v.stock_material ?? null,
   };
 }
@@ -79,30 +80,31 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
   const salesOwn = (data.sales_own ?? []) as SaleLine[];                  // tiêu thụ mủ KHAI THÁC
   const notWh = (data.stock_not_warehoused ?? []) as StockQtyLine[];      // 1 chế biến chưa nhập kho
   const wh = (data.stock_warehoused ?? []) as StockQtyLine[];             // 2 đã nhập kho
-  const signed = (data.stock_signed_undelivered ?? []) as StockSignedLine[]; // 3 đã ký HĐ chưa giao
+  // 3 đã ký HĐ chưa giao — KHÔNG nằm trong payload ngày nữa (bản ghi có vòng đời riêng, lưu qua
+  // API hợp đồng). Bảng con báo số lên đây để tính phần Tổng hợp tồn kho.
+  const [signed, setSignedRows] = useState<StockContract[]>([]);
+  const live = Boolean(company && day && !readOnly);
 
   const setSales = (next: SaleLine[]) => setData((d) => ({ ...d, sales: next }));
   const setSalesOwn = (next: SaleLine[]) => setData((d) => ({ ...d, sales_own: next }));
   const setNotWh = (next: StockQtyLine[]) => setData((d) => ({ ...d, stock_not_warehoused: next }));
   const setWh = (next: StockQtyLine[]) => setData((d) => ({ ...d, stock_warehoused: next }));
-  const setSigned = (next: StockSignedLine[]) => setData((d) => ({ ...d, stock_signed_undelivered: next }));
 
   // Nhập tách riêng 2 bảng nhưng phần Tổng hợp (SL · doanh thu · giá BQ) là số GỘP CHUNG.
   const agg = totals([...sales, ...salesOwn]);
 
-  /** Giá trị 1 dòng tồn kho đã có HĐ, quy về đồng (USD cần tỷ giá; thiếu tỷ giá → null, không đoán). */
-  const stockLineVnd = (r: StockSignedLine): number | null => lineRevenueVnd(r);
-  const stockValueVnd = signed.reduce((a, r) => a + (stockLineVnd(r) ?? 0), 0);
+  /** Giá trị hợp đồng đã ký, quy về đồng (USD cần tỷ giá; thiếu tỷ giá → không cộng, không đoán). */
+  const stockValueVnd = signed.reduce((a, r) => a + (lineRevenueVnd(r) ?? 0), 0);
 
   const current = useMemo<Values>(() => {
     const p: ConsumptionData = {
       sales, sales_own: salesOwn, revenue: agg.revenueVnd, sales_ccy: salesCcy, stock_ccy: stockCcy,
-      stock_not_warehoused: notWh, stock_warehoused: wh, stock_signed_undelivered: signed,
+      stock_not_warehoused: notWh, stock_warehoused: wh,
     };
     if (needFx) p.fx_revenue = data.fx_revenue ?? null;
     p.stock_material = data.stock_material ?? null;   // khối 4 — mọi đơn vị đều nhập được
     return p as unknown as Values;
-  }, [sales, salesOwn, agg.revenueVnd, notWh, wh, signed, salesCcy, stockCcy, needFx, data]);
+  }, [sales, salesOwn, agg.revenueVnd, notWh, wh, salesCcy, stockCcy, needFx, data]);
 
   const orig = useMemo(() => initData(values, currency), [values, currency]);
   const dirty = useMemo(() => JSON.stringify(data) !== JSON.stringify(orig), [data, orig]);
@@ -121,7 +123,6 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
         ...d,
         sales: fill((d.sales ?? []) as SaleLine[]),
         sales_own: fill((d.sales_own ?? []) as SaleLine[]),
-        stock_signed_undelivered: fill((d.stock_signed_undelivered ?? []) as StockSignedLine[]),
       }));
       message.success(`Đã điền tỷ giá USD/VND (VCB ${r.date}): ${fmtNum(rate, 0)} cho các dòng USD.`);
     } catch (e) { message.error((e as Error).message || "Không lấy được tỷ giá VCB."); }
@@ -139,7 +140,6 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
         ...d,
         stock_not_warehoused: (r.stock_not_warehoused ?? []).map((x) => ({ ...x })),
         stock_warehoused: (r.stock_warehoused ?? []).map((x) => ({ ...x })),
-        stock_signed_undelivered: (r.stock_signed_undelivered ?? []).map((x) => ({ ...x })),
         stock_material: r.stock_material ?? null,
         stock_ccy: r.stock_ccy ?? d.stock_ccy,
       }));
@@ -192,6 +192,12 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
   /** Ô nhập số NẰM TRONG BẢNG — luôn size "small" để cao bằng Select/nút cùng dòng (24px). */
   const cellNum = (v: number | null, on: (v: number | null) => void) => numInput(v, on, readOnly, "small");
 
+  /** Ô nhập CHỮ trong bảng (mã HĐ/PL) — cùng size "small" cho thẳng hàng với các ô khác. */
+  const cellText = (v: string | null | undefined, on: (v: string | null) => void, ph: string) => (
+    <Input size="small" style={sel} value={v ?? ""} placeholder={ph} disabled={readOnly}
+      onChange={(e) => on(e.target.value || null)} />
+  );
+
   /** Ô chọn loại tiền NGAY TRONG DÒNG + ô tỷ giá đi kèm (chỉ hiện khi dòng đó chọn USD). */
   const rowCcy = (v: Ccy | undefined, on: (c: Ccy) => void) => (
     <Select size="small" style={sel} value={v ?? "VND"} disabled={readOnly} onChange={on} options={CCYS} />
@@ -215,7 +221,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       Mỗi bản ghi trải 2 HÀNG vì số liệu nhiều: hàng 1 = số bán, hàng 2 = chứng từ (2 ngày + 3 file). */
   const salesTable = (id: "sales" | "sales_own", rows: SaleLine[], setRows: (n: SaleLine[]) => void) => {
     const patch = (i: number, p: Partial<SaleLine>) => setRows(rows.map((l, j) => (j === i ? { ...l, ...p } : l)));
-    const cols = readOnly ? 8 : 9;
+    const cols = readOnly ? 9 : 10;
     return (
       <>
         <div style={{ overflowX: "auto" }}>
@@ -225,15 +231,17 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
                 % chọn sao cho ở đúng ngưỡng min-width nhãn dài nhất của từng cột vẫn đủ chỗ
                 ("SVR 10 / CSR 20" 96px · "XK / UTXK" 62px — cộng ~44px khung chọn + lề ô). */}
             <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
-              <th style={{ width: "11%" }}>Loại HĐ</th><th style={{ width: "13%" }}>Hình thức</th><th style={{ width: "17%" }}>Loại mủ</th>
-              <th style={{ width: "9.5%" }} className="r">SL (tấn)</th><th style={{ width: "10.5%" }} className="r">Giá bán</th>
-              <th style={{ width: "8.5%" }}>Tiền</th><th style={{ width: "10%" }} className="r">Tỷ giá</th>
-              <th style={{ width: "14.5%" }} className="r">Doanh thu (triệu đ)</th>{!readOnly && <th style={{ width: "6%" }} />}
+              <th style={{ width: "13%" }}>Mã HĐ/PL</th>
+              <th style={{ width: "10%" }}>Loại HĐ</th><th style={{ width: "11.5%" }}>Hình thức</th><th style={{ width: "14.5%" }}>Loại mủ</th>
+              <th style={{ width: "8.5%" }} className="r">SL (tấn)</th><th style={{ width: "9.5%" }} className="r">Giá bán</th>
+              <th style={{ width: "7.5%" }}>Tiền</th><th style={{ width: "8.5%" }} className="r">Tỷ giá</th>
+              <th style={{ width: "11%" }} className="r">Doanh thu (triệu đ)</th>{!readOnly && <th style={{ width: "6%" }} />}
             </tr></thead>
             <tbody>
               {rows.map((ln, i) => (
                 <Fragment key={i}>
                   <tr>
+                    <td>{cellText(ln.code, (v) => patch(i, { code: v }), "Số HĐ/PL")}</td>
                     <td><Select size="small" style={sel} value={ln.contract} disabled={readOnly} onChange={(v) => patch(i, { contract: v })} options={CONTRACTS} /></td>
                     <td><Select size="small" style={sel} value={ln.channel} disabled={readOnly} onChange={(v) => patch(i, { channel: v })} options={CHANNELS} /></td>
                     <td>{gradeSel(ln.grade, (v) => patch(i, { grade: v }))}</td>
@@ -299,6 +307,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
         </div>
       )}
       <div className="form-note" style={{ fontSize: 11.5, marginTop: 10 }}>
+        Mã HĐ/PL là số hợp đồng / phụ lục ghi trên chứng từ của dòng bán đó.
         Mủ thu mua và mủ khai thác nhập ở 2 bảng riêng để lưu trữ tách bạch — phần Tổng hợp bên dưới
         cộng chung cả hai. Mỗi dòng chọn loại tiền riêng: trong ngày vừa bán USD vừa bán VNĐ vẫn nhập
         chung một phiếu; dòng nào chọn USD thì nhập tỷ giá ngay ở dòng đó
@@ -370,40 +379,15 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
 
       {head("3. Số lượng đã ký hợp đồng")}
       <div className="form-note" style={{ fontSize: 11.5, marginBottom: 6 }}>
-        Đính kèm bản Hợp đồng đã ký scan có đóng dấu cho từng dòng (PDF hoặc ảnh).
+        Khối này <b>KHÔNG nhập lại mỗi ngày</b>: mỗi hợp đồng nhập <b>một lần</b> kèm bản HĐ đã ký
+        scan có đóng dấu (PDF hoặc ảnh), hệ thống tự tính vào tồn kho từ <b>ngày bắt đầu tồn kho</b>
+        {" "}đến <b>hết ngày trước Ngày giao</b>. Khi đã xuất kho thì chỉ cần điền <b>Ngày giao</b>.
+        Ngày bắt đầu phải <b>trước Ngày giao (và Lịch giao) ít nhất 1 ngày</b>.
+        {live && " Mỗi dòng lưu riêng bằng nút lưu ở cuối dòng, không đi kèm nút Lưu số liệu bên dưới."}
       </div>
-      <div style={{ overflowX: "auto" }}>
-        <table className="ud-sales">
-          <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
-            <th style={{ width: "15.5%" }}>Chủng loại</th><th style={{ width: "10.5%" }} className="r">SL (tấn)</th>
-            <th style={{ width: "10.5%" }} className="r">Đơn giá</th>
-            <th style={{ width: "8.5%" }}>Tiền</th><th style={{ width: "10%" }} className="r">Tỷ giá</th>
-            <th style={{ width: "11.5%" }} className="r">Thành tiền (triệu đ)</th><th style={{ width: "13.5%" }}>Lịch giao</th>
-            <th style={{ width: "14%" }}>HĐ đã ký (scan)</th>{!readOnly && <th style={{ width: "6%" }} />}
-          </tr></thead>
-          <tbody>
-            {signed.map((r, i) => (
-              <tr key={i}>
-                <td>{gradeSel(r.grade, (v) => setSigned(signed.map((x, j) => j === i ? { ...x, grade: v } : x)))}</td>
-                <td>{cellNum(num(r.qty), (v) => setSigned(signed.map((x, j) => j === i ? { ...x, qty: v } : x)))}</td>
-                <td>{cellNum(num(r.price), (v) => setSigned(signed.map((x, j) => j === i ? { ...x, price: v } : x)))}</td>
-                <td>{rowCcy(r.ccy, (v) => setSigned(signed.map((x, j) => j === i ? { ...x, ccy: v } : x)))}</td>
-                <td>{rowFx(r, (v) => setSigned(signed.map((x, j) => j === i ? { ...x, fx: v } : x)))}</td>
-                <td className="r" style={{ paddingRight: 6, fontWeight: 600, whiteSpace: "nowrap" }}>
-                  {(() => { const vnd = stockLineVnd(r); return fmtNum(vnd == null ? null : vnd / 1_000_000, 1); })()}
-                </td>
-                <td><input type="date" className="blt-cell-input" style={{ width: "100%" }} value={r.delivery_date ?? ""} disabled={readOnly}
-                  onChange={(e) => setSigned(signed.map((x, j) => j === i ? { ...x, delivery_date: e.target.value || null } : x))} /></td>
-                <td>{fileCell(`signed:${i}`, r, (v) => setSigned(signed.map((x, j) => j === i ? { ...x, ...v } : x)))}</td>
-                {!readOnly && <td className="r"><button type="button" className="btn" style={{ padding: "0 7px" }} onClick={() => setSigned(signed.filter((_, j) => j !== i))}><DeleteOutlined /></button></td>}
-              </tr>
-            ))}
-            {signed.length === 0 && <tr><td colSpan={readOnly ? 8 : 9} style={{ textAlign: "center", color: "var(--muted)", padding: 12, fontSize: 12.5 }}>Chưa có dòng.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-      {!readOnly && <button type="button" className="btn" style={{ marginTop: 8, fontSize: 12 }}
-        onClick={() => setSigned([...signed, { grade: GRADES[0], qty: null, price: null, delivery_date: null, file: null, filename: null }])}><PlusOutlined /> Thêm dòng</button>}
+      <StockContractTable role={role} company={company} day={day} readOnly={readOnly}
+        fallback={(values as unknown as ConsumptionData).stock_signed_undelivered as StockContract[] | undefined}
+        onRows={setSignedRows} />
 
 
       {/* Khối 4 — nhập chung cho MỌI đơn vị; đơn vị nào không có số thì để trống. */}

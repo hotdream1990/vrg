@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.core.market_meta import UNIT_STOCK_GRADES
-from app.services import member_unit_repo, price_repo, unit_daily_repo
+from app.services import member_unit_repo, price_repo, unit_daily_repo, unit_stock_contract_repo
 from app.services.unit_daily_fields import SALE_TABLES
 
 TY = 1_000_000_000      # 1 tỷ đồng
@@ -68,6 +68,9 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
         f = e["fields"]
         _add(acc, "latex_wet", f.get("latex_wet"))
         _add(acc, "coagulum", f.get("coagulum"))
+        # Thu mua thành phẩm nhập theo CHỦNG LOẠI (bảng nhiều dòng) → cộng số lượng các dòng.
+        for ln in f.get("finished") or []:
+            _add(acc, "finished_qty", ln.get("qty"))
 
         if f.get("no_purchase") is True:
             no_days += 1
@@ -83,7 +86,7 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
         f = e["fields"]
         _add(acc, "consumption", f.get("purchased_sold_qty"))
         _add(acc, "revenue", f.get("purchased_sold_revenue"))
-        _add(acc, "finished_qty", f.get("finished_sold_qty"))
+        _add(acc, "finished_sold_qty", f.get("finished_sold_qty"))
 
     total = acc.get("latex_wet", 0.0) + acc.get("coagulum", 0.0)
     revenue = acc.get("revenue")
@@ -92,6 +95,10 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
     return {
         "latex_wet": acc.get("latex_wet"),
         "coagulum": acc.get("coagulum"),
+        # Thu mua thành phẩm (biểu Thu mua) và tiêu thụ thành phẩm (biểu Tiêu thụ) là HAI chỉ tiêu
+        # khác nhau — trước đây cột "thu mua thành phẩm" lấy nhầm số tiêu thụ và không được trả về.
+        "finished_qty": acc.get("finished_qty"),
+        "finished_sold_qty": acc.get("finished_sold_qty"),
         "total_purchase": total or None,
         "price_latex_avg": _ratio(wsum["latex"], wqty["latex"]),   # đồng/độ TSC
         "price_cup_avg": _ratio(wsum["cup"], wqty["cup"]),
@@ -106,7 +113,7 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
 
 
 # ── Biểu (1): Tiêu thụ – Tồn kho ───────────────────────────────────────────────
-def _consumption_rows(entries: list[dict], plan: dict) -> dict[str, Any]:
+def _consumption_rows(entries: list[dict], plan: dict, signed: list[dict] | None = None) -> dict[str, Any]:
     acc: dict[str, float] = {}
     for e in entries:
         f = e["fields"]
@@ -127,7 +134,9 @@ def _consumption_rows(entries: list[dict], plan: dict) -> dict[str, Any]:
     tonnes = lambda rows: sum((_num(r.get("qty")) or 0.0) for r in rows)  # noqa: E731
     not_wh = last.get("stock_not_warehoused") or []      # khối 1: chế biến chưa nhập kho
     wh = last.get("stock_warehoused") or []              # khối 2: đã nhập kho
-    signed = last.get("stock_signed_undelivered") or []  # khối 3: đã ký HĐ chưa giao
+    # Khối 3 (đã ký HĐ) là bản ghi có vòng đời riêng → lấy các HĐ CÒN TỒN ở NGÀY CUỐI KỲ,
+    # không phụ thuộc đơn vị có nhập số liệu ngày đó hay không.
+    signed = signed or []
     # Khối 3 là CAM KẾT giao hàng (ký trước, sản xuất sau) — KHÔNG nằm trong tồn kho thành phẩm,
     # nên KHÔNG trừ ra. Mục 11 = mục 13 = khối 1 + khối 2; mục 12 = khối 3 báo riêng.
     by_grade = {g: 0.0 for g in GRADES}
@@ -179,6 +188,9 @@ def period_report(kind: str, date_from: str, date_to: str,
     # Biểu Thu mua cần số tiêu thụ mủ thu mua — nay nằm ở bản ghi 'consumption'.
     sold_by_company = (_by_company(unit_daily_repo.in_range("consumption", date_from, date_to, companies))
                        if kind == "purchase" else {})
+    # Tồn kho đã ký HĐ = chỉ tiêu THỜI ĐIỂM: các hợp đồng còn tồn ở NGÀY CUỐI KỲ.
+    signed_at_close = (unit_stock_contract_repo.active_on(date_to, companies)
+                       if kind == "consumption" else {})
 
     rows = []
     for u in units:
@@ -186,7 +198,8 @@ def period_report(kind: str, date_from: str, date_to: str,
         ent = grouped.get(name, [])
         plan = plans.get(name, {})
         data = (_purchase_rows(ent, prices, plan, sold_by_company.get(name, []))
-                if kind == "purchase" else _consumption_rows(ent, plan))
+                if kind == "purchase"
+                else _consumption_rows(ent, plan, signed_at_close.get(name, [])))
         rows.append({
             "company": name, "region": u.get("region"),
             "days": len(ent), "last_day": max((e["as_of"] for e in ent), default=None),

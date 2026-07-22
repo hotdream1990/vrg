@@ -14,10 +14,12 @@ from fastapi.responses import FileResponse
 
 from app.core import edit_window
 from app.core.security import assert_editor_window, require_cap, require_cap_edit
-from app.schemas.unit_daily import ExcelImportCommit, PurchasePlanEdit, UnitDailyEdit
+from app.schemas.unit_daily import (
+    ExcelImportCommit, PurchasePlanEdit, StockContractEdit, UnitDailyEdit,
+)
 from app.services import (
     contract_files, member_unit_repo, unit_daily_excel_io, unit_daily_repo,
-    unit_period_excel, unit_period_report,
+    unit_period_excel, unit_period_report, unit_stock_contract_repo,
 )
 
 router = APIRouter(prefix="/api/unit-daily", tags=["unit-daily"])
@@ -77,6 +79,40 @@ def day(kind: str = Query(..., pattern="^(purchase|consumption)$"),
         "entries": unit_daily_repo.entries_on(kind, as_of),
         **unit_daily_repo.day_extras(kind, as_of, units),
     }
+
+
+# ── Tồn kho ĐÃ KÝ HỢP ĐỒNG — bản ghi có vòng đời riêng, KHÔNG nhập lại mỗi ngày ──
+@router.get("/stock-contracts")
+def list_stock_contracts(as_of: str | None = Query(None, description="Chỉ HĐ đang tồn ngày này"),
+                         company: str | None = Query(None),
+                         username: str = Depends(_require)) -> dict:
+    """Hợp đồng đã ký: `as_of` → chỉ các HĐ còn nằm trong tồn kho ngày đó; không có → toàn bộ."""
+    if as_of:
+        try:
+            date.fromisoformat(as_of)
+        except ValueError as exc:
+            raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
+    companies = [company] if company else None
+    return {"as_of": as_of,
+            "contracts": unit_stock_contract_repo.list_contracts(companies=companies, as_of=as_of)}
+
+
+@router.put("/stock-contracts")
+def save_stock_contract(body: StockContractEdit, username: str = Depends(_require_edit)) -> dict:
+    """Thêm mới / cập nhật 1 hợp đồng (kể cả điền NGÀY GIAO khi đã xuất kho)."""
+    try:
+        return {"contract": unit_stock_contract_repo.save(
+            body.model_dump(), body.company, username)}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.delete("/stock-contracts/{contract_id}")
+def delete_stock_contract(contract_id: int, username: str = Depends(_require_edit)) -> dict:
+    """Xoá 1 hợp đồng (nhập nhầm)."""
+    if not unit_stock_contract_repo.delete(contract_id, None):
+        raise HTTPException(404, "Không tìm thấy hợp đồng này.")
+    return {"ok": True}
 
 
 @router.get("/prev-stock")

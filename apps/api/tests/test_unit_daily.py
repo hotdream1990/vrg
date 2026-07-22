@@ -38,7 +38,8 @@ def _cleanup(h: dict[str, str], users: list[str], units: list[str]) -> None:
     for u in users:
         client.delete(f"/api/users/{u}", headers=h)
     with session_scope() as db:
-        for tbl, col in (("unit_daily_report", "company"), ("unit_purchase_plan", "company")):
+        for tbl, col in (("unit_daily_report", "company"), ("unit_purchase_plan", "company"),
+                         ("unit_stock_contract", "company")):
             db.execute(text(f"DELETE FROM {tbl} WHERE {col} = ANY(:u)"), {"u": units})
         db.execute(text("DELETE FROM fact_price WHERE source = 'vrg' AND grade = ANY(:u)"), {"u": units})
     for n in units:
@@ -61,13 +62,22 @@ def test_unit_daily_member_and_editor_flow() -> None:
     mh, eh, nh = _bearer("ud_mem", "pass123"), _bearer("ud_ed", "pass123"), _bearer("ud_noed", "pass123")
 
     # Member ghi số liệu thu mua hôm nay (key rác 'bad' bị loại).
+    # Thu mua thành phẩm = BẢNG NHIỀU DÒNG theo chủng loại (mỗi dòng: chủng loại · SL · đơn giá ·
+    # loại tiền · tỷ giá) — dòng rác/thiếu loại tiền vẫn phải được chuẩn hoá về mặc định VND.
     body = {"kind": "purchase", "company": unit, "as_of": today,
-            "fields": {"latex_wet": 120.5, "coagulum": 30, "cum_purchase": 800, "bad": 9}}
+            "fields": {"latex_wet": 120.5, "coagulum": 30, "cum_purchase": 800, "bad": 9,
+                       "finished": [{"grade": "SVR CV 50", "qty": 12, "price": 40.5},
+                                    {"grade": "SVR 3L", "qty": 8, "price": 1750,
+                                     "ccy": "USD", "fx": 26000, "rac": 1}]}}
     assert client.put("/api/member/daily-report", json=body, headers=mh).status_code == 200
     g = client.get(f"/api/member/daily-report?kind=purchase&as_of={today}", headers=mh)
     assert g.status_code == 200 and g.json()["units"] == [unit]
     saved = g.json()["entries"][unit]["fields"]
     assert saved["latex_wet"] == 120.5 and "bad" not in saved
+    fin = saved["finished"]
+    assert [r["grade"] for r in fin] == ["SVR CV 50", "SVR 3L"]
+    assert fin[0]["qty"] == 12 and fin[0]["ccy"] == "VND"       # thiếu loại tiền → mặc định VND
+    assert fin[1]["ccy"] == "USD" and fin[1]["fx"] == 26000 and "rac" not in fin[1]
 
     # Member không được đụng đơn vị khác.
     bad = {"kind": "purchase", "company": "khac", "as_of": today, "fields": {"latex_wet": 1}}
@@ -103,8 +113,8 @@ def test_unit_daily_member_and_editor_flow() -> None:
     # và KHÔNG còn "loại bành"; giá bán chọn loại tiền qua `sales_ccy`.
     # Mủ THU MUA (`sales`) và mủ KHAI THÁC (`sales_own`) nhập tách riêng, tổng thì cộng chung.
     cons = {"kind": "consumption", "company": unit, "as_of": today, "fields": {
-        "sales": [{"contract": "long_term", "channel": "export", "grade": "RSS 3",
-                   "qty": 12.5, "price": 45}],
+        "sales": [{"code": "HĐ-01/2026", "contract": "long_term", "channel": "export",
+                   "grade": "RSS 3", "qty": 12.5, "price": 45}],
         "sales_own": [{"contract": "spot", "channel": "domestic", "grade": "SVR 3L",
                        "qty": 7.5, "price": 40,
                        "warehouse_date": "2026-07-20", "invoice_date": "2026-07-21",
@@ -114,13 +124,32 @@ def test_unit_daily_member_and_editor_flow() -> None:
         "revenue": 862_500_000,
         "stock_not_warehoused": [{"grade": "RSS 3", "bale": "bỏ đi", "qty": 9}],
         "stock_warehoused": [{"grade": "RSS 3", "qty": 15}],
-        "stock_signed_undelivered": [{"grade": "RSS 3", "qty": 6, "price": 48}],
+        # Khối 3 (đã ký HĐ) KHÔNG đi trong payload ngày nữa — gửi kèm thì server phải BỎ QUA.
+        "stock_signed_undelivered": [{"code": "rác", "grade": "RSS 3", "qty": 999}],
         "stock_material": 3.5,
     }}
     assert client.put("/api/unit-daily/report", json=cons, headers=eh).status_code == 200
+
+    # Hợp đồng đã ký = bản ghi có VÒNG ĐỜI riêng: nhập 1 lần, tự nằm trong tồn kho từ ngày bắt đầu
+    # đến HẾT NGÀY TRƯỚC ngày giao → không phải nhập lại mỗi ngày.
+    ct = {"company": unit, "code": "HĐ-02/2026", "grade": "RSS 3", "qty": 6, "price": 48,
+          "start_date": today, "delivery_date": (date.today() + timedelta(days=10)).isoformat()}
+    made = client.put("/api/unit-daily/stock-contracts", json=ct, headers=eh)
+    assert made.status_code == 200 and made.json()["contract"]["id"]
+    # Ngày bắt đầu phải TRƯỚC ngày giao ít nhất 1 ngày (chặn nhập sai).
+    bad = client.put("/api/unit-daily/stock-contracts",
+                     json={**ct, "delivered_date": today}, headers=eh)
+    assert bad.status_code == 400 and "trước Ngày giao" in bad.json()["detail"]
+
     tl = client.get("/api/unit-daily/timeline?kind=consumption&days=30", headers=eh)
     saved = next(e for e in tl.json()["entries"] if e["company"] == unit)["fields"]
     assert saved["sales"][0]["qty"] == 12.5
+    # Mã HĐ/PL lưu theo TỪNG DÒNG bán; dòng không gõ thì để trống.
+    assert saved["sales"][0]["code"] == "HĐ-01/2026"
+    # Khối 3 hiện ra là số TỰ TÍNH từ bảng hợp đồng (không phải số client gửi kèm).
+    assert [r["code"] for r in saved["stock_signed_undelivered"]] == ["HĐ-02/2026"]
+    assert saved["stock_signed_undelivered"][0]["qty"] == 6
+    assert saved["sales_own"][0]["code"] is None
     # Dòng mủ khai thác lưu riêng, giữ đủ 2 mốc ngày + các file chứng từ đính kèm.
     own = saved["sales_own"][0]
     assert own["qty"] == 7.5 and own["contract"] == "spot" and own["channel"] == "domestic"
@@ -209,15 +238,30 @@ def test_cup_basis_and_prev_stock() -> None:
     assert client.put("/api/member/daily-report", headers=mh, json={
         "kind": "consumption", "company": unit, "as_of": y_day, "fields": {
             "stock_not_warehoused": [{"grade": "RSS 3", "qty": 30}],
-            "stock_signed_undelivered": [{"grade": "SVR 10 / CSR 10", "qty": 12, "price": 40}],
             "stock_material": 5, "stock_ccy": "USD"}}).status_code == 200
     prev = client.get(f"/api/member/daily-report/prev-stock?company={unit}&before={t_day}",
                       headers=mh).json()
     assert prev["found"] and prev["as_of"] == y_day
     assert prev["stock_not_warehoused"][0]["qty"] == 30 and prev["stock_material"] == 5
-    assert prev["stock_signed_undelivered"][0]["qty"] == 12
     assert prev["stock_ccy"] == "USD"
     assert "sales" not in prev          # KHÔNG chép dòng bán sang ngày mới (số phát sinh)
+    # HĐ đã ký cũng KHÔNG chép sang — nó tự nối ngày theo vòng đời, chép lại là nhân đôi.
+    assert "stock_signed_undelivered" not in prev
+
+    # 3) Hợp đồng đã ký của đơn vị: tự nằm trong tồn kho tới HẾT NGÀY TRƯỚC ngày giao.
+    made = client.put("/api/member/stock-contracts", headers=mh, json={
+        "company": unit, "code": "HĐ-09/2026", "grade": "SVR 10 / CSR 10", "qty": 12,
+        "price": 40, "start_date": y_day, "delivered_date": t_day})
+    assert made.status_code == 200
+    cid = made.json()["contract"]["id"]
+    y_view = client.get(f"/api/member/daily-report?kind=consumption&as_of={y_day}", headers=mh).json()
+    assert y_view["entries"][unit]["fields"]["stock_signed_undelivered"][0]["qty"] == 12
+    # Ngày giao: đã xuất kho → KHÔNG còn tính vào tồn kho nữa (ngày đó không còn số liệu nào).
+    t_view = client.get(f"/api/member/daily-report?kind=consumption&as_of={t_day}", headers=mh).json()
+    t_entry = t_view["entries"][unit] or {"fields": {}}
+    assert t_entry["fields"].get("stock_signed_undelivered", []) == []
+    # Đơn vị khác không xoá được hợp đồng này.
+    assert client.delete(f"/api/member/stock-contracts/{cid}", headers=mh).status_code == 200
 
     # Không có ngày nào trước đó → found=false (không dựng số khống).
     empty = client.get(f"/api/member/daily-report/prev-stock?company={unit}&before={y_day}",
