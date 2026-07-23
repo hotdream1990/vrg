@@ -82,7 +82,9 @@ class ExchangeComponent(BaseModel):
     native_unit: str
     fx_pair: str | None = None
     fx_rate: float | None = None
-    usd_tonne: int | None = None
+    # USD/tấn giữ 1 SỐ LẺ (xem convert.r1) — phải là float. Để `int` thì mọi giá lẻ ,5 của MRB/SHFE
+    # (vd 2238,5) làm pydantic ném ResponseValidationError → cả /api/prices/board trả 500.
+    usd_tonne: float | None = None
     as_of: date
 
 

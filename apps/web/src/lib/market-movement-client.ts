@@ -11,9 +11,16 @@ export type GroupMeta = GroupInput & {
   ok: boolean;             // có số liệu thật hay "Chưa đủ dữ liệu"
 };
 export type GroupAssessment = { key: string; label: string; assessment: string };
+/** Gợi ý xu hướng ngắn hạn (tham khảo) — AI suy từ chính các nhóm số liệu trên. */
+export type TrendSuggestion = {
+  direction: string;   // Tăng | Tăng nhẹ | Đi ngang | Giảm nhẹ | Giảm
+  outlook: string;     // 2–3 câu giải thích + hàm ý điều hành giá sàn
+  watch: string[];     // điểm cần theo dõi
+};
 export type AssessmentResult = {
   groups: GroupAssessment[];
   overall: string;
+  trend?: TrendSuggestion | null;
   generated_at: string;
 };
 

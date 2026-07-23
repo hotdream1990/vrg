@@ -31,9 +31,18 @@ class GroupAssessment(BaseModel):
     assessment: str = ""
 
 
+class TrendSuggestion(BaseModel):
+    """Gợi ý xu hướng ngắn hạn (tham khảo) — suy từ chính số liệu các nhóm, không dự báo mô hình."""
+
+    direction: str = ""            # nhãn ngắn: Tăng | Giảm | Đi ngang (có thể kèm 'nhẹ')
+    outlook: str = ""              # 2–3 câu gợi ý xu hướng + hàm ý điều hành giá sàn
+    watch: list[str] = Field(default_factory=list)   # 2–4 điểm cần theo dõi
+
+
 class AssessmentResult(BaseModel):
-    """Kết quả: nhận định từng nhóm + đoạn tổng thể."""
+    """Kết quả: nhận định từng nhóm + đoạn tổng thể + gợi ý xu hướng."""
 
     groups: list[GroupAssessment] = Field(default_factory=list)
     overall: str = ""
+    trend: TrendSuggestion | None = None
     generated_at: str = ""

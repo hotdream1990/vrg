@@ -33,10 +33,17 @@ def _build_user(groups: list[dict[str, Any]]) -> str:
         + "\n\n---\nYêu cầu:\n"
         "- Với MỖI nhóm ở trên, viết ĐÚNG 1 câu nhận định (nêu xu hướng chính + hàm ý cho giá cao su/điều hành).\n"
         "- Sau đó viết 1 đoạn 'Tổng thể' 2–3 câu tổng hợp bức tranh chung các nhóm.\n"
+        "- Cuối cùng, đưa 'Gợi ý xu hướng' NGẮN HẠN (1–2 tuần tới) gồm:\n"
+        "  · direction: ĐÚNG 1 trong 5 nhãn — 'Tăng', 'Tăng nhẹ', 'Đi ngang', 'Giảm nhẹ', 'Giảm'.\n"
+        "  · outlook: 2–3 câu giải thích xu hướng đó dựa trên các nhóm số liệu + hàm ý cho điều hành "
+        "giá sàn (nêu định tính: cân nhắc nâng/giữ/hạ, KHÔNG đưa con số giá sàn cụ thể).\n"
+        "  · watch: 2–4 điểm cần theo dõi, mỗi điểm 1 cụm ngắn, bám đúng các nhóm số liệu ở trên.\n"
+        "  Đây là gợi ý THAM KHẢO suy từ số liệu hiện có — không khẳng định chắc chắn, không bịa dự báo mô hình.\n"
         "- Văn phong báo cáo nội bộ, súc tích, không markdown, không lặp lại số liệu thô quá nhiều.\n"
         "- Chỉ dùng thông tin CÓ trong số liệu; không thêm sự kiện bên ngoài.\n\n"
         "CHỈ trả về JSON hợp lệ đúng định dạng (không kèm giải thích, không bọc ```):\n"
-        '{"groups": {' + keys + '}, "overall": "..."}\n'
+        '{"groups": {' + keys + '}, "overall": "...", '
+        '"trend": {"direction": "...", "outlook": "...", "watch": ["...", "..."]}}\n'
         "trong đó value mỗi key nhóm là câu nhận định của nhóm đó."
     )
 
@@ -54,9 +61,26 @@ def _parse_json(raw: str) -> dict[str, Any]:
     return json.loads(text)
 
 
+def _trend(parsed: dict[str, Any]) -> dict[str, Any] | None:
+    """Bóc khối gợi ý xu hướng; thiếu/rỗng → None để UI ẩn hẳn (không hiện box trống)."""
+    raw = parsed.get("trend")
+    if not isinstance(raw, dict):
+        return None
+    watch = [str(w).strip() for w in (raw.get("watch") or []) if str(w).strip()]
+    trend = {
+        "direction": str(raw.get("direction", "")).strip(),
+        "outlook": str(raw.get("outlook", "")).strip(),
+        "watch": watch[:4],
+    }
+    return trend if trend["direction"] or trend["outlook"] else None
+
+
 def generate(groups: list[dict[str, Any]]) -> dict[str, Any]:
-    """Sinh nhận định cho các nhóm + tổng thể. Trả {groups:[{key,label,assessment}], overall, generated_at}."""
-    out_raw = llm.complete(_SYSTEM, _build_user(groups), max_tokens=1100)
+    """Sinh nhận định các nhóm + tổng thể + gợi ý xu hướng.
+
+    Trả {groups:[{key,label,assessment}], overall, trend, generated_at}.
+    """
+    out_raw = llm.complete(_SYSTEM, _build_user(groups), max_tokens=1400)
     parsed = _parse_json(out_raw)
     by_key = parsed.get("groups") if isinstance(parsed.get("groups"), dict) else {}
     result_groups = [
@@ -67,5 +91,6 @@ def generate(groups: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "groups": result_groups,
         "overall": str(parsed.get("overall", "")).strip(),
+        "trend": _trend(parsed),
         "generated_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
     }

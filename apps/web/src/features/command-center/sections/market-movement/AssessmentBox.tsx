@@ -12,6 +12,7 @@ import {
   type GroupMeta,
   generateAssessment,
 } from "../../../../lib/market-movement-client";
+import TrendBox from "./TrendBox";
 import { buildSummaries } from "./summary";
 
 /** Box "Nhận định chung (AI)" — bấm để gom số liệu các nhóm → AI viết nhận định từng nhóm + tổng thể.
@@ -45,7 +46,7 @@ export default function AssessmentBox() {
       <div className="card-head">
         <div>
           <h3><RobotOutlined style={{ marginRight: 8, color: "var(--accent)" }} />Nhận định chung (AI)</h3>
-          <div className="sub">Tổng hợp xu hướng các nhóm số liệu bên dưới — mỗi nhóm 1 dòng + đánh giá tổng thể.</div>
+          <div className="sub">Tổng hợp xu hướng các nhóm số liệu bên dưới — mỗi nhóm 1 dòng + đánh giá tổng thể + gợi ý xu hướng ngắn hạn.</div>
         </div>
         <button className="btn btn-primary" onClick={run} disabled={busy}>
           {busy ? <><span className="spinner" /> Đang tạo…</> : result ? "Tạo lại" : "Tạo nhận định bằng AI"}
@@ -73,6 +74,7 @@ export default function AssessmentBox() {
               <b style={{ color: "var(--accent-2)" }}>Tổng thể. </b>{result.overall}
             </div>
           )}
+          {result.trend && <TrendBox trend={result.trend} />}
           <div>
             {result.groups.map((g) => (
               <div key={g.key} style={{

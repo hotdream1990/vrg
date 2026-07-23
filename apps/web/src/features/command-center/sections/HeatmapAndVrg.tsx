@@ -1,32 +1,16 @@
 import { Fragment, useEffect, useState } from "react";
 
-import { type PriceBoard, type PriceSheet, fetchBoard, fetchSheet } from "../../../lib/api-client";
-import { dmy } from "../../../lib/date";
+import { type PriceSheet, fetchSheet } from "../../../lib/api-client";
+import { dm, dmy } from "../../../lib/date";
+import { type FloorVsMarket, compareFloorVsMarket } from "../../../lib/floor-vs-market";
 import { getFloor, listFloors } from "../../../lib/floor-client";
 
-type Cmp = { product: string; vrg: number; market: number; marketLabel: string; diffPct: number };
-
-// Map chủng loại giá sàn VRG → grade thị trường (board dùng mã sàn "MRE").
-const FLOOR_MAP: Record<string, "RSS3" | "SMR20" | "LATEX" | "SMRCV"> = {
-  "RSS 3": "RSS3", "SVR 20 / CSR 20": "SMR20", "LATEX": "LATEX", "SVR CV 50": "SMRCV", "SVR CV60": "SMRCV",
-};
 // Heatmap % thay đổi: hàng = grade, cột = sàn (sheet dùng mã "MRB").
 const HM_COLS = ["OSE", "SHANGHAI", "SGX", "MRB"];
 const HM_ROWS = ["RSS3", "TSR20", "SMRCV", "SMR20", "LATEX"];
 
 const vnum = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
 const note = (d: number) => (d <= -2 ? "Sàn thấp hơn TT" : d >= 2 ? "Sàn cao hơn TT" : "Sát thị trường");
-
-function marketUsd(board: PriceBoard, mkt: string): { usd: number; label: string } | null {
-  const find = (ex: string, gr: string) =>
-    board.exchanges.find((e) => e.exchange === ex && e.grade === gr)?.usd_tonne ?? null;
-  let usd: number | null = null, label = "";
-  if (mkt === "RSS3") { usd = find("OSE", "RSS3"); label = "OSE"; if (usd == null) { usd = find("SHANGHAI", "RSS3"); label = "SHANGHAI"; } }
-  else if (mkt === "SMR20") { usd = find("MRE", "SMR20"); label = "MRE"; if (usd == null) { usd = find("OSE", "TSR20"); label = "OSE·TSR20"; } }
-  else if (mkt === "LATEX") { usd = find("MRE", "LATEX"); label = "MRE"; }
-  else if (mkt === "SMRCV") { usd = find("MRE", "SMRCV"); label = "MRE"; }
-  return usd != null ? { usd, label } : null;
-}
 
 // % thay đổi phiên gần nhất của (sàn, grade) từ bảng tính giá (USD/T đã quy đổi).
 function pctChange(sheet: PriceSheet, exchange: string, grade: string): number | null {
@@ -43,19 +27,22 @@ const hmStyle = (p: number | null) =>
   p == null ? { color: "var(--muted)" }
     : { background: p > 0 ? "#16a34a22" : p < 0 ? "#ef444422" : "transparent", color: p > 0 ? "#0b7a3b" : p < 0 ? "#c0392b" : "var(--muted)", fontWeight: 600 };
 
-/** Heatmap %thay đổi + So sánh Giá sàn Tập đoàn vs Thị trường — DỮ LIỆU THẬT (sheet + floor↔board). */
+/** Heatmap %thay đổi + So sánh Giá sàn Tập đoàn vs Thị trường — DỮ LIỆU THẬT (sheet + biểu giá sàn).
+ *  Giá thị trường lấy từ lưới bảng tính giá: phiên mới nhất CÓ số, tự lùi về phiên trước khi hôm
+ *  nay chưa có (mỗi dòng ghi rõ sàn + ngày phiên đã dùng). */
 export default function HeatmapAndVrg() {
-  const [rows, setRows] = useState<Cmp[] | null>(null);
+  const [rows, setRows] = useState<FloorVsMarket[] | null>(null);
   const [meta, setMeta] = useState<{ lan: number; as_of: string; title: string } | null>(null);
   const [hm, setHm] = useState<Record<string, Record<string, number | null>> | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
+      let sheet: PriceSheet | null = null;
       try {
-        const sheet = await fetchSheet({ days: 30 });
+        sheet = await fetchSheet({ days: 30 });
         const m: Record<string, Record<string, number | null>> = {};
-        HM_ROWS.forEach((g) => { m[g] = {}; HM_COLS.forEach((ex) => { m[g][ex] = pctChange(sheet, ex, g); }); });
+        HM_ROWS.forEach((g) => { m[g] = {}; HM_COLS.forEach((ex) => { m[g][ex] = pctChange(sheet!, ex, g); }); });
         setHm(m);
       } catch (e) {
         console.error("[HeatmapAndVrg] Lỗi tải heatmap:", e);
@@ -64,18 +51,10 @@ export default function HeatmapAndVrg() {
       }
       try {
         const list = await listFloors();
-        if (!list.length) { setRows([]); return; }
-        const [sch, board] = await Promise.all([getFloor(list[0].lan), fetchBoard()]);
+        if (!list.length || !sheet) { setRows([]); return; }
+        const sch = await getFloor(list[0].lan);
         setMeta({ lan: sch.lan, as_of: sch.as_of, title: sch.title });
-        const out: Cmp[] = [];
-        for (const it of sch.items) {
-          const mkt = FLOOR_MAP[it.grade];
-          if (!mkt || it.fob_usd == null) continue;
-          const mk = marketUsd(board, mkt);
-          if (!mk) continue;
-          out.push({ product: it.grade, vrg: it.fob_usd, market: mk.usd, marketLabel: mk.label, diffPct: ((it.fob_usd - mk.usd) / mk.usd) * 100 });
-        }
-        setRows(out);
+        setRows(compareFloorVsMarket(sch.items, sheet));
       } catch (e) {
         console.error("[HeatmapAndVrg] Lỗi tải so sánh giá sàn:", e);
         setRows([]);
@@ -122,7 +101,12 @@ export default function HeatmapAndVrg() {
         <div className="card-head">
           <div>
             <h3 className={cmpReady ? undefined : "title-demo"}>So sánh Giá sàn Tập đoàn vs Thị trường</h3>
-            {meta && <div className="sub">Giá sàn {meta.title?.trim() || `lần ${meta.lan}`} · áp dụng {dmy(meta.as_of)} · giá sàn VRG so với giá thị trường (cùng quy về USD/tấn)</div>}
+            {meta && (
+              <div className="sub">
+                Giá sàn {meta.title?.trim() || `lần ${meta.lan}`} · áp dụng {dmy(meta.as_of)} · so với giá thị trường
+                phiên gần nhất có số liệu (sàn · ngày ghi ở từng dòng, cùng quy về USD/tấn)
+              </div>
+            )}
           </div>
           <span className={`chip ${cmpReady ? "" : "demo"}`}>{cmpReady ? "Dữ liệu thật" : "Chưa có dữ liệu"}</span>
         </div>
@@ -140,7 +124,10 @@ export default function HeatmapAndVrg() {
                 <tr key={r.product}>
                   <td style={{ fontWeight: 500 }}>{r.product}</td>
                   <td className="r">{vnum(r.vrg)}</td>
-                  <td className="r">{vnum(r.market)} <span style={{ color: "var(--muted)", fontSize: 11 }}>({r.marketLabel})</span></td>
+                  <td className="r">
+                    {vnum(r.market)}{" "}
+                    <span style={{ color: "var(--muted)", fontSize: 11 }}>({r.marketLabel} · {dm(r.marketAsOf)})</span>
+                  </td>
                   <td className="r" style={{ fontWeight: 600, color: r.diffPct > 0 ? "#c0392b" : r.diffPct < 0 ? "#0b7a3b" : "#5f6f67" }}>
                     {r.diffPct >= 0 ? "+" : ""}{r.diffPct.toFixed(1)}%
                   </td>

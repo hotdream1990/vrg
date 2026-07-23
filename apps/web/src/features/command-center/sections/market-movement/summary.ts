@@ -2,14 +2,13 @@
    Dùng lại các endpoint sẵn có; nhóm nào lỗi/thiếu data → ghi "Chưa đủ dữ liệu". */
 
 import {
-  type PriceBoard,
   type PriceSheet,
-  fetchBoard,
   fetchPhysicalSheet,
   fetchPurchaseSheet,
   fetchSheet,
 } from "../../../../lib/api-client";
 import { dm, dmy } from "../../../../lib/date";
+import { compareFloorVsMarket } from "../../../../lib/floor-vs-market";
 import { getFloor, listFloors } from "../../../../lib/floor-client";
 import { fetchInventory } from "../../../../lib/inventory-client";
 import type { GroupMeta } from "../../../../lib/market-movement-client";
@@ -44,18 +43,6 @@ function fxSeries(sheet: PriceSheet, pair: string): number[] {
   return [...sheet.rows].sort((a, b) => a.as_of.localeCompare(b.as_of))
     .map((r) => r.fx?.[pair]).filter((v): v is number => v != null);
 }
-const FLOOR_MAP: Record<string, string> = {
-  "RSS 3": "RSS3", "SVR 20 / CSR 20": "SMR20", "LATEX": "LATEX", "SVR CV 50": "SMRCV", "SVR CV60": "SMRCV",
-};
-function marketUsd(board: PriceBoard, mkt: string): number | null {
-  const find = (ex: string, gr: string) => board.exchanges.find((e) => e.exchange === ex && e.grade === gr)?.usd_tonne ?? null;
-  if (mkt === "RSS3") return find("OSE", "RSS3") ?? find("SHANGHAI", "RSS3");
-  if (mkt === "SMR20") return find("MRE", "SMR20") ?? find("OSE", "TSR20");
-  if (mkt === "LATEX") return find("MRE", "LATEX");
-  if (mkt === "SMRCV") return find("MRE", "SMRCV");
-  return null;
-}
-
 const EXCHANGES: [string, string, string][] = [
   ["OSE", "RSS3", "OSE RSS3"], ["OSE", "TSR20", "OSE TSR20"],
   ["SHANGHAI", "RSS3", "SHFE RSS3"], ["SGX", "TSR20", "SGX TSR20"], ["SGX", "RSS3", "SGX RSS3"],
@@ -122,28 +109,15 @@ function mqLines(c: MarketQuote, p: MarketQuote | null, date: string): string {
 
 /** Gom tóm tắt các nhóm (song song, chịu lỗi từng nhóm). */
 export async function buildSummaries(): Promise<GroupMeta[]> {
-  const [sheet, physical, purchase, inv, floorData, mq] = await Promise.all([
+  const [sheet, physical, purchase, inv, floorSch, mq] = await Promise.all([
     fetchSheet({ days: 30 }).catch(() => null),
     fetchPhysicalSheet().catch(() => null),
     fetchPurchaseSheet().catch(() => null),
     fetchInventory().catch(() => null),
     (async () => {
-      const empty = { line: "Chưa đủ dữ liệu.", label: "" as string, asOf: null as string | null };
       const list = await listFloors().catch(() => []);
-      if (!list.length) return empty;
-      const [sch, board] = await Promise.all([getFloor(list[0].lan), fetchBoard()]);
-      const name = sch.title?.trim() || `lần ${sch.lan}`; // tên thật (vd "Lần thứ 15 năm 2026"), không phải số thứ tự nội bộ
-      const rows = sch.items.map((it) => {
-        const mkt = FLOOR_MAP[it.grade];
-        if (!mkt || it.fob_usd == null) return null;
-        const m = marketUsd(board, mkt);
-        if (m == null) return null;
-        return `${it.grade}: sàn ${vnum(it.fob_usd)} vs TT ${vnum(m)} (${(it.fob_usd - m) / m >= 0 ? "+" : ""}${(((it.fob_usd - m) / m) * 100).toFixed(1)}%)`;
-      }).filter(Boolean);
-      return rows.length
-        ? { line: `Giá sàn ${name} (${sch.as_of}) — ${rows.join("; ")}`, label: name, asOf: sch.as_of }
-        : empty;
-    })().catch(() => ({ line: "Chưa đủ dữ liệu.", label: "" as string, asOf: null as string | null })),
+      return list.length ? await getFloor(list[0].lan) : null;
+    })().catch(() => null),
     (async () => {
       const list = (await listQuotes().catch(() => [])).filter((s) => s.filled > 0);
       if (!list.length) return null;
@@ -154,6 +128,27 @@ export async function buildSummaries(): Promise<GroupMeta[]> {
       return { c, p, date: list[0].as_of };
     })().catch(() => null),
   ]);
+
+  /* Giá sàn vs Thị trường: giá thị trường lấy phiên MỚI NHẤT CÓ SỐ (tự lùi về phiên trước khi
+     hôm nay chưa có) — luôn ghi rõ ngày của phiên đã dùng để lãnh đạo biết đang so với ngày nào. */
+  const floorData = (() => {
+    const empty = { line: "Chưa đủ dữ liệu.", asOf: null as string | null, range: "—" };
+    if (!floorSch || !sheet) return empty;
+    const rows = compareFloorVsMarket(floorSch.items, sheet);
+    if (!rows.length) return empty;
+    const name = floorSch.title?.trim() || `lần ${floorSch.lan}`; // tên thật (vd "Lần thứ 16 năm 2026")
+    const mktDates = [...new Set(rows.map((r) => r.marketAsOf))].sort();
+    const mktLabel = mktDates.length > 1 ? `${dm(mktDates[0])}–${dm(mktDates.at(-1)!)}` : dm(mktDates[0]);
+    const detail = rows.map((r) =>
+      `${r.product}: sàn ${vnum(r.vrg)} vs TT ${vnum(r.market)} USD/T`
+      + ` (${r.diffPct >= 0 ? "+" : ""}${r.diffPct.toFixed(1)}%; ${r.marketLabel} phiên ${dm(r.marketAsOf)})`,
+    );
+    return {
+      line: `Giá sàn ${name} (áp dụng ${dmy(floorSch.as_of)}) so giá thị trường phiên ${mktLabel} — ${detail.join("; ")}`,
+      asOf: floorSch.as_of,
+      range: `${name} · áp dụng ${dmy(floorSch.as_of)} · TT phiên ${mktLabel}`,
+    };
+  })();
 
   const invLine = (() => {
     const c = inv?.[0];
@@ -209,8 +204,8 @@ export async function buildSummaries(): Promise<GroupMeta[]> {
       "Tồn kho Tập đoàn theo tuần — /api/inventory",
       usedRange(invDates, "tuần"), latestOf(invDates)),
     mk("floor", "Giá sàn Tập đoàn vs Thị trường", floorData.line,
-      "Giá sàn công bố mới nhất vs giá thị trường — /api/floor",
-      floorData.asOf ? `${floorData.label} · ${dmy(floorData.asOf)}` : "—", floorData.asOf),
+      "Giá sàn công bố mới nhất vs giá thị trường phiên gần nhất — /api/floor + /api/prices/sheet",
+      floorData.range, floorData.asOf),
     mk("raw", "Giá mủ nước & mủ chén nội địa", rawLine,
       "Giá mủ nước & mủ chén nội địa (đơn vị thành viên) — /api/prices/purchase-sheet",
       usedRange(purchase?.dates ?? []), latestOf(purchase?.dates ?? [])),
