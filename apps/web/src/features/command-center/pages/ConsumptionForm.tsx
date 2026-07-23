@@ -402,7 +402,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       {head("Tổng hợp tồn kho")}
       <div style={gridStyle}>
         {box("Tồn kho thành phẩm", "tấn", (stockTonnesTotal(notWh) + stockTonnesTotal(wh)) || null)}
-        {box("Đã ký hợp đồng", "tấn", stockTonnesTotal(signed) || null)}
+        {box("Đã ký HĐ chưa giao", "tấn", stockTonnesTotal(signed) || null)}
         {stockValueVnd > 0 && box("Giá trị đã ký HĐ", "tỷ đồng", toTyDong(stockValueVnd), 3)}
       </div>
     </div>
