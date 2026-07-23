@@ -1,7 +1,8 @@
 """Helper dùng chung cho các script import lịch sử vào fact_price.
 
 - Kết nối DB qua DATABASE_URL (mặc định trùng apps/api config).
-- Upsert idempotent theo khóa (as_of, source, grade, contract, price_type).
+- Upsert idempotent theo ĐÚNG khóa chính của fact_price: (as_of, source, grade, price_type)
+  — `contract` KHÔNG nằm trong khóa (bỏ từ 0.2.29), ghi lại cùng khóa sẽ đè giá cũ.
 - Parse số/khoảng giá ("407-412" -> trung điểm), parse ngày dd/mm.
 - Dựng lại NĂM khi tiêu đề chỉ có dd/mm (năm Excel lưu ngầm không đáng tin):
   neo cột cuối = last_year, lùi sang trái mỗi khi gặp mốc Tháng12 -> Tháng1.
@@ -31,8 +32,8 @@ INSERT INTO fact_price
 VALUES
   (%(as_of)s, %(source)s, %(grade)s, %(contract)s, %(price_type)s,
    %(price)s, %(currency)s, %(unit)s, %(source_ts)s)
-ON CONFLICT (as_of, source, grade, contract, price_type) DO UPDATE SET
-  price = EXCLUDED.price, currency = EXCLUDED.currency,
+ON CONFLICT (as_of, source, grade, price_type) DO UPDATE SET
+  contract = EXCLUDED.contract, price = EXCLUDED.price, currency = EXCLUDED.currency,
   unit = EXCLUDED.unit, source_ts = EXCLUDED.source_ts, ingested_at = now();
 """
 
@@ -51,7 +52,10 @@ def upsert(rows: list[dict], dry_run: bool = False) -> int:
     return len(rows)
 
 
-_NUM = re.compile(r"-?\d+(?:[.,]\d+)?")
+# KHÔNG bắt dấu trừ ở đây: trong nguồn, gạch nối giữa 2 số LUÔN là dấu khoảng giá
+# ('538-569'), không phải số âm. Regex cũ `-?\d+` đọc '538-569' thành [538, -569] →
+# trung điểm ra -15,5 (giá mủ không bao giờ âm). Giá âm không tồn tại ở các sheet này.
+_NUM = re.compile(r"\d+(?:[.,]\d+)?")
 
 
 def parse_number(v) -> float | None:
