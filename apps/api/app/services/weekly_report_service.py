@@ -11,14 +11,20 @@ from __future__ import annotations
 import json
 import statistics
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
-from app.core.paths import data_dir, services_dir
+from app.core.paths import bulletin_dir, data_dir, services_dir
 from app.services import price_repo, price_sheet
+
+_BULLETIN = bulletin_dir()
+if str(_BULLETIN) not in sys.path:
+    sys.path.insert(0, str(_BULLETIN))
+
+from bulletin.convert import r0, r1, r2  # noqa: E402 - 1 nguồn làm tròn nửa-lên dùng chung
 
 # III.1 — (nhãn sàn, chủng loại hiển thị, key trong build_sheet)
 _EXCHANGE_MAP = [
@@ -90,13 +96,15 @@ def _meta(week_key: str) -> dict[str, Any]:
 
 
 def _avg(vals: list[float | None]) -> float | None:
+    """Bình quân tuần — làm tròn nửa LÊN (round() của Python làm tròn về số CHẴN: bình quân
+    4 phiên = 2579,45 ra 2579,4 thay vì 2579,5, tức luôn thiệt xuống ở đuôi ,5)."""
     xs = [v for v in vals if v is not None]
-    return round(statistics.mean(xs), 1) if xs else None
+    return r1(statistics.mean(xs)) if xs else None
 
 
 def _row(exchange: str | None, grade: str, prev: float | None, curr: float | None) -> dict[str, Any]:
-    change_abs = round(curr - prev, 1) if (prev is not None and curr is not None) else None
-    change_pct = (round((curr - prev) / prev * 100, 2)
+    change_abs = r1(curr - prev) if (prev is not None and curr is not None) else None
+    change_pct = (r2((curr - prev) / prev * 100)
                   if (prev is not None and curr is not None and prev) else None)
     return {"exchange": exchange, "grade": grade, "prev": prev, "curr": curr,
             "change_abs": change_abs, "change_pct": change_pct}
@@ -144,10 +152,10 @@ def _core_range(xs: list[float]) -> tuple[int, int] | None:
     if not xs:
         return None
     if len(xs) < 3:                                  # quá ít điểm → không đủ cơ sở lọc
-        return round(min(xs)), round(max(xs))
+        return r0(min(xs)), r0(max(xs))
     med = statistics.median(xs)
     core = [v for v in xs if _LATEX_OUTLIER_LO * med <= v <= _LATEX_OUTLIER_HI * med] or xs
-    return round(min(core)), round(max(core))
+    return r0(min(core)), r0(max(core))
 
 
 def _latex_band(m: dict[str, Any]) -> dict[str, str | None]:
@@ -192,8 +200,8 @@ def weekly_stats(week_key: str) -> dict[str, Any]:
         if not pairs:
             return None
         hi, lo = max(pairs, key=lambda x: x[1]), min(pairs, key=lambda x: x[1])
-        return {"high": round(hi[1], 1), "high_date": _ddmm(hi[0]),
-                "low": round(lo[1], 1), "low_date": _ddmm(lo[0])}
+        return {"high": r1(hi[1]), "high_date": _ddmm(hi[0]),
+                "low": r1(lo[1]), "low_date": _ddmm(lo[0])}
 
     exch = {}
     for exc, g, key in _EXCHANGE_MAP:
@@ -206,7 +214,7 @@ def weekly_stats(week_key: str) -> dict[str, Any]:
         s = hl([(str(p["as_of"]), float(p["price"])) for p in pts if c0 <= str(p["as_of"]) <= c1])
         if s:
             phys[disp] = s
-    fx = {p: round(a, 2) for p in _FX_FOR_CONTEXT if (a := _avg([r["fx"].get(p) for r in rows])) is not None}
+    fx = {p: r2(a) for p in _FX_FOR_CONTEXT if (a := _avg([r["fx"].get(p) for r in rows])) is not None}
     return {"exchange": exch, "physical": phys, "fx": fx}
 
 

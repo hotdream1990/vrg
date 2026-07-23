@@ -7,6 +7,7 @@ Hai mô hình dùng chung 1 đường fit (chuẩn hoá CAUSAL — chỉ trên t
 """
 from __future__ import annotations
 
+import sys
 from typing import Any
 
 import numpy as np
@@ -14,8 +15,15 @@ from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import VRG_DOMESTIC_ONLY_GRADES, VRG_FLOOR_GRADES
+from app.core.paths import bulletin_dir
 from app.services import floor_model as fm
 from app.services import floor_recommend as fr
+
+_BULLETIN = bulletin_dir()
+if str(_BULLETIN) not in sys.path:
+    sys.path.insert(0, str(_BULLETIN))
+
+from bulletin.convert import r0  # noqa: E402 - 1 nguồn làm tròn nửa-lên dùng chung
 
 # Feature cho engine: mủ nước (mạnh nhất, r≈0.92) + 4 futures/physical nền.
 FEATS = [("vrg", "mu_nuoc"), ("lgm", "SMR20"), ("sgx", "TSR20"), ("shfe", "RU"), ("tocom", "RSS3")]
@@ -132,7 +140,8 @@ def _fit_at(train: list[str], target: str, grade: str, fmap: dict, idx: dict,
     fit = inter + xs @ beta
     ss_tot = float(np.sum((y - y.mean()) ** 2)) or 1.0
     r = max(0.0, 1 - float(np.sum((fit - y) ** 2)) / ss_tot) ** 0.5  # multiple-R train
-    return {"pred": round(fm.predict(inter, beta, xt)), "n_train": len(rows),
+    # `pred` là MỨC GIÁ SÀN đề xuất (USD/T hoặc VNĐ/T) → làm tròn nửa LÊN như mọi số tiền.
+    return {"pred": r0(fm.predict(inter, beta, xt)), "n_train": len(rows),
             "feats": [LABELS[k] for k in sel], "r": round(r, 3)}
 
 

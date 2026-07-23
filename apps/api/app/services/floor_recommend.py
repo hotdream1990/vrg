@@ -4,9 +4,17 @@ so với lần ban hành liền trước + bằng chứng (drivers thị trườ
 """
 from __future__ import annotations
 
+import sys
 from typing import Any, Callable
 
+from app.core.paths import bulletin_dir
 from app.services import floor_model as fm
+
+_BULLETIN = bulletin_dir()
+if str(_BULLETIN) not in sys.path:
+    sys.path.insert(0, str(_BULLETIN))
+
+from bulletin.convert import r0, r1, r2  # noqa: E402 - 1 nguồn làm tròn nửa-lên dùng chung
 
 _CONF_DOWN = {"high": "medium", "medium": "low", "low": "low"}  # hạ tin cậy khi SHFE ngược hướng
 _SHFE_MIN = 0.5   # |%biến động SHFE| tối thiểu để tính là xác nhận/ngược hướng (lọc nhiễu phẳng)
@@ -28,9 +36,9 @@ def drivers(idx: dict, keys: list[tuple[str, str]], labels: dict,
     for k in keys:
         cur = at(idx.get(k, []), as_of)
         prev = at(idx.get(k, []), prev_d) if prev_d else None
-        chg = round((cur - prev) / prev * 100, 2) if (cur and prev) else None
-        out.append({"index": labels[k], "prev": round(prev, 1) if prev is not None else None,
-                    "cur": round(cur, 1) if cur is not None else None, "change_pct": chg})
+        chg = r2((cur - prev) / prev * 100) if (cur and prev) else None
+        out.append({"index": labels[k], "prev": r1(prev) if prev is not None else None,
+                    "cur": r1(cur) if cur is not None else None, "change_pct": chg})
     return out
 
 
@@ -43,8 +51,10 @@ def build_item(grade: str, act: float | None, sug: float | None, r: dict | None,
     khi đề xuất nâng/hạ nhưng SHFE (chỉ báo dẫn hướng ~88%) đi ngược chiều rõ rệt.
     `unit` = đơn vị giá sàn grade (USD/T, hoặc VNĐ/T cho grade chỉ-nội-địa như SkimBlock).
     """
-    delta = round(sug - prev) if (sug is not None and prev is not None) else None
-    band = round(bt.get("mae") or 0.0)
+    # Nửa LÊN: delta được so với dead-band để ra NÂNG/GIỮ/HẠ, lệch 1 USD ở sát mép là đổi
+    # hẳn khuyến nghị — không để round() của Python (làm tròn về số chẵn) quyết định.
+    delta = r0(sug - prev) if (sug is not None and prev is not None) else None
+    band = r0(bt.get("mae") or 0.0)
     action = fm.decide_action(delta, band)
     # Khi đề xuất điều chỉnh ⇒ chấm tin cậy theo sai số trên CHÍNH các lần điều chỉnh
     # (mape_move), không lấy MAPE gộp (bị các lần giữ-nguyên kéo xuống giả tạo).
@@ -59,10 +69,10 @@ def build_item(grade: str, act: float | None, sug: float | None, r: dict | None,
         conf, caution = _CONF_DOWN[conf], "shfe_opposite"
     return {
         "grade": grade, "unit": unit, "actual": act, "suggested": sug,
-        "diff": (round(act - sug) if act is not None and sug is not None else None),
+        "diff": (r0(act - sug) if act is not None and sug is not None else None),
         "r": r["r"] if r else None,
-        "prev": round(prev) if prev is not None else None, "delta": delta,
-        "delta_pct": (round(delta / prev * 100, 1) if (delta is not None and prev) else None),
+        "prev": r0(prev) if prev is not None else None, "delta": delta,
+        "delta_pct": (r1(delta / prev * 100) if (delta is not None and prev) else None),
         "band": band, "action": action, "confidence": conf, "caution": caution,
         "mape": bt.get("mape"), "mape_move": mape_move, "n_move": n_move,
         "hit": bt.get("hit"), "n_bt": bt.get("n", 0),

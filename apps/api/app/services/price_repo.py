@@ -1,6 +1,7 @@
 """Repository ghi/đọc giá quét (fact_price) + theo dõi lần quét (meta_crawl_run).
 
-Upsert theo khóa (as_of, source, grade, contract, price_type) — quét lại cùng ngày
+Upsert theo khóa (as_of, source, grade, price_type) — `contract` KHÔNG thuộc khóa
+(bỏ từ 0.2.29), nó chỉ đi kèm để biết kỳ hạn nào. Quét lại cùng ngày
 không tạo bản ghi trùng. Mọi query tham số hóa (tránh SQL injection).
 """
 
@@ -197,7 +198,7 @@ def list_records(source: str | None = None, grade: str | None = None,
 
 
 def upsert_record(rec: dict[str, Any]) -> None:
-    """Thêm/sửa 1 bản ghi giá thủ công. Khóa: (as_of, source, grade, contract, price_type)."""
+    """Thêm/sửa 1 bản ghi giá thủ công. Khóa: (as_of, source, grade, price_type)."""
     ensure_schema()
     with session_scope() as db:
         db.execute(

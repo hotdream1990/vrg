@@ -36,6 +36,8 @@ for sub in ["bulletin"]:
     if p not in sys.path:
         sys.path.insert(0, p)
 
+from bulletin.convert import r0  # noqa: E402 - 1 nguồn làm tròn nửa-lên dùng chung
+
 # Map sàn/grade, tên sàn, cấu trúc canon: import từ app.core.market_meta (DRY).
 
 
@@ -78,14 +80,16 @@ def _regions_from_purchase(purchase: dict[str, float], unit_region: dict[str, st
         prices = by_region.get(region)
         if not prices:
             continue
-        lo, hi = round(min(prices)), round(max(prices))
+        # Nửa LÊN: giá mủ theo khu vực hay là trung điểm của khoảng nên rơi vào đuôi ,5 rất
+        # thường xuyên (vd 552,5) — round() của Python sẽ hạ xuống 552.
+        lo, hi = r0(min(prices)), r0(max(prices))
         rng = str(lo) if lo == hi else f"{lo}-{hi}"
         items.append(RawMaterialRegion(region=region, price=float(lo), price_text=rng))
     return items
 
 
 def _coerce_int(v) -> int | None:
-    return int(round(v)) if v is not None else None
+    return r0(v) if v is not None else None
 
 
 def _build_vrg_floor(report_date: date):
