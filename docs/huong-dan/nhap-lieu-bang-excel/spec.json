@@ -113,7 +113,7 @@
     {
       "title": "5. Mẫu Tồn kho",
       "location": "Báo cáo tồn kho → Tải mẫu Excel  ·  file đính kèm: mau/mau-ton-kho.xlsx",
-      "intro": "Mỗi dòng = một dòng tồn kho. Hai nhóm đầu (*Chế biến chưa nhập kho* · *Đã nhập kho*) là số tại thời điểm cuối ngày, KHÔNG cộng dồn giữa các ngày, đơn vị tính là tấn. Riêng nhóm **Đã ký HĐ** là **hợp đồng có vòng đời**: nhập **một lần**, hệ thống tự giữ ở nhóm này **từ cột *Ngày* (= ngày bắt đầu tồn kho) đến hết ngày TRƯỚC *Ngày giao***. **KHÔNG nhập lại hợp đồng đó cho các ngày sau.** Nhóm này chỉ để **ghi nhận** số đã ký mà chưa giao — **không cộng vào và không trừ khỏi** tồn kho thành phẩm.",
+      "intro": "Mỗi dòng = một dòng tồn kho. Hai nhóm đầu (*Chế biến chưa nhập kho* · *Đã nhập kho*) là số tại thời điểm cuối ngày, KHÔNG cộng dồn giữa các ngày, đơn vị tính là tấn. Riêng nhóm **Đã ký HĐ** là **hợp đồng có vòng đời**: nhập **một lần**, hệ thống tự giữ ở nhóm này **từ cột *Ngày* (= ngày bắt đầu tồn kho) đến hết ngày TRƯỚC *Ngày giao***. **KHÔNG nhập lại hợp đồng đó cho các ngày sau.** Nhóm này là **phần NẰM TRONG tồn kho thành phẩm** đã có hợp đồng nhưng chưa giao — chỉ để biết trong tồn kho bao nhiêu đã có đầu ra, nên **không cộng thêm** vào tồn kho (cộng nữa là tính trùng) và cũng **không trừ ra**.",
       "pre": "Các cột (dấu * = bắt buộc):",
       "steps": [
         "**Đơn vị** * · **Ngày** * — như trên. Với nhóm *Đã ký HĐ*, cột **Ngày** chính là **ngày bắt đầu tồn kho**.",
@@ -129,7 +129,7 @@
       "notes": [
         "**Đã xuất kho thì chỉ cần nhập lại đúng hợp đồng đó kèm *Ngày giao***: hệ thống khớp theo (đơn vị · Mã HĐ/PL · chủng loại · ngày bắt đầu) nên **sửa chính hợp đồng cũ, không tạo bản sao**. Cách nhanh hơn: mở màn Báo cáo tồn kho trên web điền *Ngày giao* rồi bấm nút lưu ở cuối dòng.",
         "**Ngày bắt đầu (cột *Ngày*) phải trước *Ngày giao* và *Lịch giao* ít nhất 1 ngày** — sai thì hệ thống báo ở phần cảnh báo và **không ghi** hợp đồng đó.",
-        "Nhóm *Đã ký HĐ* là **cam kết giao hàng**, đứng riêng — không cộng vào và không trừ khỏi tồn kho thành phẩm, nên ký nhiều hơn lượng đang có cũng không sao.",
+        "Nhóm *Đã ký HĐ* là **phần đã có hợp đồng nằm trong** tồn kho thành phẩm — không cộng thêm và không trừ ra, và **không vượt quá** tổng tồn kho thành phẩm của đơn vị.",
         "**File Hợp đồng đã ký scan** phải đính kèm trên web, Excel không mang theo được.",
         "Chủng loại tách theo từng loại giống bảng Giá sàn Tập đoàn — **SVR CV 50** và **SVR CV60** là hai loại riêng."
       ]

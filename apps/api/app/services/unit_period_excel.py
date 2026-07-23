@@ -40,7 +40,8 @@ _PURCHASE_COLS: list[tuple[str, str, str, str]] = [
 ]
 
 # TỒN KHO: khối 1 và khối 2 là HAI chỉ tiêu khác nhau → mỗi khối một dòng riêng, rồi mới tới tổng.
-# Khối 3 (đã ký hợp đồng) là CAM KẾT, đứng riêng, không cộng vào tổng và không trừ ra.
+# Khối 3 (đã ký hợp đồng chưa giao) là phần NẰM TRONG tồn kho thành phẩm đã có hợp đồng →
+# chỉ báo, không cộng thêm vào tổng (cộng nữa là tính trùng) và cũng không trừ ra.
 _CONSUMPTION_COLS: list[tuple[str, str, str, str]] = [
     ("signed_lt_tonnes", "Tổng SL đã ký HĐ dài hạn", "số liệu năm", "tấn"),
     ("lt_export", "HĐ dài hạn — XK/UTXK", "cộng dồn", "tấn"),
@@ -55,7 +56,8 @@ _CONSUMPTION_COLS: list[tuple[str, str, str, str]] = [
     ("stock_not_warehoused", "Tồn kho thành phẩm chế biến chưa nhập kho", "thời điểm", "tấn"),
     ("stock_warehoused", "Tồn kho thành phẩm đã nhập kho", "thời điểm", "tấn"),
     ("stock_finished", "Tổng tồn kho thành phẩm", "= chưa nhập kho + đã nhập kho", "tấn"),
-    ("stock_finished_hd", "Số lượng đã ký hợp đồng chưa giao", "thời điểm — cam kết, ngoài tồn kho", "tấn"),
+    ("stock_finished_hd", "Số lượng đã ký hợp đồng chưa giao",
+     "thời điểm — phần NẰM TRONG tồn kho thành phẩm đã có hợp đồng", "tấn"),
 ]
 _TAIL_COLS: list[tuple[str, str, str, str]] = [
     ("stock_material", "Tồn kho nguyên liệu chưa sản xuất (quy khô)", "thời điểm", "tấn"),

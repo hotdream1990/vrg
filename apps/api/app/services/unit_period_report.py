@@ -147,7 +147,9 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: list[dict] | None
     t = lambda v: v or None  # số liệu đã ở TẤN — chỉ đổi 0 thành None  # noqa: E731
 
     stock_finished = tonnes(not_wh) + tonnes(wh)
-    stock_hd = tonnes(signed)          # số độc lập, không cộng vào / không trừ khỏi tồn kho
+    # Phần NẰM TRONG tồn kho thành phẩm đã có hợp đồng nhưng chưa giao → chỉ báo, KHÔNG cộng
+    # thêm vào tồn kho (cộng nữa là tính trùng) và cũng không trừ ra.
+    stock_hd = tonnes(signed)
     return {
         "signed_lt_tonnes": _num(plan.get("signed_lt_tonnes")),
         "lt_export": lt_e or None, "lt_domestic": lt_d or None,

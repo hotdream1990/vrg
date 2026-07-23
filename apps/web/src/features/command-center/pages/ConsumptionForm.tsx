@@ -379,7 +379,9 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
 
       {head("3. Số lượng đã ký hợp đồng chưa giao")}
       <div className="form-note" style={{ fontSize: 11.5, marginBottom: 6 }}>
-        Đây là số <b>ghi nhận riêng</b> — <b>KHÔNG cộng vào và không trừ khỏi</b> tồn kho thành phẩm.
+        Đây là <b>phần NẰM TRONG tồn kho thành phẩm</b> (khối 1 + khối 2) đã có hợp đồng nhưng
+        chưa giao — chỉ để biết trong tồn kho bao nhiêu đã có đầu ra, nên <b>KHÔNG cộng thêm</b>
+        vào tồn kho (cộng nữa là tính trùng) và cũng <b>không trừ ra</b>.
         Khối này <b>KHÔNG nhập lại mỗi ngày</b>: mỗi hợp đồng nhập <b>một lần</b> kèm bản HĐ đã ký
         scan có đóng dấu (PDF hoặc ảnh), hệ thống tự giữ hợp đồng ở khối này từ{" "}
         <b>ngày bắt đầu tồn kho</b> đến <b>hết ngày trước Ngày giao</b>.
@@ -405,6 +407,13 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
         {box("Đã ký HĐ chưa giao", "tấn", stockTonnesTotal(signed) || null)}
         {stockValueVnd > 0 && box("Giá trị đã ký HĐ", "tỷ đồng", toTyDong(stockValueVnd), 3)}
       </div>
+      {/* Khối 3 là phần NẰM TRONG tồn kho nên không thể lớn hơn tồn kho — báo để đơn vị soát lại. */}
+      {stockTonnesTotal(signed) > stockTonnesTotal(notWh) + stockTonnesTotal(wh) && (
+        <div className="form-note" style={{ fontSize: 11.5, marginTop: 6 }}>
+          Số <b>đã ký HĐ chưa giao</b> đang lớn hơn <b>tồn kho thành phẩm</b>. Đây là phần nằm
+          trong tồn kho nên không thể vượt quá — anh/chị soát lại khối 1, 2 và 3 giúp.
+        </div>
+      )}
     </div>
   );
 

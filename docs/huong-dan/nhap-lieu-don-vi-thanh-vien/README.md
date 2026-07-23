@@ -115,7 +115,7 @@ Vì mỗi hợp đồng có nhiều thông tin nên một bản ghi được b�
 
 **Vị trí:** Menu → Báo cáo tồn kho → Thêm số liệu ngày
 
-Tồn kho là số liệu **tại thời điểm cuối ngày** (không cộng dồn giữa các ngày), đơn vị tính là **tấn**. Phiếu chia thành 4 khối theo tình trạng hàng. Riêng khối 3 — **hợp đồng đã ký chưa giao** — là số **ghi nhận riêng** (**không cộng vào và không trừ khỏi** tồn kho thành phẩm) và **không phải nhập lại mỗi ngày**: mỗi hợp đồng nhập **một lần** rồi hệ thống tự giữ ở khối này cho tới khi giao hàng.
+Tồn kho là số liệu **tại thời điểm cuối ngày** (không cộng dồn giữa các ngày), đơn vị tính là **tấn**. Phiếu chia thành 4 khối theo tình trạng hàng. Riêng khối 3 — **hợp đồng đã ký chưa giao** — là **phần NẰM TRONG tồn kho thành phẩm** đã có hợp đồng nhưng chưa giao (chỉ để biết trong tồn kho bao nhiêu đã có đầu ra, nên **không cộng thêm** vào tồn kho — cộng nữa là tính trùng — và cũng **không trừ ra**) và **không phải nhập lại mỗi ngày**: mỗi hợp đồng nhập **một lần** rồi hệ thống tự giữ ở khối này cho tới khi giao hàng.
 
 ![Hình 6. Phiếu Tồn kho — khối 3 là hợp đồng có vòng đời riêng](img/06-ton-kho.png)
 
@@ -136,7 +136,7 @@ Tồn kho là số liệu **tại thời điểm cuối ngày** (không cộng d
 > - Mỗi hợp đồng **lưu riêng bằng nút lưu ở cuối hàng trên**, KHÔNG đi kèm nút *Lưu số liệu* của phiếu ngày (vì hợp đồng không thuộc riêng một ngày nào).
 > - Nút **Lấy tồn ngày trước** KHÔNG chép khối 3 — hợp đồng tự nối sang ngày mới theo vòng đời của nó, chép lại sẽ thành nhân đôi. Nút này cũng không chép các dòng bán ở tab Tiêu thụ, vì tiêu thụ là số phát sinh trong ngày.
 > - Khối **4** hiện với **mọi đơn vị**, **không phân biệt** đơn vị có nhà máy hay không. Đơn vị nào không có số thì để trống.
-> - Khối **Tổng hợp tồn kho**: *Tồn kho thành phẩm* = khối 1 + khối 2. Khối 3 là **cam kết giao hàng**, đứng riêng — không cộng vào và không trừ khỏi tồn kho, nên ký nhiều hơn lượng đang có cũng không sao.
+> - Khối **Tổng hợp tồn kho**: *Tồn kho thành phẩm* = khối 1 + khối 2. Khối 3 là **phần đã có hợp đồng nằm trong** tồn kho thành phẩm — không cộng thêm và không trừ ra, và **không vượt quá** *Tồn kho thành phẩm*.
 > - Chủng loại tách theo từng loại giống bảng Giá sàn Tập đoàn — **SVR CV 50** và **SVR CV60** là 2 loại riêng.
 
 ## 7. Nhập Nhu cầu thị trường
