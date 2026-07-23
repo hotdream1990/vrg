@@ -1,6 +1,6 @@
 # Hướng dẫn nhập liệu bằng Excel
 
-Thay vì gõ tay từng ngày trên web, có thể tải file Excel mẫu về điền rồi nhập lên. Tài liệu này mô tả ba biểu mẫu — Thu mua, Tiêu thụ, Tồn kho — kèm ý nghĩa từng cột và cách xử lý dòng lỗi. Ba file mẫu đính kèm trong thư mục 'mau'. Tài liệu bám theo phiên bản 0.2.78.
+Thay vì gõ tay từng ngày trên web, có thể tải file Excel mẫu về điền rồi nhập lên. Tài liệu này mô tả ba biểu mẫu — Thu mua, Tiêu thụ, Tồn kho — kèm ý nghĩa từng cột và cách xử lý dòng lỗi. Ba file mẫu đính kèm trong thư mục 'mau'. Tài liệu bám theo phiên bản 0.2.79.
 
 > Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-bang-Excel.docx](./Huong-dan-nhap-lieu-bang-Excel.docx)
 > File mẫu: [Thu mua](mau/mau-thu-mua.xlsx) · [Tiêu thụ](mau/mau-tieu-thu.xlsx) · [Tồn kho](mau/mau-ton-kho.xlsx)
@@ -104,7 +104,7 @@ Mỗi dòng = một hợp đồng bán. Cùng một đơn vị và một ngày c
 
 Mỗi dòng = một dòng tồn kho. Hai nhóm đầu (*Chế biến chưa nhập kho* · *Đã nhập kho*) là số tại thời điểm cuối ngày, KHÔNG cộng dồn giữa các ngày, đơn vị tính là tấn.
 
-Riêng nhóm **Đã ký HĐ** là **hợp đồng có vòng đời**: nhập **một lần**, hệ thống tự tính vào tồn kho **từ cột *Ngày* (= ngày bắt đầu tồn kho) đến hết ngày TRƯỚC *Ngày giao***. **KHÔNG nhập lại hợp đồng đó cho các ngày sau.**
+Riêng nhóm **Đã ký HĐ** là **hợp đồng có vòng đời**: nhập **một lần**, hệ thống tự giữ ở nhóm này **từ cột *Ngày* (= ngày bắt đầu tồn kho) đến hết ngày TRƯỚC *Ngày giao***. **KHÔNG nhập lại hợp đồng đó cho các ngày sau.** Nhóm này chỉ để **ghi nhận** số đã ký mà chưa giao — **không cộng vào và không trừ khỏi** tồn kho thành phẩm.
 
 **Các cột (dấu * = bắt buộc):**
 
@@ -115,7 +115,7 @@ Riêng nhóm **Đã ký HĐ** là **hợp đồng có vòng đời**: nhập **m
 5. **Số lượng** — tấn.
 6. **Đơn giá** và **Đơn giá bằng** (*VND* / *USD*) — chỉ dùng cho nhóm *Đã ký HĐ*.
 7. **Lịch giao** — dd/mm/yyyy, ngày giao **dự kiến** theo hợp đồng.
-8. **Ngày giao** — dd/mm/yyyy, ngày giao **thực tế**; **chưa giao thì để trống**. Điền ngày này là hợp đồng thôi tính vào tồn kho kể từ ngày đó.
+8. **Ngày giao** — dd/mm/yyyy, ngày giao **thực tế**; **chưa giao thì để trống**. Điền ngày này là hợp đồng thôi nằm ở nhóm *Đã ký HĐ* kể từ ngày đó.
 9. **Tồn kho nguyên liệu chưa sản xuất (quy khô)** — tấn; điền ở MỘT dòng bất kỳ của ngày đó là đủ.
 
 > - **Đã xuất kho thì chỉ cần nhập lại đúng hợp đồng đó kèm *Ngày giao***: hệ thống khớp theo (đơn vị · Mã HĐ/PL · chủng loại · ngày bắt đầu) nên **sửa chính hợp đồng cũ, không tạo bản sao**. Cách nhanh hơn: mở màn Báo cáo tồn kho trên web điền *Ngày giao* rồi bấm nút lưu ở cuối dòng.

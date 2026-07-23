@@ -14,7 +14,7 @@
   },
   "cover": {
     "title": "Hướng dẫn nhập liệu bằng Excel",
-    "intro": "Thay vì gõ tay từng ngày trên web, có thể tải file Excel mẫu về điền rồi nhập lên. Tài liệu này mô tả ba biểu mẫu — Thu mua, Tiêu thụ, Tồn kho — kèm ý nghĩa từng cột và cách xử lý dòng lỗi. Ba file mẫu đính kèm trong thư mục 'mau'. Tài liệu bám theo phiên bản 0.2.78."
+    "intro": "Thay vì gõ tay từng ngày trên web, có thể tải file Excel mẫu về điền rồi nhập lên. Tài liệu này mô tả ba biểu mẫu — Thu mua, Tiêu thụ, Tồn kho — kèm ý nghĩa từng cột và cách xử lý dòng lỗi. Ba file mẫu đính kèm trong thư mục 'mau'. Tài liệu bám theo phiên bản 0.2.79."
   },
   "sections": [
     {
@@ -113,7 +113,7 @@
     {
       "title": "5. Mẫu Tồn kho",
       "location": "Báo cáo tồn kho → Tải mẫu Excel  ·  file đính kèm: mau/mau-ton-kho.xlsx",
-      "intro": "Mỗi dòng = một dòng tồn kho. Hai nhóm đầu (*Chế biến chưa nhập kho* · *Đã nhập kho*) là số tại thời điểm cuối ngày, KHÔNG cộng dồn giữa các ngày, đơn vị tính là tấn. Riêng nhóm **Đã ký HĐ** là **hợp đồng có vòng đời**: nhập **một lần**, hệ thống tự tính vào tồn kho **từ cột *Ngày* (= ngày bắt đầu tồn kho) đến hết ngày TRƯỚC *Ngày giao***. **KHÔNG nhập lại hợp đồng đó cho các ngày sau.**",
+      "intro": "Mỗi dòng = một dòng tồn kho. Hai nhóm đầu (*Chế biến chưa nhập kho* · *Đã nhập kho*) là số tại thời điểm cuối ngày, KHÔNG cộng dồn giữa các ngày, đơn vị tính là tấn. Riêng nhóm **Đã ký HĐ** là **hợp đồng có vòng đời**: nhập **một lần**, hệ thống tự giữ ở nhóm này **từ cột *Ngày* (= ngày bắt đầu tồn kho) đến hết ngày TRƯỚC *Ngày giao***. **KHÔNG nhập lại hợp đồng đó cho các ngày sau.** Nhóm này chỉ để **ghi nhận** số đã ký mà chưa giao — **không cộng vào và không trừ khỏi** tồn kho thành phẩm.",
       "pre": "Các cột (dấu * = bắt buộc):",
       "steps": [
         "**Đơn vị** * · **Ngày** * — như trên. Với nhóm *Đã ký HĐ*, cột **Ngày** chính là **ngày bắt đầu tồn kho**.",
@@ -123,7 +123,7 @@
         "**Số lượng** — tấn.",
         "**Đơn giá** và **Đơn giá bằng** (*VND* / *USD*) — chỉ dùng cho nhóm *Đã ký HĐ*.",
         "**Lịch giao** — dd/mm/yyyy, ngày giao **dự kiến** theo hợp đồng.",
-        "**Ngày giao** — dd/mm/yyyy, ngày giao **thực tế**; **chưa giao thì để trống**. Điền ngày này là hợp đồng thôi tính vào tồn kho kể từ ngày đó.",
+        "**Ngày giao** — dd/mm/yyyy, ngày giao **thực tế**; **chưa giao thì để trống**. Điền ngày này là hợp đồng thôi nằm ở nhóm *Đã ký HĐ* kể từ ngày đó.",
         "**Tồn kho nguyên liệu chưa sản xuất (quy khô)** — tấn; điền ở MỘT dòng bất kỳ của ngày đó là đủ."
       ],
       "notes": [
