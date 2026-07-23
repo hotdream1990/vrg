@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PriceRow(BaseModel):
@@ -19,14 +19,19 @@ class PriceRow(BaseModel):
 
 
 class PriceRecordEdit(BaseModel):
-    """Thêm/sửa 1 bản ghi giá thủ công (trang quản lý đa sàn)."""
+    """Thêm/sửa 1 bản ghi giá thủ công (trang quản lý đa sàn).
+
+    `price` chặn NaN/Infinity: kiểu float của JSON cho phép 2 giá trị này, mà ghi được vào
+    fact_price thì mọi màn đọc giá sau đó (bảng giá, lưới, bản tin) đều vỡ khi làm tròn
+    (Decimal ném InvalidOperation) → 500 cho tất cả người dùng, không riêng người nhập.
+    """
 
     as_of: date
     source: str
     grade: str
     contract: str = ""
     price_type: str
-    price: float
+    price: float = Field(allow_inf_nan=False)
     currency: str
     unit: str
 

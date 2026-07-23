@@ -71,9 +71,11 @@ def rename_unit(old: str, new: str) -> None:
     with session_scope() as db:
         db.execute(text("UPDATE member_unit SET name = :new WHERE name = :old"),
                    {"new": new, "old": old})
+        # ĐỦ mọi loại giá gắn theo TÊN ĐƠN VỊ: mủ nước ('purchase') và mủ chén ('purchase_cup').
+        # Bỏ sót loại nào là lịch sử giá của loại đó thành mồ côi (không còn đơn vị nào khớp tên).
         db.execute(
-            text("UPDATE fact_price SET grade = :new "
-                 "WHERE source = 'vrg' AND price_type = 'purchase' AND grade = :old"),
+            text("UPDATE fact_price SET grade = :new WHERE source = 'vrg' "
+                 "AND price_type IN ('purchase', 'purchase_cup') AND grade = :old"),
             {"new": new, "old": old},
         )
 

@@ -18,6 +18,7 @@ Ghi có MERGE: nhập Tiêu thụ không xoá Tồn kho của cùng bản ghi ng
 from __future__ import annotations
 
 import io
+import sys
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
@@ -28,8 +29,15 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from app.core.market_meta import UNIT_STOCK_GRADES
+from app.core.paths import bulletin_dir
 from app.services import member_unit_repo, price_repo, unit_daily_repo
 from app.services.unit_daily_fields import FINISHED_TABLE, SALE_TABLES
+
+_BULLETIN = bulletin_dir()
+if str(_BULLETIN) not in sys.path:
+    sys.path.insert(0, str(_BULLETIN))
+
+from bulletin.convert import r0  # noqa: E402 - 1 nguồn làm tròn nửa-lên dùng chung
 
 TY = 1_000_000_000
 
@@ -495,7 +503,7 @@ def commit_rows(kind: str, rows: list[dict], username: str | None,
                         revenue += got
                 for table in SALE_TABLES:
                     fields[table] = lines[table]
-                fields["revenue"] = round(revenue)
+                fields["revenue"] = r0(revenue)   # nửa LÊN như mọi số tiền khác của dự án
                 if missing_fx:
                     warnings.append(
                         f"{company} {as_of}: có dòng bán bằng USD chưa có tỷ giá nên chưa cộng "
