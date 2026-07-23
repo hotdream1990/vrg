@@ -26,13 +26,21 @@ def build_board() -> dict[str, Any]:
     fx_rates = {r["grade"]: float(r["price"]) for r in rows if r["source"] == "fx"}
     fx_asof = {r["grade"]: str(r["as_of"]) for r in rows if r["source"] == "fx"}
 
+    # Tỷ giá theo TỪNG NGÀY. Trước đây quy đổi bằng tỷ giá MỚI NHẤT cho mọi sàn, kể cả sàn
+    # có giá của phiên cũ hơn (các sàn nghỉ lễ lệch nhau) → USD/tấn tính bằng tỷ giá ngày khác.
+    # Thiếu tỷ giá đúng ngày → to_usd_tonne_detail trả None (để trống), KHÔNG đắp ngày khác.
+    fx_by_day: dict[str, dict[str, float]] = {}
+    for f in price_repo.prices_since(["fx"], days=60):
+        fx_by_day.setdefault(str(f["as_of"]), {})[f["grade"]] = float(f["price"])
+
     exchanges: list[dict[str, Any]] = []
     for r in rows:
         mapping = WORLD_GRADE_MAP.get((r["source"], r["grade"]))
         if not mapping:
             continue
         exchange, blt_grade = mapping
-        usd, fx_pair, fx_rate = to_usd_tonne_detail(float(r["price"]), r["unit"], fx_rates)
+        usd, fx_pair, fx_rate = to_usd_tonne_detail(
+            float(r["price"]), r["unit"], fx_by_day.get(str(r["as_of"]), {}))
         exchanges.append({
             "exchange": exchange,
             "grade": blt_grade,
