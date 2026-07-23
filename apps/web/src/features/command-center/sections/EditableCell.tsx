@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 
 import { isBigChange } from "../../../lib/change-warning";
+import { formatViNumber, parseViNumber } from "../../../lib/number-format";
 import ChangeWarn from "./ChangeWarn";
 
 const fmt = (v: number | null | undefined, d: number) =>
@@ -37,8 +38,8 @@ export default function EditableCell({
       if (value != null) onClear?.();            // đang có giá → xoá; vốn trống → không làm gì
       return;
     }
-    const n = Number(raw.replace(/[.,\s]/g, ""));
-    if (!isNaN(n) && n !== value) onSave(n);
+    const n = parseViNumber(raw);
+    if (n != null && n !== value) onSave(n);
   };
 
   if (editing) {
@@ -58,7 +59,7 @@ export default function EditableCell({
   return (
     <span style={{ cursor: "pointer", display: "block", minWidth: 56, ...(warn ? WARN_BOX : {}) }}
       className={warn ? "num-warn" : undefined}
-      onClick={() => { setEditing(true); setV(value != null ? String(value) : ""); }}>
+      onClick={() => { setEditing(true); setV(formatViNumber(value)); }}>
       {value != null ? fmt(value, dec) : <span style={{ color: "var(--muted)" }}>—</span>}
       {warn && <ChangeWarn value={value} prev={prevValue} style={{ marginLeft: 4 }} />}
     </span>

@@ -3,14 +3,10 @@
 
 import { InputNumber } from "antd";
 
-const groupInt = (s: string) => s.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-export const fmtInput = (v?: string | number): string => {
-  if (v === "" || v == null) return "";
-  const s = String(v);
-  const neg = s.startsWith("-") ? "-" : "";
-  const [intp, dec] = s.replace("-", "").split(".");
-  return neg + groupInt(intp || "0") + (dec != null ? `,${dec}` : "");
-};
+import { formatViNumber } from "../../../lib/number-format";
+
+// Dùng chung 1 nguồn định dạng số vi-VN (giữ nguyên chữ ký để antd suy kiểu InputNumber<string>).
+export const fmtInput = (v?: string | number): string => formatViNumber(v);
 export const parseInput = (s?: string): string => (s ?? "").replace(/\./g, "").replace(",", ".");
 
 /** Hộp ô chỉ đọc (cột suy ra / tự quy đổi) — nền mờ, viền nét đứt. */

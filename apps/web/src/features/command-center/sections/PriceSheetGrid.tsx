@@ -7,6 +7,7 @@ import {
   upsertRecord,
 } from "../../../lib/api-client";
 import { dmy } from "../../../lib/date";
+import { formatViNumber, parseViNumber } from "../../../lib/number-format";
 
 const fmt = (v: number | null | undefined, d = 0) =>
   v == null ? "" : v.toLocaleString("vi-VN", { maximumFractionDigits: d });
@@ -72,13 +73,13 @@ export default function PriceSheetGrid({
         }}
         onBlur={() => {
           if (cancelRef.current) { cancelRef.current = false; setEditing(null); return; }
-          const n = Number(val.replace(/[,\s]/g, ""));
-          if (val.trim() && !isNaN(n)) save(n); else setEditing(null);
+          const n = parseViNumber(val);      // "163,12" = 163,12 — không phải 16312
+          if (n != null) save(n); else setEditing(null);
         }}
         style={{ width: 60, padding: "2px 4px", fontSize: 11 }}
       />
     ) : (
-      <span onClick={() => { setEditing(id); setVal(raw != null ? String(raw) : ""); }}
+      <span onClick={() => { setEditing(id); setVal(formatViNumber(raw)); }}
         style={{ cursor: "pointer", display: "block", minWidth: 44 }}>
         {raw != null ? fmt(raw, dec) : <span style={{ color: "var(--muted)" }}>—</span>}
       </span>
