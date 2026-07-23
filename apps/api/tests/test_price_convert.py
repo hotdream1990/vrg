@@ -70,3 +70,17 @@ def test_thieu_ty_gia_thi_khong_doan_bua() -> None:
     usd, fx_pair, fx_rate = to_usd_tonne_detail(724.0, "Sen/kg", {})
     assert usd is None                  # thiếu USD/MYR → để trống
     assert fx_pair == "USD/MYR" and fx_rate is None
+
+
+def test_ty_gia_yen_luu_2_so_le() -> None:
+    """USD/JPY lưu 2 số lẻ theo đúng file gốc Ban TTKD (163,1222 → 163,12) — mọi đường ghi."""
+    from app.services.price_repo import _fx_rounded
+
+    fx = {"source": "fx", "grade": "USD/JPY", "price": 163.1222}
+    assert _fx_rounded(fx) == 163.12
+    assert _fx_rounded({**fx, "price": 162.5055}) == 162.51
+    assert _fx_rounded({**fx, "price": 163.125}) == 163.13    # nửa LÊN, không phải round() Python
+    # Đồng khác giữ nguyên số lẻ của nguồn; giá sàn (không phải fx) không đụng tới.
+    assert _fx_rounded({"source": "fx", "grade": "USD/CNY", "price": 6.7725}) == 6.7725
+    assert _fx_rounded({"source": "tocom", "grade": "RSS3", "price": 420.7}) == 420.7
+    assert _fx_rounded({"source": "fx", "grade": "USD/JPY", "price": None}) is None

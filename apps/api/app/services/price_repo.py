@@ -18,7 +18,7 @@ _BULLETIN = bulletin_dir()
 if str(_BULLETIN) not in sys.path:
     sys.path.insert(0, str(_BULLETIN))
 
-from bulletin.convert import r1  # noqa: E402 - 1 nguồn làm tròn dùng chung với lưới giá/bản tin
+from bulletin.convert import r1, r2  # noqa: E402 - 1 nguồn làm tròn dùng chung lưới giá/bản tin
 
 _UPSERT = text("""
     INSERT INTO fact_price
@@ -34,6 +34,20 @@ _UPSERT = text("""
         run_id = EXCLUDED.run_id,
         ingested_at = now()
 """)
+
+
+# Chuẩn hoá số lẻ khi LƯU tỷ giá — theo đúng file gốc của Ban TTKD: USD/JPY 2 số lẻ (163,12
+# chứ không phải 163,1222). Cặp không khai ở đây giữ nguyên số lẻ của nguồn (CNY 4 · MYR 3-4 ·
+# THB 4). Áp cho MỌI đường ghi: crawler, backfill và sửa tay.
+_FX_ROUND = {"USD/JPY": r2}
+
+
+def _fx_rounded(rec: dict[str, Any]) -> Any:
+    """Giá của 1 bản ghi, đã chuẩn hoá số lẻ nếu là cặp tỷ giá có quy ước riêng."""
+    fn = _FX_ROUND.get(str(rec.get("grade"))) if rec.get("source") == "fx" else None
+    if fn is None or rec.get("price") is None:
+        return rec.get("price")
+    return fn(float(rec["price"]))
 
 
 def create_run(sources: str) -> int:
@@ -84,7 +98,7 @@ def upsert_prices(records: list[dict[str, Any]], run_id: int) -> int:
             "grade": r["grade"],
             "contract": r.get("contract") or "",
             "price_type": r["price_type"],
-            "price": r["price"],
+            "price": _fx_rounded(r),
             "currency": r["currency"],
             "unit": r["unit"],
             "source_ts": r.get("source_ts"),
@@ -199,7 +213,7 @@ def upsert_record(rec: dict[str, Any]) -> None:
             {
                 "as_of": rec["as_of"], "source": rec["source"], "grade": rec["grade"],
                 "contract": rec.get("contract") or "", "price_type": rec["price_type"],
-                "price": rec["price"], "currency": rec["currency"], "unit": rec["unit"],
+                "price": _fx_rounded(rec), "currency": rec["currency"], "unit": rec["unit"],
             },
         )
 

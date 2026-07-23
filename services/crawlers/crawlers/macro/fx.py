@@ -9,6 +9,8 @@ và "USD/VND (Bán)", đồng bộ với phiếu Báo giá mủ. Backfill VND th
 MYR: lấy TỪ BNM (Ngân hàng TW Malaysia) API — buying_rate phiên 12:00 (đúng nguồn chuyên viên,
 rateType=BR, quote=rm); dùng quy đổi Latex LGM (Sen ÷ USD/MYR × 10). Backfill MYR qua API theo tháng.
 Backfill CNY/JPY/THB: history() đọc bảng lịch sử exchangerates (~7 phiên) → khớp data live.
+LÀM TRÒN: crawler trả nguyên số của nguồn; việc chuẩn hoá số lẻ khi LƯU (USD/JPY 2 số lẻ theo
+file gốc Ban TTKD) nằm ở 1 chỗ duy nhất — `app.services.price_repo`, để sửa tay cũng cùng quy tắc.
 """
 
 from __future__ import annotations

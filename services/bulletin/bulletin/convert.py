@@ -24,6 +24,11 @@ def r1(x: float) -> float:
     return float(Decimal(str(x)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
 
 
+def r2(x: float) -> float:
+    """Làm tròn 2 SỐ LẺ, nửa LÊN — tỷ giá USD/JPY lưu theo đúng file gốc Ban TTKD (163,12)."""
+    return float(Decimal(str(x)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
 def r0(x: float) -> int:
     """Làm tròn về SỐ NGUYÊN, nửa LÊN — cho nơi bắt buộc số nguyên (vd bản tin)."""
     return int(Decimal(str(x)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
