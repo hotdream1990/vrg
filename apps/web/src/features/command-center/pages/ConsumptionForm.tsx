@@ -379,9 +379,11 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
 
       {head("3. Số lượng đã ký hợp đồng chưa giao")}
       <div className="form-note" style={{ fontSize: 11.5, marginBottom: 6 }}>
+        Đây là số <b>ghi nhận riêng</b> — <b>KHÔNG cộng vào và không trừ khỏi</b> tồn kho thành phẩm.
         Khối này <b>KHÔNG nhập lại mỗi ngày</b>: mỗi hợp đồng nhập <b>một lần</b> kèm bản HĐ đã ký
-        scan có đóng dấu (PDF hoặc ảnh), hệ thống tự tính vào tồn kho từ <b>ngày bắt đầu tồn kho</b>
-        {" "}đến <b>hết ngày trước Ngày giao</b>. Khi đã xuất kho thì chỉ cần điền <b>Ngày giao</b>.
+        scan có đóng dấu (PDF hoặc ảnh), hệ thống tự giữ hợp đồng ở khối này từ{" "}
+        <b>ngày bắt đầu tồn kho</b> đến <b>hết ngày trước Ngày giao</b>.
+        Khi đã xuất kho thì chỉ cần điền <b>Ngày giao</b>.
         Ngày bắt đầu phải <b>trước Ngày giao (và Lịch giao) ít nhất 1 ngày</b>.
         {live && " Mỗi dòng lưu riêng bằng nút lưu ở cuối dòng, không đi kèm nút Lưu số liệu bên dưới."}
       </div>

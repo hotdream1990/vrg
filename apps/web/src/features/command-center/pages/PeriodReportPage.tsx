@@ -45,8 +45,8 @@ const CONSUMPTION_COLS: Col[] = [
   { key: "revenue_ty", label: "Doanh thu cao su", unit: "tỷ đồng", note: "cộng dồn" },
   { key: "avg_sell_price", label: "Giá bán BQ", unit: "triệu đ/tấn", note: "= DT / TT" },
   { key: "stock_finished", label: "Tồn kho thành phẩm", unit: "tấn", note: "thời điểm" },
-  { key: "stock_finished_hd", label: "Trong đó đã có HĐ", unit: "tấn", note: "thời điểm" },
-  { key: "stock_no_hd", label: "Chưa có HĐ", unit: "tấn", note: "= TK − đã HĐ" },
+  // Khối 3 là CAM KẾT giao hàng, KHÔNG nằm trong tồn kho thành phẩm → báo riêng, không "trong đó".
+  { key: "stock_finished_hd", label: "Đã ký HĐ chưa giao", unit: "tấn", note: "ngoài tồn kho" },
 ];
 const TAIL_COLS: Col[] = [
   { key: "stock_material", label: "Tồn kho nguyên liệu", unit: "tấn", note: "thời điểm" },

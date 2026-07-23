@@ -118,9 +118,10 @@ SPECS: dict[str, Spec] = {
     "stock": Spec(
         "BIỂU NHẬP — TỒN KHO", "Tồn kho",
         "Mỗi dòng = 1 dòng tồn kho (số THỜI ĐIỂM cuối ngày, không cộng dồn). "
-        "Riêng nhóm 'Đã ký HĐ' là HỢP ĐỒNG có vòng đời: nhập MỘT LẦN, hệ thống tự tính vào tồn kho "
+        "Riêng nhóm 'Đã ký HĐ' là HỢP ĐỒNG có vòng đời: nhập MỘT LẦN, hệ thống tự giữ ở nhóm này "
         "từ cột 'Ngày' (= ngày bắt đầu tồn kho) đến HẾT NGÀY TRƯỚC 'Ngày giao'; chưa giao thì để "
-        "trống 'Ngày giao'. KHÔNG nhập lại hợp đồng đó cho các ngày sau. "
+        "trống 'Ngày giao'. KHÔNG nhập lại hợp đồng đó cho các ngày sau. Nhóm này chỉ để GHI NHẬN "
+        "số đã ký mà chưa giao — KHÔNG cộng vào và không trừ khỏi tồn kho thành phẩm. "
         "File HĐ scan đính kèm trên web.",
         [_UNIT_COL, _DATE_COL,
          Col("group", "Nhóm", required=True, type="enum", choices=STOCK_GROUPS, width=20),

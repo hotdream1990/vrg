@@ -167,8 +167,9 @@ def test_unit_daily_member_and_editor_flow() -> None:
     # Tổng tiêu thụ = mủ thu mua (12.5) + mủ khai thác (7.5), tách đúng theo loại HĐ / hình thức.
     assert row["lt_export"] == 12.5 and row["spot_domestic"] == 7.5
     assert row["total_consumption"] == 20.0
-    # Tồn kho thành phẩm = khối 1 + khối 2 = 24; khối 3 (đã ký HĐ) báo RIÊNG, không trừ ra.
-    assert row["stock_finished"] == 24.0 and row["stock_no_hd"] == 24.0
+    # Tồn kho thành phẩm = khối 1 + khối 2 = 24; khối 3 (đã ký HĐ chưa giao) báo RIÊNG —
+    # KHÔNG cộng vào (≠ 30) và KHÔNG trừ ra (≠ 18).
+    assert row["stock_finished"] == 24.0
     assert row["stock_finished_hd"] == 6.0 and row["stock_material"] == 3.5
 
     # Đơn vị thành viên KHÔNG được xem báo cáo tổng hợp (chỉ admin / quyền unit_daily).

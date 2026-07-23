@@ -137,8 +137,8 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: list[dict] | None
     # Khối 3 (đã ký HĐ) là bản ghi có vòng đời riêng → lấy các HĐ CÒN TỒN ở NGÀY CUỐI KỲ,
     # không phụ thuộc đơn vị có nhập số liệu ngày đó hay không.
     signed = signed or []
-    # Khối 3 là CAM KẾT giao hàng (ký trước, sản xuất sau) — KHÔNG nằm trong tồn kho thành phẩm,
-    # nên KHÔNG trừ ra. Mục 11 = mục 13 = khối 1 + khối 2; mục 12 = khối 3 báo riêng.
+    # Khối 3 là CAM KẾT giao hàng (ký trước, sản xuất sau) — KHÔNG nằm trong tồn kho thành phẩm:
+    # không cộng vào, cũng không trừ ra. Tồn kho thành phẩm = khối 1 + khối 2; khối 3 báo RIÊNG.
     by_grade = {g: 0.0 for g in GRADES}
     for r in [*not_wh, *wh]:
         g = r.get("grade")
@@ -147,8 +147,7 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: list[dict] | None
     t = lambda v: v or None  # số liệu đã ở TẤN — chỉ đổi 0 thành None  # noqa: E731
 
     stock_finished = tonnes(not_wh) + tonnes(wh)
-    stock_hd = tonnes(signed)          # số độc lập, không trừ khỏi tồn kho
-    stock_no_hd = stock_finished
+    stock_hd = tonnes(signed)          # số độc lập, không cộng vào / không trừ khỏi tồn kho
     return {
         "signed_lt_tonnes": _num(plan.get("signed_lt_tonnes")),
         "lt_export": lt_e or None, "lt_domestic": lt_d or None,
@@ -162,7 +161,6 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: list[dict] | None
         "avg_sell_price": (r / TRIEU if (r := _ratio(revenue, total)) is not None else None),
         "stock_finished": t(stock_finished),
         "stock_finished_hd": t(stock_hd),
-        "stock_no_hd": t(stock_no_hd),
         "stock_not_warehoused": t(tonnes(not_wh)),
         "stock_warehoused": t(tonnes(wh)),
         "stock_by_grade": {g: t(v) for g, v in by_grade.items()},
