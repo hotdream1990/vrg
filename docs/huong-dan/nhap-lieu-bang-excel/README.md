@@ -1,6 +1,6 @@
 # Hướng dẫn nhập liệu bằng Excel
 
-Thay vì gõ tay từng ngày trên web, có thể tải file Excel mẫu về điền rồi nhập lên. Tài liệu này mô tả ba biểu mẫu — Thu mua, Tiêu thụ, Tồn kho — kèm ý nghĩa từng cột và cách xử lý dòng lỗi. Ba file mẫu đính kèm trong thư mục 'mau'. Tài liệu bám theo phiên bản 0.2.77.
+Thay vì gõ tay từng ngày trên web, có thể tải file Excel mẫu về điền rồi nhập lên. Tài liệu này mô tả ba biểu mẫu — Thu mua, Tiêu thụ, Tồn kho — kèm ý nghĩa từng cột và cách xử lý dòng lỗi. Ba file mẫu đính kèm trong thư mục 'mau'. Tài liệu bám theo phiên bản 0.2.78.
 
 > Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-bang-Excel.docx](./Huong-dan-nhap-lieu-bang-Excel.docx)
 > File mẫu: [Thu mua](mau/mau-thu-mua.xlsx) · [Tiêu thụ](mau/mau-tieu-thu.xlsx) · [Tồn kho](mau/mau-ton-kho.xlsx)
