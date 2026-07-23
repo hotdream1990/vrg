@@ -55,7 +55,7 @@ _CONSUMPTION_COLS: list[tuple[str, str, str, str]] = [
     ("stock_not_warehoused", "Tồn kho thành phẩm chế biến chưa nhập kho", "thời điểm", "tấn"),
     ("stock_warehoused", "Tồn kho thành phẩm đã nhập kho", "thời điểm", "tấn"),
     ("stock_finished", "Tổng tồn kho thành phẩm", "= chưa nhập kho + đã nhập kho", "tấn"),
-    ("stock_finished_hd", "Số lượng đã ký hợp đồng", "thời điểm — cam kết, ngoài tồn kho", "tấn"),
+    ("stock_finished_hd", "Số lượng đã ký hợp đồng chưa giao", "thời điểm — cam kết, ngoài tồn kho", "tấn"),
 ]
 _TAIL_COLS: list[tuple[str, str, str, str]] = [
     ("stock_material", "Tồn kho nguyên liệu chưa sản xuất (quy khô)", "thời điểm", "tấn"),

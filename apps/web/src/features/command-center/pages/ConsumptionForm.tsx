@@ -377,7 +377,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       {head("2. Tồn kho thành phẩm đã nhập kho")}
       {qtyTable(wh, setWh, "Thêm dòng")}
 
-      {head("3. Số lượng đã ký hợp đồng")}
+      {head("3. Số lượng đã ký hợp đồng chưa giao")}
       <div className="form-note" style={{ fontSize: 11.5, marginBottom: 6 }}>
         Khối này <b>KHÔNG nhập lại mỗi ngày</b>: mỗi hợp đồng nhập <b>một lần</b> kèm bản HĐ đã ký
         scan có đóng dấu (PDF hoặc ảnh), hệ thống tự tính vào tồn kho từ <b>ngày bắt đầu tồn kho</b>

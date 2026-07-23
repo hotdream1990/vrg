@@ -126,7 +126,7 @@ Tồn kho là số liệu **tại thời điểm cuối ngày** (không cộng d
 1. **Lấy tồn ngày trước** — chép khối 1, 2 và 4 của ngày gần nhất sang rồi sửa lại cho đúng ngày này.
 2. **1. Tồn kho thành phẩm chế biến chưa nhập kho** — chủng loại + số lượng (tấn).
 3. **2. Tồn kho thành phẩm đã nhập kho** — chủng loại + số lượng (tấn).
-4. **3. Số lượng đã ký hợp đồng** — nhập **một lần cho mỗi hợp đồng**, mỗi hợp đồng trải **2 hàng**.
+4. **3. Số lượng đã ký hợp đồng chưa giao** — nhập **một lần cho mỗi hợp đồng**, mỗi hợp đồng trải **2 hàng**.
 5. *(Hàng trên)* **Chủng loại** · **Mã HĐ/PL** · **SL (tấn)** · **Đơn giá** · **Tiền** (VND/USD) · **Tỷ giá** khi chọn USD; **Thành tiền** tự tính. Cuối hàng có nút **lưu** và **xoá** của riêng hợp đồng đó.
 6. *(Hàng dưới)* **Bắt đầu tồn kho** · **Lịch giao** · **Ngày giao** · **HĐ đã ký (scan)** — đính kèm bản Hợp đồng đã ký có đóng dấu (PDF hoặc ảnh).
 7. **4. Tồn kho nguyên liệu chưa sản xuất (quy khô)** — 1 ô số lượng (tấn). Xong bấm **Lưu số liệu**.
