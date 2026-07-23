@@ -1,8 +1,10 @@
 """TOCOM/OSE — cao su RSS3 & TSR20: SETTLEMENT của kỳ hạn có TRADING VALUE lớn nhất.
 
 Cao su nằm ở sàn OSE (sau tái cơ cấu JPX 2020, không còn ở TOCOM). Nguồn: JPX OSE Daily Report ZIP
-  .../daily/files/{YYYYMM}/Daily_Report_OSE_{YYYYMMDD}.zip → giải nén → cdf_dyr_{ngày}.pdf
-  (Commodity Derivatives Futures) → trang RSS3 / TSR20.
+  https://www.jpx.co.jp/automation/markets/statistics-derivatives/daily/files/{YYYYMM}/
+  Daily_Report_OSE_{YYYYMMDD}.zip → giải nén → cdf_dyr_{ngày}.pdf (Commodity Derivatives Futures)
+  → trang RSS3 / TSR20 của THỊ TRƯỜNG ĐẤU GIÁ (競争売買/AuctionMarket), bỏ trang J-NET.
+  Lưu ý: chữ 'ゴム' xuất hiện ở CHÚ THÍCH của mọi trang → lọc thật sự là auction + RSS/TSR.
 Chọn kỳ hạn theo MAX TRADING VALUE (đúng spec lay-gia-cac-san.md). Đơn vị JPY/kg.
 ZIP archive ~4 tháng; tự lùi ngày để lấy báo cáo mới nhất có sẵn (hôm nay có thể chưa đăng).
 """

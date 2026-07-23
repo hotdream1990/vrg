@@ -63,18 +63,35 @@
 **Lấy gì:** giá **Settlement** của kỳ hạn **Trading Value lớn nhất**. **Đơn vị:** JPY/kg · **Loại:** settlement.
 *(Cao su đã chuyển sang sàn OSE sau tái cơ cấu JPX 2020.)*
 
+**Link đầy đủ** (không viết tắt): `https://www.jpx.co.jp/automation/markets/statistics-derivatives/daily/files/{YYYYMM}/Daily_Report_OSE_{YYYYMMDD}.zip`
+— vd phiên **22/07/2026** → `.../daily/files/202607/Daily_Report_OSE_20260722.zip`.
+
 | Bước | Chuyên viên (thủ công) | Hệ thống (tự động) |
 |---|---|---|
-| 1 | Vào `jpx.co.jp` → Statistics‑Derivatives → Daily | Lùi ngày (bỏ T7/CN); tải gói **Daily Report OSE** `Daily_Report_OSE_{ngày}.zip` |
-| 2 | Mở file **`cdf_dyr`** (Commodity Derivatives Futures), trang RSS3/TSR20 | Giải nén, lấy PDF `cdf_dyr_*.pdf`; đọc PDF, chỉ giữ trang có **ゴム (cao su)** + đấu giá |
-| 3 | Xem các kỳ hạn của RSS3 / TSR20 | Nhận diện grade (RSS→RSS3, TSR→TSR20); mỗi dòng kỳ hạn lấy **settle** = số thập phân cuối dòng, **trading value** = số tiền lớn nhất (≥ 1 triệu ¥) |
-| 4 | Chọn kỳ hạn **Trading Value lớn nhất** | Chọn kỳ hạn **Trading Value** lớn nhất (nếu cả phiên không giao dịch → kỳ hạn gần nhất) |
-| 5 | Lấy **Settlement Price** | Lấy **settle** của kỳ hạn đó |
+| 1 | Vào `jpx.co.jp` → Statistics‑Derivatives → Daily | Tải gói **Daily Report OSE** `Daily_Report_OSE_{YYYYMMDD}.zip` đúng phiên (Nhật nghỉ/lễ → 404; lùi tối đa 7 ngày làm việc để tìm báo cáo mới nhất **và ghi đúng ngày của báo cáo đó**) |
+| 2 | Mở file **`cdf_dyr`** (Commodity Derivatives Futures), trang RSS3/TSR20 | Giải nén, lấy PDF `cdf_dyr_{YYYYMMDD}.pdf`; đọc text từng trang |
+| 3 | Xem trang RSS3 / TSR20 của **thị trường đấu giá** | Chỉ giữ trang **競争売買 / AuctionMarket** (bỏ trang **J‑NET** thoả thuận); trang tiêu đề *RSS3 Rubber Futures* → RSS3, *TSR20 Rubber Futures* → TSR20 — hiện là **trang 12 & 13** |
+| 4 | Đọc bảng các kỳ hạn | Mỗi dòng = 1 kỳ hạn (mã 6 số `yyyymm`): **settle** = số thập phân cuối dòng (cột 清算数値 Settlement Price), **trading value** = số tiền lớn nhất trên dòng (≥ 1 triệu ¥, cột 取引金額 cả phiên) |
+| 5 | Chọn kỳ hạn **Trading Value lớn nhất** | Chọn kỳ hạn **Trading Value** lớn nhất (nếu cả bảng không giao dịch → kỳ hạn gần nhất, dòng đầu) |
+| 6 | Lấy **Settlement Price** | Lấy **settle** của kỳ hạn đó (JPY/kg) |
+
+**Đối chiếu thực tế phiên 22/07/2026** (chạy lại crawler trên file gốc của JPX):
+
+| Kỳ hạn | Trading Value (¥) | Settlement (JPY/kg) |
+|---|---:|---:|
+| 202607 | 46.278.500 | 429,5 |
+| 202611 | 96.482.500 | 418,0 |
+| **202612** | **732.392.000** ← lớn nhất | **420,7** ✅ |
+| 202701 | 71.486.500 | 420,3 |
+
+→ Hệ thống lấy **420,7 JPY/kg** — khớp đúng số hiển thị trên Bảng tính giá (420,7 ÷ 163,1222 × 1.000 = **2.579 USD/tấn**).
+Kiểm chứng chéo: 732.392.000 ¥ ÷ (349 lô × 5.000 kg) ≈ 419,7 ¥/kg → đúng đơn vị **JPY/kg**.
 
 **✅ Cần xác nhận:**
-- [ ] "Trading Value lớn nhất → Settlement" đúng? (spec ghi *thường ~5 tháng* / trang 12)
+- [ ] "Trading Value lớn nhất → Settlement" đúng? (spec ghi *thường ~5 tháng* / trang 12 — thực tế 22/07/2026 rơi vào 202612, đúng ~5 tháng)
 - [ ] Cách đọc **Trading Value** (giá trị giao dịch ¥) trong PDF đúng cột anh/chị dùng?
 - [ ] ⚠️ Gói ZIP của JPX chỉ lưu **~4 tháng gần nhất** → lịch sử 2 năm phải lấy từ **Excel của VRG / J‑QUANTS**. Xác nhận có nguồn lịch sử này?
+- [ ] ⚠️ **TSR20 trên OSE gần như không có giao dịch** (0/12 kỳ hạn có KL ở mọi phiên đã kiểm tra) → settlement là số sàn công bố, không phải giá khớp lệnh. Bảng tính giá không dùng cột này.
 
 ---
 

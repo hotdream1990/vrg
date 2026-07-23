@@ -23,17 +23,28 @@ export const AUTO_NOTES: Record<string, DataSourceNote> = {
         note: "Nếu ngày đó chưa có dữ liệu, tự lùi tối đa 7 ngày giao dịch gần nhất (bỏ cuối tuần).",
       },
       {
-        name: "TOCOM / OSE — Sàn Osaka, Nhật (RSS3 & TSR20)",
-        where: "https://www.jpx.co.jp/.../files/{YYYYMM}/Daily_Report_OSE_{YYYYMMDD}.zip",
+        name: "TOCOM / OSE — Sàn Osaka, Nhật (RSS3 & TSR20 · bảng này dùng RSS3)",
+        where:
+          "https://www.jpx.co.jp/automation/markets/statistics-derivatives/daily/files/{YYYYMM}/Daily_Report_OSE_{YYYYMMDD}.zip" +
+          "  (vd phiên 22/07/2026 → .../daily/files/202607/Daily_Report_OSE_20260722.zip)",
         method: "Tải ZIP → đọc PDF (pdfplumber)",
         steps: [
-          "Tải file ZIP báo cáo ngày của OSE theo YYYYMMDD.",
-          "Giải nén, lấy PDF 'cdf_dyr_{YYYYMMDD}.pdf'; đọc text từng trang.",
-          "Tìm trang có chữ 'ゴム' (cao su); tách 2 nhóm: 'RSS' → RSS3, 'TSR' → TSR20.",
-          "Mỗi nhóm chọn hợp đồng có giá trị giao dịch (trading value) lớn nhất; nếu không có KL thì lấy hợp đồng đầu.",
+          "Tải ZIP báo cáo ngày của OSE theo đúng phiên YYYYMMDD (ngày Nhật nghỉ/lễ không có file → 404).",
+          "Giải nén, lấy PDF 'cdf_dyr_{YYYYMMDD}.pdf' (Commodity Derivatives Futures — phái sinh hàng hoá); đọc text từng trang.",
+          "Chỉ nhận trang của THỊ TRƯỜNG ĐẤU GIÁ (競争売買 / AuctionMarket); bỏ các trang J-NET (thoả thuận ngoài sàn).",
+          "Trong nhóm trang đó: trang 'RSS3 Rubber Futures' (ゴム（RSS3）先物) → RSS3, trang 'TSR20 Rubber Futures' → TSR20 (báo cáo hiện nay là trang 12 và 13).",
+          "Mỗi dòng của bảng = 1 kỳ hạn (mã 6 số yyyymm): đọc Trading Value (取引金額 — giá trị giao dịch cả phiên, ¥) và Settlement Price (清算数値).",
+          "Chọn kỳ hạn có Trading Value LỚN NHẤT rồi lấy Settlement Price của đúng kỳ hạn đó; nếu cả bảng không có giao dịch thì lấy kỳ hạn gần nhất (dòng đầu).",
         ],
-        field: "Giá settlement (số thập phân cuối dòng hợp đồng), kèm mã hợp đồng 6 số (vd 202609).",
-        unit: "JPY/kg",
+        field:
+          "Settlement Price (清算数値) của kỳ hạn có Trading Value lớn nhất, kèm mã kỳ hạn 6 số. " +
+          "VD phiên 22/07/2026: kỳ hạn 202612, trading value 732.392.000 ¥ → settlement 420,7 JPY/kg.",
+        unit: "JPY/kg (USD/tấn = giá ÷ tỷ giá USD/JPY × 1.000, lấy tỷ giá đúng ngày đó)",
+        note:
+          "JPX chỉ đăng báo cáo vào cuối ngày (tối giờ Nhật) nên dòng của chính hôm nay còn trống tới lúc đó — hệ thống KHÔNG lấy giá phiên khác đắp vào. " +
+          "Ngày Nhật nghỉ lễ cũng trống (vd 20/07/2026 — Ngày của Biển). " +
+          "TSR20 trên OSE gần như không có giao dịch nên settlement là số sàn công bố, không phải giá khớp lệnh (bảng này không dùng). " +
+          "Gói ZIP của JPX chỉ lưu ~4 tháng gần nhất; lịch sử xa hơn phải nạp từ file của VRG.",
       },
       {
         name: "SGX / SICOM — Singapore (TSR20 mã TF · RSS3 mã RT)",
@@ -77,10 +88,13 @@ export const AUTO_NOTES: Record<string, DataSourceNote> = {
         steps: [
           "Mỗi đồng tiền mở 1 phiên trình duyệt riêng (Cloudflare chỉ cho 1 context/phiên).",
           "Chờ Cloudflare qua ('Just a moment' biến mất) rồi đọc bảng lịch sử tỷ giá.",
-          "Lấy dòng mới nhất khớp mẫu '1 USD = <số> <MÃ>'.",
+          "Lấy dòng CÓ NGÀY mới nhất khớp mẫu '1 USD = <số> <MÃ>' — đây là giá đóng cửa (close) của ngày đó; số 'live/spot' trên trang bị bỏ qua.",
         ],
         field: "Số sau '1 USD = ' của dòng ngày gần nhất (vd 6.7908 CNY).",
         unit: "Ngoại tệ / 1 USD",
+        note:
+          "USD/JPY lưu 2 số lẻ (163,12) theo đúng file gốc Ban TTKD; các đồng khác giữ số lẻ của nguồn. " +
+          "Close của ngày D chỉ có trên web từ khoảng 06:00 sáng D+1 (nửa đêm giờ Anh) — nên tỷ giá và USD/tấn của ngày hôm nay được điền vào sáng hôm sau, không lấy tỷ giá ngày khác đắp vào.",
       },
       {
         name: "Vietcombank — USD/VND (Mua & Bán)",
