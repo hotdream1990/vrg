@@ -24,6 +24,7 @@ table.data th, table.data td { border: 1px solid #2a2a2a; padding: 4px 6px; text
 table.data th { background: #eef0f7; font-weight: bold; }
 table.data td.l { text-align: left; }
 .neg { color: #b00; }
+.daytag { font-size: 9px; color: #666; }
 .signs { width: 100%; border-collapse: collapse; margin-top: 18px; text-align: center; }
 .signs td { width: 50%; vertical-align: top; padding: 6px 4px 70px; }
 .signs .role, .signs .name { font-weight: bold; }
@@ -64,7 +65,14 @@ def _cell(v, cls=""):
     return f'<td class="{cls}{" neg" if neg else ""}">{v}</td>'
 
 
-def _settlement_table(rows: list[dict]) -> str:
+def _day_tag(iso: str | None, ref: str | None) -> str:
+    """Nhãn '(22/07)' nhỏ khi ô lấy từ phiên KHÁC ngày tiêu đề cột; trùng ngày thì không in."""
+    if not iso or not ref or iso == ref:
+        return ""
+    return f' <span class="daytag">({iso[8:10]}/{iso[5:7]})</span>'
+
+
+def _settlement_table(rows: list[dict], t1_iso: str | None, t2_iso: str | None) -> str:
     # gộp rowspan theo SÀN + đánh STT
     groups: list[tuple[str, list[dict]]] = []
     for r in rows:
@@ -78,7 +86,12 @@ def _settlement_table(rows: list[dict]) -> str:
             tds = []
             if j == 0:
                 tds.append(f'<td rowspan="{len(rs)}">{i}</td><td rowspan="{len(rs)}">{san}</td>')
-            tds.append(f'<td>{r["grade"]}</td><td>USD/T</td><td>{vn(r["prev"])}</td><td>{vn(r["curr"])}</td>')
+            # Ô rơi vào phiên khác cột ngày (sàn nghỉ lễ lệch nhau) → in kèm ngày thật, không
+            # để người đọc tưởng đó là giá đúng ngày tiêu đề.
+            prev_tag = _day_tag(r.get("prev_as_of"), t2_iso) if r["prev"] is not None else ""
+            curr_tag = _day_tag(r.get("curr_as_of"), t1_iso) if r["curr"] is not None else ""
+            tds.append(f'<td>{r["grade"]}</td><td>USD/T</td>'
+                       f'<td>{vn(r["prev"])}{prev_tag}</td><td>{vn(r["curr"])}{curr_tag}</td>')
             tds.append(_cell(_sgn(r["d_abs"])) + _cell(_sgn_pct(r["d_pct"])))
             body.append("<tr>" + "".join(tds) + "</tr>")
     return (
@@ -131,7 +144,7 @@ def render(d: dict) -> str:
     if d.get("error"):
         return f'<div style="padding:24px;font-family:sans-serif;color:#b00">Lỗi: {d["error"]}</div>'
     t1, t2, lan, plan, year = _dmy(d["t1"]), _dmy(d["t2"]), d["lan"], d["prev_lan"], d["year"]
-    sett = _settlement_table(d["settlement"]).replace("{t1}", t1).replace("{t2}", t2)
+    sett = _settlement_table(d["settlement"], d["t1"], d["t2"]).replace("{t1}", t1).replace("{t2}", t2)
     phys = _physical_table(d["physical"]).replace("{t1}", t1).replace("{t2}", t2)
     prop = _proposal_table(d["proposal"], lan, plan, year)
     narr1 = "".join(f'<p class="body">{x}</p>' for x in d["n1"])

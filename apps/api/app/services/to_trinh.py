@@ -5,13 +5,22 @@ quy đổi USD/T. GIỮ ĐÚNG THỨ TỰ chủng loại cố định — KHÔNG
 """
 from __future__ import annotations
 
+import sys
 from typing import Any
 
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
-from app.core.market_meta import VRG_DOMESTIC_ONLY_GRADES
+from app.core.market_meta import FX_PAIRS, VRG_DOMESTIC_ONLY_GRADES
+from app.core.paths import bulletin_dir
 from app.services import floor_suggest as fs
+
+# bulletin.convert — 1 NGUỒN quy đổi & làm tròn (nửa lên) dùng chung với bản tin/lưới giá.
+_BULLETIN = bulletin_dir()
+if str(_BULLETIN) not in sys.path:
+    sys.path.insert(0, str(_BULLETIN))
+
+from bulletin.convert import r0, to_usd_tonne_detail  # noqa: E402
 
 # Thứ tự CỐ ĐỊNH (không sort): (tên tờ trình, tên hệ thống trong vrg_floor_price | None)
 TT_GRADES = [("CV50", "SVR CV 50"), ("CV60", "SVR CV60"), ("SVRL", "SVR L"), ("SVR 3L Mix", "SVR 3L Mix"),
@@ -33,36 +42,43 @@ def vn(n: float | int | None) -> str:
     return "—" if n is None else f"{round(n):,}".replace(",", ".")
 
 
+def _dmy_short(iso: str | None) -> str:
+    """'2026-07-22' -> '22/07'."""
+    return f"{iso[8:10]}/{iso[5:7]}" if iso and len(iso) >= 10 else "—"
+
+
 _PLAUSIBLE_MAX = 6000  # USD/T — chặn giá trị phi lý (vd lgm LATEX lưu Sen/kg thô chưa quy đổi)
 
 
 def _usd_t(price: float | None, unit: str | None, fx: dict) -> int | None:
+    """Quy đổi USD/tấn qua bulletin.convert (đủ mọi đơn vị, kể cả Sen/kg của MRE Latex).
+
+    Trước đây hàm này tự viết lại 4 nhánh đơn vị nên bỏ sót `Sen/kg` ⇒ dòng MRE LATEX luôn
+    trống, và dùng `round()` của Python (làm tròn về số chẵn) thay vì nửa-lên như quy ước.
+    """
     if price is None:
         return None
-    v: int | None = None
-    if unit == "US cents/kg":
-        v = round(price * 10)
-    elif unit == "USD/tonne":
-        v = round(price)
-    elif unit == "CNY/tonne":
-        r = fx.get("USD/CNY")
-        v = round(price / r) if r else None
-    elif unit == "JPY/kg":
-        r = fx.get("USD/JPY")
-        v = round(price * 1000 / r) if r else None
-    return None if (v is None or v > _PLAUSIBLE_MAX) else v
+    usd, _, _ = to_usd_tonne_detail(float(price), unit or "", fx)
+    if usd is None:
+        return None
+    v = r0(usd)
+    return None if v > _PLAUSIBLE_MAX else v
 
 
 def _at(db, source: str, grade: str, d):
+    """Bản ghi ĐÚNG NGÀY d; không có thì phiên gần nhất trước đó (ngày thật được trả về để
+    hiển thị kèm) — KHÔNG bao giờ gán số của ngày khác vào ô của ngày d mà giấu ngày đi."""
     return db.execute(text("SELECT price, unit, as_of FROM fact_price WHERE source=:s AND grade=:g "
                            "AND as_of<=:d ORDER BY as_of DESC LIMIT 1"), {"s": source, "g": grade, "d": d}).first()
 
 
 def _fx_at(db, d) -> dict:
+    """Tỷ giá ĐÚNG NGÀY d cho mọi cặp (JPY·CNY·MYR·THB…). Thiếu → không có khoá đó ⇒ ô để
+    trống, không lấy tỷ giá ngày khác quy đổi (đúng luật no-carry-forward của dự án)."""
     out = {}
-    for cur in ("USD/CNY", "USD/JPY"):
-        r = db.execute(text("SELECT price FROM fact_price WHERE source='fx' AND grade=:g AND as_of<=:d "
-                            "ORDER BY as_of DESC LIMIT 1"), {"g": cur, "d": d}).first()
+    for cur in FX_PAIRS:
+        r = db.execute(text("SELECT price FROM fact_price WHERE source='fx' AND grade=:g AND as_of=:d"),
+                       {"g": cur, "d": d}).first()
         if r:
             out[cur] = r[0]
     return out
@@ -75,13 +91,24 @@ def _row(prev, curr) -> dict:
 
 
 def _settlement(db, t2, t1) -> list[dict]:
-    fx1, fx2 = _fx_at(db, t1), _fx_at(db, t2)
+    """2 cột giá của mỗi sàn, kèm NGÀY THẬT của từng ô.
+
+    Các sàn nghỉ lễ lệch nhau nên không phải sàn nào cũng có phiên đúng ngày t1/t2. Ô nào rơi
+    vào phiên khác thì trả kèm `curr_as_of`/`prev_as_of` để bản in ghi rõ ngày — thay vì im
+    lặng coi số phiên cũ là số của ngày t1. Hai ô trùng ngày ⇒ bỏ cột trước (không có gì để so).
+    """
     out = []
     for src, g, san, disp in SETTLE:
         r1, r2 = _at(db, src, g, t1), _at(db, src, g, t2)
-        v1 = _usd_t(r1[0], r1[1], fx1) if r1 else None
-        v2 = _usd_t(r2[0], r2[1], fx2) if r2 else None
-        out.append({"san": san, "grade": disp, **_row(v2, v1)})
+        v1 = _usd_t(r1[0], r1[1], _fx_at(db, r1[2])) if r1 else None
+        v2 = _usd_t(r2[0], r2[1], _fx_at(db, r2[2])) if r2 else None
+        d1 = r1[2] if r1 else None
+        d2 = r2[2] if r2 else None
+        if d1 is not None and d2 is not None and d2 >= d1:   # cùng 1 phiên → không so sánh
+            v2, d2 = None, None
+        out.append({"san": san, "grade": disp, **_row(v2, v1),
+                    "curr_as_of": str(d1) if d1 else None,
+                    "prev_as_of": str(d2) if d2 else None})
     return out
 
 
@@ -89,7 +116,7 @@ def _physical(db, t2, t1) -> list[dict]:
     out = []
     for g in PHYS:
         def val(r, ref):
-            return round(r[0]) if (r and (ref - r[2]).days <= _STALE_DAYS) else None
+            return r0(r[0]) if (r and (ref - r[2]).days <= _STALE_DAYS) else None
         v1 = val(_at(db, "reuters", g, t1), t1)
         v2 = val(_at(db, "reuters", g, t2), t2)
         out.append({"grade": g, **_row(v2, v1)})
@@ -122,7 +149,19 @@ def _proposal(db, sug: dict, prev_as_of) -> list[dict]:
     return out
 
 
-def _narrative(settlement: list[dict], physical: list[dict]) -> dict:
+def _narrative(settlement: list[dict], physical: list[dict], t1=None) -> dict:
+    """Câu nhận định CHỈ nói đúng những gì số liệu có.
+
+    Ô nào không có phiên đúng ngày t1 thì ghi rõ "(phiên dd/mm)"; ô không có phiên trước để so
+    thì chỉ nêu mức giá, KHÔNG được viết "đi ngang" (trước đây so ô với chính nó ra 0% rồi kết
+    luận đi ngang — nhận định không có thật trong văn bản trình Tổng Giám đốc).
+    """
+    ref = str(t1) if t1 else None
+
+    def tag(r) -> str:
+        d = r.get("curr_as_of")
+        return f" (phiên {_dmy_short(d)})" if (d and ref and d != ref) else ""
+
     n1 = ["- Thị trường cao su kỳ hạn biến động, các sàn có sự phân hóa giữa các chủng loại."]
     by_san: dict[str, list] = {}
     for r in settlement:
@@ -133,10 +172,11 @@ def _narrative(settlement: list[dict], physical: list[dict]) -> dict:
             if r["curr"] is None:
                 continue
             if r["d_abs"] is None:
-                parts.append(f"{r['grade']} ở mức {vn(r['curr'])} USD/T")
+                parts.append(f"{r['grade']} ở mức {vn(r['curr'])} USD/T{tag(r)}")
             else:
                 dirn = "tăng" if r["d_abs"] > 0 else ("giảm" if r["d_abs"] < 0 else "đi ngang")
-                parts.append(f"{r['grade']} {dirn} {abs(r['d_abs'])} USD/T ({vn(r['curr'])}, {r['d_pct']:+}%)")
+                parts.append(
+                    f"{r['grade']} {dirn} {abs(r['d_abs'])} USD/T ({vn(r['curr'])}, {r['d_pct']:+}%){tag(r)}")
         if parts:
             n1.append(f"- {SAN_FULL[san]}: " + "; ".join(parts) + ".")
     has_phys = any(r["curr"] is not None for r in physical)
@@ -169,4 +209,4 @@ def build(as_of: str, model: str = "v1") -> dict[str, Any]:
     return {"as_of": as_of, "year": year, "lan": lan, "prev_lan": lan - 1,
             "t1": str(t1) if t1 else None, "t2": str(t2) if t2 else None,
             "settlement": settlement, "physical": physical, "proposal": proposal,
-            **_narrative(settlement, physical)}
+            **_narrative(settlement, physical, t1)}
