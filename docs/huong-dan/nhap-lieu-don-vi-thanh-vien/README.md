@@ -14,15 +14,15 @@ Sau khi đăng nhập bằng tài khoản đơn vị, menu bên trái hiển th�
 
 *Hình 1. Menu của tài khoản đơn vị thành viên*
 
-**Năm mục cần nhập:**
+**Sáu mục trên menu** (5 mục để nhập số liệu, 1 mục để tra cứu):
 
 1. **Báo cáo thu mua** — sản lượng và đơn giá thu mua mủ nguyên liệu **theo ngày**.
 2. **Báo cáo tiêu thụ** — sản lượng bán theo từng hợp đồng, giá bán và doanh thu **theo ngày**.
 3. **Báo cáo tồn kho** — tồn kho thành phẩm (đã / chưa có hợp đồng) và tồn kho nguyên liệu **theo ngày**.
-4. **Nhu cầu thị trường** — ghi nhận nhu cầu/tín hiệu thị trường của đơn vị, nhập **tự do bằng chữ**.
-5. **Kế hoạch năm** — kế hoạch thu mua và hợp đồng dài hạn đã ký, **nhập 1 lần cho cả năm**.
+4. **Thống kê hợp đồng** — tra cứu lịch sử hợp đồng đã ký, **chỉ để xem, không nhập** (xem mục 7).
+5. **Nhu cầu thị trường** — ghi nhận nhu cầu/tín hiệu thị trường của đơn vị, nhập **tự do bằng chữ**.
+6. **Kế hoạch năm** — kế hoạch thu mua và hợp đồng dài hạn đã ký, **nhập 1 lần cho cả năm**.
 
-> - Ngoài 5 mục trên, menu còn mục **Thống kê hợp đồng** — **chỉ để tra cứu**, không nhập số liệu (xem mục 7).
 > - Báo cáo tiêu thụ và Báo cáo tồn kho là **hai tab của cùng một phiếu ngày** — nhập bên này không làm mất số bên kia.
 > - Chỉ nhập/sửa được ngày hôm nay và một số ngày gần nhất theo quy định; ngày cũ hơn chỉ để xem.
 
