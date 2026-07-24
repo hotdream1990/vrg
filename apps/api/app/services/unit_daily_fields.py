@@ -45,8 +45,8 @@ PURCHASE_FLAGS: frozenset[str] = frozenset({"no_purchase"})
 #                                tự nằm ở khối này tới hết ngày trước ngày giao). Khi ĐỌC báo cáo
 #                                ngày, khối này được tính và gắn vào (unit_daily_repo._attach_contracts).
 #   4 `stock_material`           Tồn kho nguyên liệu CHƯA SẢN XUẤT — chỉ đơn vị KHÔNG có nhà máy
-# Tồn kho thành phẩm = khối 1 + khối 2. Khối 3 là CAM KẾT giao hàng, chỉ để GHI NHẬN đã ký bao nhiêu
-# mà chưa giao — KHÔNG cộng vào và KHÔNG trừ khỏi tồn kho. Khối 4 báo riêng.
+# Tồn kho thành phẩm = khối 1 + khối 2. Khối 3 là phần NẰM TRONG tồn kho thành phẩm đã có hợp đồng
+# nhưng chưa giao → chỉ báo, KHÔNG cộng thêm (cộng nữa là tính trùng) và không trừ ra. Khối 4 báo riêng.
 CONSUMPTION_FIELDS: frozenset[str] = frozenset({
     "revenue",            # tổng doanh thu tiêu thụ (BASE = đồng) — tính từ dòng bán
     "fx_revenue",         # tỷ giá USD→VND (khi giá bán / đơn giá tồn kho nhập bằng USD)

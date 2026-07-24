@@ -100,7 +100,7 @@ SPECS: dict[str, Spec] = {
          Col("finished_qty", "SL thu mua thành phẩm", "tấn", width=20),
          Col("finished_price", "Đơn giá thành phẩm",
              "triệu đ/tấn khi VND · USD/tấn khi USD", width=26),
-         Col("finished_ccy", "Đơn giá thành phẩm bằng", "VND | USD", type="enum",
+         Col("finished_ccy", "Đơn giá thành phẩm bằng", type="enum",
              choices=CCYS, width=20)]),
     "sales": Spec(
         "BIỂU NHẬP — TIÊU THỤ", "Tiêu thụ",
@@ -120,7 +120,7 @@ SPECS: dict[str, Spec] = {
              choices={g: g for g in GRADES}, width=20),
          Col("qty", "Số lượng", "tấn"),
          Col("price", "Giá bán", "triệu đ/tấn khi VND · USD/tấn khi USD", width=26),
-         Col("sales_ccy", "Giá bán bằng", "VND | USD", type="enum", choices=CCYS, width=14),
+         Col("sales_ccy", "Giá bán bằng", type="enum", choices=CCYS, width=14),
          Col("warehouse_date", "Ngày xuất kho", "dd/mm/yyyy", type="date", width=18),
          Col("invoice_date", "Ngày xuất hoá đơn", "dd/mm/yyyy", type="date", width=18)]),
     "stock": Spec(
@@ -128,8 +128,9 @@ SPECS: dict[str, Spec] = {
         "Mỗi dòng = 1 dòng tồn kho (số THỜI ĐIỂM cuối ngày, không cộng dồn). "
         "Riêng nhóm 'Đã ký HĐ' là HỢP ĐỒNG có vòng đời: nhập MỘT LẦN, hệ thống tự giữ ở nhóm này "
         "từ cột 'Ngày' (= ngày bắt đầu tồn kho) đến HẾT NGÀY TRƯỚC 'Ngày giao'; chưa giao thì để "
-        "trống 'Ngày giao'. KHÔNG nhập lại hợp đồng đó cho các ngày sau. Nhóm này chỉ để GHI NHẬN "
-        "số đã ký mà chưa giao — KHÔNG cộng vào và không trừ khỏi tồn kho thành phẩm. "
+        "trống 'Ngày giao'. KHÔNG nhập lại hợp đồng đó cho các ngày sau. Nhóm này là phần NẰM "
+        "TRONG tồn kho thành phẩm đã có hợp đồng nhưng chưa giao — KHÔNG cộng thêm vào tồn kho "
+        "(cộng nữa là tính trùng) và cũng không trừ ra, nên không vượt quá tổng tồn kho. "
         "File HĐ scan đính kèm trên web.",
         [_UNIT_COL, _DATE_COL,
          Col("group", "Nhóm", required=True, type="enum", choices=STOCK_GROUPS, width=20),
@@ -138,7 +139,7 @@ SPECS: dict[str, Spec] = {
          Col("code", "Mã HĐ/PL", "chỉ nhóm đã ký HĐ", type="text", width=20),
          Col("qty", "Số lượng", "tấn"),
          Col("price", "Đơn giá", "chỉ nhóm đã ký HĐ", width=18),
-         Col("stock_ccy", "Đơn giá bằng", "VND | USD", type="enum", choices=CCYS, width=14),
+         Col("stock_ccy", "Đơn giá bằng", type="enum", choices=CCYS, width=14),
          Col("delivery_date", "Lịch giao", "dd/mm/yyyy · dự kiến", type="date", width=18),
          Col("delivered_date", "Ngày giao", "dd/mm/yyyy · để trống nếu chưa giao",
              type="date", width=22),
@@ -156,6 +157,22 @@ SPECS: dict[str, Spec] = {
 
 _HEAD_FILL = PatternFill("solid", fgColor="D9E7D5")
 _REQ_FILL = PatternFill("solid", fgColor="FCE9E7")
+
+_HINT_MAX = 60      # danh sách dài hơn thì chỉ trỏ sang sheet "Danh mục" cho khỏi vỡ dòng
+
+
+def _hint(c: Col) -> str:
+    """Dòng gợi ý dưới tiêu đề.
+
+    Cột chọn phải GHI RÕ giá trị hợp lệ: dropdown chỉ hiện khi bấm vào ô, và nhiều trình xem
+    (Quick Look, Numbers, preview trên web) không hiển thị dropdown — người dùng sẽ không biết
+    điền gì nếu chỉ dựa vào data validation.
+    """
+    if c.type != "enum" or not c.choices:
+        return c.unit
+    labels = " · ".join(c.choices)
+    body = labels if len(labels) <= _HINT_MAX else "xem sheet 'Danh mục'"
+    return f"{c.unit} · chọn: {body}" if c.unit else f"chọn: {body}"
 
 
 def template_columns(kind: str, allowed_units: list[str] | None) -> tuple[list[Col], str | None]:
@@ -190,33 +207,43 @@ def build_template(kind: str, allowed_units: list[str] | None = None) -> bytes:
         cell.font = Font(bold=True, size=10)
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         cell.fill = _REQ_FILL if c.required else _HEAD_FILL
-        u = ws.cell(row=head + 1, column=i, value=c.unit)
+        hint = "chọn: xem sheet 'Danh mục'" if (c.key == "company" and units) else _hint(c)
+        u = ws.cell(row=head + 1, column=i, value=hint)
         u.font = Font(size=8, italic=True, color="666666")
         u.alignment = Alignment(horizontal="center", wrap_text=True)
         ws.column_dimensions[get_column_letter(i)].width = c.width
+    ws.row_dimensions[head + 1].height = 30     # đủ chỗ cho gợi ý xuống dòng
 
-    # Danh mục tham chiếu + dropdown cho cột đơn vị / enum.
+    # Danh mục tham chiếu: đơn vị + MỌI cột chọn, để người dùng đọc được giá trị hợp lệ
+    # mà không phải bấm vào từng ô.
     ref = wb.create_sheet("Danh mục")
+    ranges: dict[str, str] = {}                 # key cột -> vùng tham chiếu cho dropdown
     ref.cell(row=1, column=1, value="Đơn vị").font = Font(bold=True)
     for r, u in enumerate(units, start=2):
         ref.cell(row=r, column=1, value=u)
     ref.column_dimensions["A"].width = 28
+    if units:
+        ranges["company"] = f"'Danh mục'!$A$2:$A${len(units) + 1}"
+
+    enums = [c for c in cols if c.type == "enum" and c.choices]
+    for j, c in enumerate(enums, start=2):
+        letter = get_column_letter(j)
+        ref.cell(row=1, column=j, value=c.title).font = Font(bold=True)
+        for r, label in enumerate(c.choices or {}, start=2):
+            ref.cell(row=r, column=j, value=label)
+        ref.column_dimensions[letter].width = min(
+            max(len(c.title), *(len(x) for x in c.choices or {})) + 2, 30)
+        ranges[c.key] = f"'Danh mục'!${letter}$2:${letter}${len(c.choices or {}) + 1}"
 
     first, last = head + 2, head + 501          # 500 dòng cho người dùng nhập
     for i, c in enumerate(cols, start=1):
+        rng = ranges.get(c.key)
+        if not rng:
+            continue
+        dv = DataValidation(type="list", formula1=rng, allow_blank=True)
+        ws.add_data_validation(dv)
         letter = get_column_letter(i)
-        if c.key == "company" and units:
-            dv = DataValidation(
-                type="list",
-                formula1=f"='Danh mục'!$A$2:$A${len(units) + 1}",
-                allow_blank=True)
-            ws.add_data_validation(dv)
-            dv.add(f"{letter}{first}:{letter}{last}")
-        elif c.type == "enum" and c.choices:
-            dv = DataValidation(
-                type="list", formula1='"' + ",".join(c.choices.keys()) + '"', allow_blank=True)
-            ws.add_data_validation(dv)
-            dv.add(f"{letter}{first}:{letter}{last}")
+        dv.add(f"{letter}{first}:{letter}{last}")
 
     ws.freeze_panes = ws.cell(row=first, column=1)
     buf = io.BytesIO()
