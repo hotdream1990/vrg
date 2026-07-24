@@ -137,7 +137,7 @@ def test_template_download_then_import_roundtrip() -> None:
         "purchase": [(unit, dmy, 120.0, 50.0, 540, 510, "Độ DRC", "SVR CV 50", 30, 41.2, "VND"),
                      (unit, dmy, None, None, None, None, None, "SVR 3L", 20, 1800, "USD")],
         # Cột "Nguồn mủ" tách mủ thu mua / mủ khai thác thành 2 bảng lưu riêng.
-        # Cột "Mã HĐ/PL" = số hợp đồng / phụ lục của dòng bán (và của dòng tồn kho đã ký HĐ).
+        # Cột "Số HĐ/PL" = số hợp đồng / phụ lục của dòng bán (và của dòng tồn kho đã ký HĐ).
         "sales": [(unit, dmy, "HĐ-01/2026", "Mủ thu mua", "Dài hạn", "XK / UTXK", "SVR CV 50",
                    25, 1800, "USD", dmy, dmy),
                   (unit, dmy, "PL-02/2026", "Mủ khai thác", "Chuyến", "Nội tiêu", "SVR 3L",
@@ -177,7 +177,7 @@ def test_template_download_then_import_roundtrip() -> None:
                      headers=h).json()["entries"][unit]["fields"]
     assert con["sales_ccy"] == "USD" and con["sales"][0]["invoice_date"] == iso
     assert con["sales"][0]["warehouse_date"] == iso
-    # Mã HĐ/PL đi theo TỪNG DÒNG (cả bảng tiêu thụ lẫn khối tồn kho đã ký HĐ).
+    # Số HĐ/PL đi theo TỪNG DÒNG (cả bảng tiêu thụ lẫn khối tồn kho đã ký HĐ).
     assert con["sales"][0]["code"] == "HĐ-01/2026"
     # Loại tiền phải xuống TỪNG DÒNG, không thì web tính lại doanh thu ra số khác.
     assert con["sales"][0]["ccy"] == "USD"
@@ -205,7 +205,7 @@ def test_template_download_then_import_roundtrip() -> None:
 
 
 def test_sales_import_old_file_without_source_column() -> None:
-    """File mẫu CŨ (chưa có cột 'Nguồn mủ' và 'Mã HĐ/PL') vẫn nhập được — mọi dòng vào bảng mủ thu mua.
+    """File mẫu CŨ (chưa có cột 'Nguồn mủ' và 'Số HĐ/PL') vẫn nhập được — mọi dòng vào bảng mủ thu mua.
 
     Bộ đọc dò cột theo TIÊU ĐỀ nên thiếu cột không phải là lỗi; giữ đúng cách hiểu trước đây
     để đơn vị đang dùng file cũ không bị gãy.
@@ -222,7 +222,7 @@ def test_sales_import_old_file_without_source_column() -> None:
     ws = wb.active
     # Dựng lại đúng file mẫu đời trước: bỏ các cột thêm sau này (dò lại vị trí theo TIÊU ĐỀ
     # sau mỗi lần xoá, vì xoá cột làm các cột sau dịch chỗ).
-    for title in ("Nguồn mủ", "Mã HĐ/PL"):
+    for title in ("Nguồn mủ", "Số HĐ/PL"):
         col = next(i for i in range(1, ws.max_column + 1)
                    if str(ws.cell(row=5, column=i).value or "").strip() == title)
         ws.delete_cols(col)
@@ -243,6 +243,47 @@ def test_sales_import_old_file_without_source_column() -> None:
     assert con["sales"][0]["code"] is None                # file cũ không có cột mã HĐ → để trống
     assert con["sales_own"] == []
     assert con["revenue"] == 25 * 40 * 1_000_000          # 25 tấn × 40 triệu đ/tấn
+
+    with session_scope() as db:
+        db.execute(text("DELETE FROM unit_daily_report WHERE company = :u"), {"u": unit})
+    client.delete(f"/api/member-units/{unit}", headers=h)
+
+
+def test_sales_import_old_header_ma_hd_pl_alias() -> None:
+    """File mẫu cũ còn tiêu đề cột 'Mã HĐ/PL' (trước khi đổi nhãn thành 'Số HĐ/PL') vẫn nhập được.
+
+    Đổi nhãn hiển thị không được làm gãy file mẫu người dùng đang giữ — bộ đọc dò cột theo
+    tiêu đề nên phải nhận cả tiêu đề cũ lẫn tiêu đề mới cho cùng 1 cột `code`.
+    """
+    from datetime import timedelta
+    h = _admin()
+    unit = "_zz_xl_alias"
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    d = date.today() - timedelta(days=5)
+    dmy, iso = d.strftime("%d/%m/%Y"), d.isoformat()
+
+    tpl = client.get("/api/unit-daily/import/template?kind=sales", headers=h)
+    wb = load_workbook(io.BytesIO(tpl.content))
+    ws = wb.active
+    col = next(i for i in range(1, ws.max_column + 1)
+               if str(ws.cell(row=5, column=i).value or "").strip() == "Số HĐ/PL")
+    ws.cell(row=5, column=col, value="Mã HĐ/PL")     # giả lập tiêu đề CŨ trong file người dùng
+    row = (unit, dmy, "HĐ-CU/2026", "Mủ thu mua", "Dài hạn", "XK / UTXK", "SVR CV 50",
+           25, 40, "VND", dmy, dmy)
+    for j, v in enumerate(row, start=1):
+        ws.cell(row=7, column=j, value=v)
+    buf = io.BytesIO()
+    wb.save(buf)
+
+    prev = client.post("/api/unit-daily/import/preview?kind=sales", headers=h,
+                       files={"file": ("f.xlsx", buf.getvalue())}).json()
+    assert prev["summary"]["error"] == 0, prev["rows"]
+    assert client.post("/api/unit-daily/import/commit", headers=h,
+                       json={"kind": "sales", "rows": prev["rows"]}).json()["saved"] == 1
+
+    con = client.get(f"/api/unit-daily/day?kind=consumption&as_of={iso}",
+                     headers=h).json()["entries"][unit]["fields"]
+    assert con["sales"][0]["code"] == "HĐ-CU/2026"     # cột dò được dù tiêu đề vẫn là bản CŨ
 
     with session_scope() as db:
         db.execute(text("DELETE FROM unit_daily_report WHERE company = :u"), {"u": unit})

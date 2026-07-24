@@ -100,7 +100,7 @@ export default function StockContractTable({ role, company, day, readOnly, fallb
             ngày + HĐ scan — cùng khuôn với bảng tiêu thụ để đọc cho quen mắt. */}
         <table className="ud-sales ud-sale2 ud-contract">
           <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
-            <th style={{ width: "20%" }}>Chủng loại</th><th style={{ width: "17%" }}>Mã HĐ/PL</th>
+            <th style={{ width: "20%" }}>Chủng loại</th><th style={{ width: "17%" }}>Số HĐ/PL</th>
             <th style={{ width: "11%" }} className="r">SL (tấn)</th>
             <th style={{ width: "12%" }} className="r">Đơn giá</th>
             <th style={{ width: "10%" }}>Tiền</th><th style={{ width: "11%" }} className="r">Tỷ giá</th>

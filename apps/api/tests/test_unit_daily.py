@@ -144,7 +144,7 @@ def test_unit_daily_member_and_editor_flow() -> None:
     tl = client.get("/api/unit-daily/timeline?kind=consumption&days=30", headers=eh)
     saved = next(e for e in tl.json()["entries"] if e["company"] == unit)["fields"]
     assert saved["sales"][0]["qty"] == 12.5
-    # Mã HĐ/PL lưu theo TỪNG DÒNG bán; dòng không gõ thì để trống.
+    # Số HĐ/PL lưu theo TỪNG DÒNG bán; dòng không gõ thì để trống.
     assert saved["sales"][0]["code"] == "HĐ-01/2026"
     # Khối 3 hiện ra là số TỰ TÍNH từ bảng hợp đồng (không phải số client gửi kèm).
     assert [r["code"] for r in saved["stock_signed_undelivered"]] == ["HĐ-02/2026"]

@@ -37,7 +37,7 @@ class StockContractEdit(BaseModel):
 
     id: int | None = None
     company: str
-    code: str | None = None                 # mã Hợp đồng / Phụ lục
+    code: str | None = None                 # số Hợp đồng / Phụ lục
     grade: str                              # chủng loại
     qty: float | None = None                # số lượng (tấn)
     price: float | None = None              # đơn giá (theo `ccy`)

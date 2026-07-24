@@ -85,7 +85,7 @@ Mỗi dòng = một hợp đồng bán. Cùng một đơn vị và một ngày c
 **Các cột (dấu * = bắt buộc):**
 
 1. **Đơn vị** * · **Ngày** * — như mẫu Thu mua.
-2. **Mã HĐ/PL** — số hợp đồng / phụ lục ghi trên chứng từ của dòng bán đó.
+2. **Số HĐ/PL** — số hợp đồng / phụ lục ghi trên chứng từ của dòng bán đó.
 3. **Nguồn mủ** — chọn *Mủ thu mua* hoặc *Mủ khai thác*; để trống hiểu là **Mủ thu mua**. Hai nguồn lưu riêng nhưng mọi số tổng cộng chung.
 4. **Loại HĐ** * (*Dài hạn* / *Chuyến*) · **Hình thức** * (*XK / UTXK* / *Nội tiêu*) · **Loại mủ** * — phải chọn đúng giá trị trong danh sách.
 5. **Số lượng** — tấn.
@@ -110,14 +110,14 @@ Riêng nhóm **Đã ký HĐ** là **hợp đồng có vòng đời**: nhập **m
 1. **Đơn vị** * · **Ngày** * — như trên. Với nhóm *Đã ký HĐ*, cột **Ngày** chính là **ngày bắt đầu tồn kho**.
 2. **Nhóm** * — chọn một trong ba: *Chế biến chưa nhập kho* · *Đã nhập kho* · *Đã ký HĐ*.
 3. **Chủng loại** * — chọn đúng giá trị trong danh sách.
-4. **Mã HĐ/PL** — số hợp đồng / phụ lục, chỉ dùng cho nhóm *Đã ký HĐ*.
+4. **Số HĐ/PL** — số hợp đồng / phụ lục, chỉ dùng cho nhóm *Đã ký HĐ*.
 5. **Số lượng** — tấn.
 6. **Đơn giá** và **Đơn giá bằng** (*VND* / *USD*) — chỉ dùng cho nhóm *Đã ký HĐ*.
 7. **Lịch giao** — dd/mm/yyyy, ngày giao **dự kiến** theo hợp đồng.
 8. **Ngày giao** — dd/mm/yyyy, ngày giao **thực tế**; **chưa giao thì để trống**. Điền ngày này là hợp đồng thôi nằm ở nhóm *Đã ký HĐ* kể từ ngày đó.
 9. **Tồn kho nguyên liệu chưa sản xuất (quy khô)** — tấn; điền ở MỘT dòng bất kỳ của ngày đó là đủ.
 
-> - **Đã xuất kho thì chỉ cần nhập lại đúng hợp đồng đó kèm *Ngày giao***: hệ thống khớp theo (đơn vị · Mã HĐ/PL · chủng loại · ngày bắt đầu) nên **sửa chính hợp đồng cũ, không tạo bản sao**. Cách nhanh hơn: mở màn Báo cáo tồn kho trên web điền *Ngày giao* rồi bấm nút lưu ở cuối dòng.
+> - **Đã xuất kho thì chỉ cần nhập lại đúng hợp đồng đó kèm *Ngày giao***: hệ thống khớp theo (đơn vị · Số HĐ/PL · chủng loại · ngày bắt đầu) nên **sửa chính hợp đồng cũ, không tạo bản sao**. Cách nhanh hơn: mở màn Báo cáo tồn kho trên web điền *Ngày giao* rồi bấm nút lưu ở cuối dòng.
 > - **Ngày bắt đầu (cột *Ngày*) phải trước *Ngày giao* và *Lịch giao* ít nhất 1 ngày** — sai thì hệ thống báo ở phần cảnh báo và **không ghi** hợp đồng đó.
 > - Nhóm *Đã ký HĐ* là **phần đã có hợp đồng nằm trong** tồn kho thành phẩm — không cộng thêm và không trừ ra, và **không vượt quá** tổng tồn kho thành phẩm của đơn vị.
 > - **File Hợp đồng đã ký scan** phải đính kèm trên web, Excel không mang theo được.

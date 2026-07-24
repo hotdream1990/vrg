@@ -17,7 +17,7 @@ export const priceUnitOf = (ccy: Ccy): string => (ccy === "USD" ? "USD/tấn" : 
 /** 1 dòng tiêu thụ. `price` = giá bán, đơn vị theo `sales_ccy` (VND→triệu đ/tấn · USD→USD/tấn).
     Dùng chung cho 2 bảng nhập tách riêng: mủ THU MUA (`sales`) và mủ KHAI THÁC (`sales_own`). */
 export type SaleLine = {
-  code?: string | null;           // mã Hợp đồng / Phụ lục (số HĐ ghi trên chứng từ)
+  code?: string | null;           // số Hợp đồng / Phụ lục ghi trên chứng từ
   contract: SaleContract;
   channel: SaleChannel;
   grade: string;                  // loại mủ
@@ -57,11 +57,11 @@ export const emptySaleLine = (): SaleLine => ({
 
 /** Khối tồn kho chỉ có số lượng (khối 1 & 2): chủng loại · số lượng (TẤN). */
 export type StockQtyLine = { grade: string; qty: number | null };
-/** Khối 3 — đã ký HĐ: mã HĐ/PL · chủng loại · tấn · đơn giá · lịch giao · HĐ scan.
+/** Khối 3 — đã ký HĐ: số HĐ/PL · chủng loại · tấn · đơn giá · lịch giao · HĐ scan.
     KHÔNG nhập lại mỗi ngày: mỗi hợp đồng là 1 bản ghi có vòng đời (xem `StockContract`
     ở unit-daily-client) — báo cáo ngày chỉ HIỂN THỊ các HĐ còn tồn của ngày đó. */
 export type StockSignedLine = {
-  code?: string | null;                  // mã Hợp đồng / Phụ lục đã ký
+  code?: string | null;                  // số Hợp đồng / Phụ lục đã ký
   grade: string; qty: number | null; price: number | null;
   ccy?: Ccy; fx?: number | null;         // loại tiền + tỷ giá của DÒNG này
   delivery_date?: string | null;         // lịch giao (dự kiến) 'YYYY-MM-DD'

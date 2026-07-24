@@ -164,7 +164,7 @@ CREATE INDEX IF NOT EXISTS ix_unit_daily_date ON unit_daily_report (kind, as_of 
 CREATE TABLE IF NOT EXISTS unit_stock_contract (
     id          bigserial PRIMARY KEY,
     company     text NOT NULL,          -- đơn vị (khớp member_unit)
-    code        text,                   -- mã Hợp đồng / Phụ lục
+    code        text,                   -- số Hợp đồng / Phụ lục
     grade       text NOT NULL,          -- chủng loại
     qty         double precision,       -- số lượng (tấn)
     price       double precision,       -- đơn giá (theo `ccy`)

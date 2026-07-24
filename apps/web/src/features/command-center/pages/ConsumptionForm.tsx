@@ -1,10 +1,10 @@
 /* Form nhập biểu TIÊU THỤ – TỒN KHO.
    - TIÊU THỤ = 2 bảng nhiều dòng nhập TÁCH RIÊNG (mủ THU MUA `sales` · mủ KHAI THÁC `sales_own`)
      để lưu trữ riêng, còn phần Tổng hợp thì CỘNG CHUNG cả hai. Mỗi bản ghi trải 2 hàng: hàng trên
-     là số liệu bán (mã HĐ/PL · loại HĐ · hình thức · loại mủ · SL · giá bán → doanh thu tự tính),
+     là số liệu bán (số HĐ/PL · loại HĐ · hình thức · loại mủ · SL · giá bán → doanh thu tự tính),
      hàng dưới là chứng từ (ngày xuất kho · ngày xuất hoá đơn · bộ HĐ · phiếu xuất kho · hoá đơn).
    - TỒN KHO (số THỜI ĐIỂM cuối ngày, đơn vị TẤN — mẫu tuần mục 11–14): chưa HĐ = bảng (chủng loại ·
-     SL tấn); đã HĐ = bảng (chủng loại · mã HĐ/PL · tấn · đơn giá · lịch giao · file HĐ); mục 14 =
+     SL tấn); đã HĐ = bảng (chủng loại · số HĐ/PL · tấn · đơn giá · lịch giao · file HĐ); mục 14 =
      tồn kho nguyên liệu chưa có HĐ (tấn), nhập chung cho mọi đơn vị.
    - Giá bán (tiêu thụ) và đơn giá (tồn kho đã HĐ) cho CHỌN VND hay USD; chọn USD thì nhập tỷ giá
      USD→VND (nút lấy VCB) — tỷ giá dùng chung cho cả 2 khối. Tiền lưu BASE = đồng.
@@ -193,7 +193,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
   /** Ô nhập số NẰM TRONG BẢNG — luôn size "small" để cao bằng Select/nút cùng dòng (24px). */
   const cellNum = (v: number | null, on: (v: number | null) => void) => numInput(v, on, readOnly, "small");
 
-  /** Ô nhập CHỮ trong bảng (mã HĐ/PL) — cùng size "small" cho thẳng hàng với các ô khác. */
+  /** Ô nhập CHỮ trong bảng (số HĐ/PL) — cùng size "small" cho thẳng hàng với các ô khác. */
   const cellText = (v: string | null | undefined, on: (v: string | null) => void, ph: string) => (
     <Input size="small" style={sel} value={v ?? ""} placeholder={ph} disabled={readOnly}
       onChange={(e) => on(e.target.value || null)} />
@@ -232,7 +232,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
                 % chọn sao cho ở đúng ngưỡng min-width nhãn dài nhất của từng cột vẫn đủ chỗ
                 ("SVR 10 / CSR 20" 96px · "XK / UTXK" 62px — cộng ~44px khung chọn + lề ô). */}
             <thead><tr style={{ fontSize: 11.5, textAlign: "left", opacity: 0.7 }}>
-              <th style={{ width: "13%" }}>Mã HĐ/PL</th>
+              <th style={{ width: "13%" }}>Số HĐ/PL</th>
               <th style={{ width: "10%" }}>Loại HĐ</th><th style={{ width: "11.5%" }}>Hình thức</th><th style={{ width: "14.5%" }}>Loại mủ</th>
               <th style={{ width: "8.5%" }} className="r">SL (tấn)</th><th style={{ width: "9.5%" }} className="r">Giá bán</th>
               <th style={{ width: "7.5%" }}>Tiền</th><th style={{ width: "8.5%" }} className="r">Tỷ giá</th>
@@ -308,7 +308,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
         </div>
       )}
       <div className="form-note" style={{ fontSize: 11.5, marginTop: 10 }}>
-        Mã HĐ/PL là số hợp đồng / phụ lục ghi trên chứng từ của dòng bán đó.
+        Số HĐ/PL là số hợp đồng / phụ lục ghi trên chứng từ của dòng bán đó.
         Mủ thu mua và mủ khai thác nhập ở 2 bảng riêng để lưu trữ tách bạch — phần Tổng hợp bên dưới
         cộng chung cả hai. Mỗi dòng chọn loại tiền riêng: trong ngày vừa bán USD vừa bán VNĐ vẫn nhập
         chung một phiếu; dòng nào chọn USD thì nhập tỷ giá ngay ở dòng đó

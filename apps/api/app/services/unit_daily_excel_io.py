@@ -66,6 +66,7 @@ class Col:
     type: str = "num"                       # num | text | date | year | enum
     choices: dict[str, str] | None = None   # enum: {nhãn hiển thị: giá trị lưu}
     width: int = 16
+    aliases: tuple[str, ...] = ()           # tiêu đề CŨ vẫn dò được (đổi tên cột, file mẫu cũ còn dùng)
 
 
 @dataclass
@@ -111,7 +112,8 @@ SPECS: dict[str, Spec] = {
         "Các file đính kèm (bộ Hợp đồng · phiếu xuất kho · hoá đơn) tải lên trên web — "
         "Excel không mang file được.",
         [_UNIT_COL, _DATE_COL,
-         Col("code", "Mã HĐ/PL", "số hợp đồng / phụ lục", type="text", width=20),
+         Col("code", "Số HĐ/PL", "số hợp đồng / phụ lục", type="text", width=20,
+             aliases=("Mã HĐ/PL",)),
          Col("source", "Nguồn mủ", "để trống = mủ thu mua", type="enum",
              choices=SALE_SOURCES, width=18),
          Col("contract", "Loại HĐ", required=True, type="enum", choices=CONTRACTS),
@@ -136,7 +138,8 @@ SPECS: dict[str, Spec] = {
          Col("group", "Nhóm", required=True, type="enum", choices=STOCK_GROUPS, width=20),
          Col("grade", "Chủng loại", required=True, type="enum",
              choices={g: g for g in GRADES}, width=20),
-         Col("code", "Mã HĐ/PL", "chỉ nhóm đã ký HĐ", type="text", width=20),
+         Col("code", "Số HĐ/PL", "chỉ nhóm đã ký HĐ", type="text", width=20,
+             aliases=("Mã HĐ/PL",)),
          Col("qty", "Số lượng", "tấn"),
          Col("price", "Đơn giá", "chỉ nhóm đã ký HĐ", width=18),
          Col("stock_ccy", "Đơn giá bằng", type="enum", choices=CCYS, width=14),
@@ -305,7 +308,11 @@ def parse_upload(kind: str, data: bytes,
         t = str(ws.cell(row=head, column=i).value or "").strip()
         if t:
             titles.setdefault(t, i)
-    idx: dict[str, int | None] = {c.key: titles.get(c.title) for c in spec.cols}
+    # Cột tự đổi tên nhưng file mẫu cũ người dùng còn giữ dùng tiêu đề cũ → dò thêm theo `aliases`.
+    idx: dict[str, int | None] = {
+        c.key: titles.get(c.title, next((titles[a] for a in c.aliases if a in titles), None))
+        for c in spec.cols
+    }
     missing = [c.title for c in spec.cols
                if c.required and idx[c.key] is None and not (c.key == "company" and default_company)]
     if missing:
@@ -399,7 +406,7 @@ def _upsert_contract(r: dict, company: str, start_date: str, ccy: str | None,
                      username: str | None) -> None:
     """1 dòng Excel nhóm 'Đã ký HĐ' → thêm/cập nhật hợp đồng (bảng `unit_stock_contract`).
 
-    Khớp lại hợp đồng cũ theo (đơn vị, mã HĐ/PL, chủng loại, ngày bắt đầu) để nhập lại cùng file
+    Khớp lại hợp đồng cũ theo (đơn vị, số HĐ/PL, chủng loại, ngày bắt đầu) để nhập lại cùng file
     KHÔNG sinh bản sao — nhập lại là SỬA, đúng như cách các biểu khác ghi đè theo (đơn vị, ngày).
     """
     from app.services import unit_stock_contract_repo

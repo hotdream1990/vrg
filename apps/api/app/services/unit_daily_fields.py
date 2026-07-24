@@ -99,7 +99,7 @@ def _code(v) -> str | None:
 def _clean_sales(sales) -> list[dict]:
     """Lọc/chuẩn hoá các dòng tiêu thụ (dùng chung `sales` = mủ thu mua và `sales_own` = mủ khai thác).
 
-    Mỗi dòng: MÃ HĐ/PL · loại HĐ · hình thức · loại mủ · số lượng · giá bán · NGÀY XUẤT KHO ·
+    Mỗi dòng: SỐ HĐ/PL · loại HĐ · hình thức · loại mủ · số lượng · giá bán · NGÀY XUẤT KHO ·
     NGÀY XUẤT HOÁ ĐƠN · 3 file đính kèm (bộ Hợp đồng · phiếu xuất kho · hoá đơn),
     mỗi file lưu tên uuid trên server + tên gốc để hiển thị.
     """
@@ -108,7 +108,7 @@ def _clean_sales(sales) -> list[dict]:
         if not isinstance(ln, dict):
             continue
         row = {
-            "code": _code(ln.get("code")),   # mã Hợp đồng / Phụ lục của dòng bán
+            "code": _code(ln.get("code")),   # số Hợp đồng / Phụ lục của dòng bán
             "contract": ln.get("contract") if ln.get("contract") in _SALE_CONTRACTS else "long_term",
             "channel": ln.get("channel") if ln.get("channel") in _SALE_CHANNELS else "export",
             "grade": str(ln.get("grade") or "")[:60],
