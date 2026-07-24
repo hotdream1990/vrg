@@ -11,6 +11,7 @@ import {
   type Role, type StockContract, deleteStockContract, fetchStockContracts, openContractFile,
   saveStockContract, uploadContractFile,
 } from "../../../lib/unit-daily-client";
+import { CONTRACT_ACCEPT } from "../../../lib/contract-upload";
 import { CCYS, GRADES, type Ccy, lineRevenueVnd } from "../../../lib/unit-daily-consumption";
 import { fmtNum } from "../../../lib/unit-daily-fields";
 import { numInput } from "./unit-daily-inputs";
@@ -157,7 +158,7 @@ export default function StockContractTable({ role, company, day, readOnly, fallb
                                 title={r.filename ?? ""}>{(r.filename ?? "file").slice(0, 18)}</a>
                             : <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>}
                           {!readOnly && (
-                            <Upload showUploadList={false} accept=".pdf,image/jpeg,image/png" disabled={busy}
+                            <Upload showUploadList={false} accept={CONTRACT_ACCEPT} disabled={busy}
                               beforeUpload={(fl) => { upload(r, fl as File); return false; }}>
                               <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 6px", marginLeft: 6 }}>
                                 <UploadOutlined /> {r.file ? "Đổi" : "Chọn"}

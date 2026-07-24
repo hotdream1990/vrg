@@ -14,6 +14,7 @@ import { DeleteOutlined, PlusOutlined, UploadOutlined } from "@ant-design/icons"
 import { Input, Select, Tabs, Upload, message } from "antd";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
+import { CONTRACT_ACCEPT, CONTRACT_ACCEPT_LABEL, CONTRACT_MAX_MB } from "../../../lib/contract-upload";
 import { fetchVcbRate } from "../../../lib/market-quote-client";
 import {
   type PriceDraft, type Role, type StockContract, fetchPrevStock, openContractFile,
@@ -171,7 +172,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
           ? <a onClick={() => openContractFile(role, cur.file!)} style={{ cursor: "pointer", fontSize: 12 }} title={cur.filename ?? ""}>{(cur.filename ?? "file").slice(0, 14)}</a>
           : <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>}
         {!readOnly && (
-          <Upload showUploadList={false} accept=".pdf,image/jpeg,image/png" disabled={busy}
+          <Upload showUploadList={false} accept={CONTRACT_ACCEPT} disabled={busy}
             beforeUpload={(fl) => { upload(fl as File); return false; }}>
             <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 6px", marginLeft: 6 }}>
               <UploadOutlined /> {busy ? "…" : (cur.file ? "Đổi" : "Chọn")}
@@ -383,7 +384,8 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
         chưa giao — chỉ để biết trong tồn kho bao nhiêu đã có đầu ra, nên <b>KHÔNG cộng thêm</b>
         vào tồn kho (cộng nữa là tính trùng) và cũng <b>không trừ ra</b>.
         Khối này <b>KHÔNG nhập lại mỗi ngày</b>: mỗi hợp đồng nhập <b>một lần</b> kèm bản HĐ đã ký
-        scan có đóng dấu (PDF hoặc ảnh), hệ thống tự giữ hợp đồng ở khối này từ{" "}
+        scan có đóng dấu ({CONTRACT_ACCEPT_LABEL} — tối đa {CONTRACT_MAX_MB} MB/file, mỗi ô 1 file
+        nên bộ nhiều văn bản thì gộp thành 1 PDF hoặc nén ZIP), hệ thống tự giữ hợp đồng ở khối này từ{" "}
         <b>ngày bắt đầu tồn kho</b> đến <b>hết ngày trước Ngày giao</b>.
         Khi đã xuất kho thì chỉ cần điền <b>Ngày giao</b>.
         Ngày bắt đầu phải <b>trước Ngày giao (và Lịch giao) ít nhất 1 ngày</b>.
