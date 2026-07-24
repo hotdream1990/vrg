@@ -40,3 +40,17 @@ ngữ cảnh, tin tức, báo cáo) để tạo ra dự báo giá + khuyến ngh
 ## 5. Bảo mật
 Data residency VN · Zero Data Retention (LLM API) · AES-256 / TLS 1.3 · SSO Active Directory VRG ·
 Audit log · tuân thủ Nghị định 13/2023/NĐ-CP. Xem thêm mục 7 trong [AGENTS.md](../../AGENTS.md).
+
+### 5.1 Nhật ký hoạt động (audit log)
+Bảng `audit_log` ghi 1 dòng cho mỗi lần ghi/xoá số liệu — không ghi đè, nên truy được **ai · lúc nào ·
+bản ghi nào · giá trị trước → sau**, kể cả bản ghi đã bị xoá.
+
+| Thành phần | Vai trò |
+|---|---|
+| `app/core/request_ctx.py` | Ngữ cảnh request (người thao tác · IP · admin đăng nhập hộ), đặt ở middleware |
+| `app/services/audit_repo.py` | `log()` khi có thay đổi + `search()` tra cứu |
+| Điểm gắn | Các hàm GHI ở tầng repo (`price_repo`, `floor_repo`, `unit_daily_repo`, …) → mọi lối vào đều được ghi |
+| `app/routers/audit.py` | `GET /api/audit` (chỉ đọc, gác quyền `audit`) |
+
+Quy ước: mật khẩu/secret chỉ ghi nhận "đã đổi", không lưu giá trị; dữ liệu phái sinh (mirror) tạm tắt
+nhật ký để khỏi trùng; các màn tự động lưu được gộp lần lưu liên tiếp trong 10 phút của cùng người.
