@@ -15,6 +15,7 @@ import { Input, Select, Tabs, Upload, message } from "antd";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
 import { CONTRACT_ACCEPT, CONTRACT_ACCEPT_LABEL, CONTRACT_MAX_MB } from "../../../lib/contract-upload";
+import { HINT_DAILY_EVENT, HINT_ONCE_PER_CONTRACT, HINT_STOCK_BALANCE } from "../../../lib/unit-daily-entry-hints";
 import { fetchVcbRate } from "../../../lib/market-quote-client";
 import {
   type PriceDraft, type Role, type StockContract, fetchPrevStock, openContractFile,
@@ -183,8 +184,11 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
     );
   };
 
-  const head = (t: string, first?: boolean) => (
-    <div style={{ fontWeight: 600, fontSize: 12.5, opacity: 0.85, marginTop: first ? 0 : 18, marginBottom: 6, paddingBottom: 2, borderBottom: "1px solid rgba(125,125,125,.25)" }}>{t}</div>
+  const head = (t: string, first?: boolean, hint?: string) => (
+    <div style={{ fontWeight: 600, fontSize: 12.5, opacity: 0.85, marginTop: first ? 0 : 18, marginBottom: 6, paddingBottom: 2, borderBottom: "1px solid rgba(125,125,125,.25)" }}>
+      {t}
+      {hint && <span style={{ fontWeight: 400, opacity: 0.7 }}> ({hint})</span>}
+    </div>
   );
   // Ô trong bảng để width 100% cho khớp bề rộng cột (cột đã khai báo ở <th>, bảng chạy
   // table-layout: fixed). KHÔNG đặt minWidth — minWidth ép cột phình ra, làm các cột số bị bóp lại.
@@ -293,11 +297,11 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
 
   const salesTab = (
     <div>
-      {head("Tiêu thụ mủ khai thác", true)}
+      {head("Tiêu thụ mủ khai thác", true, HINT_DAILY_EVENT)}
       {salesTable("sales_own", salesOwn, setSalesOwn)}
 
       {/* Nhập TÁCH RIÊNG với mủ khai thác để lưu trữ riêng — Tổng hợp bên dưới vẫn cộng chung. */}
-      {head("Tiêu thụ mủ thu mua")}
+      {head("Tiêu thụ mủ thu mua", false, HINT_DAILY_EVENT)}
       {salesTable("sales", sales, setSales)}
 
       {!readOnly && (
@@ -372,13 +376,13 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
         </div>
       )}
 
-      {head("1. Tồn kho thành phẩm chế biến chưa nhập kho", true)}
+      {head("1. Tồn kho thành phẩm chế biến chưa nhập kho", true, HINT_STOCK_BALANCE)}
       {qtyTable(notWh, setNotWh, "Thêm dòng")}
 
-      {head("2. Tồn kho thành phẩm đã nhập kho")}
+      {head("2. Tồn kho thành phẩm đã nhập kho", false, HINT_STOCK_BALANCE)}
       {qtyTable(wh, setWh, "Thêm dòng")}
 
-      {head("3. Số lượng đã ký hợp đồng chưa giao")}
+      {head("3. Số lượng đã ký hợp đồng chưa giao", false, HINT_ONCE_PER_CONTRACT)}
       <div className="form-note" style={{ fontSize: 11.5, marginBottom: 6 }}>
         Đây là <b>phần NẰM TRONG tồn kho thành phẩm</b> (khối 1 + khối 2) đã có hợp đồng nhưng
         chưa giao — chỉ để biết trong tồn kho bao nhiêu đã có đầu ra, nên <b>KHÔNG cộng thêm</b>
@@ -397,7 +401,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
 
 
       {/* Khối 4 — nhập chung cho MỌI đơn vị; đơn vị nào không có số thì để trống. */}
-      {head("4. Tồn kho nguyên liệu chưa sản xuất (quy khô)")}
+      {head("4. Tồn kho nguyên liệu chưa sản xuất (quy khô)", false, HINT_STOCK_BALANCE)}
       <label style={{ display: "block", maxWidth: 260 }}>
         {fieldLabel("Số lượng", "tấn")}
         {numInput(num(data.stock_material), (v) => setData((d) => ({ ...d, stock_material: v })), readOnly)}

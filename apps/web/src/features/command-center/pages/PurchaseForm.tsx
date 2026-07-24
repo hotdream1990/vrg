@@ -9,6 +9,7 @@ import { Checkbox, Select, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 import { fetchVcbRate } from "../../../lib/market-quote-client";
+import { HINT_DAILY_EVENT } from "../../../lib/unit-daily-entry-hints";
 import type { CupBasis, PriceDraft, UnitPurchasePrice } from "../../../lib/unit-daily-client";
 import { type Values, fmtNum } from "../../../lib/unit-daily-fields";
 import { type FinishedLine, finishedTotals } from "../../../lib/unit-daily-purchase";
@@ -128,11 +129,14 @@ export default function PurchaseForm({
   };
 
   const gridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 10, alignItems: "end" } as const;
-  const head = (t: string, first?: boolean) => (
+  const head = (t: string, first?: boolean, hint?: string) => (
     <div style={{
       gridColumn: "1 / -1", fontWeight: 600, fontSize: 12.5, opacity: 0.85,
       marginTop: first ? 0 : 8, paddingBottom: 2, borderBottom: "1px solid rgba(125,125,125,.25)",
-    }}>{t}</div>
+    }}>
+      {t}
+      {hint && <span style={{ fontWeight: 400, opacity: 0.7 }}> ({hint})</span>}
+    </div>
   );
   const field = (label: React.ReactNode, unit: string | undefined, node: React.ReactNode) => (
     <label style={{ display: "block" }}>{fieldLabel(label, unit)}{node}</label>
@@ -156,7 +160,7 @@ export default function PurchaseForm({
       </div>
 
       <div style={{ ...gridStyle, opacity: noPurchase ? 0.5 : 1 }}>
-        {head("Mủ nước", true)}
+        {head("Mủ nước", true, HINT_DAILY_EVENT)}
         {field("Sản lượng thu mua", "tấn", numInput(num(draft.latex_wet), (v) => set("latex_wet", v), readOnly))}
         {foreign ? (
           <>
@@ -167,7 +171,7 @@ export default function PurchaseForm({
           field("Đơn giá thu mua", "đồng/độ TSC", numInput(num(draft.price_latex_vnd), (v) => set("price_latex_vnd", v), readOnly))
         )}
 
-        {head("Mủ chén")}
+        {head("Mủ chén", false, HINT_DAILY_EVENT)}
         {field("Sản lượng thu mua", "tấn", numInput(num(draft.coagulum), (v) => set("coagulum", v), readOnly))}
         {/* Mủ chén tính theo độ TSC hoặc độ DRC — đơn vị tự chọn, đổi luôn nhãn các ô đơn giá bên dưới. */}
         {field("Đơn giá tính theo", undefined, (
@@ -195,7 +199,7 @@ export default function PurchaseForm({
 
       {/* Thu mua THÀNH PHẨM — mua lại mủ đã chế biến; mỗi CHỦNG LOẠI 1 dòng, đơn giá theo VNĐ hay USD. */}
       <div style={{ opacity: noPurchase ? 0.5 : 1, marginTop: 14 }}>
-        {head("Thu mua thành phẩm", true)}
+        {head("Thu mua thành phẩm", true, HINT_DAILY_EVENT)}
         <FinishedPurchaseTable rows={finished} setRows={setFinished} readOnly={readOnly} />
         {!readOnly && (
           <div style={{ marginTop: 8 }}>
