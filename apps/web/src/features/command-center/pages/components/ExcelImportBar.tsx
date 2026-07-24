@@ -12,7 +12,7 @@ import {
 
 /** TẠM TẮT nhập liệu bằng Excel trên toàn hệ thống — bật lại: đổi thành `true`
     (backend đổi EXCEL_IMPORT_ENABLED trong apps/api/app/core/feature_flags.py). */
-const EXCEL_IMPORT_ENABLED = false;
+export const EXCEL_IMPORT_ENABLED = false;
 
 type Props = {
   kind: ImportKind;

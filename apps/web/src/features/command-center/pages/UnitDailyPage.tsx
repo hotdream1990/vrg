@@ -14,7 +14,7 @@ import { type DayData, type Role, fetchDay } from "../../../lib/unit-daily-clien
 import type { Kind } from "../../../lib/unit-daily-fields";
 import DateInput from "../sections/DateInput";
 import type { ImportKind } from "../../../lib/unit-daily-client";
-import ExcelImportBar from "./components/ExcelImportBar";
+import ExcelImportBar, { EXCEL_IMPORT_ENABLED } from "./components/ExcelImportBar";
 import type { ConsumptionTab } from "./ConsumptionForm";
 import UnitDailyEditModal from "./UnitDailyEditModal";
 import UnitDailyOverview from "./UnitDailyOverview";
@@ -62,6 +62,7 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
 
   // Chuyên viên chỉ được cấp mức Xem → luôn "Xem" dù ngày còn trong cửa sổ sửa.
   const mayEdit = isMember || canEditCap("unit_daily");
+  const showImport = mayEdit && EXCEL_IMPORT_ENABLED;
   const ovCanEdit = useMemo(
     () => mayEdit && (isAdmin || (ov ? ovDay <= ov.today : false)),
     [mayEdit, isAdmin, ov, ovDay],
@@ -74,12 +75,15 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
         <p style={{ margin: "4px 0 0" }}>{subtitle}</p>
       </div>
 
-      <div className="card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        {!isMember && (
-          <Segmented value={view} onChange={(v) => setView(v as "list" | "overview")} options={VIEW_OPTS} />
-        )}
-        {mayEdit && <ExcelImportBar kind={importKind} role={role} label={title} onDone={reload} />}
-      </div>
+      {/* Thanh công cụ chỉ dựng khi thật sự có nút — không thì để lại một card trống. */}
+      {(!isMember || showImport) && (
+        <div className="card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          {!isMember && (
+            <Segmented value={view} onChange={(v) => setView(v as "list" | "overview")} options={VIEW_OPTS} />
+          )}
+          {showImport && <ExcelImportBar kind={importKind} role={role} label={title} onDone={reload} />}
+        </div>
+      )}
 
       {!isMember && view === "overview" && (
         <div className="card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
