@@ -36,6 +36,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import type { Cap } from "../../lib/permissions";
 import { VRG } from "../../theme";
 import { useAuth } from "../auth/AuthContext";
+import { IMPERSONATION_BANNER_HEIGHT } from "../auth/ImpersonationBanner";
 
 const { Header, Sider, Content, Footer } = Layout;
 
@@ -120,7 +121,11 @@ export default function AdminLayout() {
   const [broken, setBroken] = useState(false); // true = màn hẹp (mobile): Sider thành overlay
   const nav = useNavigate();
   const { pathname } = useLocation();
-  const { user, logout, can } = useAuth();
+  const { user, logout, can, isImpersonating } = useAuth();
+
+  // Đang đăng nhập hộ → thanh cảnh báo cố định chiếm phần trên, khung admin lùi xuống đúng chừng đó.
+  const bannerH = isImpersonating ? IMPERSONATION_BANNER_HEIGHT : 0;
+  const frameHeight = `calc(100vh - ${bannerH}px)`;
 
   const isAdmin = user?.role === "admin";
   const isMember = user?.role === "member";
@@ -145,7 +150,7 @@ export default function AdminLayout() {
   return (
     // Khóa chiều cao = viewport + ẩn tràn để menu sidebar dài KHÔNG kéo giãn cả trang
     // (menu tự cuộn trong Sider, nội dung cuộn trong Content) — xem CSS .ant-layout-sider .ant-menu.
-    <Layout style={{ height: "100vh", overflow: "hidden" }}>
+    <Layout style={{ height: frameHeight, marginTop: bannerH, overflow: "hidden" }}>
       <Sider
         collapsible trigger={null} width={288}
         breakpoint="lg" collapsedWidth={broken ? 0 : 80}
@@ -153,7 +158,7 @@ export default function AdminLayout() {
         onCollapse={setCollapsed}
         onBreakpoint={(b) => { setBroken(b); setCollapsed(b); }}
         style={broken
-          ? { position: "fixed", height: "100vh", top: 0, left: 0, zIndex: 1000 }
+          ? { position: "fixed", height: frameHeight, top: bannerH, left: 0, zIndex: 1000 }
           : undefined}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 14px 12px" }}>

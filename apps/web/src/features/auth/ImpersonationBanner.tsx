@@ -5,6 +5,9 @@ import { useNavigate } from "react-router-dom";
 import { ROLE_LABEL } from "../../lib/roles";
 import { useAuth } from "./AuthContext";
 
+/** Chiều cao thanh cảnh báo — khung admin chừa đúng khoảng này để không bị che header. */
+export const IMPERSONATION_BANNER_HEIGHT = 36;
+
 /** Thanh cảnh báo cố định trên cùng khi admin đang đăng nhập hộ (impersonation) một tài khoản khác. */
 export default function ImpersonationBanner() {
   const { user, isImpersonating, stopImpersonation } = useAuth();
@@ -21,8 +24,9 @@ export default function ImpersonationBanner() {
     <div
       style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 2000,
+        height: IMPERSONATION_BANNER_HEIGHT, boxSizing: "border-box",
         display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
-        padding: "6px 16px", background: "#faad14", color: "#1a1200",
+        padding: "0 16px", background: "#faad14", color: "#1a1200",
         fontSize: 13, boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
       }}
     >
