@@ -1,4 +1,4 @@
-/* Bảng Lịch sử hợp đồng tồn kho — CHỈ ĐỌC. Không dùng bảng 2-hàng của StockContractTable (nhập liệu);
+/* Bảng Thống kê hợp đồng — CHỈ ĐỌC. Không dùng bảng 2-hàng của StockContractTable (nhập liệu);
    đây là danh sách tra cứu nên 1 hợp đồng = 1 dòng, có phân trang + dòng Tổng cộng. */
 
 import { FileTextOutlined } from "@ant-design/icons";

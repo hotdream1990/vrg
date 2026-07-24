@@ -1,4 +1,4 @@
-/* Bộ lọc màn Lịch sử hợp đồng tồn kho: đơn vị · trạng thái · khoảng ngày · tìm kiếm. */
+/* Bộ lọc màn Thống kê hợp đồng: đơn vị · trạng thái · khoảng ngày · tìm kiếm. */
 
 import { ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import { Button, Input, Segmented, Select } from "antd";

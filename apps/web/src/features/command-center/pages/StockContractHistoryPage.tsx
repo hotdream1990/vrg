@@ -1,4 +1,4 @@
-/* Lịch sử hợp đồng tồn kho — CHỈ ĐỌC. Liệt kê TẤT CẢ hợp đồng đã ký (bảng `unit_stock_contract`)
+/* Thống kê hợp đồng — CHỈ ĐỌC. Liệt kê TẤT CẢ hợp đồng đã ký (bảng `unit_stock_contract`)
    đã từng nhập, KỂ CẢ hợp đồng đã giao (biến mất khỏi màn Báo cáo tồn kho theo ngày sau khi điền
    Ngày giao thực tế) — nơi tra cứu lại toàn bộ. */
 
@@ -50,10 +50,10 @@ export default function StockContractHistoryPage() {
     <div className="main">
       <div className="page-title">
         <div>
-          <h2><HistoryOutlined style={{ marginRight: 8 }} />Lịch sử hợp đồng tồn kho</h2>
+          <h2><HistoryOutlined style={{ marginRight: 8 }} />Thống kê hợp đồng</h2>
           <p>
-            Toàn bộ hợp đồng đã ký đã từng nhập — <b>kể cả hợp đồng đã giao</b>, vốn không còn hiện
-            trong màn Báo cáo tồn kho theo ngày sau khi điền Ngày giao thực tế. Chỉ để tra cứu.
+            Thống kê toàn bộ hợp đồng đã ký đã từng nhập — <b>kể cả hợp đồng đã giao</b>, vốn không
+            còn hiện trong màn Báo cáo tồn kho theo ngày sau khi điền Ngày giao thực tế. Chỉ để tra cứu.
           </p>
         </div>
       </div>

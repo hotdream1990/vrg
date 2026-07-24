@@ -1,6 +1,6 @@
 # Hướng dẫn nhập liệu — Đơn vị thành viên
 
-Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm); ngoài ra có mục Hợp đồng tồn kho chỉ để tra cứu.
+Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm); ngoài ra có mục Thống kê hợp đồng chỉ để tra cứu.
 
 > Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-don-vi-thanh-vien.docx](./Huong-dan-nhap-lieu-don-vi-thanh-vien.docx)
 
@@ -22,7 +22,7 @@ Sau khi đăng nhập bằng tài khoản đơn vị, menu bên trái hiển th�
 4. **Nhu cầu thị trường** — ghi nhận nhu cầu/tín hiệu thị trường của đơn vị, nhập **tự do bằng chữ**.
 5. **Kế hoạch năm** — kế hoạch thu mua và hợp đồng dài hạn đã ký, **nhập 1 lần cho cả năm**.
 
-> - Ngoài 5 mục trên, menu còn mục **Hợp đồng tồn kho** — **chỉ để tra cứu**, không nhập số liệu (xem mục 7).
+> - Ngoài 5 mục trên, menu còn mục **Thống kê hợp đồng** — **chỉ để tra cứu**, không nhập số liệu (xem mục 7).
 > - Báo cáo tiêu thụ và Báo cáo tồn kho là **hai tab của cùng một phiếu ngày** — nhập bên này không làm mất số bên kia.
 > - Chỉ nhập/sửa được ngày hôm nay và một số ngày gần nhất theo quy định; ngày cũ hơn chỉ để xem.
 
@@ -137,9 +137,9 @@ Tồn kho là số liệu **tại thời điểm cuối ngày** (không cộng d
 > - Khối **Tổng hợp tồn kho**: *Tồn kho thành phẩm* = khối 1 + khối 2. Khối 3 là **phần đã có hợp đồng nằm trong** tồn kho thành phẩm — không cộng thêm và không trừ ra, và **không vượt quá** *Tồn kho thành phẩm*.
 > - Chủng loại tách theo từng loại giống bảng Giá sàn Tập đoàn — **SVR CV 50** và **SVR CV60** là 2 loại riêng.
 
-## 7. Xem Hợp đồng tồn kho
+## 7. Thống kê hợp đồng
 
-**Vị trí:** Menu → Hợp đồng tồn kho (tiêu đề trang: *Lịch sử hợp đồng tồn kho*)
+**Vị trí:** Menu → Thống kê hợp đồng
 
 Màn này liệt kê **tất cả hợp đồng đã ký** của đơn vị, kể cả những hợp đồng **đã giao hàng**. Khi bạn điền "Ngày giao" cho một hợp đồng ở màn Báo cáo tồn kho, hợp đồng đó sẽ không còn hiện ở "Báo cáo tồn kho" theo ngày nữa, nhưng vẫn có thể tra cứu lại toàn bộ lịch sử trong màn này.
 

@@ -72,7 +72,7 @@ function YearPlanRoute() {
   return <Navigate to="/" replace />;
 }
 
-/** Lịch sử hợp đồng tồn kho (tra cứu, kể cả đã giao): đơn vị thành viên → đơn vị mình; chuyên viên có quyền → mọi đơn vị. */
+/** Thống kê hợp đồng (tra cứu, kể cả đã giao): đơn vị thành viên → đơn vị mình; chuyên viên có quyền → mọi đơn vị. */
 function StockContractHistoryRoute() {
   const { user, can } = useAuth();
   if (user?.role === "member" || can("unit_daily")) return <StockContractHistoryPage />;
@@ -107,7 +107,7 @@ export default function App() {
                       subtitle="Tồn kho thành phẩm (đã/chưa có hợp đồng) và tồn kho nguyên liệu theo ngày." />} />
                   <Route path="/ke-hoach-nam" element={<YearPlanRoute />} />
                   <Route path="/bao-cao-tong-hop" element={<PeriodReportRoute />} />
-                  <Route path="/lich-su-hop-dong-ton-kho" element={<StockContractHistoryRoute />} />
+                  <Route path="/thong-ke-hop-dong" element={<StockContractHistoryRoute />} />
                   {/* Đường dẫn cũ → giữ cho link đã lưu */}
                   <Route path="/bao-cao-tieu-thu-ton-kho" element={<Navigate to="/bao-cao-tieu-thu" replace />} />
                   {/* Số liệu tự động (quét + bảng giá sàn + tỷ giá) — quyền auto_data */}

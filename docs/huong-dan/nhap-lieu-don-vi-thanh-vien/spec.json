@@ -14,7 +14,7 @@
   },
   "cover": {
     "title": "Hướng dẫn nhập liệu — Đơn vị thành viên",
-    "intro": "Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm); ngoài ra có mục Hợp đồng tồn kho chỉ để tra cứu."
+    "intro": "Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm); ngoài ra có mục Thống kê hợp đồng chỉ để tra cứu."
   },
   "sections": [
     {
@@ -36,7 +36,7 @@
         "**Kế hoạch năm** — kế hoạch thu mua và hợp đồng dài hạn đã ký, **nhập 1 lần cho cả năm**."
       ],
       "notes": [
-        "Ngoài 5 mục trên, menu còn mục **Hợp đồng tồn kho** — **chỉ để tra cứu**, không nhập số liệu (xem mục 7).",
+        "Ngoài 5 mục trên, menu còn mục **Thống kê hợp đồng** — **chỉ để tra cứu**, không nhập số liệu (xem mục 7).",
         "Báo cáo tiêu thụ và Báo cáo tồn kho là **hai tab của cùng một phiếu ngày** — nhập bên này không làm mất số bên kia.",
         "Chỉ nhập/sửa được ngày hôm nay và một số ngày gần nhất theo quy định; ngày cũ hơn chỉ để xem."
       ]
@@ -164,8 +164,8 @@
       "pre": "Bốn khối tồn kho:"
     },
     {
-      "title": "7. Xem Hợp đồng tồn kho",
-      "location": "Menu → Hợp đồng tồn kho",
+      "title": "7. Thống kê hợp đồng",
+      "location": "Menu → Thống kê hợp đồng",
       "intro": "Màn này liệt kê **tất cả hợp đồng đã ký** của đơn vị, **kể cả hợp đồng đã giao**. Khi một hợp đồng được điền **Ngày giao thực tế** ở Báo cáo tồn kho thì nó không còn nằm trong tồn kho của những ngày sau nữa — vào đây để tra cứu lại toàn bộ.",
       "pre": "Cách dùng:",
       "steps": [
