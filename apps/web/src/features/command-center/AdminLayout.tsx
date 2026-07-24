@@ -102,19 +102,18 @@ const ADMIN_MENU = {
 
 // Menu cho tài khoản Đơn vị thành viên: 3 báo cáo theo ngày + số liệu năm.
 // Giá thu mua nhập thẳng trong biểu "Báo cáo thu mua" nên không còn mục riêng.
-const MEMBER_MENU = [
-  {
-    key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)",
-    children: [
-      { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Báo cáo thu mua" },
-      { key: "/bao-cao-tieu-thu", icon: <ScheduleOutlined />, label: "Báo cáo tiêu thụ" },
-      { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Báo cáo tồn kho" },
-      { key: "/thong-ke-hop-dong", icon: <HistoryOutlined />, label: "Thống kê hợp đồng" },
-      { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
-      { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
-    ],
-  },
-];
+// "Báo cáo thu mua" + "Kế hoạch năm" (số liệu thu mua) chỉ hiện khi đơn vị được giao kế hoạch thu mua.
+function buildMemberMenu(hasPurchasePlan: boolean) {
+  const children = [
+    hasPurchasePlan && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Báo cáo thu mua" },
+    { key: "/bao-cao-tieu-thu", icon: <ScheduleOutlined />, label: "Báo cáo tiêu thụ" },
+    { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Báo cáo tồn kho" },
+    { key: "/thong-ke-hop-dong", icon: <HistoryOutlined />, label: "Thống kê hợp đồng" },
+    { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
+    hasPurchasePlan && { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
+  ].filter(Boolean) as NonNullable<Parameters<typeof Menu>[0]["items"]>;
+  return [{ key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)", children }];
+}
 
 // Mục Hồ sơ cá nhân (đổi mật khẩu) — hiện cuối sidebar cho mọi vai trò.
 const PROFILE_ITEM = { key: "/ho-so", icon: <IdcardOutlined />, label: "Hồ sơ cá nhân" };
@@ -134,7 +133,7 @@ export default function AdminLayout() {
   const isAdmin = user?.role === "admin";
   const isMember = user?.role === "member";
   const menuItems = isMember
-    ? [...MEMBER_MENU, PROFILE_ITEM]
+    ? [...buildMemberMenu(user?.member_has_purchase_plan ?? false), PROFILE_ITEM]
     : [...buildMenu(can, isAdmin), ...(isAdmin ? [ADMIN_MENU] : []), PROFILE_ITEM];
 
   const ROUTE_KEYS = [

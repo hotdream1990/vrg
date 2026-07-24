@@ -17,6 +17,8 @@ class UserOut(BaseModel):
     is_active: bool = True
     permissions: list[str] = Field(default_factory=list)  # quyền theo mục (editor)
     member_units: list[str] = Field(default_factory=list)  # các đơn vị gắn với tài khoản (role=member)
+    # role=member: có ≥1 đơn vị được giao kế hoạch thu mua → mới hiện menu "Báo cáo thu mua".
+    member_has_purchase_plan: bool = False
     impersonated_by: str | None = None  # username admin đang đăng nhập hộ (None = phiên bình thường)
 
 

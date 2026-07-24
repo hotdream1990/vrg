@@ -21,11 +21,23 @@ from app.schemas.auth import (
     TokenResponse,
     UserOut,
 )
-from app.services import user_repo
+from app.services import member_unit_repo, user_repo
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+
+def _user_out(user: dict, **extra) -> UserOut:
+    """Bọc dict user → UserOut, kèm cờ `member_has_purchase_plan`.
+
+    Đơn vị thành viên chỉ hiện menu "Báo cáo thu mua" khi có ≥1 đơn vị được giao kế hoạch thu mua.
+    """
+    has_plan = False
+    if user.get("role") == "member":
+        plan_units = set(member_unit_repo.plan_names())
+        has_plan = any(u in plan_units for u in user.get("member_units") or [])
+    return UserOut(**user, member_has_purchase_plan=has_plan, **extra)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -34,7 +46,7 @@ def login(body: LoginRequest):
     user = user_repo.authenticate(body.username, body.password)
     if not user:
         raise HTTPException(401, "Sai tài khoản hoặc mật khẩu")
-    return TokenResponse(access_token=create_access_token(user["username"]), user=UserOut(**user))
+    return TokenResponse(access_token=create_access_token(user["username"]), user=_user_out(user))
 
 
 @router.get("/me", response_model=UserOut)
@@ -43,7 +55,7 @@ def me(username: str = Depends(get_current_user), imp_by: str | None = Depends(g
     user = user_repo.get_user(username)
     if not user or not user.get("is_active", True):
         raise HTTPException(401, "Tài khoản không tồn tại hoặc đã bị khoá")
-    return UserOut(**user, impersonated_by=imp_by)
+    return _user_out(user, impersonated_by=imp_by)
 
 
 @router.post("/impersonate", response_model=TokenResponse)
@@ -69,7 +81,7 @@ def impersonate(
         raise HTTPException(400, "Tài khoản đã bị khoá — không thể đăng nhập hộ")
     logger.info("Admin '%s' bắt đầu đăng nhập hộ tài khoản '%s'", admin_username, target_username)
     token = create_impersonation_token(target["username"], admin_username)
-    return TokenResponse(access_token=token, user=UserOut(**target, impersonated_by=admin_username))
+    return TokenResponse(access_token=token, user=_user_out(target, impersonated_by=admin_username))
 
 
 @router.put("/me", response_model=UserOut)
@@ -78,7 +90,7 @@ def update_me(body: ProfileUpdate, username: str = Depends(get_current_user)):
     user = user_repo.update_profile(username, body.full_name)
     if not user:
         raise HTTPException(404, "Không tìm thấy tài khoản")
-    return UserOut(**user)
+    return _user_out(user)
 
 
 @router.post("/change-password")

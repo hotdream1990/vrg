@@ -248,3 +248,36 @@ def test_member_self_price_flow() -> None:
     client.delete(f"/api/member/prices?company={quote(u1)}&as_of={today}&price_type=purchase", headers=mh)
     client.delete(f"/api/member/prices?company={quote(u2)}&as_of={today}&price_type=purchase_cup", headers=mh)
     client.delete("/api/users/mem_test", headers=h)
+
+
+def test_member_has_purchase_plan_flag() -> None:
+    """Cờ `member_has_purchase_plan`: True nếu member có ≥1 đơn vị được giao KH thu mua, ngược lại False."""
+    from app.services import member_unit_repo
+
+    h = _admin_headers()
+    plan_unit, no_plan_unit = "Cao su Có KH Test", "Cao su Không KH Test"
+    member_unit_repo.add_unit(plan_unit)
+    member_unit_repo.add_unit(no_plan_unit)
+    member_unit_repo.set_purchase_plan(plan_unit, True)
+    member_unit_repo.set_purchase_plan(no_plan_unit, False)
+    client.delete("/api/users/mem_plan", headers=h)  # dọn nếu sót
+
+    # Chỉ gắn đơn vị KHÔNG có KH thu mua → cờ False.
+    assert client.post("/api/users", json={"username": "mem_plan", "password": "pass123",
+                                           "role": "member", "member_units": [no_plan_unit]},
+                       headers=h).status_code == 200
+    assert client.get("/api/auth/me", headers=_bearer("mem_plan", "pass123")
+                      ).json()["member_has_purchase_plan"] is False
+
+    # Gắn thêm đơn vị CÓ KH thu mua → cờ True (any-of); login response cũng mang cờ.
+    assert client.put("/api/users/mem_plan",
+                      json={"member_units": [no_plan_unit, plan_unit]}, headers=h).status_code == 200
+    assert client.get("/api/auth/me", headers=_bearer("mem_plan", "pass123")
+                      ).json()["member_has_purchase_plan"] is True
+    lr = client.post("/api/auth/login", json={"username": "mem_plan", "password": "pass123"}).json()
+    assert lr["user"]["member_has_purchase_plan"] is True
+
+    # Dọn.
+    client.delete("/api/users/mem_plan", headers=h)
+    member_unit_repo.delete_unit(plan_unit)
+    member_unit_repo.delete_unit(no_plan_unit)

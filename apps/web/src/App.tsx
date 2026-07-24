@@ -37,10 +37,12 @@ import RequireCap from "./features/auth/RequireCap";
 import RequireRole from "./features/auth/RequireRole";
 import { vrgTheme } from "./theme";
 
-/** Trang chủ: đơn vị thành viên → thẳng trang nhập giá của đơn vị; còn lại → Dashboard. */
+/** Trang chủ: đơn vị thành viên → báo cáo đầu tiên của họ (Thu mua nếu có giao KH, không thì Tiêu thụ); còn lại → Dashboard. */
 function HomeRoute() {
   const { user } = useAuth();
-  if (user?.role === "member") return <Navigate to="/bao-cao-thu-mua" replace />;
+  if (user?.role === "member") {
+    return <Navigate to={user.member_has_purchase_plan ? "/bao-cao-thu-mua" : "/bao-cao-tieu-thu"} replace />;
+  }
   return <DashboardPage />;
 }
 
@@ -54,7 +56,12 @@ function MarketDemandRoute() {
 /** Báo cáo tiêu thụ–tồn kho theo ngày: đơn vị thành viên nhập của mình; chuyên viên có quyền `unit_daily` → mọi đơn vị. */
 function UnitDailyRoute(props: React.ComponentProps<typeof UnitDailyPage>) {
   const { user, can } = useAuth();
-  if (user?.role === "member" || can("unit_daily")) return <UnitDailyPage {...props} />;
+  const isMember = user?.role === "member";
+  // Đơn vị thành viên KHÔNG được giao kế hoạch thu mua → không vào biểu Thu mua (kể cả gõ URL).
+  if (isMember && props.kind === "purchase" && !user?.member_has_purchase_plan) {
+    return <Navigate to="/bao-cao-tieu-thu" replace />;
+  }
+  if (isMember || can("unit_daily")) return <UnitDailyPage {...props} />;
   return <Navigate to="/" replace />;
 }
 
@@ -68,7 +75,10 @@ function PeriodReportRoute() {
 /** Kế hoạch năm (số liệu nhập 1 lần/năm): đơn vị thành viên → đơn vị mình; chuyên viên có quyền → mọi đơn vị. */
 function YearPlanRoute() {
   const { user, can } = useAuth();
-  if (user?.role === "member" || can("unit_daily")) return <YearPlanPage />;
+  const isMember = user?.role === "member";
+  // Đơn vị thành viên KHÔNG được giao kế hoạch thu mua → không vào Kế hoạch năm (kể cả gõ URL).
+  if (isMember && !user?.member_has_purchase_plan) return <Navigate to="/bao-cao-tieu-thu" replace />;
+  if (isMember || can("unit_daily")) return <YearPlanPage />;
   return <Navigate to="/" replace />;
 }
 
