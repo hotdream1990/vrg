@@ -106,10 +106,20 @@ async def _audit_context(request: Request, call_next):
     from app.core.security import decode_bearer
 
     actor, on_behalf = decode_bearer(request.headers.get("authorization"))
-    forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
-    ip = forwarded or (request.client.host if request.client else "")
-    request_ctx.set_request(actor, ip, on_behalf)
+    request_ctx.set_request(actor, _client_ip(request), on_behalf)
     return await call_next(request)
+
+
+def _client_ip(request: Request) -> str:
+    """IP THẬT của khách sau proxy. Prod chạy sau Cloudflare→Traefik nên `X-Forwarded-For[0]` là
+    IP edge Cloudflare (dải 162.158.x.x, đổi mỗi request) — KHÔNG dùng để định danh được. Cloudflare
+    đặt `CF-Connecting-IP` = IP thật của khách → ưu tiên header này, rồi mới tới XFF phần tử đầu,
+    cuối cùng là peer trực tiếp."""
+    cf = (request.headers.get("cf-connecting-ip") or "").strip()
+    if cf:
+        return cf
+    forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    return forwarded or (request.client.host if request.client else "")
 
 
 @app.exception_handler(Exception)

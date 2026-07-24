@@ -92,10 +92,11 @@ export function fmtValue(v: unknown): string {
   return String(v);
 }
 
-/** Tóm tắt 1 dòng theo loại thao tác:
- *  sửa   → "Đơn giá: 385 → 405 (+2 ô khác)"
- *  thêm  → "Đơn giá: 385 · Loại tiền: VND (+2 ô khác)"  (chưa có gì trước đó nên bỏ mũi tên)
- *  xoá   → "Đơn giá: 405 · Loại tiền: VND (+2 ô khác)"  (số đã bị xoá) */
+/** Tóm tắt 1 dòng theo loại thao tác — nêu GIÁ TRỊ 2 ô đầu rồi liệt kê TÊN các ô còn lại
+ *  (thay vì "+N ô khác" chung chung, để đọc log biết ngay đổi những ô nào):
+ *  sửa   → "Đơn giá: 385 → 405 · Loại tiền · Đơn vị tính"
+ *  thêm  → "Đơn giá: 385 · Loại tiền: VND · Đơn vị tính"  (chưa có gì trước đó nên bỏ mũi tên)
+ *  xoá   → "Đơn giá: 405 · Loại tiền: VND · Đơn vị tính"  (số đã bị xoá) */
 export function summarize(changes: FieldChange[], action = "update", max = 2): string {
   if (!changes.length) return "";
   const one = (c: FieldChange) => {
@@ -104,6 +105,10 @@ export function summarize(changes: FieldChange[], action = "update", max = 2): s
     return `${c.label}: ${fmtValue(c.from)} → ${fmtValue(c.to)}`;
   };
   const head = changes.slice(0, max).map(one).join(" · ");
-  const rest = changes.length - max;
-  return rest > 0 ? `${head} (+${rest} ô khác)` : head;
+  const extra = changes.slice(max);
+  if (!extra.length) return head;
+  // Nêu TÊN các ô còn lại (cap 4 cho gọn; dư nữa mới gộp số) — rõ hơn "+N ô khác".
+  const names = extra.slice(0, 4).map((c) => c.label).join(" · ");
+  const more = extra.length - 4;
+  return `${head} · ${names}${more > 0 ? ` · +${more} ô` : ""}`;
 }
