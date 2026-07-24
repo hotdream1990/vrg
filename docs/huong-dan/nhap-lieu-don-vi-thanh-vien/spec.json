@@ -14,7 +14,7 @@
   },
   "cover": {
     "title": "Hướng dẫn nhập liệu — Đơn vị thành viên",
-    "intro": "Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm). Tài liệu bám theo phiên bản 0.2.79. Riêng 4 mục báo cáo còn có thể tải mẫu Excel về điền rồi nhập lên thay vì gõ tay (xem mục 9)."
+    "intro": "Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm). Riêng 4 mục báo cáo còn có thể tải mẫu Excel về điền rồi nhập lên thay vì gõ tay (xem mục 9)."
   },
   "sections": [
     {
@@ -83,7 +83,6 @@
         "**Đơn giá đi theo loại tiền của từng dòng**: chọn VNĐ thì nhập **triệu đ/tấn**, chọn USD thì nhập **USD/tấn**. Trong một ngày có thể vừa mua bằng VNĐ vừa mua bằng USD.",
         "Ba ô cuối khối — **Tổng SL thành phẩm · Tổng giá trị · Đơn giá bình quân** — hệ thống tự cộng, không nhập tay.",
         "Đơn giá mủ nước/mủ chén nhập ở đây đồng thời ghi vào kho “Giá mủ nguyên liệu”, kèm đúng đơn vị tính (độ TSC hay độ DRC) đã chọn.",
-        "**Sản lượng tiêu thụ và doanh thu đã chuyển sang biểu Tiêu thụ** — không còn nhập ở phiếu Thu mua nữa.",
         "Ô **Hôm nay đơn vị KHÔNG tổ chức thu mua** chỉ tích khi thật sự không tổ chức mua. Có công bố giá, có tổ chức mua nhưng không mua được thì **đừng tích** — nhập **sản lượng 0** kèm **đúng mức giá đã công bố** (không mua được ở mọi mức thì nhập 0 với **mức giá thấp nhất**). Hai trường hợp này khác nhau khi tổng hợp báo cáo."
       ]
     },
@@ -124,7 +123,7 @@
       "steps": [
         "*(Hàng trên)* **Loại HĐ** (Dài hạn / Chuyến) · **Hình thức** (XK-UTXK / Nội tiêu) · **Loại mủ** · **SL (tấn)** · **Giá bán**.",
         "*(Hàng trên)* **Loại tiền** — chọn VND hoặc USD **cho từng dòng**; chọn USD thì nhập **Tỷ giá** ngay ở dòng đó.",
-        "*(Hàng dưới)* **Ngày xuất kho** · **Ngày xuất hoá đơn** và 3 chứng từ đính kèm **Bộ Hợp đồng** · **Phiếu xuất kho** · **Hoá đơn** (PDF hoặc ảnh) — chưa có thì để trống; bấm tên file để mở lại.",
+        "*(Hàng dưới)* **Ngày xuất kho** · **Ngày xuất hoá đơn** và 3 chứng từ đính kèm **Bộ Hợp đồng** · **Phiếu xuất kho** · **Hoá đơn** — nhận PDF · Word · Excel · XML · ảnh (JPG, PNG, HEIC, WEBP, TIFF) · ZIP, tối đa 25 MB mỗi file. **Mỗi ô chỉ chứa 1 file**: bộ nhiều văn bản thì gộp thành 1 file PDF hoặc nén ZIP. Chưa có thì để trống; bấm tên file để mở lại.",
         "**Tiêu thụ mủ thu mua** — bảng riêng ngay bên dưới, nhập y hệt bảng mủ khai thác.",
         "**Tổng hợp tiêu thụ** — hệ thống tự cộng cả 2 bảng; **Giá BQ** = doanh thu ÷ sản lượng. Xong bấm **Lưu số liệu**."
       ],
@@ -151,7 +150,7 @@
         "**2. Tồn kho thành phẩm đã nhập kho** — chủng loại + số lượng (tấn).",
         "**3. Số lượng đã ký hợp đồng chưa giao** — nhập **một lần cho mỗi hợp đồng**, mỗi hợp đồng trải **2 hàng**.",
         "*(Hàng trên)* **Chủng loại** · **Mã HĐ/PL** · **SL (tấn)** · **Đơn giá** · **Tiền** (VND/USD) · **Tỷ giá** khi chọn USD; **Thành tiền** tự tính. Cuối hàng có nút **lưu** và **xoá** của riêng hợp đồng đó.",
-        "*(Hàng dưới)* **Bắt đầu tồn kho** · **Lịch giao** · **Ngày giao** · **HĐ đã ký (scan)** — đính kèm bản Hợp đồng đã ký có đóng dấu (PDF hoặc ảnh).",
+        "*(Hàng dưới)* **Bắt đầu tồn kho** · **Lịch giao** · **Ngày giao** · **HĐ đã ký (scan)** — đính kèm bản Hợp đồng đã ký có đóng dấu; nhận PDF · Word · Excel · XML · ảnh (JPG, PNG, HEIC, WEBP, TIFF) · ZIP, tối đa 25 MB, **1 file cho mỗi hợp đồng**.",
         "**4. Tồn kho nguyên liệu chưa sản xuất (quy khô)** — 1 ô số lượng (tấn). Xong bấm **Lưu số liệu**."
       ],
       "notes": [
@@ -239,9 +238,9 @@
         "Muốn sửa dòng lỗi: sửa lại trong file Excel rồi nhập lên lần nữa — các dòng đã ghi đúng sẽ được ghi đè, không bị nhân đôi.",
         "Nhập Tiêu thụ không làm mất số Tồn kho của cùng ngày và ngược lại.",
         "File **Tiêu thụ** ghi đè **toàn bộ** phần tiêu thụ của ngày đó, **cả mủ thu mua lẫn mủ khai thác**. Dòng nào đã nhập trên web mà không có trong file sẽ bị xoá — nên chép đủ cả 2 nguồn mủ vào file trước khi nhập lên.",
-        "**Mẫu Excel đã đổi cột** — luôn bấm *Tải mẫu Excel* để lấy file mới nhất, đừng dùng lại file tải từ trước (sai cột sẽ báo lỗi khi nhập lên).",
+        "**Mỗi lần nhập hãy bấm *Tải mẫu Excel* để lấy file mẫu hiện hành**, đừng dùng lại file đang giữ trong máy (khác cột sẽ báo lỗi khi nhập lên).",
         "Bốn cột **chọn từ danh sách** để trống được, nhưng phải điền đúng thì số mới vào đúng chỗ: *Đơn giá mủ chén tính theo* (Độ TSC / Độ DRC) ở mẫu **Thu mua**; *Nguồn mủ* (Mủ thu mua / Mủ khai thác) và *Giá bán bằng* (VND / USD) ở mẫu **Tiêu thụ**; *Đơn giá bằng* (VND / USD) ở mẫu **Tồn kho**. Bỏ trống thì hệ thống hiểu là Độ TSC · Mủ thu mua · VND.",
-        "Mẫu **Thu mua** đã bỏ 2 cột *SL tiêu thụ* và *Doanh thu* (chuyển sang biểu Tiêu thụ), thêm 3 cột: *SL thu mua thành phẩm* · *Đơn giá thành phẩm (VNĐ)* · *Đơn giá thành phẩm (ngoại tệ)*.",
+        "Mẫu **Thu mua** gồm: *SL thu mua mủ nước* · *SL thu mua mủ chén* · *Đơn giá mủ nước* · *Đơn giá mủ chén* · *Đơn giá mủ chén tính theo*, và phần thu mua thành phẩm *Chủng loại thành phẩm* · *SL thu mua thành phẩm* · *Đơn giá thành phẩm* · *Đơn giá thành phẩm bằng*.",
         "Mẫu **Tồn kho**: cột *Nhóm* có 3 lựa chọn — Chế biến chưa nhập kho · Đã nhập kho · **Đã ký HĐ**. Số lượng tính bằng **tấn**.",
         "Mẫu **Tiêu thụ** có cột *Nguồn mủ* (chọn *Mủ thu mua* hoặc *Mủ khai thác* — để trống thì hiểu là **mủ thu mua**), cùng 2 cột ngày: *Ngày xuất kho* và *Ngày xuất hoá đơn*. Riêng **3 file đính kèm — bộ Hợp đồng · phiếu xuất kho · hoá đơn — phải tải lên trên web**, file Excel không mang theo file đính kèm được."
       ]

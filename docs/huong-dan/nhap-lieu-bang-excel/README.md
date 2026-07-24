@@ -1,6 +1,6 @@
 # Hướng dẫn nhập liệu bằng Excel
 
-Thay vì gõ tay từng ngày trên web, có thể tải file Excel mẫu về điền rồi nhập lên. Tài liệu này mô tả ba biểu mẫu — Thu mua, Tiêu thụ, Tồn kho — kèm ý nghĩa từng cột và cách xử lý dòng lỗi. Ba file mẫu đính kèm trong thư mục 'mau'. Tài liệu bám theo phiên bản 0.2.79.
+Thay vì gõ tay từng ngày trên web, có thể tải file Excel mẫu về điền rồi nhập lên. Tài liệu này mô tả ba biểu mẫu — Thu mua, Tiêu thụ, Tồn kho — kèm ý nghĩa từng cột và cách xử lý dòng lỗi. Ba file mẫu đính kèm trong thư mục 'mau'.
 
 > Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-bang-Excel.docx](./Huong-dan-nhap-lieu-bang-Excel.docx)
 > File mẫu: [Thu mua](mau/mau-thu-mua.xlsx) · [Tiêu thụ](mau/mau-tieu-thu.xlsx) · [Tồn kho](mau/mau-ton-kho.xlsx)
@@ -20,7 +20,7 @@ Bốn màn báo cáo đều có cùng hai nút ở đầu trang. Quy trình gi�
 3. **Nhập từ Excel** → chọn file đã điền. Hệ thống đọc file và mở bảng **xem trước** (chưa ghi gì cả).
 4. Soát bảng xem trước rồi bấm **Xác nhận ghi** — chỉ khi đó số liệu mới vào hệ thống.
 
-> - **Đừng dùng lại file tải từ lần trước** — mẫu có thể đã thêm cột; file cũ thiếu cột sẽ nhập thiếu số mà không báo gì.
+> - **Luôn tải mẫu mới trước mỗi lần nhập** — file đang giữ trong máy có thể khác cột với mẫu hiện hành, thiếu cột sẽ nhập thiếu số mà không báo gì.
 > - File mẫu đính kèm tài liệu này chỉ để tham khảo và tập điền. **File chuẩn luôn là file tải từ nút Tải mẫu Excel** trên hệ thống.
 > - Tài khoản đơn vị thành viên tải về sẽ **không có cột 'Đơn vị'** — hệ thống tự gán đúng đơn vị của tài khoản. Tài khoản chuyên viên thì có cột này và phải điền tên đơn vị đúng như trong danh mục.
 > - Dữ liệu bắt đầu từ **dòng 7** của file mẫu (dòng 5 là tiêu đề, dòng 6 là đơn vị tính). Điền từ dòng 7 trở xuống, mỗi dòng một bản ghi.
@@ -75,7 +75,6 @@ Phần mủ nước / mủ chén: mỗi đơn vị **một dòng cho một ngày
 > - Dòng thành phẩm bằng **USD** cần tỷ giá USD/VNĐ; tỷ giá nhập trên web (nút *Lấy tỷ giá VCB cho các dòng USD*), Excel không mang theo — thiếu thì hệ thống báo lại.
 > - Các ô mủ nước/mủ chén lấy **giá trị đầu tiên khác trống** trong ngày; ô nào file không có thì **giữ nguyên** số đã nhập trên web.
 > - Ngày đơn vị **không tổ chức thu mua** thì không nhập bằng Excel — vào form trên web tích ô 'Hôm nay đơn vị KHÔNG tổ chức thu mua', vì đó là tình huống khác với 'có mua nhưng mua được 0 tấn'.
-> - Sản lượng tiêu thụ và doanh thu **không còn ở biểu Thu mua** — đã chuyển sang biểu Tiêu thụ.
 
 ## 4. Mẫu Tiêu thụ
 
