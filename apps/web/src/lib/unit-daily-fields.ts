@@ -133,6 +133,10 @@ export function segments(kind: Kind): { group?: string; cols: Column[] }[] {
 export const fmtNum = (v: number | null | undefined, digits = 2): string =>
   v == null || Number.isNaN(v) ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: digits });
 
+/** Số chữ số thập phân HIỂN THỊ theo đơn vị cột: **tấn = 3** (đơn vị lớn → cần chính xác tới kg,
+    nếu chỉ 1-2 số lẻ thì 1,004 tấn bị hiện thành "1"), % = 1, còn lại (tiền quy đổi…) = 2. */
+export const displayDigits = (unit: string): number => (unit === "tấn" ? 3 : unit === "%" ? 1 : 2);
+
 /** Cột gộp Tổng cộng = đơn vị dòng chảy (tấn / tỷ đồng / triệu đồng); giá và % không gộp. */
 export const isSummable = (unit: string): boolean =>
   unit === "tấn" || unit === "tỷ đồng" || unit === "triệu đồng";
@@ -154,16 +158,16 @@ export const colDisplay = (kind: Kind, key: string, v: Values, plan?: number | n
 export function summaryLine(kind: Kind, v: Values): string {
   if (kind === "purchase") {
     const parts = [
-      `Thu mua ${fmtNum(colValue(kind, "total_purchase", v), 1)}t`,
-      n(v.consumption) != null ? `Tiêu thụ ${fmtNum(v.consumption, 1)}t` : null,
+      `Thu mua ${fmtNum(colValue(kind, "total_purchase", v), 3)}t`,
+      n(v.consumption) != null ? `Tiêu thụ ${fmtNum(v.consumption, 3)}t` : null,
       n(v.revenue) != null ? `Giá BQ ${fmtNum(colDisplay(kind, "price_avg", v), 1)}` : null,
     ];
     return parts.filter(Boolean).join(" · ");
   }
   const parts = [
-    `Tổng tiêu thụ ${fmtNum(colValue(kind, "total_consumption", v), 1)}t`,
-    `Tồn kho TP ${fmtNum(colValue(kind, "stock_finished_t", v), 1)}t`,
-    `Đã ký HĐ chưa giao ${fmtNum(colValue(kind, "stock_signed_t", v), 1)}t`,
+    `Tổng tiêu thụ ${fmtNum(colValue(kind, "total_consumption", v), 3)}t`,
+    `Tồn kho TP ${fmtNum(colValue(kind, "stock_finished_t", v), 3)}t`,
+    `Đã ký HĐ chưa giao ${fmtNum(colValue(kind, "stock_signed_t", v), 3)}t`,
   ];
   return parts.join(" · ");
 }

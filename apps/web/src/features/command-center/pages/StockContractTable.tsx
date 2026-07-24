@@ -14,7 +14,7 @@ import {
 import { CONTRACT_ACCEPT } from "../../../lib/contract-upload";
 import { CCYS, GRADES, type Ccy, lineRevenueVnd } from "../../../lib/unit-daily-consumption";
 import { fmtNum } from "../../../lib/unit-daily-fields";
-import { numInput } from "./unit-daily-inputs";
+import { TON_WARN_ABOVE, numInput } from "./unit-daily-inputs";
 
 type Row = StockContract & { _key: number; _dirty?: boolean };
 
@@ -120,7 +120,7 @@ export default function StockContractTable({ role, company, day, readOnly, fallb
                     <Input size="small" style={cell} value={r.code ?? ""} placeholder="Số HĐ/PL"
                       disabled={readOnly} onChange={(e) => patch(r._key, { code: e.target.value || null })} />
                   </td>
-                  <td>{numInput(num(r.qty), (v) => patch(r._key, { qty: v }), readOnly, "small")}</td>
+                  <td>{numInput(num(r.qty), (v) => patch(r._key, { qty: v }), readOnly, "small", TON_WARN_ABOVE)}</td>
                   <td>{numInput(num(r.price), (v) => patch(r._key, { price: v }), readOnly, "small")}</td>
                   <td>
                     <Select size="small" style={cell} value={r.ccy ?? "VND"} disabled={readOnly}

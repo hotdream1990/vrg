@@ -11,7 +11,7 @@ import {
   type PeriodReport, type PeriodRow, downloadPeriodXlsx, fetchPeriodReport,
 } from "../../../lib/unit-daily-client";
 import { isoDate } from "../../../lib/date";
-import { type Kind, fmtNum } from "../../../lib/unit-daily-fields";
+import { type Kind, displayDigits, fmtNum } from "../../../lib/unit-daily-fields";
 import DateInput from "../sections/DateInput";
 import "../../bulletin/bulletin.css";
 
@@ -179,7 +179,7 @@ export default function PeriodReportPage() {
                   <td>{r.region ?? "—"}</td>
                   <td style={{ fontWeight: 500 }}>{r.company}</td>
                   {cols.map((c) => (
-                    <td key={c.key} className="r">{fmtNum(valueOf(r, c.key), 2)}</td>
+                    <td key={c.key} className="r">{fmtNum(valueOf(r, c.key), displayDigits(c.unit))}</td>
                   ))}
                 </tr>
               ))}
@@ -193,7 +193,7 @@ export default function PeriodReportPage() {
                   <td />
                   <td>Tổng cộng</td>
                   {cols.map((c) => (
-                    <td key={c.key} className="r">{NO_SUM.has(c.key) ? "" : fmtNum(totalOf(c.key), 2)}</td>
+                    <td key={c.key} className="r">{NO_SUM.has(c.key) ? "" : fmtNum(totalOf(c.key), displayDigits(c.unit))}</td>
                   ))}
                 </tr>
               )}

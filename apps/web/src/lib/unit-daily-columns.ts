@@ -4,7 +4,7 @@
 import type { ColumnsType } from "antd/es/table";
 
 import type { UnitPurchasePrice } from "./unit-daily-client";
-import { type Column, type Kind, type Values, colValue, fmtNum, segments, toDisplay } from "./unit-daily-fields";
+import { type Column, type Kind, type Values, colValue, displayDigits, fmtNum, segments, toDisplay } from "./unit-daily-fields";
 
 type Rowish = { fields: Values; company: string; prices?: UnitPurchasePrice };
 
@@ -18,7 +18,7 @@ export function dataColumns<T extends Rowish>(kind: Kind, plans: Record<string, 
     render: (_: unknown, r: T) =>
       c.linked
         ? fmtNum(r.prices?.[c.linked] ?? null, 0)
-        : fmtNum(toDisplay(c, colValue(kind, c.key, r.fields, plans[r.company])), c.unit === "%" ? 1 : 2),
+        : fmtNum(toDisplay(c, colValue(kind, c.key, r.fields, plans[r.company])), displayDigits(c.unit)),
   });
   return segments(kind).map((seg) =>
     seg.group ? { title: seg.group, children: seg.cols.map(leaf) } : leaf(seg.cols[0]),

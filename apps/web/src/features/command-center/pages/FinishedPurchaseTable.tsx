@@ -7,7 +7,7 @@ import { Select } from "antd";
 import { CCYS, GRADES, type Ccy } from "../../../lib/unit-daily-consumption";
 import { type FinishedLine, emptyFinishedLine, finishedLineVnd } from "../../../lib/unit-daily-purchase";
 import { fmtNum } from "../../../lib/unit-daily-fields";
-import { numInput } from "./unit-daily-inputs";
+import { TON_WARN_ABOVE, numInput } from "./unit-daily-inputs";
 
 type Props = {
   rows: FinishedLine[];
@@ -44,7 +44,7 @@ export default function FinishedPurchaseTable({ rows, setRows, readOnly }: Props
                     disabled={readOnly} showSearch onChange={(v) => patch(i, { grade: v })}
                     options={GRADES.map((g) => ({ value: g, label: g }))} />
                 </td>
-                <td>{numInput(num(ln.qty), (v) => patch(i, { qty: v }), readOnly, "small")}</td>
+                <td>{numInput(num(ln.qty), (v) => patch(i, { qty: v }), readOnly, "small", TON_WARN_ABOVE)}</td>
                 <td>{numInput(num(ln.price), (v) => patch(i, { price: v }), readOnly, "small")}</td>
                 <td>
                   <Select size="small" style={cell} value={ln.ccy ?? "VND"} disabled={readOnly}

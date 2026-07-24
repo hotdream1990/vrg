@@ -8,7 +8,7 @@ import type { ColumnsType } from "antd/es/table";
 import { dmy } from "../../../lib/date";
 import { dataColumns } from "../../../lib/unit-daily-columns";
 import type { DayData, UnitPurchasePrice } from "../../../lib/unit-daily-client";
-import { COLUMNS, type Column, type Kind, type Values, colValue, fmtNum, isSummable, toDisplay } from "../../../lib/unit-daily-fields";
+import { COLUMNS, type Column, type Kind, type Values, colValue, displayDigits, fmtNum, isSummable, toDisplay } from "../../../lib/unit-daily-fields";
 
 type Row = { company: string; fields: Values; prices?: UnitPurchasePrice; updated_at?: string; updated_by?: string | null };
 
@@ -44,7 +44,7 @@ export default function UnitDailyOverview(
   const rollup = (c: Column): string => {
     if (!isSummable(c.unit)) return "";
     const total = rows.reduce((a, r) => a + (colValue(kind, c.key, r.fields, data.plans[r.company]) ?? 0), 0);
-    return fmtNum(toDisplay(c, total), 2);
+    return fmtNum(toDisplay(c, total), displayDigits(c.unit));
   };
 
   return (

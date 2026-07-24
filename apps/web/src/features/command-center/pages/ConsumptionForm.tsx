@@ -28,7 +28,7 @@ import {
 } from "../../../lib/unit-daily-consumption";
 import { type Values, fmtNum } from "../../../lib/unit-daily-fields";
 import StockContractTable from "./StockContractTable";
-import { fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
+import { TON_WARN_ABOVE, fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
 
 const NO_PRICES: PriceDraft = { latex: null, cup: null };
 const num = (x: number | null | undefined): number | null => (x == null || Number.isNaN(x) ? null : x);
@@ -194,8 +194,10 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
   // table-layout: fixed). KHÔNG đặt minWidth — minWidth ép cột phình ra, làm các cột số bị bóp lại.
   const sel = { width: "100%" } as const;
 
-  /** Ô nhập số NẰM TRONG BẢNG — luôn size "small" để cao bằng Select/nút cùng dòng (24px). */
-  const cellNum = (v: number | null, on: (v: number | null) => void) => numInput(v, on, readOnly, "small");
+  /** Ô nhập số NẰM TRONG BẢNG — luôn size "small" để cao bằng Select/nút cùng dòng (24px).
+      `warnAbove` chỉ truyền cho ô TẤN (SL) → viền cam khi vượt ngưỡng; ô giá/tỷ giá bỏ trống. */
+  const cellNum = (v: number | null, on: (v: number | null) => void, warnAbove?: number | null) =>
+    numInput(v, on, readOnly, "small", warnAbove);
 
   /** Ô nhập CHỮ trong bảng (số HĐ/PL) — cùng size "small" cho thẳng hàng với các ô khác. */
   const cellText = (v: string | null | undefined, on: (v: string | null) => void, ph: string) => (
@@ -215,7 +217,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
   /** Ô chọn loại tiền cho 1 khối giá (giá bán tiêu thụ · đơn giá tồn kho). */
   const gridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10, alignItems: "end" } as const;
   const box = (label: string, unit: string, value: number | null, digits = 2) => (
-    <label style={{ display: "block" }}>{fieldLabel(label, unit)}{readOnlyBox(fmtNum(value, digits), "tự tính")}</label>
+    <label style={{ display: "block" }}>{fieldLabel(label, unit)}{readOnlyBox(fmtNum(value, unit === "tấn" ? 3 : digits), "tự tính")}</label>
   );
   const gradeSel = (val: string, on: (v: string) => void) => (
     <Select size="small" style={sel} value={val || undefined} placeholder="Loại mủ" disabled={readOnly} showSearch
@@ -250,7 +252,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
                     <td><Select size="small" style={sel} value={ln.contract} disabled={readOnly} onChange={(v) => patch(i, { contract: v })} options={CONTRACTS} /></td>
                     <td><Select size="small" style={sel} value={ln.channel} disabled={readOnly} onChange={(v) => patch(i, { channel: v })} options={CHANNELS} /></td>
                     <td>{gradeSel(ln.grade, (v) => patch(i, { grade: v }))}</td>
-                    <td>{cellNum(num(ln.qty), (v) => patch(i, { qty: v }))}</td>
+                    <td>{cellNum(num(ln.qty), (v) => patch(i, { qty: v }), TON_WARN_ABOVE)}</td>
                     <td>{cellNum(num(ln.price), (v) => patch(i, { price: v }))}</td>
                     <td>{rowCcy(ln.ccy, (v) => patch(i, { ccy: v }))}</td>
                     <td>{rowFx(ln, (v) => patch(i, { fx: v }))}</td>
@@ -349,7 +351,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
             {rows.map((r, i) => (
               <tr key={i}>
                 <td>{gradeSel(r.grade, (v) => setRows(rows.map((x, j) => j === i ? { ...x, grade: v } : x)))}</td>
-                <td>{cellNum(num(r.qty), (v) => setRows(rows.map((x, j) => j === i ? { ...x, qty: v } : x)))}</td>
+                <td>{cellNum(num(r.qty), (v) => setRows(rows.map((x, j) => j === i ? { ...x, qty: v } : x)), TON_WARN_ABOVE)}</td>
                 {!readOnly && <td className="r"><button type="button" className="btn" style={{ padding: "0 7px" }} onClick={() => setRows(rows.filter((_, j) => j !== i))}><DeleteOutlined /></button></td>}
               </tr>
             ))}
@@ -404,7 +406,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       {head("4. Tồn kho nguyên liệu chưa sản xuất (quy khô)", false, HINT_STOCK_BALANCE)}
       <label style={{ display: "block", maxWidth: 260 }}>
         {fieldLabel("Số lượng", "tấn")}
-        {numInput(num(data.stock_material), (v) => setData((d) => ({ ...d, stock_material: v })), readOnly)}
+        {numInput(num(data.stock_material), (v) => setData((d) => ({ ...d, stock_material: v })), readOnly, undefined, TON_WARN_ABOVE)}
       </label>
 
       {head("Tổng hợp tồn kho")}

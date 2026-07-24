@@ -14,7 +14,7 @@ import type { CupBasis, PriceDraft, UnitPurchasePrice } from "../../../lib/unit-
 import { type Values, fmtNum } from "../../../lib/unit-daily-fields";
 import { type FinishedLine, finishedTotals } from "../../../lib/unit-daily-purchase";
 import FinishedPurchaseTable from "./FinishedPurchaseTable";
-import { fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
+import { TON_WARN_ABOVE, fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
 
 type Props = {
   values: Values;
@@ -161,7 +161,7 @@ export default function PurchaseForm({
 
       <div style={{ ...gridStyle, opacity: noPurchase ? 0.5 : 1 }}>
         {head("Mủ nước", true, HINT_DAILY_EVENT)}
-        {field("Sản lượng thu mua", "tấn", numInput(num(draft.latex_wet), (v) => set("latex_wet", v), readOnly))}
+        {field("Sản lượng thu mua", "tấn", numInput(num(draft.latex_wet), (v) => set("latex_wet", v), readOnly, undefined, TON_WARN_ABOVE))}
         {foreign ? (
           <>
             {field("Đơn giá thu mua", `${currency}/độ TSC`, numInput(num(draft.price_latex_local), (v) => set("price_latex_local", v), readOnly))}
@@ -172,7 +172,7 @@ export default function PurchaseForm({
         )}
 
         {head("Mủ chén", false, HINT_DAILY_EVENT)}
-        {field("Sản lượng thu mua", "tấn", numInput(num(draft.coagulum), (v) => set("coagulum", v), readOnly))}
+        {field("Sản lượng thu mua", "tấn", numInput(num(draft.coagulum), (v) => set("coagulum", v), readOnly, undefined, TON_WARN_ABOVE))}
         {/* Mủ chén tính theo độ TSC hoặc độ DRC — đơn vị tự chọn, đổi luôn nhãn các ô đơn giá bên dưới. */}
         {field("Đơn giá tính theo", undefined, (
           <Select size="small" style={{ width: "100%" }} value={cupBasis} disabled={readOnly}
@@ -216,7 +216,7 @@ export default function PurchaseForm({
 
         {fin.qty > 0 && (
           <div style={{ ...gridStyle, marginTop: 10 }}>
-            {field("Tổng SL thành phẩm", "tấn", readOnlyBox(fmtNum(fin.qty, 2), "tự tính"))}
+            {field("Tổng SL thành phẩm", "tấn", readOnlyBox(fmtNum(fin.qty, 3), "tự tính"))}
             {field("Tổng giá trị", "triệu đồng", readOnlyBox(fmtNum(fin.valueVnd / 1_000_000, 1), "tự tính"))}
             {field("Đơn giá bình quân", "triệu đ/tấn", readOnlyBox(fmtNum(fin.avgPriceTrieu, 2), "tự tính"))}
           </div>

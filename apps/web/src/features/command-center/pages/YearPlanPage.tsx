@@ -129,10 +129,10 @@ export default function YearPlanPage() {
                 <tr style={{ fontWeight: 600, background: "rgba(125,125,125,.08)" }}>
                   <td />
                   <td>Tổng cộng</td>
-                  <td className="r">{fmtNum(total("plan_tonnes"), 2)}</td>
-                  <td className="r">{fmtNum(total("signed_lt_tonnes"), 2)}</td>
-                  <td className="r">{fmtNum(total("carry_lt_tonnes"), 2)}</td>
-                  <td className="r">{fmtNum(total("carry_spot_tonnes"), 2)}</td>
+                  <td className="r">{fmtNum(total("plan_tonnes"), 3)}</td>
+                  <td className="r">{fmtNum(total("signed_lt_tonnes"), 3)}</td>
+                  <td className="r">{fmtNum(total("carry_lt_tonnes"), 3)}</td>
+                  <td className="r">{fmtNum(total("carry_spot_tonnes"), 3)}</td>
                 </tr>
               )}
             </tbody>
