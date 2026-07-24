@@ -306,3 +306,70 @@ def test_year_plan_respects_has_purchase_plan_flag() -> None:
     assert unit in hq_units() and unit in my_units()
 
     _cleanup(h, ["ud_pf"], [unit])
+
+
+def test_stock_contract_history() -> None:
+    """Lịch sử hợp đồng: liệt kê CẢ hợp đồng đã giao (đã biến mất khỏi tồn kho ngày) + bộ lọc."""
+    h = _admin()
+    unit = "_zz_ud_hist"
+    today = date.today()
+    old_day = (today - timedelta(days=20)).isoformat()
+    recent_day = (today - timedelta(days=2)).isoformat()
+    for u in ("ud_hist_ed", "ud_hist_mem", "ud_hist_noed"):
+        client.delete(f"/api/users/{u}", headers=h)
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    client.post("/api/users", json={"username": "ud_hist_ed", "password": "pass123",
+                                    "role": "editor", "permissions": ["unit_daily"]}, headers=h)
+    client.post("/api/users", json={"username": "ud_hist_mem", "password": "pass123",
+                                    "role": "member", "member_units": [unit]}, headers=h)
+    eh = _bearer("ud_hist_ed", "pass123")
+    mh = _bearer("ud_hist_mem", "pass123")
+
+    # 1 HĐ đã giao (delivered) + 1 HĐ chưa giao (undelivered), khác ngày bắt đầu để test lọc/sắp xếp.
+    delivered = client.put("/api/unit-daily/stock-contracts", headers=eh, json={
+        "company": unit, "code": "HĐ-H1/2026", "grade": "RSS 3", "qty": 5, "price": 40,
+        "start_date": old_day, "delivered_date": recent_day}).json()["contract"]
+    undelivered = client.put("/api/unit-daily/stock-contracts", headers=eh, json={
+        "company": unit, "code": "HĐ-H2/2026", "grade": "SVR 3L", "qty": 8, "price": 45,
+        "start_date": recent_day}).json()["contract"]
+
+    # HĐ đã giao KHÔNG còn hiện trong danh sách tồn kho hôm nay (hành vi hiện có)...
+    todays = client.get(f"/api/unit-daily/stock-contracts?as_of={today.isoformat()}&company={unit}",
+                        headers=eh).json()["contracts"]
+    assert delivered["id"] not in [c["id"] for c in todays]
+
+    # ...nhưng MÀN LỊCH SỬ vẫn liệt kê đủ cả hai, mới nhất (ngày bắt đầu) trước.
+    hist = client.get(f"/api/unit-daily/contracts/history?company={unit}", headers=eh).json()
+    ids = [c["id"] for c in hist["contracts"]]
+    assert delivered["id"] in ids and undelivered["id"] in ids
+    assert ids.index(undelivered["id"]) < ids.index(delivered["id"])
+    assert unit in hist["units"]
+
+    # Lọc trạng thái.
+    only_delivered = client.get(f"/api/unit-daily/contracts/history?company={unit}&status=delivered",
+                                headers=eh).json()["contracts"]
+    assert [c["id"] for c in only_delivered] == [delivered["id"]]
+    only_undelivered = client.get(f"/api/unit-daily/contracts/history?company={unit}&status=undelivered",
+                                  headers=eh).json()["contracts"]
+    assert [c["id"] for c in only_undelivered] == [undelivered["id"]]
+
+    # Lọc theo khoảng ngày (Ngày bắt đầu tồn kho) + tìm theo Số HĐ/PL.
+    ranged = client.get(
+        f"/api/unit-daily/contracts/history?company={unit}&date_from={recent_day}&date_to={recent_day}",
+        headers=eh).json()["contracts"]
+    assert [c["id"] for c in ranged] == [undelivered["id"]]
+    searched = client.get(f"/api/unit-daily/contracts/history?company={unit}&q=H2", headers=eh).json()["contracts"]
+    assert [c["id"] for c in searched] == [undelivered["id"]]
+
+    # Thiếu quyền `unit_daily` → 403.
+    client.post("/api/users", json={"username": "ud_hist_noed", "password": "pass123", "role": "editor"}, headers=h)
+    nh = _bearer("ud_hist_noed", "pass123")
+    assert client.get("/api/unit-daily/contracts/history", headers=nh).status_code == 403
+
+    # Đơn vị thành viên: xem được lịch sử của đơn vị mình (kể cả đã giao).
+    my_hist = client.get("/api/member/stock-contracts/history", headers=mh).json()
+    my_ids = [c["id"] for c in my_hist["contracts"]]
+    assert delivered["id"] in my_ids and undelivered["id"] in my_ids
+
+    client.delete("/api/users/ud_hist_noed", headers=h)
+    _cleanup(h, ["ud_hist_ed", "ud_hist_mem"], [unit])

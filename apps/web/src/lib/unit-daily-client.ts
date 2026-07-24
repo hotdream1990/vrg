@@ -135,6 +135,31 @@ export const saveStockContract = (role: Role, company: string, row: StockContrac
 export const deleteStockContract = (role: Role, id: number) =>
   apiFetch<{ ok: boolean }>(`${stockContractBase(role)}/${id}`, { method: "DELETE" });
 
+// ── Lịch sử TOÀN BỘ hợp đồng đã ký (kể cả đã giao) — màn tra cứu riêng, chỉ xem ──
+const stockContractHistoryBase = (role: Role) =>
+  role === "member" ? "/api/member/stock-contracts/history" : "/api/unit-daily/contracts/history";
+
+export type ContractStatus = "all" | "undelivered" | "delivered";
+export type ContractHistoryFilters = {
+  company?: string;      // bỏ qua khi role=member (server tự giới hạn theo đơn vị được gán)
+  status?: ContractStatus;
+  dateFrom?: string;
+  dateTo?: string;
+  q?: string;
+};
+export type ContractHistoryData = { units: string[]; contracts: StockContract[] };
+
+export function fetchStockContractHistory(role: Role, f: ContractHistoryFilters = {}): Promise<ContractHistoryData> {
+  const p = new URLSearchParams();
+  if (role !== "member" && f.company) p.set("company", f.company);
+  if (f.status && f.status !== "all") p.set("status", f.status);
+  if (f.dateFrom) p.set("date_from", f.dateFrom);
+  if (f.dateTo) p.set("date_to", f.dateTo);
+  if (f.q) p.set("q", f.q);
+  const qs = p.toString();
+  return apiFetch<ContractHistoryData>(`${stockContractHistoryBase(role)}${qs ? `?${qs}` : ""}`);
+}
+
 // ── Số liệu NĂM (kế hoạch thu mua + HĐ dài hạn đã ký) — đơn vị tự cập nhật, chuyên viên xem/sửa mọi đơn vị ──
 const planBase = (role: Role) => (role === "member" ? "/api/member/plan" : "/api/unit-daily/plan");
 

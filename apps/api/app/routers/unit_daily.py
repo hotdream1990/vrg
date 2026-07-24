@@ -97,6 +97,28 @@ def list_stock_contracts(as_of: str | None = Query(None, description="Chỉ HĐ 
             "contracts": unit_stock_contract_repo.list_contracts(companies=companies, as_of=as_of)}
 
 
+@router.get("/contracts/history")
+def contract_history(company: str | None = Query(None),
+                     status: str = Query("all", pattern="^(all|undelivered|delivered)$"),
+                     date_from: str | None = Query(None, description="Từ ngày 'YYYY-MM-DD' (Ngày bắt đầu tồn kho)"),
+                     date_to: str | None = Query(None, description="Đến ngày 'YYYY-MM-DD'"),
+                     q: str | None = Query(None, max_length=120, description="Tìm theo Số HĐ/PL hoặc Chủng loại"),
+                     username: str = Depends(_require)) -> dict:
+    """Lịch sử TOÀN BỘ hợp đồng đã ký (kể cả đã giao) — tra cứu lại HĐ đã biến mất khỏi tồn kho ngày."""
+    for label, v in (("Từ ngày", date_from), ("Đến ngày", date_to)):
+        if v:
+            try:
+                date.fromisoformat(v)
+            except ValueError as exc:
+                raise HTTPException(400, f"{label} không hợp lệ (YYYY-MM-DD).") from exc
+    companies = [company] if company else None
+    contracts = unit_stock_contract_repo.list_contracts(
+        companies=companies, status=None if status == "all" else status,
+        date_from=date_from, date_to=date_to, q=q)
+    contracts.sort(key=lambda c: (c["start_date"] or "", c["id"] or 0), reverse=True)
+    return {"units": member_unit_repo.active_names(), "contracts": contracts}
+
+
 @router.put("/stock-contracts")
 def save_stock_contract(body: StockContractEdit, username: str = Depends(_require_edit)) -> dict:
     """Thêm mới / cập nhật 1 hợp đồng (kể cả điền NGÀY GIAO khi đã xuất kho)."""

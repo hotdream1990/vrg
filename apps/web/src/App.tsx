@@ -21,6 +21,7 @@ import ProfilePage from "./features/command-center/pages/ProfilePage";
 import RawMaterialPage from "./features/command-center/pages/RawMaterialPage";
 import ScanPage from "./features/command-center/pages/ScanPage";
 import SchedulePage from "./features/command-center/pages/SchedulePage";
+import StockContractHistoryPage from "./features/command-center/pages/StockContractHistoryPage";
 import SystemConfigPage from "./features/command-center/pages/SystemConfigPage";
 import PeriodReportPage from "./features/command-center/pages/PeriodReportPage";
 import UnitDailyPage from "./features/command-center/pages/UnitDailyPage";
@@ -70,6 +71,13 @@ function YearPlanRoute() {
   return <Navigate to="/" replace />;
 }
 
+/** Lịch sử hợp đồng tồn kho (tra cứu, kể cả đã giao): đơn vị thành viên → đơn vị mình; chuyên viên có quyền → mọi đơn vị. */
+function StockContractHistoryRoute() {
+  const { user, can } = useAuth();
+  if (user?.role === "member" || can("unit_daily")) return <StockContractHistoryPage />;
+  return <Navigate to="/" replace />;
+}
+
 export default function App() {
   return (
     <ConfigProvider theme={vrgTheme}>
@@ -98,6 +106,7 @@ export default function App() {
                       subtitle="Tồn kho thành phẩm (đã/chưa có hợp đồng) và tồn kho nguyên liệu theo ngày." />} />
                   <Route path="/ke-hoach-nam" element={<YearPlanRoute />} />
                   <Route path="/bao-cao-tong-hop" element={<PeriodReportRoute />} />
+                  <Route path="/lich-su-hop-dong-ton-kho" element={<StockContractHistoryRoute />} />
                   {/* Đường dẫn cũ → giữ cho link đã lưu */}
                   <Route path="/bao-cao-tieu-thu-ton-kho" element={<Navigate to="/bao-cao-tieu-thu" replace />} />
                   {/* Số liệu tự động (quét + bảng giá sàn + tỷ giá) — quyền auto_data */}

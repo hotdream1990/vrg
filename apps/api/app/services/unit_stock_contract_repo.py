@@ -78,8 +78,15 @@ def clean(row: dict, company: str) -> dict[str, Any]:
 
 
 def list_contracts(companies: list[str] | None = None, as_of: str | None = None,
-                   include_delivered: bool = True) -> list[dict[str, Any]]:
-    """Danh sách hợp đồng. `as_of` → chỉ hợp đồng ĐANG TỒN ngày đó; `companies` → lọc đơn vị."""
+                   include_delivered: bool = True, date_from: str | None = None,
+                   date_to: str | None = None, status: str | None = None,
+                   q: str | None = None) -> list[dict[str, Any]]:
+    """Danh sách hợp đồng. `as_of` → chỉ hợp đồng ĐANG TỒN ngày đó; `companies` → lọc đơn vị.
+
+    Bộ lọc cho màn LỊCH SỬ (dùng khi KHÔNG có `as_of`): `status` ('undelivered' | 'delivered',
+    None/khác = tất cả), `date_from`/`date_to` lọc theo Ngày bắt đầu tồn kho, `q` tìm theo
+    Số HĐ/PL hoặc Chủng loại (không phân biệt hoa/thường).
+    """
     ensure_schema()
     where, params = ["1 = 1"], {}
     if companies is not None:
@@ -93,6 +100,19 @@ def list_contracts(companies: list[str] | None = None, as_of: str | None = None,
         params["d"] = as_of
     elif not include_delivered:
         where.append("delivered_date IS NULL")
+    if status == "undelivered":
+        where.append("delivered_date IS NULL")
+    elif status == "delivered":
+        where.append("delivered_date IS NOT NULL")
+    if date_from:
+        where.append("start_date >= CAST(:df AS date)")
+        params["df"] = date_from
+    if date_to:
+        where.append("start_date <= CAST(:dt AS date)")
+        params["dt"] = date_to
+    if q:
+        where.append("(code ILIKE :q OR grade ILIKE :q)")
+        params["q"] = f"%{q}%"
     with session_scope() as db:
         rows = db.execute(
             text(f"SELECT {', '.join(_COLS)} FROM unit_stock_contract WHERE {' AND '.join(where)} "
