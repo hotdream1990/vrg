@@ -1,8 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { type User, fetchMe, login as apiLogin } from "../../lib/auth-client";
-import { clearToken, getToken, setToken } from "../../lib/auth-token";
+import { type User, fetchMe, impersonateUser, login as apiLogin } from "../../lib/auth-client";
+import {
+  clearAdminToken, clearToken, getAdminToken, getToken, setAdminToken, setToken,
+} from "../../lib/auth-token";
 import { type Cap, effectiveCaps, hasCap } from "../../lib/permissions";
+import ImpersonationBanner from "./ImpersonationBanner";
 
 type AuthCtx = {
   user: User | null;
@@ -13,6 +16,9 @@ type AuthCtx = {
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  isImpersonating: boolean; // đang xem với tư cách tài khoản khác (admin đăng nhập hộ)
+  impersonate: (username: string) => Promise<void>;
+  stopImpersonation: () => Promise<void>;
 };
 
 const Ctx = createContext<AuthCtx>(null as unknown as AuthCtx);
@@ -35,15 +41,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(r.access_token);
     setUser(r.user);
   };
-  const logout = () => { clearToken(); setUser(null); };
+  const logout = () => { clearToken(); clearAdminToken(); setUser(null); };
   const refreshUser = async () => { setUser(await fetchMe()); };
   const canEdit = user?.role === "admin" || user?.role === "editor";
   const caps = useMemo(() => effectiveCaps(user?.role, user?.permissions), [user?.role, user?.permissions]);
   const can = (cap: Cap) => hasCap(caps, cap);
   const canEditCap = (cap: Cap) => hasCap(caps, cap, "edit");
 
+  /** Admin đăng nhập hộ tài khoản khác: cất token admin hiện tại rồi chuyển sang token tài khoản đích. */
+  const impersonate = async (username: string) => {
+    const adminToken = getToken();
+    const r = await impersonateUser(username);
+    if (adminToken) setAdminToken(adminToken);
+    setToken(r.access_token);
+    setUser(r.user);
+  };
+
+  /** Thoát phiên đăng nhập hộ: khôi phục token admin gốc + nạp lại thông tin user. */
+  const stopImpersonation = async () => {
+    const adminToken = getAdminToken();
+    if (!adminToken) return;
+    clearAdminToken();
+    setToken(adminToken);
+    setUser(await fetchMe());
+  };
+
+  const isImpersonating = Boolean(user?.impersonated_by);
+
   return (
-    <Ctx.Provider value={{ user, loading, canEdit, can, canEditCap, login, logout, refreshUser }}>
+    <Ctx.Provider value={{
+      user, loading, canEdit, can, canEditCap, login, logout, refreshUser,
+      isImpersonating, impersonate, stopImpersonation,
+    }}>
+      <ImpersonationBanner />
       {children}
     </Ctx.Provider>
   );

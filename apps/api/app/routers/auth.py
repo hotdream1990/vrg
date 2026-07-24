@@ -1,11 +1,20 @@
-"""Router đăng nhập — JWT login + thông tin user hiện tại."""
+"""Router đăng nhập — JWT login + thông tin user hiện tại + đăng nhập hộ (impersonation)."""
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.core.security import create_access_token, get_current_user
+from app.core.security import (
+    create_access_token,
+    create_impersonation_token,
+    get_current_user,
+    get_impersonator,
+    require_admin,
+)
 from app.schemas.auth import (
+    ImpersonateRequest,
     LoginRequest,
     PasswordChange,
     ProfileUpdate,
@@ -13,6 +22,8 @@ from app.schemas.auth import (
     UserOut,
 )
 from app.services import user_repo
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -27,12 +38,38 @@ def login(body: LoginRequest):
 
 
 @router.get("/me", response_model=UserOut)
-def me(username: str = Depends(get_current_user)):
-    """Thông tin user của token hiện tại."""
+def me(username: str = Depends(get_current_user), imp_by: str | None = Depends(get_impersonator)):
+    """Thông tin user của token hiện tại (kèm `impersonated_by` nếu đang trong phiên đăng nhập hộ)."""
     user = user_repo.get_user(username)
     if not user or not user.get("is_active", True):
         raise HTTPException(401, "Tài khoản không tồn tại hoặc đã bị khoá")
-    return UserOut(**user)
+    return UserOut(**user, impersonated_by=imp_by)
+
+
+@router.post("/impersonate", response_model=TokenResponse)
+def impersonate(
+    body: ImpersonateRequest,
+    admin_username: str = Depends(require_admin),
+    imp_by: str | None = Depends(get_impersonator),
+):
+    """Admin đăng nhập hộ (mạo danh) một tài khoản khác → trả token của tài khoản đích.
+
+    Ràng buộc an toàn: không tự mạo danh chính mình; không mạo danh tài khoản không tồn tại/đã
+    khoá; token ĐANG mạo danh không được mạo danh tiếp (chặn lồng nhau).
+    """
+    if imp_by:
+        raise HTTPException(403, "Đang trong phiên đăng nhập hộ — không thể mạo danh tiếp")
+    target_username = body.username.strip()
+    if target_username == admin_username:
+        raise HTTPException(400, "Không thể đăng nhập hộ chính tài khoản của bạn")
+    target = user_repo.get_user(target_username)
+    if not target:
+        raise HTTPException(404, f"Không có tài khoản '{target_username}'")
+    if not target.get("is_active", True):
+        raise HTTPException(400, "Tài khoản đã bị khoá — không thể đăng nhập hộ")
+    logger.info("Admin '%s' bắt đầu đăng nhập hộ tài khoản '%s'", admin_username, target_username)
+    token = create_impersonation_token(target["username"], admin_username)
+    return TokenResponse(access_token=token, user=UserOut(**target, impersonated_by=admin_username))
 
 
 @router.put("/me", response_model=UserOut)

@@ -7,6 +7,7 @@ import { apiFetch } from "./http";
 export type User = {
   username: string; full_name: string | null; role: string;
   permissions?: string[]; member_units?: string[];
+  impersonated_by?: string | null; // username admin đang đăng nhập hộ (null = phiên bình thường)
 };
 export type LoginResult = { access_token: string; token_type: string; user: User };
 
@@ -55,3 +56,7 @@ export const updateProfile = (full_name: string | null) =>
 export const changePassword = (old_password: string, new_password: string) =>
   authReq<{ detail: string }>(`/api/auth/change-password`,
     { method: "POST", body: JSON.stringify({ old_password, new_password }) });
+
+/** Admin đăng nhập hộ một tài khoản khác → trả token + thông tin của tài khoản đích. */
+export const impersonateUser = (username: string) =>
+  authReq<LoginResult>(`/api/auth/impersonate`, { method: "POST", body: JSON.stringify({ username }) });

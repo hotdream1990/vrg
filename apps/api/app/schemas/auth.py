@@ -17,6 +17,7 @@ class UserOut(BaseModel):
     is_active: bool = True
     permissions: list[str] = Field(default_factory=list)  # quyền theo mục (editor)
     member_units: list[str] = Field(default_factory=list)  # các đơn vị gắn với tài khoản (role=member)
+    impersonated_by: str | None = None  # username admin đang đăng nhập hộ (None = phiên bình thường)
 
 
 class TokenResponse(BaseModel):
@@ -55,3 +56,7 @@ class UserUpdate(BaseModel):
 
 class PasswordReset(BaseModel):
     new_password: str = Field(min_length=6)
+
+
+class ImpersonateRequest(BaseModel):
+    username: str  # tài khoản đích muốn đăng nhập hộ

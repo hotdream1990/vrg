@@ -15,6 +15,7 @@ from app.core.permissions import LEVEL_EDIT, LEVEL_VIEW, effective_caps, has_cap
 _bearer = HTTPBearer(auto_error=False)
 _ALGO = "HS256"
 _BCRYPT_MAX = 72  # bcrypt giới hạn 72 bytes
+_IMPERSONATE_MINUTES = 60  # token đăng nhập hộ hết hạn nhanh hơn token thường
 
 
 def hash_password(password: str) -> str:
@@ -33,12 +34,34 @@ def create_access_token(sub: str) -> str:
     return jwt.encode({"sub": sub, "exp": exp}, settings.jwt_secret, algorithm=_ALGO)
 
 
-def decode_token(token: str) -> str | None:
+def _decode_payload(token: str) -> dict | None:
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[_ALGO])
-        return payload.get("sub")
+        return jwt.decode(token, settings.jwt_secret, algorithms=[_ALGO])
     except jwt.PyJWTError:
         return None
+
+
+def decode_token(token: str) -> str | None:
+    payload = _decode_payload(token)
+    return payload.get("sub") if payload else None
+
+
+def create_impersonation_token(target_username: str, admin_username: str) -> str:
+    """Token đăng nhập hộ: `sub`=user đích (để get_current_user dùng bình thường) +
+    `imp_by`=admin đã mạo danh (để /me báo hiệu + chặn mạo danh lồng nhau). Hạn ngắn hơn token thường."""
+    exp = datetime.now(timezone.utc) + timedelta(minutes=_IMPERSONATE_MINUTES)
+    return jwt.encode(
+        {"sub": target_username, "imp_by": admin_username, "exp": exp},
+        settings.jwt_secret, algorithm=_ALGO,
+    )
+
+
+def get_impersonator(creds: HTTPAuthorizationCredentials | None = Depends(_bearer)) -> str | None:
+    """Username admin đang mạo danh nếu token hiện tại là token mạo danh (claim `imp_by`), ngược lại None."""
+    if not creds:
+        return None
+    payload = _decode_payload(creds.credentials)
+    return payload.get("imp_by") if payload else None
 
 
 def get_current_user(

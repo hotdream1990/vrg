@@ -152,6 +152,50 @@ def test_last_admin_guard() -> None:
     assert client.get("/api/auth/me", headers=_admin_headers()).json()["role"] == "admin"
 
 
+def test_impersonate_flow() -> None:
+    h = _admin_headers()
+    client.delete("/api/users/imp_target", headers=h)
+    client.delete("/api/users/imp_locked", headers=h)
+    client.post("/api/users", json={"username": "imp_target", "password": "pass123",
+                                    "full_name": "Người được mạo danh", "role": "viewer"}, headers=h)
+    client.post("/api/users", json={"username": "imp_locked", "password": "pass123",
+                                    "role": "viewer"}, headers=h)
+    client.put("/api/users/imp_locked", json={"is_active": False}, headers=h)
+
+    # Admin mạo danh thành công → token trả về là của tài khoản đích, /me phản ánh đúng + báo impersonated_by.
+    r = client.post("/api/auth/impersonate", json={"username": "imp_target"}, headers=h)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["user"]["username"] == "imp_target"
+    assert body["user"]["impersonated_by"] == "admin"
+    imp_headers = {"Authorization": f"Bearer {body['access_token']}"}
+    me = client.get("/api/auth/me", headers=imp_headers).json()
+    assert me["username"] == "imp_target" and me["impersonated_by"] == "admin"
+
+    # Token đang mạo danh không được mạo danh tiếp.
+    assert client.post("/api/auth/impersonate", json={"username": "admin"},
+                       headers=imp_headers).status_code == 403
+
+    # Non-admin (chưa mạo danh) không được gọi endpoint mạo danh.
+    vh = _bearer("imp_target", "pass123")
+    assert client.post("/api/auth/impersonate", json={"username": "admin"}, headers=vh).status_code == 403
+
+    # Admin tự mạo danh chính mình → 400.
+    assert client.post("/api/auth/impersonate", json={"username": "admin"}, headers=h).status_code == 400
+
+    # Tài khoản không tồn tại → 404; tài khoản đã khoá → 400.
+    assert client.post("/api/auth/impersonate", json={"username": "no_such_user"},
+                       headers=h).status_code == 404
+    assert client.post("/api/auth/impersonate", json={"username": "imp_locked"},
+                       headers=h).status_code == 400
+
+    # Phiên bình thường (không mạo danh) không có impersonated_by.
+    assert client.get("/api/auth/me", headers=h).json()["impersonated_by"] is None
+
+    client.delete("/api/users/imp_target", headers=h)
+    client.delete("/api/users/imp_locked", headers=h)
+
+
 def test_member_self_price_flow() -> None:
     from datetime import date, timedelta
     from urllib.parse import quote

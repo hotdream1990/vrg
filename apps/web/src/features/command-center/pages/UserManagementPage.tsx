@@ -1,6 +1,7 @@
-import { PlusOutlined, SafetyOutlined } from "@ant-design/icons";
-import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag } from "antd";
+import { LoginOutlined, PlusOutlined, SafetyOutlined } from "@ant-design/icons";
+import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip } from "antd";
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
   type AppUser,
@@ -36,8 +37,9 @@ const capTag = (entry: string) => {
 
 /** Quản trị → Người dùng: liệt kê + tạo/sửa/xoá tài khoản, đặt lại mật khẩu (chỉ admin). */
 export default function UserManagementPage() {
-  const { user: me } = useAuth();
+  const { user: me, impersonate } = useAuth();
   const { message } = App.useApp();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [units, setUnits] = useState<string[]>([]); // đơn vị thành viên đang active (gán cho role=member)
   const [loading, setLoading] = useState(false);
@@ -105,6 +107,14 @@ export default function UserManagementPage() {
     catch (e) { message.error(e instanceof Error ? e.message : "Lỗi"); }
   };
 
+  const impersonateAs = async (u: AppUser) => {
+    try {
+      await impersonate(u.username);
+      message.success(`Đang xem với tư cách ${u.username}`);
+      navigate("/");
+    } catch (e) { message.error(e instanceof Error ? e.message : "Lỗi"); }
+  };
+
   const columns = [
     { title: "Tên đăng nhập", dataIndex: "username", render: (v: string) =>
       <b>{v}{v === me?.username && <Tag color="blue" style={{ marginLeft: 6 }}>bạn</Tag>}</b> },
@@ -128,6 +138,15 @@ export default function UserManagementPage() {
       <Space size="small" wrap>
         <Button size="small" onClick={() => openEdit(u)}>Sửa</Button>
         <Button size="small" onClick={() => { setPwUser(u); pwForm.resetFields(); }}>Đặt lại MK</Button>
+        {u.username !== me?.username && u.is_active && (
+          <Tooltip title="Đăng nhập với tư cách tài khoản này">
+            <Popconfirm title={`Đăng nhập với tư cách "${u.username}"?`}
+              description="Bạn sẽ xem đúng giao diện & quyền của tài khoản này, có thể quay lại bất cứ lúc nào."
+              okText="Đăng nhập" cancelText="Huỷ" onConfirm={() => impersonateAs(u)}>
+              <Button size="small" icon={<LoginOutlined />} />
+            </Popconfirm>
+          </Tooltip>
+        )}
         <Popconfirm title={`Xoá tài khoản "${u.username}"?`} okText="Xoá" cancelText="Huỷ"
           okButtonProps={{ danger: true }} onConfirm={() => remove(u)} disabled={u.username === me?.username}>
           <Button size="small" danger disabled={u.username === me?.username}>Xoá</Button>
