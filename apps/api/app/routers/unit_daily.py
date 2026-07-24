@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, Up
 from fastapi.responses import FileResponse
 
 from app.core import edit_window
+from app.core.feature_flags import require_excel_import
 from app.core.security import assert_editor_window, require_cap, require_cap_edit
 from app.schemas.unit_daily import (
     ExcelImportCommit, PurchasePlanEdit, StockContractEdit, UnitDailyEdit,
@@ -25,6 +26,7 @@ from app.services import (
 router = APIRouter(prefix="/api/unit-daily", tags=["unit-daily"])
 _require = require_cap("unit_daily")            # đọc: mức Xem là đủ
 _require_edit = require_cap_edit("unit_daily")  # ghi: bắt buộc mức Sửa
+_excel = [Depends(require_excel_import)]        # nhập Excel đang tạm tắt (app/core/feature_flags.py)
 
 
 def _assert_range(date_from: str, date_to: str) -> None:
@@ -228,8 +230,8 @@ def set_plan(body: PurchasePlanEdit, username: str = Depends(_require_edit)) -> 
     return {"ok": True}
 
 
-# ── Nhập liệu bằng Excel (tải mẫu · xem trước · ghi) ──
-@router.get("/import/template")
+# ── Nhập liệu bằng Excel (tải mẫu · xem trước · ghi) — đang TẠM TẮT, xem feature_flags ──
+@router.get("/import/template", dependencies=_excel)
 def import_template(kind: str = Query(..., pattern="^(purchase|sales|stock|plan)$"),
                     username: str = Depends(_require)):
     """Tải file Excel MẪU của 1 loại biểu (có sẵn dropdown đơn vị / danh mục)."""
@@ -240,7 +242,7 @@ def import_template(kind: str = Query(..., pattern="^(purchase|sales|stock|plan)
         headers={"Content-Disposition": f'attachment; filename="mau-nhap-{kind}.xlsx"'})
 
 
-@router.post("/import/preview")
+@router.post("/import/preview", dependencies=_excel)
 async def import_preview(kind: str = Query(..., pattern="^(purchase|sales|stock|plan)$"),
                          file: UploadFile = File(...),
                          username: str = Depends(_require_edit)) -> dict:
@@ -251,7 +253,7 @@ async def import_preview(kind: str = Query(..., pattern="^(purchase|sales|stock|
         raise HTTPException(400, str(exc)) from exc
 
 
-@router.post("/import/commit")
+@router.post("/import/commit", dependencies=_excel)
 def import_commit(body: ExcelImportCommit,
                   username: str = Depends(_require_edit)) -> dict:
     """Ghi các dòng hợp lệ đã xem trước (bỏ qua dòng lỗi)."""

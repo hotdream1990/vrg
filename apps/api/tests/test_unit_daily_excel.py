@@ -17,10 +17,16 @@ from openpyxl import Workbook, load_workbook
 from sqlalchemy import text
 
 from app.core.db import db_healthy, session_scope
+from app.core.feature_flags import EXCEL_IMPORT_ENABLED
 from app.main import app
 from app.services import user_repo
 
 pytestmark = pytest.mark.skipif(not db_healthy(), reason="DB không sẵn sàng")
+
+# Nhập Excel đang TẠM TẮT (app/core/feature_flags.py). Giữ nguyên các test luồng nhập —
+# chúng tự chạy lại khi bật cờ; khi tắt thì chỉ còn test khẳng định endpoint đã đóng.
+_excel_on = pytest.mark.skipif(not EXCEL_IMPORT_ENABLED,
+                               reason="Nhập liệu bằng Excel đang tạm tắt")
 
 client = TestClient(app)
 UNIT = "_zz_xl_unit"
@@ -60,6 +66,7 @@ def _rows_to_xlsx(sheet: str, head: list[str], rows: list[tuple], header_row: in
     return buf.getvalue()
 
 
+@_excel_on
 def test_excel_import_single_unit_and_permission() -> None:
     h = _admin()
     today = date.today().isoformat()
@@ -117,6 +124,7 @@ def test_excel_import_single_unit_and_permission() -> None:
                    {"a": UNIT, "b": OTHER})
 
 
+@_excel_on
 def test_template_download_then_import_roundtrip() -> None:
     """Tải mẫu → điền vào ĐÚNG file mẫu → xem trước → ghi → đọc lại: số phải khớp.
 
@@ -204,6 +212,7 @@ def test_template_download_then_import_roundtrip() -> None:
     client.delete(f"/api/member-units/{unit}", headers=h)
 
 
+@_excel_on
 def test_sales_import_old_file_without_source_column() -> None:
     """File mẫu CŨ (chưa có cột 'Nguồn mủ' và 'Số HĐ/PL') vẫn nhập được — mọi dòng vào bảng mủ thu mua.
 
@@ -249,6 +258,7 @@ def test_sales_import_old_file_without_source_column() -> None:
     client.delete(f"/api/member-units/{unit}", headers=h)
 
 
+@_excel_on
 def test_sales_import_old_header_ma_hd_pl_alias() -> None:
     """File mẫu cũ còn tiêu đề cột 'Mã HĐ/PL' (trước khi đổi nhãn thành 'Số HĐ/PL') vẫn nhập được.
 
@@ -290,6 +300,7 @@ def test_sales_import_old_header_ma_hd_pl_alias() -> None:
     client.delete(f"/api/member-units/{unit}", headers=h)
 
 
+@_excel_on
 def test_sales_import_giu_loai_tien_theo_TUNG_DONG() -> None:
     """Cột 'Giá bán bằng' là cột CỦA TỪNG DÒNG — một ngày có thể vừa bán USD vừa bán VNĐ.
 
@@ -334,3 +345,18 @@ def test_sales_import_giu_loai_tien_theo_TUNG_DONG() -> None:
     with session_scope() as db:
         db.execute(text("DELETE FROM unit_daily_report WHERE company = :u"), {"u": unit})
     client.delete(f"/api/member-units/{unit}", headers=h)
+
+
+@pytest.mark.skipif(EXCEL_IMPORT_ENABLED, reason="Nhập liệu bằng Excel đang bật")
+def test_import_endpoints_dong_khi_tat_co() -> None:
+    """Khi cờ tắt: mọi endpoint nhập Excel trả 503 — không tải được mẫu, không xem trước, không ghi.
+
+    Frontend đã ẩn thanh nút, nhưng người biết đường dẫn vẫn có thể gọi thẳng API nên chặn ở server.
+    """
+    h = _admin()
+    assert client.get("/api/unit-daily/import/template?kind=purchase",
+                      headers=h).status_code == 503
+    assert client.post("/api/unit-daily/import/preview?kind=purchase", headers=h,
+                       files={"file": ("f.xlsx", b"khong-doc-den")}).status_code == 503
+    assert client.post("/api/unit-daily/import/commit", headers=h,
+                       json={"kind": "purchase", "rows": []}).status_code == 503

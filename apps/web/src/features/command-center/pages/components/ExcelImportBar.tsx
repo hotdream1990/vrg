@@ -10,6 +10,10 @@ import {
   commitImport, downloadImportTemplate, previewImport,
 } from "../../../../lib/unit-daily-client";
 
+/** TẠM TẮT nhập liệu bằng Excel trên toàn hệ thống — bật lại: đổi thành `true`
+    (backend đổi EXCEL_IMPORT_ENABLED trong apps/api/app/core/feature_flags.py). */
+const EXCEL_IMPORT_ENABLED = false;
+
 type Props = {
   kind: ImportKind;
   role: Role;
@@ -87,6 +91,8 @@ export default function ExcelImportBar({ kind, role, label, onDone }: Props) {
 
   const okCount = preview?.summary.ok ?? 0;
   const errCount = preview?.summary.error ?? 0;
+
+  if (!EXCEL_IMPORT_ENABLED) return null;
 
   return (
     <>

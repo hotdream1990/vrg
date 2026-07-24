@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, Up
 from fastapi.responses import FileResponse
 
 from app.core import edit_window
+from app.core.feature_flags import require_excel_import
 from app.core.security import get_current_member
 from app.schemas.market_demand import MarketDemandEdit
 from app.schemas.member_self import MemberPriceEdit
@@ -25,6 +26,7 @@ from app.services import (
 )
 
 router = APIRouter(prefix="/api/member", tags=["member-self"])
+_excel = [Depends(require_excel_import)]  # nhập Excel đang tạm tắt (app/core/feature_flags.py)
 
 _UNIT = {"purchase": "đồng/độ TSC", "purchase_cup": "đồng/độ TSC"}
 
@@ -266,8 +268,8 @@ def get_my_contract_file(name: str, member: dict = Depends(get_current_member)):
     return FileResponse(str(contract_files.path_for(name)))
 
 
-# ── Nhập liệu bằng Excel — CHỈ các đơn vị được gán cho tài khoản ──
-@router.get("/import/template")
+# ── Nhập liệu bằng Excel — CHỈ các đơn vị được gán cho tài khoản (đang TẠM TẮT, xem feature_flags) ──
+@router.get("/import/template", dependencies=_excel)
 def my_import_template(kind: str = Query(..., pattern="^(purchase|sales|stock|plan)$"),
                        member: dict = Depends(get_current_member)):
     """Tải file Excel MẪU — tài khoản 1 đơn vị thì mẫu bỏ luôn cột 'Đơn vị' (tự gán khi nhập)."""
@@ -278,7 +280,7 @@ def my_import_template(kind: str = Query(..., pattern="^(purchase|sales|stock|pl
         headers={"Content-Disposition": f'attachment; filename="mau-nhap-{kind}.xlsx"'})
 
 
-@router.post("/import/preview")
+@router.post("/import/preview", dependencies=_excel)
 async def my_import_preview(kind: str = Query(..., pattern="^(purchase|sales|stock|plan)$"),
                             file: UploadFile = File(...),
                             member: dict = Depends(get_current_member)) -> dict:
@@ -290,7 +292,7 @@ async def my_import_preview(kind: str = Query(..., pattern="^(purchase|sales|sto
         raise HTTPException(400, str(exc)) from exc
 
 
-@router.post("/import/commit")
+@router.post("/import/commit", dependencies=_excel)
 def my_import_commit(body: ExcelImportCommit,
                      member: dict = Depends(get_current_member)) -> dict:
     """Ghi các dòng hợp lệ — server ép lại đơn vị thuộc quyền tài khoản."""
