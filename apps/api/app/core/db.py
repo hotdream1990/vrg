@@ -193,6 +193,31 @@ CREATE TABLE IF NOT EXISTS unit_purchase_plan (
     PRIMARY KEY (year, company)
 );
 
+-- Nhật ký hoạt động (audit log): MỖI lần ghi/xoá số liệu = 1 DÒNG MỚI, không ghi đè.
+-- Truy vết được ai · lúc nào · sửa ô nào · từ giá trị nào sang giá trị nào (data_before/data_after).
+-- Bảng độc lập với bảng nghiệp vụ — xoá bản ghi nghiệp vụ vẫn còn nguyên vết ở đây.
+CREATE TABLE IF NOT EXISTS audit_log (
+    id          bigserial PRIMARY KEY,
+    at          timestamptz NOT NULL DEFAULT now(),
+    actor       text NOT NULL,              -- username; 'system' = job tự chạy; 'public:<đơn vị>' = link công khai
+    actor_role  text,                       -- admin | editor | member (rỗng nếu không phải tài khoản)
+    on_behalf   text,                       -- admin đang "đăng nhập hộ" (nếu có) — vẫn truy ra người thật
+    entity      text NOT NULL,              -- nhóm số liệu: raw_material | physical | floor | inventory | ...
+    action      text NOT NULL,              -- create | update | delete | scan | import
+    entity_key  text NOT NULL DEFAULT '',   -- khoá bản ghi, vd '2026-07-23|sgx|TSR20|settle'
+    as_of       date,                       -- ngày số liệu (để lọc "mọi thay đổi của ngày X")
+    company     text,                       -- đơn vị thành viên (nếu có) — để lọc theo đơn vị
+    data_before jsonb,                      -- giá trị TRƯỚC khi sửa (NULL khi thêm mới)
+    data_after  jsonb,                      -- giá trị SAU khi sửa (NULL khi xoá)
+    ip          text,
+    note        text                        -- diễn giải ngắn (vd 'nhập từ file', 'xoá cả ngày')
+);
+CREATE INDEX IF NOT EXISTS ix_audit_at ON audit_log (at DESC);
+CREATE INDEX IF NOT EXISTS ix_audit_entity ON audit_log (entity, at DESC);
+CREATE INDEX IF NOT EXISTS ix_audit_actor ON audit_log (actor, at DESC);
+CREATE INDEX IF NOT EXISTS ix_audit_key ON audit_log (entity, entity_key, at DESC);
+CREATE INDEX IF NOT EXISTS ix_audit_asof ON audit_log (as_of);
+
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS title text;
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS dispatch_no text;

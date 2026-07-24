@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
+from app.services import audit_repo
 
 _UPSERT = text("""
     INSERT INTO market_demand (as_of, company, content, updated_by, updated_at)
@@ -24,8 +25,14 @@ def upsert(as_of: str, company: str, content: str, updated_by: str | None) -> No
     """Ghi/ghi đè nhu cầu 1 đơn vị cho 1 ngày."""
     ensure_schema()
     with session_scope() as db:
+        row = db.execute(text("SELECT content FROM market_demand "
+                              "WHERE as_of = :a AND company = :c"),
+                         {"a": as_of, "c": company}).first()
+        before = {"content": row[0]} if row else None
         db.execute(_UPSERT, {"as_of": as_of, "company": company,
                              "content": content, "updated_by": updated_by})
+    audit_repo.log("market_demand", "update" if before else "create", f"{as_of}|{company}",
+                   before=before, after={"content": content}, as_of=as_of, company=company)
 
 
 def entries_on(as_of: str) -> dict[str, str]:

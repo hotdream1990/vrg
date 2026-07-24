@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import AdminLayout from "./features/command-center/AdminLayout";
 import AssistantPage from "./features/command-center/pages/AssistantPage";
+import AuditLogPage from "./features/command-center/pages/AuditLogPage";
 import BulletinDetailPage from "./features/command-center/pages/BulletinDetailPage";
 import BulletinListPage from "./features/command-center/pages/BulletinListPage";
 import BulletinPage from "./features/command-center/pages/BulletinPage";
@@ -148,6 +149,10 @@ export default function App() {
                   </Route>
                   <Route element={<RequireCap caps={["assistant"]} />}>
                     <Route path="/tro-ly-ai" element={<AssistantPage />} />
+                  </Route>
+                  {/* Nhật ký hoạt động — admin (mặc định đủ quyền) hoặc tài khoản được cấp quyền `audit` */}
+                  <Route element={<RequireCap caps={["audit"]} />}>
+                    <Route path="/quan-tri/nhat-ky" element={<AuditLogPage />} />
                   </Route>
                   <Route element={<RequireCap caps={["bulletin_weekly"]} />}>
                     <Route path="/ban-tin/tuan" element={<WeeklyReportPage />} />

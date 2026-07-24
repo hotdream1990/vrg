@@ -10,7 +10,8 @@
 export type Cap =
   | "market_quote" | "raw_material" | "floor" | "physical"
   | "inventory" | "member_unit" | "auto_data" | "market_demand" | "unit_daily"
-  | "floor_suggest" | "bulletin_daily" | "bulletin_weekly" | "market_movement" | "assistant";
+  | "floor_suggest" | "bulletin_daily" | "bulletin_weekly" | "market_movement" | "assistant"
+  | "audit";
 
 export type CapLevel = "view" | "edit";
 
@@ -30,6 +31,7 @@ export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
   { key: "bulletin_weekly", label: "Báo cáo tuần", hint: "màn phân tích" },
   { key: "market_movement", label: "Bản tin biến động", hint: "màn phân tích" },
   { key: "assistant", label: "Trợ lý AI", hint: "hỏi đáp số liệu + tư vấn giá sàn" },
+  { key: "audit", label: "Nhật ký hoạt động", hint: "xem vết chỉnh sửa số liệu của mọi người dùng" },
 ];
 
 export const CAP_KEYS: Cap[] = DATA_CAPS.map((c) => c.key);
@@ -49,6 +51,7 @@ export const CAP_GROUPS: { title: string; keys: Cap[] }[] = [
   { title: "Quản lý số liệu (tự động)", keys: ["auto_data"] },
   { title: "Quản lý số liệu (thủ công)", keys: ["market_quote", "raw_material", "floor", "physical", "inventory", "member_unit", "market_demand", "unit_daily"] },
   { title: "Phân tích & Bản tin", keys: ["floor_suggest", "bulletin_daily", "bulletin_weekly", "market_movement", "assistant"] },
+  { title: "Giám sát", keys: ["audit"] },
 ];
 
 const RANK: Record<string, number> = { view: 1, edit: 2 };

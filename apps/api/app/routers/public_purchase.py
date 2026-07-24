@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.core import request_ctx
 from app.core.security import create_public_token, require_public
 from app.schemas.public_purchase import PublicAuthReq, PublicRecentReq, PublicSubmitReq
 from app.services import config_repo, member_unit_repo, price_repo
@@ -43,9 +44,13 @@ def submit(body: PublicSubmitReq) -> dict:
     if not (body.price and body.price > 0):
         raise HTTPException(400, "Giá không hợp lệ.")
     today = _today()
-    price_repo.upsert_record({"as_of": today, "source": "vrg", "grade": body.company,
-                              "contract": "", "price_type": "purchase", "price": float(body.price),
-                              "currency": "VND", "unit": "đồng/độ TSC"})
+    # Trang công khai KHÔNG có tài khoản riêng (mật khẩu dùng chung) → nhật ký ghi
+    # 'public:<đơn vị>' kèm IP: truy được đơn vị nào gửi, KHÔNG khẳng định được nhân viên nào.
+    with request_ctx.use_actor(f"{request_ctx.PUBLIC_PREFIX}{body.company}"):
+        price_repo.upsert_record({"as_of": today, "source": "vrg", "grade": body.company,
+                                  "contract": "", "price_type": "purchase", "price": float(body.price),
+                                  "currency": "VND", "unit": "đồng/độ TSC"},
+                                 note="Nhập từ link công khai")
     return {"ok": True, "as_of": today}
 
 

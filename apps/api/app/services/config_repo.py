@@ -10,6 +10,7 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.db import ensure_schema, session_scope
+from app.services import audit_repo
 
 # Nhóm cấu hình → mỗi nhóm là 1 tab trên UI (thêm nhóm mới = thêm tab). Thứ tự = thứ tự tab.
 CONFIG_GROUPS = [
@@ -104,11 +105,15 @@ def set_config(updates: dict[str, str], by: str | None = None) -> int:
     """
     ensure_schema()
     n = 0
+    changes: list[tuple[str, bool, str | None, str]] = []
     with session_scope() as db:
         for key, raw in updates.items():
             if key not in _KEYS or raw is None or raw == "":
                 continue
             value = "" if raw == _CLEAR else raw
+            secret = _KEYS[key]["secret"]
+            old = db.execute(text("SELECT value FROM app_config WHERE key = :k"),
+                             {"k": key}).scalar()
             db.execute(
                 text("""
                     INSERT INTO app_config (key, value, is_secret, updated_by)
@@ -116,7 +121,16 @@ def set_config(updates: dict[str, str], by: str | None = None) -> int:
                     ON CONFLICT (key) DO UPDATE
                     SET value = EXCLUDED.value, updated_at = now(), updated_by = EXCLUDED.updated_by
                 """),
-                {"k": key, "v": value, "s": _KEYS[key]["secret"], "by": by},
+                {"k": key, "v": value, "s": secret, "by": by},
             )
+            changes.append((key, bool(secret), old, value))
             n += 1
+    for key, secret, old, value in changes:
+        # Khoá bí mật (API key, mật khẩu…) chỉ ghi "đã đổi", KHÔNG bao giờ ghi giá trị.
+        audit_repo.log(
+            "config", "update", key,
+            before=None if secret else {"value": old},
+            after=None if secret else {"value": value},
+            note="Giá trị bí mật — chỉ ghi nhận có thay đổi" if secret else None,
+        )
     return n

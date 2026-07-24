@@ -1,5 +1,6 @@
 import {
   ApartmentOutlined,
+  AuditOutlined,
   BankOutlined,
   BulbOutlined,
   ClockCircleOutlined,
@@ -41,7 +42,7 @@ import { IMPERSONATION_BANNER_HEIGHT } from "../auth/ImpersonationBanner";
 const { Header, Sider, Content, Footer } = Layout;
 
 /** Menu động theo quyền: chỉ hiện mục mà tài khoản được cấp (admin=tất cả, viewer=chỉ phần chung). */
-function buildMenu(can: (cap: Cap) => boolean) {
+function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
   const items: NonNullable<Parameters<typeof Menu>[0]["items"]> = [
     { key: "/", icon: <DashboardOutlined />, label: "Dashboard" },
   ];
@@ -81,6 +82,8 @@ function buildMenu(can: (cap: Cap) => boolean) {
     can("bulletin_weekly") && { key: "/ban-tin/tuan", icon: <FileDoneOutlined />, label: "Báo cáo tuần" },
     can("market_movement") && { key: "/ban-tin-bien-dong", icon: <LineChartOutlined />, label: "Bản tin biến động" },
     can("assistant") && { key: "/tro-ly-ai", icon: <RobotOutlined />, label: "Trợ lý AI" },
+    // Admin đã có mục này trong nhóm Quản trị → chỉ hiện ở đây cho tài khoản được CẤP quyền.
+    !isAdmin && can("audit") && { key: "/quan-tri/nhat-ky", icon: <AuditOutlined />, label: "Nhật ký hoạt động" },
   ].filter(Boolean) as NonNullable<Parameters<typeof Menu>[0]["items"]>;
   items.push(...analysis);
   return items;
@@ -91,6 +94,7 @@ const ADMIN_MENU = {
   key: "admin", icon: <SafetyOutlined />, label: "Quản trị",
   children: [
     { key: "/quan-tri/nguoi-dung", icon: <UsergroupAddOutlined />, label: "Người dùng" },
+    { key: "/quan-tri/nhat-ky", icon: <AuditOutlined />, label: "Nhật ký hoạt động" },
     { key: "/quan-tri/cau-hinh", icon: <SettingOutlined />, label: "Cấu hình hệ thống" },
     { key: "/quan-tri/lich-chay", icon: <ClockCircleOutlined />, label: "Lịch chạy" },
   ],
@@ -131,7 +135,7 @@ export default function AdminLayout() {
   const isMember = user?.role === "member";
   const menuItems = isMember
     ? [...MEMBER_MENU, PROFILE_ITEM]
-    : [...buildMenu(can), ...(isAdmin ? [ADMIN_MENU] : []), PROFILE_ITEM];
+    : [...buildMenu(can, isAdmin), ...(isAdmin ? [ADMIN_MENU] : []), PROFILE_ITEM];
 
   const ROUTE_KEYS = [
     "/quet-da-san",
@@ -141,7 +145,7 @@ export default function AdminLayout() {
     "/nhu-cau-thi-truong", "/bao-cao-thu-mua", "/bao-cao-tieu-thu", "/bao-cao-ton-kho",
     "/lich-su-hop-dong-ton-kho", "/ke-hoach-nam",
     "/goi-y-gia-san", "/ban-tin-bien-dong", "/tro-ly-ai", "/ban-tin/tuan", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
-    "/quan-tri/lich-chay", "/ho-so",
+    "/quan-tri/lich-chay", "/quan-tri/nhat-ky", "/ho-so",
   ];
   const selected = pathname === "/"
     ? "/"

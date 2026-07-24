@@ -46,6 +46,20 @@ def decode_token(token: str) -> str | None:
     return payload.get("sub") if payload else None
 
 
+def decode_bearer(header: str | None) -> tuple[str, str]:
+    """Header `Authorization` → (username, admin-đăng-nhập-hộ). Rỗng nếu thiếu/sai/token công khai.
+
+    Dùng cho middleware Nhật ký hoạt động: chỉ giải mã, KHÔNG kiểm tra quyền (việc đó là của
+    dependency ở từng endpoint) và không truy vấn DB.
+    """
+    if not header or not header.lower().startswith("bearer "):
+        return "", ""
+    payload = _decode_payload(header[7:].strip())
+    if not payload:
+        return "", ""
+    return str(payload.get("sub") or ""), str(payload.get("imp_by") or "")
+
+
 def create_impersonation_token(target_username: str, admin_username: str) -> str:
     """Token đăng nhập hộ: `sub`=user đích (để get_current_user dùng bình thường) +
     `imp_by`=admin đã mạo danh (để /me báo hiệu + chặn mạo danh lồng nhau). Hạn ngắn hơn token thường."""

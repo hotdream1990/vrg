@@ -14,6 +14,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
+from app.services import audit_repo
 
 _CCY = {"VND", "USD"}
 _COLS = ("id", "company", "code", "grade", "qty", "price", "ccy", "fx",
@@ -134,6 +135,7 @@ def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
     """Thêm mới (không có id) hoặc cập nhật 1 hợp đồng. Raise ValueError nếu số liệu sai."""
     d = clean(row, company)
     ensure_schema()
+    before = _snapshot(d["id"]) if d["id"] is not None else None
     with session_scope() as db:
         if d["id"] is not None:
             cur = db.execute(text("SELECT company FROM unit_stock_contract WHERE id = :i"),
@@ -156,16 +158,33 @@ def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
                 "VALUES (:company, :code, :grade, :qty, :price, :ccy, :fx, CAST(:start_date AS date), "
                 " CAST(:delivery_date AS date), CAST(:delivered_date AS date), :file, :filename, :by) "
                 "RETURNING id"), {**d, "by": updated_by}).scalar()
-    return {**d, "id": new_id}
+    saved = {**d, "id": new_id}
+    audit_repo.log("stock_contract", "update" if before else "create", f"HĐ #{new_id}",
+                   before=before, after=saved, as_of=saved.get("start_date"), company=company,
+                   note=f"Số HĐ/PL: {saved.get('code') or '(không có)'}")
+    return saved
+
+
+def _snapshot(contract_id: int) -> dict[str, Any] | None:
+    """Ảnh chụp 1 hợp đồng theo id (None nếu không có) — giá trị TRƯỚC khi sửa/xoá."""
+    ensure_schema()
+    with session_scope() as db:
+        row = db.execute(
+            text(f"SELECT {', '.join(_COLS)} FROM unit_stock_contract WHERE id = :i"),
+            {"i": contract_id}).mappings().first()
+    return _row(row) if row else None
 
 
 def delete(contract_id: int, companies: list[str] | None) -> bool:
     """Xoá 1 hợp đồng (chỉ trong các đơn vị được phép). False nếu không có/không thuộc quyền."""
     ensure_schema()
+    before = _snapshot(contract_id)
     with session_scope() as db:
         cur = db.execute(text("SELECT company FROM unit_stock_contract WHERE id = :i"),
                          {"i": contract_id}).scalar()
         if cur is None or (companies is not None and cur not in companies):
             return False
         db.execute(text("DELETE FROM unit_stock_contract WHERE id = :i"), {"i": contract_id})
+    audit_repo.log("stock_contract", "delete", f"HĐ #{contract_id}", before=before,
+                   as_of=(before or {}).get("start_date"), company=cur)
     return True

@@ -11,7 +11,10 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
-from app.services import unit_daily_fields
+from app.services import audit_repo, unit_daily_fields
+
+#: 'purchase' | 'consumption' → nhãn ghi vào nhật ký (đúng tên biểu mẫu người dùng thấy).
+_KIND_LABEL = {"purchase": "Thu mua", "consumption": "Tiêu thụ – tồn kho"}
 
 _UPSERT = text("""
     INSERT INTO unit_daily_report (as_of, company, kind, payload, updated_by, updated_at)
@@ -21,15 +24,24 @@ _UPSERT = text("""
 """)
 
 
-def upsert(kind: str, as_of: str, company: str, fields: dict, updated_by: str | None) -> None:
+def upsert(kind: str, as_of: str, company: str, fields: dict, updated_by: str | None,
+           note: str | None = None) -> None:
     """Ghi/ghi đè số liệu 1 đơn vị cho 1 ngày (payload đã lọc theo allowlist)."""
     import json
 
     clean = unit_daily_fields.clean_fields(kind, fields)
     ensure_schema()
     with session_scope() as db:
+        row = db.execute(text("SELECT payload FROM unit_daily_report "
+                              "WHERE kind = :k AND as_of = :d AND company = :c"),
+                         {"k": kind, "d": as_of, "c": company}).mappings().first()
+        before = dict(row["payload"]) if row else None
         db.execute(_UPSERT, {"as_of": as_of, "company": company, "kind": kind,
                              "payload": json.dumps(clean), "updated_by": updated_by})
+    audit_repo.log("unit_daily", "update" if before else "create",
+                   f"{as_of}|{company}|{kind}", before=before, after=clean,
+                   as_of=as_of, company=company,
+                   note=note or f"Biểu {_KIND_LABEL.get(kind, kind)}")
 
 
 def has_entry(kind: str, as_of: str, company: str) -> bool:
@@ -239,7 +251,10 @@ def set_year_plan(year: int, company: str, plan_tonnes: float | None, signed_lt_
                   updated_by: str | None) -> None:
     """Đặt số liệu năm cho 1 đơn vị (ghi đè các ô; None = xoá ô đó)."""
     ensure_schema()
+    after = {"plan_tonnes": plan_tonnes, "signed_lt_tonnes": signed_lt_tonnes,
+             "carry_lt_tonnes": carry_lt_tonnes, "carry_spot_tonnes": carry_spot_tonnes}
     with session_scope() as db:
+        before = _plan_snapshot(db, year, company)
         db.execute(
             text("INSERT INTO unit_purchase_plan "
                  "(year, company, plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, carry_spot_tonnes, "
@@ -252,12 +267,15 @@ def set_year_plan(year: int, company: str, plan_tonnes: float | None, signed_lt_
             {"y": year, "c": company, "p": plan_tonnes, "s": signed_lt_tonnes,
              "cl": carry_lt_tonnes, "cs": carry_spot_tonnes, "by": updated_by},
         )
+    audit_repo.log("unit_plan", "update" if before else "create", f"{year}|{company}",
+                   before=before, after=after, company=company, note=f"Số liệu năm {year}")
 
 
 def set_plan(year: int, company: str, plan_tonnes: float | None, updated_by: str | None) -> None:
     """Đặt/xoá (None) chỉ tiêu kế hoạch thu mua năm cho 1 đơn vị."""
     ensure_schema()
     with session_scope() as db:
+        before = _plan_snapshot(db, year, company)
         db.execute(
             text("INSERT INTO unit_purchase_plan (year, company, plan_tonnes, updated_by, updated_at) "
                  "VALUES (:y, :c, :p, :by, now()) "
@@ -265,3 +283,15 @@ def set_plan(year: int, company: str, plan_tonnes: float | None, updated_by: str
                  "plan_tonnes = EXCLUDED.plan_tonnes, updated_by = EXCLUDED.updated_by, updated_at = now()"),
             {"y": year, "c": company, "p": plan_tonnes, "by": updated_by},
         )
+    audit_repo.log("unit_plan", "update" if before else "create", f"{year}|{company}",
+                   before=before, after={**(before or {}), "plan_tonnes": plan_tonnes},
+                   company=company, note=f"Kế hoạch thu mua năm {year}")
+
+
+def _plan_snapshot(db, year: int, company: str) -> dict[str, Any] | None:  # noqa: ANN001
+    """Số liệu năm hiện có của 1 đơn vị (None nếu chưa có) — giá trị TRƯỚC khi sửa."""
+    row = db.execute(
+        text("SELECT plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, carry_spot_tonnes "
+             "FROM unit_purchase_plan WHERE year = :y AND company = :c"),
+        {"y": year, "c": company}).mappings().first()
+    return dict(row) if row else None

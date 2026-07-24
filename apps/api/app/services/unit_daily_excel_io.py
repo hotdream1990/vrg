@@ -28,6 +28,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
+from app.core import request_ctx
 from app.core.market_meta import UNIT_STOCK_GRADES
 from app.core.paths import bulletin_dir
 from app.services import member_unit_repo, price_repo, unit_daily_repo
@@ -443,6 +444,12 @@ def _sale_line(r: dict, ccy: str, fx: float | None) -> dict:
 def commit_rows(kind: str, rows: list[dict], username: str | None,
                 allowed_units: list[str] | None = None) -> dict[str, Any]:
     """Ghi các dòng HỢP LỆ vào hệ thống (bỏ qua dòng có lỗi). Trả số bản ghi đã ghi."""
+    with request_ctx.use_note("Nhập từ file Excel"):  # Nhật ký ghi rõ số liệu đến từ file
+        return _commit_rows(kind, rows, username, allowed_units)
+
+
+def _commit_rows(kind: str, rows: list[dict], username: str | None,
+                 allowed_units: list[str] | None = None) -> dict[str, Any]:
     # Client gửi lại danh sách dòng nên phải KIỂM LẠI ở đây (không tin bước xem trước):
     # đơn vị phải có thật và thuộc quyền tài khoản.
     valid_units = set(member_unit_repo.active_names())

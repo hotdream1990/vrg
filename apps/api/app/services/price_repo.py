@@ -14,6 +14,7 @@ from sqlalchemy import bindparam, text
 
 from app.core.db import ensure_schema, session_scope
 from app.core.paths import bulletin_dir
+from app.services import audit_repo
 
 _BULLETIN = bulletin_dir()
 if str(_BULLETIN) not in sys.path:
@@ -49,6 +50,47 @@ def _fx_rounded(rec: dict[str, Any]) -> Any:
     if fn is None or rec.get("price") is None:
         return rec.get("price")
     return fn(float(rec["price"]))
+
+
+# ── Nhật ký hoạt động ──
+def _audit_entity(source: str, price_type: str) -> str:
+    """Bản ghi giá thuộc nhóm số liệu nào (khớp quyền + đúng màn hình nhập liệu)."""
+    if price_type in ("purchase", "purchase_cup"):
+        return "raw_material"
+    if price_type == "physical":
+        return "physical"
+    return "auto_data"
+
+
+def _audit_key(as_of: str, source: str, grade: str, price_type: str) -> str:
+    return f"{as_of}|{source}|{grade}|{price_type}"
+
+
+def _audit_company(source: str, grade: str, price_type: str) -> str | None:
+    """Giá mủ nguyên liệu của VRG: `grade` chính là TÊN ĐƠN VỊ → điền vào cột đơn vị để lọc."""
+    return grade if source == "vrg" and price_type in ("purchase", "purchase_cup") else None
+
+
+def _snapshot(db, as_of: str, source: str, grade: str,  # noqa: ANN001 - session nội bộ
+              price_type: str) -> dict[str, Any] | None:
+    """Ảnh chụp bản ghi giá hiện có (None nếu chưa có) — dùng làm giá trị TRƯỚC khi sửa."""
+    row = db.execute(text(
+        "SELECT price, currency, unit, contract FROM fact_price "
+        "WHERE as_of = CAST(:a AS date) AND source = :s AND grade = :g AND price_type = :p"),
+        {"a": as_of, "s": source, "g": grade, "p": price_type}).mappings().first()
+    return {"price": float(row["price"]), "currency": row["currency"],
+            "unit": row["unit"], "contract": row["contract"] or ""} if row else None
+
+
+def _rows_snapshot(db, sql: str, params: dict[str, Any],  # noqa: ANN001 - session nội bộ
+                   expanding: str | None = None) -> list[dict[str, Any]]:
+    """Ảnh chụp NHIỀU bản ghi (dùng cho thao tác xoá cả ngày) — để nhật ký giữ lại số đã xoá."""
+    stmt = text(sql)
+    if expanding:
+        stmt = stmt.bindparams(bindparam(expanding, expanding=True))
+    rows = db.execute(stmt, params).mappings().all()
+    return [{k: (float(v) if k == "price" and v is not None else v) for k, v in r.items()}
+            for r in rows]
 
 
 def create_run(sources: str) -> int:
@@ -109,6 +151,15 @@ def upsert_prices(records: list[dict[str, Any]], run_id: int) -> int:
     ]
     with session_scope() as db:
         db.execute(_UPSERT, rows)
+    # Máy quét ghi hàng loạt → nhật ký chỉ cần 1 dòng TỔNG HỢP (chi tiết đã có ở Bảng tính giá).
+    dates = sorted({str(r["as_of"]) for r in rows})
+    audit_repo.log(
+        "auto_data", "scan", f"run:{run_id}",
+        after={"rows": len(rows), "sources": sorted({str(r["source"]) for r in rows}),
+               "dates": dates},
+        as_of=dates[-1] if dates else None,
+        note=f"Quét tự động — ghi {len(rows)} bản ghi",
+    )
     return len(rows)
 
 
@@ -197,10 +248,17 @@ def list_records(source: str | None = None, grade: str | None = None,
         return {"records": [dict(m) for m in rows], "total": int(total)}
 
 
-def upsert_record(rec: dict[str, Any]) -> None:
-    """Thêm/sửa 1 bản ghi giá thủ công. Khóa: (as_of, source, grade, price_type)."""
+def upsert_record(rec: dict[str, Any], note: str | None = None) -> None:
+    """Thêm/sửa 1 bản ghi giá thủ công. Khóa: (as_of, source, grade, price_type).
+
+    Ghi Nhật ký hoạt động kèm giá trị trước/sau. `note` để nơi gọi ghi rõ nguồn thao tác
+    (vd 'nhập từ text Reuters', 'từ Báo giá mủ — Mục 5').
+    """
     ensure_schema()
+    as_of, source = rec["as_of"], rec["source"]
+    grade, price_type = rec["grade"], rec["price_type"]
     with session_scope() as db:
+        before = _snapshot(db, as_of, source, grade, price_type)
         db.execute(
             text("""
                 INSERT INTO fact_price
@@ -217,12 +275,20 @@ def upsert_record(rec: dict[str, Any]) -> None:
                 "price": _fx_rounded(rec), "currency": rec["currency"], "unit": rec["unit"],
             },
         )
+        after = _snapshot(db, as_of, source, grade, price_type)
+    audit_repo.log(
+        _audit_entity(source, price_type), "update" if before else "create",
+        _audit_key(as_of, source, grade, price_type),
+        before=before, after=after, as_of=as_of,
+        company=_audit_company(source, grade, price_type), note=note,
+    )
 
 
 def delete_record(as_of: str, source: str, grade: str, contract: str, price_type: str) -> bool:
-    """Xóa 1 bản ghi theo khóa. Trả True nếu có xóa."""
+    """Xóa 1 bản ghi theo khóa. Trả True nếu có xóa (ghi lại giá trị đã xoá vào nhật ký)."""
     ensure_schema()
     with session_scope() as db:
+        before = _snapshot(db, as_of, source, grade, price_type)
         res = db.execute(
             text("""
                 DELETE FROM fact_price
@@ -232,7 +298,14 @@ def delete_record(as_of: str, source: str, grade: str, contract: str, price_type
             {"as_of": as_of, "source": source, "grade": grade,
              "contract": contract, "price_type": price_type},
         )
-        return res.rowcount > 0
+        deleted = res.rowcount > 0
+    if deleted:
+        audit_repo.log(
+            _audit_entity(source, price_type), "delete",
+            _audit_key(as_of, source, grade, price_type),
+            before=before, as_of=as_of, company=_audit_company(source, grade, price_type),
+        )
+    return deleted
 
 
 def prices_since(
@@ -323,12 +396,20 @@ def delete_purchase_date(as_of: str) -> int:
     """Xoá toàn bộ giá thu mua mủ nước của 1 ngày (source=vrg). Trả số bản ghi đã xoá."""
     ensure_schema()
     with session_scope() as db:
+        before = _rows_snapshot(db, "SELECT grade, price FROM fact_price WHERE source = 'vrg' "
+                                    "AND price_type = 'purchase' AND as_of = CAST(:d AS date)",
+                                {"d": as_of})
         res = db.execute(
             text("DELETE FROM fact_price WHERE source = 'vrg' AND price_type = 'purchase' "
                  "AND as_of = CAST(:d AS date)"),
             {"d": as_of},
         )
-        return res.rowcount
+        removed = res.rowcount
+    if removed:
+        audit_repo.log("raw_material", "delete", f"{as_of}|vrg|*|purchase",
+                       before=before, as_of=as_of,
+                       note=f"Xoá cả ngày — {removed} đơn vị")
+    return removed
 
 
 _PHYSICAL_SOURCES = ["reuters"]  # chuỗi Reuters physical: lịch sử Excel chuyên viên + nhập tay trên UI
@@ -409,9 +490,20 @@ def delete_physical_date(as_of: str) -> int:
         "DELETE FROM fact_price WHERE price_type = 'physical' AND source IN :srcs "
         "AND as_of = CAST(:d AS date)"
     ).bindparams(bindparam("srcs", expanding=True))
+    select_stmt = (
+        "SELECT grade, price, unit FROM fact_price WHERE price_type = 'physical' "
+        "AND source IN :srcs AND as_of = CAST(:d AS date)"
+    )
     with session_scope() as db:
+        before = _rows_snapshot(db, select_stmt, {"srcs": _PHYSICAL_SOURCES, "d": as_of},
+                                expanding="srcs")
         res = db.execute(stmt, {"srcs": _PHYSICAL_SOURCES, "d": as_of})
-        return res.rowcount
+        removed = res.rowcount
+    if removed:
+        audit_repo.log("physical", "delete", f"{as_of}|reuters|*|physical",
+                       before=before, as_of=as_of,
+                       note=f"Xoá cả ngày — {removed} chủng loại")
+    return removed
 
 
 def purchase_by_company_on_date(as_of: str, price_type: str = "purchase") -> dict[str, float]:

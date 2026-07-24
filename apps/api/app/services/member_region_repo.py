@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
+from app.services import audit_repo
 from app.core.market_meta import VRG_REGIONS
 
 
@@ -49,11 +50,14 @@ def add_region(name: str) -> None:
         return
     with session_scope() as db:
         nxt = (db.execute(text("SELECT COALESCE(MAX(sort_order), -1) FROM member_region")).scalar() or -1) + 1
-        db.execute(
+        res = db.execute(
             text("INSERT INTO member_region (name, sort_order, is_active) VALUES (:n, :o, true) "
                  "ON CONFLICT (name) DO NOTHING"),
             {"n": name, "o": nxt},
         )
+        created = res.rowcount > 0
+    if created:
+        audit_repo.log("member_region", "create", name, after={"name": name})
 
 
 def rename_region(old: str, new: str) -> None:
@@ -67,28 +71,45 @@ def rename_region(old: str, new: str) -> None:
                    {"new": new, "old": old})
         db.execute(text("UPDATE member_unit SET region = :new WHERE region = :old"),
                    {"new": new, "old": old})
+    audit_repo.log("member_region", "update", new, before={"name": old}, after={"name": new},
+                   note=f"Đổi tên khu vực: {old} → {new}")
 
 
 def set_active(name: str, active: bool) -> None:
     ensure_schema()
     with session_scope() as db:
+        before = db.execute(text("SELECT is_active FROM member_region WHERE name = :n"),
+                            {"n": name}).scalar()
         db.execute(text("UPDATE member_region SET is_active = :a WHERE name = :n"),
                    {"a": active, "n": name})
+    audit_repo.log("member_region", "update", name, before={"is_active": before},
+                   after={"is_active": active})
 
 
 def reorder(names: list[str]) -> None:
     """Đặt lại sort_order theo thứ tự danh sách truyền vào."""
     ensure_schema()
+    before = [r["name"] for r in list_regions()]
     with session_scope() as db:
         for i, n in enumerate(names):
             db.execute(text("UPDATE member_region SET sort_order = :o WHERE name = :n"),
                        {"o": i, "n": n})
+    audit_repo.log("member_region", "update", "(thứ tự hiển thị)",
+                   before={"order": before}, after={"order": names},
+                   note="Sắp xếp lại danh sách khu vực")
 
 
 def delete_region(name: str) -> bool:
     """Xoá khu vực + gỡ liên kết các đơn vị đang thuộc khu vực này (region = null)."""
     ensure_schema()
     with session_scope() as db:
+        unlinked = db.execute(text("SELECT name FROM member_unit WHERE region = :n"),
+                              {"n": name}).scalars().all()
         db.execute(text("UPDATE member_unit SET region = NULL WHERE region = :n"), {"n": name})
         res = db.execute(text("DELETE FROM member_region WHERE name = :n"), {"n": name})
-        return res.rowcount > 0
+        deleted = res.rowcount > 0
+    if deleted:
+        audit_repo.log("member_region", "delete", name,
+                       before={"name": name, "units": list(unlinked)},
+                       note=f"Gỡ liên kết {len(unlinked)} đơn vị" if unlinked else None)
+    return deleted

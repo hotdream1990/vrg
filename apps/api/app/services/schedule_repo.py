@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
+from app.services import audit_repo
 
 
 def seed_defaults(defaults: dict[str, tuple[int, int]]) -> None:
@@ -33,11 +34,16 @@ def list_jobs() -> list[dict[str, Any]]:
 
 def update_job(name: str, hour: int, minute: int, enabled: bool) -> None:
     with session_scope() as db:
+        row = db.execute(text("SELECT hour, minute, enabled FROM schedule_job WHERE name = :n"),
+                         {"n": name}).mappings().first()
+        before = dict(row) if row else None
         db.execute(
             text("UPDATE schedule_job SET hour=:h, minute=:m, enabled=:e, updated_at=now() "
                  "WHERE name=:n"),
             {"n": name, "h": hour, "m": minute, "e": enabled},
         )
+    audit_repo.log("schedule", "update", name, before=before,
+                   after={"hour": hour, "minute": minute, "enabled": enabled})
 
 
 def last_run_for(source: str) -> dict[str, Any] | None:

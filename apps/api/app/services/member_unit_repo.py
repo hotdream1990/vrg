@@ -12,6 +12,27 @@ from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import VRG_COMPANIES
+from app.services import audit_repo
+
+_COLS = ("name, sort_order, is_active, region, country, currency, has_factory, has_purchase_plan")
+
+
+def _snapshot(name: str) -> dict[str, Any] | None:
+    """Ảnh chụp 1 đơn vị (None nếu không có) — giá trị trước/sau cho nhật ký."""
+    with session_scope() as db:
+        row = db.execute(text(f"SELECT {_COLS} FROM member_unit WHERE name = :n"),
+                         {"n": name}).mappings().first()
+    return dict(row) if row else None
+
+
+def _update(name: str, sql: str, params: dict[str, Any], after_name: str | None = None) -> None:
+    """Chạy 1 câu UPDATE trên member_unit + ghi nhật ký kèm giá trị trước/sau (DRY cho các setter)."""
+    ensure_schema()
+    before = _snapshot(name)
+    with session_scope() as db:
+        db.execute(text(sql), params)
+    audit_repo.log("member_unit", "update", after_name or name, before=before,
+                   after=_snapshot(after_name or name), company=after_name or name)
 
 
 def _seed_if_empty(db) -> None:
@@ -55,11 +76,14 @@ def add_unit(name: str) -> None:
         return
     with session_scope() as db:
         nxt = (db.execute(text("SELECT COALESCE(MAX(sort_order), -1) FROM member_unit")).scalar() or -1) + 1
-        db.execute(
+        res = db.execute(
             text("INSERT INTO member_unit (name, sort_order, is_active) VALUES (:n, :o, true) "
                  "ON CONFLICT (name) DO NOTHING"),
             {"n": name, "o": nxt},
         )
+        created = res.rowcount > 0
+    if created:  # hàm này được gọi idempotent nhiều nơi — chỉ ghi nhật ký khi THỰC SỰ thêm mới
+        audit_repo.log("member_unit", "create", name, after=_snapshot(name), company=name)
 
 
 def rename_unit(old: str, new: str) -> None:
@@ -68,6 +92,7 @@ def rename_unit(old: str, new: str) -> None:
     new = new.strip()
     if not new or new == old:
         return
+    before = _snapshot(old)
     with session_scope() as db:
         db.execute(text("UPDATE member_unit SET name = :new WHERE name = :old"),
                    {"new": new, "old": old})
@@ -78,32 +103,26 @@ def rename_unit(old: str, new: str) -> None:
                  "AND price_type IN ('purchase', 'purchase_cup') AND grade = :old"),
             {"new": new, "old": old},
         )
+    audit_repo.log("member_unit", "update", new, before=before, after=_snapshot(new),
+                   company=new, note=f"Đổi tên: {old} → {new} (lịch sử giá chuyển theo)")
 
 
 def set_active(name: str, active: bool) -> None:
-    ensure_schema()
-    with session_scope() as db:
-        db.execute(text("UPDATE member_unit SET is_active = :a WHERE name = :n"),
-                   {"a": active, "n": name})
+    _update(name, "UPDATE member_unit SET is_active = :a WHERE name = :n",
+            {"a": active, "n": name})
 
 
 def set_region(name: str, region: str | None) -> None:
     """Gán đơn vị vào 1 khu vực (region=None để bỏ gán)."""
-    ensure_schema()
-    region = (region or "").strip() or None
-    with session_scope() as db:
-        db.execute(text("UPDATE member_unit SET region = :r WHERE name = :n"),
-                   {"r": region, "n": name})
+    _update(name, "UPDATE member_unit SET region = :r WHERE name = :n",
+            {"r": (region or "").strip() or None, "n": name})
 
 
 def set_locale(name: str, country: str | None, currency: str | None) -> None:
     """Gán quốc gia + loại tiền cho đơn vị (mặc định VN/VND nếu trống)."""
-    ensure_schema()
-    country = (country or "").strip().upper() or "VN"
-    currency = (currency or "").strip().upper() or "VND"
-    with session_scope() as db:
-        db.execute(text("UPDATE member_unit SET country = :c, currency = :cur WHERE name = :n"),
-                   {"c": country, "cur": currency, "n": name})
+    _update(name, "UPDATE member_unit SET country = :c, currency = :cur WHERE name = :n",
+            {"c": (country or "").strip().upper() or "VN",
+             "cur": (currency or "").strip().upper() or "VND", "n": name})
 
 
 def currency_by_name(include_inactive: bool = True) -> dict[str, str]:
@@ -113,10 +132,8 @@ def currency_by_name(include_inactive: bool = True) -> dict[str, str]:
 
 def set_factory(name: str, has_factory: bool) -> None:
     """Đặt cờ đơn vị có nhà máy chế biến (không có → nhập tồn kho nguyên liệu)."""
-    ensure_schema()
-    with session_scope() as db:
-        db.execute(text("UPDATE member_unit SET has_factory = :f WHERE name = :n"),
-                   {"f": has_factory, "n": name})
+    _update(name, "UPDATE member_unit SET has_factory = :f WHERE name = :n",
+            {"f": has_factory, "n": name})
 
 
 def factory_by_name(include_inactive: bool = True) -> dict[str, bool]:
@@ -126,24 +143,30 @@ def factory_by_name(include_inactive: bool = True) -> dict[str, bool]:
 
 def set_purchase_plan(name: str, has_purchase_plan: bool) -> None:
     """Đặt cờ đơn vị có giao kế hoạch thu mua năm (bật ⇒ hiện ở màn Kế hoạch năm)."""
-    ensure_schema()
-    with session_scope() as db:
-        db.execute(text("UPDATE member_unit SET has_purchase_plan = :p WHERE name = :n"),
-                   {"p": has_purchase_plan, "n": name})
+    _update(name, "UPDATE member_unit SET has_purchase_plan = :p WHERE name = :n",
+            {"p": has_purchase_plan, "n": name})
 
 
 def reorder(names: list[str]) -> None:
     """Đặt lại sort_order theo thứ tự danh sách truyền vào."""
     ensure_schema()
+    before = [u["name"] for u in list_units()]
     with session_scope() as db:
         for i, n in enumerate(names):
             db.execute(text("UPDATE member_unit SET sort_order = :o WHERE name = :n"),
                        {"o": i, "n": n})
+    audit_repo.log("member_unit", "update", "(thứ tự hiển thị)",
+                   before={"order": before}, after={"order": names},
+                   note="Sắp xếp lại danh sách đơn vị")
 
 
 def delete_unit(name: str) -> bool:
     """Xoá đơn vị khỏi danh sách (giá đã nhập trong fact_price vẫn giữ, chỉ không hiển thị cột)."""
     ensure_schema()
+    before = _snapshot(name)
     with session_scope() as db:
         res = db.execute(text("DELETE FROM member_unit WHERE name = :n"), {"n": name})
-        return res.rowcount > 0
+        deleted = res.rowcount > 0
+    if deleted:
+        audit_repo.log("member_unit", "delete", name, before=before, company=name)
+    return deleted

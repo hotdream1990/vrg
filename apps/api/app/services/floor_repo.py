@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
+from app.services import audit_repo
 
 
 def next_lan() -> int:
@@ -92,6 +93,7 @@ def save_schedule(
     } for it in items if it.get("grade")]
     if not rows:
         return
+    before = get_schedule(lan)
     with session_scope() as db:
         db.execute(text("""
             INSERT INTO vrg_floor_price
@@ -103,14 +105,21 @@ def save_schedule(
                 dispatch_no = EXCLUDED.dispatch_no, dispatch_summary = EXCLUDED.dispatch_summary,
                 ingested_at = now()
         """), rows)
+    audit_repo.log("floor", "update" if before else "create", f"Lần {lan}",
+                   before=before, after=get_schedule(lan), as_of=as_of)
 
 
 def delete_schedule(lan: int) -> bool:
     """Xoá toàn bộ 1 biểu giá theo lần."""
     ensure_schema()
+    before = get_schedule(lan)
     with session_scope() as db:
         res = db.execute(text("DELETE FROM vrg_floor_price WHERE lan = :lan"), {"lan": lan})
-        return res.rowcount > 0
+        deleted = res.rowcount > 0
+    if deleted:
+        audit_repo.log("floor", "delete", f"Lần {lan}", before=before,
+                       as_of=(before or {}).get("as_of"))
+    return deleted
 
 
 def floor_for_bulletin(report_date: str) -> dict[str, Any]:

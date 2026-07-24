@@ -31,6 +31,7 @@ DATA_CAPS: dict[str, str] = {
     "bulletin_weekly": "Báo cáo tuần",
     "market_movement": "Bản tin biến động",
     "assistant": "Trợ lý AI (hỏi đáp số liệu + tư vấn giá sàn)",
+    "audit": "Nhật ký hoạt động (xem vết chỉnh sửa số liệu)",
 }
 CAP_KEYS = frozenset(DATA_CAPS)
 

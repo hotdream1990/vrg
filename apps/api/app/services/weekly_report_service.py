@@ -18,7 +18,7 @@ from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
 from app.core.paths import bulletin_dir, data_dir, services_dir
-from app.services import price_repo, price_sheet
+from app.services import audit_repo, price_repo, price_sheet
 
 _BULLETIN = bulletin_dir()
 if str(_BULLETIN) not in sys.path:
@@ -272,10 +272,16 @@ def save_narrative(week_key: str, narrative: dict[str, Any]) -> dict[str, Any]:
     """Lưu bền narrative (+ override III.3) rồi trả báo cáo dựng lại."""
     ensure_schema()
     with session_scope() as db:
+        row = db.execute(text("SELECT payload FROM weekly_report WHERE week_key = :k"),
+                         {"k": week_key}).mappings().first()
+        before = dict(row["payload"]) if row else None
         db.execute(text("""
             INSERT INTO weekly_report (week_key, payload) VALUES (:k, CAST(:p AS jsonb))
             ON CONFLICT (week_key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = now()
         """), {"k": week_key, "p": json.dumps(narrative, ensure_ascii=False)})
+    audit_repo.log("bulletin_weekly", "update" if before else "create", week_key,
+                   before=before, after=narrative, as_of=week_key,
+                   note=f"Tuần bắt đầu {week_key}", coalesce=True)
     return build_report(week_key)
 
 
@@ -297,8 +303,14 @@ def list_reports() -> list[dict[str, Any]]:
 def delete_report(week_key: str) -> bool:
     ensure_schema()
     with session_scope() as db:
+        row = db.execute(text("SELECT payload FROM weekly_report WHERE week_key = :k"),
+                         {"k": week_key}).mappings().first()
+        before = dict(row["payload"]) if row else None
         res = db.execute(text("DELETE FROM weekly_report WHERE week_key = :k"), {"k": week_key})
-        return res.rowcount > 0
+        deleted = res.rowcount > 0
+    if deleted:
+        audit_repo.log("bulletin_weekly", "delete", week_key, before=before, as_of=week_key)
+    return deleted
 
 
 # ── Xuất PDF ──

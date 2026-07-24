@@ -13,9 +13,10 @@ from typing import Any
 
 from sqlalchemy import text
 
+from app.core import request_ctx
 from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import MARKET_QUOTE_GRADES
-from app.services import member_unit_repo, price_repo
+from app.services import audit_repo, member_unit_repo, price_repo
 
 _MARKET = "market"
 # section key → (price_type, currency, unit) khi mirror sang fact_price source=market
@@ -150,12 +151,19 @@ def save_quote(mq: dict[str, Any]) -> dict[str, Any] | None:
     """Lưu phiếu: payload jsonb + sync Mục 4 (kho mủ nước) + mirror Mục 1-3 (chuỗi market)."""
     ensure_schema()
     as_of = mq["as_of"]
+    payload = _payload_of(mq)
     with session_scope() as db:
+        row = db.execute(text("SELECT payload FROM market_quote WHERE as_of = CAST(:d AS date)"),
+                         {"d": as_of}).mappings().first()
+        before = dict(row["payload"]) if row else None
         db.execute(text("""
             INSERT INTO market_quote (as_of, payload)
             VALUES (CAST(:d AS date), CAST(:p AS jsonb))
             ON CONFLICT (as_of) DO UPDATE SET payload = EXCLUDED.payload, updated_at = now()
-        """), {"d": as_of, "p": json.dumps(_payload_of(mq), ensure_ascii=False)})
+        """), {"d": as_of, "p": json.dumps(payload, ensure_ascii=False)})
+    # Màn này TỰ ĐỘNG LƯU sau mỗi ~0.9s → gộp các lần lưu liên tiếp của cùng người vào 1 dòng.
+    audit_repo.log("market_quote", "update" if before else "create", as_of,
+                   before=before, after=payload, as_of=as_of, coalesce=True)
     _sync_regions(as_of, mq.get("regions") or {}, _PURCHASE)
     _sync_regions(as_of, mq.get("regions_cup") or {}, _PURCHASE_CUP)
     _mirror_market_series(as_of, mq)
@@ -169,29 +177,41 @@ def _sync_regions(as_of: str, regions: dict[str, Any], mode: dict[str, str]) -> 
             continue
         member_unit_repo.add_unit(unit)  # idempotent (ON CONFLICT DO NOTHING)
         price_repo.upsert_record({"as_of": as_of, "grade": unit, "contract": "",
-                                  "price": float(price), **mode})
+                                  "price": float(price), **mode},
+                                 note="Từ Báo giá mủ thị trường (Mục 5)")
 
 
 def _mirror_market_series(as_of: str, mq: dict[str, Any]) -> None:
-    """Mục 1-3 → fact_price source=market (xoá cũ theo ngày rồi ghi lại)."""
-    with session_scope() as db:
-        db.execute(text("DELETE FROM fact_price WHERE source = :s AND as_of = CAST(:d AS date)"),
-                   {"s": _MARKET, "d": as_of})
-    for key, (ptype, cur, unit) in _SECTION_MODES.items():
-        for grade, val in ((mq.get(key) or {}).get("prices", {}) or {}).items():
-            if val is None:
-                continue
-            price_repo.upsert_record({"as_of": as_of, "source": _MARKET, "grade": grade,
-                                      "contract": "", "price_type": ptype, "price": float(val),
-                                      "currency": cur, "unit": unit})
+    """Mục 1-3 → fact_price source=market (xoá cũ theo ngày rồi ghi lại).
+
+    Đây là bản SAO PHÁI SINH của payload phiếu (đã ghi nhật ký ở `save_quote`) nên tạm tắt
+    nhật ký để không sinh hàng chục dòng trùng cho mỗi lần tự động lưu.
+    """
+    with request_ctx.paused():
+        with session_scope() as db:
+            db.execute(text("DELETE FROM fact_price WHERE source = :s AND as_of = CAST(:d AS date)"),
+                       {"s": _MARKET, "d": as_of})
+        for key, (ptype, cur, unit) in _SECTION_MODES.items():
+            for grade, val in ((mq.get(key) or {}).get("prices", {}) or {}).items():
+                if val is None:
+                    continue
+                price_repo.upsert_record({"as_of": as_of, "source": _MARKET, "grade": grade,
+                                          "contract": "", "price_type": ptype, "price": float(val),
+                                          "currency": cur, "unit": unit})
 
 
 def delete_quote(as_of: str) -> bool:
     """Xoá phiếu + chuỗi market của ngày (GIỮ nguyên giá mủ nước đã đồng bộ sang kho chung)."""
     ensure_schema()
     with session_scope() as db:
+        row = db.execute(text("SELECT payload FROM market_quote WHERE as_of = CAST(:d AS date)"),
+                         {"d": as_of}).mappings().first()
+        before = dict(row["payload"]) if row else None
         db.execute(text("DELETE FROM fact_price WHERE source = :s AND as_of = CAST(:d AS date)"),
                    {"s": _MARKET, "d": as_of})
         res = db.execute(text("DELETE FROM market_quote WHERE as_of = CAST(:d AS date)"),
                          {"d": as_of})
-        return res.rowcount > 0
+        deleted = res.rowcount > 0
+    if deleted:
+        audit_repo.log("market_quote", "delete", as_of, before=before, as_of=as_of)
+    return deleted

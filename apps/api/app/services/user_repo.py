@@ -1,4 +1,8 @@
-"""Repository tài khoản đăng nhập (app_user) + seed admin từ config."""
+"""Repository tài khoản đăng nhập (app_user) + seed admin từ config.
+
+Nhật ký hoạt động của nhóm này KHÔNG BAO GIỜ chứa mật khẩu/hash — đổi mật khẩu chỉ ghi
+nhận SỰ KIỆN (ai đổi, lúc nào), không ghi giá trị.
+"""
 
 from __future__ import annotations
 
@@ -11,6 +15,7 @@ from app.core.config import settings
 from app.core.db import ensure_schema, session_scope
 from app.core.permissions import clean_caps
 from app.core.security import hash_password, verify_password
+from app.services import audit_repo
 
 
 def _norm(row: Any) -> dict[str, Any]:
@@ -100,7 +105,9 @@ def create_user(username: str, password: str, full_name: str | None, role: str,
             {"u": u, "p": hash_password(password), "f": full_name, "r": role,
              "perms": json.dumps(clean_caps(permissions)), "units": json.dumps(units)},
         )
-    return get_user(u)  # type: ignore[return-value]
+    created = get_user(u)
+    audit_repo.log("user", "create", u, after=created, note=f"Vai trò: {role}")
+    return created  # type: ignore[return-value]
 
 
 def update_user(username: str, fields: dict[str, Any]) -> dict[str, Any] | None:
@@ -108,6 +115,7 @@ def update_user(username: str, fields: dict[str, Any]) -> dict[str, Any] | None:
     allowed = {k: v for k, v in fields.items() if k in ("full_name", "role", "is_active")}
     has_perms = "permissions" in fields
     ensure_schema()
+    before = get_user(username)
     with session_scope() as db:
         cur = db.execute(
             text("SELECT role, is_active, member_units FROM app_user WHERE username = :u"), {"u": username},
@@ -137,7 +145,9 @@ def update_user(username: str, fields: dict[str, Any]) -> dict[str, Any] | None:
         params["member_units"] = json.dumps(member_units)
         if sets:
             db.execute(text(f"UPDATE app_user SET {', '.join(sets)} WHERE username = :u"), params)
-    return get_user(username)
+    after = get_user(username)
+    audit_repo.log("user", "update", username, before=before, after=after)
+    return after
 
 
 def delete_user(username: str) -> bool:
@@ -151,13 +161,18 @@ def delete_user(username: str) -> bool:
             return False
         if cur["role"] == "admin" and cur["is_active"] and _count_active_admins(db) <= 1:
             raise ValueError("Không thể xoá quản trị viên cuối cùng")
+        before = _norm(db.execute(
+            text("SELECT username, full_name, role, is_active, permissions, member_units "
+                 "FROM app_user WHERE username = :u"), {"u": username}).mappings().first())
         db.execute(text("DELETE FROM app_user WHERE username = :u"), {"u": username})
+    audit_repo.log("user", "delete", username, before=before)
     return True
 
 
 def update_profile(username: str, full_name: str | None) -> dict[str, Any] | None:
     """User tự cập nhật hồ sơ (chỉ họ tên)."""
     ensure_schema()
+    before = get_user(username)
     with session_scope() as db:
         res = db.execute(
             text("UPDATE app_user SET full_name = :f WHERE username = :u"),
@@ -165,7 +180,10 @@ def update_profile(username: str, full_name: str | None) -> dict[str, Any] | Non
         )
         if res.rowcount == 0:
             return None
-    return get_user(username)
+    after = get_user(username)
+    audit_repo.log("user", "update", username, before=before, after=after,
+                   note="Tự cập nhật hồ sơ")
+    return after
 
 
 def set_password(username: str, new_password: str) -> bool:
@@ -176,7 +194,10 @@ def set_password(username: str, new_password: str) -> bool:
             text("UPDATE app_user SET password_hash = :p WHERE username = :u"),
             {"p": hash_password(new_password), "u": username},
         )
-        return res.rowcount > 0
+        changed = res.rowcount > 0
+    if changed:  # chỉ ghi SỰ KIỆN, tuyệt đối không ghi mật khẩu
+        audit_repo.log("user", "update", username, note="Quản trị đặt lại mật khẩu")
+    return changed
 
 
 def change_password(username: str, old_password: str, new_password: str) -> bool:
@@ -194,6 +215,7 @@ def change_password(username: str, old_password: str, new_password: str) -> bool
             text("UPDATE app_user SET password_hash = :p WHERE username = :u"),
             {"p": hash_password(new_password), "u": username},
         )
+    audit_repo.log("user", "update", username, note="Người dùng tự đổi mật khẩu")
     return True
 
 

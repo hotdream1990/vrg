@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.security import get_current_user, require_admin, require_cap
 from app.web_static import mount_spa
 from app.routers import (
+    audit,
     auth,
     assistant,
     bulletins,
@@ -94,6 +95,23 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def _audit_context(request: Request, call_next):
+    """Đặt ngữ cảnh (ai thao tác · IP) cho Nhật ký hoạt động — repo ghi dữ liệu tự đọc lại.
+
+    Phải đặt ở MIDDLEWARE (không phải dependency): ContextVar set trong dependency chạy ở
+    threadpool sẽ không lan tới handler. Giải mã token tại chỗ (không truy vấn DB) nên rất nhẹ.
+    """
+    from app.core import request_ctx
+    from app.core.security import decode_bearer
+
+    actor, on_behalf = decode_bearer(request.headers.get("authorization"))
+    forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    ip = forwarded or (request.client.host if request.client else "")
+    request_ctx.set_request(actor, ip, on_behalf)
+    return await call_next(request)
+
+
 @app.exception_handler(Exception)
 async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Bắt mọi lỗi CHƯA xử lý → log đầy đủ phía server, trả 500 chung (không lộ traceback/nội bộ).
@@ -125,6 +143,7 @@ app.include_router(member_region.router, dependencies=_protected)
 app.include_router(member_self.router, dependencies=_protected)  # đơn vị thành viên tự nhập giá của mình
 app.include_router(market_demand.router, dependencies=_protected)  # nhu cầu thị trường (editor có quyền: xem/sửa mọi đơn vị)
 app.include_router(unit_daily.router, dependencies=[Depends(require_cap("unit_daily"))])  # báo cáo tiêu thụ–tồn kho theo ngày (chuyên viên xem/sửa mọi đơn vị)
+app.include_router(audit.router)  # Nhật ký hoạt động (tự gác quyền `audit` trong router)
 app.include_router(assistant.router, dependencies=[Depends(require_cap("assistant"))])  # Trợ lý AI (hỏi đáp số liệu + tư vấn giá sàn)
 app.include_router(settings_router.router, dependencies=_protected)  # cài đặt đọc-được (cửa sổ nhập liệu)
 app.include_router(inventory.router, dependencies=_protected)
