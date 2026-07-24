@@ -14,7 +14,7 @@
   },
   "cover": {
     "title": "Hướng dẫn nhập liệu — Đơn vị thành viên",
-    "intro": "Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm). Riêng 4 mục báo cáo còn có thể tải mẫu Excel về điền rồi nhập lên thay vì gõ tay (xem mục 9)."
+    "intro": "Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm); ngoài ra có mục Hợp đồng tồn kho chỉ để tra cứu."
   },
   "sections": [
     {
@@ -36,14 +36,15 @@
         "**Kế hoạch năm** — kế hoạch thu mua và hợp đồng dài hạn đã ký, **nhập 1 lần cho cả năm**."
       ],
       "notes": [
+        "Ngoài 5 mục trên, menu còn mục **Hợp đồng tồn kho** — **chỉ để tra cứu**, không nhập số liệu (xem mục 7).",
         "Báo cáo tiêu thụ và Báo cáo tồn kho là **hai tab của cùng một phiếu ngày** — nhập bên này không làm mất số bên kia.",
         "Chỉ nhập/sửa được ngày hôm nay và một số ngày gần nhất theo quy định; ngày cũ hơn chỉ để xem."
       ]
     },
     {
-      "title": "2. Màn hình danh sách và 3 nút thao tác",
+      "title": "2. Màn hình danh sách và nút thao tác",
       "location": "Menu → Báo cáo thu mua (các màn khác bố trí tương tự)",
-      "intro": "Mỗi màn báo cáo đều có danh sách các ngày đã nhập và 3 nút thao tác giống nhau.",
+      "intro": "Mỗi màn báo cáo đều có danh sách các ngày đã nhập và các nút thao tác giống nhau.",
       "image": {
         "path": "img/02-thu-mua-danh-sach.png",
         "w": 3000,
@@ -52,8 +53,6 @@
       "caption": "Hình 2. Danh sách theo ngày và các nút thao tác",
       "steps": [
         "**Thêm số liệu ngày** — mở phiếu nhập cho một ngày mới.",
-        "**Tải mẫu Excel** — tải file mẫu về để điền ngoại tuyến (xem mục 9).",
-        "**Nhập từ Excel** — nhập file đã điền lên hệ thống (xem mục 9).",
         "**Biểu tượng bút** ở cuối mỗi dòng — mở lại phiếu của ngày đó để sửa."
       ],
       "notes": [
@@ -73,7 +72,7 @@
       "steps": [
         "Chọn **ngày báo cáo**.",
         "**Mủ nước** — sản lượng (tấn, quy khô) và đơn giá (đồng/độ TSC).",
-        "**Mủ chén — Đơn giá tính theo**: chọn *Độ TSC* hoặc *Độ DRC*; nhãn ô đơn giá đổi theo lựa chọn này.",
+        "**Mủ chén — Đơn giá tính theo**: chọn “Độ TSC” hoặc “Độ DRC”; nhãn ô đơn giá đổi theo lựa chọn này.",
         "**Thu mua thành phẩm** — bảng nhập, **mỗi chủng loại mua trong ngày là một dòng riêng**.",
         "**Một dòng chủng loại**: chọn **Chủng loại** · **SL thu mua** (tấn) · **Đơn giá** · **Tiền** (VNĐ hay USD) · **Tỷ giá** (chỉ hiện khi dòng đó chọn USD). Cột **Thành tiền** tự tính.",
         "**Thêm chủng loại** — mua mấy chủng loại thì thêm bấy nhiêu dòng; nút thùng rác ở cuối dòng để xoá.",
@@ -99,10 +98,10 @@
       "pre": "Khác biệt so với đơn vị trong nước:",
       "steps": [
         "**Đơn giá theo nội tệ** (LAK/KHR trên độ) — giá mua thực tế tại nước sở tại.",
-        "**Mủ chén — Đơn giá tính theo**: *Độ TSC* hoặc *Độ DRC*.",
+        "**Mủ chén — Đơn giá tính theo**: “Độ TSC” hoặc “Độ DRC”.",
         "**Tỷ giá thu mua** (1 nội tệ = ? VND) — quy đơn giá về đồng.",
         "**Thu mua thành phẩm** — bảng theo chủng loại, nhập y như đơn vị trong nước (mục 3).",
-        "**Một dòng chủng loại**: chọn **Tiền** là *USD* thì nhập **Tỷ giá** (1 USD = ? VND) ngay ở dòng đó — hoặc bấm *Lấy tỷ giá VCB cho các dòng USD*."
+        "**Một dòng chủng loại**: chọn **Tiền** là “USD” thì nhập **Tỷ giá** (1 USD = ? VND) ngay ở dòng đó — hoặc bấm “Lấy tỷ giá VCB cho các dòng USD”."
       ],
       "notes": [
         "Hai tỷ giá **khác nhau và độc lập**: tỷ giá nội tệ cho đơn giá mủ nước/mủ chén; tỷ giá USD nằm trên từng dòng thành phẩm.",
@@ -121,9 +120,9 @@
       },
       "caption": "Hình 5. Phiếu Tiêu thụ — 2 bảng theo nguồn mủ, mỗi bản ghi 2 hàng",
       "steps": [
-        "*(Hàng trên)* **Loại HĐ** (Dài hạn / Chuyến) · **Hình thức** (XK-UTXK / Nội tiêu) · **Loại mủ** · **SL (tấn)** · **Giá bán**.",
-        "*(Hàng trên)* **Loại tiền** — chọn VND hoặc USD **cho từng dòng**; chọn USD thì nhập **Tỷ giá** ngay ở dòng đó.",
-        "*(Hàng dưới)* **Ngày xuất kho** · **Ngày xuất hoá đơn** và 3 chứng từ đính kèm **Bộ Hợp đồng** · **Phiếu xuất kho** · **Hoá đơn** — nhận PDF · Word · Excel · XML · ảnh (JPG, PNG, HEIC, WEBP, TIFF) · ZIP, tối đa 25 MB mỗi file. **Mỗi ô chỉ chứa 1 file**: bộ nhiều văn bản thì gộp thành 1 file PDF hoặc nén ZIP. Chưa có thì để trống; bấm tên file để mở lại.",
+        "(Hàng trên) **Loại HĐ** (Dài hạn / Chuyến) · **Hình thức** (XK-UTXK / Nội tiêu) · **Loại mủ** · **SL (tấn)** · **Giá bán**.",
+        "(Hàng trên) **Loại tiền** — chọn VND hoặc USD **cho từng dòng**; chọn USD thì nhập **Tỷ giá** ngay ở dòng đó.",
+        "(Hàng dưới) **Ngày xuất kho** · **Ngày xuất hoá đơn** và 3 chứng từ đính kèm **Bộ Hợp đồng** · **Phiếu xuất kho** · **Hoá đơn** — nhận PDF · Word · Excel · XML · ảnh (JPG, PNG, HEIC, WEBP, TIFF) · ZIP, tối đa 25 MB mỗi file. **Mỗi ô chỉ chứa 1 file**: bộ nhiều văn bản thì gộp thành 1 file PDF hoặc nén ZIP. Chưa có thì để trống; bấm tên file để mở lại.",
         "**Tiêu thụ mủ thu mua** — bảng riêng ngay bên dưới, nhập y hệt bảng mủ khai thác.",
         "**Tổng hợp tiêu thụ** — hệ thống tự cộng cả 2 bảng; **Giá BQ** = doanh thu ÷ sản lượng. Xong bấm **Lưu số liệu**."
       ],
@@ -149,23 +148,37 @@
         "**1. Tồn kho thành phẩm chế biến chưa nhập kho** — chủng loại + số lượng (tấn).",
         "**2. Tồn kho thành phẩm đã nhập kho** — chủng loại + số lượng (tấn).",
         "**3. Số lượng đã ký hợp đồng chưa giao** — nhập **một lần cho mỗi hợp đồng**, mỗi hợp đồng trải **2 hàng**.",
-        "*(Hàng trên)* **Chủng loại** · **Mã HĐ/PL** · **SL (tấn)** · **Đơn giá** · **Tiền** (VND/USD) · **Tỷ giá** khi chọn USD; **Thành tiền** tự tính. Cuối hàng có nút **lưu** và **xoá** của riêng hợp đồng đó.",
-        "*(Hàng dưới)* **Bắt đầu tồn kho** · **Lịch giao** · **Ngày giao** · **HĐ đã ký (scan)** — đính kèm bản Hợp đồng đã ký có đóng dấu; nhận PDF · Word · Excel · XML · ảnh (JPG, PNG, HEIC, WEBP, TIFF) · ZIP, tối đa 25 MB, **1 file cho mỗi hợp đồng**.",
+        "(Hàng trên) **Chủng loại** · **Số HĐ/PL** · **SL (tấn)** · **Đơn giá** · **Tiền** (VND/USD) · **Tỷ giá** khi chọn USD; **Thành tiền** tự tính. Cuối hàng có nút **lưu** và **xoá** của riêng hợp đồng đó.",
+        "(Hàng dưới) **Bắt đầu tồn kho** · **Lịch giao** · **Ngày giao** · **HĐ đã ký (scan)** — đính kèm bản Hợp đồng đã ký có đóng dấu; nhận PDF · Word · Excel · XML · ảnh (JPG, PNG, HEIC, WEBP, TIFF) · ZIP, tối đa 25 MB, **1 file cho mỗi hợp đồng**.",
         "**4. Tồn kho nguyên liệu chưa sản xuất (quy khô)** — 1 ô số lượng (tấn). Xong bấm **Lưu số liệu**."
       ],
       "notes": [
-        "**Hợp đồng nằm ở khối 3 từ *Bắt đầu tồn kho* đến hết ngày TRƯỚC *Ngày giao*.** Lúc mới ký chỉ cần điền *Bắt đầu tồn kho* (để trống *Ngày giao*) — hợp đồng sẽ tự hiện ở khối 3 mọi ngày sau đó. Khi đã xuất kho thì **chỉ cần mở ra điền *Ngày giao*** là xong, không phải nhập lại gì nữa.",
-        "**Ngày bắt đầu phải trước *Ngày giao* (và *Lịch giao*) ít nhất 1 ngày** — nhập sai hệ thống sẽ báo và không cho lưu.",
-        "Mỗi hợp đồng **lưu riêng bằng nút lưu ở cuối hàng trên**, KHÔNG đi kèm nút *Lưu số liệu* của phiếu ngày (vì hợp đồng không thuộc riêng một ngày nào).",
+        "**Hợp đồng nằm ở khối 3 từ “Bắt đầu tồn kho” đến hết ngày TRƯỚC “Ngày giao”.** Lúc mới ký chỉ cần điền “Bắt đầu tồn kho” (để trống “Ngày giao”) — hợp đồng sẽ tự hiện ở khối 3 mọi ngày sau đó. Khi đã xuất kho thì **chỉ cần mở ra điền “Ngày giao**” là xong, không phải nhập lại gì nữa.",
+        "**Ngày bắt đầu phải trước “Ngày giao” (và “Lịch giao”) ít nhất 1 ngày** — nhập sai hệ thống sẽ báo và không cho lưu.",
+        "Mỗi hợp đồng **lưu riêng bằng nút lưu ở cuối hàng trên**, KHÔNG đi kèm nút “Lưu số liệu” của phiếu ngày (vì hợp đồng không thuộc riêng một ngày nào).",
         "Nút **Lấy tồn ngày trước** KHÔNG chép khối 3 — hợp đồng tự nối sang ngày mới theo vòng đời của nó, chép lại sẽ thành nhân đôi. Nút này cũng không chép các dòng bán ở tab Tiêu thụ, vì tiêu thụ là số phát sinh trong ngày.",
         "Khối **4** hiện với **mọi đơn vị**, **không phân biệt** đơn vị có nhà máy hay không. Đơn vị nào không có số thì để trống.",
-        "Khối **Tổng hợp tồn kho**: *Tồn kho thành phẩm* = khối 1 + khối 2. Khối 3 là **phần đã có hợp đồng nằm trong** tồn kho thành phẩm — không cộng thêm và không trừ ra, và **không vượt quá** *Tồn kho thành phẩm*.",
+        "Khối **Tổng hợp tồn kho**: “Tồn kho thành phẩm” = khối 1 + khối 2. Khối 3 là **phần đã có hợp đồng nằm trong** tồn kho thành phẩm — không cộng thêm và không trừ ra, và **không vượt quá** “Tồn kho thành phẩm”.",
         "Chủng loại tách theo từng loại giống bảng Giá sàn Tập đoàn — **SVR CV 50** và **SVR CV60** là 2 loại riêng."
       ],
       "pre": "Bốn khối tồn kho:"
     },
     {
-      "title": "7. Nhập Nhu cầu thị trường",
+      "title": "7. Xem Hợp đồng tồn kho",
+      "location": "Menu → Hợp đồng tồn kho",
+      "intro": "Màn này liệt kê **tất cả hợp đồng đã ký** của đơn vị, **kể cả hợp đồng đã giao**. Khi một hợp đồng được điền **Ngày giao thực tế** ở Báo cáo tồn kho thì nó không còn nằm trong tồn kho của những ngày sau nữa — vào đây để tra cứu lại toàn bộ.",
+      "pre": "Cách dùng:",
+      "steps": [
+        "Lọc theo **trạng thái** (Tất cả / Chưa giao / Đã giao), theo **khoảng ngày**, hoặc gõ **Số HĐ/PL** (hoặc chủng loại) vào ô tìm kiếm.",
+        "Bảng hiện: Số HĐ/PL · chủng loại · số lượng · đơn giá · ngày bắt đầu tồn kho · lịch giao · ngày giao thực tế · trạng thái · file hợp đồng đã đính kèm.",
+        "Dòng **Tổng cộng** ở cuối bảng cộng số lượng và thành tiền của các dòng đang hiện."
+      ],
+      "notes": [
+        "Màn này **chỉ để xem**. Muốn sửa hợp đồng (kể cả điền Ngày giao thực tế) thì vào **Báo cáo tồn kho** của đúng ngày."
+      ]
+    },
+    {
+      "title": "8. Nhập Nhu cầu thị trường",
       "location": "Menu → Nhu cầu thị trường",
       "intro": "Ghi nhận **các lời chào hàng từ khách hàng, nhà sản xuất** và nhu cầu thị trường mà đơn vị nắm được trong ngày — dùng để phân tích yếu tố **Cầu** trong quan hệ Cung – Cầu.",
       "image": {
@@ -185,12 +198,11 @@
       "notes": [
         "Nên ghi rõ: **khách hàng hoặc nhà sản xuất nào · chủng loại · số lượng · mức giá chào · thời điểm giao hàng**. Càng cụ thể thì phần phân tích Cung – Cầu càng dùng được.",
         "Đây là mục nhập **tự do bằng chữ**, không có ô số liệu.",
-        "Mỗi ngày mỗi đơn vị chỉ có **một nội dung** — nhập lại ngày đã có sẽ được nhắc dùng chức năng Sửa.",
-        "Mục này **không có nhập bằng Excel**."
+        "Mỗi ngày mỗi đơn vị chỉ có **một nội dung** — nhập lại ngày đã có sẽ được nhắc dùng chức năng Sửa."
       ]
     },
     {
-      "title": "8. Nhập Kế hoạch năm",
+      "title": "9. Nhập Kế hoạch năm",
       "location": "Menu → Kế hoạch năm",
       "intro": "Đây là số liệu của cả năm, chỉ nhập một lần và cập nhật lại khi có thay đổi — KHÔNG nhập hằng ngày. Số liệu này dùng để tính % thực hiện kế hoạch trong báo cáo.",
       "image": {
@@ -213,36 +225,16 @@
       ]
     },
     {
-      "title": "9. Nhập nhanh bằng Excel (tải mẫu → nhập lên)",
-      "location": "Có ở 4 màn báo cáo: Thu mua / Tiêu thụ / Tồn kho / Kế hoạch năm",
-      "intro": "Thay vì gõ tay từng ngày, có thể tải file Excel mẫu về điền rồi nhập lên. Hệ thống đọc file và cho **xem trước** — dòng nào sai sẽ chỉ rõ sai ở đâu, chỉ những dòng hợp lệ mới được ghi.",
-      "image": {
-        "path": "img/08-import-xem-truoc.png",
-        "w": 4000,
-        "h": 2000
-      },
-      "caption": "Hình 9. Bảng xem trước trước khi ghi",
-      "pre": "Cách làm:",
+      "title": "10. Lưu ý chung — Cách gõ số",
+      "location": "Áp dụng cho MỌI ô nhập số trên hệ thống",
+      "intro": "Hệ thống dùng cách viết số của Việt Nam. Gõ đúng 2 quy tắc dưới đây là số luôn được lưu đúng.",
+      "pre": "Hai quy tắc:",
       "steps": [
-        "**Tải mẫu Excel** ở màn danh sách → điền số vào file (mỗi biểu một mẫu riêng).",
-        "**Nhập từ Excel** → chọn file vừa điền, hệ thống mở bảng **xem trước**.",
-        "Dòng tóm tắt cho biết đọc được bao nhiêu dòng, **bao nhiêu hợp lệ / bao nhiêu lỗi**.",
-        "Các cột **chọn từ danh sách** (vd *Đơn giá mủ chén tính theo*) hiện đúng giá trị đã điền — để trống thì hệ thống dùng mặc định ghi ngay trên tiêu đề cột.",
-        "Cột **Ghi chú** nói rõ dòng lỗi sai ở đâu (vd *Ngày: ngày không hợp lệ*).",
-        "Bấm **Xác nhận ghi N dòng** — chỉ ghi các dòng hợp lệ, dòng lỗi bị bỏ qua."
+        "**Phần thập phân dùng DẤU PHẨY** — ví dụ “2.238,5” là hai nghìn hai trăm ba tám phẩy năm. Đừng dùng dấu chấm cho phần thập phân.",
+        "**Dấu chấm phân cách hàng nghìn do hệ thống TỰ THÊM** khi gõ — chỉ cần gõ “2238”, ô nhập sẽ tự hiện thành “2.238”."
       ],
       "notes": [
-        "Chi tiết từng cột của ba biểu mẫu (kèm file mẫu và cách xử lý dòng lỗi): xem tài liệu riêng **Hướng dẫn nhập liệu bằng Excel** trong thư mục `docs/huong-dan/nhap-lieu-bang-excel/`.",
-        "File mẫu của đơn vị **không có cột “Đơn vị”** — hệ thống tự gán đúng đơn vị của tài khoản, không cần gõ tên.",
-        "**Không đổi tên hoặc xoá dòng tiêu đề** của file mẫu; nếu thiếu cột bắt buộc hệ thống sẽ báo và không đọc file.",
-        "Muốn sửa dòng lỗi: sửa lại trong file Excel rồi nhập lên lần nữa — các dòng đã ghi đúng sẽ được ghi đè, không bị nhân đôi.",
-        "Nhập Tiêu thụ không làm mất số Tồn kho của cùng ngày và ngược lại.",
-        "File **Tiêu thụ** ghi đè **toàn bộ** phần tiêu thụ của ngày đó, **cả mủ thu mua lẫn mủ khai thác**. Dòng nào đã nhập trên web mà không có trong file sẽ bị xoá — nên chép đủ cả 2 nguồn mủ vào file trước khi nhập lên.",
-        "**Mỗi lần nhập hãy bấm *Tải mẫu Excel* để lấy file mẫu hiện hành**, đừng dùng lại file đang giữ trong máy (khác cột sẽ báo lỗi khi nhập lên).",
-        "Bốn cột **chọn từ danh sách** để trống được, nhưng phải điền đúng thì số mới vào đúng chỗ: *Đơn giá mủ chén tính theo* (Độ TSC / Độ DRC) ở mẫu **Thu mua**; *Nguồn mủ* (Mủ thu mua / Mủ khai thác) và *Giá bán bằng* (VND / USD) ở mẫu **Tiêu thụ**; *Đơn giá bằng* (VND / USD) ở mẫu **Tồn kho**. Bỏ trống thì hệ thống hiểu là Độ TSC · Mủ thu mua · VND.",
-        "Mẫu **Thu mua** gồm: *SL thu mua mủ nước* · *SL thu mua mủ chén* · *Đơn giá mủ nước* · *Đơn giá mủ chén* · *Đơn giá mủ chén tính theo*, và phần thu mua thành phẩm *Chủng loại thành phẩm* · *SL thu mua thành phẩm* · *Đơn giá thành phẩm* · *Đơn giá thành phẩm bằng*.",
-        "Mẫu **Tồn kho**: cột *Nhóm* có 3 lựa chọn — Chế biến chưa nhập kho · Đã nhập kho · **Đã ký HĐ**. Số lượng tính bằng **tấn**.",
-        "Mẫu **Tiêu thụ** có cột *Nguồn mủ* (chọn *Mủ thu mua* hoặc *Mủ khai thác* — để trống thì hiểu là **mủ thu mua**), cùng 2 cột ngày: *Ngày xuất kho* và *Ngày xuất hoá đơn*. Riêng **3 file đính kèm — bộ Hợp đồng · phiếu xuất kho · hoá đơn — phải tải lên trên web**, file Excel không mang theo file đính kèm được."
+        "Đơn vị tính ghi ngay cạnh tên ô (tấn · triệu đ/tấn · đồng/độ TSC…) — nhập theo đúng đơn vị đó, không nhân chia thêm."
       ]
     }
   ]
