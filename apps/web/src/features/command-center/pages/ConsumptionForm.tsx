@@ -10,23 +10,22 @@
      USD→VND (nút lấy VCB) — tỷ giá dùng chung cho cả 2 khối. Tiền lưu BASE = đồng.
    - Tồn kho KHÔNG cộng dồn giữa các ngày; có nút "Lấy tồn ngày trước" để chép sang rồi sửa. */
 
-import { DeleteOutlined, PlusOutlined, UploadOutlined } from "@ant-design/icons";
-import { Input, Select, Tabs, Upload, message } from "antd";
+import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { Input, Select, Tabs, message } from "antd";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
-import { CONTRACT_ACCEPT, CONTRACT_ACCEPT_LABEL, CONTRACT_MAX_MB } from "../../../lib/contract-upload";
+import { CONTRACT_ACCEPT_LABEL, CONTRACT_MAX_MB } from "../../../lib/contract-upload";
+import { type ContractDoc, docsOf, docsPatch } from "../../../lib/contract-docs";
 import { HINT_DAILY_EVENT, HINT_ONCE_PER_CONTRACT, HINT_STOCK_BALANCE } from "../../../lib/unit-daily-entry-hints";
 import { fetchVcbRate } from "../../../lib/market-quote-client";
-import {
-  type PriceDraft, type Role, type StockContract, fetchPrevStock, openContractFile,
-  uploadContractFile,
-} from "../../../lib/unit-daily-client";
+import { type PriceDraft, type Role, type StockContract, fetchPrevStock } from "../../../lib/unit-daily-client";
 import {
   CCYS, CHANNELS, CONTRACTS, GRADES, SALE_DATES, SALE_DOCS, type Ccy, type ConsumptionData,
   type SaleLine, type StockQtyLine, emptySaleLine, lineRevenueVnd,
   stockTonnesTotal, toTyDong, totals,
 } from "../../../lib/unit-daily-consumption";
 import { type Values, fmtNum } from "../../../lib/unit-daily-fields";
+import ContractFilesCell from "../sections/ContractFilesCell";
 import StockContractTable from "./StockContractTable";
 import { TON_WARN_ABOVE, fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
 
@@ -71,7 +70,6 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
   const [data, setData] = useState<ConsumptionData>(() => initData(values, currency));
   const [fxLoading, setFxLoading] = useState(false);
   const [prevLoading, setPrevLoading] = useState(false);
-  const [uploading, setUploading] = useState<string | null>(null);  // "sales:0" | "signed:0"
   useEffect(() => { setData(initData(values, currency)); }, [formKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const salesCcy: Ccy = data.sales_ccy ?? defaultCcy(currency);
@@ -150,40 +148,6 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
     finally { setPrevLoading(false); }
   };
 
-  /** Ô đính kèm 1 chứng từ (mở lại file đã có + nút đổi/chọn). Dùng chung cho mọi bảng/mọi loại
-      chứng từ: `slot` là id duy nhất để biết ô nào đang tải, `set` gán cặp (file, tên gốc) vào dòng. */
-  const fileCell = (
-    slot: string,
-    cur: { file?: string | null; filename?: string | null },
-    set: (v: { file: string; filename: string }) => void,
-  ) => {
-    const busy = uploading === slot;
-    const upload = async (file: File) => {
-      setUploading(slot);
-      try {
-        const r = await uploadContractFile(role, file);
-        set({ file: r.file, filename: r.filename });
-        message.success("Đã tải lên chứng từ.");
-      } catch (e) { message.error((e as Error).message || "Upload thất bại."); }
-      finally { setUploading(null); }
-    };
-    return (
-      <>
-        {cur.file
-          ? <a onClick={() => openContractFile(role, cur.file!)} style={{ cursor: "pointer", fontSize: 12 }} title={cur.filename ?? ""}>{(cur.filename ?? "file").slice(0, 14)}</a>
-          : <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>}
-        {!readOnly && (
-          <Upload showUploadList={false} accept={CONTRACT_ACCEPT} disabled={busy}
-            beforeUpload={(fl) => { upload(fl as File); return false; }}>
-            <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 6px", marginLeft: 6 }}>
-              <UploadOutlined /> {busy ? "…" : (cur.file ? "Đổi" : "Chọn")}
-            </button>
-          </Upload>
-        )}
-      </>
-    );
-  };
-
   const head = (t: string, first?: boolean, hint?: string) => (
     <div style={{ fontWeight: 600, fontSize: 12.5, opacity: 0.85, marginTop: first ? 0 : 18, marginBottom: 6, paddingBottom: 2, borderBottom: "1px solid rgba(125,125,125,.25)" }}>
       {t}
@@ -226,7 +190,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
 
   /** Bảng tiêu thụ — dùng chung cho mủ THU MUA (`sales`) và mủ KHAI THÁC (`sales_own`).
       Mỗi bản ghi trải 2 HÀNG vì số liệu nhiều: hàng 1 = số bán, hàng 2 = chứng từ (2 ngày + 3 file). */
-  const salesTable = (id: "sales" | "sales_own", rows: SaleLine[], setRows: (n: SaleLine[]) => void) => {
+  const salesTable = (rows: SaleLine[], setRows: (n: SaleLine[]) => void) => {
     const patch = (i: number, p: Partial<SaleLine>) => setRows(rows.map((l, j) => (j === i ? { ...l, ...p } : l)));
     const cols = readOnly ? 9 : 10;
     return (
@@ -276,11 +240,14 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
                         {SALE_DOCS.map((dc) => (
                           <div key={dc.fileKey} className="ud-doc">
                             <span className="ud-doc-lb">{dc.label}</span>
-                            <span>{fileCell(
-                              `${id}:${i}:${dc.fileKey}`,
-                              { file: ln[dc.fileKey] as string | null, filename: ln[dc.nameKey] as string | null },
-                              (v) => patch(i, { [dc.fileKey]: v.file, [dc.nameKey]: v.filename } as Partial<SaleLine>),
-                            )}</span>
+                            <ContractFilesCell
+                              role={role} readOnly={readOnly}
+                              docs={docsOf(ln[dc.listKey] as ContractDoc[] | null,
+                                           ln[dc.fileKey] as string | null,
+                                           ln[dc.nameKey] as string | null)}
+                              onChange={(docs) => patch(i, docsPatch(
+                                dc.listKey, dc.fileKey, dc.nameKey, docs) as Partial<SaleLine>)}
+                            />
                           </div>
                         ))}
                       </div>
@@ -300,11 +267,11 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
   const salesTab = (
     <div>
       {head("Tiêu thụ mủ khai thác", true, HINT_DAILY_EVENT)}
-      {salesTable("sales_own", salesOwn, setSalesOwn)}
+      {salesTable(salesOwn, setSalesOwn)}
 
       {/* Nhập TÁCH RIÊNG với mủ khai thác để lưu trữ riêng — Tổng hợp bên dưới vẫn cộng chung. */}
       {head("Tiêu thụ mủ thu mua", false, HINT_DAILY_EVENT)}
-      {salesTable("sales", sales, setSales)}
+      {salesTable(sales, setSales)}
 
       {!readOnly && (
         <div style={{ marginTop: 12 }}>
@@ -390,8 +357,9 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
         chưa giao — chỉ để biết trong tồn kho bao nhiêu đã có đầu ra, nên <b>KHÔNG cộng thêm</b>
         vào tồn kho (cộng nữa là tính trùng) và cũng <b>không trừ ra</b>.
         Khối này <b>KHÔNG nhập lại mỗi ngày</b>: mỗi hợp đồng nhập <b>một lần</b> kèm bản HĐ đã ký
-        scan có đóng dấu ({CONTRACT_ACCEPT_LABEL} — tối đa {CONTRACT_MAX_MB} MB/file, mỗi ô 1 file
-        nên bộ nhiều văn bản thì gộp thành 1 PDF hoặc nén ZIP), hệ thống tự giữ hợp đồng ở khối này từ{" "}
+        scan có đóng dấu ({CONTRACT_ACCEPT_LABEL} — tối đa {CONTRACT_MAX_MB} MB/file, <b>đính kèm
+        được nhiều file</b> nên bộ nhiều văn bản cứ chọn cùng lúc, không cần gộp),
+        hệ thống tự giữ hợp đồng ở khối này từ{" "}
         <b>ngày bắt đầu tồn kho</b> đến <b>hết ngày trước Ngày giao</b>.
         Khi đã xuất kho thì chỉ cần điền <b>Ngày giao</b>.
         Ngày bắt đầu phải <b>trước Ngày giao (và Lịch giao) ít nhất 1 ngày</b>.

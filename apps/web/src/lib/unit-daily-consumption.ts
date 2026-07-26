@@ -2,6 +2,8 @@
    Mẫu "Chỉ tiêu Biểu (1)-ngày": HĐ Dài hạn/Chuyến × XK-UTXK/Nội tiêu; tổng + giá BQ tự tính.
    Tiền lưu BASE = đồng (VND). Đơn vị nước ngoài: giá bán theo USD + tỷ giá USD→VND (quy về VND). */
 
+import type { ContractDoc } from "./contract-docs";
+
 export type SaleContract = "long_term" | "spot";       // loại HĐ: Dài hạn | Chuyến
 export type SaleChannel = "export" | "domestic";       // hình thức: XK/UTXK | Nội tiêu
 
@@ -27,19 +29,26 @@ export type SaleLine = {
   fx?: number | null;             // tỷ giá USD→VND của dòng này (chỉ cần khi ccy = USD)
   warehouse_date?: string | null; // ngày xuất kho 'YYYY-MM-DD'
   invoice_date?: string | null;   // ngày xuất hoá đơn 'YYYY-MM-DD'
-  file?: string | null;           // file bộ Hợp đồng đã upload (tên lưu uuid)
-  filename?: string | null;       // tên gốc để hiển thị
-  wh_file?: string | null;        // phiếu xuất kho
+  // Mỗi ô đính kèm giữ NHIỀU file trong `*_files`; cặp khoá phẳng cũ = file ĐẦU danh sách,
+  // backend vẫn ghi để bản ghi cũ + Excel đọc được (xem services/contract_docs.py).
+  files?: ContractDoc[] | null;   // bộ Hợp đồng
+  file?: string | null;
+  filename?: string | null;
+  wh_files?: ContractDoc[] | null;  // phiếu xuất kho
+  wh_file?: string | null;
   wh_filename?: string | null;
-  inv_file?: string | null;       // hoá đơn
+  inv_files?: ContractDoc[] | null; // hoá đơn
+  inv_file?: string | null;
   inv_filename?: string | null;
 };
 
-/** 3 chứng từ đính kèm mỗi dòng bán — khớp `SALE_DOC_SLOTS` ở backend. */
-export const SALE_DOCS: { fileKey: keyof SaleLine; nameKey: keyof SaleLine; label: string }[] = [
-  { fileKey: "file", nameKey: "filename", label: "Bộ Hợp đồng" },
-  { fileKey: "wh_file", nameKey: "wh_filename", label: "Phiếu xuất kho" },
-  { fileKey: "inv_file", nameKey: "inv_filename", label: "Hoá đơn" },
+/** 3 ô đính kèm mỗi dòng bán — khớp `SALE_DOC_SLOTS` ở backend. */
+export const SALE_DOCS: {
+  listKey: keyof SaleLine; fileKey: keyof SaleLine; nameKey: keyof SaleLine; label: string;
+}[] = [
+  { listKey: "files", fileKey: "file", nameKey: "filename", label: "Bộ Hợp đồng" },
+  { listKey: "wh_files", fileKey: "wh_file", nameKey: "wh_filename", label: "Phiếu xuất kho" },
+  { listKey: "inv_files", fileKey: "inv_file", nameKey: "inv_filename", label: "Hoá đơn" },
 ];
 
 /** 2 mốc ngày của mỗi dòng bán. */
@@ -52,7 +61,9 @@ export const SALE_DATES: { key: keyof SaleLine; label: string }[] = [
 export const emptySaleLine = (): SaleLine => ({
   code: null, contract: "long_term", channel: "export", grade: GRADES[0], qty: null, price: null,
   warehouse_date: null, invoice_date: null,
-  file: null, filename: null, wh_file: null, wh_filename: null, inv_file: null, inv_filename: null,
+  files: [], file: null, filename: null,
+  wh_files: [], wh_file: null, wh_filename: null,
+  inv_files: [], inv_file: null, inv_filename: null,
 });
 
 /** Khối tồn kho chỉ có số lượng (khối 1 & 2): chủng loại · số lượng (TẤN). */
@@ -65,7 +76,8 @@ export type StockSignedLine = {
   grade: string; qty: number | null; price: number | null;
   ccy?: Ccy; fx?: number | null;         // loại tiền + tỷ giá của DÒNG này
   delivery_date?: string | null;         // lịch giao (dự kiến) 'YYYY-MM-DD'
-  file?: string | null; filename?: string | null;  // tên file lưu (uuid) + tên gốc hiển thị
+  files?: ContractDoc[] | null;          // HĐ scan — NHIỀU file
+  file?: string | null; filename?: string | null;  // file ĐẦU danh sách (tương thích ngược)
 };
 
 /** Payload tiêu thụ–tồn kho. TIÊU THỤ = 2 bảng nhập tách riêng (`sales` mủ thu mua ·

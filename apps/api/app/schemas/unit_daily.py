@@ -29,6 +29,13 @@ class PurchasePlanEdit(BaseModel):
     carry_spot_tonnes: float | None = None  # SL tiêu thụ HĐ chuyến năm trước chuyển sang (tấn)
 
 
+class ContractDocIn(BaseModel):
+    """1 chứng từ đính kèm: tên lưu trên server (uuid) + tên gốc để hiển thị."""
+
+    file: str
+    filename: str | None = None
+
+
 class StockContractEdit(BaseModel):
     """1 hợp đồng đã ký chưa giao — nhập MỘT LẦN, tự nằm trong tồn kho tới hết ngày trước ngày giao.
 
@@ -46,7 +53,10 @@ class StockContractEdit(BaseModel):
     start_date: str                         # ngày bắt đầu tồn kho 'YYYY-MM-DD'
     delivery_date: str | None = None        # lịch giao (dự kiến)
     delivered_date: str | None = None       # ngày giao THỰC TẾ (trống = chưa giao)
-    file: str | None = None                 # HĐ scan (tên file lưu server)
+    # HĐ scan: đính kèm NHIỀU file. Cặp `file`/`filename` là file ĐẦU danh sách — server tự ghi lại
+    # để bản ghi cũ và client cũ (chỉ gửi cặp phẳng) vẫn dùng được (xem services/contract_docs.py).
+    files: list[ContractDocIn] | None = None
+    file: str | None = None
     filename: str | None = None
 
 

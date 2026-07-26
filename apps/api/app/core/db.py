@@ -173,8 +173,9 @@ CREATE TABLE IF NOT EXISTS unit_stock_contract (
     start_date  date NOT NULL,          -- ngày bắt đầu tồn kho
     delivery_date  date,                -- lịch giao (dự kiến)
     delivered_date date,                -- ngày giao THỰC TẾ (trống = chưa giao, vẫn đang tồn)
-    file        text,                   -- HĐ đã ký scan (tên file lưu server)
-    filename    text,                   -- tên gốc để hiển thị
+    file        text,                   -- HĐ đã ký scan: file ĐẦU trong `files` (giữ cho bản ghi cũ)
+    filename    text,                   -- tên gốc để hiển thị (file đầu)
+    files       jsonb NOT NULL DEFAULT '[]'::jsonb,  -- NHIỀU file: [{file, filename}]
     updated_at  timestamptz NOT NULL DEFAULT now(),
     updated_by  text
 );
@@ -234,6 +235,12 @@ ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS has_purchase_plan boolean NOT N
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS signed_lt_tonnes double precision;
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS carry_lt_tonnes double precision;
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS carry_spot_tonnes double precision;
+-- Hợp đồng tồn kho: đính kèm NHIỀU file. Cột file/filename cũ giữ nguyên = file ĐẦU danh sách.
+ALTER TABLE unit_stock_contract ADD COLUMN IF NOT EXISTS files jsonb NOT NULL DEFAULT '[]'::jsonb;
+-- Nâng bản ghi cũ (1 file ở cột phẳng) lên danh sách. Idempotent: chỉ chạm dòng chưa có danh sách.
+UPDATE unit_stock_contract SET files = jsonb_build_array(
+         jsonb_build_object('file', file, 'filename', COALESCE(filename, file)))
+ WHERE files = '[]'::jsonb AND file IS NOT NULL AND file <> '';
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS permissions jsonb NOT NULL DEFAULT '[]'::jsonb;
 -- Các đơn vị gắn với tài khoản (chỉ dùng cho role=member) — 1 tài khoản có thể gán NHIỀU đơn vị.
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS member_units jsonb NOT NULL DEFAULT '[]'::jsonb;

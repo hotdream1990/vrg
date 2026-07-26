@@ -8,23 +8,26 @@ NGÀY GIAO. Hệ thống tự tính: hợp đồng nằm trong tồn kho của n
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from typing import Any
 
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
-from app.services import audit_repo
+from app.services import audit_repo, contract_docs
 
 _CCY = {"VND", "USD"}
 _COLS = ("id", "company", "code", "grade", "qty", "price", "ccy", "fx",
-         "start_date", "delivery_date", "delivered_date", "file", "filename")
+         "start_date", "delivery_date", "delivered_date", "file", "filename", "files")
 
 
 def _row(r) -> dict[str, Any]:
     d = dict(r)
     for k in ("start_date", "delivery_date", "delivered_date"):
         d[k] = str(d[k]) if d.get(k) else None
+    # Bản ghi cũ chưa có danh sách → dựng từ cột phẳng, để đọc lên vẫn thấy file đã đính kèm.
+    d["files"] = contract_docs.normalize(d.get("files"), d.get("file"), d.get("filename"))
     return d
 
 
@@ -61,6 +64,9 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         except (TypeError, ValueError):
             return None
 
+    # Đính kèm NHIỀU file; cột phẳng file/filename vẫn ghi = file ĐẦU để bản cũ/Excel đọc được.
+    docs = contract_docs.normalize(row.get("files"), row.get("file"), row.get("filename"))
+    first_file, first_name = contract_docs.first(docs)
     return {
         "id": int(row["id"]) if str(row.get("id") or "").strip().isdigit() else None,
         "company": company,
@@ -73,8 +79,9 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         "start_date": start.isoformat(),
         "delivery_date": delivery.isoformat() if delivery else None,
         "delivered_date": delivered.isoformat() if delivered else None,
-        "file": str(row.get("file") or "").strip()[:120] or None,
-        "filename": str(row.get("filename") or "").strip()[:200] or None,
+        "file": first_file,
+        "filename": first_name,
+        "files": docs,
     }
 
 
@@ -149,15 +156,18 @@ def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
                 "price = :price, ccy = :ccy, fx = :fx, start_date = CAST(:start_date AS date), "
                 "delivery_date = CAST(:delivery_date AS date), "
                 "delivered_date = CAST(:delivered_date AS date), file = :file, filename = :filename, "
-                "updated_by = :by, updated_at = now() WHERE id = :id"), {**d, "by": updated_by})
+                "files = CAST(:files AS jsonb), "
+                "updated_by = :by, updated_at = now() WHERE id = :id"),
+                {**d, "files": json.dumps(d["files"]), "by": updated_by})
             new_id = d["id"]
         else:
             new_id = db.execute(text(
                 "INSERT INTO unit_stock_contract (company, code, grade, qty, price, ccy, fx, "
-                " start_date, delivery_date, delivered_date, file, filename, updated_by) "
+                " start_date, delivery_date, delivered_date, file, filename, files, updated_by) "
                 "VALUES (:company, :code, :grade, :qty, :price, :ccy, :fx, CAST(:start_date AS date), "
-                " CAST(:delivery_date AS date), CAST(:delivered_date AS date), :file, :filename, :by) "
-                "RETURNING id"), {**d, "by": updated_by}).scalar()
+                " CAST(:delivery_date AS date), CAST(:delivered_date AS date), :file, :filename, "
+                " CAST(:files AS jsonb), :by) "
+                "RETURNING id"), {**d, "files": json.dumps(d["files"]), "by": updated_by}).scalar()
     saved = {**d, "id": new_id}
     audit_repo.log("stock_contract", "update" if before else "create", f"HĐ #{new_id}",
                    before=before, after=saved, as_of=saved.get("start_date"), company=company,

@@ -3,17 +3,17 @@
    kho từ NGÀY BẮT ĐẦU đến HẾT NGÀY TRƯỚC NGÀY GIAO. Khi xuất kho chỉ cần điền Ngày giao.
    Lưu/xoá đi thẳng API riêng (không đi kèm nút "Lưu số liệu" của biểu ngày). */
 
-import { DeleteOutlined, PlusOutlined, SaveOutlined, UploadOutlined } from "@ant-design/icons";
-import { Input, Select, Upload, message } from "antd";
+import { DeleteOutlined, PlusOutlined, SaveOutlined } from "@ant-design/icons";
+import { Input, Select, message } from "antd";
 import { Fragment, useCallback, useEffect, useState } from "react";
 
 import {
-  type Role, type StockContract, deleteStockContract, fetchStockContracts, openContractFile,
-  saveStockContract, uploadContractFile,
+  type Role, type StockContract, deleteStockContract, fetchStockContracts, saveStockContract,
 } from "../../../lib/unit-daily-client";
-import { CONTRACT_ACCEPT } from "../../../lib/contract-upload";
+import { docsOf, docsPatch } from "../../../lib/contract-docs";
 import { CCYS, GRADES, type Ccy, lineRevenueVnd } from "../../../lib/unit-daily-consumption";
 import { fmtNum } from "../../../lib/unit-daily-fields";
+import ContractFilesCell from "../sections/ContractFilesCell";
 import { TON_WARN_ABOVE, numInput } from "./unit-daily-inputs";
 
 type Row = StockContract & { _key: number; _dirty?: boolean };
@@ -71,16 +71,6 @@ export default function StockContractTable({ role, company, day, readOnly, fallb
       setBusy(false);
     }
     publish(rows.filter((x) => x._key !== row._key));
-  };
-
-  const upload = async (row: Row, file: File) => {
-    setBusy(true);
-    try {
-      const r = await uploadContractFile(role, file);
-      patch(row._key, { file: r.file, filename: r.filename });
-      message.success("Đã tải lên HĐ scan — bấm Lưu để ghi vào hợp đồng.");
-    } catch (e) { message.error((e as Error).message || "Upload thất bại."); }
-    finally { setBusy(false); }
   };
 
   /** 1 mốc ngày ở HÀNG DƯỚI — có nhãn riêng nên không phải nhồi thêm cột vào hàng trên. */
@@ -152,20 +142,11 @@ export default function StockContractTable({ role, company, day, readOnly, fallb
                       {dateChip("Ngày giao", r.delivered_date, (v) => patch(r._key, { delivered_date: v }))}
                       <div className="ud-doc">
                         <span className="ud-doc-lb">HĐ đã ký (scan)</span>
-                        <span>
-                          {r.file
-                            ? <a onClick={() => openContractFile(role, r.file!)} style={{ cursor: "pointer", fontSize: 12 }}
-                                title={r.filename ?? ""}>{(r.filename ?? "file").slice(0, 18)}</a>
-                            : <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>}
-                          {!readOnly && (
-                            <Upload showUploadList={false} accept={CONTRACT_ACCEPT} disabled={busy}
-                              beforeUpload={(fl) => { upload(r, fl as File); return false; }}>
-                              <button type="button" className="btn" style={{ fontSize: 10.5, padding: "0 6px", marginLeft: 6 }}>
-                                <UploadOutlined /> {r.file ? "Đổi" : "Chọn"}
-                              </button>
-                            </Upload>
-                          )}
-                        </span>
+                        <ContractFilesCell
+                          role={role} readOnly={readOnly}
+                          docs={docsOf(r.files, r.file, r.filename)}
+                          onChange={(docs) => patch(r._key, docsPatch("files", "file", "filename", docs))}
+                        />
                       </div>
                       {r.delivered_date && (
                         <span style={{ fontSize: 11.5, color: "var(--muted)" }}>

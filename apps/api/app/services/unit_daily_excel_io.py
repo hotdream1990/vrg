@@ -422,7 +422,9 @@ def _upsert_contract(r: dict, company: str, start_date: str, ccy: str | None,
         "ccy": ccy or "VND", "fx": match.get("fx") if match else None,
         "start_date": start_date, "delivery_date": r.get("delivery_date"),
         "delivered_date": r.get("delivered_date"),
-        "file": match.get("file") if match else None,        # file HĐ scan chỉ đính kèm trên web
+        # File HĐ scan chỉ đính kèm trên web → nhập lại bằng Excel phải GIỮ NGUYÊN, không xoá mất.
+        "files": match.get("files") if match else None,
+        "file": match.get("file") if match else None,
         "filename": match.get("filename") if match else None,
     }, company, username)
 

@@ -373,3 +373,63 @@ def test_stock_contract_history() -> None:
 
     client.delete("/api/users/ud_hist_noed", headers=h)
     _cleanup(h, ["ud_hist_ed", "ud_hist_mem"], [unit])
+
+
+def test_contract_docs_multi_file() -> None:
+    """Mỗi ô đính kèm giữ NHIỀU file, đồng thời vẫn ghi cặp khoá cũ = file ĐẦU.
+
+    Điểm quan trọng: bản ghi CŨ (chỉ có `file`/`filename`) đọc lên phải tự thành danh sách 1 file —
+    nhờ vậy dữ liệu đã lưu trên production không cần chuyển đổi.
+    """
+    h = _admin()
+    unit = "_zz_ud_docs"
+    today = date.today().isoformat()
+    day = (date.today() - timedelta(days=1)).isoformat()
+    client.delete("/api/users/ud_docs_ed", headers=h)
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    client.post("/api/users", json={"username": "ud_docs_ed", "password": "pass123",
+                                    "role": "editor", "permissions": ["unit_daily"]}, headers=h)
+    eh = _bearer("ud_docs_ed", "pass123")
+
+    # ── Hợp đồng tồn kho: gửi DANH SÁCH nhiều file ───────────────────────────────────────
+    many = client.put("/api/unit-daily/stock-contracts", headers=eh, json={
+        "company": unit, "code": "HĐ-D1", "grade": "RSS 3", "qty": 5, "price": 40,
+        "start_date": day,
+        "files": [{"file": "a.pdf", "filename": "hop-dong.pdf"},
+                  {"file": "b.pdf", "filename": "phu-luc.pdf"}],
+    }).json()["contract"]
+    assert [d["file"] for d in many["files"]] == ["a.pdf", "b.pdf"]
+    assert many["file"] == "a.pdf" and many["filename"] == "hop-dong.pdf"  # khoá cũ = file đầu
+
+    # Đọc lại từ DB vẫn đủ 2 file.
+    got = client.get(f"/api/unit-daily/stock-contracts?as_of={today}&company={unit}",
+                     headers=eh).json()["contracts"]
+    assert [d["file"] for d in next(c for c in got if c["id"] == many["id"])["files"]] == ["a.pdf", "b.pdf"]
+
+    # ── Client CŨ chỉ gửi cặp khoá phẳng → server tự dựng thành danh sách 1 file ──────────
+    legacy = client.put("/api/unit-daily/stock-contracts", headers=eh, json={
+        "company": unit, "code": "HĐ-D2", "grade": "SVR 3L", "qty": 3, "price": 41,
+        "start_date": day, "file": "old.pdf", "filename": "ban-cu.pdf",
+    }).json()["contract"]
+    assert legacy["files"] == [{"file": "old.pdf", "filename": "ban-cu.pdf"}]
+
+    # ── Biểu tiêu thụ: ô "bộ Hợp đồng" nhiều file · ô "hoá đơn" nhập kiểu CŨ ─────────────
+    assert client.put("/api/unit-daily/report", headers=eh, json={
+        "kind": "consumption", "company": unit, "as_of": today, "fields": {
+            "sales": [{"contract": "long_term", "channel": "export", "grade": "RSS 3",
+                       "qty": 1, "price": 40,
+                       "files": [{"file": "c1.pdf", "filename": "hd.pdf"},
+                                 {"file": "c2.pdf", "filename": "pl.pdf"},
+                                 {"file": "c2.pdf", "filename": "trung-lap.pdf"}],  # trùng → bỏ
+                       "inv_file": "inv.pdf", "inv_filename": "hoa-don.pdf"}],
+            "sales_ccy": "VND", "stock_ccy": "VND",
+        }}).status_code == 200
+    tl = client.get("/api/unit-daily/timeline?kind=consumption&days=3", headers=eh).json()
+    ln = next(e for e in tl["entries"] if e["company"] == unit)["fields"]["sales"][0]
+    assert [d["file"] for d in ln["files"]] == ["c1.pdf", "c2.pdf"]   # khử trùng lặp theo tên lưu
+    assert ln["file"] == "c1.pdf" and ln["filename"] == "hd.pdf"
+    assert ln["inv_files"] == [{"file": "inv.pdf", "filename": "hoa-don.pdf"}]  # ô cũ → danh sách
+    assert ln["wh_files"] == [] and ln["wh_file"] is None                       # ô trống vẫn trống
+
+    client.delete("/api/users/ud_docs_ed", headers=h)
+    _cleanup(h, ["ud_docs_ed"], [unit])

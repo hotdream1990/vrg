@@ -7,6 +7,8 @@ Server dùng bộ này để lọc payload (chỉ nhận key hợp lệ) — ch�
 
 from __future__ import annotations
 
+from app.services import contract_docs
+
 # Loại tiền người dùng CHỌN khi nhập đơn giá (thu mua thành phẩm · giá bán tiêu thụ · tồn kho đã HĐ).
 _CCY = frozenset({"VND", "USD"})
 
@@ -74,11 +76,13 @@ _SALE_CHANNELS = {"export", "domestic"}   # hình thức: XK/UTXK | Nội tiêu
 #   `sales`     — tiêu thụ mủ THU MUA
 #   `sales_own` — tiêu thụ mủ KHAI THÁC
 SALE_TABLES: tuple[str, ...] = ("sales", "sales_own")
-# 3 file đính kèm mỗi dòng bán: (khoá file lưu server, khoá tên gốc hiển thị).
-SALE_DOC_SLOTS: tuple[tuple[str, str], ...] = (
-    ("file", "filename"),            # bộ Hợp đồng
-    ("wh_file", "wh_filename"),      # phiếu xuất kho
-    ("inv_file", "inv_filename"),    # hoá đơn
+# 3 Ô đính kèm mỗi dòng bán, mỗi ô nhận NHIỀU file:
+#   (khoá danh sách, khoá file lưu server, khoá tên gốc hiển thị)
+# Cặp khoá phẳng (file, filename) = file ĐẦU danh sách, giữ lại để bản ghi cũ + Excel vẫn đọc được.
+SALE_DOC_SLOTS: tuple[tuple[str, str, str], ...] = (
+    ("files", "file", "filename"),               # bộ Hợp đồng
+    ("wh_files", "wh_file", "wh_filename"),      # phiếu xuất kho
+    ("inv_files", "inv_file", "inv_filename"),   # hoá đơn
 )
 
 ALLOWED: dict[str, frozenset[str]] = {"purchase": PURCHASE_FIELDS}
@@ -100,8 +104,8 @@ def _clean_sales(sales) -> list[dict]:
     """Lọc/chuẩn hoá các dòng tiêu thụ (dùng chung `sales` = mủ thu mua và `sales_own` = mủ khai thác).
 
     Mỗi dòng: SỐ HĐ/PL · loại HĐ · hình thức · loại mủ · số lượng · giá bán · NGÀY XUẤT KHO ·
-    NGÀY XUẤT HOÁ ĐƠN · 3 file đính kèm (bộ Hợp đồng · phiếu xuất kho · hoá đơn),
-    mỗi file lưu tên uuid trên server + tên gốc để hiển thị.
+    NGÀY XUẤT HOÁ ĐƠN · 3 ô đính kèm (bộ Hợp đồng · phiếu xuất kho · hoá đơn), MỖI Ô NHIỀU FILE —
+    mỗi file lưu tên uuid trên server + tên gốc để hiển thị (xem `contract_docs`).
     """
     out: list[dict] = []
     for ln in sales if isinstance(sales, list) else []:
@@ -120,9 +124,10 @@ def _clean_sales(sales) -> list[dict]:
             "warehouse_date": str(ln.get("warehouse_date") or "")[:10] or None,
             "invoice_date": str(ln.get("invoice_date") or "")[:10] or None,
         }
-        for fk, nk in SALE_DOC_SLOTS:
-            row[fk] = str(ln.get(fk) or "")[:120] or None
-            row[nk] = str(ln.get(nk) or "")[:200] or None
+        for lk, fk, nk in SALE_DOC_SLOTS:
+            docs = contract_docs.normalize(ln.get(lk), ln.get(fk), ln.get(nk))
+            row[lk] = docs
+            row[fk], row[nk] = contract_docs.first(docs)   # giữ khoá cũ cho tương thích ngược
         out.append(row)
     return out
 

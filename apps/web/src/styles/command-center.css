@@ -143,6 +143,21 @@ tr:hover td{background:#f3f7f4}
 .ud-docs{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding-left:2px}
 .ud-doc{display:flex;align-items:center;gap:6px;font-size:12px;min-height:24px}
 .ud-doc-lb{color:var(--muted);font-size:11px;white-space:nowrap}
+/* Ô đính kèm NHIỀU file: các chip tự xuống dòng, không đẩy vỡ hàng chứng từ. */
+.ud-files{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;max-width:100%}
+.ud-file-chip{display:inline-flex;align-items:center;gap:2px;max-width:100%;
+  padding:1px 5px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:11.5px}
+.ud-file-chip a{cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ud-file-x{border:0;background:none;padding:0 1px;cursor:pointer;color:var(--muted);
+  font-size:10px;line-height:1;display:inline-flex;align-items:center}
+.ud-file-x:hover{color:var(--danger)}
+.ud-file-add{font-size:10.5px;padding:0 6px}
+/* Bảng tra cứu: chip "+N" mở danh sách đầy đủ, để dòng không bị kéo cao khi có nhiều file. */
+.ud-file-more{cursor:pointer;white-space:nowrap;font-size:11.5px;padding:1px 6px;border-radius:10px;
+  border:1px solid var(--line);background:var(--bg);color:var(--muted)}
+.ud-file-more:hover{color:var(--accent-2);border-color:var(--accent)}
+.ud-files-pop{max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:4px;
+  font-size:12px;max-width:420px}
 /* Ô ngày ở hàng chứng từ: cho thấy viền để nhận ra là ô nhập (mặc định .blt-cell-input trong suốt). */
 .ud-docs input[type="date"]{border-color:var(--line);background:var(--bg)}
 

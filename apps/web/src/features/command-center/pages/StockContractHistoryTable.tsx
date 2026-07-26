@@ -2,9 +2,10 @@
    đây là danh sách tra cứu nên 1 hợp đồng = 1 dòng, có phân trang + dòng Tổng cộng. */
 
 import { FileTextOutlined } from "@ant-design/icons";
-import { Table, Tag } from "antd";
+import { Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 
+import { docsOf } from "../../../lib/contract-docs";
 import { type Role, type StockContract, openContractFile } from "../../../lib/unit-daily-client";
 import { lineRevenueVnd, stockTonnesTotal } from "../../../lib/unit-daily-consumption";
 import { dmy } from "../../../lib/date";
@@ -42,13 +43,37 @@ export default function StockContractHistoryTable({ role, rows, showCompany, loa
     { title: "Trạng thái", key: "status", render: (_v, r) => (
       r.delivered_date ? <Tag color="green">Đã giao</Tag> : <Tag color="gold">Chưa giao</Tag>
     ) },
-    { title: "HĐ scan", key: "file", render: (_v, r) => (
-      r.file
-        ? <a onClick={() => openContractFile(role, r.file!)} style={{ cursor: "pointer" }}>
-            <FileTextOutlined /> {(r.filename ?? "file").slice(0, 20)}
+    // Một hợp đồng đính kèm được NHIỀU file. Đây là bảng TRA CỨU (nhiều dòng) nên chỉ hiện file
+    // ĐẦU + chip "+N"; bấm chip mới xổ danh sách đầy đủ. Liệt kê thẳng cả 20 file sẽ kéo một dòng
+    // cao hơn cả màn hình, làm bảng không đọc được.
+    { title: "HĐ scan", key: "file", width: 190, render: (_v, r) => {
+      const docs = docsOf(r.files, r.file, r.filename);
+      if (!docs.length) return <span style={{ color: "var(--muted)" }}>—</span>;
+      const link = (d: { file: string; filename: string }, key?: string) => (
+        <Tooltip key={key ?? d.file} title={d.filename}>
+          <a onClick={() => openContractFile(role, d.file)} style={{ cursor: "pointer" }}>
+            <FileTextOutlined /> {d.filename.length > 20 ? `${d.filename.slice(0, 20)}…` : d.filename}
           </a>
-        : <span style={{ color: "var(--muted)" }}>—</span>
-    ) },
+        </Tooltip>
+      );
+      return (
+        <span className="ud-files">
+          {link(docs[0])}
+          {docs.length > 1 && (
+            <Popover
+              trigger="click" placement="left" title={`${docs.length} chứng từ đính kèm`}
+              content={
+                <div className="ud-files-pop">
+                  {docs.map((d, i) => <div key={d.file}>{i + 1}. {link(d, `pop-${d.file}`)}</div>)}
+                </div>
+              }
+            >
+              <a className="ud-file-more">+{docs.length - 1}</a>
+            </Popover>
+          )}
+        </span>
+      );
+    } },
   ];
 
   const totalQty = stockTonnesTotal(rows);
