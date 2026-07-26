@@ -16,18 +16,21 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 
 import { CONTRACT_ACCEPT_LABEL, CONTRACT_MAX_MB } from "../../../lib/contract-upload";
 import { type ContractDoc, docsOf, docsPatch } from "../../../lib/contract-docs";
+import { type Bound, FX_USD_VND, TONNES_DAILY, TONNES_STOCK, fxWarning, priceBound } from "../../../lib/entry-bounds";
 import { HINT_DAILY_EVENT, HINT_ONCE_PER_CONTRACT, HINT_STOCK_BALANCE } from "../../../lib/unit-daily-entry-hints";
+import { consumptionWarnings } from "../../../lib/unit-daily-warnings";
 import { fetchVcbRate } from "../../../lib/market-quote-client";
 import { type PriceDraft, type Role, type StockContract, fetchPrevStock } from "../../../lib/unit-daily-client";
 import {
   CCYS, CHANNELS, CONTRACTS, GRADES, SALE_DATES, SALE_DOCS, type Ccy, type ConsumptionData,
-  type SaleLine, type StockQtyLine, emptySaleLine, lineRevenueVnd,
+  type SaleLine, type StockQtyLine, emptySaleLine, lineRevenueVnd, priceUnitOf,
   stockTonnesTotal, toTyDong, totals,
 } from "../../../lib/unit-daily-consumption";
 import { type Values, fmtNum } from "../../../lib/unit-daily-fields";
 import ContractFilesCell from "../sections/ContractFilesCell";
+import EntryWarnBanner from "../sections/EntryWarnBanner";
 import StockContractTable from "./StockContractTable";
-import { TON_WARN_ABOVE, fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
+import { fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
 
 const NO_PRICES: PriceDraft = { latex: null, cup: null };
 const num = (x: number | null | undefined): number | null => (x == null || Number.isNaN(x) ? null : x);
@@ -159,9 +162,20 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
   const sel = { width: "100%" } as const;
 
   /** Ô nhập số NẰM TRONG BẢNG — luôn size "small" để cao bằng Select/nút cùng dòng (24px).
-      `warnAbove` chỉ truyền cho ô TẤN (SL) → viền cam khi vượt ngưỡng; ô giá/tỷ giá bỏ trống. */
-  const cellNum = (v: number | null, on: (v: number | null) => void, warnAbove?: number | null) =>
-    numInput(v, on, readOnly, "small", warnAbove);
+      `bound` = khoảng giá trị thường gặp của ô đó → ngoài khoảng thì viền cam + tooltip. */
+  const cellNum = (v: number | null, on: (v: number | null) => void, bound?: Bound | null) =>
+    numInput(v, on, readOnly, "small", bound);
+
+  /** Ô nhập GIÁ trong bảng — kèm nhãn ĐƠN VỊ ngay dưới ô.
+      Đơn vị đổi theo loại tiền của TỪNG DÒNG (VND → triệu đ/tấn · USD → USD/tấn) nên không thể
+      ghi cố định ở tiêu đề cột. Trước đây cột này không ghi đơn vị ở đâu cả, dẫn tới nhiều đơn vị
+      nhập thẳng số đồng/tấn vào ô tính bằng triệu đồng/tấn (doanh thu sai gấp ~1 triệu lần). */
+  const priceCell = (line: { price: number | null; ccy?: Ccy }, on: (v: number | null) => void) => (
+    <>
+      {cellNum(num(line.price), on, priceBound(line.ccy))}
+      <div className="ud-unit-hint">{priceUnitOf(line.ccy ?? "VND")}</div>
+    </>
+  );
 
   /** Ô nhập CHỮ trong bảng (số HĐ/PL) — cùng size "small" cho thẳng hàng với các ô khác. */
   const cellText = (v: string | null | undefined, on: (v: string | null) => void, ph: string) => (
@@ -173,9 +187,10 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
   const rowCcy = (v: Ccy | undefined, on: (c: Ccy) => void) => (
     <Select size="small" style={sel} value={v ?? "VND"} disabled={readOnly} onChange={on} options={CCYS} />
   );
+  // Dòng USD bỏ trống tỷ giá cũng phải tô cảnh báo: ô trống nhưng doanh thu dòng đó bị bỏ khỏi tổng.
   const rowFx = (line: { ccy?: Ccy; fx?: number | null }, on: (v: number | null) => void) =>
     (line.ccy ?? "VND") === "USD"
-      ? cellNum(num(line.fx), on)
+      ? numInput(num(line.fx), on, readOnly, "small", FX_USD_VND, fxWarning(line))
       : <span style={{ fontSize: 11.5, color: "var(--muted)" }}>—</span>;
 
   /** Ô chọn loại tiền cho 1 khối giá (giá bán tiêu thụ · đơn giá tồn kho). */
@@ -216,8 +231,8 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
                     <td><Select size="small" style={sel} value={ln.contract} disabled={readOnly} onChange={(v) => patch(i, { contract: v })} options={CONTRACTS} /></td>
                     <td><Select size="small" style={sel} value={ln.channel} disabled={readOnly} onChange={(v) => patch(i, { channel: v })} options={CHANNELS} /></td>
                     <td>{gradeSel(ln.grade, (v) => patch(i, { grade: v }))}</td>
-                    <td>{cellNum(num(ln.qty), (v) => patch(i, { qty: v }), TON_WARN_ABOVE)}</td>
-                    <td>{cellNum(num(ln.price), (v) => patch(i, { price: v }))}</td>
+                    <td>{cellNum(num(ln.qty), (v) => patch(i, { qty: v }), TONNES_DAILY)}</td>
+                    <td>{priceCell(ln, (v) => patch(i, { price: v }))}</td>
                     <td>{rowCcy(ln.ccy, (v) => patch(i, { ccy: v }))}</td>
                     <td>{rowFx(ln, (v) => patch(i, { fx: v }))}</td>
                     <td className="r" style={{ paddingRight: 6, fontWeight: 600, whiteSpace: "nowrap" }}>
@@ -318,7 +333,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
             {rows.map((r, i) => (
               <tr key={i}>
                 <td>{gradeSel(r.grade, (v) => setRows(rows.map((x, j) => j === i ? { ...x, grade: v } : x)))}</td>
-                <td>{cellNum(num(r.qty), (v) => setRows(rows.map((x, j) => j === i ? { ...x, qty: v } : x)), TON_WARN_ABOVE)}</td>
+                <td>{cellNum(num(r.qty), (v) => setRows(rows.map((x, j) => j === i ? { ...x, qty: v } : x)), TONNES_STOCK)}</td>
                 {!readOnly && <td className="r"><button type="button" className="btn" style={{ padding: "0 7px" }} onClick={() => setRows(rows.filter((_, j) => j !== i))}><DeleteOutlined /></button></td>}
               </tr>
             ))}
@@ -374,7 +389,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       {head("4. Tồn kho nguyên liệu chưa sản xuất (quy khô)", false, HINT_STOCK_BALANCE)}
       <label style={{ display: "block", maxWidth: 260 }}>
         {fieldLabel("Số lượng", "tấn")}
-        {numInput(num(data.stock_material), (v) => setData((d) => ({ ...d, stock_material: v })), readOnly, undefined, TON_WARN_ABOVE)}
+        {numInput(num(data.stock_material), (v) => setData((d) => ({ ...d, stock_material: v })), readOnly, undefined, TONNES_STOCK)}
       </label>
 
       {head("Tổng hợp tồn kho")}
@@ -394,8 +409,13 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
   );
 
 
+  // Cảnh báo gom về đầu form: bảng phải cuộn ngang nên ô viền cam rất dễ nằm ngoài tầm nhìn.
+  // Chỉ tính khi đang nhập — màn chỉ xem thì không nhắc gì.
+  const warnings = useMemo(() => (readOnly ? [] : consumptionWarnings(current as ConsumptionData)), [current, readOnly]);
+
   return (
     <div>
+      <EntryWarnBanner items={warnings} />
       <Tabs defaultActiveKey={defaultTab ?? "sales"} items={[
         { key: "sales", label: "Tiêu thụ", children: salesTab },
         { key: "stock", label: "Tồn kho", children: stockTab },

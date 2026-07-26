@@ -1,10 +1,11 @@
-/* Bộ lọc màn Thống kê hợp đồng: đơn vị · trạng thái · khoảng ngày · tìm kiếm. */
+/* Bộ lọc màn Thống kê hợp đồng: đơn vị · khu vực · chủng loại · trạng thái · khoảng ngày · tìm kiếm. */
 
 import { ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import { Button, Input, Segmented, Select } from "antd";
 
 import type { ContractHistoryFilters, ContractStatus } from "../../../lib/unit-daily-client";
 import DateInput from "../sections/DateInput";
+import { MultiSelect } from "./analytics/AnalyticsFilters";
 
 const STATUS_OPTS: { label: string; value: ContractStatus }[] = [
   { label: "Tất cả", value: "all" },
@@ -14,6 +15,8 @@ const STATUS_OPTS: { label: string; value: ContractStatus }[] = [
 
 type Props = {
   units: string[];
+  regions?: string[];           // danh mục khu vực (chỉ chuyên viên/admin mới lọc theo khu vực)
+  grades?: string[];            // danh mục chủng loại
   showCompany: boolean;         // ẩn ô đơn vị khi tài khoản chỉ gán 1 đơn vị
   value: ContractHistoryFilters;
   onChange: (f: ContractHistoryFilters) => void;
@@ -21,11 +24,17 @@ type Props = {
   loading?: boolean;
 };
 
-export default function StockContractHistoryFilters({ units, showCompany, value, onChange, onReload, loading }: Props) {
+export default function StockContractHistoryFilters({
+  units, regions, grades, showCompany, value, onChange, onReload, loading,
+}: Props) {
   const patch = (p: Partial<ContractHistoryFilters>) => onChange({ ...value, ...p });
 
   return (
     <div className="card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      {!!regions?.length && (
+        <MultiSelect placeholder="Tất cả khu vực" options={regions} width={185}
+                     value={value.regions ?? []} onChange={(v) => patch({ regions: v })} />
+      )}
       {showCompany && (
         <Select
           allowClear placeholder="Tất cả đơn vị" style={{ width: 220 }}
@@ -33,6 +42,10 @@ export default function StockContractHistoryFilters({ units, showCompany, value,
           onChange={(v) => patch({ company: v })}
           options={units.map((u) => ({ value: u, label: u }))}
         />
+      )}
+      {!!grades?.length && (
+        <MultiSelect placeholder="Tất cả chủng loại" options={grades} width={200}
+                     value={value.grades ?? []} onChange={(v) => patch({ grades: v })} />
       )}
       <Segmented value={value.status ?? "all"} onChange={(v) => patch({ status: v as ContractStatus })}
         options={STATUS_OPTS} />

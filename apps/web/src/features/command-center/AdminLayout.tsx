@@ -2,7 +2,11 @@ import {
   ApartmentOutlined,
   AuditOutlined,
   BankOutlined,
+  BarChartOutlined,
   BulbOutlined,
+  CheckSquareOutlined,
+  ExportOutlined,
+  ShoppingOutlined,
   ClockCircleOutlined,
   DashboardOutlined,
   EditOutlined,
@@ -67,13 +71,25 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
     can("unit_daily") && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Báo cáo thu mua" },
     can("unit_daily") && { key: "/bao-cao-tieu-thu", icon: <ScheduleOutlined />, label: "Báo cáo tiêu thụ" },
     can("unit_daily") && { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Báo cáo tồn kho" },
-    can("unit_daily") && { key: "/thong-ke-hop-dong", icon: <HistoryOutlined />, label: "Thống kê hợp đồng" },
     can("market_demand") && { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
     can("unit_daily") && { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
     can("unit_daily") && { key: "/bao-cao-tong-hop", icon: <FileDoneOutlined />, label: "Báo cáo tổng hợp" },
   ].filter(Boolean) as NonNullable<Parameters<typeof Menu>[0]["items"]>;
   if (manual.length) {
     items.push({ key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)", children: manual });
+  }
+  // Thống kê / kiểm tra số liệu các đơn vị đã nhập (chỉ đọc) — tách khỏi nhóm nhập liệu ở trên.
+  if (can("unit_daily")) {
+    items.push({
+      key: "stats", icon: <BarChartOutlined />, label: "Thống kê số liệu",
+      children: [
+        { key: "/thong-ke/tinh-trang-nop", icon: <CheckSquareOutlined />, label: "Theo dõi nộp báo cáo" },
+        { key: "/thong-ke/thu-mua", icon: <ShoppingOutlined />, label: "Thống kê thu mua" },
+        { key: "/thong-ke/tieu-thu", icon: <ExportOutlined />, label: "Thống kê tiêu thụ" },
+        { key: "/thong-ke/ton-kho", icon: <InboxOutlined />, label: "Thống kê tồn kho" },
+        { key: "/thong-ke-hop-dong", icon: <HistoryOutlined />, label: "Thống kê hợp đồng" },
+      ],
+    });
   }
   // Các màn phân tích/bản tin — hiện theo quyền (admin=tất cả, editor=được-cấp, viewer=không).
   const analysis = [
@@ -142,7 +158,8 @@ export default function AdminLayout() {
     "/quan-ly-so-lieu/gia-mu-nguyen-lieu", "/quan-ly-so-lieu/gia-physical",
     "/quan-ly-so-lieu/ton-kho", "/quan-ly-so-lieu/bao-gia-mu", "/quan-ly-so-lieu/don-vi-thanh-vien",
     "/nhu-cau-thi-truong", "/bao-cao-thu-mua", "/bao-cao-tieu-thu", "/bao-cao-ton-kho",
-    "/thong-ke-hop-dong", "/ke-hoach-nam",
+    "/thong-ke-hop-dong", "/ke-hoach-nam", "/bao-cao-tong-hop",
+    "/thong-ke/tinh-trang-nop", "/thong-ke/thu-mua", "/thong-ke/tieu-thu", "/thong-ke/ton-kho",
     "/goi-y-gia-san", "/ban-tin-bien-dong", "/tro-ly-ai", "/ban-tin/tuan", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
     "/quan-tri/lich-chay", "/quan-tri/nhat-ky", "/ho-so",
   ];

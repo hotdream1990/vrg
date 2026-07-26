@@ -1,0 +1,60 @@
+"""Quy tắc & tiện ích DÙNG CHUNG cho các bảng thống kê (lọc · gộp nhóm · bình quân).
+
+Quy tắc số liệu (giữ đúng như biểu mẫu & form nhập):
+- Sản lượng, doanh thu: **cộng dồn**.
+- Giá: **bình quân gia quyền theo sản lượng** (không phải trung bình cộng).
+- Giá mủ nước/mủ chén tính theo **đồng/độ** (TSC hoặc DRC), giá thành phẩm & giá bán theo
+  **triệu đ/tấn** — KHÔNG quy đổi chéo, mỗi loại một chỉ tiêu bình quân riêng.
+- Dòng nhập USD mà thiếu tỷ giá → KHÔNG tính vào doanh thu/giá BQ và được **cảnh báo** (không đoán số).
+"""
+
+from __future__ import annotations
+
+from typing import Callable
+
+from app.services.unit_report_rows import MATERIAL_LABELS, SOURCE_LABELS
+
+CONTRACT_LABELS = {"long_term": "HĐ dài hạn", "spot": "HĐ chuyến"}
+CHANNEL_LABELS = {"export": "XK / UTXK", "domestic": "Nội tiêu"}
+
+#: group_by → hàm lấy nhãn nhóm của 1 dòng chi tiết.
+GROUPERS: dict[str, Callable[[dict], str | None]] = {
+    "company": lambda r: r.get("company"),
+    "region": lambda r: r.get("region") or "(Chưa gán khu vực)",
+    "day": lambda r: r.get("as_of"),
+    "grade": lambda r: r.get("grade"),
+    "material": lambda r: MATERIAL_LABELS.get(r.get("material") or ""),
+    "contract": lambda r: CONTRACT_LABELS.get(r.get("contract") or ""),
+    "channel": lambda r: CHANNEL_LABELS.get(r.get("channel") or ""),
+    "source": lambda r: SOURCE_LABELS.get(r.get("source") or ""),
+}
+
+
+def split_csv(csv: str | None) -> list[str] | None:
+    """'a,b' → ['a','b'] (rỗng/None → None = không lọc)."""
+    if not csv:
+        return None
+    vals = [s.strip() for s in csv.split(",") if s.strip()]
+    return vals or None
+
+
+def filter_scope(rows: list[dict], companies: list[str] | None, regions: list[str] | None) -> list[dict]:
+    """Lọc theo đơn vị + khu vực (dùng chung cho mọi bảng)."""
+    out = rows
+    if companies:
+        keep = set(companies)
+        out = [r for r in out if r["company"] in keep]
+    if regions:
+        keep = set(regions)
+        out = [r for r in out if (r.get("region") or "") in keep]
+    return out
+
+
+def avg(total: float, qty: float) -> float | None:
+    return (total / qty) if qty else None
+
+
+def sort_groups(groups: dict[str, dict], group_by: str) -> list[dict]:
+    """Ngày → tăng dần; còn lại → theo nhãn (A→Z)."""
+    key = "key" if group_by == "day" else "label"
+    return sorted(groups.values(), key=lambda g: g[key])

@@ -66,12 +66,22 @@ export type YearPlanData = { year: number; units: string[]; plans: Record<string
 
 const J = { "Content-Type": "application/json" };
 
+/** Bộ lọc thời gian timeline: preset `days` (mặc định) hoặc khoảng TỰ CHỌN `{from, to}`. */
+export type TimelineRange = { days: number } | { from: string; to: string };
+
+const timelineQuery = (kind: Kind, r: TimelineRange): string => {
+  const p = new URLSearchParams({ kind });
+  if ("days" in r) p.set("days", String(r.days));
+  else { p.set("date_from", r.from); p.set("date_to", r.to); }
+  return p.toString();
+};
+
 // ── Đơn vị thành viên (chỉ đơn vị được gán) ──
 export const fetchMyDay = (kind: Kind, asOf: string) =>
   apiFetch<DayData>(`/api/member/daily-report?kind=${kind}&as_of=${asOf}`);
 
-export const fetchMyDailyTimeline = (kind: Kind, days = 90) =>
-  apiFetch<Timeline>(`/api/member/daily-report/timeline?kind=${kind}&days=${days}`);
+export const fetchMyDailyTimeline = (kind: Kind, range: TimelineRange = { days: 90 }) =>
+  apiFetch<Timeline>(`/api/member/daily-report/timeline?${timelineQuery(kind, range)}`);
 
 export const saveMyDaily = (kind: Kind, company: string, asOf: string, fields: Values, createOnly = false) =>
   apiFetch<{ ok: boolean }>(`/api/member/daily-report`, {
@@ -83,8 +93,8 @@ export const saveMyDaily = (kind: Kind, company: string, asOf: string, fields: V
 export const fetchDay = (kind: Kind, asOf: string) =>
   apiFetch<DayData>(`/api/unit-daily/day?kind=${kind}&as_of=${asOf}`);
 
-export const fetchDailyTimeline = (kind: Kind, days = 90) =>
-  apiFetch<Timeline>(`/api/unit-daily/timeline?kind=${kind}&days=${days}`);
+export const fetchDailyTimeline = (kind: Kind, range: TimelineRange = { days: 90 }) =>
+  apiFetch<Timeline>(`/api/unit-daily/timeline?${timelineQuery(kind, range)}`);
 
 export const saveDaily = (kind: Kind, company: string, asOf: string, fields: Values, createOnly = false) =>
   apiFetch<{ ok: boolean }>(`/api/unit-daily/report`, {
@@ -115,6 +125,7 @@ export const fetchPrevStock = (role: Role, company: string, before: string) =>
 export type StockContract = StockSignedLine & {
   id?: number | null;
   company?: string;
+  region?: string | null;         // khu vực của đơn vị (chỉ có ở màn tra cứu lịch sử)
   start_date: string;             // ngày bắt đầu tồn kho 'YYYY-MM-DD'
   delivered_date?: string | null; // ngày giao THỰC TẾ (trống = chưa giao)
 };
@@ -142,16 +153,22 @@ const stockContractHistoryBase = (role: Role) =>
 export type ContractStatus = "all" | "undelivered" | "delivered";
 export type ContractHistoryFilters = {
   company?: string;      // bỏ qua khi role=member (server tự giới hạn theo đơn vị được gán)
+  regions?: string[];    // chỉ role=hq — lọc theo khu vực của đơn vị
+  grades?: string[];     // lọc theo chủng loại
   status?: ContractStatus;
   dateFrom?: string;
   dateTo?: string;
   q?: string;
 };
-export type ContractHistoryData = { units: string[]; contracts: StockContract[] };
+export type ContractHistoryData = {
+  units: string[]; regions?: string[]; grades?: string[]; contracts: StockContract[];
+};
 
 export function fetchStockContractHistory(role: Role, f: ContractHistoryFilters = {}): Promise<ContractHistoryData> {
   const p = new URLSearchParams();
   if (role !== "member" && f.company) p.set("company", f.company);
+  if (role !== "member" && f.regions?.length) p.set("regions", f.regions.join(","));
+  if (f.grades?.length) p.set("grades", f.grades.join(","));
   if (f.status && f.status !== "all") p.set("status", f.status);
   if (f.dateFrom) p.set("date_from", f.dateFrom);
   if (f.dateTo) p.set("date_to", f.dateTo);

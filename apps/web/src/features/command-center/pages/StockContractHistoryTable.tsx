@@ -28,7 +28,11 @@ const priceCell = (r: StockContract): string => {
 
 export default function StockContractHistoryTable({ role, rows, showCompany, loading }: Props) {
   const columns: ColumnsType<StockContract> = [
-    ...(showCompany ? [{ title: "Đơn vị", dataIndex: "company", key: "company", width: 170 }] : []),
+    ...(showCompany ? [
+      { title: "Khu vực", dataIndex: "region", key: "region", width: 120,
+        render: (v: string | null) => v || "—" },
+      { title: "Đơn vị", dataIndex: "company", key: "company", width: 170 },
+    ] : []),
     { title: "Số HĐ/PL", dataIndex: "code", key: "code", render: (v: string | null) => v || "—" },
     { title: "Chủng loại", dataIndex: "grade", key: "grade" },
     { title: "SL (tấn)", dataIndex: "qty", key: "qty", align: "right",

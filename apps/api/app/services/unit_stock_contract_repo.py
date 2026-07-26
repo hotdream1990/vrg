@@ -88,12 +88,12 @@ def clean(row: dict, company: str) -> dict[str, Any]:
 def list_contracts(companies: list[str] | None = None, as_of: str | None = None,
                    include_delivered: bool = True, date_from: str | None = None,
                    date_to: str | None = None, status: str | None = None,
-                   q: str | None = None) -> list[dict[str, Any]]:
+                   q: str | None = None, grades: list[str] | None = None) -> list[dict[str, Any]]:
     """Danh sách hợp đồng. `as_of` → chỉ hợp đồng ĐANG TỒN ngày đó; `companies` → lọc đơn vị.
 
     Bộ lọc cho màn LỊCH SỬ (dùng khi KHÔNG có `as_of`): `status` ('undelivered' | 'delivered',
-    None/khác = tất cả), `date_from`/`date_to` lọc theo Ngày bắt đầu tồn kho, `q` tìm theo
-    Số HĐ/PL hoặc Chủng loại (không phân biệt hoa/thường).
+    None/khác = tất cả), `date_from`/`date_to` lọc theo Ngày bắt đầu tồn kho, `grades` lọc theo
+    chủng loại, `q` tìm theo Số HĐ/PL hoặc Chủng loại (không phân biệt hoa/thường).
     """
     ensure_schema()
     where, params = ["1 = 1"], {}
@@ -118,6 +118,9 @@ def list_contracts(companies: list[str] | None = None, as_of: str | None = None,
     if date_to:
         where.append("start_date <= CAST(:dt AS date)")
         params["dt"] = date_to
+    if grades:
+        where.append("grade = ANY(:gs)")
+        params["gs"] = list(grades)
     if q:
         where.append("(code ILIKE :q OR grade ILIKE :q)")
         params["q"] = f"%{q}%"

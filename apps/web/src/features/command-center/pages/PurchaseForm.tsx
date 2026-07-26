@@ -8,13 +8,16 @@
 import { Checkbox, Select, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
+import { PRICE_CUP, PRICE_LATEX, TONNES_DAILY } from "../../../lib/entry-bounds";
 import { fetchVcbRate } from "../../../lib/market-quote-client";
 import { HINT_DAILY_EVENT } from "../../../lib/unit-daily-entry-hints";
 import type { CupBasis, PriceDraft, UnitPurchasePrice } from "../../../lib/unit-daily-client";
 import { type Values, fmtNum } from "../../../lib/unit-daily-fields";
 import { type FinishedLine, finishedTotals } from "../../../lib/unit-daily-purchase";
+import { type PurchaseValues, purchaseWarnings } from "../../../lib/unit-daily-warnings";
+import EntryWarnBanner from "../sections/EntryWarnBanner";
 import FinishedPurchaseTable from "./FinishedPurchaseTable";
-import { TON_WARN_ABOVE, fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
+import { fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
 
 type Props = {
   values: Values;
@@ -142,8 +145,15 @@ export default function PurchaseForm({
     <label style={{ display: "block" }}>{fieldLabel(label, unit)}{node}</label>
   );
 
+  // Gom cảnh báo về đầu form. Ngày không tổ chức thu mua thì mọi ô để trống → không nhắc gì.
+  const warnings = useMemo(
+    () => (readOnly || noPurchase ? [] : purchaseWarnings({ ...draft, finished } as PurchaseValues)),
+    [draft, finished, readOnly, noPurchase],
+  );
+
   return (
     <div>
+      <EntryWarnBanner items={warnings} />
       <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8,
                     background: "rgba(125,125,125,.08)", border: "1px solid rgba(125,125,125,.2)" }}>
         <Checkbox checked={noPurchase} disabled={readOnly}
@@ -161,18 +171,18 @@ export default function PurchaseForm({
 
       <div style={{ ...gridStyle, opacity: noPurchase ? 0.5 : 1 }}>
         {head("Mủ nước", true, HINT_DAILY_EVENT)}
-        {field("Sản lượng thu mua", "tấn", numInput(num(draft.latex_wet), (v) => set("latex_wet", v), readOnly, undefined, TON_WARN_ABOVE))}
+        {field("Sản lượng thu mua", "tấn", numInput(num(draft.latex_wet), (v) => set("latex_wet", v), readOnly, undefined, TONNES_DAILY))}
         {foreign ? (
           <>
             {field("Đơn giá thu mua", `${currency}/độ TSC`, numInput(num(draft.price_latex_local), (v) => set("price_latex_local", v), readOnly))}
             {field("Đơn giá thu mua", "đồng/độ TSC", readOnlyBox(fmtNum(priceLatexVnd, 0), "tự quy đổi"))}
           </>
         ) : (
-          field("Đơn giá thu mua", "đồng/độ TSC", numInput(num(draft.price_latex_vnd), (v) => set("price_latex_vnd", v), readOnly))
+          field("Đơn giá thu mua", "đồng/độ TSC", numInput(num(draft.price_latex_vnd), (v) => set("price_latex_vnd", v), readOnly, undefined, PRICE_LATEX))
         )}
 
         {head("Mủ chén", false, HINT_DAILY_EVENT)}
-        {field("Sản lượng thu mua", "tấn", numInput(num(draft.coagulum), (v) => set("coagulum", v), readOnly, undefined, TON_WARN_ABOVE))}
+        {field("Sản lượng thu mua", "tấn", numInput(num(draft.coagulum), (v) => set("coagulum", v), readOnly, undefined, TONNES_DAILY))}
         {/* Mủ chén tính theo độ TSC hoặc độ DRC — đơn vị tự chọn, đổi luôn nhãn các ô đơn giá bên dưới. */}
         {field("Đơn giá tính theo", undefined, (
           <Select size="small" style={{ width: "100%" }} value={cupBasis} disabled={readOnly}
@@ -184,7 +194,7 @@ export default function PurchaseForm({
             {field("Đơn giá thu mua", `đồng/${cupUnit}`, readOnlyBox(fmtNum(priceCupVnd, 0), "tự quy đổi"))}
           </>
         ) : (
-          field("Đơn giá thu mua", `đồng/${cupUnit}`, numInput(num(draft.price_cup_vnd), (v) => set("price_cup_vnd", v), readOnly))
+          field("Đơn giá thu mua", `đồng/${cupUnit}`, numInput(num(draft.price_cup_vnd), (v) => set("price_cup_vnd", v), readOnly, undefined, PRICE_CUP))
         )}
 
         {foreign && (

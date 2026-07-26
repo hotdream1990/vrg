@@ -100,10 +100,12 @@ export default function UnitDailyEditModal(
     }
   };
 
-  // Biểu Tiêu thụ–Tồn kho nhiều cột hơn (loại tiền · tỷ giá · ngày HĐ · file) → cần modal rộng hơn.
+  // Bề rộng bám theo màn hình để có nhiều chỗ nhập nhất có thể (96% bề ngang, chặn trần cho màn siêu rộng);
+  // biểu Tiêu thụ–Tồn kho nhiều cột hơn (loại tiền · tỷ giá · ngày HĐ · file) nên rộng hơn biểu Thu mua.
+  const width = kind === "consumption" ? "min(1680px, 96vw)" : "min(1240px, 92vw)";
   return (
     <Modal open={open} onCancel={onClose} footer={null}
-           width={kind === "consumption" ? 1180 : 880} destroyOnHidden
+           width={width} destroyOnHidden
            title={`Nhập số liệu — ${KIND_LABEL[kind]}`}>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
         <DateInput value={day} onChange={setDay} noFuture style={{ width: 190 }} />

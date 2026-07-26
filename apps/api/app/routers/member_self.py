@@ -14,7 +14,9 @@ from fastapi.responses import FileResponse
 
 from app.core import edit_window
 from app.core.feature_flags import require_excel_import
+from app.core.market_meta import UNIT_STOCK_GRADES
 from app.core.security import get_current_member
+from app.routers.unit_daily import resolve_timeline_range
 from app.schemas.market_demand import MarketDemandEdit
 from app.schemas.member_self import MemberPriceEdit
 from app.schemas.unit_daily import (
@@ -24,6 +26,7 @@ from app.services import (
     contract_files, market_demand_repo, member_unit_repo, price_repo, unit_daily_excel_io,
     unit_daily_repo, unit_stock_contract_repo,
 )
+from app.services.unit_report_query import split_csv
 
 router = APIRouter(prefix="/api/member", tags=["member-self"])
 _excel = [Depends(require_excel_import)]  # nhập Excel đang tạm tắt (app/core/feature_flags.py)
@@ -123,12 +126,15 @@ def upsert_my_market_demand(body: MarketDemandEdit,
 @router.get("/daily-report/timeline")
 def my_daily_timeline(kind: str = Query(..., pattern="^(purchase|consumption)$"),
                       days: int = Query(90, ge=1, le=730),
+                      date_from: str | None = Query(None, description="Từ ngày 'YYYY-MM-DD' — khoảng tự chọn (kèm date_to)"),
+                      date_to: str | None = Query(None, description="Đến ngày 'YYYY-MM-DD' — khoảng tự chọn (kèm date_from)"),
                       member: dict = Depends(get_current_member)) -> dict:
-    """Timeline báo cáo — CHỈ các đơn vị được gán (đa đơn vị), ẩn ngày trống."""
+    """Timeline báo cáo — CHỈ các đơn vị được gán (đa đơn vị), ẩn ngày trống.
+    Mặc định `days` ngày gần nhất; truyền cả `date_from`+`date_to` → lọc theo khoảng tự chọn."""
     units = list(member["member_units"])
     today = edit_window.today()
-    date_from = (today - timedelta(days=days)).isoformat()
-    entries = unit_daily_repo.recent(kind, date_from, companies=units)
+    d_from, d_to = resolve_timeline_range(days, date_from, date_to, today)
+    entries = unit_daily_repo.recent(kind, d_from, companies=units, date_to=d_to)
     unit_daily_repo.attach_purchase_prices(entries, kind)
     return {"today": today.isoformat(), "edit_window_days": edit_window.member_window(),
             "units": units, "plans": unit_daily_repo.plans_for_year(today.year),
@@ -192,6 +198,7 @@ def my_stock_contracts(as_of: str | None = Query(None, description="Chỉ HĐ đ
 def my_stock_contract_history(status: str = Query("all", pattern="^(all|undelivered|delivered)$"),
                               date_from: str | None = Query(None, description="Từ ngày 'YYYY-MM-DD'"),
                               date_to: str | None = Query(None, description="Đến ngày 'YYYY-MM-DD'"),
+                              grades: str | None = Query(None, description="Chủng loại, phân cách dấu phẩy"),
                               q: str | None = Query(None, max_length=120),
                               member: dict = Depends(get_current_member)) -> dict:
     """Lịch sử TOÀN BỘ hợp đồng đã ký của CÁC đơn vị được gán (kể cả đã giao)."""
@@ -204,9 +211,9 @@ def my_stock_contract_history(status: str = Query("all", pattern="^(all|undelive
     units = list(member["member_units"])
     contracts = unit_stock_contract_repo.list_contracts(
         companies=units, status=None if status == "all" else status,
-        date_from=date_from, date_to=date_to, q=q)
+        date_from=date_from, date_to=date_to, q=q, grades=split_csv(grades))
     contracts.sort(key=lambda c: (c["start_date"] or "", c["id"] or 0), reverse=True)
-    return {"units": units, "contracts": contracts}
+    return {"units": units, "grades": list(UNIT_STOCK_GRADES), "contracts": contracts}
 
 
 @router.put("/stock-contracts")

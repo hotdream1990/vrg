@@ -1,7 +1,8 @@
 """Repository Đơn vị thành viên (member_unit) — danh sách công ty cho Giá mủ nguyên liệu.
 
 Thay cho hardcode: quản lý động (thêm/đổi tên/ẩn/sắp xếp/xoá). Lazy-seed từ VRG_COMPANIES.
-Đổi tên đơn vị → migrate luôn fact_price.grade (source=vrg) để không mất lịch sử giá.
+Đổi tên đơn vị → chuyển theo MỌI dữ liệu gắn theo tên đơn vị (giá mủ, báo cáo ngày, hợp đồng
+tồn kho, kế hoạch năm, nhu cầu thị trường, danh sách đơn vị của tài khoản) — xem `rename_unit`.
 """
 
 from __future__ import annotations
@@ -86,8 +87,18 @@ def add_unit(name: str) -> None:
         audit_repo.log("member_unit", "create", name, after=_snapshot(name), company=name)
 
 
+# Các bảng số liệu gắn theo TÊN ĐƠN VỊ ở cột `company` — đổi tên đơn vị phải chuyển hết sang tên mới.
+_COMPANY_TABLES = ("unit_daily_report", "unit_stock_contract", "unit_purchase_plan", "market_demand")
+
+
 def rename_unit(old: str, new: str) -> None:
-    """Đổi tên đơn vị + migrate fact_price.grade (source=vrg) để giữ lịch sử giá."""
+    """Đổi tên đơn vị + chuyển MỌI dữ liệu đang gắn theo tên đơn vị sang tên mới.
+
+    Tên đơn vị chính là khoá liên kết của: giá mủ nguyên liệu (fact_price.grade), báo cáo ngày,
+    hợp đồng tồn kho, kế hoạch năm, nhu cầu thị trường và danh sách đơn vị của tài khoản thành viên
+    (app_user.member_units). Bỏ sót bảng nào thì dữ liệu bảng đó thành mồ côi — riêng member_units
+    còn làm đơn vị **mất quyền vào chính đơn vị của mình** sau khi đổi tên.
+    """
     ensure_schema()
     new = new.strip()
     if not new or new == old:
@@ -103,8 +114,20 @@ def rename_unit(old: str, new: str) -> None:
                  "AND price_type IN ('purchase', 'purchase_cup') AND grade = :old"),
             {"new": new, "old": old},
         )
+        for tbl in _COMPANY_TABLES:
+            db.execute(text(f"UPDATE {tbl} SET company = :new WHERE company = :old"),
+                       {"new": new, "old": old})
+        # Tài khoản đơn vị thành viên giữ danh sách đơn vị dạng mảng jsonb → thay đúng phần tử cũ.
+        db.execute(
+            text("UPDATE app_user SET member_units = ("
+                 "  SELECT jsonb_agg(CASE WHEN u = to_jsonb(CAST(:old AS text)) "
+                 "                        THEN to_jsonb(CAST(:new AS text)) ELSE u END) "
+                 "    FROM jsonb_array_elements(member_units) u) "
+                 "WHERE member_units @> jsonb_build_array(CAST(:old AS text))"),
+            {"new": new, "old": old},
+        )
     audit_repo.log("member_unit", "update", new, before=before, after=_snapshot(new),
-                   company=new, note=f"Đổi tên: {old} → {new} (lịch sử giá chuyển theo)")
+                   company=new, note=f"Đổi tên: {old} → {new} (số liệu & tài khoản chuyển theo)")
 
 
 def set_active(name: str, active: bool) -> None:

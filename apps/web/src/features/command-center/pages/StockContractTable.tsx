@@ -11,10 +11,11 @@ import {
   type Role, type StockContract, deleteStockContract, fetchStockContracts, saveStockContract,
 } from "../../../lib/unit-daily-client";
 import { docsOf, docsPatch } from "../../../lib/contract-docs";
-import { CCYS, GRADES, type Ccy, lineRevenueVnd } from "../../../lib/unit-daily-consumption";
+import { FX_USD_VND, TONNES_STOCK, fxWarning, priceBound } from "../../../lib/entry-bounds";
+import { CCYS, GRADES, type Ccy, lineRevenueVnd, priceUnitOf } from "../../../lib/unit-daily-consumption";
 import { fmtNum } from "../../../lib/unit-daily-fields";
 import ContractFilesCell from "../sections/ContractFilesCell";
-import { TON_WARN_ABOVE, numInput } from "./unit-daily-inputs";
+import { numInput } from "./unit-daily-inputs";
 
 type Row = StockContract & { _key: number; _dirty?: boolean };
 
@@ -110,15 +111,19 @@ export default function StockContractTable({ role, company, day, readOnly, fallb
                     <Input size="small" style={cell} value={r.code ?? ""} placeholder="Số HĐ/PL"
                       disabled={readOnly} onChange={(e) => patch(r._key, { code: e.target.value || null })} />
                   </td>
-                  <td>{numInput(num(r.qty), (v) => patch(r._key, { qty: v }), readOnly, "small", TON_WARN_ABOVE)}</td>
-                  <td>{numInput(num(r.price), (v) => patch(r._key, { price: v }), readOnly, "small")}</td>
+                  <td>{numInput(num(r.qty), (v) => patch(r._key, { qty: v }), readOnly, "small", TONNES_STOCK)}</td>
+                  {/* Đơn giá đổi đơn vị theo loại tiền của DÒNG → nhãn phải nằm ở ô, không nằm ở <th>. */}
+                  <td>
+                    {numInput(num(r.price), (v) => patch(r._key, { price: v }), readOnly, "small", priceBound(r.ccy))}
+                    <div className="ud-unit-hint">{priceUnitOf(r.ccy ?? "VND")}</div>
+                  </td>
                   <td>
                     <Select size="small" style={cell} value={r.ccy ?? "VND"} disabled={readOnly}
                       onChange={(v: Ccy) => patch(r._key, { ccy: v })} options={CCYS} />
                   </td>
                   <td>
                     {(r.ccy ?? "VND") === "USD"
-                      ? numInput(num(r.fx), (v) => patch(r._key, { fx: v }), readOnly, "small")
+                      ? numInput(num(r.fx), (v) => patch(r._key, { fx: v }), readOnly, "small", FX_USD_VND, fxWarning(r))
                       : <span style={{ fontSize: 11.5, color: "var(--muted)" }}>—</span>}
                   </td>
                   <td className="r" style={{ paddingRight: 6, fontWeight: 600, whiteSpace: "nowrap" }}>

@@ -21,6 +21,8 @@ export default function StockContractHistoryPage() {
 
   const [filters, setFilters] = useState<ContractHistoryFilters>({ status: "all" });
   const [units, setUnits] = useState<string[]>([]);
+  const [regions, setRegions] = useState<string[]>([]);
+  const [grades, setGrades] = useState<string[]>([]);
   const [rows, setRows] = useState<StockContract[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -29,6 +31,8 @@ export default function StockContractHistoryPage() {
     fetchStockContractHistory(role, filters)
       .then((d) => {
         setUnits(d.units);
+        setRegions(d.regions ?? []);
+        setGrades(d.grades ?? []);
         // Endpoint của đơn vị thành viên không nhận tham số `company` (server đã tự giới hạn theo
         // đơn vị được gán) — lọc thêm ở CLIENT cho tài khoản gán nhiều đơn vị.
         setRows(role === "member" && filters.company
@@ -59,8 +63,8 @@ export default function StockContractHistoryPage() {
       </div>
 
       <StockContractHistoryFilters
-        units={units} showCompany={showCompany} value={filters} onChange={setFilters}
-        onReload={load} loading={loading}
+        units={units} regions={regions} grades={grades} showCompany={showCompany}
+        value={filters} onChange={setFilters} onReload={load} loading={loading}
       />
 
       <div style={{ marginTop: 14 }}>

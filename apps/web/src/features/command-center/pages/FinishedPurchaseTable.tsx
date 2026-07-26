@@ -4,10 +4,11 @@
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { Select } from "antd";
 
-import { CCYS, GRADES, type Ccy } from "../../../lib/unit-daily-consumption";
+import { FX_USD_VND, TONNES_DAILY, fxWarning, priceBound } from "../../../lib/entry-bounds";
+import { CCYS, GRADES, type Ccy, priceUnitOf } from "../../../lib/unit-daily-consumption";
 import { type FinishedLine, emptyFinishedLine, finishedLineVnd } from "../../../lib/unit-daily-purchase";
 import { fmtNum } from "../../../lib/unit-daily-fields";
-import { TON_WARN_ABOVE, numInput } from "./unit-daily-inputs";
+import { numInput } from "./unit-daily-inputs";
 
 type Props = {
   rows: FinishedLine[];
@@ -44,15 +45,19 @@ export default function FinishedPurchaseTable({ rows, setRows, readOnly }: Props
                     disabled={readOnly} showSearch onChange={(v) => patch(i, { grade: v })}
                     options={GRADES.map((g) => ({ value: g, label: g }))} />
                 </td>
-                <td>{numInput(num(ln.qty), (v) => patch(i, { qty: v }), readOnly, "small", TON_WARN_ABOVE)}</td>
-                <td>{numInput(num(ln.price), (v) => patch(i, { price: v }), readOnly, "small")}</td>
+                <td>{numInput(num(ln.qty), (v) => patch(i, { qty: v }), readOnly, "small", TONNES_DAILY)}</td>
+                {/* Đơn giá đổi đơn vị theo loại tiền của DÒNG → nhãn phải nằm ở ô, không nằm ở <th>. */}
+                <td>
+                  {numInput(num(ln.price), (v) => patch(i, { price: v }), readOnly, "small", priceBound(ln.ccy))}
+                  <div className="ud-unit-hint">{priceUnitOf(ln.ccy ?? "VND")}</div>
+                </td>
                 <td>
                   <Select size="small" style={cell} value={ln.ccy ?? "VND"} disabled={readOnly}
                     onChange={(v: Ccy) => patch(i, { ccy: v })} options={CCYS} />
                 </td>
                 <td>
                   {(ln.ccy ?? "VND") === "USD"
-                    ? numInput(num(ln.fx), (v) => patch(i, { fx: v }), readOnly, "small")
+                    ? numInput(num(ln.fx), (v) => patch(i, { fx: v }), readOnly, "small", FX_USD_VND, fxWarning(ln))
                     : <span style={{ fontSize: 11.5, color: "var(--muted)" }}>—</span>}
                 </td>
                 <td className="r" style={{ paddingRight: 6, fontWeight: 600, whiteSpace: "nowrap" }}>

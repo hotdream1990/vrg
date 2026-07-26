@@ -3,11 +3,8 @@
 
 import { InputNumber, Tooltip } from "antd";
 
+import { type Bound, boundWarning } from "../../../lib/entry-bounds";
 import { formatViNumber } from "../../../lib/number-format";
-
-/** Ngưỡng cảnh báo cho ô nhập theo TẤN: >1.000 tấn/ngày cho 1 đơn vị là bất thường (dễ nhầm kg
-    hoặc dư số 0) → viền cam + tooltip nhắc kiểm tra (chỉ cảnh báo, không chặn lưu). */
-export const TON_WARN_ABOVE = 1000;
 
 // Dùng chung 1 nguồn định dạng số vi-VN (giữ nguyên chữ ký để antd suy kiểu InputNumber<string>).
 export const fmtInput = (v?: string | number): string => formatViNumber(v);
@@ -26,14 +23,17 @@ export const readOnlyBox = (text: string, tag: string) => (
 
 /** Ô nhập số (vi-VN). `size="small"` cho ô nằm TRONG BẢNG — để cao bằng Select/nút cùng dòng
     (mặc định của antd là 32px, lệch hẳn so với Select size="small" 24px).
-    `warnAbove` (tuỳ chọn): giá trị > ngưỡng → viền cam (status="warning") + tooltip. Chỉ cột TẤN mới
-    truyền (xem `TON_WARN_ABOVE`). Cách bọc GIỮ NGUYÊN cây phần tử (warnAbove là hằng theo ô) để đổi
-    trạng thái không remount input → không mất focus khi đang gõ vượt ngưỡng; chỉ đổi màu viền, không lệch layout. */
+    `bound` (tuỳ chọn): số ra ngoài khoảng thường gặp → viền cam (status="warning") + tooltip nói rõ
+    đơn vị tính (xem `lib/entry-bounds.ts`). CHỈ CẢNH BÁO — không chặn gõ, không chặn lưu.
+    `warn` (tuỳ chọn): lời cảnh báo ép sẵn, dùng cho lỗi mà bản thân con số không nói lên được —
+    vd ô TRỐNG vẫn phải cảnh báo (dòng USD chưa nhập tỷ giá). Ưu tiên hơn `bound`.
+    Cách bọc GIỮ NGUYÊN cây phần tử để lúc cảnh báo bật/tắt không remount input → không mất focus
+    khi đang gõ; chỉ đổi màu viền, không lệch layout. */
 export const numInput = (
   value: number | null, onChange: (v: number | null) => void, readOnly?: boolean,
-  size?: "small", warnAbove?: number | null,
+  size?: "small", bound?: Bound | null, warnText?: string | null,
 ) => {
-  const over = warnAbove != null && value != null && value > warnAbove;
+  const warn = warnText ?? boundWarning(value, bound);
   const el = (
     <InputNumber
       value={value}
@@ -42,19 +42,15 @@ export const numInput = (
       size={size}
       controls={false}
       min={0}
-      status={over ? "warning" : undefined}
+      status={warn ? "warning" : undefined}
       formatter={fmtInput}
       parser={parseInput}
       style={{ width: "100%" }}
       placeholder="—"
     />
   );
-  if (warnAbove == null) return el;
-  return (
-    <Tooltip title={over ? `Sản lượng vượt ${formatViNumber(warnAbove)} tấn — kiểm tra lại (đơn vị tính là TẤN, không phải kg)` : ""}>
-      {el}
-    </Tooltip>
-  );
+  if (bound == null && warnText === undefined) return el;
+  return <Tooltip title={warn ?? ""}>{el}</Tooltip>;
 };
 
 /** Nhãn ô + đơn vị (dùng chung). */

@@ -108,16 +108,21 @@ def entries_on(kind: str, as_of: str) -> dict[str, dict[str, Any]]:
     return entries
 
 
-def recent(kind: str, date_from: str, companies: list[str] | None = None) -> list[dict[str, Any]]:
-    """Các bản ghi CÓ số liệu từ ngày `date_from` → nay (ngày giảm dần) — cho timeline.
+def recent(kind: str, date_from: str, companies: list[str] | None = None,
+           date_to: str | None = None) -> list[dict[str, Any]]:
+    """Các bản ghi CÓ số liệu trong khoảng [date_from, date_to] (date_to=None → tới nay), ngày giảm dần — cho timeline.
     `companies`=None → mọi đơn vị (chuyên viên); có danh sách → chỉ các đơn vị đó (đơn vị thành viên)."""
     ensure_schema()
+    where = ["kind = :k", "as_of >= CAST(:d AS date)", "payload <> '{}'::jsonb"]
+    params: dict[str, Any] = {"k": kind, "d": date_from}
+    if date_to:
+        where.append("as_of <= CAST(:dt AS date)")
+        params["dt"] = date_to
     with session_scope() as db:
         rows = db.execute(
             text("SELECT as_of, company, payload, updated_at, updated_by FROM unit_daily_report "
-                 "WHERE kind = :k AND as_of >= :d AND payload <> '{}'::jsonb "
-                 "ORDER BY as_of DESC, company"),
-            {"k": kind, "d": date_from},
+                 f"WHERE {' AND '.join(where)} ORDER BY as_of DESC, company"),
+            params,
         ).mappings().all()
     keep = set(companies) if companies is not None else None
     out = [{"as_of": str(r["as_of"]), "company": r["company"], "fields": dict(r["payload"] or {}),

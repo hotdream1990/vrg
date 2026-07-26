@@ -7,14 +7,15 @@ import { Button, Empty, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { dmy } from "../../../lib/date";
+import { daysAgoISO, dmy, todayISO } from "../../../lib/date";
 import { dataColumns } from "../../../lib/unit-daily-columns";
 import {
-  type Timeline, type TimelineRow, fetchMyDailyTimeline, fetchDailyTimeline,
+  type Timeline, type TimelineRange, type TimelineRow, fetchMyDailyTimeline, fetchDailyTimeline,
 } from "../../../lib/unit-daily-client";
 import type { Kind } from "../../../lib/unit-daily-fields";
 
 const DAY_RANGES = [30, 60, 90, 180];
+const CUSTOM = "custom";   // giá trị select cho "khoảng tự chọn"
 
 type Row = TimelineRow & { key: string; _daySpan: number };
 
@@ -29,17 +30,31 @@ type Props = {
 };
 
 export default function UnitDailyTimeline({ kind, role, canEdit, refreshKey, onEdit, onAdd }: Props) {
-  const [days, setDays] = useState(90);
+  const [range, setRange] = useState<TimelineRange>({ days: 90 });   // bộ lọc ĐANG áp dụng (tải dữ liệu)
+  const [custom, setCustom] = useState(false);                       // đang chọn "khoảng tự chọn"?
+  const [from, setFrom] = useState(() => daysAgoISO(30));
+  const [to, setTo] = useState(() => todayISO());
   const [data, setData] = useState<Timeline | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
   const load = useCallback(() => {
     setLoading(true); setErr("");
-    (role === "member" ? fetchMyDailyTimeline : fetchDailyTimeline)(kind, days)
+    (role === "member" ? fetchMyDailyTimeline : fetchDailyTimeline)(kind, range)
       .then(setData).catch((e) => setErr(e.message)).finally(() => setLoading(false));
-  }, [role, kind, days]);
+  }, [role, kind, range]);
   useEffect(() => { load(); }, [load, refreshKey]);
+
+  const onPreset = (v: string) => {
+    if (v === CUSTOM) { setCustom(true); return; }   // chờ bấm "Xem" mới tải, giữ nguyên bảng hiện tại
+    setCustom(false); setRange({ days: Number(v) });
+  };
+  const applyCustom = () => {
+    if (!from || !to) { setErr("Vui lòng chọn đủ từ ngày và đến ngày."); return; }
+    if (from > to) { setErr("Khoảng ngày không hợp lệ: từ ngày sau đến ngày."); return; }
+    setErr(""); setRange({ from, to });
+  };
+  const selValue = custom ? CUSTOM : String("days" in range ? range.days : 90);
 
   // Rows theo thứ tự backend (ngày DESC, đơn vị); tính rowSpan gộp ô "Ngày".
   const rows = useMemo<Row[]>(() => {
@@ -78,11 +93,22 @@ export default function UnitDailyTimeline({ kind, role, canEdit, refreshKey, onE
       {err && <div className="blt-error">{err}</div>}
       <div className="card" style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
         <label className="blt-date-label">Khoảng thời gian:
-          <select className="blt-date-input" style={{ marginLeft: 8 }} value={days}
-                  onChange={(e) => setDays(Number(e.target.value))}>
+          <select className="blt-date-input" style={{ marginLeft: 8 }} value={selValue}
+                  onChange={(e) => onPreset(e.target.value)}>
             {DAY_RANGES.map((d) => <option key={d} value={d}>{d} ngày gần nhất</option>)}
+            <option value={CUSTOM}>Tùy chọn khoảng ngày…</option>
           </select>
         </label>
+        {custom && (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <input type="date" className="blt-date-input" value={from} max={to || todayISO()}
+                   onChange={(e) => setFrom(e.target.value)} />
+            <span style={{ color: "var(--muted)" }}>→</span>
+            <input type="date" className="blt-date-input" value={to} min={from} max={todayISO()}
+                   onChange={(e) => setTo(e.target.value)} />
+            <button className="btn btn-primary" onClick={applyCustom}>Xem</button>
+          </div>
+        )}
         {canEdit && (
           <button className="btn btn-primary" onClick={onAdd}
                   style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>

@@ -8,6 +8,7 @@ import BulletinDetailPage from "./features/command-center/pages/BulletinDetailPa
 import BulletinListPage from "./features/command-center/pages/BulletinListPage";
 import BulletinPage from "./features/command-center/pages/BulletinPage";
 import DashboardPage from "./features/command-center/pages/DashboardPage";
+import EntryWarnPreview from "./features/command-center/pages/EntryWarnPreview";
 import FloorSuggestPage from "./features/command-center/pages/FloorSuggestPage";
 import FxRatePage from "./features/command-center/pages/FxRatePage";
 import InventoryPage from "./features/command-center/pages/InventoryPage";
@@ -25,6 +26,10 @@ import SchedulePage from "./features/command-center/pages/SchedulePage";
 import StockContractHistoryPage from "./features/command-center/pages/StockContractHistoryPage";
 import SystemConfigPage from "./features/command-center/pages/SystemConfigPage";
 import PeriodReportPage from "./features/command-center/pages/PeriodReportPage";
+import ConsumptionStatsPage from "./features/command-center/pages/analytics/ConsumptionStatsPage";
+import PurchaseStatsPage from "./features/command-center/pages/analytics/PurchaseStatsPage";
+import StockStatsPage from "./features/command-center/pages/analytics/StockStatsPage";
+import SubmissionStatusPage from "./features/command-center/pages/analytics/SubmissionStatusPage";
 import UnitDailyPage from "./features/command-center/pages/UnitDailyPage";
 import YearPlanPage from "./features/command-center/pages/YearPlanPage";
 import UserManagementPage from "./features/command-center/pages/UserManagementPage";
@@ -99,6 +104,9 @@ export default function App() {
               <Route path="/login" element={<LoginPage />} />
               {/* CÔNG KHAI — đơn vị thành viên nhập giá mủ (gác bằng mật khẩu riêng, ngoài đăng nhập) */}
               <Route path="/nhap-gia-mu" element={<PublicPurchaseInputPage />} />
+              {/* Xem thử giao diện cảnh báo nhập liệu — CHỈ DEV, bản production chuyển về trang chủ. */}
+              <Route path="/xem-thu-canh-bao"
+                element={import.meta.env.DEV ? <EntryWarnPreview /> : <Navigate to="/" replace />} />
               {/* Mọi route khác cần đăng nhập + nằm trong khung admin */}
               <Route element={<ProtectedRoute />}>
                 <Route element={<AdminLayout />}>
@@ -118,6 +126,13 @@ export default function App() {
                   <Route path="/ke-hoach-nam" element={<YearPlanRoute />} />
                   <Route path="/bao-cao-tong-hop" element={<PeriodReportRoute />} />
                   <Route path="/thong-ke-hop-dong" element={<StockContractHistoryRoute />} />
+                  {/* Thống kê / kiểm tra số liệu đơn vị đã nhập — CHỈ chuyên viên có quyền `unit_daily` */}
+                  <Route element={<RequireCap caps={["unit_daily"]} />}>
+                    <Route path="/thong-ke/thu-mua" element={<PurchaseStatsPage />} />
+                    <Route path="/thong-ke/tieu-thu" element={<ConsumptionStatsPage />} />
+                    <Route path="/thong-ke/ton-kho" element={<StockStatsPage />} />
+                    <Route path="/thong-ke/tinh-trang-nop" element={<SubmissionStatusPage />} />
+                  </Route>
                   {/* Đường dẫn cũ → giữ cho link đã lưu */}
                   <Route path="/bao-cao-tieu-thu-ton-kho" element={<Navigate to="/bao-cao-tieu-thu" replace />} />
                   {/* Số liệu tự động (quét + bảng giá sàn + tỷ giá) — quyền auto_data */}

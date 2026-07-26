@@ -14,14 +14,16 @@ from fastapi.responses import FileResponse
 
 from app.core import edit_window
 from app.core.feature_flags import require_excel_import
+from app.core.market_meta import UNIT_STOCK_GRADES
 from app.core.security import assert_editor_window, require_cap, require_cap_edit
 from app.schemas.unit_daily import (
     ExcelImportCommit, PurchasePlanEdit, StockContractEdit, UnitDailyEdit,
 )
 from app.services import (
-    contract_files, member_unit_repo, unit_daily_excel_io, unit_daily_repo,
+    contract_files, member_region_repo, member_unit_repo, unit_daily_excel_io, unit_daily_repo,
     unit_period_excel, unit_period_report, unit_stock_contract_repo,
 )
+from app.services.unit_report_query import split_csv
 
 router = APIRouter(prefix="/api/unit-daily", tags=["unit-daily"])
 _require = require_cap("unit_daily")            # đọc: mức Xem là đủ
@@ -39,6 +41,16 @@ def _assert_range(date_from: str, date_to: str) -> None:
         raise HTTPException(400, "Khoảng ngày không hợp lệ: từ ngày sau đến ngày.")
 
 
+def resolve_timeline_range(days: int, date_from: str | None, date_to: str | None,
+                           today: date) -> tuple[str, str | None]:
+    """Khoảng ngày cho timeline: đủ cả date_from+date_to → khoảng TỰ CHỌN (đã kiểm tra);
+    thiếu → mặc định `days` ngày gần nhất (không chặn trên). Dùng chung cho router chuyên viên & member."""
+    if date_from and date_to:
+        _assert_range(date_from, date_to)
+        return date_from, date_to
+    return (today - timedelta(days=days)).isoformat(), None
+
+
 def _year_of(as_of: str) -> int:
     """Năm dương lịch của ngày báo cáo — dùng khớp chỉ tiêu kế hoạch năm."""
     return date.fromisoformat(as_of).year
@@ -47,11 +59,14 @@ def _year_of(as_of: str) -> int:
 @router.get("/timeline")
 def timeline(kind: str = Query(..., pattern="^(purchase|consumption)$"),
              days: int = Query(90, ge=1, le=730),
+             date_from: str | None = Query(None, description="Từ ngày 'YYYY-MM-DD' — khoảng tự chọn (kèm date_to)"),
+             date_to: str | None = Query(None, description="Đến ngày 'YYYY-MM-DD' — khoảng tự chọn (kèm date_from)"),
              username: str = Depends(_require)) -> dict:
-    """Timeline tổng quát: các bản ghi ĐÃ có số liệu (ẩn ngày trống) trong `days` ngày gần nhất."""
+    """Timeline tổng quát: các bản ghi ĐÃ có số liệu (ẩn ngày trống).
+    Mặc định `days` ngày gần nhất; truyền cả `date_from`+`date_to` → lọc theo khoảng tự chọn."""
     today = edit_window.today()
-    date_from = (today - timedelta(days=days)).isoformat()
-    entries = unit_daily_repo.recent(kind, date_from)
+    d_from, d_to = resolve_timeline_range(days, date_from, date_to, today)
+    entries = unit_daily_repo.recent(kind, d_from, date_to=d_to)
     unit_daily_repo.attach_purchase_prices(entries, kind)
     return {
         "today": today.isoformat(),
@@ -101,6 +116,8 @@ def list_stock_contracts(as_of: str | None = Query(None, description="Chỉ HĐ 
 
 @router.get("/contracts/history")
 def contract_history(company: str | None = Query(None),
+                     regions: str | None = Query(None, description="Khu vực, phân cách dấu phẩy"),
+                     grades: str | None = Query(None, description="Chủng loại, phân cách dấu phẩy"),
                      status: str = Query("all", pattern="^(all|undelivered|delivered)$"),
                      date_from: str | None = Query(None, description="Từ ngày 'YYYY-MM-DD' (Ngày bắt đầu tồn kho)"),
                      date_to: str | None = Query(None, description="Đến ngày 'YYYY-MM-DD'"),
@@ -113,12 +130,19 @@ def contract_history(company: str | None = Query(None),
                 date.fromisoformat(v)
             except ValueError as exc:
                 raise HTTPException(400, f"{label} không hợp lệ (YYYY-MM-DD).") from exc
+    units = member_unit_repo.list_units(include_inactive=False)
+    region_of = {u["name"]: u.get("region") for u in units}
     companies = [company] if company else None
+    if companies is None and (regs := split_csv(regions)):
+        companies = [n for n, r in region_of.items() if (r or "") in set(regs)] or [""]
     contracts = unit_stock_contract_repo.list_contracts(
         companies=companies, status=None if status == "all" else status,
-        date_from=date_from, date_to=date_to, q=q)
+        date_from=date_from, date_to=date_to, q=q, grades=split_csv(grades))
+    for c in contracts:
+        c["region"] = region_of.get(c["company"])
     contracts.sort(key=lambda c: (c["start_date"] or "", c["id"] or 0), reverse=True)
-    return {"units": member_unit_repo.active_names(), "contracts": contracts}
+    return {"units": [u["name"] for u in units], "regions": member_region_repo.active_names(),
+            "grades": list(UNIT_STOCK_GRADES), "contracts": contracts}
 
 
 @router.put("/stock-contracts")
