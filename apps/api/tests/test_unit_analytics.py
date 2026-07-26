@@ -201,6 +201,28 @@ def test_stock_is_snapshot_not_sum(seeded) -> None:
     assert [r["key"] for r in by_grade["rows"]] == ["SVR 3L"]   # ngày cuối chỉ còn 1 chủng loại
 
 
+def test_stock_by_day_keeps_each_day_separate(seeded) -> None:
+    """Drill xuống NGÀY: mỗi ngày là ảnh chụp riêng; Tổng cộng lấy ngày cuối, KHÔNG cộng dồn."""
+    rep = _get("stock", seeded, companies=UNIT_A, group_by="day")
+    assert [r["key"] for r in rep["rows"]] == [D0, D1]
+    assert _row(rep, D0)["total"] == 1500      # 1000 chưa nhập kho + 500 đã nhập kho
+    assert _row(rep, D1)["total"] == 800
+    assert rep["totals"]["total"] == 800       # ngày cuối, không phải 2300
+    assert any("không cộng dồn" in w for w in rep["warnings"])
+
+
+def test_drill_region_then_company(seeded) -> None:
+    """Chuỗi drill: khu vực → đơn vị → ngày cho ra đúng số của nhánh đang mở."""
+    by_region = _get("purchase", seeded, regions=REGION, group_by="region")
+    assert _row(by_region, REGION)["qty_total"] == 420
+    by_company = _get("purchase", seeded, regions=REGION, group_by="company")
+    assert _row(by_company, UNIT_A)["qty_total"] == 420
+    by_day = _get("purchase", seeded, companies=UNIT_A, group_by="day")
+    assert [r["key"] for r in by_day["rows"]] == [D0, D1]
+    assert _row(by_day, D0)["qty_total"] == 115      # 100 nước + 10 chén + 5 thành phẩm
+    assert _row(by_day, D1)["qty_total"] == 305
+
+
 def test_status_matrix(seeded) -> None:
     rep = _get("status", seeded, kind="purchase", companies=f"{UNIT_A},{UNIT_B}")
     assert rep["dates"] == [D0, D1]

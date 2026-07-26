@@ -166,22 +166,23 @@ def _has_stock(fields: dict) -> bool:
                 or fields.get("stock_material") is not None)
 
 
-def stock_rows(date_from: str, date_to: str,
-               companies: list[str] | None = None) -> list[dict[str, Any]]:
+def stock_rows(date_from: str, date_to: str, companies: list[str] | None = None,
+               all_days: bool = False) -> list[dict[str, Any]]:
     """Tồn kho tại MỐC: ngày cuối cùng CÓ số liệu tồn của từng đơn vị trong kỳ.
 
-    Mỗi dòng = 1 chủng loại trong 1 khối (chưa nhập kho / đã nhập kho); tồn kho nguyên liệu
-    (ô đơn) trả kèm ở khoá `material_qty` của dòng đầu mỗi đơn vị để không nhân đôi khi cộng.
+    Mỗi dòng = 1 chủng loại trong 1 khối (chưa nhập kho / đã nhập kho) + 1 dòng tồn nguyên liệu.
+    `all_days=True` → giữ TẤT CẢ các ngày có số liệu (xem diễn biến tồn theo ngày), mỗi ngày vẫn
+    là một ảnh chụp độc lập — KHÔNG cộng dồn giữa các ngày.
     """
     meta = unit_meta()
     entries = unit_daily_repo.in_range("consumption", date_from, date_to, companies)
-    last: dict[str, dict[str, Any]] = {}
+    kept: dict[Any, dict[str, Any]] = {}
     for e in entries:                      # in_range trả theo ngày TĂNG dần → ghi đè = ngày cuối
         if _has_stock(e["fields"]):
-            last[e["company"]] = e
+            kept[(e["company"], e["as_of"]) if all_days else e["company"]] = e
 
     rows: list[dict[str, Any]] = []
-    for company, e in last.items():
+    for e in kept.values():
         base = _base(e, meta)
         f = e["fields"]
         for block in STOCK_BLOCKS:

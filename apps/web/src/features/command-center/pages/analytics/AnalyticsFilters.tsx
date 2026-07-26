@@ -15,6 +15,9 @@ type Props = {
   value: StatsFilters;
   onChange: (f: StatsFilters) => void;
   groupOptions: Opt[];
+  // Cách nhóm do drill-down quyết định → truyền từ ngoài vào thay vì lấy trong `value.groupBy`.
+  groupValue?: string;
+  onGroupChange?: (v: string) => void;
   showGrades?: boolean;
   extra?: ReactNode;
   onReload: () => void;
@@ -38,7 +41,8 @@ export function MultiSelect({ placeholder, options, value, onChange, width = 220
 }
 
 export default function AnalyticsFilters({
-  catalog, value, onChange, groupOptions, showGrades, extra, onReload, onExport, loading, exporting,
+  catalog, value, onChange, groupOptions, groupValue, onGroupChange,
+  showGrades, extra, onReload, onExport, loading, exporting,
 }: Props) {
   const [preset, setPreset] = useState<Preset>("Tuần này");
   const patch = (p: Partial<StatsFilters>) => onChange({ ...value, ...p });
@@ -69,8 +73,8 @@ export default function AnalyticsFilters({
       )}
       {extra}
       <span style={{ color: "var(--muted)", fontSize: 13 }}>Nhóm theo</span>
-      <Select style={{ width: 150 }} value={value.groupBy} options={groupOptions}
-              onChange={(v) => patch({ groupBy: v })} />
+      <Select style={{ width: 155 }} value={groupValue ?? value.groupBy} options={groupOptions}
+              onChange={(v) => (onGroupChange ? onGroupChange(v) : patch({ groupBy: v }))} />
       <Button icon={<ReloadOutlined />} onClick={onReload} loading={loading}>Làm mới</Button>
       {onExport && (
         <Button type="primary" icon={<DownloadOutlined />} onClick={onExport} loading={exporting}>

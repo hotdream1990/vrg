@@ -1,17 +1,19 @@
-/* Thống kê TIÊU THỤ (tách hẳn khỏi tồn kho) — lọc theo đơn vị · khu vực · kỳ · chủng loại ·
-   loại HĐ · hình thức HĐ · nguồn mủ. Cuối bảng: Tổng sản lượng + giá bán bình quân.
-   Nhóm theo "Chi tiết từng dòng" để soi lại đúng từng lần bán (số HĐ, ngày xuất kho, hoá đơn). */
+/* Thống kê TIÊU THỤ (tách hẳn khỏi tồn kho) — dashboard drill-down:
+   Toàn Tập đoàn → Khu vực → Đơn vị → Ngày → Chi tiết từng dòng bán (số HĐ, xuất kho, hoá đơn).
+   Lọc chồng thêm: chủng loại · loại HĐ · hình thức HĐ · nguồn mủ. */
 
 import { ExportOutlined } from "@ant-design/icons";
 import { message } from "antd";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   type StatsFilters, type StatsReport, downloadStatsXlsx, fetchConsumptionStats,
 } from "../../../../lib/unit-analytics-client";
 import AnalyticsFilters, { MultiSelect } from "./AnalyticsFilters";
+import DrillHeader, { type Kpi } from "./DrillHeader";
 import StatsTable, { type StatsCol } from "./StatsTable";
 import { initialFilters, useFilterCatalog, useStatsReport } from "./use-stats";
+import { CHAINS, DIM_LABEL, type DrillDim, applyDrill, useDrill } from "./use-drill";
 import "../../../bulletin/bulletin.css";
 
 const SUMMARY_COLS: StatsCol[] = [
@@ -41,28 +43,43 @@ const DETAIL_COLS: StatsCol[] = [
   { key: "invoice_date", date: true, label: "Ngày hoá đơn" },
 ];
 
+const KPIS: Kpi[] = [
+  { key: "qty", label: "Tổng sản lượng tiêu thụ", unit: "tấn" },
+  { key: "revenue_ty", label: "Doanh thu", unit: "tỷ đồng" },
+  { key: "avg_price_trieu", label: "Giá bán bình quân", unit: "triệu đ/tấn" },
+  { key: "lines", label: "Số dòng bán", unit: "dòng" },
+];
+
+// Ngoài chuỗi drill còn xem nhanh theo chủng loại / loại HĐ / hình thức / nguồn mủ.
 const GROUPS = [
-  { value: "company", label: "Đơn vị" },
-  { value: "region", label: "Khu vực" },
-  { value: "grade", label: "Chủng loại" },
+  ...(["region", "company", "day", "grade"] as const).map((v) => ({ value: v, label: DIM_LABEL[v] })),
   { value: "contract", label: "Loại HĐ" },
   { value: "channel", label: "Hình thức HĐ" },
   { value: "source", label: "Nguồn mủ" },
-  { value: "day", label: "Ngày" },
   { value: "none", label: "Chi tiết từng dòng" },
 ];
-const GROUP_LABEL: Record<string, string> = {
-  company: "Đơn vị", region: "Khu vực", grade: "Chủng loại", contract: "Loại HĐ",
-  channel: "Hình thức HĐ", source: "Nguồn mủ", day: "Ngày", none: "Chi tiết",
-};
+/** Các cách nhóm KHÔNG nằm trong chuỗi drill → chỉ để xem, không bấm sâu tiếp được. */
+const OFF_CHAIN = new Set(["contract", "channel", "source", "none"]);
 
 export default function ConsumptionStatsPage() {
   const catalog = useFilterCatalog();
-  const [filters, setFilters] = useState<StatsFilters>(
-    { ...initialFilters(), contract: [], channel: [], source: [] });
+  const [base, setBase] = useState<StatsFilters>(
+    { ...initialFilters("region"), contract: [], channel: [], source: [] });
+  const [groupOverride, setGroupOverride] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const drill = useDrill(CHAINS.consumption);
+
+  const dim = groupOverride ?? drill.currentDim;
+  const filters = useMemo(() => {
+    const f = applyDrill(base, CHAINS.consumption, drill.steps, catalog);
+    return { ...f, groupBy: dim };
+  }, [base, drill.steps, catalog, dim]);
   const { data, loading, reload } = useStatsReport<StatsReport>(fetchConsumptionStats, filters);
-  const detail = filters.groupBy === "none";
+
+  const detail = dim === "none";
+  const canDrill = drill.canDrill && !OFF_CHAIN.has(dim);
+  const goDeeper = (value: string) => { setGroupOverride(null); drill.down(value, dim as DrillDim); };
+  const change = (f: StatsFilters) => { drill.reset(); setBase(f); };
 
   const exportXlsx = async () => {
     setSaving(true);
@@ -78,40 +95,43 @@ export default function ConsumptionStatsPage() {
         <div>
           <h2><ExportOutlined style={{ marginRight: 8 }} />Thống kê tiêu thụ</h2>
           <p>
-            Riêng phần tiêu thụ — lọc theo <b>đơn vị · khu vực · kỳ · chủng loại · loại HĐ ·
-            hình thức HĐ · nguồn mủ</b>. Dòng bán bằng USD thiếu tỷ giá không được tính vào doanh thu.
+            Toàn Tập đoàn → <b>khu vực</b> → <b>công ty</b> → <b>ngày</b> → <b>từng dòng bán</b>.
+            Lọc thêm theo chủng loại · loại HĐ · hình thức HĐ · nguồn mủ.
+            Dòng bán bằng USD thiếu tỷ giá không được tính vào doanh thu.
           </p>
         </div>
       </div>
 
       <AnalyticsFilters
-        catalog={catalog} value={filters} onChange={setFilters} groupOptions={GROUPS} showGrades
+        catalog={catalog} value={base} onChange={change} groupOptions={GROUPS}
+        groupValue={dim} onGroupChange={setGroupOverride} showGrades
         extra={
           <>
             <MultiSelect placeholder="Tất cả loại HĐ" options={catalog?.contracts ?? []} width={170}
-                         value={filters.contract ?? []} onChange={(v) => setFilters({ ...filters, contract: v })} />
+                         value={base.contract ?? []} onChange={(v) => change({ ...base, contract: v })} />
             <MultiSelect placeholder="Tất cả hình thức" options={catalog?.channels ?? []} width={175}
-                         value={filters.channel ?? []} onChange={(v) => setFilters({ ...filters, channel: v })} />
+                         value={base.channel ?? []} onChange={(v) => change({ ...base, channel: v })} />
             <MultiSelect placeholder="Tất cả nguồn mủ" options={catalog?.sources ?? []} width={180}
-                         value={filters.source ?? []} onChange={(v) => setFilters({ ...filters, source: v })} />
+                         value={base.source ?? []} onChange={(v) => change({ ...base, source: v })} />
           </>
         }
         onReload={reload} onExport={exportXlsx} loading={loading} exporting={saving}
       />
 
+      <DrillHeader
+        steps={drill.steps} onUpTo={drill.upTo} currentDim={dim as DrillDim} canDrill={canDrill}
+        rows={detail ? [] : (data?.rows ?? [])} totals={data?.totals ?? null} kpis={KPIS}
+        chartKey="qty" chartLabel="Sản lượng tiêu thụ" onPick={goDeeper}
+      />
+
       <StatsTable
-        groupLabel={detail ? "" : (GROUP_LABEL[filters.groupBy] ?? "Nhóm")}
+        groupLabel={detail ? "" : DIM_LABEL[dim as DrillDim]} groupIsDate={dim === "day"}
         cols={detail ? DETAIL_COLS : SUMMARY_COLS}
         rows={data?.rows ?? []} totals={detail ? null : (data?.totals ?? null)}
-        showRegion={filters.groupBy === "company"} loading={loading} warnings={data?.warnings}
+        showRegion={dim === "company"} loading={loading} warnings={data?.warnings}
+        onRowClick={canDrill ? (r) => goDeeper(r.key) : undefined}
         empty="Kỳ này chưa có dòng tiêu thụ nào khớp bộ lọc."
       />
-      {detail && data?.totals && (
-        <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 10 }}>
-          Tổng theo bộ lọc: <b>{(data.totals.qty as number | null)?.toLocaleString("vi-VN") ?? "—"} tấn</b>
-          {" · "}giá bán BQ <b>{(data.totals.avg_price_trieu as number | null)?.toFixed(2) ?? "—"} triệu đ/tấn</b>
-        </p>
-      )}
     </div>
   );
 }

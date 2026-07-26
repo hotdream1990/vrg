@@ -154,7 +154,7 @@ def _stock(date_from: str, date_to: str, companies: str | None, regions: str | N
 def stock(date_from: str = Query(...), date_to: str = Query(...),
           companies: str | None = Query(None), regions: str | None = Query(None),
           grades: str | None = Query(None),
-          group_by: str = Query("company", pattern="^(company|region|grade)$"),
+          group_by: str = Query("company", pattern="^(company|region|grade|day)$"),
           username: str = Depends(_require)) -> dict:
     """Tồn kho tại MỐC cuối kỳ của từng đơn vị (kèm ngày đã lấy số — không cộng dồn)."""
     return _stock(date_from, date_to, companies, regions, grades, group_by)
@@ -164,7 +164,7 @@ def stock(date_from: str = Query(...), date_to: str = Query(...),
 def stock_xlsx(date_from: str = Query(...), date_to: str = Query(...),
                companies: str | None = Query(None), regions: str | None = Query(None),
                grades: str | None = Query(None),
-               group_by: str = Query("company", pattern="^(company|region|grade)$"),
+               group_by: str = Query("company", pattern="^(company|region|grade|day)$"),
                username: str = Depends(_require)):
     rep = _stock(date_from, date_to, companies, regions, grades, group_by)
     data = xls.build_xlsx(title="THỐNG KÊ TỒN KHO", period=f"{date_from} → {date_to}",

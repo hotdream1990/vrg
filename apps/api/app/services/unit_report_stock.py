@@ -10,7 +10,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from app.services import member_unit_repo, unit_daily_repo, unit_report_rows
-from app.services.unit_report_query import filter_scope, sort_groups, split_csv
+from app.services.unit_report_query import dmy, filter_scope, sort_groups, split_csv
 
 _BLOCK_KEY = {"stock_not_warehoused": "not_warehoused", "stock_warehoused": "warehoused"}
 
@@ -48,14 +48,17 @@ def stock_report(date_from: str, date_to: str, *, companies: str | None = None,
                  group_by: str = "company") -> dict[str, Any]:
     """Tồn kho tại mốc cuối kỳ theo bộ lọc (đơn vị · khu vực · chủng loại · kỳ)."""
     comps, regs, grds = split_csv(companies), split_csv(regions), split_csv(grades)
-    rows = filter_scope(unit_report_rows.stock_rows(date_from, date_to, comps), comps, regs)
+    # Nhóm theo NGÀY = xem diễn biến tồn → giữ mọi ngày có số liệu; các cách nhóm khác chỉ lấy mốc cuối.
+    raw = unit_report_rows.stock_rows(date_from, date_to, comps, all_days=group_by == "day")
+    rows = filter_scope(raw, comps, regs)
     if grds:   # lọc chủng loại: chỉ áp cho 2 khối thành phẩm, tồn nguyên liệu không có chủng loại
         keep = set(grds)
         rows = [r for r in rows if r["block"] == "stock_material" or r["grade"] in keep]
 
     key_of = {"company": lambda r: r["company"],
               "region": lambda r: r.get("region") or "(Chưa gán khu vực)",
-              "grade": lambda r: r["grade"]}[group_by]
+              "grade": lambda r: r["grade"],
+              "day": lambda r: r["as_of"]}[group_by]
     groups: dict[str, dict] = {}
     for r in rows:
         if group_by == "grade" and r["block"] == "stock_material":
@@ -64,13 +67,21 @@ def stock_report(date_from: str, date_to: str, *, companies: str | None = None,
         g = groups.get(k) or groups.setdefault(k, _new_group(k, r.get("region") if group_by == "company" else None))
         _feed(g, r, with_grade=group_by != "grade")
 
+    # Dòng Tổng cộng: tồn kho là số THỜI ĐIỂM nên khi nhóm theo NGÀY, cộng các ngày lại là tính
+    # trùng chính lô hàng đó → lấy ảnh chụp của NGÀY CUỐI thay vì cộng dồn.
     total = _new_group("Tổng cộng", None)
+    last_day = max((r["as_of"] for r in rows), default=None)
     for r in rows:
+        if group_by == "day" and r["as_of"] != last_day:
+            continue
         _feed(total, r, with_grade=True)
     # Đơn vị được chọn nhưng không có bản ghi tồn kho nào trong kỳ → báo rõ, KHÔNG lấy số ngày khác.
     warn = []
     if comps and (no_data := sorted(set(comps) - {r["company"] for r in rows})):
         warn.append("Chưa nhập tồn kho trong kỳ: " + ", ".join(no_data))
+    if group_by == "day" and last_day:
+        warn.append(f"Mỗi dòng là tồn của riêng ngày đó; dòng Tổng cộng lấy ngày cuối ({dmy(last_day)}), "
+                    "không cộng dồn các ngày.")
     return {"date_from": date_from, "date_to": date_to, "group_by": group_by,
             "rows": [_close(g) for g in sort_groups(groups, group_by)],
             "totals": _close(total), "warnings": warn}

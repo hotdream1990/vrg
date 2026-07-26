@@ -30,6 +30,13 @@ GROUPERS: dict[str, Callable[[dict], str | None]] = {
 }
 
 
+def dmy(iso: str | None) -> str:
+    """'2026-07-23' → '23/07/2026' (chuẩn VN) cho các câu cảnh báo người dùng đọc."""
+    if not iso or len(iso) < 10:
+        return iso or ""
+    return f"{iso[8:10]}/{iso[5:7]}/{iso[:4]}"
+
+
 def split_csv(csv: str | None) -> list[str] | None:
     """'a,b' → ['a','b'] (rỗng/None → None = không lọc)."""
     if not csv:

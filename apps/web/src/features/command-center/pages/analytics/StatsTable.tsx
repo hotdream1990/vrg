@@ -1,6 +1,7 @@
 /* Bảng thống kê dùng chung: cột động + dòng Tổng cộng lấy THẲNG từ server
    (giá bình quân phải tính gia quyền trên toàn bộ dữ liệu — cộng ở client sẽ ra số sai). */
 
+import { RightOutlined } from "@ant-design/icons";
 import { Alert, Spin } from "antd";
 
 import { dmy } from "../../../../lib/date";
@@ -20,6 +21,7 @@ type Props = {
   // Tiêu đề cột nhóm ("Đơn vị" / "Khu vực" / "Chủng loại" / "Ngày").
   // Rỗng = bảng CHI TIẾT từng dòng → không có cột nhóm (mỗi dòng tự đủ thông tin).
   groupLabel: string;
+  groupIsDate?: boolean;       // nhóm theo NGÀY → hiện DD/MM/YYYY thay vì ISO
   cols: StatsCol[];
   rows: StatsRow[];
   totals?: StatsRow | null;
@@ -27,6 +29,7 @@ type Props = {
   loading?: boolean;
   warnings?: string[];
   empty?: string;
+  onRowClick?: (row: StatsRow) => void;   // có = mỗi dòng bấm được để xem sâu 1 lớp
 };
 
 const cell = (row: StatsRow, c: StatsCol) => {
@@ -37,7 +40,7 @@ const cell = (row: StatsRow, c: StatsCol) => {
 };
 
 export default function StatsTable({
-  groupLabel, cols, rows, totals, showRegion, loading, warnings, empty,
+  groupLabel, groupIsDate, cols, rows, totals, showRegion, loading, warnings, empty, onRowClick,
 }: Props) {
   const hasGroupCol = !!groupLabel;
   const lead = (showRegion ? 1 : 0) + (hasGroupCol ? 1 : 0);
@@ -68,9 +71,17 @@ export default function StatsTable({
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={`${r.key ?? i}`}>
+                <tr key={`${r.key ?? i}`}
+                    className={onRowClick ? "row-drill" : undefined}
+                    onClick={onRowClick ? () => onRowClick(r) : undefined}
+                    title={onRowClick ? "Bấm để xem chi tiết" : undefined}>
                   {showRegion && <td>{r.region ?? "—"}</td>}
-                  {hasGroupCol && <td style={{ fontWeight: 500 }}>{r.label ?? r.key ?? "—"}</td>}
+                  {hasGroupCol && (
+                    <td style={{ fontWeight: 500 }}>
+                      {groupIsDate ? dmy(String(r.label ?? r.key)) : (r.label ?? r.key ?? "—")}
+                      {onRowClick && <RightOutlined style={{ fontSize: 10, marginLeft: 6, opacity: 0.45 }} />}
+                    </td>
+                  )}
                   {cols.map((c) => (
                     <td key={c.key} className="r">{cell(r, c)}</td>
                   ))}

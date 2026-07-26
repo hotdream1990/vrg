@@ -10,7 +10,7 @@ from typing import Any
 
 from app.services import unit_report_rows as rows_mod
 from app.services.unit_report_query import (
-    CHANNEL_LABELS, CONTRACT_LABELS, GROUPERS, avg, filter_scope, sort_groups, split_csv,
+    CHANNEL_LABELS, CONTRACT_LABELS, GROUPERS, avg, dmy, filter_scope, sort_groups, split_csv,
 )
 from app.services.unit_report_rows import SOURCE_LABELS, TRIEU
 
@@ -33,7 +33,7 @@ def _revenue_mismatches(days: list[dict]) -> list[str]:
             continue
         gap = abs(stored - lines)
         if gap > _MISMATCH_ABS and gap > _MISMATCH_PCT * max(abs(stored), abs(lines), 1):
-            bad.append(f"{d['company']} ({d['as_of']})")
+            bad.append(f"{d['company']} ({dmy(d['as_of'])})")
     if not bad:
         return []
     head = ", ".join(bad[:3]) + (f" và {len(bad) - 3} bản ghi khác" if len(bad) > 3 else "")

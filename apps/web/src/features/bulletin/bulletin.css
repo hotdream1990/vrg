@@ -436,3 +436,7 @@ th.r, td.r {
 
 /* Dòng lỗi trong bảng xem trước khi nhập Excel */
 .blt-row-error > td { background: rgba(207, 19, 34, .06) !important; }
+
+/* Dòng bảng Thống kê bấm được để đi sâu 1 lớp (Khu vực → Đơn vị → Ngày → chi tiết) */
+.row-drill { cursor: pointer; }
+.row-drill:hover > td { background: rgba(22, 175, 103, .07); }
