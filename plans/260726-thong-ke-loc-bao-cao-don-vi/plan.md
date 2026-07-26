@@ -45,3 +45,22 @@ Hậu-deploy: không cần cấp quyền mới (dùng lại cap `unit_daily` m�
 - Trộn TSC/DRC khi tính BQ mủ chén (B2) và dòng USD thiếu tỷ giá (B3) → số BQ sai âm thầm; bắt buộc hiển thị cảnh báo, không tự đoán số.
 - Đơn vị Lào/Campuchia dùng giá nội tệ (B4) — báo cáo kỳ hiện tại đang bỏ sót, cần xử lý luôn ở đây.
 - Tuân thủ nguyên tắc **không thay dữ liệu ngày này bằng ngày khác**: tồn kho lấy đúng ngày có số liệu và **ghi rõ ngày đó** trên bảng.
+
+## Bổ sung 26/07/2026 (đợt 2 — theo yêu cầu "dashboard có tương tác lớp")
+
+Drill-down cho cả 3 chỉ tiêu, bấm dòng/cột để đi sâu, đường dẫn để quay lại:
+
+| Màn | Chuỗi lớp |
+|---|---|
+| Thu mua | Toàn Tập đoàn → Khu vực → Công ty → Ngày → Loại mủ |
+| Tiêu thụ | Toàn Tập đoàn → Khu vực → Công ty → Ngày → **Từng dòng bán** (số HĐ · xuất kho · hoá đơn) |
+| Tồn kho | Toàn Tập đoàn → Khu vực → Công ty → Ngày → Chủng loại |
+
+- Mỗi lớp có KPI tổng + biểu đồ cột (12 nhóm lớn nhất) — bấm cột tương đương bấm dòng.
+- Bộ lọc (kỳ · đơn vị · khu vực · chủng loại · loại HĐ · hình thức · nguồn mủ) áp CHỒNG lên nhánh
+  đang mở; đổi bộ lọc thì drill quay về lớp ngoài cùng.
+- Ô "Nhóm theo" vẫn còn để xem nhanh theo chiều khác (loại HĐ · hình thức · nguồn mủ · chủng loại);
+  các chiều ngoài chuỗi thì không bấm sâu tiếp được.
+- Tồn kho: thêm `group_by=day` ở backend — mỗi ngày là một ảnh chụp riêng, dòng Tổng cộng lấy ngày
+  cuối kèm cảnh báo, tuyệt đối không cộng dồn số thời điểm.
+- Ảnh minh hoạ: `visuals/08…12-drill-*.png`.
