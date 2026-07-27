@@ -45,6 +45,46 @@ def upsert(kind: str, as_of: str, company: str, fields: dict, updated_by: str | 
                    note=note or f"Biểu {_KIND_LABEL.get(kind, kind)}")
 
 
+def move_day(kind: str, company: str, as_of: str, to_date: str, updated_by: str | None) -> dict:
+    """Đổi NGÀY của 1 bản ghi (nhập nhầm ngày) — giữ nguyên nội dung, không nhập lại.
+
+    Ngày đích đã có số liệu thì DỪNG (`ValueError`): 2 ngày là 2 lần khai riêng, gộp vào nhau
+    sẽ mất số của một ngày. Biểu Thu mua còn có đơn giá lưu ở kho "Giá mủ nguyên liệu" (bảng khác,
+    cũng khoá theo ngày) → chuyển kèm, không thì giá bình quân của báo cáo kỳ lệch.
+    Cửa sổ sửa cho CẢ ngày cũ lẫn ngày mới do router ép trước khi gọi.
+    """
+    from app.services import price_repo
+
+    if to_date == as_of:
+        raise ValueError("Ngày mới trùng ngày hiện tại của bản ghi.")
+    ensure_schema()
+    with session_scope() as db:
+        keys = {"k": kind, "c": company}
+        src = db.execute(text("SELECT payload FROM unit_daily_report "
+                              "WHERE kind = :k AND as_of = :d AND company = :c"),
+                         {**keys, "d": as_of}).mappings().first()
+        if src is None:
+            raise ValueError("Không tìm thấy số liệu của ngày cần đổi.")
+        if db.execute(text("SELECT 1 FROM unit_daily_report "
+                           "WHERE kind = :k AND as_of = :d AND company = :c"),
+                      {**keys, "d": to_date}).scalar() is not None:
+            raise ValueError(f"Ngày {to_date} đã có số liệu của {company} — "
+                             "xoá số ngày đó hoặc chọn ngày khác.")
+        db.execute(text("UPDATE unit_daily_report SET as_of = CAST(:new AS date), "
+                        "updated_by = :u, updated_at = now() "
+                        "WHERE kind = :k AND as_of = CAST(:d AS date) AND company = :c"),
+                   {**keys, "d": as_of, "new": to_date, "u": updated_by})
+    audit_repo.log("unit_daily", "update", f"{to_date}|{company}|{kind}",
+                   before={"as_of": as_of}, after={"as_of": to_date},
+                   as_of=to_date, company=company,
+                   note=f"Đổi ngày biểu {_KIND_LABEL.get(kind, kind)}: {as_of} → {to_date}")
+    # Đơn giá đi theo bản ghi Thu mua; đơn vị tự khai nên chỉ đụng lớp `vrg_unit` (KHÔNG đụng
+    # lớp `vrg` của chuyên viên chốt giá) — xem tách 2 lớp ở market_meta.
+    prices = (price_repo.move_purchase_prices(company, as_of, to_date, UNIT_SRC)
+              if kind == "purchase" else {"moved": [], "kept": []})
+    return {"moved_prices": prices["moved"], "kept_prices": prices["kept"]}
+
+
 def has_entry(kind: str, as_of: str, company: str) -> bool:
     """Đã có bản ghi CÓ số liệu cho (ngày, đơn vị, loại) chưa — dùng chống ghi trùng."""
     ensure_schema()

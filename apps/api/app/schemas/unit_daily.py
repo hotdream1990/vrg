@@ -18,6 +18,18 @@ class UnitDailyEdit(BaseModel):
     create_only: bool = False          # True (nút Thêm) → 409 nếu (ngày, đơn vị, loại) đã có số (chống ghi trùng)
 
 
+class UnitDailyMove(BaseModel):
+    """Đổi NGÀY của một bản ghi đã nhập (nhập nhầm ngày) — nội dung giữ nguyên.
+
+    Cả ngày cũ lẫn ngày mới đều phải nằm trong cửa sổ sửa của người thao tác (server ép).
+    """
+
+    kind: Kind
+    company: str
+    as_of: str                         # ngày ĐANG lưu của bản ghi
+    to_date: str                       # ngày MỚI muốn chuyển sang
+
+
 class PurchasePlanEdit(BaseModel):
     """Số liệu NĂM của 1 đơn vị (nhập 1 lần, cập nhật khi có thay đổi). None = xoá ô đó."""
 

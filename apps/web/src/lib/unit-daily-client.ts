@@ -102,6 +102,17 @@ export const saveDaily = (kind: Kind, company: string, asOf: string, fields: Val
     body: JSON.stringify({ kind, company, as_of: asOf, fields, create_only: createOnly }),
   });
 
+// ── Đổi NGÀY của bản ghi đã nhập (nhập nhầm ngày) ──
+/** Nội dung giữ nguyên, chỉ chuyển sang ngày khác. Server ép cửa sổ sửa cho CẢ 2 ngày và từ chối
+    (409) nếu ngày mới đã có số liệu. Biểu Thu mua: đơn giá mủ nước/mủ chén được chuyển kèm. */
+export type MoveDateResult = { ok: boolean; moved_prices: string[]; kept_prices: string[] };
+
+export const moveDailyDate = (role: Role, kind: Kind, company: string, asOf: string, toDate: string) =>
+  apiFetch<MoveDateResult>(
+    role === "member" ? "/api/member/daily-report/move-date" : "/api/unit-daily/report/move-date",
+    { method: "PUT", headers: J,
+      body: JSON.stringify({ kind, company, as_of: asOf, to_date: toDate }) });
+
 // ── Tồn kho ngày trước (nút "Lấy tồn ngày trước") ──
 /** Tồn kho là số THỜI ĐIỂM: ngày mới thường gần giống ngày trước → cho chép sang rồi sửa.
     Chỉ trả 3 khối tồn kho, KHÔNG kèm dòng bán (tiêu thụ là số phát sinh trong ngày). */

@@ -41,7 +41,9 @@ def _cleanup(h: dict[str, str], users: list[str], units: list[str]) -> None:
         for tbl, col in (("unit_daily_report", "company"), ("unit_purchase_plan", "company"),
                          ("unit_stock_contract", "company")):
             db.execute(text(f"DELETE FROM {tbl} WHERE {col} = ANY(:u)"), {"u": units})
-        db.execute(text("DELETE FROM fact_price WHERE source = 'vrg' AND grade = ANY(:u)"), {"u": units})
+        # Giá đơn vị nằm ở CẢ 2 lớp: chuyên viên chốt ('vrg') và đơn vị tự khai ('vrg_unit').
+        db.execute(text("DELETE FROM fact_price WHERE source IN ('vrg', 'vrg_unit') "
+                        "AND grade = ANY(:u)"), {"u": units})
     for n in units:
         client.delete(f"/api/member-units/{n}", headers=h)
 
@@ -489,3 +491,83 @@ def test_period_report_keeps_last_real_stock() -> None:
 
     client.delete("/api/users/ud_stock_ed", headers=h)
     _cleanup(h, ["ud_stock_ed"], [unit])
+
+
+def test_move_report_date_respects_edit_window() -> None:
+    """Đổi ngày bản ghi nhập nhầm: chuyển nguyên nội dung + đơn giá, vẫn kẹp trong cửa sổ sửa."""
+    from app.core.market_meta import PURCHASE_SOURCE_UNIT
+    from app.services import price_repo
+
+    h = _admin()
+    unit = "_zz_ud_move"
+    today = date.today().isoformat()
+    wrong = (date.today() - timedelta(days=2)).isoformat()      # nhập nhầm vào ngày này
+    right = (date.today() - timedelta(days=1)).isoformat()      # ngày đúng
+    old = (date.today() - timedelta(days=60)).isoformat()       # ngoài cửa sổ sửa
+    _cleanup(h, ["ud_mv_mem", "ud_mv_ed"], [unit])   # dọn rác của lần chạy hỏng trước (nếu có)
+
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    client.post("/api/users", json={"username": "ud_mv_mem", "password": "pass123",
+                                    "role": "member", "member_units": [unit]}, headers=h)
+    client.post("/api/users", json={"username": "ud_mv_ed", "password": "pass123",
+                                    "role": "editor", "permissions": ["unit_daily"]}, headers=h)
+    mh, eh = _bearer("ud_mv_mem", "pass123"), _bearer("ud_mv_ed", "pass123")
+
+    body = {"kind": "purchase", "company": unit, "as_of": wrong,
+            "fields": {"latex_wet": 11.5, "coagulum": 4}}
+    assert client.put("/api/member/daily-report", json=body, headers=mh).status_code == 200
+    # Đơn giá nhập trong biểu Thu mua nằm ở kho "Giá mủ nguyên liệu" (lớp đơn vị tự khai).
+    assert client.put("/api/member/prices", headers=mh, json={
+        "company": unit, "as_of": wrong, "price_type": "purchase", "price": 555}).status_code == 200
+
+    move = {"kind": "purchase", "company": unit, "as_of": wrong, "to_date": right}
+    # Ngày mới trong tương lai / ngoài cửa sổ → chặn TRƯỚC khi đụng dữ liệu.
+    future = (date.today() + timedelta(days=1)).isoformat()
+    assert client.put("/api/member/daily-report/move-date",
+                      json={**move, "to_date": future}, headers=mh).status_code == 400
+    assert client.put("/api/member/daily-report/move-date",
+                      json={**move, "to_date": old}, headers=mh).status_code == 403
+    # Đơn vị khác → 403 (member không đụng được đơn vị không được gán).
+    assert client.put("/api/member/daily-report/move-date",
+                      json={**move, "company": "khac"}, headers=mh).status_code == 403
+
+    ok = client.put("/api/member/daily-report/move-date", json=move, headers=mh)
+    assert ok.status_code == 200 and ok.json()["moved_prices"] == ["purchase"]
+
+    # Nội dung nguyên vẹn ở ngày mới, ngày cũ sạch — và đơn giá đi theo.
+    got = client.get(f"/api/member/daily-report?kind=purchase&as_of={right}", headers=mh).json()
+    assert got["entries"][unit]["fields"]["latex_wet"] == 11.5
+    assert client.get(f"/api/member/daily-report?kind=purchase&as_of={wrong}",
+                      headers=mh).json()["entries"][unit] is None
+    assert price_repo.purchase_by_company_on_date(right, "purchase", PURCHASE_SOURCE_UNIT)[unit] == 555
+    assert unit not in price_repo.purchase_by_company_on_date(wrong, "purchase", PURCHASE_SOURCE_UNIT)
+
+    # Ngày đích đã có số liệu → 409, KHÔNG gộp/ghi đè.
+    assert client.put("/api/member/daily-report", headers=mh, json={
+        **body, "as_of": wrong, "fields": {"latex_wet": 2}}).status_code == 200
+    dup = client.put("/api/member/daily-report/move-date", json=move, headers=mh)
+    assert dup.status_code == 409 and "đã có số liệu" in dup.json()["detail"]
+    assert client.get(f"/api/member/daily-report?kind=purchase&as_of={wrong}",
+                      headers=mh).json()["entries"][unit]["fields"]["latex_wet"] == 2
+
+    # Chuyên viên: cùng luật cửa sổ (bản ghi nằm ở ngày quá cũ → 403).
+    assert client.put("/api/unit-daily/report", headers=eh, json={
+        "kind": "consumption", "company": unit, "as_of": right,
+        "fields": {"sales": [{"contract": "spot", "channel": "domestic", "grade": "RSS 3",
+                              "qty": 3, "price": 40}], "sales_ccy": "VND"}}).status_code == 200
+    assert client.put("/api/unit-daily/report/move-date", headers=eh, json={
+        "kind": "consumption", "company": unit, "as_of": right, "to_date": old}).status_code == 403
+    moved = client.put("/api/unit-daily/report/move-date", headers=eh, json={
+        "kind": "consumption", "company": unit, "as_of": right, "to_date": today})
+    assert moved.status_code == 200 and moved.json()["moved_prices"] == []
+    tl = client.get("/api/unit-daily/timeline?kind=consumption&days=10", headers=eh).json()
+    assert [(e["as_of"], e["company"]) for e in tl["entries"] if e["company"] == unit] == [(today, unit)]
+
+    # Nhật ký hoạt động ghi lại việc đổi ngày (truy vết được ai đổi, từ ngày nào sang ngày nào).
+    log = client.get(f"/api/audit?entity=unit_daily&company={unit}", headers=h)
+    assert log.status_code == 200
+    assert any("Đổi ngày" in (r.get("note") or "") for r in log.json()["items"])
+
+    for u in ("ud_mv_mem", "ud_mv_ed"):
+        client.delete(f"/api/users/{u}", headers=h)
+    _cleanup(h, ["ud_mv_mem", "ud_mv_ed"], [unit])

@@ -20,7 +20,7 @@ from app.routers.unit_daily import resolve_timeline_range
 from app.schemas.market_demand import MarketDemandEdit
 from app.schemas.member_self import MemberPriceEdit
 from app.schemas.unit_daily import (
-    ExcelImportCommit, PurchasePlanEdit, StockContractEdit, UnitDailyEdit,
+    ExcelImportCommit, PurchasePlanEdit, StockContractEdit, UnitDailyEdit, UnitDailyMove,
 )
 from app.services import (
     contract_files, market_demand_repo, member_unit_repo, price_repo, unit_daily_excel_io,
@@ -262,6 +262,23 @@ def upsert_my_daily(body: UnitDailyEdit,
         raise HTTPException(409, "Đơn vị này đã có số liệu cho ngày này — vui lòng dùng chức năng Sửa.")
     unit_daily_repo.upsert(body.kind, body.as_of, body.company, body.fields, member.get("username"))
     return {"ok": True}
+
+
+@router.put("/daily-report/move-date")
+def move_my_daily_date(body: UnitDailyMove,
+                       member: dict = Depends(get_current_member)) -> dict:
+    """Đổi NGÀY của bản ghi đã nhập (nhập nhầm ngày) — nội dung giữ nguyên.
+
+    Ép cửa sổ sửa cho CẢ ngày cũ lẫn ngày mới: không được kéo số liệu ra/vào vùng đã khoá.
+    """
+    _assert_company(member, body.company)
+    edit_window.assert_editable(body.as_of, edit_window.member_window())
+    edit_window.assert_editable(body.to_date, edit_window.member_window())
+    try:
+        return {"ok": True, **unit_daily_repo.move_day(
+            body.kind, body.company, body.as_of, body.to_date, member.get("username"))}
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.post("/daily-report/contract-file")

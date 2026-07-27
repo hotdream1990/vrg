@@ -311,6 +311,42 @@ def delete_record(as_of: str, source: str, grade: str, contract: str, price_type
     return deleted
 
 
+def move_purchase_prices(company: str, as_of: str, to_date: str, source: str) -> dict[str, list[str]]:
+    """Chuyển đơn giá thu mua của 1 đơn vị sang ngày khác — đi kèm việc đổi ngày bản ghi báo cáo.
+
+    Đơn giá nhập trong biểu Thu mua nhưng lưu ở kho "Giá mủ nguyên liệu" (khoá theo ngày), nên đổi
+    ngày báo cáo mà bỏ lại đơn giá sẽ làm lệch giá bình quân gia quyền của báo cáo kỳ.
+    Ngày đích ĐÃ có đơn giá thì GIỮ số của ngày đích (không ghi đè) và để nguyên số ngày cũ —
+    trả về danh sách `kept` để nơi gọi báo lại cho người dùng.
+    """
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(
+            text("""
+                SELECT as_of, price_type, contract, price, currency, unit
+                FROM fact_price
+                WHERE source = :src AND grade = :g AND price_type IN ('purchase', 'purchase_cup')
+                  AND as_of IN (CAST(:d AS date), CAST(:new AS date))
+            """),
+            {"src": source, "g": company, "d": as_of, "new": to_date},
+        ).mappings().all()
+    src_rows = {r["price_type"]: r for r in rows if str(r["as_of"]) == as_of}
+    taken = {r["price_type"] for r in rows if str(r["as_of"]) == to_date}
+
+    moved, kept = [], []
+    for price_type, r in sorted(src_rows.items()):
+        if price_type in taken:
+            kept.append(price_type)
+            continue
+        upsert_record({"as_of": to_date, "source": source, "grade": company,
+                       "contract": r["contract"] or "", "price_type": price_type,
+                       "price": float(r["price"]), "currency": r["currency"], "unit": r["unit"]},
+                      note=f"đổi ngày báo cáo {as_of} → {to_date}")
+        delete_record(as_of, source, company, r["contract"] or "", price_type)
+        moved.append(price_type)
+    return {"moved": moved, "kept": kept}
+
+
 def prices_since(
     sources: list[str], days: int = 30,
     date_from: str | None = None, date_to: str | None = None,
