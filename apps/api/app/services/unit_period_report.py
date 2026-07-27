@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.core.market_meta import UNIT_STOCK_GRADES
+from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC, UNIT_STOCK_GRADES
 from app.services import member_unit_repo, price_repo, unit_daily_repo, unit_stock_contract_repo
 from app.services.unit_daily_fields import SALE_TABLES
 
@@ -183,7 +183,7 @@ def period_report(kind: str, date_from: str, date_to: str,
     if companies is not None:
         keep = set(companies)
         units = [u for u in units if u["name"] in keep]
-    prices = (price_repo.purchase_prices_in_range(date_from, date_to)
+    prices = (price_repo.purchase_prices_in_range(date_from, date_to, UNIT_SRC)
               if kind == "purchase" else {})
     # Biểu Thu mua cần số tiêu thụ mủ thu mua — nay nằm ở bản ghi 'consumption'.
     sold_by_company = (_by_company(unit_daily_repo.in_range("consumption", date_from, date_to, companies))

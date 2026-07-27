@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from app.core.db import db_healthy, session_scope
+from app.core.market_meta import PURCHASE_SOURCE_UNIT
 from app.main import app
 from app.services import price_repo, user_repo
 
@@ -38,7 +39,8 @@ def _admin() -> dict[str, str]:
 
 
 def _price(unit: str, as_of: str, price_type: str, price: float) -> None:
-    price_repo.upsert_record({"as_of": as_of, "source": "vrg", "grade": unit, "contract": "",
+    """Giá ĐƠN VỊ tự khai — lớp mà màn Thống kê thu mua đọc (xem test_purchase_price_layers)."""
+    price_repo.upsert_record({"as_of": as_of, "source": PURCHASE_SOURCE_UNIT, "grade": unit, "contract": "",
                               "price_type": price_type, "price": price,
                               "currency": "VND", "unit": "đồng/độ TSC"})
 
@@ -47,8 +49,7 @@ def _cleanup(h: dict[str, str]) -> None:
     with session_scope() as db:
         for tbl in ("unit_daily_report", "unit_purchase_plan", "unit_stock_contract"):
             db.execute(text(f"DELETE FROM {tbl} WHERE company = ANY(:u)"), {"u": [UNIT_A, UNIT_B]})
-        db.execute(text("DELETE FROM fact_price WHERE source = 'vrg' AND grade = ANY(:u)"),
-                   {"u": [UNIT_A, UNIT_B]})
+        db.execute(text("DELETE FROM fact_price WHERE grade = ANY(:u)"), {"u": [UNIT_A, UNIT_B]})
     for n in (UNIT_A, UNIT_B):
         client.delete(f"/api/member-units/{n}", headers=h)
     client.delete(f"/api/member-regions/{REGION}", headers=h)

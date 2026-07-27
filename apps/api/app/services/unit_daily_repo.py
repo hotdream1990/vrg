@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
+from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC
 from app.services import audit_repo, unit_daily_fields
 
 #: 'purchase' | 'consumption' → nhãn ghi vào nhật ký (đúng tên biểu mẫu người dùng thấy).
@@ -194,8 +195,8 @@ def attach_purchase_prices(entries: list[dict[str, Any]], kind: str) -> None:
     for e in entries:
         d = e["as_of"]
         if d not in cache:
-            cache[d] = (price_repo.purchase_by_company_on_date(d, "purchase"),
-                        price_repo.purchase_by_company_on_date(d, "purchase_cup"))
+            cache[d] = (price_repo.purchase_by_company_on_date(d, "purchase", UNIT_SRC),
+                        price_repo.purchase_by_company_on_date(d, "purchase_cup", UNIT_SRC))
         latex, cup = cache[d]
         e["prices"] = {"latex": latex.get(e["company"]), "cup": cup.get(e["company"])}
 
@@ -215,8 +216,8 @@ def day_extras(kind: str, as_of: str, units: list[str]) -> dict[str, Any]:
     factories = {u: fac.get(u, True) for u in units}   # có nhà máy? (Tiêu thụ: ẩn/hiện tồn kho nguyên liệu)
     prices: dict[str, dict[str, float | None]] = {}
     if kind == "purchase":
-        latex = price_repo.purchase_by_company_on_date(as_of, "purchase")
-        cup = price_repo.purchase_by_company_on_date(as_of, "purchase_cup")
+        latex = price_repo.purchase_by_company_on_date(as_of, "purchase", UNIT_SRC)
+        cup = price_repo.purchase_by_company_on_date(as_of, "purchase_cup", UNIT_SRC)
         prices = {u: {"latex": latex.get(u), "cup": cup.get(u)} for u in units}
     return {"currencies": currencies, "factories": factories, "prices": prices}
 

@@ -79,7 +79,11 @@ export default function RawMaterialPage() {
       <div className="page-title">
         <div>
           <h2><ExperimentOutlined style={{ marginRight: 8 }} />Giá mủ nguyên liệu</h2>
-          <p>Giá thu mua mủ nước theo đơn vị thành viên VRG (đồng/độ TSC) — hàng là ngày, cột là đơn vị. Bấm ô để sửa.</p>
+          <p>
+            Giá thu mua mủ nước theo đơn vị thành viên VRG (đồng/độ TSC) — hàng là ngày, cột là đơn vị. Bấm ô để sửa.
+            Đây là <b>số của chuyên viên chốt</b>, dùng cho bản tin và báo cáo; số các đơn vị tự khai
+            nằm riêng, xem ở <Link to="/thong-ke/thu-mua">Thống kê thu mua</Link>.
+          </p>
         </div>
         {canEdit && (
           <div className="actions">

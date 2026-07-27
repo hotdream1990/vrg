@@ -12,7 +12,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
-from app.core.market_meta import VRG_COMPANIES
+from app.core.market_meta import PURCHASE_SOURCES, VRG_COMPANIES
 from app.services import audit_repo
 
 _COLS = ("name, sort_order, is_active, region, country, currency, has_factory, has_purchase_plan")
@@ -107,12 +107,13 @@ def rename_unit(old: str, new: str) -> None:
     with session_scope() as db:
         db.execute(text("UPDATE member_unit SET name = :new WHERE name = :old"),
                    {"new": new, "old": old})
-        # ĐỦ mọi loại giá gắn theo TÊN ĐƠN VỊ: mủ nước ('purchase') và mủ chén ('purchase_cup').
-        # Bỏ sót loại nào là lịch sử giá của loại đó thành mồ côi (không còn đơn vị nào khớp tên).
+        # ĐỦ mọi loại giá gắn theo TÊN ĐƠN VỊ: mủ nước ('purchase') và mủ chén ('purchase_cup'),
+        # CẢ HAI lớp — giá chuyên viên chốt (`vrg`) lẫn giá đơn vị tự khai (`vrg_unit`).
+        # Bỏ sót lớp/loại nào là lịch sử giá đó thành mồ côi (không còn đơn vị nào khớp tên).
         db.execute(
-            text("UPDATE fact_price SET grade = :new WHERE source = 'vrg' "
+            text("UPDATE fact_price SET grade = :new WHERE source = ANY(:srcs) "
                  "AND price_type IN ('purchase', 'purchase_cup') AND grade = :old"),
-            {"new": new, "old": old},
+            {"new": new, "old": old, "srcs": list(PURCHASE_SOURCES)},
         )
         for tbl in _COMPANY_TABLES:
             db.execute(text(f"UPDATE {tbl} SET company = :new WHERE company = :old"),

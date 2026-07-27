@@ -120,6 +120,14 @@ MARKET_QUOTE_GRADES = ["SVR CV 50", "SVR CV 60", "SVR 3L", "SVR 10", "RSS3", "LA
 MARKET_QUOTE_PACKAGING = ["Hàng rời", "Pallet"]
 
 
+# Kho "Giá mủ nguyên liệu" tách LÀM HAI theo NGƯỜI NHẬP — trước đây chung một chỗ nên đơn vị
+# lưu biểu Thu mua là ghi đè số chuyên viên đã chốt (và ngược lại).
+#   `vrg`      — giá Ban TTKD (chuyên viên) chốt: dùng cho bản tin ngày, báo cáo tuần, gợi ý giá sàn.
+#   `vrg_unit` — giá đơn vị thành viên tự khai: dùng cho biểu Thu mua và các bảng thống kê của đơn vị.
+PURCHASE_SOURCE_HQ = "vrg"
+PURCHASE_SOURCE_UNIT = "vrg_unit"
+PURCHASE_SOURCES = (PURCHASE_SOURCE_HQ, PURCHASE_SOURCE_UNIT)
+
 # Khu vực (nhóm đơn vị thành viên) — seed ban đầu; admin thêm/bớt ở tab Khu vực.
 VRG_REGIONS = ["Bình Dương", "Bình Phước", "Bình Thuận", "Tây Ninh"]
 

@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy import bindparam, text
 
 from app.core.db import ensure_schema, session_scope
+from app.core.market_meta import PURCHASE_SOURCE_HQ, PURCHASE_SOURCE_UNIT, PURCHASE_SOURCES
 from app.core.paths import bulletin_dir
 from app.services import audit_repo
 
@@ -67,8 +68,10 @@ def _audit_key(as_of: str, source: str, grade: str, price_type: str) -> str:
 
 
 def _audit_company(source: str, grade: str, price_type: str) -> str | None:
-    """Giá mủ nguyên liệu của VRG: `grade` chính là TÊN ĐƠN VỊ → điền vào cột đơn vị để lọc."""
-    return grade if source == "vrg" and price_type in ("purchase", "purchase_cup") else None
+    """Giá mủ nguyên liệu của VRG: `grade` chính là TÊN ĐƠN VỊ → điền vào cột đơn vị để lọc.
+    Áp cho CẢ hai lớp: chuyên viên (`vrg`) và đơn vị thành viên tự khai (`vrg_unit`)."""
+    return (grade if source in PURCHASE_SOURCES and price_type in ("purchase", "purchase_cup")
+            else None)
 
 
 def _snapshot(db, as_of: str, source: str, grade: str,  # noqa: ANN001 - session nội bộ
@@ -343,14 +346,16 @@ def prices_since(
         return [dict(m) for m in result.mappings().all()]
 
 
-def purchase_sheet(date_from: str | None = None, date_to: str | None = None) -> dict[str, Any]:
-    """Lưới giá thu mua mủ nước (source=vrg): công ty × ngày. Trả {companies, dates, values}.
+def purchase_sheet(date_from: str | None = None, date_to: str | None = None,
+                   source: str = PURCHASE_SOURCE_HQ) -> dict[str, Any]:
+    """Lưới giá thu mua mủ nước: công ty × ngày. Trả {companies, dates, values}.
 
+    `source` chọn lớp giá: `vrg` (chuyên viên chốt — mặc định) hay `vrg_unit` (đơn vị tự khai).
     dates: mới nhất trước. values[company][date] = giá đồng/độ TSC.
     """
     ensure_schema()
-    where = ["source = 'vrg'", "price_type = 'purchase'"]
-    params: dict[str, Any] = {}
+    where = ["source = :src", "price_type = 'purchase'"]
+    params: dict[str, Any] = {"src": source}
     if date_from:
         where.append("as_of >= CAST(:dfrom AS date)")
         params["dfrom"] = date_from
@@ -379,15 +384,16 @@ def purchase_sheet(date_from: str | None = None, date_to: str | None = None) -> 
     return {"companies": member_unit_repo.active_names(), "dates": dates, "values": values}
 
 
-def purchase_recent_for(grade: str, limit: int = 10) -> list[dict[str, Any]]:
-    """Vài giá thu mua mủ nước gần nhất của 1 đơn vị (source=vrg) — cho form công khai xem lại."""
+def purchase_recent_for(grade: str, limit: int = 10,
+                        source: str = PURCHASE_SOURCE_HQ) -> list[dict[str, Any]]:
+    """Vài giá thu mua mủ nước gần nhất của 1 đơn vị — cho form công khai xem lại."""
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(
             text("SELECT as_of, price FROM fact_price "
-                 "WHERE source = 'vrg' AND price_type = 'purchase' AND grade = :g "
+                 "WHERE source = :src AND price_type = 'purchase' AND grade = :g "
                  "ORDER BY as_of DESC LIMIT :n"),
-            {"g": grade, "n": limit},
+            {"g": grade, "n": limit, "src": source},
         ).mappings().all()
         return [{"as_of": str(r["as_of"]), "price": float(r["price"])} for r in rows]
 
@@ -506,8 +512,9 @@ def delete_physical_date(as_of: str) -> int:
     return removed
 
 
-def purchase_by_company_on_date(as_of: str, price_type: str = "purchase") -> dict[str, float]:
-    """Giá thu mua ĐÚNG NGÀY báo cáo, theo công ty VRG (source=vrg).
+def purchase_by_company_on_date(as_of: str, price_type: str = "purchase",
+                                source: str = PURCHASE_SOURCE_HQ) -> dict[str, float]:
+    """Giá thu mua ĐÚNG NGÀY báo cáo, theo công ty VRG.
 
     `price_type` = 'purchase' (mủ nước) hoặc 'purchase_cup' (mủ chén). Trả {công ty: giá}.
     CHỈ lấy bản ghi as_of = ngày báo cáo (không carry giá cũ) — công ty không nhập giá đúng
@@ -520,17 +527,18 @@ def purchase_by_company_on_date(as_of: str, price_type: str = "purchase") -> dic
             text("""
                 SELECT DISTINCT ON (grade) grade, price
                 FROM fact_price
-                WHERE source = 'vrg' AND price_type = :pt
+                WHERE source = :src AND price_type = :pt
                   AND as_of = CAST(:d AS date)
                 ORDER BY grade, ingested_at DESC
             """),
-            {"d": as_of, "pt": price_type},
+            {"d": as_of, "pt": price_type, "src": source},
         )
         return {m["grade"]: float(m["price"]) for m in result.mappings().all()}
 
 
-def purchase_prices_in_range(date_from: str, date_to: str) -> dict[tuple[str, str], dict[str, float]]:
-    """Đơn giá thu mua (source=vrg) trong khoảng → {(công ty, ngày): {latex, cup}}.
+def purchase_prices_in_range(date_from: str, date_to: str,
+                             source: str = PURCHASE_SOURCE_HQ) -> dict[tuple[str, str], dict[str, float]]:
+    """Đơn giá thu mua trong khoảng → {(công ty, ngày): {latex, cup}}.
 
     Dùng tính GIÁ BÌNH QUÂN GIA QUYỀN theo sản lượng cho báo cáo kỳ (1 query cho cả khoảng).
     """
@@ -540,11 +548,11 @@ def purchase_prices_in_range(date_from: str, date_to: str) -> dict[tuple[str, st
             text("""
                 SELECT DISTINCT ON (as_of, grade, price_type) as_of, grade, price_type, price
                 FROM fact_price
-                WHERE source = 'vrg' AND price_type IN ('purchase', 'purchase_cup')
+                WHERE source = :src AND price_type IN ('purchase', 'purchase_cup')
                   AND as_of BETWEEN CAST(:a AS date) AND CAST(:b AS date)
                 ORDER BY as_of, grade, price_type, ingested_at DESC
             """),
-            {"a": date_from, "b": date_to},
+            {"a": date_from, "b": date_to, "src": source},
         ).mappings().all()
     out: dict[tuple[str, str], dict[str, float]] = {}
     for r in rows:
@@ -554,8 +562,9 @@ def purchase_prices_in_range(date_from: str, date_to: str) -> dict[tuple[str, st
     return out
 
 
-def member_price_history(company: str, days: int = 30) -> dict[str, Any]:
-    """Lịch sử giá mủ nước + mủ chén của ĐÚNG 1 công ty (source=vrg) trong `days` ngày gần nhất.
+def member_price_history(company: str, days: int = 30,
+                         source: str = PURCHASE_SOURCE_UNIT) -> dict[str, Any]:
+    """Lịch sử giá mủ nước + mủ chén của ĐÚNG 1 công ty trong `days` ngày gần nhất (lớp đơn vị tự khai).
 
     Trả {purchase: {date: giá}, purchase_cup: {date: giá}, dates: [mới→cũ]} — cho tài khoản
     đơn vị thành viên tự xem/nhập giá của chính họ.
@@ -566,12 +575,12 @@ def member_price_history(company: str, days: int = 30) -> dict[str, Any]:
             text("""
                 SELECT DISTINCT ON (as_of, price_type) as_of, price_type, price
                 FROM fact_price
-                WHERE source = 'vrg' AND grade = :g
+                WHERE source = :src AND grade = :g
                   AND price_type IN ('purchase', 'purchase_cup')
                   AND as_of >= CURRENT_DATE - CAST(:d AS integer)
                 ORDER BY as_of DESC, price_type, ingested_at DESC
             """),
-            {"g": company, "d": days},
+            {"g": company, "d": days, "src": source},
         ).mappings().all()
     purchase: dict[str, float] = {}
     purchase_cup: dict[str, float] = {}

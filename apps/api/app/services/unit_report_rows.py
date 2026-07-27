@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC
 from app.services import member_unit_repo, price_repo, unit_daily_repo
 from app.services.unit_daily_fields import SALE_TABLES
 
@@ -70,7 +71,7 @@ def purchase_rows(date_from: str, date_to: str,
     """
     meta = unit_meta()
     entries = unit_daily_repo.in_range("purchase", date_from, date_to, companies)
-    px = price_repo.purchase_prices_in_range(date_from, date_to)
+    px = price_repo.purchase_prices_in_range(date_from, date_to, UNIT_SRC)
     rows: list[dict[str, Any]] = []
     no_purchase: list[dict[str, str]] = []
 

@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse
 
 from app.core import edit_window
 from app.core.feature_flags import require_excel_import
-from app.core.market_meta import UNIT_STOCK_GRADES
+from app.core.market_meta import PURCHASE_SOURCE_UNIT, UNIT_STOCK_GRADES
 from app.core.security import get_current_member
 from app.routers.unit_daily import resolve_timeline_range
 from app.schemas.market_demand import MarketDemandEdit
@@ -63,8 +63,9 @@ def upsert_my_price(body: MemberPriceEdit,
     """Nhập/sửa 1 ô giá (mủ nước hoặc mủ chén) cho 1 đơn vị được gán, trong cửa sổ cho phép."""
     _assert_company(member, body.company)
     edit_window.assert_editable(body.as_of, edit_window.member_window())
+    # Giá đơn vị TỰ KHAI nằm ở lớp riêng — không đè lên giá chuyên viên đã chốt (xem market_meta).
     price_repo.upsert_record({
-        "as_of": body.as_of, "source": "vrg", "grade": body.company, "contract": "",
+        "as_of": body.as_of, "source": PURCHASE_SOURCE_UNIT, "grade": body.company, "contract": "",
         "price_type": body.price_type, "price": float(body.price),
         "currency": "VND", "unit": _price_unit(body.price_type, body.basis),
     })
@@ -83,7 +84,7 @@ def clear_my_price(
     if price_type not in _UNIT:
         raise HTTPException(400, "Loại giá không hợp lệ.")
     edit_window.assert_editable(as_of, edit_window.member_window())
-    price_repo.delete_record(as_of, "vrg", company, "", price_type)
+    price_repo.delete_record(as_of, PURCHASE_SOURCE_UNIT, company, "", price_type)
     return {"deleted": True}
 
 

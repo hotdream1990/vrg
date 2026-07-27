@@ -31,6 +31,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from app.core import request_ctx
 from app.core.market_meta import UNIT_STOCK_GRADES
 from app.core.paths import bulletin_dir
+from app.core.market_meta import PURCHASE_SOURCE_UNIT
 from app.services import member_unit_repo, price_repo, unit_daily_repo
 from app.services.unit_daily_fields import FINISHED_TABLE, SALE_TABLES
 
@@ -510,8 +511,9 @@ def _commit_rows(kind: str, rows: list[dict], username: str | None,
             unit_daily_repo.upsert("purchase", as_of, company, fields, username)
             for key, ptype in (("price_latex", "purchase"), ("price_cup", "purchase_cup")):
                 if it.get(key) is not None:
+                    # Giá trong biểu Thu mua là số ĐƠN VỊ khai → lớp riêng, không đè giá chuyên viên.
                     price_repo.upsert_record({
-                        "as_of": as_of, "source": "vrg", "grade": company, "contract": "",
+                        "as_of": as_of, "source": PURCHASE_SOURCE_UNIT, "grade": company, "contract": "",
                         "price_type": ptype, "price": float(it[key]),
                         "currency": "VND",
                         "unit": ("đồng/độ DRC" if ptype == "purchase_cup" and basis == "drc"
