@@ -4,7 +4,8 @@ Bám mẫu "Chỉ tiêu Biểu (1)-Tuần" (Tiêu thụ–Tồn kho) và "Chỉ 
 Quy tắc trích xuất theo đúng cột "Công thức" của mẫu:
 
 - **cộng dồn**  → sản lượng, doanh thu: CỘNG các ngày trong kỳ.
-- **thời điểm** → tồn kho: lấy bản ghi NGÀY CUỐI CÙNG có số liệu trong kỳ (KHÔNG cộng dồn).
+- **thời điểm** → tồn kho: lấy bản ghi NGÀY CUỐI CÙNG **có nhập tồn** trong kỳ (KHÔNG cộng dồn),
+  trả kèm `stock_as_of` vì ngày này có thể sớm hơn ngày cuối kỳ (đơn vị chưa cập nhật tồn).
 - **bình quân** → giá: bình quân GIA QUYỀN theo sản lượng (không phải trung bình cộng).
 - **% kế hoạch** → sản lượng thu mua trong kỳ ÷ kế hoạch năm × 100.
 
@@ -16,7 +17,9 @@ from __future__ import annotations
 from typing import Any
 
 from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC, UNIT_STOCK_GRADES
-from app.services import member_unit_repo, price_repo, unit_daily_repo, unit_stock_contract_repo
+from app.services import (
+    member_unit_repo, price_repo, unit_daily_repo, unit_report_rows, unit_stock_contract_repo,
+)
 from app.services.unit_daily_fields import SALE_TABLES
 
 TY = 1_000_000_000      # 1 tỷ đồng
@@ -51,9 +54,19 @@ def _by_company(rows: list[dict]) -> dict[str, list[dict]]:
     return out
 
 
-def _latest(entries: list[dict]) -> dict:
-    """Bản ghi NGÀY CUỐI trong kỳ (dùng cho chỉ tiêu 'thời điểm' như tồn kho)."""
-    return max(entries, key=lambda e: e["as_of"])["fields"] if entries else {}
+def _latest_stock(entries: list[dict]) -> tuple[dict, str | None]:
+    """Bản ghi CÓ số liệu tồn gần nhất trong kỳ + ĐÚNG ngày của bản ghi đó.
+
+    KHÔNG lấy bản ghi ngày cuối vô điều kiện: đơn vị thường nhập dòng bán trước và để trống khối
+    tồn kho, nên bản ghi cuối kỳ hay có tồn rỗng → báo cáo sẽ hiểu nhầm thành "hết hàng" (tồn = 0)
+    thay vì "chưa cập nhật tồn". Dùng chung quy tắc `has_stock` với màn Thống kê tồn kho để hai
+    màn luôn khớp; trả kèm ngày để người xem biết số thuộc ngày nào (không mượn số ngày khác).
+    """
+    with_stock = [e for e in entries if unit_report_rows.has_stock(e["fields"])]
+    if not with_stock:
+        return {}, None
+    last = max(with_stock, key=lambda e: e["as_of"])
+    return last["fields"], last["as_of"]
 
 
 # ── Biểu (2): Thu mua ──────────────────────────────────────────────────────────
@@ -129,8 +142,8 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: list[dict] | None
     total = lt_e + lt_d + sp_e + sp_d
     revenue = acc.get("revenue")
 
-    # Tồn kho = THỜI ĐIỂM: lấy ngày cuối có số liệu trong kỳ (KHÔNG cộng dồn các ngày).
-    last = _latest(entries)
+    # Tồn kho = THỜI ĐIỂM: lấy lần chốt tồn GẦN NHẤT trong kỳ (KHÔNG cộng dồn các ngày).
+    last, stock_as_of = _latest_stock(entries)
     tonnes = lambda rows: sum((_num(r.get("qty")) or 0.0) for r in rows)  # noqa: E731
     not_wh = last.get("stock_not_warehoused") or []      # khối 1: chế biến chưa nhập kho
     wh = last.get("stock_warehoused") or []              # khối 2: đã nhập kho
@@ -161,6 +174,8 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: list[dict] | None
         "domestic_total": (lt_d + sp_d) or None,
         "revenue_ty": (revenue / TY) if revenue is not None else None,
         "avg_sell_price": (r / TRIEU if (r := _ratio(revenue, total)) is not None else None),
+        # Ngày của ảnh chụp tồn kho — có thể SỚM HƠN ngày cuối kỳ (đơn vị chưa cập nhật tồn).
+        "stock_as_of": stock_as_of,
         "stock_finished": t(stock_finished),
         "stock_finished_hd": t(stock_hd),
         "stock_not_warehoused": t(tonnes(not_wh)),

@@ -53,6 +53,8 @@ _CONSUMPTION_COLS: list[tuple[str, str, str, str]] = [
     ("domestic_total", "Tổng Nội tiêu", "= dài hạn + chuyến", "tấn"),
     ("revenue_ty", "Doanh thu cao su", "cộng dồn", "tỷ đồng"),
     ("avg_sell_price", "Giá bán bình quân", "= doanh thu / tiêu thụ", "triệu đ/tấn"),
+    # Ngày của ảnh chụp tồn kho — có thể sớm hơn ngày cuối kỳ nếu đơn vị chưa cập nhật tồn.
+    ("stock_as_of", "Ngày lấy số tồn kho", "thời điểm", ""),
     ("stock_not_warehoused", "Tồn kho thành phẩm chế biến chưa nhập kho", "thời điểm", "tấn"),
     ("stock_warehoused", "Tồn kho thành phẩm đã nhập kho", "thời điểm", "tấn"),
     ("stock_finished", "Tổng tồn kho thành phẩm", "= chưa nhập kho + đã nhập kho", "tấn"),
@@ -88,7 +90,11 @@ def _columns(kind: str, grades: list[str]) -> tuple[list[tuple[str, str, str, st
 def _value(row: dict, key: str) -> Any:
     if key.startswith("grade::"):
         return (row.get("stock_by_grade") or {}).get(key[7:])
-    return row.get(key)
+    v = row.get(key)
+    if key == "stock_as_of" and v:      # ngày hiển thị chuẩn VN (dữ liệu nội bộ giữ ISO)
+        y, m, d = str(v)[:10].split("-")
+        return f"{d}/{m}/{y}"
+    return v
 
 
 def build_period_xlsx(report: dict) -> bytes:
@@ -129,8 +135,10 @@ def build_period_xlsx(report: dict) -> bytes:
         ws.cell(row=r, column=1, value=row.get("region") or "").border = _BORDER
         ws.cell(row=r, column=2, value=row.get("company")).border = _BORDER
         for i, (key, *_) in enumerate(cols, start=3):
-            c = ws.cell(row=r, column=i, value=_value(row, key))
-            c.number_format = _NUM
+            v = _value(row, key)
+            c = ws.cell(row=r, column=i, value=v)
+            if not isinstance(v, str):       # cột ngày là chữ → giữ nguyên, không ép định dạng số
+                c.number_format = _NUM
             c.border = _BORDER
         r += 1
 

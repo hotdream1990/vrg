@@ -433,3 +433,59 @@ def test_contract_docs_multi_file() -> None:
 
     client.delete("/api/users/ud_docs_ed", headers=h)
     _cleanup(h, ["ud_docs_ed"], [unit])
+
+
+def test_period_report_keeps_last_real_stock() -> None:
+    """Đơn vị nhập dòng bán cho ngày mới nhưng CHƯA chốt tồn → báo cáo kỳ giữ lần chốt tồn gần nhất.
+
+    Trước đây báo cáo lấy bản ghi ngày cuối vô điều kiện: bản ghi chỉ có dòng bán làm tồn kho về 0
+    (hiểu nhầm là hết hàng) và tổng toàn Tập đoàn hụt đúng phần tồn của các đơn vị đó.
+    """
+    h = _admin()
+    unit = "_zz_ud_stock"
+    today = date.today().isoformat()
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    client.delete("/api/users/ud_stock_ed", headers=h)
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    client.post("/api/users", json={"username": "ud_stock_ed", "password": "pass123",
+                                    "role": "editor", "permissions": ["unit_daily"]}, headers=h)
+    eh = _bearer("ud_stock_ed", "pass123")
+
+    # Hôm qua: có chốt tồn kho (khối 1 + khối 2 = 24 tấn) + tồn nguyên liệu.
+    assert client.put("/api/unit-daily/report", headers=eh, json={
+        "kind": "consumption", "company": unit, "as_of": yesterday, "fields": {
+            "sales": [{"contract": "long_term", "channel": "export", "grade": "RSS 3",
+                       "qty": 5, "price": 40}],
+            "sales_ccy": "VND", "stock_ccy": "VND", "revenue": 200_000_000,
+            "stock_not_warehoused": [{"grade": "RSS 3", "qty": 9}],
+            "stock_warehoused": [{"grade": "RSS 3", "qty": 15}],
+            "stock_material": 3.5,
+        }}).status_code == 200
+
+    # Hôm nay: CHỈ nhập dòng bán, khối tồn kho để trống (chưa cập nhật tồn).
+    assert client.put("/api/unit-daily/report", headers=eh, json={
+        "kind": "consumption", "company": unit, "as_of": today, "fields": {
+            "sales": [{"contract": "spot", "channel": "domestic", "grade": "RSS 3",
+                       "qty": 2, "price": 41}],
+            "sales_ccy": "VND", "stock_ccy": "VND", "revenue": 82_000_000,
+            "stock_not_warehoused": [], "stock_warehoused": [],
+        }}).status_code == 200
+
+    pr = client.get("/api/unit-daily/period-report?kind=consumption"
+                    f"&date_from={yesterday}&date_to={today}", headers=eh)
+    assert pr.status_code == 200
+    row = next(r for r in pr.json()["rows"] if r["company"] == unit)
+    # Tiêu thụ vẫn CỘNG DỒN cả 2 ngày; tồn kho giữ ảnh chụp hôm qua và nói rõ ngày đã lấy.
+    assert row["total_consumption"] == 7.0
+    assert row["stock_finished"] == 24.0 and row["stock_material"] == 3.5
+    assert row["stock_as_of"] == yesterday and row["last_day"] == today
+    assert row["stock_by_grade"]["RSS 3"] == 24.0
+
+    # Khớp màn Thống kê tồn kho (cùng quy tắc `has_stock`) — hai màn không được lệch nhau.
+    st = client.get("/api/unit-daily/analytics/stock?group_by=company"
+                    f"&date_from={yesterday}&date_to={today}", headers=eh).json()
+    srow = next(r for r in st["rows"] if r["key"] == unit)
+    assert srow["total"] == row["stock_finished"] and srow["as_of"] == row["stock_as_of"]
+
+    client.delete("/api/users/ud_stock_ed", headers=h)
+    _cleanup(h, ["ud_stock_ed"], [unit])

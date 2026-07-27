@@ -1,6 +1,7 @@
 /* Báo cáo tổng hợp theo KỲ — trích xuất từ số liệu NGÀY ra biểu tuần/tháng/năm/khoảng tự chọn.
    Bám mẫu "Chỉ tiêu Biểu (1)-Tuần" (Tiêu thụ–Tồn kho) và "(2)-Tuần" (Thu mua):
-   cộng dồn (sản lượng/doanh thu) · thời điểm (tồn kho, lấy ngày cuối kỳ) · bình quân gia quyền (giá).
+   cộng dồn (sản lượng/doanh thu) · thời điểm (tồn kho: lần chốt tồn gần nhất trong kỳ, kèm cột
+   "Ngày lấy số tồn") · bình quân gia quyền (giá).
    Mỗi đơn vị 1 dòng + dòng Tổng cộng; xuất Excel đúng mẫu. */
 
 import { DownloadOutlined, FileDoneOutlined, ReloadOutlined } from "@ant-design/icons";
@@ -10,12 +11,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   type PeriodReport, type PeriodRow, downloadPeriodXlsx, fetchPeriodReport,
 } from "../../../lib/unit-daily-client";
+import { dmy } from "../../../lib/date";
 import { PRESETS, type Preset, rangeOf } from "../../../lib/date-presets";
 import { type Kind, displayDigits, fmtNum } from "../../../lib/unit-daily-fields";
 import DateInput from "../sections/DateInput";
 import "../../bulletin/bulletin.css";
 
-type Col = { key: string; label: string; unit: string; note: string };
+type Col = { key: string; label: string; unit: string; note: string; date?: boolean };
 
 // Cột KHỚP file Excel xuất ra (app/services/unit_period_excel.py).
 const PURCHASE_COLS: Col[] = [
@@ -44,6 +46,9 @@ const CONSUMPTION_COLS: Col[] = [
   { key: "domestic_total", label: "Tổng Nội tiêu", unit: "tấn", note: "DH + chuyến" },
   { key: "revenue_ty", label: "Doanh thu cao su", unit: "tỷ đồng", note: "cộng dồn" },
   { key: "avg_sell_price", label: "Giá bán BQ", unit: "triệu đ/tấn", note: "= DT / TT" },
+  // Ngày của ảnh chụp tồn kho: đơn vị hay nhập dòng bán trước, tồn kho cập nhật sau → ngày này
+  // có thể sớm hơn ngày cuối kỳ. Hiện ra để không hiểu nhầm là số của ngày cuối kỳ.
+  { key: "stock_as_of", label: "Ngày lấy số tồn", unit: "", note: "thời điểm", date: true },
   { key: "stock_finished", label: "Tồn kho thành phẩm", unit: "tấn", note: "thời điểm" },
   // Khối 3 là CAM KẾT giao hàng, KHÔNG nằm trong tồn kho thành phẩm → báo riêng, không "trong đó".
   { key: "stock_finished_hd", label: "Đã ký HĐ chưa giao", unit: "tấn", note: "nằm trong tồn kho" },
@@ -53,8 +58,28 @@ const TAIL_COLS: Col[] = [
   { key: "carry_lt_tonnes", label: "DH năm trước chuyển sang", unit: "tấn", note: "số liệu năm" },
   { key: "carry_spot_tonnes", label: "Chuyến năm trước chuyển sang", unit: "tấn", note: "số liệu năm" },
 ];
-// Giá & % không cộng được ở dòng Tổng cộng.
-const NO_SUM = new Set(["price_latex_avg", "price_cup_avg", "pct_plan", "avg_sell_price"]);
+// Giá & % không cộng được ở dòng Tổng cộng; ngày lấy số tồn cũng vậy (mỗi đơn vị một ngày).
+const NO_SUM = new Set(["price_latex_avg", "price_cup_avg", "pct_plan", "avg_sell_price",
+                        "stock_as_of"]);
+
+/** Ô "Ngày lấy số tồn" — tô cảnh báo khi đơn vị đã nhập số liệu tới ngày mới hơn mà chưa chốt tồn. */
+function stockDate(r: PeriodRow) {
+  const day = typeof r.stock_as_of === "string" ? r.stock_as_of : null;
+  if (!day) {
+    return <span style={{ color: "var(--muted)" }}
+                 title="Đơn vị chưa nhập tồn kho lần nào trong kỳ này.">—</span>;
+  }
+  const stale = typeof r.last_day === "string" && day < r.last_day;
+  return (
+    <span style={stale ? { color: "var(--warn)", fontWeight: 600 } : undefined}
+          title={stale
+            ? `Đơn vị đã nhập số liệu tới ${dmy(r.last_day)} nhưng chưa cập nhật tồn kho — `
+              + `số tồn bên cạnh là của ngày ${dmy(day)}.`
+            : undefined}>
+      {dmy(day)}
+    </span>
+  );
+}
 
 const KIND_OPTS = [
   { label: "Thu mua", value: "purchase" },
@@ -119,7 +144,9 @@ export default function PeriodReportPage() {
           <h2><FileDoneOutlined style={{ marginRight: 8 }} />Báo cáo tổng hợp</h2>
           <p>
             Trích xuất từ số liệu nhập hàng ngày theo kỳ — <b>cộng dồn</b> sản lượng/doanh thu,
-            tồn kho lấy <b>thời điểm cuối kỳ</b>, giá tính <b>bình quân gia quyền</b>.
+            giá tính <b>bình quân gia quyền</b>. Tồn kho là số <b>thời điểm</b>: lấy lần chốt tồn
+            gần nhất của từng đơn vị trong kỳ — xem cột <b>Ngày lấy số tồn</b> (tô vàng nghĩa là
+            đơn vị đã nhập số liệu tới ngày mới hơn nhưng chưa cập nhật tồn kho).
           </p>
         </div>
       </div>
@@ -157,7 +184,9 @@ export default function PeriodReportPage() {
                   <td>{r.region ?? "—"}</td>
                   <td style={{ fontWeight: 500 }}>{r.company}</td>
                   {cols.map((c) => (
-                    <td key={c.key} className="r">{fmtNum(valueOf(r, c.key), displayDigits(c.unit))}</td>
+                    <td key={c.key} className="r">
+                      {c.date ? stockDate(r) : fmtNum(valueOf(r, c.key), displayDigits(c.unit))}
+                    </td>
                   ))}
                 </tr>
               ))}

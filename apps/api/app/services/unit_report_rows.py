@@ -161,8 +161,12 @@ def consumption_rows(date_from: str, date_to: str,
 
 
 # ── Tồn kho (số THỜI ĐIỂM) ─────────────────────────────────────────────────────
-def _has_stock(fields: dict) -> bool:
-    """Bản ghi ngày này có nhập tồn kho hay không (chỉ có dòng bán thì không tính)."""
+def has_stock(fields: dict) -> bool:
+    """Bản ghi ngày này có nhập tồn kho hay không (chỉ có dòng bán thì không tính).
+
+    Quy tắc DÙNG CHUNG cho mọi nơi lấy "mốc tồn kho" (màn Thống kê tồn kho + Báo cáo tổng hợp)
+    → hai màn luôn ra cùng một số. Đơn vị thường nhập dòng bán trước, khối tồn để trống.
+    """
     return bool(fields.get("stock_not_warehoused") or fields.get("stock_warehoused")
                 or fields.get("stock_material") is not None)
 
@@ -179,7 +183,7 @@ def stock_rows(date_from: str, date_to: str, companies: list[str] | None = None,
     entries = unit_daily_repo.in_range("consumption", date_from, date_to, companies)
     kept: dict[Any, dict[str, Any]] = {}
     for e in entries:                      # in_range trả theo ngày TĂNG dần → ghi đè = ngày cuối
-        if _has_stock(e["fields"]):
+        if has_stock(e["fields"]):
             kept[(e["company"], e["as_of"]) if all_days else e["company"]] = e
 
     rows: list[dict[str, Any]] = []
