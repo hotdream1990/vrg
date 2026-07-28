@@ -54,13 +54,11 @@ def run_sql(sql: str, local: bool) -> str:
     return res.stdout
 
 
-def collect(days: int, local: bool) -> tuple[list, list, list]:
-    """Trả 3 nhóm dòng A (tình trạng nộp) · B (giá mủ sai đơn vị) · C (giá bán sai đơn vị)."""
+def collect(days: int, local: bool) -> dict[str, list]:
+    """Gom kết quả theo nhóm: A tình trạng nộp · B giá mủ sai đơn vị · C giá bán sai · D thiếu đơn giá."""
     sql = (HERE / "collect.sql").read_text().replace(":days", str(days))
     rows = [ln.split("|") for ln in run_sql(sql, local).splitlines() if ln.strip()]
-    return ([r[1:] for r in rows if r[0] == "A"],
-            [r[1:] for r in rows if r[0] == "B"],
-            [r[1:] for r in rows if r[0] == "C"])
+    return {g: [r[1:] for r in rows if r[0] == g] for g in "ABCD"}
 
 
 # ── Dựng HTML ─────────────────────────────────────────────────────────────────
@@ -101,8 +99,8 @@ def mark(v: str) -> str:
             else f'<td class="mark good">✓ {v} ngày</td>')
 
 
-def page_missing(rows_a: list, days: int) -> str:
-    """Ảnh A: KHÔNG NỘP GÌ (thiếu cả 3 mục áp dụng) và THIẾU MỘT PHẦN (thiếu ít nhất 1 mục)."""
+def page_missing(rows_a: list, rows_d: list, days: int) -> str:
+    """Ảnh A: KHÔNG NỘP GÌ (thiếu mọi biểu áp dụng) và THIẾU MỘT PHẦN (thiếu ít nhất 1 biểu)."""
     def missing(v: str) -> bool:      # '-' = không áp dụng → không tính là thiếu
         return v != "-" and int(v) == 0
 
@@ -112,11 +110,23 @@ def page_missing(rows_a: list, days: int) -> str:
     ky = f"{(today - timedelta(days=days - 1)).strftime('%d/%m')} – {today.strftime('%d/%m/%Y')}"
 
     def block(title: str, items: list) -> str:
-        out = [f'<tr class="grp"><td colspan="5">{title} — {len(items)} đơn vị</td></tr>']
-        for i, (name, pur, con, px) in enumerate(items, 1):
-            out.append(f'<tr><td class="stt">{i}</td><td>{name}</td>'
-                       f'{mark(pur)}{mark(con)}{mark(px)}</tr>')
+        out = [f'<tr class="grp"><td colspan="4">{title} — {len(items)} đơn vị</td></tr>']
+        for i, (name, pur, con) in enumerate(items, 1):
+            out.append(f'<tr><td class="stt">{i}</td><td>{name}</td>{mark(pur)}{mark(con)}</tr>')
         return "".join(out)
+
+    # Thiếu đơn giá là lỗi NẰM TRONG biểu Thu mua (nhập sản lượng, bỏ trống ô đơn giá) → bảng riêng,
+    # không phải một mục nộp riêng.
+    d = "".join(
+        f'<tr><td class="stt">{i}</td><td>{r[0]}</td>'
+        f'<td class="mark">{r[1][8:10]}/{r[1][5:7]}/{r[1][:4]}</td></tr>'
+        for i, r in enumerate(rows_d, 1))
+    d_table = f"""
+<h2>Có tổ chức thu mua nhưng chưa nhập đơn giá — {len(rows_d)} ngày</h2>
+<table style="width:auto;min-width:420px"><thead><tr><th>#</th>
+  <th style="text-align:left">Đơn vị</th><th>Ngày</th></tr></thead><tbody>{d}</tbody></table>
+<div class="note">Đơn giá mủ nước/mủ chén nhập ngay trong biểu Thu mua. Ngày không tổ chức thu mua
+  thì không cần giá — các ngày dưới đây đã có tổ chức mua nhưng ô đơn giá còn trống.</div>""" if d else ""
 
     return f"""{CSS}
 <h1>ĐƠN VỊ CHƯA NHẬP LIỆU</h1>
@@ -124,11 +134,12 @@ def page_missing(rows_a: list, days: int) -> str:
   nguồn: Hệ thống Dự báo &amp; Quản trị Giá Cao su</div>
 <table>
   <thead><tr><th>#</th><th style="text-align:left">Đơn vị</th>
-    <th>Báo cáo thu mua</th><th>Tiêu thụ – Tồn kho</th><th>Giá mủ nguyên liệu</th></tr></thead>
+    <th>Báo cáo thu mua</th><th>Tiêu thụ – Tồn kho</th></tr></thead>
   <tbody>{block("KHÔNG NỘP GÌ TRONG KỲ", full)}{block("THIẾU MỘT PHẦN", part)}</tbody>
 </table>
 <div class="note">“không áp dụng” = đơn vị không được giao kế hoạch thu mua nên không phải nộp
   biểu Thu mua.</div>
+{d_table}
 """
 
 
@@ -197,14 +208,14 @@ def main() -> None:
     ap.add_argument("--local", action="store_true", help="lấy số liệu ở DB local thay vì prod")
     args = ap.parse_args()
 
-    rows_a, rows_b, rows_c = collect(args.days, args.local)
+    g = collect(args.days, args.local)
     out_dir = pathlib.Path(args.out)
     if not out_dir.is_absolute():
         out_dir = ROOT / out_dir
-    made = shoot([("A-don-vi-chua-nhap-lieu.png", page_missing(rows_a, args.days)),
-                  ("B-don-vi-nhap-sai-don-vi-tinh.png", page_wrong(rows_b, rows_c))], out_dir)
-    print(f"{len(rows_a)} đơn vị đang hoạt động · {len(rows_b)} ô giá mủ sai · "
-          f"{len(rows_c)} đơn vị sai giá bán")
+    made = shoot([("A-don-vi-chua-nhap-lieu.png", page_missing(g["A"], g["D"], args.days)),
+                  ("B-don-vi-nhap-sai-don-vi-tinh.png", page_wrong(g["B"], g["C"]))], out_dir)
+    print(f"{len(g['A'])} đơn vị đang hoạt động · {len(g['D'])} ngày thiếu đơn giá · "
+          f"{len(g['B'])} ô giá mủ sai đơn vị · {len(g['C'])} đơn vị sai giá bán")
     for p in made:
         print("đã tạo", p)
 

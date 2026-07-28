@@ -9,7 +9,7 @@ Ra **2 ảnh PNG** gửi thẳng cho các đơn vị (không cần mở hệ th�
 
 | Ảnh | Nội dung |
 |---|---|
-| `A-don-vi-chua-nhap-lieu.png` | **Không nộp gì trong kỳ** + **Thiếu một phần**, theo 3 mục: Thu mua · Tiêu thụ–Tồn kho · Giá mủ nguyên liệu |
+| `A-don-vi-chua-nhap-lieu.png` | **Không nộp gì trong kỳ** + **Thiếu một phần** theo **2 biểu** (Thu mua · Tiêu thụ–Tồn kho), kèm bảng phụ **có mua nhưng chưa nhập đơn giá** |
 | `B-don-vi-nhap-sai-don-vi-tinh.png` | **Nhập sai đơn vị tính**: giá mủ nguyên liệu (phải là đ/độ) và giá bán ở biểu Tiêu thụ (phải là triệu đ/tấn) |
 
 ## Chạy
@@ -33,11 +33,18 @@ không mở ra ngoài. Ảnh chụp bằng Playwright trong venv `apps/api`.
 → ô hiện *"không áp dụng"* (xám), không xếp vào nhóm chưa nộp. Admin bật/tắt cờ này ở
 **Quản trị → Đơn vị thành viên**; sai cờ là báo oan đơn vị.
 
-**Chia nhóm:** thiếu **mọi** mục áp dụng → *KHÔNG NỘP GÌ TRONG KỲ*; thiếu **ít nhất một** → *THIẾU MỘT PHẦN*.
+**Chia nhóm:** thiếu **mọi** biểu áp dụng → *KHÔNG NỘP GÌ TRONG KỲ*; thiếu **ít nhất một** → *THIẾU MỘT PHẦN*.
 
-**Giá mủ nguyên liệu** đọc cả `purchase` (mủ nước) lẫn `purchase_cup` (mủ chén) ở lớp `vrg_unit`
-(đơn vị tự khai) — đơn vị chỉ mua mủ chén vẫn tính là đã nhập. Lớp `vrg` là giá chuyên viên chốt,
-KHÔNG dùng ở đây.
+**Chỉ có 2 biểu phải nộp — KHÔNG tách "Giá mủ nguyên liệu" thành mục thứ 3.** Đơn giá mủ nước/mủ chén
+nhập **ngay trong biểu Thu mua** (ô "Đơn giá thu mua"), chỉ là được lưu sang kho giá `vrg_unit` cho các
+màn khác dùng. Đã đo trên prod: **0 trường hợp** có đơn giá mà không có biểu Thu mua. Tách ra thành cột
+riêng là đếm trùng và **báo oan** đơn vị có ngày `no_purchase` (không tổ chức thu mua → ngày đó vốn
+không có giá): làm vậy nhóm "thiếu một phần" phình từ 7 lên 29 đơn vị.
+
+**Thiếu đơn giá** vì thế là lỗi *bên trong* biểu Thu mua → bảng phụ riêng ở cuối ảnh A: ngày có tổ chức
+thu mua mà ô đơn giá còn trống. Ngày `no_purchase = true` được loại ra; ngày có tổ chức mà mua được
+0 tấn thì **vẫn phải có giá đã công bố** nên giữ lại. Đọc cả `purchase` lẫn `purchase_cup` ở lớp
+`vrg_unit` (đơn vị tự khai) — lớp `vrg` là giá chuyên viên chốt, KHÔNG dùng ở đây.
 
 **Ngưỡng "sai đơn vị tính"** (mốc phát hiện, không phải mốc nghiệp vụ):
 
@@ -56,7 +63,8 @@ KHÔNG dùng ở đây.
 
 ## Sửa nội dung/bố cục
 
-- Truy vấn: `scripts/collect.sql` (3 nhóm A/B/C, mỗi dòng ra là chuỗi ngăn bằng `|`).
+- Truy vấn: `scripts/collect.sql` — 4 nhóm **A** tình trạng nộp · **D** thiếu đơn giá · **B** giá mủ
+  sai đơn vị · **C** giá bán sai đơn vị; mỗi dòng ra là chuỗi ngăn bằng `|`, ký tự đầu là tên nhóm.
 - HTML/CSS + chụp ảnh: `scripts/make-report.py` (`page_missing`, `page_wrong`, `CSS`).
 - Đổi ngưỡng phát hiện thì sửa **cả** `collect.sql` lẫn tiêu đề mục trong `page_wrong` cho khớp.
 

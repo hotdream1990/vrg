@@ -2,10 +2,13 @@
 -- ký tự đầu là NHÓM (A/B/C) để script gom lại. Chạy với psql -tA (không header, không canh cột).
 -- Tham số: :days = số ngày của kỳ xét "đã nộp chưa" (mặc định do script truyền vào).
 
--- ── A) Tình trạng nộp trong kỳ: A|đơn vị|thu mua|tiêu thụ-tồn kho|giá mủ ───────────────────
+-- ── A) Tình trạng nộp trong kỳ: A|đơn vị|thu mua|tiêu thụ-tồn kho ──────────────────────────
 -- Số = SỐ NGÀY đã nộp trong kỳ; 0 = chưa nhập; '-' = KHÔNG ÁP DỤNG.
 -- ⚠ Đơn vị không được giao kế hoạch thu mua (has_purchase_plan = false) thì KHÔNG phải nộp biểu
 --   Thu mua → trả '-' để không tính là thiếu.
+-- ⚠ CHỈ 2 biểu. Đơn giá mủ nguyên liệu nhập NGAY TRONG biểu Thu mua (ô "Đơn giá thu mua", lưu sang
+--   kho giá `vrg_unit`) nên KHÔNG phải mục nộp riêng — tách ra thành cột thứ 3 là đếm trùng và báo
+--   oan các đơn vị có ngày không tổ chức thu mua (ngày đó vốn không có giá). Thiếu giá xem nhóm D.
 SELECT 'A|' || u.name || '|' ||
        CASE WHEN u.has_purchase_plan THEN
          (SELECT count(*) FROM unit_daily_report r
@@ -16,13 +19,22 @@ SELECT 'A|' || u.name || '|' ||
        (SELECT count(*) FROM unit_daily_report r
          WHERE r.company = u.name AND r.kind = 'consumption'
            AND r.as_of BETWEEN CURRENT_DATE - (:days - 1) AND CURRENT_DATE
-           AND r.payload <> '{}'::jsonb)::text || '|' ||
-       -- Giá mủ nguyên liệu: tính CẢ mủ nước lẫn mủ chén (đơn vị chỉ mua mủ chén vẫn là đã nhập).
-       (SELECT count(DISTINCT p.as_of) FROM fact_price p
-         WHERE p.source = 'vrg_unit' AND p.grade = u.name
-           AND p.price_type IN ('purchase', 'purchase_cup')
-           AND p.as_of BETWEEN CURRENT_DATE - (:days - 1) AND CURRENT_DATE)::text
+           AND r.payload <> '{}'::jsonb)::text
   FROM member_unit u WHERE u.is_active ORDER BY u.sort_order, u.name;
+
+-- ── D) Có tổ chức thu mua nhưng THIẾU ĐƠN GIÁ: D|đơn vị|ngày ───────────────────────────────
+-- Lỗi thật của biểu Thu mua: đã nhập sản lượng mà bỏ trống ô đơn giá.
+-- ⚠ Ngày bật cờ `no_purchase` (không tổ chức thu mua) thì KHÔNG có giá là ĐÚNG → loại ra.
+--   Ngày có tổ chức mà mua được 0 tấn thì VẪN phải có giá đã công bố → giữ lại.
+SELECT 'D|' || r.company || '|' || r.as_of::text
+  FROM unit_daily_report r
+ WHERE r.kind = 'purchase' AND r.payload <> '{}'::jsonb
+   AND r.as_of BETWEEN CURRENT_DATE - (:days - 1) AND CURRENT_DATE
+   AND COALESCE((r.payload->>'no_purchase')::bool, false) = false
+   AND NOT EXISTS (SELECT 1 FROM fact_price f
+                    WHERE f.source = 'vrg_unit' AND f.grade = r.company AND f.as_of = r.as_of
+                      AND f.price_type IN ('purchase', 'purchase_cup'))
+ ORDER BY r.company, r.as_of;
 
 -- ── B) Giá mủ nguyên liệu SAI ĐƠN VỊ TÍNH: B|đơn vị|loại mủ|giá lớn nhất|số ô sai ──────────
 -- Phải nhập ĐỒNG/ĐỘ (mặt bằng 100–1.500). Nhập đồng/kg hoặc đồng/tấn → số vọt lên hàng chục nghìn
