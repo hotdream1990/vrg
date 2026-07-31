@@ -1,8 +1,10 @@
 """Đổi tên đơn vị thành viên: MỌI thứ gắn theo tên đơn vị phải chuyển sang tên mới.
 
 Tên đơn vị là khoá liên kết của giá mủ, báo cáo ngày, hợp đồng tồn kho, kế hoạch năm,
-nhu cầu thị trường và danh sách đơn vị của tài khoản. Trước đây đổi tên chỉ chuyển giá mủ
-→ số liệu còn lại thành mồ côi và tài khoản đơn vị mất quyền vào chính đơn vị của mình.
+nhu cầu thị trường, danh mục khách hàng + hợp đồng bán hàng (cả đơn vị sở hữu lẫn
+`to_company` — đơn vị nhận tiêu thụ nội bộ), cây công ty mẹ-con và danh sách đơn vị của
+tài khoản. Trước đây đổi tên chỉ chuyển giá mủ → số liệu còn lại thành mồ côi và tài khoản
+đơn vị mất quyền vào chính đơn vị của mình.
 """
 
 from __future__ import annotations
@@ -21,6 +23,8 @@ client = TestClient(app)
 
 OLD, NEW = "_zz_ren_cu", "_zz_ren_moi (Việt Nam)"
 USER = "zz_ren_mem"
+OTHER = "_zz_ren_other"    # đơn vị khác — bán hàng, tiêu thụ nội bộ giao VỀ cho OLD (to_company)
+CHILD = "_zz_ren_child"    # đơn vị con — gán OLD làm công ty mẹ (parent_company)
 
 
 @pytest.fixture(autouse=True)
@@ -37,10 +41,13 @@ def _admin() -> dict[str, str]:
 def _cleanup(h: dict[str, str]) -> None:
     client.delete(f"/api/users/{USER}", headers=h)
     with session_scope() as db:
-        for tbl in ("unit_daily_report", "unit_stock_contract", "unit_purchase_plan", "market_demand"):
+        for tbl in ("unit_daily_report", "unit_stock_contract", "unit_purchase_plan", "market_demand",
+                    "unit_customer"):
             db.execute(text(f"DELETE FROM {tbl} WHERE company = ANY(:u)"), {"u": [OLD, NEW]})
+        db.execute(text("DELETE FROM sales_contract WHERE company = ANY(:u) OR to_company = ANY(:u)"),
+                   {"u": [OLD, NEW, OTHER]})
         db.execute(text("DELETE FROM fact_price WHERE source = 'vrg' AND grade = ANY(:u)"), {"u": [OLD, NEW]})
-    for n in (OLD, NEW):
+    for n in (CHILD, OLD, NEW):
         client.delete(f"/api/member-units/{n}", headers=h)
 
 
@@ -51,6 +58,10 @@ def test_rename_moves_data_and_member_accounts() -> None:
     assert client.post("/api/users", json={"username": USER, "password": "pass123",
                                            "role": "member", "member_units": [OLD]},
                        headers=h).status_code == 200
+
+    # Đơn vị con gán OLD làm công ty mẹ — phải trỏ theo tên mới sau khi đổi tên.
+    client.post("/api/member-units", json={"name": CHILD}, headers=h)
+    member_unit_repo.set_parent(CHILD, OLD)
 
     # Mỗi bảng 1 dòng số liệu đang gắn tên CŨ.
     with session_scope() as db:
@@ -64,6 +75,11 @@ def test_rename_moves_data_and_member_accounts() -> None:
                         "VALUES ('2026-07-20', :c, 'test')"), {"c": OLD})
         db.execute(text("INSERT INTO fact_price (as_of, source, grade, price_type, price, currency, unit) "
                         "VALUES ('2026-07-20', 'vrg', :c, 'purchase', 380, 'VND', 'đồng/độ TSC')"), {"c": OLD})
+        db.execute(text("INSERT INTO unit_customer (company, name) VALUES (:c, 'Khách test')"), {"c": OLD})
+        # HĐ do OLD sở hữu (cột `company`) + HĐ của đơn vị khác tiêu thụ nội bộ GIAO VỀ OLD (`to_company`).
+        db.execute(text("INSERT INTO sales_contract (company, code) VALUES (:c, 'SC-TEST-A')"), {"c": OLD})
+        db.execute(text("INSERT INTO sales_contract (company, code, channel, to_company) "
+                        "VALUES (:o, 'SC-TEST-B', 'internal', :c)"), {"o": OTHER, "c": OLD})
 
     member_unit_repo.rename_unit(OLD, NEW)
 
@@ -71,11 +87,20 @@ def test_rename_moves_data_and_member_accounts() -> None:
     assert NEW in names and OLD not in names
 
     with session_scope() as db:
-        for tbl in ("unit_daily_report", "unit_stock_contract", "unit_purchase_plan", "market_demand"):
+        for tbl in ("unit_daily_report", "unit_stock_contract", "unit_purchase_plan", "market_demand",
+                    "unit_customer"):
             assert db.execute(text(f"SELECT count(*) FROM {tbl} WHERE company = :c"), {"c": NEW}).scalar() == 1, tbl
             assert db.execute(text(f"SELECT count(*) FROM {tbl} WHERE company = :c"), {"c": OLD}).scalar() == 0, tbl
         assert db.execute(text("SELECT count(*) FROM fact_price WHERE source='vrg' AND grade = :c"),
                           {"c": NEW}).scalar() == 1
+        assert db.execute(text("SELECT count(*) FROM sales_contract WHERE company = :c AND code = 'SC-TEST-A'"),
+                          {"c": NEW}).scalar() == 1
+        assert db.execute(text("SELECT count(*) FROM sales_contract WHERE to_company = :c AND code = 'SC-TEST-B'"),
+                          {"c": NEW}).scalar() == 1
+        assert db.execute(text("SELECT count(*) FROM sales_contract WHERE to_company = :c"),
+                          {"c": OLD}).scalar() == 0
+        assert db.execute(text("SELECT parent_company FROM member_unit WHERE name = :c"),
+                          {"c": CHILD}).scalar() == NEW
 
     # Tài khoản đơn vị: danh sách đơn vị đổi theo → đăng nhập vẫn vào đúng đơn vị của mình.
     token = client.post("/api/auth/login",

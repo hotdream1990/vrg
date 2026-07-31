@@ -35,20 +35,25 @@ def add_unit(body: MemberUnitAdd):
 
 @router.put("/{name}", response_model=list[MemberUnit], dependencies=_editor)
 def update_unit(name: str, body: MemberUnitUpdate):
-    """Đổi tên (migrate giá) và/hoặc bật-tắt active và/hoặc gán khu vực."""
-    if body.new_name is not None:
-        member_unit_repo.rename_unit(name, body.new_name)
-        name = body.new_name.strip() or name
-    if body.is_active is not None:
-        member_unit_repo.set_active(name, body.is_active)
-    if body.set_region:
-        member_unit_repo.set_region(name, body.region)
-    if body.set_locale:
-        member_unit_repo.set_locale(name, body.country, body.currency)
-    if body.set_factory and body.has_factory is not None:
-        member_unit_repo.set_factory(name, body.has_factory)
-    if body.set_purchase_plan and body.has_purchase_plan is not None:
-        member_unit_repo.set_purchase_plan(name, body.has_purchase_plan)
+    """Đổi tên (migrate giá) và/hoặc bật-tắt active và/hoặc gán khu vực/công ty mẹ."""
+    try:
+        if body.new_name is not None:
+            member_unit_repo.rename_unit(name, body.new_name)
+            name = body.new_name.strip() or name
+        if body.is_active is not None:
+            member_unit_repo.set_active(name, body.is_active)
+        if body.set_region:
+            member_unit_repo.set_region(name, body.region)
+        if body.set_locale:
+            member_unit_repo.set_locale(name, body.country, body.currency)
+        if body.set_factory and body.has_factory is not None:
+            member_unit_repo.set_factory(name, body.has_factory)
+        if body.set_purchase_plan and body.has_purchase_plan is not None:
+            member_unit_repo.set_purchase_plan(name, body.has_purchase_plan)
+        if body.set_parent:
+            member_unit_repo.set_parent(name, body.parent_company)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     return member_unit_repo.list_units()
 
 

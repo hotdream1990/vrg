@@ -7,7 +7,8 @@
  */
 
 import {
-  FX_USD_VND, PRICE_CUP, PRICE_LATEX, TONNES_DAILY, TONNES_STOCK, TONNES_YEAR,
+  FX_USD_VND, PRICE_CUP,
+  PRICE_PER_KG, PRICE_LATEX, TONNES_DAILY, TONNES_STOCK, TONNES_YEAR,
   boundWarning, fxWarning, priceBound,
 } from "./entry-bounds";
 import type { ConsumptionData, SaleLine, StockQtyLine } from "./unit-daily-consumption";
@@ -66,6 +67,11 @@ export type PurchaseValues = {
   coagulum?: number | null;
   price_latex_vnd?: number | null;
   price_cup_vnd?: number | null;
+  // 2 loại nguyên liệu bổ sung (30/07/2026) — đơn giá theo đồng/kg nên biên riêng.
+  cup_raw?: number | null;
+  cup_raw_price?: number | null;
+  rss_pressed?: number | null;
+  rss_pressed_price?: number | null;
   finished?: { qty?: number | null; price?: number | null; ccy?: string; fx?: number | null }[];
 };
 
@@ -85,6 +91,10 @@ export function purchaseWarnings(d: PurchaseValues): EntryWarning[] {
       { where: "Mủ nước · Đơn giá thu mua", message: boundWarning(d.price_latex_vnd, PRICE_LATEX) },
       { where: "Mủ chén · Sản lượng thu mua", message: boundWarning(d.coagulum, TONNES_DAILY) },
       { where: "Mủ chén · Đơn giá thu mua", message: boundWarning(d.price_cup_vnd, PRICE_CUP) },
+      { where: "Mủ NL chưa cán vắt (chén) · Sản lượng", message: boundWarning(d.cup_raw, TONNES_DAILY) },
+      { where: "Mủ NL chưa cán vắt (chén) · Đơn giá", message: boundWarning(d.cup_raw_price, PRICE_PER_KG) },
+      { where: "Mủ NL đã cán vắt (RSS) · Sản lượng", message: boundWarning(d.rss_pressed, TONNES_DAILY) },
+      { where: "Mủ NL đã cán vắt (RSS) · Đơn giá", message: boundWarning(d.rss_pressed_price, PRICE_PER_KG) },
     ]),
     ...finished,
   ];

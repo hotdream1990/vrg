@@ -19,7 +19,7 @@ from app.services import audit_repo, contract_docs
 
 _CCY = {"VND", "USD"}
 _COLS = ("id", "company", "code", "grade", "qty", "price", "ccy", "fx",
-         "start_date", "delivery_date", "delivered_date", "file", "filename", "files")
+         "start_date", "delivery_date", "delivered_date", "file", "filename", "files", "migrated")
 
 
 def _row(r) -> dict[str, Any]:
@@ -133,10 +133,17 @@ def list_contracts(companies: list[str] | None = None, as_of: str | None = None,
     return [_row(r) for r in rows]
 
 
-def active_on(as_of: str, companies: list[str] | None = None) -> dict[str, list[dict[str, Any]]]:
-    """{đơn vị: [hợp đồng đang tồn ngày `as_of`]} — dùng gắn vào khối 3 của báo cáo ngày."""
+def active_on(as_of: str, companies: list[str] | None = None,
+              include_migrated: bool = True) -> dict[str, list[dict[str, Any]]]:
+    """{đơn vị: [hợp đồng đang tồn ngày `as_of`]} — dùng gắn vào khối 3 của báo cáo ngày.
+
+    `include_migrated=False` bỏ các hợp đồng ĐÃ được chuyển sang `sales_contract`: bản sao mới đã
+    được đếm ở đó rồi, cộng cả hai là đếm trùng.
+    """
     out: dict[str, list[dict[str, Any]]] = {}
     for r in list_contracts(companies=companies, as_of=as_of):
+        if not include_migrated and r.get("migrated"):
+            continue
         out.setdefault(r["company"], []).append(r)
     return out
 

@@ -178,6 +178,26 @@ def require_cap_edit(cap: str):
     return require_cap(cap, LEVEL_EDIT)
 
 
+def cap_or_member_scope(cap: str, level: str = LEVEL_VIEW):
+    """Factory dependency cho màn hình dùng CHUNG giữa đơn vị thành viên và chuyên viên.
+
+    Trả `(username, companies)`:
+      - role=member  → danh sách đơn vị ĐƯỢC GÁN (server tự ép phạm vi, không tin client gửi lên);
+      - còn lại      → `None` = mọi đơn vị, sau khi kiểm quyền `cap` ở mức `level`.
+    Nhờ vậy phần Hợp đồng & Khách hàng chỉ có MỘT bộ endpoint thay vì nhân đôi /api/member/*.
+    """
+    def dep(username: str = Depends(get_current_user)) -> tuple[str, list[str] | None]:
+        u = _active_user(username)
+        if u.get("role") == "member":
+            units = list(u.get("member_units") or [])
+            if not units:
+                raise HTTPException(403, "Tài khoản chưa được gán đơn vị thành viên — liên hệ quản trị.")
+            return username, units
+        assert_cap(username, cap, level)
+        return username, None
+    return dep
+
+
 def require_any_cap(*caps: str, level: str = LEVEL_VIEW):
     """Factory dependency: cho qua nếu đạt mức `level` với ÍT NHẤT MỘT quyền (vd Báo giá: market_quote|raw_material)."""
     def dep(username: str = Depends(get_current_user)) -> str:

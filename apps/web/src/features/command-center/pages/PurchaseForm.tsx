@@ -8,7 +8,7 @@
 import { Checkbox, Select, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
-import { PRICE_CUP, PRICE_LATEX, TONNES_DAILY } from "../../../lib/entry-bounds";
+import { PRICE_CUP, PRICE_LATEX, PRICE_PER_KG, TONNES_DAILY } from "../../../lib/entry-bounds";
 import { fetchVcbRate } from "../../../lib/market-quote-client";
 import { HINT_DAILY_EVENT } from "../../../lib/unit-daily-entry-hints";
 import type { CupBasis, PriceDraft, UnitPurchasePrice } from "../../../lib/unit-daily-client";
@@ -47,7 +47,12 @@ const initFinished = (values: Values): FinishedLine[] => {
 
 /** Dựng nháp ban đầu từ payload đã lưu + đơn giá VND (đơn vị VN prefill đơn giá VND, nước ngoài prefill nội tệ). */
 function initDraft(values: Values, linked: UnitPurchasePrice | null | undefined, foreign: boolean): Values {
-  const base: Values = { latex_wet: values.latex_wet, coagulum: values.coagulum };
+  const base: Values = {
+    latex_wet: values.latex_wet, coagulum: values.coagulum,
+    // 2 loại nguyên liệu bổ sung (30/07/2026) — đơn giá đồng/kg, tính riêng từng loại.
+    cup_raw: values.cup_raw, cup_raw_price: values.cup_raw_price,
+    rss_pressed: values.rss_pressed, rss_pressed_price: values.rss_pressed_price,
+  };
   if (foreign) {
     return {
       ...base,
@@ -92,7 +97,11 @@ export default function PurchaseForm({
 
   // Payload lưu (đồng) + đơn giá VND ghi kho giá.
   const current = useMemo<Values>(() => {
-    const p: Values = { latex_wet: draft.latex_wet, coagulum: draft.coagulum };
+    const p: Values = {
+      latex_wet: draft.latex_wet, coagulum: draft.coagulum,
+      cup_raw: draft.cup_raw, cup_raw_price: draft.cup_raw_price,
+      rss_pressed: draft.rss_pressed, rss_pressed_price: draft.rss_pressed_price,
+    };
     if (foreign) {
       Object.assign(p, {
         price_latex_local: draft.price_latex_local, price_cup_local: draft.price_cup_local,
@@ -196,6 +205,19 @@ export default function PurchaseForm({
         ) : (
           field("Đơn giá thu mua", `đồng/${cupUnit}`, numInput(num(draft.price_cup_vnd), (v) => set("price_cup_vnd", v), readOnly, undefined, PRICE_CUP))
         )}
+
+        {head("Mủ nguyên liệu nước chưa cán vắt (chén)", false, HINT_DAILY_EVENT)}
+        {field("Sản lượng thu mua", "tấn", numInput(num(draft.cup_raw), (v) => set("cup_raw", v), readOnly, undefined, TONNES_DAILY))}
+        {field("Đơn giá thu mua", "đồng/kg", numInput(num(draft.cup_raw_price), (v) => set("cup_raw_price", v), readOnly, undefined, PRICE_PER_KG))}
+
+        {head("Mủ nguyên liệu đã cán vắt (RSS)", false, HINT_DAILY_EVENT)}
+        {field("Sản lượng thu mua", "tấn", numInput(num(draft.rss_pressed), (v) => set("rss_pressed", v), readOnly, undefined, TONNES_DAILY))}
+        {field("Đơn giá thu mua", "đồng/kg", numInput(num(draft.rss_pressed_price), (v) => set("rss_pressed_price", v), readOnly, undefined, PRICE_PER_KG))}
+
+        <div className="form-note" style={{ gridColumn: "1 / -1", fontSize: 11.5 }}>
+          Hai loại nguyên liệu này nhập <b>đơn giá theo đồng/kg</b> và <b>tính riêng từng loại</b>;
+          số liệu lưu trong biểu Thu mua, không ghi vào kho “Giá mủ nguyên liệu”.
+        </div>
 
         {foreign && (
           <>

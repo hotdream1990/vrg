@@ -15,7 +15,8 @@ from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import PURCHASE_SOURCES, VRG_COMPANIES
 from app.services import audit_repo
 
-_COLS = ("name, sort_order, is_active, region, country, currency, has_factory, has_purchase_plan")
+_COLS = ("name, sort_order, is_active, region, country, currency, has_factory, has_purchase_plan, "
+         "parent_company")
 
 
 def _snapshot(name: str) -> dict[str, Any] | None:
@@ -54,7 +55,7 @@ def list_units(include_inactive: bool = True) -> list[dict[str, Any]]:
         clause = "" if include_inactive else "WHERE is_active"
         rows = db.execute(text(
             "SELECT name, sort_order, is_active, region, country, currency, has_factory, "
-            f"has_purchase_plan FROM member_unit {clause} "
+            f"has_purchase_plan, parent_company FROM member_unit {clause} "
             "ORDER BY sort_order, name")).mappings().all()
         return [dict(r) for r in rows]
 
@@ -88,15 +89,18 @@ def add_unit(name: str) -> None:
 
 
 # Các bảng số liệu gắn theo TÊN ĐƠN VỊ ở cột `company` — đổi tên đơn vị phải chuyển hết sang tên mới.
-_COMPANY_TABLES = ("unit_daily_report", "unit_stock_contract", "unit_purchase_plan", "market_demand")
+_COMPANY_TABLES = ("unit_daily_report", "unit_stock_contract", "unit_purchase_plan", "market_demand",
+                   "unit_customer", "sales_contract")
 
 
 def rename_unit(old: str, new: str) -> None:
     """Đổi tên đơn vị + chuyển MỌI dữ liệu đang gắn theo tên đơn vị sang tên mới.
 
     Tên đơn vị chính là khoá liên kết của: giá mủ nguyên liệu (fact_price.grade), báo cáo ngày,
-    hợp đồng tồn kho, kế hoạch năm, nhu cầu thị trường và danh sách đơn vị của tài khoản thành viên
-    (app_user.member_units). Bỏ sót bảng nào thì dữ liệu bảng đó thành mồ côi — riêng member_units
+    hợp đồng tồn kho, kế hoạch năm, nhu cầu thị trường, danh mục khách hàng + hợp đồng bán hàng
+    (cả đơn vị sở hữu lẫn `sales_contract.to_company` — đơn vị nhận khi tiêu thụ nội bộ), cây
+    công ty mẹ-con (`member_unit.parent_company`) và danh sách đơn vị của tài khoản thành viên
+    (app_user.member_units). Bỏ sót bảng/cột nào thì dữ liệu đó thành mồ côi — riêng member_units
     còn làm đơn vị **mất quyền vào chính đơn vị của mình** sau khi đổi tên.
     """
     ensure_schema()
@@ -118,6 +122,12 @@ def rename_unit(old: str, new: str) -> None:
         for tbl in _COMPANY_TABLES:
             db.execute(text(f"UPDATE {tbl} SET company = :new WHERE company = :old"),
                        {"new": new, "old": old})
+        # Đơn vị nhận khi tiêu thụ nội bộ (khác cột `company` = đơn vị bán) — không đổi thì mồ côi.
+        db.execute(text("UPDATE sales_contract SET to_company = :new WHERE to_company = :old"),
+                   {"new": new, "old": old})
+        # Cây công ty mẹ-con: đơn vị con đang trỏ về tên cũ phải trỏ theo tên mới.
+        db.execute(text("UPDATE member_unit SET parent_company = :new WHERE parent_company = :old"),
+                   {"new": new, "old": old})
         # Tài khoản đơn vị thành viên giữ danh sách đơn vị dạng mảng jsonb → thay đúng phần tử cũ.
         db.execute(
             text("UPDATE app_user SET member_units = ("
@@ -165,6 +175,48 @@ def factory_by_name(include_inactive: bool = True) -> dict[str, bool]:
     return {u["name"]: bool(u.get("has_factory", True)) for u in list_units(include_inactive)}
 
 
+def set_parent(name: str, parent: str | None) -> None:
+    """Gán công ty mẹ cho đơn vị (parent=None để bỏ gán) — dùng cho cây công ty mẹ-con.
+
+    Raise ValueError nếu: tự nhận làm mẹ của chính mình, mẹ không tồn tại, hoặc tạo VÒNG LẶP ở
+    BẤT KỲ độ sâu nào (A→B→C→A) — đi ngược lên cây từ `parent`, gặp lại `name` là vòng.
+    """
+    ensure_schema()
+    parent = (parent or "").strip() or None
+    if parent is not None:
+        if parent == name:
+            raise ValueError("Đơn vị không thể là công ty mẹ của chính mình.")
+        with session_scope() as db:
+            exists = db.execute(text("SELECT 1 FROM member_unit WHERE name = :n"),
+                                {"n": parent}).scalar()
+            if not exists:
+                raise ValueError(f"Không có đơn vị '{parent}' để gán làm công ty mẹ.")
+            # Leo ngược lên cây; `seen` chặn cả trường hợp dữ liệu cũ đã lỡ có vòng (không lặp vô hạn).
+            seen, cur = {name}, parent
+            while cur is not None and cur not in seen:
+                seen.add(cur)
+                cur = db.execute(text("SELECT parent_company FROM member_unit WHERE name = :n"),
+                                 {"n": cur}).scalar()
+            if cur == name:
+                raise ValueError(
+                    f"Gán '{parent}' làm công ty mẹ sẽ tạo vòng lặp trong cây công ty mẹ – con.")
+    _update(name, "UPDATE member_unit SET parent_company = :p WHERE name = :n",
+            {"p": parent, "n": name})
+
+
+def parents() -> set[str]:
+    """Tập tên đơn vị đang là công ty mẹ của ít nhất 1 đơn vị khác.
+
+    Dùng ở nơi cần biết đơn vị nào cần nhập "chi phí tổng cấp công ty mẹ" (chỉ đơn vị mẹ mới có).
+    """
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(
+            text("SELECT DISTINCT parent_company FROM member_unit WHERE parent_company IS NOT NULL")
+        ).scalars().all()
+    return set(rows)
+
+
 def set_purchase_plan(name: str, has_purchase_plan: bool) -> None:
     """Đặt cờ đơn vị có giao kế hoạch thu mua năm (bật ⇒ hiện ở màn Kế hoạch năm)."""
     _update(name, "UPDATE member_unit SET has_purchase_plan = :p WHERE name = :n",
@@ -185,12 +237,21 @@ def reorder(names: list[str]) -> None:
 
 
 def delete_unit(name: str) -> bool:
-    """Xoá đơn vị khỏi danh sách (giá đã nhập trong fact_price vẫn giữ, chỉ không hiển thị cột)."""
+    """Xoá đơn vị khỏi danh sách (giá đã nhập trong fact_price vẫn giữ, chỉ không hiển thị cột).
+
+    Gỡ liên kết công ty mẹ của các đơn vị con đang trỏ về đơn vị này (parent_company = NULL)
+    để không mồ côi, cùng cách `member_region_repo.delete_region` gỡ liên kết khu vực.
+    """
     ensure_schema()
     before = _snapshot(name)
     with session_scope() as db:
+        unlinked = db.execute(text("SELECT name FROM member_unit WHERE parent_company = :n"),
+                              {"n": name}).scalars().all()
+        db.execute(text("UPDATE member_unit SET parent_company = NULL WHERE parent_company = :n"),
+                   {"n": name})
         res = db.execute(text("DELETE FROM member_unit WHERE name = :n"), {"n": name})
         deleted = res.rowcount > 0
     if deleted:
-        audit_repo.log("member_unit", "delete", name, before=before, company=name)
+        audit_repo.log("member_unit", "delete", name, before=before, company=name,
+                       note=f"Gỡ liên kết công ty mẹ của {len(unlinked)} đơn vị con" if unlinked else None)
     return deleted

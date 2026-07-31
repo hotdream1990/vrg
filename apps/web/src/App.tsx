@@ -7,6 +7,8 @@ import AuditLogPage from "./features/command-center/pages/AuditLogPage";
 import BulletinDetailPage from "./features/command-center/pages/BulletinDetailPage";
 import BulletinListPage from "./features/command-center/pages/BulletinListPage";
 import BulletinPage from "./features/command-center/pages/BulletinPage";
+import ConsumptionReportPage from "./features/command-center/pages/ConsumptionReportPage";
+import CustomerPage from "./features/command-center/pages/CustomerPage";
 import DashboardPage from "./features/command-center/pages/DashboardPage";
 import EntryWarnPreview from "./features/command-center/pages/EntryWarnPreview";
 import FloorSuggestPage from "./features/command-center/pages/FloorSuggestPage";
@@ -21,6 +23,7 @@ import PhysicalSheetPage from "./features/command-center/pages/PhysicalSheetPage
 import PriceSheetPage from "./features/command-center/pages/PriceSheetPage";
 import ProfilePage from "./features/command-center/pages/ProfilePage";
 import RawMaterialPage from "./features/command-center/pages/RawMaterialPage";
+import SalesContractPage from "./features/command-center/pages/SalesContractPage";
 import ScanPage from "./features/command-center/pages/ScanPage";
 import SchedulePage from "./features/command-center/pages/SchedulePage";
 import StockContractHistoryPage from "./features/command-center/pages/StockContractHistoryPage";
@@ -42,13 +45,20 @@ import RequireCap from "./features/auth/RequireCap";
 import RequireRole from "./features/auth/RequireRole";
 import { vrgTheme } from "./theme";
 
-/** Trang chủ: đơn vị thành viên → báo cáo đầu tiên của họ (Thu mua nếu có giao KH, không thì Tiêu thụ); còn lại → Dashboard. */
+/** Trang chủ: đơn vị thành viên → biểu nhập đầu tiên của họ (Thu mua nếu có giao KH, không thì Tồn kho); còn lại → Dashboard. */
 function HomeRoute() {
   const { user } = useAuth();
   if (user?.role === "member") {
-    return <Navigate to={user.member_has_purchase_plan ? "/bao-cao-thu-mua" : "/bao-cao-tieu-thu"} replace />;
+    return <Navigate to={user.member_has_purchase_plan ? "/bao-cao-thu-mua" : "/bao-cao-ton-kho"} replace />;
   }
   return <DashboardPage />;
+}
+
+/** Quản lý hợp đồng (khách hàng · hợp đồng & phụ lục): đơn vị thành viên → đơn vị mình; chuyên viên có quyền `sales_contract` → mọi đơn vị. */
+function ContractRoute({ children }: { children: React.ReactNode }) {
+  const { user, can } = useAuth();
+  if (user?.role === "member" || can("sales_contract")) return <>{children}</>;
+  return <Navigate to="/" replace />;
 }
 
 /** Nhu cầu thị trường (timeline): đơn vị thành viên → chỉ đơn vị của mình; chuyên viên có quyền → mọi đơn vị. */
@@ -64,7 +74,7 @@ function UnitDailyRoute(props: React.ComponentProps<typeof UnitDailyPage>) {
   const isMember = user?.role === "member";
   // Đơn vị thành viên KHÔNG được giao kế hoạch thu mua → không vào biểu Thu mua (kể cả gõ URL).
   if (isMember && props.kind === "purchase" && !user?.member_has_purchase_plan) {
-    return <Navigate to="/bao-cao-tieu-thu" replace />;
+    return <Navigate to="/bao-cao-ton-kho" replace />;
   }
   if (isMember || can("unit_daily")) return <UnitDailyPage {...props} />;
   return <Navigate to="/" replace />;
@@ -82,7 +92,7 @@ function YearPlanRoute() {
   const { user, can } = useAuth();
   const isMember = user?.role === "member";
   // Đơn vị thành viên KHÔNG được giao kế hoạch thu mua → không vào Kế hoạch năm (kể cả gõ URL).
-  if (isMember && !user?.member_has_purchase_plan) return <Navigate to="/bao-cao-tieu-thu" replace />;
+  if (isMember && !user?.member_has_purchase_plan) return <Navigate to="/bao-cao-ton-kho" replace />;
   if (isMember || can("unit_daily")) return <YearPlanPage />;
   return <Navigate to="/" replace />;
 }
@@ -117,12 +127,17 @@ export default function App() {
                   <Route path="/bao-cao-thu-mua" element={
                     <UnitDailyRoute kind="purchase" title="Báo cáo thu mua"
                       subtitle="Sản lượng & đơn giá thu mua mủ nguyên liệu theo ngày." />} />
-                  <Route path="/bao-cao-tieu-thu" element={
-                    <UnitDailyRoute kind="consumption" defaultTab="sales" title="Báo cáo tiêu thụ"
-                      subtitle="Sản lượng tiêu thụ theo hợp đồng, giá bán và doanh thu theo ngày." />} />
                   <Route path="/bao-cao-ton-kho" element={
                     <UnitDailyRoute kind="consumption" defaultTab="stock" title="Báo cáo tồn kho"
-                      subtitle="Tồn kho thành phẩm (đã/chưa có hợp đồng) và tồn kho nguyên liệu theo ngày." />} />
+                      subtitle="Tồn kho thành phẩm và tồn kho nguyên liệu theo ngày. Phần “đã ký HĐ chưa giao” hệ thống tự tính từ hợp đồng." />} />
+                  {/* Tiêu thụ KHÔNG còn biểu nhập — số tính từ các lần giao trên hợp đồng */}
+                  <Route path="/bao-cao-tieu-thu" element={
+                    <ContractRoute><ConsumptionReportPage /></ContractRoute>} />
+                  {/* Quản lý hợp đồng — khách hàng riêng từng đơn vị + hợp đồng 2 cấp */}
+                  <Route path="/hop-dong/khach-hang" element={
+                    <ContractRoute><CustomerPage /></ContractRoute>} />
+                  <Route path="/hop-dong" element={
+                    <ContractRoute><SalesContractPage /></ContractRoute>} />
                   <Route path="/ke-hoach-nam" element={<YearPlanRoute />} />
                   <Route path="/bao-cao-tong-hop" element={<PeriodReportRoute />} />
                   <Route path="/thong-ke-hop-dong" element={<StockContractHistoryRoute />} />
@@ -134,7 +149,7 @@ export default function App() {
                     <Route path="/thong-ke/tinh-trang-nop" element={<SubmissionStatusPage />} />
                   </Route>
                   {/* Đường dẫn cũ → giữ cho link đã lưu */}
-                  <Route path="/bao-cao-tieu-thu-ton-kho" element={<Navigate to="/bao-cao-tieu-thu" replace />} />
+                  <Route path="/bao-cao-tieu-thu-ton-kho" element={<Navigate to="/bao-cao-ton-kho" replace />} />
                   {/* Số liệu tự động (quét + bảng giá sàn + tỷ giá) — quyền auto_data */}
                   <Route element={<RequireCap caps={["auto_data"]} />}>
                     <Route path="/quet-da-san" element={<ScanPage />} />

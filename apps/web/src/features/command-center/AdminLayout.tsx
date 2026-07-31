@@ -5,6 +5,7 @@ import {
   BarChartOutlined,
   BulbOutlined,
   CheckSquareOutlined,
+  ContactsOutlined,
   ExportOutlined,
   ShoppingOutlined,
   ClockCircleOutlined,
@@ -12,6 +13,7 @@ import {
   EditOutlined,
   ExperimentOutlined,
   FileDoneOutlined,
+  FileProtectOutlined,
   FileTextOutlined,
   FundOutlined,
   HistoryOutlined,
@@ -45,54 +47,54 @@ import { IMPERSONATION_BANNER_HEIGHT } from "../auth/ImpersonationBanner";
 
 const { Header, Sider, Content, Footer } = Layout;
 
-/** Menu động theo quyền: chỉ hiện mục mà tài khoản được cấp (admin=tất cả, viewer=chỉ phần chung). */
+type MenuItems = NonNullable<Parameters<typeof Menu>[0]["items"]>;
+
+/** Gom một nhóm menu, tự bỏ qua khi tài khoản không được cấp mục con nào. */
+function group(key: string, icon: JSX.Element, label: string, children: unknown[]): MenuItems {
+  const kids = children.filter(Boolean) as MenuItems;
+  return kids.length ? [{ key, icon, label, children: kids }] : [];
+}
+
+/** Menu động theo quyền — trục mới (chốt 30/07/2026): số liệu thị trường · số liệu đơn vị ·
+ *  quản lý hợp đồng · báo cáo & thống kê · phân tích & bản tin. */
 function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
-  const items: NonNullable<Parameters<typeof Menu>[0]["items"]> = [
-    { key: "/", icon: <DashboardOutlined />, label: "Dashboard" },
-  ];
+  const items: MenuItems = [{ key: "/", icon: <DashboardOutlined />, label: "Dashboard" }];
   if (can("auto_data")) {
     items.push({ key: "/quet-da-san", icon: <ThunderboltOutlined />, label: "Quét Đa sàn" });
-    items.push({
-      key: "data-auto", icon: <RobotOutlined />, label: "Quản lý số liệu (tự động)",
-      children: [
-        { key: "/quan-ly-so-lieu/bang-gia-san", icon: <TableOutlined />, label: "Bảng tính giá các sàn" },
-        { key: "/quan-ly-so-lieu/ty-gia", icon: <SwapOutlined />, label: "Tỷ giá" },
-      ],
-    });
   }
-  const manual = [
+  items.push(...group("data-auto", <RobotOutlined />, "Số liệu thị trường (tự động)", [
+    can("auto_data") && { key: "/quan-ly-so-lieu/bang-gia-san", icon: <TableOutlined />, label: "Bảng tính giá các sàn" },
+    can("auto_data") && { key: "/quan-ly-so-lieu/ty-gia", icon: <SwapOutlined />, label: "Tỷ giá" },
+  ]));
+  items.push(...group("data-manual", <EditOutlined />, "Số liệu thị trường (thủ công)", [
     (can("market_quote") || can("raw_material")) &&
       { key: "/quan-ly-so-lieu/bao-gia-mu", icon: <SolutionOutlined />, label: "Báo giá mủ thị trường" },
     can("floor") && { key: "/quan-ly-so-lieu/gia-san-tap-doan", icon: <BankOutlined />, label: "Giá sàn Tập đoàn" },
     can("raw_material") && { key: "/quan-ly-so-lieu/gia-mu-nguyen-lieu", icon: <ExperimentOutlined />, label: "Giá mủ nguyên liệu" },
     can("physical") && { key: "/quan-ly-so-lieu/gia-physical", icon: <FundOutlined />, label: "Giá Physical" },
-    can("inventory") && { key: "/quan-ly-so-lieu/ton-kho", icon: <InboxOutlined />, label: "Tồn kho" },
+    can("inventory") && { key: "/quan-ly-so-lieu/ton-kho", icon: <InboxOutlined />, label: "Tồn kho Tập đoàn" },
+  ]));
+  items.push(...group("data-unit", <TeamOutlined />, "Số liệu đơn vị thành viên", [
     can("member_unit") && { key: "/quan-ly-so-lieu/don-vi-thanh-vien", icon: <TeamOutlined />, label: "Đơn vị thành viên" },
-    can("unit_daily") && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Báo cáo thu mua" },
-    can("unit_daily") && { key: "/bao-cao-tieu-thu", icon: <ScheduleOutlined />, label: "Báo cáo tiêu thụ" },
-    can("unit_daily") && { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Báo cáo tồn kho" },
+    can("unit_daily") && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Thu mua" },
+    can("unit_daily") && { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Tồn kho" },
     can("market_demand") && { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
     can("unit_daily") && { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
+  ]));
+  items.push(...group("contracts", <FileProtectOutlined />, "Quản lý hợp đồng", [
+    can("sales_contract") && { key: "/hop-dong/khach-hang", icon: <ContactsOutlined />, label: "Khách hàng" },
+    can("sales_contract") && { key: "/hop-dong", icon: <FileProtectOutlined />, label: "Hợp đồng & phụ lục" },
+  ]));
+  items.push(...group("stats", <BarChartOutlined />, "Báo cáo & Thống kê", [
+    can("sales_contract") && { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Báo cáo tiêu thụ" },
     can("unit_daily") && { key: "/bao-cao-tong-hop", icon: <FileDoneOutlined />, label: "Báo cáo tổng hợp" },
-  ].filter(Boolean) as NonNullable<Parameters<typeof Menu>[0]["items"]>;
-  if (manual.length) {
-    items.push({ key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)", children: manual });
-  }
-  // Thống kê / kiểm tra số liệu các đơn vị đã nhập (chỉ đọc) — tách khỏi nhóm nhập liệu ở trên.
-  if (can("unit_daily")) {
-    items.push({
-      key: "stats", icon: <BarChartOutlined />, label: "Thống kê số liệu",
-      children: [
-        { key: "/thong-ke/tinh-trang-nop", icon: <CheckSquareOutlined />, label: "Theo dõi nộp báo cáo" },
-        { key: "/thong-ke/thu-mua", icon: <ShoppingOutlined />, label: "Thống kê thu mua" },
-        { key: "/thong-ke/tieu-thu", icon: <ExportOutlined />, label: "Thống kê tiêu thụ" },
-        { key: "/thong-ke/ton-kho", icon: <InboxOutlined />, label: "Thống kê tồn kho" },
-        { key: "/thong-ke-hop-dong", icon: <HistoryOutlined />, label: "Thống kê hợp đồng" },
-      ],
-    });
-  }
-  // Các màn phân tích/bản tin — hiện theo quyền (admin=tất cả, editor=được-cấp, viewer=không).
-  const analysis = [
+    can("unit_daily") && { key: "/thong-ke/tinh-trang-nop", icon: <CheckSquareOutlined />, label: "Theo dõi nộp báo cáo" },
+    can("unit_daily") && { key: "/thong-ke/thu-mua", icon: <ShoppingOutlined />, label: "Thống kê thu mua" },
+    can("unit_daily") && { key: "/thong-ke/tieu-thu", icon: <ExportOutlined />, label: "Thống kê tiêu thụ" },
+    can("unit_daily") && { key: "/thong-ke/ton-kho", icon: <InboxOutlined />, label: "Thống kê tồn kho" },
+    can("unit_daily") && { key: "/thong-ke-hop-dong", icon: <HistoryOutlined />, label: "Thống kê hợp đồng" },
+  ]));
+  items.push(...group("analysis", <LineChartOutlined />, "Phân tích & Bản tin", [
     can("floor_suggest") && { key: "/goi-y-gia-san", icon: <BulbOutlined />, label: "Gợi ý giá sàn" },
     can("bulletin_daily") && { key: "/ban-tin", icon: <FileTextOutlined />, label: "Bản tin ngày" },
     can("bulletin_weekly") && { key: "/ban-tin/tuan", icon: <FileDoneOutlined />, label: "Báo cáo tuần" },
@@ -100,8 +102,7 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
     can("assistant") && { key: "/tro-ly-ai", icon: <RobotOutlined />, label: "Trợ lý AI" },
     // Admin đã có mục này trong nhóm Quản trị → chỉ hiện ở đây cho tài khoản được CẤP quyền.
     !isAdmin && can("audit") && { key: "/quan-tri/nhat-ky", icon: <AuditOutlined />, label: "Nhật ký hoạt động" },
-  ].filter(Boolean) as NonNullable<Parameters<typeof Menu>[0]["items"]>;
-  items.push(...analysis);
+  ]));
   return items;
 }
 
@@ -116,19 +117,26 @@ const ADMIN_MENU = {
   ],
 };
 
-// Menu cho tài khoản Đơn vị thành viên: 3 báo cáo theo ngày + số liệu năm.
-// Giá thu mua nhập thẳng trong biểu "Báo cáo thu mua" nên không còn mục riêng.
-// "Báo cáo thu mua" + "Kế hoạch năm" (số liệu thu mua) chỉ hiện khi đơn vị được giao kế hoạch thu mua.
+// Menu cho tài khoản Đơn vị thành viên — trục mới: chỉ còn 2 biểu nhập theo ngày (Thu mua · Tồn kho),
+// TIÊU THỤ chuyển sang tính từ hợp đồng nên nằm ở nhóm Báo cáo (chỉ xem).
+// "Thu mua" + "Kế hoạch năm" chỉ hiện khi đơn vị được giao kế hoạch thu mua.
 function buildMemberMenu(hasPurchasePlan: boolean) {
-  const children = [
-    hasPurchasePlan && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Báo cáo thu mua" },
-    { key: "/bao-cao-tieu-thu", icon: <ScheduleOutlined />, label: "Báo cáo tiêu thụ" },
-    { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Báo cáo tồn kho" },
-    { key: "/thong-ke-hop-dong", icon: <HistoryOutlined />, label: "Thống kê hợp đồng" },
-    { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
-    hasPurchasePlan && { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
-  ].filter(Boolean) as NonNullable<Parameters<typeof Menu>[0]["items"]>;
-  return [{ key: "data-manual", icon: <EditOutlined />, label: "Quản lý số liệu (thủ công)", children }];
+  return [
+    ...group("data-manual", <EditOutlined />, "Nhập liệu số liệu", [
+      hasPurchasePlan && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Thu mua (theo ngày)" },
+      { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Tồn kho (theo ngày)" },
+      { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
+      hasPurchasePlan && { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
+    ]),
+    ...group("contracts", <FileProtectOutlined />, "Quản lý hợp đồng", [
+      { key: "/hop-dong/khach-hang", icon: <ContactsOutlined />, label: "Khách hàng" },
+      { key: "/hop-dong", icon: <FileProtectOutlined />, label: "Hợp đồng & phụ lục" },
+    ]),
+    ...group("reports", <BarChartOutlined />, "Báo cáo", [
+      { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Tiêu thụ" },
+      { key: "/thong-ke-hop-dong", icon: <HistoryOutlined />, label: "Thống kê hợp đồng" },
+    ]),
+  ];
 }
 
 // Mục Hồ sơ cá nhân (đổi mật khẩu) — hiện cuối sidebar cho mọi vai trò.
@@ -158,6 +166,8 @@ export default function AdminLayout() {
     "/quan-ly-so-lieu/gia-mu-nguyen-lieu", "/quan-ly-so-lieu/gia-physical",
     "/quan-ly-so-lieu/ton-kho", "/quan-ly-so-lieu/bao-gia-mu", "/quan-ly-so-lieu/don-vi-thanh-vien",
     "/nhu-cau-thi-truong", "/bao-cao-thu-mua", "/bao-cao-tieu-thu", "/bao-cao-ton-kho",
+    // "/hop-dong/khach-hang" phải đứng TRƯỚC "/hop-dong" — khớp tiền tố sẽ nuốt mục con.
+    "/hop-dong/khach-hang", "/hop-dong",
     "/thong-ke-hop-dong", "/ke-hoach-nam", "/bao-cao-tong-hop",
     "/thong-ke/tinh-trang-nop", "/thong-ke/thu-mua", "/thong-ke/tieu-thu", "/thong-ke/ton-kho",
     "/goi-y-gia-san", "/ban-tin-bien-dong", "/tro-ly-ai", "/ban-tin/tuan", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
@@ -197,7 +207,9 @@ export default function AdminLayout() {
         </div>
         <Menu
           theme="dark" mode="inline"
-          selectedKeys={[selected]} defaultOpenKeys={["data-auto", "data-manual", "admin"]}
+          selectedKeys={[selected]}
+          defaultOpenKeys={["data-auto", "data-manual", "data-unit", "contracts", "stats",
+            "reports", "analysis", "admin"]}
           items={menuItems}
           onClick={(e) => { nav(e.key); if (broken) setCollapsed(true); }}
         />

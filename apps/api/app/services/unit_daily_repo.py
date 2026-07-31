@@ -2,6 +2,8 @@
 
 2 loại báo cáo ('purchase' / 'consumption'), số liệu jsonb theo (ngày, đơn vị). Đơn vị tự nhập
 của mình; chuyên viên có quyền `unit_daily` xem/sửa mọi đơn vị — realtime theo mốc updated_at.
+
+Khối 3 (`stock_signed_undelivered`, đã ký HĐ chưa giao) KHÔNG nằm trong payload — xem `contracts_on`.
 """
 
 from __future__ import annotations
@@ -37,6 +39,11 @@ def upsert(kind: str, as_of: str, company: str, fields: dict, updated_by: str | 
                               "WHERE kind = :k AND as_of = :d AND company = :c"),
                          {"k": kind, "d": as_of, "c": company}).mappings().first()
         before = dict(row["payload"]) if row else None
+        # `sales_migrated` là DẤU HỆ THỐNG (script chuyển đổi đặt), không phải ô người dùng nhập.
+        # Payload ghi đè toàn bộ nên form không gửi kèm là mất dấu → mảng tiêu thụ cũ sống lại và
+        # bị cộng chồng lên hợp đồng. Luôn giữ lại dấu cũ, client không xoá được.
+        if before and before.get("sales_migrated") is True:
+            clean["sales_migrated"] = True
         db.execute(_UPSERT, {"as_of": as_of, "company": company, "kind": kind,
                              "payload": json.dumps(clean), "updated_by": updated_by})
     audit_repo.log("unit_daily", "update" if before else "create",
@@ -97,39 +104,68 @@ def has_entry(kind: str, as_of: str, company: str) -> bool:
     return bool(row)
 
 
-def _attach_contracts(entries: dict[str, dict[str, Any]], as_of: str, create_missing: bool) -> None:
-    """Gắn khối 3 (tồn kho ĐÃ KÝ HĐ) — số TỰ TÍNH từ bảng hợp đồng, KHÔNG lưu trong payload ngày.
+#: Khối 3 rỗng (không có hợp đồng nào đang tồn) — dùng làm mặc định, LUÔN new() tránh mutate chung.
+def _empty_contracts() -> dict[str, Any]:
+    return {"qty": 0.0, "by_grade": {}, "items": []}
 
-    Hợp đồng nhập 1 lần và tự nằm trong tồn kho từ ngày bắt đầu đến hết ngày trước ngày giao
-    (xem `unit_stock_contract_repo`). `create_missing`=True: đơn vị chỉ có hợp đồng, chưa nhập số
-    liệu ngày đó vẫn hiện ra (dùng cho màn nhập/lưới theo ngày).
+
+def contracts_on(as_of: str, companies: list[str] | None = None) -> dict[str, dict[str, Any]]:
+    """{đơn vị: {qty, by_grade, items}} — khối 3 (ĐÃ KÝ HĐ CHƯA GIAO) TỔNG HỢP tại ngày `as_of`.
+
+    Cộng 2 nguồn để không mất số liệu lịch sử khi chuyển đổi (chốt 30/07/2026):
+      - `sales_contract` (MỚI) qua `sales_contract_report.undelivered_on` — nguồn hiện hành.
+      - `unit_stock_contract` (CŨ) qua `unit_stock_contract_repo.active_on` — hợp đồng nhập trước
+        ngày chuyển đổi vẫn còn hiệu lực; mỗi dòng đánh dấu `"legacy": True` trong `items` để phân
+        biệt nguồn khi hiển thị. Hợp đồng cũ ĐÃ chuyển sang bảng mới (`migrated`) bị loại ở đây vì
+        bản sao của nó đã được đếm ở nguồn thứ nhất.
     """
-    from app.services import unit_stock_contract_repo
+    from app.services import sales_contract_report, unit_stock_contract_repo
 
-    by_company = unit_stock_contract_repo.active_on(as_of)
-    for company, rows in by_company.items():
+    out = sales_contract_report.undelivered_on(as_of, companies)
+    legacy = unit_stock_contract_repo.active_on(as_of, companies, include_migrated=False)
+    for company, rows in legacy.items():
+        if not rows:
+            continue
+        acc = out.setdefault(company, _empty_contracts())
+        for r in rows:
+            qty = r.get("qty") or 0.0
+            acc["qty"] += qty
+            grade = r.get("grade")
+            if grade:
+                acc["by_grade"][grade] = acc["by_grade"].get(grade, 0.0) + qty
+            acc["items"].append({**r, "legacy": True})
+    return out
+
+
+def _attach_contracts(entries: dict[str, dict[str, Any]], as_of: str, create_missing: bool) -> None:
+    """Gắn khối 3 (đã ký HĐ chưa giao) — số TỰ TÍNH từ `contracts_on`, KHÔNG lưu trong payload ngày.
+
+    `create_missing`=True: đơn vị chỉ có hợp đồng, chưa nhập số liệu ngày đó vẫn hiện ra (dùng cho
+    màn nhập/lưới theo ngày). Shape gắn vào `fields["stock_signed_undelivered"]`:
+    `{"qty": float, "by_grade": {chủng loại: số lượng}, "items": [...]}`.
+    """
+    by_company = contracts_on(as_of)
+    for company, data in by_company.items():
         e = entries.get(company)
         if e is None:
             if not create_missing:
                 continue
             e = entries[company] = {"fields": {}, "updated_at": None, "updated_by": None}
-        e["fields"]["stock_signed_undelivered"] = rows
+        e["fields"]["stock_signed_undelivered"] = data
     for e in entries.values():
-        e["fields"].setdefault("stock_signed_undelivered", [])
+        e["fields"].setdefault("stock_signed_undelivered", _empty_contracts())
 
 
 def _attach_contracts_to_list(items: list[dict[str, Any]], kind: str) -> None:
     """Như `_attach_contracts` nhưng cho danh sách bản ghi nhiều ngày (timeline / báo cáo kỳ)."""
     if kind != "consumption" or not items:
         return
-    from app.services import unit_stock_contract_repo
-
-    cache: dict[str, dict[str, list[dict[str, Any]]]] = {}
+    cache: dict[str, dict[str, dict[str, Any]]] = {}
     for it in items:
         d = it["as_of"]
         if d not in cache:
-            cache[d] = unit_stock_contract_repo.active_on(d)
-        it["fields"]["stock_signed_undelivered"] = cache[d].get(it["company"], [])
+            cache[d] = contracts_on(d)
+        it["fields"]["stock_signed_undelivered"] = cache[d].get(it["company"]) or _empty_contracts()
 
 
 def entries_on(kind: str, as_of: str) -> dict[str, dict[str, Any]]:
@@ -247,11 +283,14 @@ def day_extras(kind: str, as_of: str, units: list[str]) -> dict[str, Any]:
     - currencies: {đơn vị: 'VND'|'LAK'|'KHR'} — ≠VND ⇒ đơn vị nước ngoài, form hiện ô tỷ giá.
     - prices (chỉ kind='purchase'): {đơn vị: {latex, cup}} đơn giá mủ nước/mủ chén ĐÚNG NGÀY
       (đồng/độ TSC), lấy từ kho 'Giá mủ nguyên liệu' — hiển thị lại, KHÔNG nhập/lưu trùng.
+    - parents: các đơn vị đang là CÔNG TY MẸ của ít nhất một đơn vị khác — form Tồn kho mới hiện
+      ô "chi phí tổng cấp công ty mẹ" cho đúng những đơn vị này.
     """
     from app.services import member_unit_repo, price_repo
 
     cur = member_unit_repo.currency_by_name()
     fac = member_unit_repo.factory_by_name()
+    parents = sorted(member_unit_repo.parents() & set(units))
     currencies = {u: cur.get(u, "VND") for u in units}
     factories = {u: fac.get(u, True) for u in units}   # có nhà máy? (Tiêu thụ: ẩn/hiện tồn kho nguyên liệu)
     prices: dict[str, dict[str, float | None]] = {}
@@ -259,7 +298,7 @@ def day_extras(kind: str, as_of: str, units: list[str]) -> dict[str, Any]:
         latex = price_repo.purchase_by_company_on_date(as_of, "purchase", UNIT_SRC)
         cup = price_repo.purchase_by_company_on_date(as_of, "purchase_cup", UNIT_SRC)
         prices = {u: {"latex": latex.get(u), "cup": cup.get(u)} for u in units}
-    return {"currencies": currencies, "factories": factories, "prices": prices}
+    return {"currencies": currencies, "factories": factories, "prices": prices, "parents": parents}
 
 
 # ── Chỉ tiêu kế hoạch thu mua theo năm (tính % kế hoạch) ──

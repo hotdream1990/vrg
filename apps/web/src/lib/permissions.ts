@@ -10,6 +10,7 @@
 export type Cap =
   | "market_quote" | "raw_material" | "floor" | "physical"
   | "inventory" | "member_unit" | "auto_data" | "market_demand" | "unit_daily"
+  | "sales_contract"
   | "floor_suggest" | "bulletin_daily" | "bulletin_weekly" | "market_movement" | "assistant"
   | "audit";
 
@@ -25,7 +26,8 @@ export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
   { key: "member_unit", label: "Đơn vị thành viên" },
   { key: "auto_data", label: "Số liệu tự động", hint: "Bảng tính giá các sàn · Tỷ giá · Quét đa sàn" },
   { key: "market_demand", label: "Nhu cầu thị trường", hint: "nhu cầu của mọi đơn vị" },
-  { key: "unit_daily", label: "Báo cáo tiêu thụ - tồn kho", hint: "thu mua · tiêu thụ – tồn kho (mọi đơn vị)" },
+  { key: "unit_daily", label: "Báo cáo đơn vị theo ngày", hint: "thu mua · tồn kho (mọi đơn vị)" },
+  { key: "sales_contract", label: "Hợp đồng & khách hàng", hint: "hợp đồng 2 cấp · phụ lục · danh mục khách (mọi đơn vị)" },
   { key: "floor_suggest", label: "Gợi ý giá sàn", hint: "màn phân tích" },
   { key: "bulletin_daily", label: "Bản tin ngày", hint: "màn phân tích" },
   { key: "bulletin_weekly", label: "Báo cáo tuần", hint: "màn phân tích" },
@@ -40,7 +42,7 @@ const CAP_SET = new Set<string>(CAP_KEYS);
 /** Các mục nhập liệu có tách 2 cấp Xem/Sửa (khớp SPLIT_CAPS ở backend). */
 export const SPLIT_CAPS = new Set<Cap>([
   "market_quote", "raw_material", "floor", "physical", "inventory",
-  "member_unit", "auto_data", "market_demand", "unit_daily",
+  "member_unit", "auto_data", "market_demand", "unit_daily", "sales_contract",
 ]);
 
 /** Mục này có cho chọn mức Xem riêng không (false = chỉ 1 cấp, luôn là Sửa). */
@@ -48,8 +50,10 @@ export const isSplitCap = (key: Cap): boolean => SPLIT_CAPS.has(key);
 
 /** Gom quyền thành nhóm cho UI cấp quyền (theo cấu trúc menu — đỡ rối). */
 export const CAP_GROUPS: { title: string; keys: Cap[] }[] = [
-  { title: "Quản lý số liệu (tự động)", keys: ["auto_data"] },
-  { title: "Quản lý số liệu (thủ công)", keys: ["market_quote", "raw_material", "floor", "physical", "inventory", "member_unit", "market_demand", "unit_daily"] },
+  { title: "Số liệu thị trường (tự động)", keys: ["auto_data"] },
+  { title: "Số liệu thị trường (thủ công)", keys: ["market_quote", "raw_material", "floor", "physical", "inventory"] },
+  { title: "Số liệu đơn vị thành viên", keys: ["member_unit", "unit_daily", "market_demand"] },
+  { title: "Quản lý hợp đồng", keys: ["sales_contract"] },
   { title: "Phân tích & Bản tin", keys: ["floor_suggest", "bulletin_daily", "bulletin_weekly", "market_movement", "assistant"] },
   { title: "Giám sát", keys: ["audit"] },
 ];

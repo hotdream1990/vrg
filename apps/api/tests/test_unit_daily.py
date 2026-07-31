@@ -149,8 +149,11 @@ def test_unit_daily_member_and_editor_flow() -> None:
     # Số HĐ/PL lưu theo TỪNG DÒNG bán; dòng không gõ thì để trống.
     assert saved["sales"][0]["code"] == "HĐ-01/2026"
     # Khối 3 hiện ra là số TỰ TÍNH từ bảng hợp đồng (không phải số client gửi kèm).
-    assert [r["code"] for r in saved["stock_signed_undelivered"]] == ["HĐ-02/2026"]
-    assert saved["stock_signed_undelivered"][0]["qty"] == 6
+    # Shape mới: {"qty", "by_grade", "items"} — hợp đồng lập qua bảng CŨ (unit_stock_contract)
+    # đánh dấu "legacy": True để phân biệt với nguồn sales_contract mới.
+    assert [r["code"] for r in saved["stock_signed_undelivered"]["items"]] == ["HĐ-02/2026"]
+    assert saved["stock_signed_undelivered"]["qty"] == 6
+    assert saved["stock_signed_undelivered"]["items"][0]["legacy"] is True
     assert saved["sales_own"][0]["code"] is None
     # Dòng mủ khai thác lưu riêng, giữ đủ 2 mốc ngày + các file chứng từ đính kèm.
     own = saved["sales_own"][0]
@@ -258,11 +261,11 @@ def test_cup_basis_and_prev_stock() -> None:
     assert made.status_code == 200
     cid = made.json()["contract"]["id"]
     y_view = client.get(f"/api/member/daily-report?kind=consumption&as_of={y_day}", headers=mh).json()
-    assert y_view["entries"][unit]["fields"]["stock_signed_undelivered"][0]["qty"] == 12
+    assert y_view["entries"][unit]["fields"]["stock_signed_undelivered"]["qty"] == 12
     # Ngày giao: đã xuất kho → KHÔNG còn tính vào tồn kho nữa (ngày đó không còn số liệu nào).
     t_view = client.get(f"/api/member/daily-report?kind=consumption&as_of={t_day}", headers=mh).json()
     t_entry = t_view["entries"][unit] or {"fields": {}}
-    assert t_entry["fields"].get("stock_signed_undelivered", []) == []
+    assert t_entry["fields"].get("stock_signed_undelivered", {}).get("items", []) == []
     # Đơn vị khác không xoá được hợp đồng này.
     assert client.delete(f"/api/member/stock-contracts/{cid}", headers=mh).status_code == 200
 

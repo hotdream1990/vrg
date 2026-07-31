@@ -26,7 +26,7 @@ export const toDisplay = (c: Column, base: number | null): number | null =>
 export const toBase = (c: Column, disp: number | null): number | null =>
   disp == null ? null : disp * (c.scale ?? 1);
 
-export const KIND_LABEL: Record<Kind, string> = { purchase: "Thu mua", consumption: "Tiêu thụ – Tồn kho" };
+export const KIND_LABEL: Record<Kind, string> = { purchase: "Thu mua", consumption: "Tồn kho" };
 
 const n = (x: number | null | undefined): number | null => (x == null || Number.isNaN(x) ? null : x);
 
@@ -35,6 +35,10 @@ const n = (x: number | null | undefined): number | null => (x == null || Number.
 // (đơn vị nước ngoài nhập đơn giá nội tệ + USD + 2 tỷ giá, tự quy về VND). Tiền lưu BASE = đồng.
 const _MU_NUOC = "Mủ nước";
 const _MU_CHEN = "Mủ chén";
+// 2 loại mủ nguyên liệu bổ sung (chốt 30/07/2026) — đơn giá tính RIÊNG từng loại, nhập theo đồng/kg
+// và lưu thẳng trong payload (không đẩy vào kho "Giá mủ nguyên liệu" như mủ nước/mủ chén).
+const _NL_CHEN = "Mủ NL nước chưa cán vắt (chén)";
+const _NL_RSS = "Mủ NL đã cán vắt (RSS)";
 const _TP = "Thu mua thành phẩm";
 const _TT_TM = "Tiêu thụ mủ thu mua";
 /** Bảng thu mua thành phẩm (nhiều dòng, mỗi dòng 1 chủng loại) → tổng SL + giá trị (đồng). */
@@ -47,7 +51,7 @@ const finishedVnd = (v: Values): number =>
   finishedRows(v).reduce((a, r) => {
     const q = n(r.qty), p = n(r.price);
     if (q == null || p == null) return a;
-    if ((r.ccy ?? "VND") !== "USD") return a + q * p * 1_000_000;
+    if ((r.ccy ?? "VND") === "VND") return a + q * p * 1_000_000;
     return n(r.fx) == null ? a : a + q * p * (r.fx as number);
   }, 0);
 
@@ -58,6 +62,10 @@ const PURCHASE: Column[] = [
   // Mủ chén tính theo độ TSC hoặc độ DRC — đơn vị tự chọn ở form (`cup_basis`), nên nhãn cột để chung.
   { key: "price_cup", label: "Đơn giá thu mua", unit: "đồng/độ", group: _MU_CHEN, linked: "cup",
     hint: "theo độ TSC hoặc DRC — đơn vị tự chọn" },
+  { key: "cup_raw", label: "Sản lượng thu mua", unit: "tấn", group: _NL_CHEN },
+  { key: "cup_raw_price", label: "Đơn giá thu mua", unit: "đồng/kg", group: _NL_CHEN },
+  { key: "rss_pressed", label: "Sản lượng thu mua", unit: "tấn", group: _NL_RSS },
+  { key: "rss_pressed_price", label: "Đơn giá thu mua", unit: "đồng/kg", group: _NL_RSS },
   // Thu mua thành phẩm nhập theo CHỦNG LOẠI (bảng nhiều dòng) → bảng tổng hợp chỉ hiện số cộng lại.
   { key: "finished_qty", label: "Sản lượng thu mua", unit: "tấn", group: _TP,
     compute: (v) => finishedQty(v) || null },
@@ -75,7 +83,9 @@ const PURCHASE: Column[] = [
 // TIÊU THỤ nhập theo 2 BẢNG NHIỀU DÒNG (ConsumptionForm): `sales` = mủ thu mua · `sales_own` = mủ
 // khai thác. Bảng chỉ hiển thị TỔNG HỢP GỘP CHUNG cả hai (số lượng theo hình thức) + `revenue`
 // (tổng doanh thu VND đã tính lúc lưu). TỒN KHO là ô phẳng.
-const _TT = "Tiêu thụ (tổng hợp)";
+// Nhóm tiêu thụ = DỮ LIỆU CŨ (trước 30/07/2026). Từ nay tiêu thụ tính từ hợp đồng và xem ở màn
+// "Báo cáo tiêu thụ"; cột ở đây chỉ để tra lại số đơn vị đã khai trước khi chuyển đổi.
+const _TT = "Tiêu thụ (số cũ đã khai)";
 const _TK = "Tồn kho";
 /** Dòng bán của CẢ 2 bảng: mủ thu mua (`sales`) + mủ khai thác (`sales_own`) — tổng cộng chung. */
 const salesOf = (v: Values): SaleLine[] => {
@@ -91,9 +101,9 @@ const stockTonnes = (v: Values, key: string): number => {
 };
 
 const CONSUMPTION: Column[] = [
-  { key: "total_consumption", label: "Tổng tiêu thụ", unit: "tấn", group: _TT, compute: (v) => salesQty(v) },
-  { key: "qty_export", label: "Tổng XK / UTXK", unit: "tấn", group: _TT, compute: (v) => salesQty(v, (l) => l.channel === "export") },
-  { key: "qty_domestic", label: "Tổng nội tiêu", unit: "tấn", group: _TT, compute: (v) => salesQty(v, (l) => l.channel === "domestic") },
+  { key: "total_consumption", label: "Tổng tiêu thụ", unit: "tấn", group: _TT, compute: (v) => salesQty(v) || null },
+  { key: "qty_export", label: "Tổng XK / UTXK", unit: "tấn", group: _TT, compute: (v) => salesQty(v, (l) => l.channel === "export") || null },
+  { key: "qty_domestic", label: "Tổng nội tiêu", unit: "tấn", group: _TT, compute: (v) => salesQty(v, (l) => l.channel === "domestic") || null },
   { key: "revenue", label: "Doanh thu", unit: "tỷ đồng", group: _TT, scale: 1_000_000_000 },
   { key: "avg_price", label: "Giá bán bình quân", unit: "triệu đ/tấn", group: _TT, scale: 1_000_000,
     compute: (v) => { const q = salesQty(v); return q ? (n(v.revenue) ?? 0) / q : null; } },
@@ -102,8 +112,11 @@ const CONSUMPTION: Column[] = [
   { key: "stock_warehoused_t", label: "Đã nhập kho", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_warehoused") || null },
   { key: "stock_finished_t", label: "Tồn kho thành phẩm", unit: "tấn", group: _TK,
     compute: (v) => (stockTonnes(v, "stock_not_warehoused") + stockTonnes(v, "stock_warehoused")) || null },
-  // Cam kết giao hàng — báo RIÊNG, không cộng vào "Tồn kho thành phẩm" và cũng không trừ ra.
-  { key: "stock_signed_t", label: "Đã ký HĐ chưa giao", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_signed_undelivered") || null },
+  // Cam kết giao hàng — HỆ THỐNG TỰ TÍNH từ hợp đồng (`{qty, by_grade, items}`), báo RIÊNG:
+  // không cộng vào "Tồn kho thành phẩm" và cũng không trừ ra.
+  { key: "stock_signed_t", label: "Đã ký HĐ chưa giao", unit: "tấn", group: _TK,
+    compute: (v) => n((v as Record<string, unknown>).stock_signed_undelivered
+      ? ((v as Record<string, { qty?: number }>).stock_signed_undelivered.qty ?? null) : null) || null },
   { key: "stock_material", label: "Tồn kho nguyên liệu chưa sản xuất (quy khô)", unit: "tấn", group: _TK },
 ];
 

@@ -112,6 +112,37 @@ VRG_DOMESTIC_ONLY_GRADES = {"Skim Block"}
 UNIT_STOCK_GRADES = [*VRG_FLOOR_GRADES, "SVR 10CV / 20CV", "Chủng loại khác"]
 
 
+# 2 loại MỦ NGUYÊN LIỆU bổ sung (chốt 30/07/2026) — tên giữ NGUYÊN VĂN như khách chốt.
+# Vừa là dòng THU MUA (có đơn giá riêng từng loại), vừa là chủng loại BÁN được trên hợp đồng.
+RAW_MATERIAL_GRADES = [
+    "Mủ nguyên liệu nước chưa cán vắt (chén)",
+    "Mủ nguyên liệu đã cán vắt (RSS)",
+]
+
+# Chủng loại chọn được trên DÒNG HỢP ĐỒNG (bán) = thành phẩm + 2 loại nguyên liệu mới.
+# Tồn kho thành phẩm vẫn chỉ dùng `UNIT_STOCK_GRADES` (nguyên liệu không phải thành phẩm).
+SALE_GRADES = [*UNIT_STOCK_GRADES, *RAW_MATERIAL_GRADES]
+
+# Bán các loại này BẮT BUỘC nhập quy khô mới cho lưu (chốt Q4 — 30/07/2026).
+DRY_REQUIRED_GRADES = frozenset({"LATEX", *RAW_MATERIAL_GRADES})
+
+# Hình thức tiêu thụ — dùng "Tiêu thụ nội bộ", KHÔNG dùng "nội tiêu" (chốt 30/07/2026).
+SALE_CHANNELS: dict[str, str] = {
+    "export": "Xuất khẩu / UTXK",
+    "domestic": "Tiêu thụ trong nước",
+    "internal": "Tiêu thụ nội bộ",
+}
+
+# Loại giao của hợp đồng mẹ: giao trọn 1 lần, hoặc giao nhiều lần qua các phụ lục.
+DELIVERY_TYPES: dict[str, str] = {
+    "single": "Giao 1 lần",
+    "multi": "Giao nhiều lần (hợp đồng mẹ – phụ lục)",
+}
+
+# Loại tiền trên dòng bán/thu mua — thêm nội tệ đơn vị nước ngoài (Lào LAK · Campuchia KHR).
+SALE_CURRENCIES: tuple[str, ...] = ("VND", "USD", "LAK", "KHR")
+
+
 # Chủng loại cho "Báo giá mủ thị trường" (Mục 1-3: giá tư nhân/VRG XK/VRG nội địa) — theo phiếu Excel.
 MARKET_QUOTE_GRADES = ["SVR CV 50", "SVR CV 60", "SVR 3L", "SVR 10", "RSS3", "LATEX"]
 

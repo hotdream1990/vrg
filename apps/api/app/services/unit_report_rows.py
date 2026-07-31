@@ -22,10 +22,17 @@ from app.services.unit_daily_fields import SALE_TABLES
 TRIEU = 1_000_000       # 1 triệu đồng
 
 #: Loại mủ thu mua — 3 nhóm; nhóm `finished` còn tách tiếp theo chủng loại.
-MATERIALS: tuple[str, ...] = ("latex", "cup", "finished")
-MATERIAL_LABELS = {"latex": "Mủ nước", "cup": "Mủ chén", "finished": "Thành phẩm"}
+MATERIALS: tuple[str, ...] = ("latex", "cup", "cup_raw", "rss_pressed", "finished")
+MATERIAL_LABELS = {
+    "latex": "Mủ nước", "cup": "Mủ chén",
+    # 2 loại bổ sung chốt 30/07/2026 — đơn giá nhập theo ĐỒNG/KG (khác đồng/độ của 2 loại trên).
+    "cup_raw": "Mủ NL nước chưa cán vắt (chén)", "rss_pressed": "Mủ NL đã cán vắt (RSS)",
+    "finished": "Thành phẩm",
+}
 #: Nguồn mủ tiêu thụ (2 bảng nhập tách riêng ở biểu Tiêu thụ).
-SOURCE_LABELS = {"sales": "Mủ thu mua", "sales_own": "Mủ khai thác"}
+SOURCE_LABELS = {"sales": "Mủ thu mua", "sales_own": "Mủ khai thác",
+                 # Từ 30/07/2026 tiêu thụ đến từ LẦN GIAO của hợp đồng, không còn tách 2 nguồn mủ.
+                 "contract": "Theo hợp đồng"}
 #: 2 khối tồn kho nhập tay (khối "đã ký HĐ" có màn riêng, khối nguyên liệu là ô đơn).
 STOCK_BLOCKS = ("stock_not_warehoused", "stock_warehoused")
 
@@ -98,6 +105,15 @@ def purchase_rows(date_from: str, date_to: str,
                          "cup_basis": cup_basis if material == "cup" else None,
                          "ccy": "VND", "fx": None, "revenue_vnd": None,
                          "missing_fx": local is not None and not fx_local})
+        # 2 loại nguyên liệu bổ sung — đơn giá lưu THẲNG trong payload (đồng/kg), không qua kho giá.
+        for material in ("cup_raw", "rss_pressed"):
+            qty = _num(f.get(material))
+            if qty is None:
+                continue
+            rows.append({**base, "material": material, "grade": MATERIAL_LABELS[material],
+                         "qty": qty, "price": _num(f.get(f"{material}_price")),
+                         "price_unit": "dong_kg", "cup_basis": None,
+                         "ccy": "VND", "fx": None, "revenue_vnd": None, "missing_fx": False})
         for ln in f.get("finished") or []:
             qty = _num(ln.get("qty"))
             if qty is None:
@@ -133,6 +149,10 @@ def consumption_rows(date_from: str, date_to: str,
     for e in entries:
         base = _base(e, meta)
         f = e["fields"]
+        # Ngày đã chuyển sang hợp đồng: mảng cũ giữ để tra cứu nhưng KHÔNG dựng dòng thống kê nữa,
+        # nếu không mỗi lần bán bị đếm hai lần (một ở đây, một ở hợp đồng).
+        if f.get("sales_migrated") is True:
+            continue
         day_ccy, day_fx = f.get("sales_ccy"), _num(f.get("fx_revenue"))
         unit_default = "VND" if (meta.get(base["company"]) or {}).get("currency", "VND") == "VND" else "USD"
         line_total, n_lines = 0.0, 0
@@ -157,7 +177,43 @@ def consumption_rows(date_from: str, date_to: str,
                 })
         if n_lines:
             days.append({**base, "revenue_stored": _num(f.get("revenue")), "revenue_lines": line_total})
+
+    rows.extend(_delivery_rows(date_from, date_to, companies, meta))
     return {"rows": rows, "days": days}
+
+
+def _delivery_rows(date_from: str, date_to: str, companies: list[str] | None,
+                   meta: dict[str, dict]) -> list[dict[str, Any]]:
+    """Dòng bán lấy từ các LẦN GIAO của hợp đồng (nguồn tiêu thụ hiện hành từ 30/07/2026).
+
+    Không có 2 mảng cũ nữa nên `source` để trống và `contract` lấy theo loại giao của hợp đồng;
+    các cột còn lại giữ đúng khuôn dòng cũ để màn Thống kê tiêu thụ dùng chung một bảng.
+    """
+    from app.services import sales_contract_report
+
+    out: list[dict[str, Any]] = []
+    for d in sales_contract_report.deliveries(date_from, date_to, companies):
+        base = {"as_of": d.get("delivered_at"), "company": d["company"],
+                "region": (meta.get(d["company"]) or {}).get("region")}
+        for ln in d.get("lines") or []:
+            ccy = ln.get("ccy") or "VND"
+            fx = _num(ln.get("fx"))
+            qty = _num(ln.get("qty"))
+            rev = (qty * _num(ln.get("price")) * TRIEU
+                   if ccy == "VND" and qty is not None and _num(ln.get("price")) is not None
+                   else (qty * _num(ln.get("price")) * fx
+                         if qty is not None and _num(ln.get("price")) is not None and fx else None))
+            out.append({
+                **base, "source": "contract", "code": d.get("code"),
+                "contract": d.get("delivery_type") or "single",
+                "channel": d.get("channel") or "domestic",
+                "grade": str(ln.get("grade") or "").strip() or "—",
+                "qty": qty, "price": _num(ln.get("price")),
+                "ccy": ccy, "fx": fx, "revenue_vnd": rev,
+                "missing_fx": (ccy != "VND" and fx is None),
+                "warehouse_date": None, "invoice_date": d.get("payment_date"),
+            })
+    return out
 
 
 # ── Tồn kho (số THỜI ĐIỂM) ─────────────────────────────────────────────────────

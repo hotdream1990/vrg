@@ -26,6 +26,10 @@ _NUM = "#,##0.00"
 _PURCHASE_COLS: list[tuple[str, str, str, str]] = [
     ("latex_wet", "Sản lượng thu mua mủ nước", "cộng dồn", "tấn"),
     ("coagulum", "Sản lượng thu mua mủ chén", "cộng dồn", "tấn"),
+    ("cup_raw", "Sản lượng mủ NL nước chưa cán vắt (chén)", "cộng dồn", "tấn"),
+    ("price_cup_raw_avg", "Đơn giá BQ mủ NL chưa cán vắt", "bình quân gia quyền", "đồng/kg"),
+    ("rss_pressed", "Sản lượng mủ NL đã cán vắt (RSS)", "cộng dồn", "tấn"),
+    ("price_rss_pressed_avg", "Đơn giá BQ mủ NL đã cán vắt", "bình quân gia quyền", "đồng/kg"),
     ("finished_qty", "Sản lượng thu mua thành phẩm", "cộng dồn các chủng loại", "tấn"),
     ("total_purchase", "Tổng sản lượng thu mua", "= mủ nước + mủ chén", "tấn"),
     ("price_latex_avg", "Giá thu mua mủ nước BQ", "bình quân gia quyền", "đồng/độ TSC"),
@@ -48,11 +52,17 @@ _CONSUMPTION_COLS: list[tuple[str, str, str, str]] = [
     ("lt_domestic", "HĐ dài hạn — Nội tiêu", "cộng dồn", "tấn"),
     ("spot_export", "HĐ chuyến — XK/UTXK", "cộng dồn", "tấn"),
     ("spot_domestic", "HĐ chuyến — Nội tiêu", "cộng dồn", "tấn"),
-    ("total_consumption", "Tổng tiêu thụ", "= tổng 4 cột trên", "tấn"),
-    ("export_total", "Tổng XK/UTXK", "= dài hạn + chuyến", "tấn"),
-    ("domestic_total", "Tổng Nội tiêu", "= dài hạn + chuyến", "tấn"),
+    ("total_consumption", "Tổng tiêu thụ", "= 4 cột trên (cũ) + sản lượng hợp đồng (mới)", "tấn"),
+    ("export_total", "Tổng XK/UTXK", "= dài hạn + chuyến + hợp đồng", "tấn"),
+    ("domestic_total", "Tổng Nội tiêu trong nước", "= dài hạn + chuyến + hợp đồng", "tấn"),
+    ("internal_total", "Tiêu thụ nội bộ", "cộng dồn (nguồn hợp đồng)", "tấn"),
     ("revenue_ty", "Doanh thu cao su", "cộng dồn", "tỷ đồng"),
     ("avg_sell_price", "Giá bán bình quân", "= doanh thu / tiêu thụ", "triệu đ/tấn"),
+    # Chi phí trên dòng bán — chỉ có ở nguồn hợp đồng (mảng sales/sales_own cũ không ghi chi phí).
+    ("cost_lines", "Tổng chi phí trên dòng bán", "cộng dồn (nguồn hợp đồng)", "triệu đồng"),
+    ("cost_export", "Chi phí — XK/UTXK", "cộng dồn (nguồn hợp đồng)", "triệu đồng"),
+    ("cost_domestic", "Chi phí — Nội tiêu trong nước", "cộng dồn (nguồn hợp đồng)", "triệu đồng"),
+    ("cost_internal", "Chi phí — Tiêu thụ nội bộ", "cộng dồn (nguồn hợp đồng)", "triệu đồng"),
     # Ngày của ảnh chụp tồn kho — có thể sớm hơn ngày cuối kỳ nếu đơn vị chưa cập nhật tồn.
     ("stock_as_of", "Ngày lấy số tồn kho", "thời điểm", ""),
     ("stock_not_warehoused", "Tồn kho thành phẩm chế biến chưa nhập kho", "thời điểm", "tấn"),
@@ -72,7 +82,8 @@ _TITLE = {
     "consumption": ("BÁO CÁO TIÊU THỤ - TỒN KHO", "Về công tác Tiêu thụ - Tồn kho mủ cao su"),
 }
 # Chỉ tiêu KHÔNG được cộng ở dòng Tổng cộng (giá / tỷ lệ → tính lại hoặc bỏ trống).
-_NO_SUM = {"price_latex_avg", "price_cup_avg", "pct_plan", "avg_sell_price"}
+_NO_SUM = {"price_latex_avg", "price_cup_avg", "price_cup_raw_avg",
+           "price_rss_pressed_avg", "pct_plan", "avg_sell_price"}
 
 
 def _columns(kind: str, grades: list[str]) -> tuple[list[tuple[str, str, str, str]], list[str]]:

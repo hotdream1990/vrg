@@ -1,0 +1,135 @@
+"""Repository DANH MỤC KHÁCH HÀNG của đơn vị thành viên (unit_customer).
+
+Chốt 30/07/2026 (Q6): danh mục quản lý RIÊNG cho từng đơn vị — KHÔNG dùng chung ở cấp Tập đoàn.
+Hợp đồng chỉ được gán khách hàng của CHÍNH đơn vị đó (kiểm ở `sales_contract_repo.save`).
+Trùng tên trong cùng một đơn vị bị chặn ở tầng DB (unique theo `company` + tên viết thường).
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
+
+from app.core.db import ensure_schema, session_scope
+from app.services import audit_repo
+
+_COLS = ("id", "company", "code", "name", "tax_code", "note", "is_active")
+
+
+def _row(r) -> dict[str, Any]:
+    return dict(r)
+
+
+def clean(row: dict, company: str) -> dict[str, Any]:
+    """Chuẩn hoá + kiểm tra 1 khách hàng trước khi ghi (raise ValueError nếu sai)."""
+    name = str(row.get("name") or "").strip()[:200]
+    if not name:
+        raise ValueError("Thiếu tên khách hàng.")
+    return {
+        "id": int(row["id"]) if str(row.get("id") or "").strip().isdigit() else None,
+        "company": company,
+        "code": str(row.get("code") or "").strip()[:60] or None,
+        "name": name,
+        "tax_code": str(row.get("tax_code") or "").strip()[:40] or None,
+        "note": str(row.get("note") or "").strip()[:500] or None,
+        "is_active": bool(row.get("is_active", True)),
+    }
+
+
+def list_customers(companies: list[str] | None = None, include_inactive: bool = True,
+                   q: str | None = None) -> list[dict[str, Any]]:
+    """Danh sách khách hàng. `companies=None` = mọi đơn vị (chuyên viên); `[]` = không đơn vị nào."""
+    ensure_schema()
+    where, params = ["1 = 1"], {}
+    if companies is not None:
+        if not companies:
+            return []
+        where.append("company = ANY(:cs)")
+        params["cs"] = list(companies)
+    if not include_inactive:
+        where.append("is_active")
+    if q:
+        where.append("(name ILIKE :q OR code ILIKE :q OR tax_code ILIKE :q)")
+        params["q"] = f"%{q}%"
+    with session_scope() as db:
+        rows = db.execute(
+            text(f"SELECT {', '.join(_COLS)} FROM unit_customer WHERE {' AND '.join(where)} "
+                 "ORDER BY company, name"),
+            params,
+        ).mappings().all()
+    return [_row(r) for r in rows]
+
+
+def names_by_id(companies: list[str] | None = None) -> dict[int, str]:
+    """{id: tên khách} — dùng để gắn tên khách vào danh sách hợp đồng mà không join thêm."""
+    return {c["id"]: c["name"] for c in list_customers(companies)}
+
+
+def _snapshot(customer_id: int) -> dict[str, Any] | None:
+    ensure_schema()
+    with session_scope() as db:
+        row = db.execute(text(f"SELECT {', '.join(_COLS)} FROM unit_customer WHERE id = :i"),
+                         {"i": customer_id}).mappings().first()
+    return _row(row) if row else None
+
+
+def owner_of(customer_id: int) -> str | None:
+    """Đơn vị sở hữu khách hàng này (None nếu không có) — dùng kiểm chéo khi gán vào hợp đồng."""
+    ensure_schema()
+    with session_scope() as db:
+        return db.execute(text("SELECT company FROM unit_customer WHERE id = :i"),
+                          {"i": customer_id}).scalar()
+
+
+def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
+    """Thêm mới (không có id) hoặc cập nhật 1 khách hàng. Raise ValueError nếu số liệu sai."""
+    d = clean(row, company)
+    ensure_schema()
+    before = _snapshot(d["id"]) if d["id"] is not None else None
+    try:
+        with session_scope() as db:
+            if d["id"] is not None:
+                cur = db.execute(text("SELECT company FROM unit_customer WHERE id = :i"),
+                                 {"i": d["id"]}).scalar()
+                if cur is None:
+                    raise ValueError("Khách hàng không còn tồn tại (có thể đã bị xoá).")
+                if cur != company:
+                    raise ValueError("Khách hàng thuộc đơn vị khác.")
+                db.execute(text(
+                    "UPDATE unit_customer SET code = :code, name = :name, tax_code = :tax_code, "
+                    "note = :note, is_active = :is_active, updated_by = :by, updated_at = now() "
+                    "WHERE id = :id"), {**d, "by": updated_by})
+                new_id = d["id"]
+            else:
+                new_id = db.execute(text(
+                    "INSERT INTO unit_customer (company, code, name, tax_code, note, is_active, "
+                    " updated_by) VALUES (:company, :code, :name, :tax_code, :note, :is_active, :by) "
+                    "RETURNING id"), {**d, "by": updated_by}).scalar()
+    except IntegrityError as exc:
+        raise ValueError(f"Đơn vị đã có khách hàng tên “{d['name']}”.") from exc
+    saved = {**d, "id": new_id}
+    audit_repo.log("customer", "update" if before else "create", saved["name"],
+                   before=before, after=saved, company=company)
+    return saved
+
+
+def delete(customer_id: int, companies: list[str] | None) -> bool:
+    """Xoá 1 khách hàng. Chặn khi đã có hợp đồng tham chiếu (giữ toàn vẹn số liệu lịch sử)."""
+    ensure_schema()
+    before = _snapshot(customer_id)
+    with session_scope() as db:
+        cur = db.execute(text("SELECT company FROM unit_customer WHERE id = :i"),
+                         {"i": customer_id}).scalar()
+        if cur is None or (companies is not None and cur not in companies):
+            return False
+        used = db.execute(text("SELECT count(*) FROM sales_contract WHERE customer_id = :i"),
+                          {"i": customer_id}).scalar() or 0
+        if used:
+            raise ValueError(
+                f"Khách hàng đang gắn với {used} hợp đồng — hãy ẩn (bỏ tick Đang dùng) thay vì xoá.")
+        db.execute(text("DELETE FROM unit_customer WHERE id = :i"), {"i": customer_id})
+    audit_repo.log("customer", "delete", (before or {}).get("name") or f"#{customer_id}",
+                   before=before, company=cur)
+    return True

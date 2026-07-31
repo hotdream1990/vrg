@@ -32,8 +32,14 @@ export const TONNES_CARRY: Bound = { lo: 0, hi: 20_000, unit: "tấn" };
 export const PRICE_VND: Bound = { lo: 10, hi: 150, unit: "triệu đ/tấn" };
 /** Thực tế prod: ~1.880 USD/tấn (kho giá physical 1.267–3.253). */
 export const PRICE_USD: Bound = { lo: 500, hi: 8_000, unit: "USD/tấn" };
-/** Biên đơn giá theo loại tiền của DÒNG đang nhập. */
-export const priceBound = (ccy: string | undefined): Bound => (ccy === "USD" ? PRICE_USD : PRICE_VND);
+/** Biên đơn giá theo loại tiền của DÒNG đang nhập.
+    Nội tệ đơn vị nước ngoài (LAK/KHR) có mặt bằng số hoàn toàn khác (1 USD ≈ 21.000 LAK) và chưa
+    đủ dữ liệu thật để chốt biên → trả biên RỖNG: thà không cảnh báo còn hơn kêu oan mọi dòng. */
+export const priceBound = (ccy: string | undefined): Bound => {
+  if (ccy === "USD") return PRICE_USD;
+  if (ccy === "LAK" || ccy === "KHR") return { unit: `${ccy}/tấn` };
+  return PRICE_VND;
+};
 
 // ── Tỷ giá & đơn giá mủ nguyên liệu ──────────────────────────────────────────────────────
 /** Thực tế prod: 26.000–26.510. Biên rộng để còn dùng được nhiều năm. */
@@ -42,6 +48,8 @@ export const FX_USD_VND: Bound = { lo: 15_000, hi: 40_000, unit: "VND" };
 export const PRICE_LATEX: Bound = { lo: 100, hi: 1_500, unit: "đồng/độ TSC" };
 /** Đơn giá mủ chén (tính theo độ TSC hoặc DRC). Thực tế prod: 82–345. */
 export const PRICE_CUP: Bound = { lo: 50, hi: 1_500, unit: "đồng/độ" };
+/** Đơn giá 2 loại mủ nguyên liệu bổ sung (chén chưa cán vắt · RSS đã cán vắt) — nhập theo đồng/kg. */
+export const PRICE_PER_KG: Bound = { lo: 1_000, hi: 100_000, unit: "đồng/kg" };
 /** Doanh thu một ngày của một đơn vị. Thực tế prod (bản ghi đúng): ≤ 12 tỷ đồng. */
 export const REVENUE_TY: Bound = { lo: 0, hi: 500, unit: "tỷ đồng" };
 
@@ -59,7 +67,8 @@ export function boundWarning(v: number | null | undefined, b?: Bound | null): st
 
 /** Dòng chọn USD mà bỏ trống tỷ giá → doanh thu dòng đó KHÔNG được tính (xem `lineRevenueVnd`). */
 export function fxWarning(line: { ccy?: string; fx?: number | null }): string | null {
-  if ((line.ccy ?? "VND") !== "USD") return null;
+  const ccy = line.ccy ?? "VND";
+  if (ccy === "VND") return null;
   if (line.fx != null && line.fx !== 0) return null;
-  return "Dòng chọn USD nhưng chưa nhập tỷ giá — doanh thu dòng này sẽ không được tính.";
+  return `Dòng chọn ${ccy} nhưng chưa nhập tỷ giá — doanh thu dòng này sẽ không được tính.`;
 }

@@ -198,9 +198,11 @@ def test_template_download_then_import_roundtrip() -> None:
     assert con["stock_not_warehoused"][0]["qty"] == 33
     assert con["stock_warehoused"][0]["qty"] == 66
     assert con["stock_material"] == 21
-    # Nhóm "Đã ký HĐ" nhập từ Excel thành HỢP ĐỒNG có vòng đời — báo cáo ngày tự hiển thị lại.
-    assert con["stock_signed_undelivered"][0]["qty"] == 12
-    assert con["stock_signed_undelivered"][0]["code"] == "HĐ-03/2026"
+    # Nhóm "Đã ký HĐ" nhập từ Excel thành HỢP ĐỒNG có vòng đời (bảng CŨ unit_stock_contract) —
+    # báo cáo ngày tự hiển thị lại, đánh dấu "legacy": True (phân biệt nguồn sales_contract mới).
+    assert con["stock_signed_undelivered"]["qty"] == 12
+    assert con["stock_signed_undelivered"]["items"][0]["code"] == "HĐ-03/2026"
+    assert con["stock_signed_undelivered"]["items"][0]["legacy"] is True
     ctr = client.get("/api/unit-daily/stock-contracts", headers=h).json()["contracts"]
     mine = [c for c in ctr if c["company"] == unit]
     assert len(mine) == 1 and mine[0]["start_date"] == iso and mine[0]["delivered_date"] is None

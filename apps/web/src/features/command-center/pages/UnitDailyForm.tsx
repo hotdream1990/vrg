@@ -1,6 +1,6 @@
 /* Form nhập số liệu 1 đơn vị / 1 ngày — chọn form theo loại biểu:
    - Thu mua ("purchase") → PurchaseForm (bố trí theo loại mủ + quy đổi ngoại tệ).
-   - Tiêu thụ–Tồn kho ("consumption") → ConsumptionForm (bảng nhiều dòng + tồn kho).
+   - Tồn kho ("consumption") → ConsumptionForm (tiêu thụ đã rời sang module Hợp đồng).
    Dùng chung: đơn vị thành viên nhập inline · chuyên viên sửa trong Modal. */
 
 import type { PriceDraft, UnitPurchasePrice } from "../../../lib/unit-daily-client";
@@ -20,14 +20,15 @@ type Props = {
   role?: "member" | "hq";         // upload file HĐ đúng endpoint
   company?: string;               // đơn vị đang nhập (Tồn kho: nút "Lấy tồn ngày trước")
   day?: string;                   // ngày đang nhập  (Tồn kho: nút "Lấy tồn ngày trước")
-  defaultTab?: ConsumptionTab;    // Tiêu thụ–Tồn kho: tab mở sẵn
+  defaultTab?: ConsumptionTab;    // giữ chữ ký cũ (biểu chỉ còn Tồn kho)
+  isParent?: boolean;             // đơn vị là công ty MẸ → hiện ô chi phí tổng
   linkedPrice?: UnitPurchasePrice | null; // đơn giá mủ nước/mủ chén đúng ngày (Thu mua)
   onDirty?: (dirty: boolean) => void;
   footer?: (dirty: boolean, current: Values, prices: PriceDraft) => React.ReactNode;
 };
 
 export default function UnitDailyForm(
-  { kind, values, readOnly, formKey, currency, role, company, day, defaultTab, linkedPrice, onDirty, footer }: Props,
+  { kind, values, readOnly, formKey, currency, role, company, day, defaultTab, isParent, linkedPrice, onDirty, footer }: Props,
 ) {
   if (kind === "purchase") {
     return (
@@ -38,6 +39,6 @@ export default function UnitDailyForm(
   return (
     <ConsumptionForm values={values} readOnly={readOnly} formKey={formKey}
       currency={currency} role={role} company={company} day={day}
-      defaultTab={defaultTab} onDirty={onDirty} footer={footer} />
+      defaultTab={defaultTab} isParent={isParent} onDirty={onDirty} footer={footer} />
   );
 }

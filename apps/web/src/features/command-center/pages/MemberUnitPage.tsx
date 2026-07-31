@@ -1,4 +1,5 @@
 import { TeamOutlined } from "@ant-design/icons";
+import { Select } from "antd";
 import { useEffect, useState } from "react";
 
 import {
@@ -17,6 +18,7 @@ import {
   reorderUnits,
   setUnitFactory,
   setUnitLocale,
+  setUnitParent,
   setUnitPurchasePlan,
   setUnitRegion,
   updateUnit,
@@ -58,6 +60,7 @@ export default function MemberUnitPage() {
   const canEdit = canEditCap("member_unit"); // mức Xem của mục này → khoá toàn bộ thao tác ghi
   const [tab, setTab] = useState<"units" | "regions">("units");
   const [regions, setRegions] = useState<MemberRegion[]>([]);
+  const [units, setUnits] = useState<MemberUnit[]>([]); // cho ô "Công ty mẹ" chọn từ toàn bộ đơn vị khác
 
   useEffect(() => { listRegions().then(setRegions).catch(() => {}); }, []);
 
@@ -79,58 +82,78 @@ export default function MemberUnitPage() {
       </div>
 
       {tab === "units" ? (
-        <ManagedListTab<MemberUnit>
-          api={unitApi} canEdit={canEdit}
-          placeholder="Tên đơn vị mới (vd: Bình Long)" addLabel="Thêm đơn vị"
-          countWord="đơn vị" nameHeader="Tên đơn vị"
-          confirmDelete={(n) => `Xoá đơn vị "${n}" khỏi danh sách? (Giá đã nhập vẫn giữ trong kho)`}
-          extraCols={[
-            {
-              header: "Khu vực", width: 200,
-              render: (u, run) => (
-                <select className="blt-cell-input" style={{ minWidth: 160 }} value={u.region ?? ""} disabled={!canEdit}
-                  onChange={(e) => run(() => setUnitRegion(u.name, e.target.value || null))}>
-                  <option value="">— Chưa gán —</option>
-                  {regions.filter((r) => r.is_active || r.name === u.region).map((r) => (
-                    <option key={r.name} value={r.name}>{r.name}</option>
-                  ))}
-                </select>
-              ),
-            },
-            {
-              header: "Quốc gia / Tiền", width: 170,
-              render: (u, run) => (
-                <select className="blt-cell-input" style={{ minWidth: 150 }} value={u.country || "VN"} disabled={!canEdit}
-                  onChange={(e) => {
-                    const loc = LOCALES.find((l) => l.country === e.target.value) ?? LOCALES[0];
-                    run(() => setUnitLocale(u.name, loc.country, loc.currency));
-                  }}>
-                  {LOCALES.map((l) => <option key={l.country} value={l.country}>{l.label}</option>)}
-                </select>
-              ),
-            },
-            {
-              header: "Nhà máy", width: 150,
-              render: (u, run) => (
-                <select className="blt-cell-input" style={{ minWidth: 130 }} value={u.has_factory ? "1" : "0"} disabled={!canEdit}
-                  onChange={(e) => run(() => setUnitFactory(u.name, e.target.value === "1"))}>
-                  <option value="1">Có nhà máy</option>
-                  <option value="0">Không có nhà máy</option>
-                </select>
-              ),
-            },
-            {
-              header: "Kế hoạch thu mua", width: 140,
-              render: (u, run) => (
-                <label style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", cursor: canEdit ? "pointer" : "default" }}>
-                  <input type="checkbox" checked={u.has_purchase_plan} disabled={!canEdit}
-                    onChange={(e) => run(() => setUnitPurchasePlan(u.name, e.target.checked))} />
-                  <span style={{ fontSize: 13, color: "var(--muted)" }}>Có giao KH</span>
-                </label>
-              ),
-            },
-          ]}
-        />
+        <>
+          <p className="form-note" style={{ fontSize: 12, marginBottom: 8 }}>
+            Đơn vị con vẫn được chuyển tiêu thụ nội bộ cho BẤT KỲ đơn vị nào — cột "Công ty mẹ" chỉ dùng
+            để gom báo cáo cấp Tập đoàn và bật ô "chi phí tổng cấp công ty mẹ".
+          </p>
+          <ManagedListTab<MemberUnit>
+            api={unitApi} canEdit={canEdit}
+            placeholder="Tên đơn vị mới (vd: Bình Long)" addLabel="Thêm đơn vị"
+            countWord="đơn vị" nameHeader="Tên đơn vị"
+            confirmDelete={(n) => `Xoá đơn vị "${n}" khỏi danh sách? (Giá đã nhập vẫn giữ trong kho)`}
+            onItemsChange={setUnits}
+            extraCols={[
+              {
+                header: "Khu vực", width: 200,
+                render: (u, run) => (
+                  <select className="blt-cell-input" style={{ minWidth: 160 }} value={u.region ?? ""} disabled={!canEdit}
+                    onChange={(e) => run(() => setUnitRegion(u.name, e.target.value || null))}>
+                    <option value="">— Chưa gán —</option>
+                    {regions.filter((r) => r.is_active || r.name === u.region).map((r) => (
+                      <option key={r.name} value={r.name}>{r.name}</option>
+                    ))}
+                  </select>
+                ),
+              },
+              {
+                header: "Quốc gia / Tiền", width: 170,
+                render: (u, run) => (
+                  <select className="blt-cell-input" style={{ minWidth: 150 }} value={u.country || "VN"} disabled={!canEdit}
+                    onChange={(e) => {
+                      const loc = LOCALES.find((l) => l.country === e.target.value) ?? LOCALES[0];
+                      run(() => setUnitLocale(u.name, loc.country, loc.currency));
+                    }}>
+                    {LOCALES.map((l) => <option key={l.country} value={l.country}>{l.label}</option>)}
+                  </select>
+                ),
+              },
+              {
+                header: "Nhà máy", width: 150,
+                render: (u, run) => (
+                  <select className="blt-cell-input" style={{ minWidth: 130 }} value={u.has_factory ? "1" : "0"} disabled={!canEdit}
+                    onChange={(e) => run(() => setUnitFactory(u.name, e.target.value === "1"))}>
+                    <option value="1">Có nhà máy</option>
+                    <option value="0">Không có nhà máy</option>
+                  </select>
+                ),
+              },
+              {
+                header: "Kế hoạch thu mua", width: 140,
+                render: (u, run) => (
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", cursor: canEdit ? "pointer" : "default" }}>
+                    <input type="checkbox" checked={u.has_purchase_plan} disabled={!canEdit}
+                      onChange={(e) => run(() => setUnitPurchasePlan(u.name, e.target.checked))} />
+                    <span style={{ fontSize: 13, color: "var(--muted)" }}>Có giao KH</span>
+                  </label>
+                ),
+              },
+              {
+                header: "Công ty mẹ", width: 200,
+                render: (u, run) => (
+                  <Select showSearch allowClear size="small" style={{ minWidth: 180, width: "100%" }}
+                    placeholder="— Chưa gán —" disabled={!canEdit}
+                    value={u.parent_company ?? undefined}
+                    options={units
+                      .filter((o) => o.name !== u.name && (o.is_active || o.name === u.parent_company))
+                      .map((o) => ({ value: o.name, label: o.name }))}
+                    filterOption={(i, o) => (o?.label ?? "").toLowerCase().includes(i.toLowerCase())}
+                    onChange={(v) => run(() => setUnitParent(u.name, v ?? null))} />
+                ),
+              },
+            ]}
+          />
+        </>
       ) : (
         <ManagedListTab<MemberRegion>
           api={regionApi} canEdit={canEdit}

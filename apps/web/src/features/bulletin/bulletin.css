@@ -22,6 +22,17 @@
   font-size: 13px;
 }
 
+.form-field {
+  /* Ô nhập trong form NHIỀU TRƯỜNG: nhãn nằm TRÊN ô (khác .blt-date-label — nhãn nằm cạnh ô).
+     Nhãn dài như "Tên khách hàng" đặt cạnh ô sẽ vắt 2-3 dòng và bóp ô nhập lại còn một mẩu. */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .blt-date-input {
   background: var(--bg);
   border: 1px solid var(--line);

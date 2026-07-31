@@ -24,7 +24,8 @@ DATA_CAPS: dict[str, str] = {
     "member_unit": "Đơn vị thành viên",
     "auto_data": "Số liệu tự động (bảng giá sàn · tỷ giá · quét đa sàn)",
     "market_demand": "Nhu cầu thị trường (mọi đơn vị)",
-    "unit_daily": "Báo cáo tiêu thụ - tồn kho (thu mua · tồn kho — mọi đơn vị)",
+    "unit_daily": "Báo cáo đơn vị theo ngày (thu mua · tồn kho — mọi đơn vị)",
+    "sales_contract": "Hợp đồng & khách hàng (mọi đơn vị)",
     # Quyền truy cập các màn phân tích/bản tin (xem + thao tác). Không có = ẩn khỏi menu + chặn API.
     "floor_suggest": "Gợi ý giá sàn",
     "bulletin_daily": "Bản tin ngày",
@@ -38,7 +39,7 @@ CAP_KEYS = frozenset(DATA_CAPS)
 #: Các mục nhập liệu có tách 2 cấp Xem/Sửa. Ngoài danh sách này = 1 cấp (luôn là Sửa).
 SPLIT_CAPS = frozenset({
     "market_quote", "raw_material", "floor", "physical", "inventory",
-    "member_unit", "auto_data", "market_demand", "unit_daily",
+    "member_unit", "auto_data", "market_demand", "unit_daily", "sales_contract",
 })
 
 LEVEL_VIEW = "view"

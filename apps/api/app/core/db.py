@@ -219,6 +219,57 @@ CREATE INDEX IF NOT EXISTS ix_audit_actor ON audit_log (actor, at DESC);
 CREATE INDEX IF NOT EXISTS ix_audit_key ON audit_log (entity, entity_key, at DESC);
 CREATE INDEX IF NOT EXISTS ix_audit_asof ON audit_log (as_of);
 
+-- Danh mục KHÁCH HÀNG — quản lý RIÊNG cho từng đơn vị (chốt Q6 30/07/2026): mỗi đơn vị một
+-- danh sách của mình, KHÔNG dùng chung ở cấp Tập đoàn. Hợp đồng gán khách của chính đơn vị đó.
+CREATE TABLE IF NOT EXISTS unit_customer (
+    id          bigserial PRIMARY KEY,
+    company     text NOT NULL,          -- đơn vị SỞ HỮU danh mục (khớp member_unit)
+    code        text,                   -- mã khách hàng (đơn vị tự đặt)
+    name        text NOT NULL,
+    tax_code    text,                   -- mã số thuế
+    note        text,
+    is_active   boolean NOT NULL DEFAULT true,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    updated_by  text
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_unit_customer_name ON unit_customer (company, lower(name));
+CREATE INDEX IF NOT EXISTS ix_unit_customer_company ON unit_customer (company, is_active);
+
+-- HỢP ĐỒNG BÁN HÀNG 2 CẤP (chốt 30/07/2026) — thay thế cách nhập tiêu thụ theo ngày:
+--   `parent_id` NULL  = HỢP ĐỒNG MẸ. `delivery_type` = 'single' (giao trọn 1 lần)
+--                       hoặc 'multi' (giao nhiều lần; mẹ giữ TỔNG SL cam kết ở `lines`).
+--   `parent_id` khác  = PHỤ LỤC. MỖI PHỤ LỤC = 1 LẦN GIAO (tự chuyển ĐÃ GIAO khi nhập)
+--                       + 1 LẦN THANH TOÁN. Không cho vượt SL còn lại của mẹ.
+-- Tiêu thụ = tổng các LẦN GIAO; "đã ký HĐ chưa giao" (khối 3) = SL cam kết − tổng đã giao.
+-- `lines` jsonb: [{grade, qty, qty_dry, price, ccy, fx, cost}] — nhiều chủng loại trên 1 hợp đồng.
+CREATE TABLE IF NOT EXISTS sales_contract (
+    id            bigserial PRIMARY KEY,
+    company       text NOT NULL,        -- đơn vị bán (khớp member_unit)
+    parent_id     bigint,               -- NULL = hợp đồng mẹ; khác NULL = phụ lục của hợp đồng đó
+    code          text NOT NULL,        -- số hợp đồng / số phụ lục
+    customer_id   bigint,               -- khách hàng (unit_customer.id) — chỉ đặt ở hợp đồng mẹ
+    delivery_type text NOT NULL DEFAULT 'single',  -- single | multi (chỉ có nghĩa ở hợp đồng mẹ)
+    sign_date     date,                 -- ngày ký
+    expiry_date   date,                 -- thời hạn hợp đồng
+    lines         jsonb NOT NULL DEFAULT '[]'::jsonb,
+    delivered     boolean NOT NULL DEFAULT false,  -- đã giao chưa (phụ lục luôn = true)
+    delivered_at  date,                 -- NGÀY GIAO — mốc tính tiêu thụ vào kỳ báo cáo
+    channel       text,                 -- export | domestic | internal (hình thức tiêu thụ)
+    to_company    text,                 -- đơn vị NHẬN khi channel = 'internal' (tiêu thụ nội bộ)
+    payment_date  date,                 -- 1 lần thanh toán / phụ lục (chốt Q7) — KHÔNG theo dõi công nợ
+    payment_qty   double precision,     -- sản lượng thanh toán (tấn)
+    payment_cost  double precision,     -- chi phí lần thanh toán (triệu đồng)
+    payment_docs  jsonb NOT NULL DEFAULT '[]'::jsonb,  -- chứng từ/hoá đơn: [{file, filename}]
+    files         jsonb NOT NULL DEFAULT '[]'::jsonb,  -- hợp đồng scan: [{file, filename}]
+    note          text,
+    updated_at    timestamptz NOT NULL DEFAULT now(),
+    updated_by    text
+);
+CREATE INDEX IF NOT EXISTS ix_sales_contract_company ON sales_contract (company, sign_date);
+CREATE INDEX IF NOT EXISTS ix_sales_contract_parent ON sales_contract (parent_id);
+CREATE INDEX IF NOT EXISTS ix_sales_contract_delivered ON sales_contract (delivered_at);
+
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS title text;
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS dispatch_no text;
@@ -231,12 +282,19 @@ ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS currency text NOT NULL DEFAULT 
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS has_factory boolean NOT NULL DEFAULT true;
 -- Đơn vị có được giao KẾ HOẠCH thu mua năm không — chỉ đơn vị bật cờ này mới hiện ở "Kế hoạch năm".
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS has_purchase_plan boolean NOT NULL DEFAULT true;
+-- Cây công ty MẸ – CON (chốt 30/07/2026): tên đơn vị mẹ của đơn vị này (rỗng = không thuộc cây nào).
+-- Đơn vị con vẫn được chuyển TIÊU THỤ NỘI BỘ cho BẤT KỲ đơn vị thành viên nào (không giới hạn trong
+-- cây); cột này để báo cáo cấp Tập đoàn biết quan hệ và để hiện ô "chi phí tổng" ở công ty mẹ.
+ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS parent_company text;
 -- Số liệu năm nhập 1 lần (không theo ngày): tổng SL đã ký HĐ dài hạn của năm.
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS signed_lt_tonnes double precision;
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS carry_lt_tonnes double precision;
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS carry_spot_tonnes double precision;
 -- Hợp đồng tồn kho: đính kèm NHIỀU file. Cột file/filename cũ giữ nguyên = file ĐẦU danh sách.
 ALTER TABLE unit_stock_contract ADD COLUMN IF NOT EXISTS files jsonb NOT NULL DEFAULT '[]'::jsonb;
+-- Đã được script chuyển sang bảng hợp đồng 2 cấp `sales_contract` chưa. Bản ghi CŨ vẫn giữ nguyên
+-- để tra cứu, nhưng khối 3 phải BỎ QUA nó — nếu không sản lượng chưa giao bị đếm hai lần.
+ALTER TABLE unit_stock_contract ADD COLUMN IF NOT EXISTS migrated boolean NOT NULL DEFAULT false;
 -- Nâng bản ghi cũ (1 file ở cột phẳng) lên danh sách. Idempotent: chỉ chạm dòng chưa có danh sách.
 UPDATE unit_stock_contract SET files = jsonb_build_array(
          jsonb_build_object('file', file, 'filename', COALESCE(filename, file)))

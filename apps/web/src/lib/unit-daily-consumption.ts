@@ -7,14 +7,17 @@ import type { ContractDoc } from "./contract-docs";
 export type SaleContract = "long_term" | "spot";       // loại HĐ: Dài hạn | Chuyến
 export type SaleChannel = "export" | "domestic";       // hình thức: XK/UTXK | Nội tiêu
 
-/** Loại tiền người dùng CHỌN khi nhập giá (giá bán tiêu thụ · đơn giá tồn kho đã có HĐ). */
-export type Ccy = "VND" | "USD";
+/** Loại tiền người dùng CHỌN khi nhập giá. Từ 30/07/2026 mở thêm NỘI TỆ của đơn vị nước ngoài
+    (Lào = LAK · Campuchia = KHR) — khớp `SALE_CURRENCIES` ở backend. */
+export type Ccy = "VND" | "USD" | "LAK" | "KHR";
 export const CCYS: { value: Ccy; label: string }[] = [
   { value: "VND", label: "VND" },
   { value: "USD", label: "USD" },
+  { value: "LAK", label: "LAK" },
+  { value: "KHR", label: "KHR" },
 ];
 /** Đơn vị hiển thị của ô giá theo loại tiền đã chọn. */
-export const priceUnitOf = (ccy: Ccy): string => (ccy === "USD" ? "USD/tấn" : "triệu đ/tấn");
+export const priceUnitOf = (ccy: Ccy): string => (ccy === "VND" ? "triệu đ/tấn" : `${ccy}/tấn`);
 
 /** 1 dòng tiêu thụ. `price` = giá bán, đơn vị theo `sales_ccy` (VND→triệu đ/tấn · USD→USD/tấn).
     Dùng chung cho 2 bảng nhập tách riêng: mủ THU MUA (`sales`) và mủ KHAI THÁC (`sales_own`). */
@@ -80,6 +83,17 @@ export type StockSignedLine = {
   file?: string | null; filename?: string | null;  // file ĐẦU danh sách (tương thích ngược)
 };
 
+/** Khối 3 sau 30/07/2026 — ĐÃ KÝ HĐ CHƯA GIAO là số HỆ THỐNG TỰ TÍNH (cam kết − đã giao tại ngày
+    báo cáo) từ hợp đồng bán hàng 2 cấp, cộng hợp đồng cũ còn hiệu lực. Đơn vị KHÔNG nhập ô này nữa. */
+export type StockSignedSummary = {
+  qty: number;
+  by_grade: Record<string, number>;
+  items: {
+    id?: number; code?: string | null; remaining?: number; qty?: number;
+    sign_date?: string | null; legacy?: boolean;
+  }[];
+};
+
 /** Payload tiêu thụ–tồn kho. TIÊU THỤ = 2 bảng nhập tách riêng (`sales` mủ thu mua ·
     `sales_own` mủ khai thác), tổng hợp và `revenue` GỘP CHUNG cả hai.
     TỒN KHO = số THỜI ĐIỂM, chia 4 khối:
@@ -93,8 +107,12 @@ export type ConsumptionData = {
   revenue?: number | null;                // tổng doanh thu tiêu thụ (đồng)
   stock_not_warehoused?: StockQtyLine[];  // 1 — thành phẩm chế biến CHƯA nhập kho
   stock_warehoused?: StockQtyLine[];      // 2 — thành phẩm ĐÃ nhập kho
-  stock_signed_undelivered?: StockSignedLine[]; // 3 — đã ký hợp đồng (kèm HĐ scan)
+  stock_signed_undelivered?: StockSignedSummary; // 3 — HỆ THỐNG TỰ TÍNH từ hợp đồng (chỉ xem)
   stock_material?: number | null;         // 4 — nguyên liệu chưa sản xuất, quy khô (tấn)
+  no_stock?: boolean;                     // cờ "hôm nay không phát sinh tồn kho để khai"
+  // Chi phí cấp CÔNG TY MẸ (chốt Q3 30/07/2026) — mẹ tự khai tổng, CỐ Ý không đối soát dòng con.
+  cost_total?: number | null;             // tổng chi phí trong ngày (triệu đồng)
+  internal_purchase_cost?: number | null; // trong đó: chi phí mua hàng từ công ty con (triệu đồng)
 
   // ── Tiêu thụ mủ THU MUA và mủ THÀNH PHẨM (chuyển từ biểu Thu mua sang) ──
   // `*_raw` = số user gõ (tỷ đồng khi VND · USD khi USD); `*_revenue` = đã quy về đồng để báo cáo.
@@ -136,13 +154,14 @@ const TRIEU = 1_000_000;    // 1 triệu đồng
 const n = (x: number | null | undefined): number | null => (x == null || Number.isNaN(x) ? null : x);
 
 /** Doanh thu 1 dòng, quy về BASE = đồng (VND) — loại tiền & tỷ giá lấy NGAY TRÊN DÒNG đó.
-    USD = qty × giá(USD) × tỷ giá (thiếu tỷ giá → null, KHÔNG đoán); VND = qty × giá(triệu) × 1e6. */
+    VND = qty × giá(triệu) × 1e6; MỌI ngoại tệ khác (USD/LAK/KHR) = qty × giá × tỷ giá
+    (thiếu tỷ giá → null, KHÔNG đoán, không mượn tỷ giá ngày khác). */
 export function lineRevenueVnd(
   line: { qty: number | null; price: number | null; ccy?: Ccy; fx?: number | null },
 ): number | null {
   if (n(line.qty) == null || n(line.price) == null) return null;
   const q = line.qty as number, p = line.price as number;
-  if ((line.ccy ?? "VND") !== "USD") return q * p * TRIEU;
+  if ((line.ccy ?? "VND") === "VND") return q * p * TRIEU;
   return n(line.fx) == null ? null : q * p * (line.fx as number);
 }
 

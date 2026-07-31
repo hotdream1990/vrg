@@ -132,6 +132,7 @@ export default function UnitDailyEditModal(
             company={company}
             day={day}
             defaultTab={defaultTab}
+            isParent={(data.parents ?? []).includes(company)}
             linkedPrice={data.prices?.[company] ?? null}
             readOnly={!editable}
             footer={(dirty, current, prices) => (

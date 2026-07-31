@@ -45,6 +45,7 @@ export type DayData = {
   entries: Record<string, DailyEntry | null>;
   currencies?: Record<string, string>;      // {đơn vị: VND/LAK/KHR} — ≠VND ⇒ hiện ô tỷ giá
   factories?: Record<string, boolean>;      // {đơn vị: có nhà máy?} — false ⇒ hiện tồn kho nguyên liệu
+  parents?: string[];                       // đơn vị là CÔNG TY MẸ ⇒ hiện ô chi phí tổng cấp mẹ
   prices?: Record<string, UnitPurchasePrice>; // {đơn vị: đơn giá mủ nước/mủ chén} (chỉ kind=purchase)
 };
 export type TimelineRow = {

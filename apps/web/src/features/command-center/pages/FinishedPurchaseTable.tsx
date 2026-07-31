@@ -56,7 +56,7 @@ export default function FinishedPurchaseTable({ rows, setRows, readOnly }: Props
                     onChange={(v: Ccy) => patch(i, { ccy: v })} options={CCYS} />
                 </td>
                 <td>
-                  {(ln.ccy ?? "VND") === "USD"
+                  {(ln.ccy ?? "VND") !== "VND"
                     ? numInput(num(ln.fx), (v) => patch(i, { fx: v }), readOnly, "small", FX_USD_VND, fxWarning(ln))
                     : <span style={{ fontSize: 11.5, color: "var(--muted)" }}>—</span>}
                 </td>

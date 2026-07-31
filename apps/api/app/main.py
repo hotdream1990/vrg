@@ -19,6 +19,7 @@ from app.routers import (
     assistant,
     bulletins,
     config,
+    customers,
     floor,
     floor_suggest,
     health,
@@ -31,6 +32,7 @@ from app.routers import (
     member_unit,
     prices,
     public_purchase,
+    sales_contracts,
     schedules,
     settings as settings_router,
     unit_analytics,
@@ -155,6 +157,10 @@ app.include_router(member_self.router, dependencies=_protected)  # đơn vị th
 app.include_router(market_demand.router, dependencies=_protected)  # nhu cầu thị trường (editor có quyền: xem/sửa mọi đơn vị)
 app.include_router(unit_daily.router, dependencies=[Depends(require_cap("unit_daily"))])  # báo cáo tiêu thụ–tồn kho theo ngày (chuyên viên xem/sửa mọi đơn vị)
 app.include_router(unit_analytics.router, dependencies=[Depends(require_cap("unit_daily"))])  # thống kê/lọc số liệu đơn vị đã nhập (chỉ đọc)
+# Hợp đồng & khách hàng: DÙNG CHUNG cho đơn vị thành viên lẫn chuyên viên — router tự ép phạm vi
+# đơn vị theo tài khoản (cap_or_member_scope), nên chỉ gác đăng nhập ở đây.
+app.include_router(customers.router, dependencies=_protected)
+app.include_router(sales_contracts.router, dependencies=_protected)
 app.include_router(audit.router)  # Nhật ký hoạt động (tự gác quyền `audit` trong router)
 app.include_router(assistant.router, dependencies=[Depends(require_cap("assistant"))])  # Trợ lý AI (hỏi đáp số liệu + tư vấn giá sàn)
 app.include_router(settings_router.router, dependencies=_protected)  # cài đặt đọc-được (cửa sổ nhập liệu)

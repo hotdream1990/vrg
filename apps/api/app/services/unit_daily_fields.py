@@ -7,10 +7,12 @@ Server dùng bộ này để lọc payload (chỉ nhận key hợp lệ) — ch�
 
 from __future__ import annotations
 
+from app.core.market_meta import SALE_CURRENCIES
 from app.services import contract_docs
 
 # Loại tiền người dùng CHỌN khi nhập đơn giá (thu mua thành phẩm · giá bán tiêu thụ · tồn kho đã HĐ).
-_CCY = frozenset({"VND", "USD"})
+# Từ 30/07/2026 mở thêm NỘI TỆ của đơn vị nước ngoài: Lào = LAK, Campuchia = KHR.
+_CCY = frozenset(SALE_CURRENCIES)
 
 # Biểu mẫu Thu mua ("Chỉ tiêu Biểu (2)-ngày") — số THỜI ĐIỂM theo ngày (KHÔNG lũy kế, KHÔNG %KH).
 # Đơn giá VND đồng bộ kho "Giá mủ nguyên liệu" (không ở đây). Tiền lưu BASE = đồng (VND). Giá BQ = cột suy ra.
@@ -19,6 +21,13 @@ _CCY = frozenset({"VND", "USD"})
 PURCHASE_FIELDS: frozenset[str] = frozenset({
     "latex_wet",         # sản lượng thu mua mủ nước trong ngày (tấn)
     "coagulum",          # sản lượng thu mua mủ chén trong ngày (tấn)
+    # ── 2 loại nguyên liệu bổ sung (chốt 30/07/2026) — ĐƠN GIÁ TÍNH RIÊNG TỪNG LOẠI ──
+    # Đơn giá 2 loại này lưu THẲNG trong payload (không đẩy vào kho "Giá mủ nguyên liệu" như
+    # mủ nước/mủ chén) vì kho đó đang phục vụ bản tin & gợi ý giá sàn — thêm loại vào sẽ lệch số.
+    "cup_raw",           # SL mủ nguyên liệu nước CHƯA cán vắt (chén) trong ngày (tấn)
+    "cup_raw_price",     # đơn giá loại trên (đồng/kg)
+    "rss_pressed",       # SL mủ nguyên liệu ĐÃ cán vắt (RSS) trong ngày (tấn)
+    "rss_pressed_price",  # đơn giá loại trên (đồng/kg)
     # ── Chỉ đơn vị nước ngoài ──
     "price_latex_local",  # đơn giá mủ nước theo nội tệ (vd LAK/độ TSC)
     "price_cup_local",    # đơn giá mủ chén theo nội tệ
@@ -42,10 +51,14 @@ PURCHASE_FLAGS: frozenset[str] = frozenset({"no_purchase"})
 # TỒN KHO (chỉ tiêu THỜI ĐIỂM, đơn vị TẤN) chia 4 khối theo yêu cầu nghiệp vụ:
 #   1 `stock_not_warehoused`     Tồn kho thành phẩm chế biến CHƯA nhập kho (chủng loại · tấn)
 #   2 `stock_warehoused`         Tồn kho thành phẩm ĐÃ nhập kho          (chủng loại · tấn)
-#   3 `stock_signed_undelivered` Số lượng ĐÃ KÝ HĐ CHƯA GIAO — KHÔNG lưu ở đây nữa: mỗi hợp đồng là
-#                                1 bản ghi có vòng đời riêng ở bảng `unit_stock_contract` (nhập 1 lần,
-#                                tự nằm ở khối này tới hết ngày trước ngày giao). Khi ĐỌC báo cáo
-#                                ngày, khối này được tính và gắn vào (unit_daily_repo._attach_contracts).
+#   3 `stock_signed_undelivered` Số lượng ĐÃ KÝ HĐ CHƯA GIAO — KHÔNG lưu ở đây nữa: TỰ TÍNH từ
+#                                hợp đồng bán hàng 2 cấp `sales_contract` (cam kết − đã giao tại
+#                                ngày báo cáo, chốt 30/07/2026) CỘNG hợp đồng CŨ ở bảng
+#                                `unit_stock_contract` còn hiệu lực (giữ để không mất lịch sử trước
+#                                ngày chuyển đổi). Khi ĐỌC báo cáo ngày, khối này được tính và gắn
+#                                vào (`unit_daily_repo.contracts_on` / `_attach_contracts`), SHAPE:
+#                                `{"qty": tổng còn lại (tấn), "by_grade": {chủng loại: số lượng},
+#                                  "items": [...]}`; mục từ hợp đồng cũ đánh dấu `"legacy": True`.
 #   4 `stock_material`           Tồn kho nguyên liệu CHƯA SẢN XUẤT — chỉ đơn vị KHÔNG có nhà máy
 # Tồn kho thành phẩm = khối 1 + khối 2. Khối 3 là phần NẰM TRONG tồn kho thành phẩm đã có hợp đồng
 # nhưng chưa giao → chỉ báo, KHÔNG cộng thêm (cộng nữa là tính trùng) và không trừ ra. Khối 4 báo riêng.
@@ -62,6 +75,11 @@ CONSUMPTION_FIELDS: frozenset[str] = frozenset({
     "finished_sold_raw",        # số user gõ — giữ để mở lại form
     "finished_sold_revenue",    # doanh thu tương ứng — BASE = đồng
     "finished_sold_fx",         # tỷ giá USD→VND
+    # ── Chi phí cấp CÔNG TY MẸ (chốt Q3 — 30/07/2026) ──
+    # Ngoài chi phí ghi trên từng dòng bán của hợp đồng, công ty mẹ tự khai TỔNG chi phí ở đây.
+    # CỐ Ý KHÔNG đối soát với tổng dòng con: "công ty mẹ tự tính chi phí tổng, tự chịu sai".
+    "cost_total",               # tổng chi phí trong ngày của công ty mẹ (triệu đồng)
+    "internal_purchase_cost",   # trong đó: chi phí mua hàng từ công ty con (triệu đồng)
 })
 
 CONSUMPTION_TEXT: dict[str, frozenset[str]] = {
@@ -69,12 +87,23 @@ CONSUMPTION_TEXT: dict[str, frozenset[str]] = {
     "purchased_sold_ccy": _CCY, "finished_sold_ccy": _CCY,
 }
 
+# Cờ đánh dấu ngày KHÔNG phát sinh tồn kho để khai (song song `no_purchase` của biểu Thu mua) —
+# đơn vị bật cờ là đã nộp báo cáo, màn "Theo dõi nộp báo cáo" không còn báo thiếu.
+#   `no_stock`       — ngày không phát sinh tồn kho để khai (đơn vị bật, coi như đã nộp).
+#   `sales_migrated` — script chuyển đổi đã copy 2 mảng `sales`/`sales_own` của ngày này sang
+#                      hợp đồng. Mảng cũ VẪN GIỮ để tra cứu, nhưng báo cáo phải BỎ QUA nó, nếu
+#                      không sản lượng/doanh thu bị đếm hai lần (một ở mảng cũ, một ở hợp đồng).
+CONSUMPTION_FLAGS: frozenset[str] = frozenset({"no_stock", "sales_migrated"})
+
 _SALE_CONTRACTS = {"long_term", "spot"}   # loại HĐ: Dài hạn | Chuyến
 _SALE_CHANNELS = {"export", "domestic"}   # hình thức: XK/UTXK | Nội tiêu
 
 # 2 bảng tiêu thụ nhập TÁCH RIÊNG (để lưu trữ riêng), tổng vẫn cộng chung:
 #   `sales`     — tiêu thụ mủ THU MUA
 #   `sales_own` — tiêu thụ mủ KHAI THÁC
+# ⚠ TỪ 30/07/2026 hai mảng này là DỮ LIỆU CŨ (legacy): tiêu thụ chuyển sang tính từ các LẦN GIAO
+# của hợp đồng (`sales_contract`). Form không nhập nữa, nhưng tầng lưu trữ VẪN nhận/giữ nguyên để
+# không mất số liệu đã khai — xoá key ở đây là mất sạch lịch sử khi đơn vị lưu lại ngày cũ.
 SALE_TABLES: tuple[str, ...] = ("sales", "sales_own")
 # 3 Ô đính kèm mỗi dòng bán, mỗi ô nhận NHIỀU file:
 #   (khoá danh sách, khoá file lưu server, khoá tên gốc hiển thị)
@@ -194,6 +223,9 @@ def clean_fields(kind: str, fields: dict) -> dict:
             if fv is not None:
                 out[k] = fv
         _pick_text(fields, CONSUMPTION_TEXT, out)
+        for k in CONSUMPTION_FLAGS:
+            if fields.get(k) is True:
+                out[k] = True
         return out
     allow = ALLOWED.get(kind, frozenset())
     out = {}
