@@ -1,8 +1,8 @@
 /* Bảng Thống kê hợp đồng — CHỈ ĐỌC. Không dùng bảng 2-hàng của StockContractTable (nhập liệu);
    đây là danh sách tra cứu nên 1 hợp đồng = 1 dòng, có phân trang + dòng Tổng cộng. */
 
-import { FileTextOutlined } from "@ant-design/icons";
-import { Popover, Table, Tag, Tooltip } from "antd";
+import { EditOutlined, FileTextOutlined } from "@ant-design/icons";
+import { Button, Popover, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 
 import { docsOf } from "../../../lib/contract-docs";
@@ -16,6 +16,8 @@ type Props = {
   rows: StockContract[];
   showCompany: boolean;
   loading?: boolean;
+  canEdit?: boolean;                       // có được sửa HĐ (member: HĐ đơn vị mình · HQ: cap sửa)
+  onEdit?: (c: StockContract) => void;     // mở modal sửa 1 HĐ
 };
 
 const priceCell = (r: StockContract): string => {
@@ -26,7 +28,7 @@ const priceCell = (r: StockContract): string => {
   return `${fmtNum(r.price, 2)} ${unit}${fx}`;
 };
 
-export default function StockContractHistoryTable({ role, rows, showCompany, loading }: Props) {
+export default function StockContractHistoryTable({ role, rows, showCompany, loading, canEdit, onEdit }: Props) {
   const columns: ColumnsType<StockContract> = [
     ...(showCompany ? [
       { title: "Khu vực", dataIndex: "region", key: "region", width: 120,
@@ -78,6 +80,12 @@ export default function StockContractHistoryTable({ role, rows, showCompany, loa
         </span>
       );
     } },
+    ...(canEdit ? [{
+      title: "", key: "act", width: 88, align: "center" as const,
+      render: (_v: unknown, r: StockContract) => (
+        <Button size="small" type="link" icon={<EditOutlined />} onClick={() => onEdit?.(r)}>Sửa</Button>
+      ),
+    }] : []),
   ];
 
   const totalQty = stockTonnesTotal(rows);
@@ -95,7 +103,7 @@ export default function StockContractHistoryTable({ role, rows, showCompany, loa
           <Table.Summary.Row style={{ fontWeight: 600, background: "rgba(125,125,125,.08)" }}>
             <Table.Summary.Cell index={0} colSpan={qtyIdx}>Tổng cộng</Table.Summary.Cell>
             <Table.Summary.Cell index={qtyIdx} align="right">{fmtNum(totalQty, 2)}</Table.Summary.Cell>
-            <Table.Summary.Cell index={tailIdx} colSpan={6}>
+            <Table.Summary.Cell index={tailIdx} colSpan={canEdit ? 7 : 6}>
               {totalRevenueVnd > 0 ? `Thành tiền quy VND: ${fmtNum(totalRevenueVnd / 1_000_000, 1)} triệu đ` : ""}
             </Table.Summary.Cell>
           </Table.Summary.Row>
