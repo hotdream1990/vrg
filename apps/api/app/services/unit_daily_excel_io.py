@@ -44,7 +44,7 @@ from bulletin.convert import r0  # noqa: E402 - 1 nguồn làm tròn nửa-lên 
 TY = 1_000_000_000
 
 CONTRACTS = {"Dài hạn": "long_term", "Chuyến": "spot"}
-CHANNELS = {"XK / UTXK": "export", "Nội tiêu": "domestic"}
+CHANNELS = {"XK / UTXK": "export", "Tiêu thụ trong nước": "domestic", "Nội tiêu": "domestic"}
 # Nguồn mủ của dòng tiêu thụ → ghi vào bảng nào (khớp `SALE_TABLES` ở unit_daily_fields).
 # File cũ không có cột này: dòng trống mặc định là mủ thu mua (giữ nguyên cách hiểu trước đây).
 SALE_SOURCES = {"Mủ thu mua": "sales", "Mủ khai thác": "sales_own"}

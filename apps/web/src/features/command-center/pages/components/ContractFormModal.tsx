@@ -22,9 +22,11 @@ type Props = {
   onSaved: () => void;
 };
 
+const today = () => new Date().toISOString().slice(0, 10);
+
 const blank = (company: string): Contract => ({
   id: null, company, parent_id: null, code: "", customer_id: null, delivery_type: "single",
-  sign_date: null, expiry_date: null, lines: [{ ...EMPTY_LINE }], delivered: false,
+  sign_date: today(), expiry_date: null, lines: [{ ...EMPTY_LINE }], delivered: false,
   delivered_at: null, channel: null, to_company: null, payment_date: null, payment_qty: null,
   payment_cost: null, payment_docs: [], files: [], note: null,
   qty: 0, qty_dry: 0, cost: 0, revenue: null,
@@ -55,7 +57,34 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
   const cap = isChild ? remaining + (initial ? sumQty(initial.lines) : 0) : Infinity;
   const overCap = isChild && qty > cap + 1e-9;
 
+  /** Kiểm TẤT CẢ ô bắt buộc trong một lượt, trả danh sách lỗi để hiện cùng lúc. */
+  const problems = (): string[] => {
+    const p: string[] = [];
+    if (!c.company) p.push("Chọn đơn vị.");
+    if (!c.code.trim()) p.push(isChild ? "Nhập số phụ lục." : "Nhập số hợp đồng.");
+    if (!isChild && !c.customer_id) p.push("Chọn khách hàng.");
+    if (!isChild && !c.sign_date) p.push("Chọn ngày ký.");
+    if (isDelivery && !c.delivered_at) p.push("Chọn ngày giao.");
+    if (isDelivery && !c.channel) p.push("Chọn hình thức tiêu thụ.");
+    if (c.channel === "internal" && !c.to_company) p.push("Chọn đơn vị nhận hàng.");
+    const rows = c.lines.filter((l) => l.grade || l.qty != null);
+    if (!rows.length) p.push("Thêm ít nhất một dòng chi tiết.");
+    rows.forEach((l, i) => {
+      const at = `Dòng ${i + 1}`;
+      if (!l.grade) p.push(`${at}: chọn chủng loại.`);
+      if (l.qty == null || l.qty <= 0) p.push(`${at}: số lượng phải lớn hơn 0.`);
+      if (isDelivery && meta.dry_required.includes(l.grade) && !l.qty_dry) {
+        p.push(`${at} (${l.grade}): nhập quy khô.`);
+      }
+      if (l.ccy !== "VND" && !l.fx) p.push(`${at}: bán bằng ${l.ccy} thì phải nhập tỷ giá.`);
+    });
+    if (overCap) p.push("Giảm sản lượng phụ lục cho vừa phần còn lại của hợp đồng mẹ.");
+    return p;
+  };
+
   const submit = async () => {
+    const p = problems();
+    if (p.length) { setErr(p.join(" · ")); return; }
     setBusy(true); setErr("");
     try {
       await saveContract({
@@ -83,16 +112,16 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
             {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </label>
-        <label className="form-field">{isChild ? "Số phụ lục" : "Số hợp đồng"}
+        <label className="form-field">{isChild ? "Số phụ lục *" : "Số hợp đồng *"}
           <input className="blt-date-input" value={c.code}
             onChange={(e) => set({ code: e.target.value })} />
         </label>
         {!isChild && (
           <>
-            <label className="form-field">Khách hàng
+            <label className="form-field">Khách hàng *
               <select className="blt-date-input" value={c.customer_id ?? ""}
                 onChange={(e) => set({ customer_id: e.target.value ? Number(e.target.value) : null })}>
-                <option value="">— chưa chọn —</option>
+                <option value="">— chọn khách hàng —</option>
                 {customers.map((x) => <option key={x.id} value={x.id as number}>{x.name}</option>)}
               </select>
             </label>
@@ -102,7 +131,7 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
                 {Object.entries(meta.delivery_types).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </label>
-            <label className="form-field">Ngày ký
+            <label className="form-field">Ngày ký *
               <DateInput value={c.sign_date ?? ""} onChange={(v) => set({ sign_date: v || null })} />
             </label>
             <label className="form-field">Thời hạn hợp đồng
@@ -124,10 +153,10 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
 
       {isDelivery && (
         <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 10 }}>
-          <label className="form-field">Ngày giao
+          <label className="form-field">Ngày giao *
             <DateInput value={c.delivered_at ?? ""} onChange={(v) => set({ delivered_at: v || null })} />
           </label>
-          <label className="form-field">Hình thức tiêu thụ
+          <label className="form-field">Hình thức tiêu thụ *
             <select className="blt-date-input" value={c.channel ?? ""}
               onChange={(e) => set({ channel: e.target.value || null, to_company: null })}>
               <option value="">— chọn hình thức —</option>

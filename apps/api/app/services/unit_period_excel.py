@@ -49,19 +49,19 @@ _PURCHASE_COLS: list[tuple[str, str, str, str]] = [
 _CONSUMPTION_COLS: list[tuple[str, str, str, str]] = [
     ("signed_lt_tonnes", "Tổng SL đã ký HĐ dài hạn", "số liệu năm", "tấn"),
     ("lt_export", "HĐ dài hạn — XK/UTXK", "cộng dồn", "tấn"),
-    ("lt_domestic", "HĐ dài hạn — Nội tiêu", "cộng dồn", "tấn"),
+    ("lt_domestic", "HĐ dài hạn — Tiêu thụ trong nước", "cộng dồn", "tấn"),
     ("spot_export", "HĐ chuyến — XK/UTXK", "cộng dồn", "tấn"),
-    ("spot_domestic", "HĐ chuyến — Nội tiêu", "cộng dồn", "tấn"),
+    ("spot_domestic", "HĐ chuyến — Tiêu thụ trong nước", "cộng dồn", "tấn"),
     ("total_consumption", "Tổng tiêu thụ", "= 4 cột trên (cũ) + sản lượng hợp đồng (mới)", "tấn"),
     ("export_total", "Tổng XK/UTXK", "= dài hạn + chuyến + hợp đồng", "tấn"),
-    ("domestic_total", "Tổng Nội tiêu trong nước", "= dài hạn + chuyến + hợp đồng", "tấn"),
+    ("domestic_total", "Tổng Tiêu thụ trong nước", "= dài hạn + chuyến + hợp đồng", "tấn"),
     ("internal_total", "Tiêu thụ nội bộ", "cộng dồn (nguồn hợp đồng)", "tấn"),
     ("revenue_ty", "Doanh thu cao su", "cộng dồn", "tỷ đồng"),
     ("avg_sell_price", "Giá bán bình quân", "= doanh thu / tiêu thụ", "triệu đ/tấn"),
     # Chi phí trên dòng bán — chỉ có ở nguồn hợp đồng (mảng sales/sales_own cũ không ghi chi phí).
     ("cost_lines", "Tổng chi phí trên dòng bán", "cộng dồn (nguồn hợp đồng)", "triệu đồng"),
     ("cost_export", "Chi phí — XK/UTXK", "cộng dồn (nguồn hợp đồng)", "triệu đồng"),
-    ("cost_domestic", "Chi phí — Nội tiêu trong nước", "cộng dồn (nguồn hợp đồng)", "triệu đồng"),
+    ("cost_domestic", "Chi phí — Tiêu thụ trong nước", "cộng dồn (nguồn hợp đồng)", "triệu đồng"),
     ("cost_internal", "Chi phí — Tiêu thụ nội bộ", "cộng dồn (nguồn hợp đồng)", "triệu đồng"),
     # Ngày của ảnh chụp tồn kho — có thể sớm hơn ngày cuối kỳ nếu đơn vị chưa cập nhật tồn.
     ("stock_as_of", "Ngày lấy số tồn kho", "thời điểm", ""),

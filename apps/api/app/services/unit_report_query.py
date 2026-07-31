@@ -15,7 +15,7 @@ from typing import Callable
 from app.services.unit_report_rows import MATERIAL_LABELS, SOURCE_LABELS
 
 CONTRACT_LABELS = {"long_term": "HĐ dài hạn", "spot": "HĐ chuyến"}
-CHANNEL_LABELS = {"export": "XK / UTXK", "domestic": "Nội tiêu"}
+CHANNEL_LABELS = {"export": "XK / UTXK", "domestic": "Tiêu thụ trong nước"}
 
 #: group_by → hàm lấy nhãn nhóm của 1 dòng chi tiết.
 GROUPERS: dict[str, Callable[[dict], str | None]] = {

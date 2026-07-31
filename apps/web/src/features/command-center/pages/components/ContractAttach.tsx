@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 
 import {
   type ContractDoc,
-  contractFileUrl,
+  openContractFile,
   uploadContractFile,
 } from "../../../../lib/sales-contract-client";
 
@@ -41,7 +41,10 @@ export default function ContractAttach({ label, docs, readOnly, onChange }: Prop
         {docs.map((d) => (
           <span key={d.file} className="chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
             <PaperClipOutlined />
-            <a href={contractFileUrl(d)} target="_blank" rel="noreferrer">{d.filename ?? d.file}</a>
+            <a href="#" onClick={(e) => {
+              e.preventDefault();
+              openContractFile(d).catch((x) => setErr(x instanceof Error ? x.message : "Lỗi"));
+            }}>{d.filename ?? d.file}</a>
             {!readOnly && (
               <button className="btn" style={{ padding: "0 4px" }} title="Bỏ file"
                 onClick={() => onChange(docs.filter((x) => x.file !== d.file))}>

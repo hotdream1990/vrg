@@ -10,6 +10,7 @@ Thiếu tỷ giá thì trả None (KHÔNG đoán) — số liệu ngày khác kh
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from app.core.market_meta import DRY_REQUIRED_GRADES, SALE_CURRENCIES, SALE_GRADES
@@ -20,10 +21,13 @@ _GRADES = frozenset(SALE_GRADES)
 
 
 def _num(v) -> float | None:
+    """Số hợp lệ hoặc None. NaN/Infinity bị loại: `nan <= 0` là False nên lọt mọi kiểm tra
+    lớn-hơn-0, rồi `json.dumps` sinh `NaN` mà jsonb của Postgres từ chối → lỗi 500."""
     try:
-        return None if v in (None, "") else float(v)
+        f = None if v in (None, "") else float(v)
     except (TypeError, ValueError):
         return None
+    return None if f is not None and not math.isfinite(f) else f
 
 
 def clean_lines(lines, *, require_dry: bool) -> list[dict[str, Any]]:
@@ -50,18 +54,30 @@ def clean_lines(lines, *, require_dry: bool) -> list[dict[str, Any]]:
         qty_dry = _num(ln.get("qty_dry"))
         if require_dry and grade in DRY_REQUIRED_GRADES and (qty_dry is None or qty_dry <= 0):
             raise ValueError(f"Dòng {i} ({grade}): bắt buộc nhập quy khô mới lưu được.")
-        ccy = ln.get("ccy") if ln.get("ccy") in _CCY else "VND"
+        if qty_dry is not None and qty_dry > qty + 1e-9:
+            raise ValueError(f"Dòng {i} ({grade}): quy khô ({qty_dry:g} tấn) không thể lớn hơn "
+                             f"số lượng ({qty:g} tấn).")
+        # Loại tiền SAI phải BÁO LỖI, không được lặng lẽ về VNĐ: "usd" viết thường sẽ thành VNĐ,
+        # đơn giá 1.600 USD/tấn bị đọc thành 1.600 TRIỆU đồng/tấn — doanh thu sai ~38 lần.
+        ccy = str(ln.get("ccy") or "VND").strip().upper()
+        if ccy not in _CCY:
+            raise ValueError(f"Dòng {i} ({grade}): loại tiền “{ln.get('ccy')}” không hợp lệ "
+                             f"(chỉ nhận {', '.join(SALE_CURRENCIES)}).")
         fx = _num(ln.get("fx"))
         if ccy != "VND" and (fx is None or fx <= 0):
             raise ValueError(f"Dòng {i} ({grade}): bán bằng {ccy} thì phải nhập tỷ giá quy ra VNĐ.")
+        price, cost = _num(ln.get("price")), _num(ln.get("cost"))
+        for label, v in (("đơn giá", price), ("chi phí", cost)):
+            if v is not None and v < 0:
+                raise ValueError(f"Dòng {i} ({grade}): {label} không được âm.")
         out.append({
             "grade": grade,
             "qty": qty,
             "qty_dry": qty_dry,
-            "price": _num(ln.get("price")),
+            "price": price,
             "ccy": ccy,
             "fx": fx,
-            "cost": _num(ln.get("cost")),   # chi phí của dòng bán (triệu đồng)
+            "cost": cost,   # chi phí của dòng bán (triệu đồng)
         })
     if not out:
         raise ValueError("Hợp đồng phải có ít nhất một dòng chi tiết.")

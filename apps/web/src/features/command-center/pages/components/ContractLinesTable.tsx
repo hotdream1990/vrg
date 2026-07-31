@@ -32,7 +32,7 @@ export default function ContractLinesTable({ lines, meta, requireDry, readOnly, 
             <th style={{ minWidth: 220 }}>Chủng loại</th>
             <th className="r">SL (tấn)</th>
             <th className="r">Quy khô (tấn)</th>
-            <th className="r">Đơn giá</th>
+            <th className="r">Đơn giá<div style={{ fontWeight: 400, opacity: .7, fontSize: 11 }}>tr.đ/tấn · ngoại tệ/tấn</div></th>
             <th>Loại tiền</th>
             <th className="r">Tỷ giá → VNĐ</th>
             <th className="r">Chi phí (tr.đ)</th>
@@ -66,6 +66,7 @@ export default function ContractLinesTable({ lines, meta, requireDry, readOnly, 
                     <input className="blt-date-input r" style={{ width: 100 }} inputMode="decimal"
                       disabled={readOnly} value={str(ln.price)}
                       onChange={(e) => set(i, { price: num(e.target.value) })} />
+                    <div className="ud-unit-hint">{ln.ccy === "VND" ? "tr.đ/tấn" : `${ln.ccy}/tấn`}</div>
                   </td>
                   <td>
                     <select className="blt-date-input" style={{ width: 84 }} value={ln.ccy}

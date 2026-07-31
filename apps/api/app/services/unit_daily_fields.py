@@ -96,7 +96,7 @@ CONSUMPTION_TEXT: dict[str, frozenset[str]] = {
 CONSUMPTION_FLAGS: frozenset[str] = frozenset({"no_stock", "sales_migrated"})
 
 _SALE_CONTRACTS = {"long_term", "spot"}   # loại HĐ: Dài hạn | Chuyến
-_SALE_CHANNELS = {"export", "domestic"}   # hình thức: XK/UTXK | Nội tiêu
+_SALE_CHANNELS = {"export", "domestic"}   # hình thức: XK/UTXK | Tiêu thụ trong nước
 
 # 2 bảng tiêu thụ nhập TÁCH RIÊNG (để lưu trữ riêng), tổng vẫn cộng chung:
 #   `sales`     — tiêu thụ mủ THU MUA

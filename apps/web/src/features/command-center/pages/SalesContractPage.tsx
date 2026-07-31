@@ -18,6 +18,9 @@ import ContractFormModal from "./components/ContractFormModal";
 import "../../bulletin/bulletin.css";
 
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
+/** Quá thời hạn hợp đồng mà vẫn còn hàng chưa giao. */
+const overdue = (r: ContractRow) =>
+  r.remaining_qty > 0 && !!r.expiry_date && r.expiry_date < new Date().toISOString().slice(0, 10);
 
 /** Quản lý hợp đồng → Hợp đồng & phụ lục: danh sách HỢP ĐỒNG MẸ + tiến độ giao. */
 export default function SalesContractPage() {
@@ -127,12 +130,18 @@ export default function SalesContractPage() {
                 <td>{r.company}</td>
                 <td style={{ fontWeight: 500 }}>{r.code}</td>
                 <td>{r.customer_name ?? "—"}</td>
-                <td>{meta?.delivery_types[r.delivery_type] ?? r.delivery_type}</td>
+                <td>
+                  <span className="chip" title={meta?.delivery_types[r.delivery_type]}>
+                    {r.delivery_type === "multi" ? "Nhiều lần" : "1 lần"}
+                  </span>
+                </td>
                 <td>{r.sign_date ?? "—"}</td>
                 <td className="r">{t3(r.qty)}</td>
                 <td className="r">{t3(r.delivered_qty)}</td>
                 <td className="r">
-                  <span className={r.remaining_qty > 0 ? "chip warn" : "chip"}>{t3(r.remaining_qty)}</span>
+                  {/* Còn hàng chưa giao là trạng thái BÌNH THƯỜNG của hợp đồng mới ký — chỉ tô cảnh
+                      báo khi đã QUÁ THỜI HẠN mà vẫn còn hàng. */}
+                  <span className={overdue(r) ? "chip warn" : "chip"}>{t3(r.remaining_qty)}</span>
                 </td>
                 <td className="r">{r.delivery_type === "multi" ? r.children : "—"}</td>
                 <td className="r" style={{ whiteSpace: "nowrap" }}>

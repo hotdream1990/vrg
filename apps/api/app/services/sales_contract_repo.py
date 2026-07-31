@@ -11,6 +11,7 @@ Tiêu thụ = tổng các lần giao; "đã ký HĐ chưa giao" = cam kết − 
 from __future__ import annotations
 
 import json
+import math
 from datetime import date
 from typing import Any
 
@@ -53,10 +54,40 @@ def _as_date(v, label: str, required: bool = False) -> date | None:
 
 
 def _num(v) -> float | None:
+    """Số hợp lệ hoặc None — loại NaN/Infinity (xem `sales_contract_calc._num`)."""
     try:
-        return None if v in (None, "") else float(v)
+        f = None if v in (None, "") else float(v)
     except (TypeError, ValueError):
         return None
+    return None if f is not None and not math.isfinite(f) else f
+
+
+def _money(v, label: str) -> float | None:
+    """Ô tiền/sản lượng nhập tay — không được âm (âm làm doanh thu/chi phí kỳ bị trừ ngược)."""
+    f = _num(v)
+    if f is not None and f < 0:
+        raise ValueError(f"{label} không được âm.")
+    return f
+
+
+def _int_id(v, label: str) -> int | None:
+    """Khoá số dương hoặc None. `str(-1).isdigit()` là False nên số âm từng lặng lẽ thành None —
+    một `parent_id` âm biến phụ lục thành hợp đồng mẹ, `id` âm biến 'sửa' thành 'thêm mới'."""
+    s = str(v if v is not None else "").strip()
+    if not s:
+        return None
+    if not s.isdigit() or int(s) <= 0:
+        raise ValueError(f"{label} không hợp lệ.")
+    return int(s)
+
+
+def _assert_unit_exists(name: str, label: str) -> None:
+    """Tên đơn vị phải có thật trong `member_unit` — nếu không bản ghi thành mồ côi, không bộ lọc
+    nào hiển thị được mà vẫn nằm trong bảng và vẫn được cộng vào tổng."""
+    from app.services import member_unit_repo
+
+    if name not in {u["name"] for u in member_unit_repo.list_units()}:
+        raise ValueError(f"{label} “{name}” không có trong danh sách đơn vị thành viên.")
 
 
 def _parent_of(db, parent_id: int) -> dict[str, Any]:
@@ -81,9 +112,11 @@ def clean(row: dict, company: str) -> dict[str, Any]:
     code = str(row.get("code") or "").strip()[:80]
     if not code:
         raise ValueError("Thiếu số hợp đồng / số phụ lục.")
-    parent_id = int(row["parent_id"]) if str(row.get("parent_id") or "").strip().isdigit() else None
+    parent_id = _int_id(row.get("parent_id"), "Hợp đồng mẹ")
     is_child = parent_id is not None
-    delivery_type = row.get("delivery_type") if row.get("delivery_type") in DELIVERY_TYPES else "single"
+    delivery_type = str(row.get("delivery_type") or "single").strip()
+    if delivery_type not in DELIVERY_TYPES:
+        raise ValueError(f"Loại giao “{row.get('delivery_type')}” không hợp lệ.")
     # Phụ lục LUÔN là một lần giao đã hoàn tất; hợp đồng giao-1-lần chỉ "đã giao" khi người dùng đánh dấu.
     delivered = True if is_child else bool(row.get("delivered"))
     if is_child:
@@ -92,16 +125,23 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         raise ValueError("Hợp đồng giao nhiều lần không tự đánh dấu đã giao — hãy nhập phụ lục.")
 
     delivered_at = _as_date(row.get("delivered_at"), "Ngày giao", required=delivered)
-    channel = row.get("channel") if row.get("channel") in SALE_CHANNELS else None
+    raw_channel = str(row.get("channel") or "").strip()
+    if raw_channel and raw_channel not in SALE_CHANNELS:
+        raise ValueError(f"Hình thức tiêu thụ “{raw_channel}” không hợp lệ.")
+    channel = raw_channel or None
     if delivered and not channel:
         raise ValueError("Thiếu hình thức tiêu thụ (Xuất khẩu/UTXK · Trong nước · Nội bộ).")
     to_company = str(row.get("to_company") or "").strip()[:120] or None
-    if channel == "internal" and not to_company:
-        raise ValueError("Tiêu thụ nội bộ phải chọn đơn vị nhận hàng.")
-    if channel != "internal":
+    if channel == "internal":
+        if not to_company:
+            raise ValueError("Tiêu thụ nội bộ phải chọn đơn vị nhận hàng.")
+        _assert_unit_exists(to_company, "Đơn vị nhận")
+        if to_company == company:
+            raise ValueError("Đơn vị nhận của tiêu thụ nội bộ phải khác đơn vị bán.")
+    else:
         to_company = None
 
-    sign = _as_date(row.get("sign_date"), "Ngày ký")
+    sign = _as_date(row.get("sign_date"), "Ngày ký", required=not is_child)
     expiry = _as_date(row.get("expiry_date"), "Thời hạn hợp đồng")
     if sign and expiry and expiry < sign:
         raise ValueError("Thời hạn hợp đồng phải sau ngày ký.")
@@ -109,7 +149,9 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         raise ValueError("Ngày giao không thể trước ngày ký hợp đồng.")
 
     paid_at = _as_date(row.get("payment_date"), "Ngày thanh toán")
-    customer_id = int(row["customer_id"]) if str(row.get("customer_id") or "").strip().isdigit() else None
+    customer_id = _int_id(row.get("customer_id"), "Khách hàng")
+    if customer_id is None and not is_child:
+        raise ValueError("Hợp đồng phải gán một khách hàng của đơn vị.")
     if customer_id is not None:
         owner = customer_repo.owner_of(customer_id)
         if owner is None:
@@ -118,7 +160,7 @@ def clean(row: dict, company: str) -> dict[str, Any]:
             raise ValueError("Khách hàng thuộc danh mục của đơn vị khác.")
 
     return {
-        "id": int(row["id"]) if str(row.get("id") or "").strip().isdigit() else None,
+        "id": _int_id(row.get("id"), "Mã hợp đồng"),
         "company": company,
         "parent_id": parent_id,
         "code": code,
@@ -132,8 +174,8 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         "channel": channel,
         "to_company": to_company,
         "payment_date": paid_at.isoformat() if paid_at else None,
-        "payment_qty": _num(row.get("payment_qty")),
-        "payment_cost": _num(row.get("payment_cost")),
+        "payment_qty": _money(row.get("payment_qty"), "Sản lượng thanh toán"),
+        "payment_cost": _money(row.get("payment_cost"), "Chi phí thanh toán"),
         "payment_docs": contract_docs.normalize(row.get("payment_docs"), None, None),
         "files": contract_docs.normalize(row.get("files"), None, None),
         "note": str(row.get("note") or "").strip()[:500] or None,
@@ -165,32 +207,67 @@ def _params(d: dict, updated_by: str | None) -> dict[str, Any]:
             "payment_docs": json.dumps(d["payment_docs"]), "by": updated_by}
 
 
+def _tan(v: float) -> str:
+    """Số tấn theo kiểu Việt: dấu chấm ngăn nghìn, dấu phẩy thập phân.
+    Đổi thẳng ',' → '.' như trước làm 50,000.000 thành 50.000.000 → người đọc hiểu là 50 TRIỆU tấn."""
+    return f"{v:,.3f}".replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+
 def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
     """Thêm mới (không có id) hoặc cập nhật. Raise ValueError nếu vi phạm nghiệp vụ."""
     d = clean(row, company)
+    _assert_unit_exists(company, "Đơn vị")
     ensure_schema()
     before = get(d["id"]) if d["id"] is not None else None
     with session_scope() as db:
+        if d["id"] is not None:
+            cur = db.execute(text("SELECT company, parent_id, delivery_type FROM sales_contract "
+                                  "WHERE id = :i"), {"i": d["id"]}).mappings().first()
+            if cur is None:
+                raise ValueError("Hợp đồng không còn tồn tại (có thể đã bị xoá).")
+            if cur["company"] != company:
+                raise ValueError("Hợp đồng thuộc đơn vị khác.")
+            # Cấp bậc KHÔNG đổi được khi sửa: `_UPDATE` không ghi `parent_id`, nên nhận `parent_id`
+            # khác trong payload sẽ kiểm hạn mức trên hợp đồng mẹ KHÁC rồi vẫn nằm ở mẹ cũ —
+            # lách được giới hạn sản lượng. Muốn chuyển mẹ thì xoá phụ lục và nhập lại.
+            if (d["parent_id"] or None) != (cur["parent_id"] or None):
+                raise ValueError("Không đổi được hợp đồng mẹ của phụ lục — xoá rồi nhập lại phụ lục.")
+            kids = db.execute(text("SELECT count(*) FROM sales_contract WHERE parent_id = :i"),
+                              {"i": d["id"]}).scalar() or 0
+            if kids and d["delivery_type"] != cur["delivery_type"]:
+                raise ValueError(f"Hợp đồng đang có {kids} phụ lục — không đổi được loại giao.")
+            if kids and d["delivered"]:
+                raise ValueError("Hợp đồng giao nhiều lần đã có phụ lục — không tự đánh dấu đã giao "
+                                 "(sản lượng sẽ bị tính hai lần).")
+            if kids:
+                done = _delivered_qty(db, d["id"], None)
+                if calc.total_qty(d["lines"]) < done - 1e-9:
+                    raise ValueError(
+                        f"Sản lượng cam kết mới ({_tan(calc.total_qty(d['lines']))} tấn) nhỏ hơn "
+                        f"phần các phụ lục đã giao ({_tan(done)} tấn).")
+        # Trùng số hợp đồng trong cùng đơn vị → chặn: lưu lại do mạng chập chờn sẽ nhân đôi sản lượng.
+        dup = db.execute(text(
+            "SELECT 1 FROM sales_contract WHERE company = :c AND lower(code) = lower(:k) "
+            "AND (CAST(:i AS bigint) IS NULL OR id <> CAST(:i AS bigint)) LIMIT 1"),
+            {"c": company, "k": d["code"], "i": d["id"]}).scalar()
+        if dup:
+            raise ValueError(f"Đơn vị đã có hợp đồng/phụ lục số “{d['code']}”.")
+
         if d["parent_id"] is not None:
             parent = _parent_of(db, d["parent_id"])
             if parent["company"] != company:
                 raise ValueError("Hợp đồng mẹ thuộc đơn vị khác.")
             if parent["delivery_type"] != "multi":
                 raise ValueError("Chỉ hợp đồng loại “giao nhiều lần” mới thêm được phụ lục.")
+            if parent["sign_date"] and d["delivered_at"] and d["delivered_at"] < parent["sign_date"]:
+                raise ValueError("Ngày giao của phụ lục không thể trước ngày ký hợp đồng mẹ.")
             done = _delivered_qty(db, d["parent_id"], d["id"])
             adding = calc.total_qty(d["lines"])
             remain = parent["qty"] - done
             if adding > remain + 1e-9:
-                raise ValueError(
-                    f"Phụ lục {adding:,.3f} tấn vượt sản lượng còn lại của hợp đồng mẹ "
-                    f"({remain:,.3f} tấn).".replace(",", "."))
+                raise ValueError(f"Phụ lục {_tan(adding)} tấn vượt sản lượng còn lại của hợp đồng mẹ "
+                                 f"({_tan(remain)} tấn).")
         if d["id"] is not None:
-            cur = db.execute(text("SELECT company FROM sales_contract WHERE id = :i"),
-                             {"i": d["id"]}).scalar()
-            if cur is None:
-                raise ValueError("Hợp đồng không còn tồn tại (có thể đã bị xoá).")
-            if cur != company:
-                raise ValueError("Hợp đồng thuộc đơn vị khác.")
             db.execute(_UPDATE, _params(d, updated_by))
             new_id = d["id"]
         else:

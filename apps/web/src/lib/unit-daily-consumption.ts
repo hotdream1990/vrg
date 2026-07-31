@@ -5,7 +5,7 @@
 import type { ContractDoc } from "./contract-docs";
 
 export type SaleContract = "long_term" | "spot";       // loại HĐ: Dài hạn | Chuyến
-export type SaleChannel = "export" | "domestic";       // hình thức: XK/UTXK | Nội tiêu
+export type SaleChannel = "export" | "domestic";       // hình thức: XK/UTXK | Tiêu thụ trong nước
 
 /** Loại tiền người dùng CHỌN khi nhập giá. Từ 30/07/2026 mở thêm NỘI TỆ của đơn vị nước ngoài
     (Lào = LAK · Campuchia = KHR) — khớp `SALE_CURRENCIES` ở backend. */
@@ -138,7 +138,7 @@ export const CONTRACTS: { value: SaleContract; label: string }[] = [
 ];
 export const CHANNELS: { value: SaleChannel; label: string }[] = [
   { value: "export", label: "XK / UTXK" },
-  { value: "domestic", label: "Nội tiêu" },
+  { value: "domestic", label: "Tiêu thụ trong nước" },
 ];
 /** Chủng loại mủ — TÁCH THEO TỪNG LOẠI y như bảng Giá sàn Tập đoàn (SVR CV 50 và SVR CV60 là
     2 loại riêng, không gộp), thêm "SVR 10CV / 20CV" + "Chủng loại khác" cho đủ biểu mẫu tuần.

@@ -103,7 +103,7 @@ const stockTonnes = (v: Values, key: string): number => {
 const CONSUMPTION: Column[] = [
   { key: "total_consumption", label: "Tổng tiêu thụ", unit: "tấn", group: _TT, compute: (v) => salesQty(v) || null },
   { key: "qty_export", label: "Tổng XK / UTXK", unit: "tấn", group: _TT, compute: (v) => salesQty(v, (l) => l.channel === "export") || null },
-  { key: "qty_domestic", label: "Tổng nội tiêu", unit: "tấn", group: _TT, compute: (v) => salesQty(v, (l) => l.channel === "domestic") || null },
+  { key: "qty_domestic", label: "Tổng tiêu thụ trong nước", unit: "tấn", group: _TT, compute: (v) => salesQty(v, (l) => l.channel === "domestic") || null },
   { key: "revenue", label: "Doanh thu", unit: "tỷ đồng", group: _TT, scale: 1_000_000_000 },
   { key: "avg_price", label: "Giá bán bình quân", unit: "triệu đ/tấn", group: _TT, scale: 1_000_000,
     compute: (v) => { const q = salesQty(v); return q ? (n(v.revenue) ?? 0) / q : null; } },

@@ -170,5 +170,15 @@ export async function uploadContractFile(file: File): Promise<ContractDoc & { si
   return res.json();
 }
 
-export const contractFileUrl = (doc: ContractDoc) =>
-  `${API}/api/sales-contracts/file/${doc.file}?filename=${encodeURIComponent(doc.filename ?? "")}`;
+/** Mở file đính kèm trong tab mới. PHẢI fetch kèm token rồi tạo blob — endpoint đòi Bearer nên
+    đặt thẳng vào `<a href>` sẽ luôn 401 (giống `unit-daily-client.openContractFile`). */
+export async function openContractFile(doc: ContractDoc): Promise<void> {
+  const qs = `?filename=${encodeURIComponent(doc.filename ?? "")}`;
+  const res = await fetch(
+    `${API}/api/sales-contracts/file/${encodeURIComponent(doc.file)}${qs}`,
+    { headers: authHeaders() });
+  if (!res.ok) throw new Error("Không tải được file đính kèm.");
+  const url = URL.createObjectURL(await res.blob());
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

@@ -171,8 +171,12 @@ def get_file(name: str, scope: Scope, filename: str | None = Query(None)):
     này, tài khoản đơn vị A biết tên file là tải được bản scan hợp đồng của đơn vị B.
     """
     _, companies = scope
-    if companies is not None:
-        owners = sales_contract_repo.companies_of_file(name)
-        if not owners & set(companies):
-            raise HTTPException(404, "Không tìm thấy file trong phạm vi tài khoản.")
+    owners = sales_contract_repo.companies_of_file(name)
+    # Endpoint này CHỈ phục vụ file của hợp đồng bán hàng. File của module khác dùng chung thư mục
+    # lưu trữ nên không chặn ở đây là mở đường đọc chéo module (chuyên viên chỉ có quyền hợp đồng
+    # vẫn tải được file của biểu Thu mua/Tồn kho).
+    if not owners:
+        raise HTTPException(404, "Không tìm thấy file hợp đồng.")
+    if companies is not None and not owners & set(companies):
+        raise HTTPException(404, "Không tìm thấy file trong phạm vi tài khoản.")
     return contract_files.serve(name, filename)

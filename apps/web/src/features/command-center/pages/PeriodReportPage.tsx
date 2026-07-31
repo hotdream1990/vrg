@@ -38,12 +38,12 @@ const PURCHASE_COLS: Col[] = [
 const CONSUMPTION_COLS: Col[] = [
   { key: "signed_lt_tonnes", label: "Đã ký HĐ dài hạn", unit: "tấn", note: "số liệu năm" },
   { key: "lt_export", label: "Dài hạn — XK/UTXK", unit: "tấn", note: "cộng dồn" },
-  { key: "lt_domestic", label: "Dài hạn — Nội tiêu", unit: "tấn", note: "cộng dồn" },
+  { key: "lt_domestic", label: "Dài hạn — Trong nước", unit: "tấn", note: "cộng dồn" },
   { key: "spot_export", label: "Chuyến — XK/UTXK", unit: "tấn", note: "cộng dồn" },
-  { key: "spot_domestic", label: "Chuyến — Nội tiêu", unit: "tấn", note: "cộng dồn" },
+  { key: "spot_domestic", label: "Chuyến — Trong nước", unit: "tấn", note: "cộng dồn" },
   { key: "total_consumption", label: "Tổng tiêu thụ", unit: "tấn", note: "= 4 cột trên" },
   { key: "export_total", label: "Tổng XK/UTXK", unit: "tấn", note: "DH + chuyến" },
-  { key: "domestic_total", label: "Tổng Nội tiêu", unit: "tấn", note: "DH + chuyến" },
+  { key: "domestic_total", label: "Tổng tiêu thụ trong nước", unit: "tấn", note: "DH + chuyến" },
   { key: "revenue_ty", label: "Doanh thu cao su", unit: "tỷ đồng", note: "cộng dồn" },
   { key: "avg_sell_price", label: "Giá bán BQ", unit: "triệu đ/tấn", note: "= DT / TT" },
   // Ngày của ảnh chụp tồn kho: đơn vị hay nhập dòng bán trước, tồn kho cập nhật sau → ngày này

@@ -38,7 +38,7 @@ CONSUMPTION_COLS: list[Col] = [
     ("qty_long_term", "HĐ dài hạn", "tấn"),
     ("qty_spot", "HĐ chuyến", "tấn"),
     ("qty_export", "XK / UTXK", "tấn"),
-    ("qty_domestic", "Nội tiêu", "tấn"),
+    ("qty_domestic", "Tiêu thụ trong nước", "tấn"),
     ("revenue_ty", "Doanh thu", "tỷ đồng"),
     ("avg_price_trieu", "Giá bán bình quân", "triệu đ/tấn"),
     ("lines", "Số dòng bán", "dòng"),
