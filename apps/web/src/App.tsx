@@ -129,7 +129,7 @@ export default function App() {
                       subtitle="Sản lượng & đơn giá thu mua mủ nguyên liệu theo ngày." />} />
                   <Route path="/bao-cao-ton-kho" element={
                     <UnitDailyRoute kind="consumption" defaultTab="stock" title="Báo cáo tồn kho"
-                      subtitle="Tồn kho thành phẩm và tồn kho nguyên liệu theo ngày. Phần “đã ký HĐ chưa giao” hệ thống tự tính từ hợp đồng." />} />
+                      subtitle="Tồn kho thành phẩm và tồn kho nguyên liệu theo ngày." />} />
                   {/* Tiêu thụ KHÔNG còn biểu nhập — số tính từ các lần giao trên hợp đồng */}
                   <Route path="/bao-cao-tieu-thu" element={
                     <ContractRoute><ConsumptionReportPage /></ContractRoute>} />

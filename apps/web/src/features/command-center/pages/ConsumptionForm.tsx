@@ -3,8 +3,9 @@
      (module "Quản lý hợp đồng"). Hai mảng `sales` / `sales_own` cũ vẫn được giữ nguyên trong
      payload để không mất lịch sử — form không hiển thị, chỉ chuyển tiếp khi lưu.
    - TỒN KHO (số THỜI ĐIỂM cuối ngày, đơn vị TẤN) còn 3 khối NHẬP TAY: 1 chế biến chưa nhập kho ·
-     2 đã nhập kho · 4 nguyên liệu chưa sản xuất (quy khô).
-   - Khối 3 "đã ký HĐ chưa giao" là số HỆ THỐNG TỰ TÍNH (cam kết − đã giao) → chỉ hiển thị.
+     2 đã nhập kho · 3 nguyên liệu chưa sản xuất (quy khô).
+   - "Đã ký HĐ chưa giao" KHÔNG còn xuất hiện trong form: đây là số hệ thống tự tính từ hợp đồng
+     (cam kết − đã giao), xem ở cột cùng tên trên bảng danh sách và ở màn Báo cáo tiêu thụ.
    - Tồn kho KHÔNG cộng dồn giữa các ngày; có nút "Lấy tồn ngày trước" để chép sang rồi sửa. */
 
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
@@ -16,8 +17,7 @@ import { HINT_STOCK_BALANCE } from "../../../lib/unit-daily-entry-hints";
 import { consumptionWarnings } from "../../../lib/unit-daily-warnings";
 import { type PriceDraft, type Role, fetchPrevStock } from "../../../lib/unit-daily-client";
 import {
-  GRADES, type Ccy, type ConsumptionData, type StockQtyLine, type StockSignedSummary,
-  stockTonnesTotal,
+  GRADES, type Ccy, type ConsumptionData, type StockQtyLine, stockTonnesTotal,
 } from "../../../lib/unit-daily-consumption";
 import { type Values, fmtNum } from "../../../lib/unit-daily-fields";
 import EntryWarnBanner from "../sections/EntryWarnBanner";
@@ -71,9 +71,6 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
 
   const notWh = (data.stock_not_warehoused ?? []) as StockQtyLine[];   // 1 chế biến chưa nhập kho
   const wh = (data.stock_warehoused ?? []) as StockQtyLine[];          // 2 đã nhập kho
-  // 3 đã ký HĐ chưa giao — server tính sẵn và gắn kèm khi ĐỌC ngày (không nằm trong payload lưu).
-  const signed = (values as unknown as ConsumptionData).stock_signed_undelivered as StockSignedSummary | undefined;
-  const signedQty = signed?.qty ?? 0;
 
   const setNotWh = (next: StockQtyLine[]) => setData((d) => ({ ...d, stock_not_warehoused: next }));
   const setWh = (next: StockQtyLine[]) => setData((d) => ({ ...d, stock_warehoused: next }));
@@ -177,29 +174,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       {head("2. Tồn kho thành phẩm đã nhập kho", false, HINT_STOCK_BALANCE)}
       {qtyTable(wh, setWh)}
 
-      {head("3. Số lượng đã ký hợp đồng chưa giao", false, "hệ thống tự tính")}
-      <div className="form-note" style={{ fontSize: 11.5, marginBottom: 6 }}>
-        Khối này <b>không còn ô nhập</b>: hệ thống tính bằng <b>sản lượng cam kết trừ tổng đã giao</b>
-        {" "}tại ngày báo cáo, lấy từ màn <b>Quản lý hợp đồng</b>. Đây là phần <b>NẰM TRONG</b> tồn kho
-        thành phẩm (khối 1 + 2) nên <b>không cộng thêm</b> và cũng <b>không trừ ra</b>.
-      </div>
-      <div className="card" style={{ padding: 0, overflow: "auto" }}>
-        <table>
-          <thead><tr><th>Chủng loại</th><th className="r">Chưa giao (tấn)</th></tr></thead>
-          <tbody>
-            {Object.entries(signed?.by_grade ?? {}).map(([g, q]) => (
-              <tr key={g}><td>{g}</td><td className="r">{fmtNum(q, 3)}</td></tr>
-            ))}
-            {signedQty === 0 && (
-              <tr><td colSpan={2} style={{ textAlign: "center", color: "var(--muted)", padding: 12, fontSize: 12.5 }}>
-                Không có hợp đồng nào đang chờ giao tại ngày này.
-              </td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {head("4. Tồn kho nguyên liệu chưa sản xuất (quy khô)", false, HINT_STOCK_BALANCE)}
+      {head("3. Tồn kho nguyên liệu chưa sản xuất (quy khô)", false, HINT_STOCK_BALANCE)}
       <label style={{ display: "block", maxWidth: 260 }}>
         {fieldLabel("Số lượng", "tấn")}
         {numInput(num(data.stock_material), (v) => setData((d) => ({ ...d, stock_material: v })), readOnly, undefined, TONNES_STOCK)}
@@ -207,7 +182,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
 
       {isParent && (
         <>
-          {head("5. Chi phí cấp công ty mẹ", false, "công ty mẹ tự khai")}
+          {head("4. Chi phí cấp công ty mẹ", false, "công ty mẹ tự khai")}
           <div style={gridStyle}>
             <label style={{ display: "block" }}>
               {fieldLabel("Tổng chi phí", "triệu đồng")}
@@ -228,14 +203,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
       {head("Tổng hợp tồn kho")}
       <div style={gridStyle}>
         {box("Tồn kho thành phẩm", "tấn", (stockTonnesTotal(notWh) + stockTonnesTotal(wh)) || null)}
-        {box("Đã ký HĐ chưa giao", "tấn", signedQty || null)}
       </div>
-      {signedQty > stockTonnesTotal(notWh) + stockTonnesTotal(wh) && (
-        <div className="form-note" style={{ fontSize: 11.5, marginTop: 6 }}>
-          Số <b>đã ký HĐ chưa giao</b> đang lớn hơn <b>tồn kho thành phẩm</b>. Đây là phần nằm
-          trong tồn kho nên không thể vượt quá — anh/chị soát lại khối 1, 2 và các hợp đồng giúp.
-        </div>
-      )}
 
       {!readOnly && footer?.(dirty, current, NO_PRICES)}
     </div>
