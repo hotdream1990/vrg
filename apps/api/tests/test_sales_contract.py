@@ -132,6 +132,45 @@ def test_dry_weight_required_on_delivery_only(env, cus) -> None:
     assert good.status_code == 200, good.text
 
 
+def test_dry_weight_required_for_all_three_grades(env, cus) -> None:
+    """Quy khô bắt buộc cho ĐỦ 3 loại (LATEX + 2 loại NL mới) — không chỉ LATEX."""
+    from app.core.market_meta import DRY_REQUIRED_GRADES
+
+    h = env
+    assert len(DRY_REQUIRED_GRADES) == 3
+    for i, grade in enumerate(sorted(DRY_REQUIRED_GRADES)):
+        body = {"company": UNIT, "code": f"HD-DRY{i}", "delivery_type": "single",
+                "customer_id": cus, "sign_date": YESTERDAY, "delivered": True,
+                "delivered_at": TODAY, "channel": "export"}
+        bad = client.put("/api/sales-contracts",
+                         json={**body, "lines": [_line(grade=grade, qty=8.0)]}, headers=h)
+        assert bad.status_code == 400 and "quy khô" in bad.json()["detail"], grade
+        ok = client.put("/api/sales-contracts",
+                        json={**body, "lines": [_line(grade=grade, qty=8.0, qty_dry=5.0)]}, headers=h)
+        assert ok.status_code == 200, f"{grade}: {ok.text}"
+
+    # Chủng loại KHÔNG thuộc danh sách thì không bị ép (vd SVR 10) — tránh ép nhầm cả bảng.
+    free = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-FREE", "delivery_type": "single", "customer_id": cus,
+        "sign_date": YESTERDAY, "delivered": True, "delivered_at": TODAY, "channel": "export",
+        "lines": [_line(qty=8.0)]}, headers=h)
+    assert free.status_code == 200, free.text
+
+
+def test_dry_weight_enforced_when_contract_flips_to_delivered(env, cus) -> None:
+    """HĐ giao-1-lần lúc tạo CHƯA giao (không ép quy khô) — khi đánh dấu đã giao thì phải ép."""
+    h = env
+    body = {"company": UNIT, "code": "HD-FLIP", "delivery_type": "single", "customer_id": cus,
+            "sign_date": YESTERDAY, "lines": [_line(grade="LATEX", qty=20.0)]}
+    created = client.put("/api/sales-contracts", json=body, headers=h)
+    assert created.status_code == 200, created.text     # chưa giao → chưa cần quy khô
+
+    cid = created.json()["contract"]["id"]
+    flip = client.put("/api/sales-contracts", json={
+        **body, "id": cid, "delivered": True, "delivered_at": TODAY, "channel": "export"}, headers=h)
+    assert flip.status_code == 400 and "quy khô" in flip.json()["detail"]
+
+
 def test_foreign_currency_needs_fx(env, cus) -> None:
     h = env
     bad = client.put("/api/sales-contracts", json={
