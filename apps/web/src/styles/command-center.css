@@ -60,6 +60,12 @@ a{color:inherit;text-decoration:none}
 .delta.down{background:#ef44441f;color:#c0392b}
 .delta.flat{background:#64748b1f;color:#475569}
 .kpi .sub{color:var(--muted);font-size:11px;margin-top:6px}
+/* Hàng số liệu trong modal chi tiết hợp đồng: 9 thẻ, để cỡ mặc định thì chiếm 3 hàng và đẩy phần
+   nội dung xuống quá sâu. Nén còn ~2 hàng để mở hợp đồng ra là thấy ngay bảng phụ lục. */
+.ct-kpi{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:6px}
+.ct-kpi .kpi{padding:9px 12px;border-radius:8px}
+.ct-kpi .kpi .label{font-size:10.5px;letter-spacing:.3px}
+.ct-kpi .kpi .value{font-size:17px;margin-top:2px}
 
 /* GRID */
 .grid{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:18px}

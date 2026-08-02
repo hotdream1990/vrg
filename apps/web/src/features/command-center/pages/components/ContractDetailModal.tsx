@@ -1,5 +1,5 @@
 import { EditOutlined, PaperClipOutlined, PlusOutlined } from "@ant-design/icons";
-import { Modal } from "antd";
+import { Modal, Tabs } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -69,7 +69,9 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
         {err && <div className="blt-error">{err}</div>}
         {c && d && (
           <>
-            <div className="kpi-row" style={{ marginBottom: 12 }}>
+            {/* Hàng số liệu để NGOÀI tab: đây là thứ người dùng mở hợp đồng ra để xem đầu tiên,
+                cần thấy ngay cả khi đang ở tab phụ lục. */}
+            <div className="kpi-row ct-kpi">
               <div className="kpi"><div className="label">Khách hàng</div><div className="value">{customer?.name ?? "—"}</div></div>
               <div className="kpi"><div className="label">Loại hợp đồng</div>
                 <div className="value">{meta.contract_types[c.contract_type ?? ""] ?? "(chưa khai)"}</div></div>
@@ -87,51 +89,66 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
               <div className="kpi"><div className="label">Thời hạn</div><div className="value">{dmy(c.expiry_date) || "—"}</div></div>
             </div>
 
-            {canEdit && (
-              <div className="blt-toolbar" style={{ marginBottom: 10 }}>
-                <button className="btn" onClick={() => setEditSelf(true)}>
-                  <EditOutlined /> Sửa thông tin hợp đồng
-                </button>
-              </div>
-            )}
+            {/* Chia tab để bớt cuộn: hợp đồng nhiều phụ lục trước đây phải cuộn rất sâu mới tới
+                bảng phụ lục — phần người dùng thao tác nhiều nhất. */}
+            <Tabs
+              defaultActiveKey={multi ? "annex" : "info"}
+              items={[
+                {
+                  key: "info",
+                  label: "Thông tin hợp đồng",
+                  children: (
+                    <>
+                      {canEdit && (
+                        <div className="blt-toolbar" style={{ marginBottom: 10 }}>
+                          <button className="btn" onClick={() => setEditSelf(true)}>
+                            <EditOutlined /> Sửa thông tin hợp đồng
+                          </button>
+                        </div>
+                      )}
 
-            <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 12, fontSize: 13 }}>
-              <div>
-                <div style={{ color: "var(--muted)", fontSize: 12 }}>Hợp đồng đã ký (scan)</div>
-                <Docs docs={c.files} />
-              </div>
-              {c.note && (
-                <div style={{ flex: 1, minWidth: 240 }}>
-                  <div style={{ color: "var(--muted)", fontSize: 12 }}>Ghi chú</div>
-                  {c.note}
-                </div>
-              )}
-            </div>
+                      <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 12, fontSize: 13 }}>
+                        <div>
+                          <div style={{ color: "var(--muted)", fontSize: 12 }}>Hợp đồng đã ký (scan)</div>
+                          <Docs docs={c.files} />
+                        </div>
+                        {c.note && (
+                          <div style={{ flex: 1, minWidth: 240 }}>
+                            <div style={{ color: "var(--muted)", fontSize: 12 }}>Ghi chú</div>
+                            {c.note}
+                          </div>
+                        )}
+                      </div>
 
-            <h4 style={{ margin: "8px 0 6px" }}>Dòng chi tiết hợp đồng</h4>
-            <div className="card" style={{ padding: 0, overflow: "auto" }}>
-              <table>
-                <thead><tr>
-                  <th>Chủng loại</th><th className="r">SL (tấn)</th><th className="r">Quy khô</th>
-                  <th className="r">Đơn giá</th><th>Loại tiền</th><th className="r">Chi phí (tr.đ)</th>
-                </tr></thead>
-                <tbody>
-                  {c.lines.map((ln, i) => (
-                    <tr key={i}>
-                      <td>{ln.grade}</td>
-                      <td className="r">{t3(ln.qty ?? 0)}</td>
-                      <td className="r">{ln.qty_dry == null ? "—" : t3(ln.qty_dry)}</td>
-                      <td className="r">{ln.price == null ? "—" : t3(ln.price)}</td>
-                      <td>{ln.ccy}</td>
-                      <td className="r">{ln.cost == null ? "—" : t3(ln.cost)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {multi && (
-              <>
+                      <h4 style={{ margin: "8px 0 6px" }}>Dòng chi tiết hợp đồng</h4>
+                      <div className="card" style={{ padding: 0, overflow: "auto" }}>
+                        <table>
+                          <thead><tr>
+                            <th>Chủng loại</th><th className="r">SL (tấn)</th><th className="r">Quy khô</th>
+                            <th className="r">Đơn giá</th><th>Loại tiền</th><th className="r">Chi phí (tr.đ)</th>
+                          </tr></thead>
+                          <tbody>
+                            {c.lines.map((ln, i) => (
+                              <tr key={i}>
+                                <td>{ln.grade}</td>
+                                <td className="r">{t3(ln.qty ?? 0)}</td>
+                                <td className="r">{ln.qty_dry == null ? "—" : t3(ln.qty_dry)}</td>
+                                <td className="r">{ln.price == null ? "—" : t3(ln.price)}</td>
+                                <td>{ln.ccy}</td>
+                                <td className="r">{ln.cost == null ? "—" : t3(ln.cost)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  ),
+                },
+                ...(multi ? [{
+                  key: "annex",
+                  label: `Phụ lục (${d.children.length})`,
+                  children: (
+                    <>
                 <div className="blt-toolbar" style={{ marginTop: 14 }}>
                   <b>Phụ lục ({d.children.length})</b>
                   {canEdit && (
@@ -196,11 +213,14 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                     </tbody>
                   </table>
                 </div>
-              </>
-            )}
+                    </>
+                  ),
+                }] : []),
+              ]}
+            />
 
             {!multi && (
-              <div className="form-note" style={{ fontSize: 11.5, marginTop: 10 }}>
+              <div className="form-note" style={{ fontSize: 11.5, marginTop: 4 }}>
                 Hợp đồng <b>giao 1 lần</b>: mở đợt ngày <b>{dmy(c.start_date)}</b>
                 {c.delivered_at
                   ? <> · đã giao ngày <b>{dmy(c.delivered_at)}</b>.</>
