@@ -25,6 +25,9 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
   const dry = new Set(meta.dry_required);
   const set = (i: number, patch: Partial<ContractLine>) =>
     onChange(lines.map((ln, k) => (k === i ? { ...ln, ...patch } : ln)));
+  // Bán bằng VNĐ thì không có gì để quy đổi → cả bảng VNĐ là BỎ HẲN cột tỷ giá, đỡ một cột trống
+  // khiến người nhập tưởng còn thiếu số. Bảng có dòng ngoại tệ thì giữ cột, dòng VNĐ để dấu "—".
+  const anyFx = lines.some((ln) => ln.ccy !== "VND");
 
   return (
     <div>
@@ -36,7 +39,7 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
             <th className="r">Quy khô (tấn)</th>
             <th className="r">Đơn giá<div style={{ fontWeight: 400, opacity: .7, fontSize: 11 }}>tr.đ/tấn · ngoại tệ/tấn</div></th>
             <th>Loại tiền</th>
-            <th className="r">Tỷ giá → VNĐ</th>
+            {anyFx && <th className="r">Tỷ giá → VNĐ</th>}
             <th className="r">Chi phí (tr.đ)<div style={{ fontWeight: 400, opacity: .7, fontSize: 11 }}>chi phí lô hàng</div></th>
             {!readOnly && <th style={{ width: 44 }} />}
           </tr></thead>
@@ -76,12 +79,16 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
                       {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </td>
-                  <td className="r">
-                    <input className={`blt-date-input r${needFx && !ln.fx ? " num-warn" : ""}`}
-                      style={{ width: 100 }} inputMode="decimal" disabled={readOnly || !needFx}
-                      value={str(ln.fx)} placeholder={needFx ? "bắt buộc" : "—"}
-                      onChange={(e) => set(i, { fx: num(e.target.value) })} />
-                  </td>
+                  {anyFx && (
+                    <td className="r">
+                      {needFx ? (
+                        <input className={`blt-date-input r${ln.fx ? "" : " num-warn"}`}
+                          style={{ width: 100 }} inputMode="decimal" disabled={readOnly}
+                          value={str(ln.fx)} placeholder="bắt buộc"
+                          onChange={(e) => set(i, { fx: num(e.target.value) })} />
+                      ) : <span style={{ fontSize: 11.5, color: "var(--muted)" }}>—</span>}
+                    </td>
+                  )}
                   <td className="r">
                     <input className="blt-date-input r" style={{ width: 92 }} inputMode="decimal"
                       disabled={readOnly} value={str(ln.cost)}
