@@ -5,6 +5,7 @@ import {
   type Contract,
   type ContractLine,
   type ContractMeta,
+  type ContractType,
   saveContract,
 } from "../../../../lib/sales-contract-client";
 import DateInput from "../../sections/DateInput";
@@ -26,6 +27,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 const blank = (company: string): Contract => ({
   id: null, company, parent_id: null, code: "", customer_id: null, delivery_type: "single",
+  contract_type: null,
   sign_date: today(), expiry_date: null, start_date: today(), lines: [{ ...EMPTY_LINE }], delivered: false,
   delivered_at: null, channel: null, to_company: null, payment_date: null, payment_qty: null,
   payment_cost: null, payment_docs: [], files: [], note: null,
@@ -54,6 +56,10 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
   const isBatch = isChild || c.delivery_type === "single";
   const customers = useMemo(
     () => meta.customers.filter((x) => x.company === c.company), [meta.customers, c.company]);
+  // Đơn vị nhận hàng nội bộ = các đơn vị CÙNG NHÓM công ty mẹ–con. Rỗng = đơn vị đứng một mình,
+  // không có tiêu thụ nội bộ (server cũng chặn, xem `_assert_same_group`).
+  const peers = useMemo(
+    () => meta.internal_targets?.[c.company] ?? [], [meta.internal_targets, c.company]);
   // Q10: trong nước bán VNĐ (+USD khi xuất khẩu); nước ngoài thêm NỘI TỆ CỦA CHÍNH đơn vị đó.
   // Hiện cả LAK lẫn KHR cho mọi đơn vị là mời người dùng chọn nhầm loại tiền.
   const currencies = useMemo(() => {
@@ -122,6 +128,8 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
           <select className="blt-date-input" value={c.company} disabled={isChild || !!initial}
             onChange={(e) => set({
               company: e.target.value, customer_id: null,
+              // Đổi đơn vị là đổi luôn NHÓM mẹ–con → đơn vị nhận cũ có thể không còn cùng nhóm.
+              ...(c.channel === "internal" ? { channel: null, to_company: null } : {}),
               lines: c.lines.map((l) => ({ ...l, ccy: "VND", fx: null })),
             })}>
             {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
@@ -138,6 +146,15 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
                 onChange={(e) => set({ customer_id: e.target.value ? Number(e.target.value) : null })}>
                 <option value="">— chọn khách hàng —</option>
                 {customers.map((x) => <option key={x.id} value={x.id as number}>{x.name}</option>)}
+              </select>
+            </label>
+            {/* Loại HỢP ĐỒNG là chỉ tiêu của báo cáo (dài hạn/chuyến) — KHÁC loại GIAO bên dưới:
+                một hợp đồng dài hạn vẫn có thể giao trọn 1 lần. */}
+            <label className="form-field">Loại hợp đồng *
+              <select className="blt-date-input" value={c.contract_type ?? ""}
+                onChange={(e) => set({ contract_type: (e.target.value || null) as ContractType })}>
+                <option value="">— chọn loại hợp đồng —</option>
+                {Object.entries(meta.contract_types).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </label>
             <label className="form-field">Loại giao
@@ -175,7 +192,10 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
             <select className="blt-date-input" value={c.channel ?? ""}
               onChange={(e) => set({ channel: e.target.value || null, to_company: null })}>
               <option value="">— chọn hình thức —</option>
-              {Object.entries(meta.channels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {Object.entries(meta.channels)
+                // Đơn vị đứng một mình (không thuộc nhóm mẹ–con) thì không có tiêu thụ nội bộ.
+                .filter(([k]) => k !== "internal" || peers.length > 0)
+                .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </label>
           {c.channel === "internal" && (
@@ -183,10 +203,15 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
               <select className="blt-date-input" value={c.to_company ?? ""}
                 onChange={(e) => set({ to_company: e.target.value || null })}>
                 <option value="">— chọn đơn vị —</option>
-                {meta.all_units.filter((u) => u !== c.company)
-                  .map((u) => <option key={u} value={u}>{u}</option>)}
+                {peers.map((u) => <option key={u} value={u}>{u}</option>)}
               </select>
             </label>
+          )}
+          {!peers.length && (
+            <p className="form-note" style={{ gridColumn: "1 / -1", margin: 0, fontSize: 12 }}>
+              “{c.company}” chưa thuộc nhóm công ty mẹ–con nên không có <b>Tiêu thụ nội bộ</b>.
+              Gán <b>Công ty mẹ</b> ở màn Đơn vị thành viên nếu đơn vị này có bán nội bộ.
+            </p>
           )}
         </div>
       )}

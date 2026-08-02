@@ -39,6 +39,9 @@ class ContractIn(BaseModel):
     code: str
     customer_id: int | None = None
     delivery_type: str = "single"     # single = giao 1 lần · multi = giao nhiều lần (mẹ–phụ lục)
+    # Loại HỢP ĐỒNG (chỉ tiêu báo cáo): long_term = dài hạn · spot = chuyến. Bắt buộc ở hợp đồng
+    # MẸ; phụ lục bỏ trống và thừa kế của mẹ. KHÔNG suy từ `delivery_type` — hai khái niệm khác nhau.
+    contract_type: str | None = None
     sign_date: str | None = None
     expiry_date: str | None = None
     # Ngày MỞ ĐỢT giao (hàng gom vào kho cho đợt này) — bắt buộc với phụ lục;

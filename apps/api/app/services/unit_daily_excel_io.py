@@ -51,11 +51,14 @@ SALE_SOURCES = {"Mủ thu mua": "sales", "Mủ khai thác": "sales_own"}
 # 3 khối tồn kho nhập theo dòng (khối 4 "nguyên liệu chưa sản xuất" là 1 ô riêng, không theo dòng).
 CUP_BASES = {"Độ TSC": "tsc", "Độ DRC": "drc"}
 CCYS = {"VND": "VND", "USD": "USD"}
+# Chốt 02/08/2026: nhóm "Đã ký HĐ" ĐÃ RỜI khỏi biểu tồn kho — hợp đồng nhập ở màn Quản lý hợp đồng,
+# khối 3 là số hệ thống tự tính. Giữ tên nhóm trong `_RETIRED_STOCK_GROUPS` để file cũ nhập lại
+# nhận được câu báo rõ ràng thay vì "Nhóm không hợp lệ".
 STOCK_GROUPS = {
     "Chế biến chưa nhập kho": "not_warehoused",
     "Đã nhập kho": "warehoused",
-    "Đã ký HĐ": "signed_undelivered",
 }
+_RETIRED_STOCK_GROUPS = {"Đã ký HĐ": "signed_undelivered"}
 GRADES = list(UNIT_STOCK_GRADES)
 
 
@@ -130,24 +133,14 @@ SPECS: dict[str, Spec] = {
     "stock": Spec(
         "BIỂU NHẬP — TỒN KHO", "Tồn kho",
         "Mỗi dòng = 1 dòng tồn kho (số THỜI ĐIỂM cuối ngày, không cộng dồn). "
-        "Riêng nhóm 'Đã ký HĐ' là HỢP ĐỒNG có vòng đời: nhập MỘT LẦN, hệ thống tự giữ ở nhóm này "
-        "từ cột 'Ngày' (= ngày bắt đầu tồn kho) đến HẾT NGÀY TRƯỚC 'Ngày giao'; chưa giao thì để "
-        "trống 'Ngày giao'. KHÔNG nhập lại hợp đồng đó cho các ngày sau. Nhóm này là phần NẰM "
-        "TRONG tồn kho thành phẩm đã có hợp đồng nhưng chưa giao — KHÔNG cộng thêm vào tồn kho "
-        "(cộng nữa là tính trùng) và cũng không trừ ra, nên không vượt quá tổng tồn kho. "
-        "File HĐ scan đính kèm trên web.",
+        "Từ 02/08/2026 biểu này KHÔNG còn nhóm 'Đã ký HĐ': hợp đồng nhập ở màn Quản lý hợp đồng, "
+        "còn 'đã ký HĐ chưa giao' là số hệ thống tự tính từ các đợt giao chưa tới ngày giao.",
         [_UNIT_COL, _DATE_COL,
          Col("group", "Nhóm", required=True, type="enum", choices=STOCK_GROUPS, width=20),
          Col("grade", "Chủng loại", required=True, type="enum",
              choices={g: g for g in GRADES}, width=20),
-         Col("code", "Số HĐ/PL", "chỉ nhóm đã ký HĐ", type="text", width=20,
-             aliases=("Mã HĐ/PL",)),
          Col("qty", "Số lượng", "tấn"),
-         Col("price", "Đơn giá", "chỉ nhóm đã ký HĐ", width=18),
          Col("stock_ccy", "Đơn giá bằng", type="enum", choices=CCYS, width=14),
-         Col("delivery_date", "Lịch giao", "dd/mm/yyyy · dự kiến", type="date", width=18),
-         Col("delivered_date", "Ngày giao", "dd/mm/yyyy · để trống nếu chưa giao",
-             type="date", width=22),
          Col("stock_material", "Tồn kho nguyên liệu chưa sản xuất (quy khô)",
              "tấn", width=34)]),
     "plan": Spec(
@@ -342,7 +335,11 @@ def parse_upload(kind: str, data: bytes,
             elif c.type == "enum":
                 label = str(v or "").strip()
                 val = (c.choices or {}).get(label)
-                if val is None and label:
+                if val is None and label in _RETIRED_STOCK_GROUPS:
+                    rec["_errors"].append(
+                        f"{c.title}: '{label}' không còn nhập ở biểu này — hợp đồng nhập ở màn "
+                        "Quản lý hợp đồng, số 'đã ký HĐ chưa giao' hệ thống tự tính")
+                elif val is None and label:
                     rec["_errors"].append(f"{c.title}: '{label}' không hợp lệ")
                 elif val is None and c.required:
                     rec["_errors"].append(f"{c.title}: bắt buộc")
@@ -402,32 +399,6 @@ def _line_revenue_vnd(qty, price, ccy: str, fx: float | None) -> float | None:
     if ccy != "USD":
         return q * p * 1_000_000
     return None if fx is None else q * p * fx
-
-
-def _upsert_contract(r: dict, company: str, start_date: str, ccy: str | None,
-                     username: str | None) -> None:
-    """1 dòng Excel nhóm 'Đã ký HĐ' → thêm/cập nhật hợp đồng (bảng `unit_stock_contract`).
-
-    Khớp lại hợp đồng cũ theo (đơn vị, số HĐ/PL, chủng loại, ngày bắt đầu) để nhập lại cùng file
-    KHÔNG sinh bản sao — nhập lại là SỬA, đúng như cách các biểu khác ghi đè theo (đơn vị, ngày).
-    """
-    from app.services import unit_stock_contract_repo
-
-    existing = unit_stock_contract_repo.list_contracts(companies=[company])
-    match = next((c for c in existing
-                  if c["start_date"] == start_date and c["grade"] == r["grade"]
-                  and (c["code"] or "") == (r.get("code") or "")), None)
-    unit_stock_contract_repo.save({
-        "id": match["id"] if match else None,
-        "code": r.get("code"), "grade": r["grade"], "qty": r.get("qty"), "price": r.get("price"),
-        "ccy": ccy or "VND", "fx": match.get("fx") if match else None,
-        "start_date": start_date, "delivery_date": r.get("delivery_date"),
-        "delivered_date": r.get("delivered_date"),
-        # File HĐ scan chỉ đính kèm trên web → nhập lại bằng Excel phải GIỮ NGUYÊN, không xoá mất.
-        "files": match.get("files") if match else None,
-        "file": match.get("file") if match else None,
-        "filename": match.get("filename") if match else None,
-    }, company, username)
 
 
 def _sale_line(r: dict, ccy: str, fx: float | None) -> dict:
@@ -563,14 +534,6 @@ def _commit_rows(kind: str, rows: list[dict], username: str | None,
                     {"grade": r["grade"], "qty": r.get("qty")} for r in pick("not_warehoused")]
                 fields["stock_warehoused"] = [
                     {"grade": r["grade"], "qty": r.get("qty")} for r in pick("warehoused")]
-                # Nhóm "Đã ký HĐ" KHÔNG nằm trong payload ngày nữa — mỗi dòng là 1 HỢP ĐỒNG có
-                # vòng đời riêng: cột "Ngày" = ngày bắt đầu tồn kho. Trùng (đơn vị, mã HĐ, chủng
-                # loại, ngày bắt đầu) thì cập nhật lại chính hợp đồng đó, không tạo bản sao.
-                for r in pick("signed_undelivered"):
-                    try:
-                        _upsert_contract(r, company, as_of, sccy, username)
-                    except ValueError as exc:
-                        warnings.append(f"{company} {as_of}: {exc}")
                 mat = next((r.get("stock_material") for r in items
                             if r.get("stock_material") is not None), None)
                 if mat is not None:

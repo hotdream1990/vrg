@@ -17,7 +17,6 @@ from typing import Any
 
 from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC
 from app.services import member_unit_repo, price_repo, unit_daily_repo
-from app.services.unit_daily_fields import SALE_TABLES
 
 TRIEU = 1_000_000       # 1 triệu đồng
 
@@ -30,9 +29,9 @@ MATERIAL_LABELS = {
     "finished": "Thành phẩm",
 }
 #: Nguồn mủ tiêu thụ (2 bảng nhập tách riêng ở biểu Tiêu thụ).
-SOURCE_LABELS = {"sales": "Mủ thu mua", "sales_own": "Mủ khai thác",
-                 # Từ 30/07/2026 tiêu thụ đến từ LẦN GIAO của hợp đồng, không còn tách 2 nguồn mủ.
-                 "contract": "Theo hợp đồng"}
+# Từ 30/07/2026 tiêu thụ đến từ LẦN GIAO của hợp đồng, không còn tách 2 nguồn mủ. Hai nhãn cũ giữ
+# lại để bản ghi lịch sử (nếu có nơi nào còn đọc) không hiện ra chuỗi thô.
+SOURCE_LABELS = {"sales": "Mủ thu mua", "sales_own": "Mủ khai thác", "contract": "Theo hợp đồng"}
 #: 2 khối tồn kho nhập tay (khối "đã ký HĐ" có màn riêng, khối nguyên liệu là ô đơn).
 STOCK_BLOCKS = ("stock_not_warehoused", "stock_warehoused")
 
@@ -128,58 +127,15 @@ def purchase_rows(date_from: str, date_to: str,
 
 
 # ── Tiêu thụ ───────────────────────────────────────────────────────────────────
-def _sale_ccy(ln: dict, day_ccy: str | None, unit_default: str) -> str:
-    """Loại tiền của 1 dòng bán. Dòng CŨ chưa có loại tiền riêng → lấy loại tiền mức NGÀY
-    (`sales_ccy`), thiếu nữa thì theo đơn vị (trong nước VND · nước ngoài USD) — đúng như form nhập.
-    Bỏ bước này thì giá 1.640 USD/tấn bị đọc thành 1.640 triệu đ/tấn (sai 1.000 lần)."""
-    c = ln.get("ccy")
-    return c if c in ("VND", "USD") else (day_ccy if day_ccy in ("VND", "USD") else unit_default)
-
-
 def consumption_rows(date_from: str, date_to: str,
                      companies: list[str] | None = None) -> dict[str, Any]:
-    """Dòng bán chi tiết + số liệu ngày (doanh thu ĐÃ LƯU vs tổng các dòng) để đối chiếu.
+    """Dòng bán chi tiết — nguồn DUY NHẤT là các LẦN GIAO của hợp đồng (chốt 02/08/2026).
 
-    Mỗi dòng: nguồn mủ · loại HĐ · hình thức · chủng loại · SL · giá · doanh thu quy VND.
+    Mỗi dòng: loại HĐ · hình thức · chủng loại · SL · giá · doanh thu quy VND.
+    Hai mảng `sales`/`sales_own` cũ KHÔNG còn dựng dòng: chưa chạy script chuyển đổi thì chúng chỉ
+    là dữ liệu tra cứu, trộn vào đây làm lệch chỉ tiêu (loại HĐ, hình thức, mốc ghi nhận đều khác).
     """
-    meta = unit_meta()
-    entries = unit_daily_repo.in_range("consumption", date_from, date_to, companies)
-    rows: list[dict[str, Any]] = []
-    days: list[dict[str, Any]] = []
-    for e in entries:
-        base = _base(e, meta)
-        f = e["fields"]
-        # Ngày đã chuyển sang hợp đồng: mảng cũ giữ để tra cứu nhưng KHÔNG dựng dòng thống kê nữa,
-        # nếu không mỗi lần bán bị đếm hai lần (một ở đây, một ở hợp đồng).
-        if f.get("sales_migrated") is True:
-            continue
-        day_ccy, day_fx = f.get("sales_ccy"), _num(f.get("fx_revenue"))
-        unit_default = "VND" if (meta.get(base["company"]) or {}).get("currency", "VND") == "VND" else "USD"
-        line_total, n_lines = 0.0, 0
-        for table in SALE_TABLES:
-            for ln in f.get(table) or []:
-                qty = _num(ln.get("qty"))
-                ccy = _sale_ccy(ln, day_ccy, unit_default)
-                fx = _num(ln.get("fx")) if ln.get("fx") is not None else day_fx
-                rev = line_revenue_vnd(qty, ln.get("price"), ccy, fx)
-                line_total += rev or 0.0
-                n_lines += 1
-                rows.append({
-                    **base, "source": table, "code": ln.get("code"),
-                    "contract": ln.get("contract") or "long_term",
-                    "channel": ln.get("channel") or "export",
-                    "grade": str(ln.get("grade") or "").strip() or "—",
-                    "qty": qty, "price": _num(ln.get("price")),
-                    "ccy": ccy, "fx": fx, "revenue_vnd": rev,
-                    "missing_fx": (ccy == "USD" and fx is None),
-                    "warehouse_date": ln.get("warehouse_date"),
-                    "invoice_date": ln.get("invoice_date"),
-                })
-        if n_lines:
-            days.append({**base, "revenue_stored": _num(f.get("revenue")), "revenue_lines": line_total})
-
-    rows.extend(_delivery_rows(date_from, date_to, companies, meta))
-    return {"rows": rows, "days": days}
+    return {"rows": _delivery_rows(date_from, date_to, companies, unit_meta())}
 
 
 def _delivery_rows(date_from: str, date_to: str, companies: list[str] | None,
@@ -205,7 +161,9 @@ def _delivery_rows(date_from: str, date_to: str, companies: list[str] | None,
                          if qty is not None and _num(ln.get("price")) is not None and fx else None))
             out.append({
                 **base, "source": "contract", "code": d.get("code"),
-                "contract": d.get("delivery_type") or "single",
+                # Loại HỢP ĐỒNG (dài hạn/chuyến) — KHÔNG lấy `delivery_type` (loại GIAO): suy từ đó
+                # thì mọi hợp đồng đều rơi vào "HĐ chuyến". Chưa khai loại → để trống, không đoán.
+                "contract": d.get("contract_type") or "",
                 "channel": d.get("channel") or "domestic",
                 "grade": str(ln.get("grade") or "").strip() or "—",
                 "qty": qty, "price": _num(ln.get("price")),

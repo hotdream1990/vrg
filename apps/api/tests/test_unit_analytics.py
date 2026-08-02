@@ -45,10 +45,32 @@ def _price(unit: str, as_of: str, price_type: str, price: float) -> None:
                               "currency": "VND", "unit": "đồng/độ TSC"})
 
 
+def _customer(h: dict[str, str], company: str) -> int:
+    """Khách hàng của đơn vị (tạo nếu chưa có) — hợp đồng mẹ bắt buộc gán khách."""
+    made = client.put("/api/customers", json={"company": company, "name": f"KH {company}"},
+                      headers=h).json().get("id")
+    return made if made is not None else next(
+        c["id"] for c in client.get("/api/customers", headers=h).json() if c["company"] == company)
+
+
+def _deliver(h: dict[str, str], company: str, code: str, day: str, ctype: str, channel: str,
+             grade: str, qty: float, price: float, ccy: str = "VND",
+             fx: float | None = None) -> None:
+    """1 hợp đồng giao-1-lần ĐÃ GIAO trong ngày `day` — nguồn tiêu thụ của cơ chế mới."""
+    r = client.put("/api/sales-contracts", json={
+        "company": company, "code": code, "customer_id": _customer(h, company),
+        "delivery_type": "single", "contract_type": ctype, "sign_date": day, "start_date": day,
+        "delivered_at": day, "channel": channel,
+        "lines": [{"grade": grade, "qty": qty, "price": price, "ccy": ccy, "fx": fx}]}, headers=h)
+    assert r.status_code == 200, r.text
+
+
 def _cleanup(h: dict[str, str]) -> None:
     with session_scope() as db:
-        for tbl in ("unit_daily_report", "unit_purchase_plan", "unit_stock_contract"):
+        for tbl in ("unit_daily_report", "unit_purchase_plan", "unit_stock_contract",
+                    "sales_contract"):
             db.execute(text(f"DELETE FROM {tbl} WHERE company = ANY(:u)"), {"u": [UNIT_A, UNIT_B]})
+        db.execute(text("DELETE FROM unit_customer WHERE company = ANY(:u)"), {"u": [UNIT_A, UNIT_B]})
         db.execute(text("DELETE FROM fact_price WHERE grade = ANY(:u)"), {"u": [UNIT_A, UNIT_B]})
     for n in (UNIT_A, UNIT_B):
         client.delete(f"/api/member-units/{n}", headers=h)
@@ -77,20 +99,20 @@ def seeded():
                                                     "ccy": "USD", "fx": None}]}})
     put({"kind": "purchase", "company": UNIT_B, "as_of": D1, "fields": {"no_purchase": True}})
 
-    # Tiêu thụ: 3 dòng bán (2 nguồn mủ, 2 loại HĐ, 2 hình thức) + tồn kho 2 ngày.
+    # Tồn kho 2 ngày (vẫn nhập tay theo ngày).
     put({"kind": "consumption", "company": UNIT_A, "as_of": D0,
-         "fields": {"sales": [{"grade": "SVR 3L", "qty": 10, "price": 30,
-                               "contract": "long_term", "channel": "export"}],
-                    "sales_own": [{"grade": "SVR 10", "qty": 20, "price": 20,
-                                   "contract": "spot", "channel": "domestic"}],
-                    "stock_not_warehoused": [{"grade": "SVR 3L", "qty": 1000}],
+         "fields": {"stock_not_warehoused": [{"grade": "SVR 3L", "qty": 1000}],
                     "stock_warehoused": [{"grade": "SVR 10", "qty": 500}],
                     "stock_material": 70}})
     put({"kind": "consumption", "company": UNIT_A, "as_of": D1,
-         "fields": {"sales": [{"grade": "SVR 3L", "qty": 5, "price": 1800, "ccy": "USD",
-                               "contract": "long_term", "channel": "domestic"}],
-                    "stock_not_warehoused": [{"grade": "SVR 3L", "qty": 800}],
+         "fields": {"stock_not_warehoused": [{"grade": "SVR 3L", "qty": 800}],
                     "stock_warehoused": [], "stock_material": 60}})
+    # Tiêu thụ = 3 LẦN GIAO của hợp đồng (2 loại HĐ, 2 hình thức) — từ 02/08/2026 không còn
+    # nhập tay ở biểu ngày nữa.
+    _deliver(h, UNIT_A, "HD-A1", D0, "long_term", "export", "SVR 3L", 10, 30)
+    _deliver(h, UNIT_A, "HD-A2", D0, "spot", "domestic", "SVR 10 / CSR 10", 20, 20)
+    _deliver(h, UNIT_A, "HD-A3", D1, "long_term", "domestic", "SVR 3L", 5, 1800,
+             ccy="USD", fx=26000)
     yield h
     _cleanup(h)
 
@@ -140,55 +162,62 @@ def test_consumption_filters_and_avg_price(seeded) -> None:
     a = _row(rep, UNIT_A)
     assert a["qty"] == 35 and a["qty_long_term"] == 15 and a["qty_spot"] == 20
     assert a["qty_export"] == 10 and a["qty_domestic"] == 25
-    # Doanh thu = 10×30tr + 20×20tr = 700 triệu (dòng USD thiếu tỷ giá bị loại) → BQ = 700/30.
-    assert a["revenue_ty"] == pytest.approx(0.7)
-    assert a["avg_price_trieu"] == pytest.approx(700 / 30)
-    assert any("thiếu tỷ giá" in w for w in rep["warnings"])
+    # Doanh thu = 10×30tr + 20×20tr + 5×1800USD×26.000 = 934 triệu → BQ = 934/35.
+    assert a["revenue_ty"] == pytest.approx(0.934)
+    assert a["avg_price_trieu"] == pytest.approx(934 / 35)
 
     spot = _get("consumption", seeded, contract="spot", companies=UNIT_A)
     assert _row(spot, UNIT_A)["qty"] == 20
-    own = _get("consumption", seeded, source="sales_own", group_by="source", companies=UNIT_A)
-    assert [r["key"] for r in own["rows"]] == ["Mủ khai thác"]
     detail = _get("consumption", seeded, group_by="none", companies=UNIT_A)
     assert detail["detail"] and len(detail["rows"]) == 3
-    assert detail["rows"][0]["source_label"] in ("Mủ thu mua", "Mủ khai thác")
+    assert {r["contract_label"] for r in detail["rows"]} == {"HĐ dài hạn", "HĐ chuyến"}
 
 
-def _legacy_consumption(company: str, as_of: str, payload: dict) -> None:
-    """Ghi thẳng payload kiểu CŨ vào DB (API hiện tại luôn tự điền loại tiền cho từng dòng)."""
-    import json
+def test_delivery_missing_fx_is_excluded_and_warned(seeded) -> None:
+    """Lần giao ngoại tệ THIẾU tỷ giá (bản ghi chuyển từ cơ chế cũ) → không tính doanh thu + cảnh báo.
 
-    with session_scope() as db:
-        db.execute(
-            text("INSERT INTO unit_daily_report (as_of, company, kind, payload, updated_by, updated_at) "
-                 "VALUES (CAST(:d AS date), :c, 'consumption', CAST(:p AS jsonb), 'test', now()) "
-                 "ON CONFLICT (as_of, company, kind) DO UPDATE SET payload = EXCLUDED.payload"),
-            {"d": as_of, "c": company, "p": json.dumps(payload)})
-
-
-def test_legacy_line_uses_day_level_currency(seeded) -> None:
-    """Dòng bán CŨ chưa có loại tiền riêng → lấy theo mức ngày / theo đơn vị nước ngoài (USD).
-
-    Đọc nhầm thành VND sẽ thổi doanh thu lên 1.000 lần (1.600 USD/tấn ↦ 1.600 triệu đ/tấn).
+    Form chặn lưu USD thiếu tỷ giá nên ca này chỉ đến từ script chuyển đổi → ghi thẳng vào DB.
     """
     h = seeded
+    with session_scope() as db:
+        db.execute(text("UPDATE sales_contract SET lines = jsonb_set(lines, '{0,fx}', 'null') "
+                        " WHERE code = 'HD-A3'"))
+    a = _row(_get("consumption", h, companies=UNIT_A), UNIT_A)
+    assert a["qty"] == 35                                  # sản lượng vẫn đếm đủ
+    assert a["revenue_ty"] == pytest.approx(0.7)           # chỉ 2 dòng VNĐ có doanh thu
+    assert a["avg_price_trieu"] == pytest.approx(700 / 30)  # BQ bỏ sản lượng thiếu tỷ giá
+    assert any("thiếu tỷ giá" in w
+               for w in _get("consumption", h, companies=UNIT_A)["warnings"])
+
+
+def test_internal_channel_is_not_counted_as_domestic(seeded) -> None:
+    """Tiêu thụ NỘI BỘ là hình thức riêng — gộp vào "trong nước" là sai chỉ tiêu báo cáo."""
+    h = seeded
+    # Nội bộ chỉ bán được trong nhóm mẹ–con → cho B làm công ty con của A.
     client.put(f"/api/member-units/{UNIT_B}", headers=h,
-               json={"country": "LA", "currency": "LAK", "set_locale": True})
-    _legacy_consumption(UNIT_B, D0, {"sales": [{"grade": "SVR 10", "qty": 10, "price": 1600}],
-                                     "fx_revenue": 26000, "revenue": 10 * 1600 * 26000})
-    rep = _get("consumption", h, companies=UNIT_B)
-    assert _row(rep, UNIT_B)["revenue_vnd"] == pytest.approx(10 * 1600 * 26000)
-    assert not rep["warnings"]      # doanh thu đã lưu khớp tổng dòng → không cảnh báo
+               json={"set_parent": True, "parent_company": UNIT_A})
+    client.put("/api/customers", json={"company": UNIT_B, "name": f"KH {UNIT_B}"}, headers=h)
+    cus = next(c["id"] for c in client.get("/api/customers", headers=h).json()
+               if c["company"] == UNIT_B)
+    r = client.put("/api/sales-contracts", json={
+        "company": UNIT_B, "code": "HD-INT", "customer_id": cus, "delivery_type": "single",
+        "contract_type": "spot", "sign_date": D0, "start_date": D0, "delivered_at": D0,
+        "channel": "internal", "to_company": UNIT_A,
+        "lines": [{"grade": "SVR 10 / CSR 10", "qty": 7, "price": 25, "ccy": "VND"}]}, headers=h)
+    assert r.status_code == 200, r.text
+
+    b = _row(_get("consumption", h, companies=UNIT_B), UNIT_B)
+    assert b["qty"] == 7 and b["qty_internal"] == 7
+    assert not b["qty_domestic"] and not b["qty_export"]
 
 
-def test_warns_when_stored_revenue_differs_from_lines(seeded) -> None:
-    """Doanh thu ĐÃ LƯU lệch tổng các dòng (đổi loại tiền sau khi lưu) → phải cảnh báo, không tự sửa."""
-    _legacy_consumption(UNIT_B, D1, {
-        "sales": [{"grade": "SVR 10", "qty": 10, "price": 1800, "ccy": "USD", "fx": 26000}],
-        "revenue": 10 * 1800 * 1_000_000})       # số cũ: cộng giá USD như VNĐ
-    rep = _get("consumption", seeded, companies=UNIT_B)
-    assert any("lệch" in w for w in rep["warnings"])
-    assert _row(rep, UNIT_B)["revenue_vnd"] == pytest.approx(10 * 1800 * 26000)
+def test_contract_without_type_goes_to_its_own_bucket(seeded) -> None:
+    """HĐ chuyển từ cơ chế cũ chưa khai loại → ô riêng, KHÔNG dồn vào dài hạn hay chuyến."""
+    h = seeded
+    with session_scope() as db:      # chỉ bản ghi chuyển đổi mới thiếu loại (form ép nhập)
+        db.execute(text("UPDATE sales_contract SET contract_type = NULL WHERE code = 'HD-A2'"))
+    a = _row(_get("consumption", h, companies=UNIT_A), UNIT_A)
+    assert a["qty"] == 35 and a["qty_spot"] is None and a["qty_unknown_type"] == 20
 
 
 def test_stock_is_snapshot_not_sum(seeded) -> None:

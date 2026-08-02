@@ -30,6 +30,26 @@ def _admin() -> dict[str, str]:
     return _bearer("admin", "admin")
 
 
+def _legacy_contract(company: str, code: str, grade: str, qty: float,
+                     start: str, delivered: str | None) -> dict:
+    """Dựng 1 hợp đồng ở bảng CŨ như dữ liệu lịch sử sẵn có.
+
+    Bảng `unit_stock_contract` đã đóng băng (API chỉ cho SỬA, không cho lập mới) nên test màn tra
+    cứu/sửa phải ghi thẳng vào DB — đúng tình huống thật: bản ghi có từ trước ngày chuyển cơ chế.
+    """
+    from sqlalchemy import text
+
+    from app.core.db import session_scope
+    with session_scope() as db:
+        new_id = db.execute(text(
+            "INSERT INTO unit_stock_contract (company, code, grade, qty, price, ccy, start_date, "
+            " delivered_date, updated_by) "
+            "VALUES (:c, :code, :g, :q, 40, 'VND', CAST(:s AS date), CAST(:d AS date), 'test') "
+            "RETURNING id"),
+            {"c": company, "code": code, "g": grade, "q": qty, "s": start, "d": delivered}).scalar()
+    return {"id": new_id, "code": code}
+
+
 def _cleanup(h: dict[str, str], users: list[str], units: list[str]) -> None:
     """Dọn sạch dữ liệu test — không để lại tài khoản/đơn vị `_zz_*` trong DB dev."""
     from sqlalchemy import text
@@ -132,28 +152,22 @@ def test_unit_daily_member_and_editor_flow() -> None:
     }}
     assert client.put("/api/unit-daily/report", json=cons, headers=eh).status_code == 200
 
-    # Hợp đồng đã ký = bản ghi có VÒNG ĐỜI riêng: nhập 1 lần, tự nằm trong tồn kho từ ngày bắt đầu
-    # đến HẾT NGÀY TRƯỚC ngày giao → không phải nhập lại mỗi ngày.
+    # Hợp đồng ở bảng CŨ vẫn ghi được qua endpoint (chỉ màn web là chỉ-xem), nhưng từ 02/08/2026
+    # KHÔNG còn được cộng vào khối 3 — kiểm ngay bên dưới.
     ct = {"company": unit, "code": "HĐ-02/2026", "grade": "RSS 3", "qty": 6, "price": 48,
           "start_date": today, "delivery_date": (date.today() + timedelta(days=10)).isoformat()}
     made = client.put("/api/unit-daily/stock-contracts", json=ct, headers=eh)
     assert made.status_code == 200 and made.json()["contract"]["id"]
-    # Ngày bắt đầu phải TRƯỚC ngày giao ít nhất 1 ngày (chặn nhập sai).
-    bad = client.put("/api/unit-daily/stock-contracts",
-                     json={**ct, "delivered_date": today}, headers=eh)
-    assert bad.status_code == 400 and "trước Ngày giao" in bad.json()["detail"]
 
     tl = client.get("/api/unit-daily/timeline?kind=consumption&days=30", headers=eh)
     saved = next(e for e in tl.json()["entries"] if e["company"] == unit)["fields"]
     assert saved["sales"][0]["qty"] == 12.5
     # Số HĐ/PL lưu theo TỪNG DÒNG bán; dòng không gõ thì để trống.
     assert saved["sales"][0]["code"] == "HĐ-01/2026"
-    # Khối 3 hiện ra là số TỰ TÍNH từ bảng hợp đồng (không phải số client gửi kèm).
-    # Shape mới: {"qty", "by_grade", "items"} — hợp đồng lập qua bảng CŨ (unit_stock_contract)
-    # đánh dấu "legacy": True để phân biệt với nguồn sales_contract mới.
-    assert [r["code"] for r in saved["stock_signed_undelivered"]["items"]] == ["HĐ-02/2026"]
-    assert saved["stock_signed_undelivered"]["qty"] == 6
-    assert saved["stock_signed_undelivered"]["items"][0]["legacy"] is True
+    # Khối 3 là số TỰ TÍNH từ `sales_contract` (không phải số client gửi kèm, cũng KHÔNG lấy
+    # hợp đồng theo bảng cũ) — đơn vị này chưa có hợp đồng nào ở cơ chế mới nên bằng 0.
+    assert saved["stock_signed_undelivered"]["qty"] == 0
+    assert saved["stock_signed_undelivered"]["items"] == []
     assert saved["sales_own"][0]["code"] is None
     # Dòng mủ khai thác lưu riêng, giữ đủ 2 mốc ngày + các file chứng từ đính kèm.
     own = saved["sales_own"][0]
@@ -169,13 +183,14 @@ def test_unit_daily_member_and_editor_flow() -> None:
                     headers=eh)
     assert pr.status_code == 200
     row = next(r for r in pr.json()["rows"] if r["company"] == unit)
-    # Tổng tiêu thụ = mủ thu mua (12.5) + mủ khai thác (7.5), tách đúng theo loại HĐ / hình thức.
-    assert row["lt_export"] == 12.5 and row["spot_domestic"] == 7.5
-    assert row["total_consumption"] == 20.0
-    # Tồn kho thành phẩm = khối 1 + khối 2 = 24; khối 3 (đã ký HĐ chưa giao) báo RIÊNG —
-    # KHÔNG cộng vào (≠ 30) và KHÔNG trừ ra (≠ 18).
+    # Tiêu thụ chỉ đến từ LẦN GIAO của hợp đồng — dòng bán kiểu cũ không còn được cộng, và kỳ có
+    # dữ liệu cũ chưa chuyển đổi thì phải cảnh báo (chốt 02/08/2026).
+    assert row["total_consumption"] is None and row["lt_export"] is None
+    assert any("CHƯA được chuyển" in w for w in pr.json()["warnings"])
+    # Tồn kho thành phẩm = khối 1 + khối 2 = 24; khối 3 (đã ký HĐ chưa giao) báo RIÊNG, và đơn vị
+    # này chưa có hợp đồng ở cơ chế mới nên bằng 0 (KHÔNG lấy hợp đồng bảng cũ).
     assert row["stock_finished"] == 24.0
-    assert row["stock_finished_hd"] == 6.0 and row["stock_material"] == 3.5
+    assert not row["stock_finished_hd"] and row["stock_material"] == 3.5
 
     # Đơn vị thành viên KHÔNG được xem báo cáo tổng hợp (chỉ admin / quyền unit_daily).
     assert client.get(f"/api/unit-daily/period-report?kind=purchase&date_from={today}&date_to={today}",
@@ -254,20 +269,14 @@ def test_cup_basis_and_prev_stock() -> None:
     # HĐ đã ký cũng KHÔNG chép sang — nó tự nối ngày theo vòng đời, chép lại là nhân đôi.
     assert "stock_signed_undelivered" not in prev
 
-    # 3) Hợp đồng đã ký của đơn vị: tự nằm trong tồn kho tới HẾT NGÀY TRƯỚC ngày giao.
+    # 3) Hợp đồng ở bảng CŨ không còn vào khối 3 của báo cáo ngày (chốt 02/08/2026) — khối 3 chỉ
+    # tính từ `sales_contract`. Số cũ vẫn tra cứu được ở màn "Hợp đồng cũ" (chỉ xem).
     made = client.put("/api/member/stock-contracts", headers=mh, json={
         "company": unit, "code": "HĐ-09/2026", "grade": "SVR 10 / CSR 10", "qty": 12,
         "price": 40, "start_date": y_day, "delivered_date": t_day})
     assert made.status_code == 200
-    cid = made.json()["contract"]["id"]
     y_view = client.get(f"/api/member/daily-report?kind=consumption&as_of={y_day}", headers=mh).json()
-    assert y_view["entries"][unit]["fields"]["stock_signed_undelivered"]["qty"] == 12
-    # Ngày giao: đã xuất kho → KHÔNG còn tính vào tồn kho nữa (ngày đó không còn số liệu nào).
-    t_view = client.get(f"/api/member/daily-report?kind=consumption&as_of={t_day}", headers=mh).json()
-    t_entry = t_view["entries"][unit] or {"fields": {}}
-    assert t_entry["fields"].get("stock_signed_undelivered", {}).get("items", []) == []
-    # Đơn vị khác không xoá được hợp đồng này.
-    assert client.delete(f"/api/member/stock-contracts/{cid}", headers=mh).status_code == 200
+    assert y_view["entries"][unit]["fields"]["stock_signed_undelivered"]["qty"] == 0
 
     # Không có ngày nào trước đó → found=false (không dựng số khống).
     empty = client.get(f"/api/member/daily-report/prev-stock?company={unit}&before={y_day}",
@@ -331,12 +340,9 @@ def test_stock_contract_history() -> None:
     mh = _bearer("ud_hist_mem", "pass123")
 
     # 1 HĐ đã giao (delivered) + 1 HĐ chưa giao (undelivered), khác ngày bắt đầu để test lọc/sắp xếp.
-    delivered = client.put("/api/unit-daily/stock-contracts", headers=eh, json={
-        "company": unit, "code": "HĐ-H1/2026", "grade": "RSS 3", "qty": 5, "price": 40,
-        "start_date": old_day, "delivered_date": recent_day}).json()["contract"]
-    undelivered = client.put("/api/unit-daily/stock-contracts", headers=eh, json={
-        "company": unit, "code": "HĐ-H2/2026", "grade": "SVR 3L", "qty": 8, "price": 45,
-        "start_date": recent_day}).json()["contract"]
+    # Bảng cũ đã đóng băng (không lập mới qua API) → dựng thẳng vào DB như dữ liệu lịch sử có sẵn.
+    delivered = _legacy_contract(unit, "HĐ-H1/2026", "RSS 3", 5, old_day, recent_day)
+    undelivered = _legacy_contract(unit, "HĐ-H2/2026", "SVR 3L", 8, recent_day, None)
 
     # HĐ đã giao KHÔNG còn hiện trong danh sách tồn kho hôm nay (hành vi hiện có)...
     todays = client.get(f"/api/unit-daily/stock-contracts?as_of={today.isoformat()}&company={unit}",
@@ -396,8 +402,10 @@ def test_contract_docs_multi_file() -> None:
                                     "role": "editor", "permissions": ["unit_daily"]}, headers=h)
     eh = _bearer("ud_docs_ed", "pass123")
 
-    # ── Hợp đồng tồn kho: gửi DANH SÁCH nhiều file ───────────────────────────────────────
+    # ── Hợp đồng tồn kho (bảng CŨ, chỉ SỬA được): gửi DANH SÁCH nhiều file ────────────────
+    d1 = _legacy_contract(unit, "HĐ-D1", "RSS 3", 5, day, None)
     many = client.put("/api/unit-daily/stock-contracts", headers=eh, json={
+        "id": d1["id"],
         "company": unit, "code": "HĐ-D1", "grade": "RSS 3", "qty": 5, "price": 40,
         "start_date": day,
         "files": [{"file": "a.pdf", "filename": "hop-dong.pdf"},
@@ -412,7 +420,9 @@ def test_contract_docs_multi_file() -> None:
     assert [d["file"] for d in next(c for c in got if c["id"] == many["id"])["files"]] == ["a.pdf", "b.pdf"]
 
     # ── Client CŨ chỉ gửi cặp khoá phẳng → server tự dựng thành danh sách 1 file ──────────
+    d2 = _legacy_contract(unit, "HĐ-D2", "SVR 3L", 3, day, None)
     legacy = client.put("/api/unit-daily/stock-contracts", headers=eh, json={
+        "id": d2["id"],
         "company": unit, "code": "HĐ-D2", "grade": "SVR 3L", "qty": 3, "price": 41,
         "start_date": day, "file": "old.pdf", "filename": "ban-cu.pdf",
     }).json()["contract"]
@@ -480,8 +490,10 @@ def test_period_report_keeps_last_real_stock() -> None:
                     f"&date_from={yesterday}&date_to={today}", headers=eh)
     assert pr.status_code == 200
     row = next(r for r in pr.json()["rows"] if r["company"] == unit)
-    # Tiêu thụ vẫn CỘNG DỒN cả 2 ngày; tồn kho giữ ảnh chụp hôm qua và nói rõ ngày đã lấy.
-    assert row["total_consumption"] == 7.0
+    # Tồn kho giữ ảnh chụp hôm qua và nói rõ ngày đã lấy. Dòng bán kiểu cũ KHÔNG vào tiêu thụ nữa
+    # (chốt 02/08/2026) — nhưng bản ghi chỉ có dòng bán vẫn KHÔNG được kéo tồn kho về 0.
+    assert row["total_consumption"] is None
+    assert any("CHƯA được chuyển" in w for w in pr.json()["warnings"])
     assert row["stock_finished"] == 24.0 and row["stock_material"] == 3.5
     assert row["stock_as_of"] == yesterday and row["last_day"] == today
     assert row["stock_by_grade"]["RSS 3"] == 24.0

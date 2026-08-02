@@ -17,8 +17,10 @@ from __future__ import annotations
 from typing import Any
 
 from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC, UNIT_STOCK_GRADES
-from app.services import member_unit_repo, price_repo, sales_contract_report, unit_daily_repo, unit_report_rows
-from app.services.unit_daily_fields import SALE_TABLES
+from app.services import (
+    legacy_data_notice, member_unit_repo, price_repo, sales_contract_report, unit_daily_repo,
+    unit_report_rows,
+)
 
 TY = 1_000_000_000      # 1 tỷ đồng
 TRIEU = 1_000_000       # 1 triệu đồng
@@ -154,29 +156,10 @@ def _cost_by_channel(companies: list[str] | None, date_from: str, date_to: str,
 def _consumption_rows(entries: list[dict], plan: dict, signed: dict[str, Any] | None = None,
                       contract: dict[str, Any] | None = None,
                       cost_by_channel: dict[str, float] | None = None) -> dict[str, Any]:
-    acc: dict[str, float] = {}
-    for e in entries:
-        f = e["fields"]
-        # Ngày đã chuyển đổi sang hợp đồng thì mảng cũ chỉ còn để TRA CỨU — cộng vào nữa là đếm 2 lần.
-        if f.get("sales_migrated") is True:
-            continue
-        _add(acc, "revenue", f.get("revenue"))
-        # Mủ THU MUA (`sales`) và mủ KHAI THÁC (`sales_own`) nhập tách riêng nhưng CỘNG CHUNG vào tổng.
-        # ⚠ Hai mảng này là dữ liệu CŨ (đóng băng từ 30/07/2026) — xem khối hợp đồng bên dưới.
-        for key in SALE_TABLES:
-            for ln in f.get(key) or []:
-                k = f"{ln.get('contract') or 'long_term'}_{ln.get('channel') or 'export'}"
-                _add(acc, k, ln.get("qty"))
-
-    lt_e, lt_d = acc.get("long_term_export", 0.0), acc.get("long_term_domestic", 0.0)
-    sp_e, sp_d = acc.get("spot_export", 0.0), acc.get("spot_domestic", 0.0)
-    legacy_total = lt_e + lt_d + sp_e + sp_d
-    legacy_revenue = acc.get("revenue")
-
-    # ── Tiêu thụ từ HỢP ĐỒNG (nguồn MỚI, chốt 30/07/2026) — CỘNG THÊM lên mảng sales/sales_own cũ.
-    # Hai mảng cũ không nhập nữa (đóng băng lịch sử); hợp đồng là nguồn phát sinh hiện hành.
-    # Ngày nào đã được script chuyển sang hợp đồng thì mảng cũ bị bỏ qua ở vòng lặp trên (cờ
-    # `sales_migrated`) → cộng hai nguồn ở đây KHÔNG bị đếm trùng.
+    # ── Tiêu thụ CHỈ lấy từ HỢP ĐỒNG (chốt 02/08/2026) ────────────────────────────────────────
+    # Hai mảng `sales`/`sales_own` cũ KHÔNG còn được cộng vào báo cáo: chừng nào chưa chạy script
+    # chuyển đổi thì chúng chỉ là dữ liệu tra cứu. Trộn hai cơ chế làm số lộn xộn (loại hợp đồng,
+    # hình thức, mốc ghi nhận, cách tính doanh thu đều khác nhau) — xem `scripts/migrate-sales-contracts.py`.
     contract = contract or {}
     has_contract = bool(contract.get("deliveries"))
     c_qty = contract.get("qty", 0.0)
@@ -186,13 +169,17 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: dict[str, Any] | 
     c_export = by_channel.get("export", 0.0)
     c_domestic = by_channel.get("domestic", 0.0)
     c_internal = by_channel.get("internal", 0.0)
+    # Chỉ tiêu dài hạn/chuyến lấy từ `contract_type` của hợp đồng mẹ. Lần giao chưa khai loại nằm
+    # ở khoá "" — KHÔNG dồn vào một loại nào, nếu không hai chỉ tiêu này sai.
+    by_type = contract.get("by_type") or {}
+    lt_total = by_type.get("long_term", 0.0)
+    spot_total = by_type.get("spot", 0.0)
+    tc = contract.get("by_type_channel") or {}
+    lt_e, lt_d = tc.get("long_term|export", 0.0), tc.get("long_term|domestic", 0.0)
+    sp_e, sp_d = tc.get("spot|export", 0.0), tc.get("spot|domestic", 0.0)
 
-    total = legacy_total + c_qty
-    # Doanh thu tổng = doanh thu đã lưu (cũ) + doanh thu hợp đồng (mới); bằng None nếu hợp đồng CÓ
-    # lần giao thiếu tỷ giá — báo cáo hiển thị "—" thay vì một con số thiếu chính xác.
-    revenue = (None if (has_contract and c_revenue is None) else
-              ((legacy_revenue or 0.0) + (c_revenue or 0.0)
-               if (legacy_revenue is not None or c_revenue is not None) else None))
+    total = c_qty
+    revenue = None if (has_contract and c_revenue is None) else (c_revenue if has_contract else None)
     cbc = cost_by_channel or {}
 
     # Tồn kho = THỜI ĐIỂM: lấy lần chốt tồn GẦN NHẤT trong kỳ (KHÔNG cộng dồn các ngày).
@@ -220,13 +207,13 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: dict[str, Any] | 
     return {
         "signed_lt_tonnes": _num(plan.get("signed_lt_tonnes")),
         "lt_export": lt_e or None, "lt_domestic": lt_d or None,
-        "lt_total": (lt_e + lt_d) or None,
+        "lt_total": lt_total or None,
         "spot_export": sp_e or None, "spot_domestic": sp_d or None,
-        "spot_total": (sp_e + sp_d) or None,
+        "spot_total": spot_total or None,
         "total_consumption": total or None,
-        "export_total": (lt_e + sp_e + c_export) or None,
-        "domestic_total": (lt_d + sp_d + c_domestic) or None,
-        "internal_total": c_internal or None,   # hình thức MỚI (chỉ có ở nguồn hợp đồng)
+        "export_total": c_export or None,
+        "domestic_total": c_domestic or None,
+        "internal_total": c_internal or None,
         "revenue_ty": (revenue / TY) if revenue is not None else None,
         "avg_sell_price": (r / TRIEU if (r := _ratio(revenue, total)) is not None else None),
         # ── Chi phí trên dòng bán (chỉ có ở hợp đồng — mảng sales/sales_own cũ không ghi chi phí) ──
@@ -287,5 +274,9 @@ def period_report(kind: str, date_from: str, date_to: str,
             "days": len(ent), "last_day": max((e["as_of"] for e in ent), default=None),
             **data,
         })
+    # Biểu tiêu thụ chỉ đọc hợp đồng → kỳ nào còn dữ liệu cũ chưa chuyển đổi phải nói rõ, nếu không
+    # bảng hiện 0 tấn và người đọc hiểu là đơn vị không bán gì.
+    warnings = (legacy_data_notice.warnings(date_from, date_to, companies)
+                if kind == "consumption" else [])
     return {"kind": kind, "date_from": date_from, "date_to": date_to,
-            "grades": GRADES, "rows": rows}
+            "grades": GRADES, "rows": rows, "warnings": warnings}

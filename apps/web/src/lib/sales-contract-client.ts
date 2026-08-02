@@ -29,6 +29,9 @@ export type ContractLine = {
   cost: number | null;
 };
 
+/** Loại hợp đồng: dài hạn | chuyến. null = chưa khai (bản ghi chuyển từ cơ chế cũ). */
+export type ContractType = "long_term" | "spot" | null;
+
 export type Contract = {
   id: number | null;
   company: string;
@@ -36,6 +39,9 @@ export type Contract = {
   code: string;
   customer_id: number | null;
   delivery_type: "single" | "multi";
+  /** Loại HỢP ĐỒNG (chỉ tiêu báo cáo) — độc lập với loại GIAO ở trên. Chỉ đặt ở hợp đồng mẹ;
+   *  phụ lục để null và thừa kế của mẹ khi thống kê. */
+  contract_type: ContractType;
   sign_date: string | null;
   expiry_date: string | null;
   /** Ngày MỞ ĐỢT giao — đợt nằm ở "đã ký HĐ chưa giao" từ ngày này đến hết ngày trước ngày giao. */
@@ -74,6 +80,10 @@ export type ContractMeta = {
   dry_required: string[];
   channels: Record<string, string>;
   delivery_types: Record<string, string>;
+  contract_types: Record<string, string>;
+  /** {đơn vị: đơn vị được nhận hàng nội bộ} — chỉ trong nhóm công ty mẹ–con. Không có tên trong
+   *  map = đơn vị đứng một mình → form ẩn hình thức "Tiêu thụ nội bộ". */
+  internal_targets: Record<string, string[]>;
   currencies: string[];
   unit_currency: Record<string, string>;   // {đơn vị: nội tệ} — lọc loại tiền cho đúng đơn vị
   customers: Customer[];

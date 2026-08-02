@@ -23,12 +23,12 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
-from app.core.market_meta import DELIVERY_TYPES, SALE_CHANNELS
+from app.core.market_meta import CONTRACT_TYPES, DELIVERY_TYPES, SALE_CHANNELS
 from app.services import audit_repo, contract_docs, customer_repo, sales_contract_calc as calc
 
-_COLS = ("id", "company", "parent_id", "code", "customer_id", "delivery_type", "sign_date",
-         "expiry_date", "start_date", "lines", "delivered", "delivered_at", "channel", "to_company",
-         "payment_date", "payment_qty", "payment_cost", "payment_docs", "files", "note")
+_COLS = ("id", "company", "parent_id", "code", "customer_id", "delivery_type", "contract_type",
+         "sign_date", "expiry_date", "start_date", "lines", "delivered", "delivered_at", "channel",
+         "to_company", "payment_date", "payment_qty", "payment_cost", "payment_docs", "files", "note")
 _DATE_COLS = ("sign_date", "expiry_date", "start_date", "delivered_at", "payment_date")
 
 
@@ -95,6 +95,24 @@ def _assert_unit_exists(name: str, label: str) -> None:
         raise ValueError(f"{label} “{name}” không có trong danh sách đơn vị thành viên.")
 
 
+def _assert_same_group(company: str, to_company: str) -> None:
+    """Tiêu thụ NỘI BỘ chỉ trong nhóm công ty mẹ–con — bán ra ngoài nhóm là bán ngoài.
+
+    Chặn ở đây chứ không chỉ ở form: lọt một hợp đồng "nội bộ" với đơn vị ngoài nhóm là chỉ tiêu
+    tiêu thụ nội bộ của cả Tập đoàn sai, mà nhìn số không biết sai từ đâu.
+    """
+    from app.services import member_unit_repo
+
+    peers = member_unit_repo.internal_targets().get(company) or []
+    if to_company not in peers:
+        raise ValueError(
+            f"“{to_company}” không cùng nhóm công ty mẹ–con với “{company}” nên không phải tiêu thụ "
+            "nội bộ. Gán Công ty mẹ ở màn Đơn vị thành viên, hoặc chọn hình thức khác."
+            if peers else
+            f"“{company}” chưa thuộc nhóm công ty mẹ–con nào nên không có tiêu thụ nội bộ. "
+            "Gán Công ty mẹ ở màn Đơn vị thành viên trước.")
+
+
 def _parent_of(db, parent_id: int) -> dict[str, Any]:
     row = db.execute(text(f"SELECT {', '.join(_COLS)} FROM sales_contract WHERE id = :i"),
                      {"i": parent_id}).mappings().first()
@@ -130,6 +148,14 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         delivery_type = "single"
     elif delivery_type == "multi" and delivered:
         raise ValueError("Hợp đồng giao nhiều lần không tự đánh dấu đã giao — hãy nhập phụ lục.")
+    # Loại HỢP ĐỒNG (dài hạn/chuyến) là chỉ tiêu báo cáo, ĐỘC LẬP loại giao. Chỉ khai ở hợp đồng
+    # mẹ — phụ lục thừa kế của mẹ khi thống kê (xem `sales_contract_report.deliveries`).
+    raw_ctype = str(row.get("contract_type") or "").strip()
+    if raw_ctype and raw_ctype not in CONTRACT_TYPES:
+        raise ValueError(f"Loại hợp đồng “{raw_ctype}” không hợp lệ.")
+    contract_type = None if is_child else raw_ctype or None
+    if contract_type is None and not is_child:
+        raise ValueError("Thiếu loại hợp đồng (HĐ dài hạn / HĐ chuyến).")
     raw_channel = str(row.get("channel") or "").strip()
     if raw_channel and raw_channel not in SALE_CHANNELS:
         raise ValueError(f"Hình thức tiêu thụ “{raw_channel}” không hợp lệ.")
@@ -143,6 +169,7 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         _assert_unit_exists(to_company, "Đơn vị nhận")
         if to_company == company:
             raise ValueError("Đơn vị nhận của tiêu thụ nội bộ phải khác đơn vị bán.")
+        _assert_same_group(company, to_company)
     else:
         to_company = None
 
@@ -178,6 +205,7 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         "code": code,
         "customer_id": customer_id,
         "delivery_type": delivery_type,
+        "contract_type": contract_type,
         "sign_date": sign.isoformat() if sign else None,
         "expiry_date": expiry.isoformat() if expiry else None,
         "start_date": start.isoformat() if start else None,
@@ -197,10 +225,12 @@ def clean(row: dict, company: str) -> dict[str, Any]:
 
 
 _INSERT = text(
-    "INSERT INTO sales_contract (company, parent_id, code, customer_id, delivery_type, sign_date, "
+    "INSERT INTO sales_contract (company, parent_id, code, customer_id, delivery_type, "
+    " contract_type, sign_date, "
     " expiry_date, start_date, lines, delivered, delivered_at, channel, to_company, payment_date, "
     " payment_qty, payment_cost, payment_docs, files, note, updated_by) "
-    "VALUES (:company, :parent_id, :code, :customer_id, :delivery_type, CAST(:sign_date AS date), "
+    "VALUES (:company, :parent_id, :code, :customer_id, :delivery_type, :contract_type, "
+    " CAST(:sign_date AS date), "
     " CAST(:expiry_date AS date), CAST(:start_date AS date), CAST(:lines AS jsonb), :delivered, "
     " CAST(:delivered_at AS date), "
     " :channel, :to_company, CAST(:payment_date AS date), :payment_qty, :payment_cost, "
@@ -208,7 +238,8 @@ _INSERT = text(
 
 _UPDATE = text(
     "UPDATE sales_contract SET code = :code, customer_id = :customer_id, "
-    " delivery_type = :delivery_type, sign_date = CAST(:sign_date AS date), "
+    " delivery_type = :delivery_type, contract_type = :contract_type, "
+    " sign_date = CAST(:sign_date AS date), "
     " expiry_date = CAST(:expiry_date AS date), start_date = CAST(:start_date AS date), "
     " lines = CAST(:lines AS jsonb), "
     " delivered = :delivered, delivered_at = CAST(:delivered_at AS date), channel = :channel, "

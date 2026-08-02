@@ -139,6 +139,13 @@ DELIVERY_TYPES: dict[str, str] = {
     "multi": "Giao nhiều lần (hợp đồng mẹ – phụ lục)",
 }
 
+# Loại HỢP ĐỒNG — chỉ tiêu báo cáo (mẫu Tiêu thụ – Tồn kho, Kế hoạch năm). ĐỘC LẬP với loại GIAO:
+# một hợp đồng dài hạn vẫn có thể giao trọn 1 lần, nên KHÔNG suy ra từ `DELIVERY_TYPES`.
+CONTRACT_TYPES: dict[str, str] = {
+    "long_term": "HĐ dài hạn",
+    "spot": "HĐ chuyến",
+}
+
 # Loại tiền trên dòng bán/thu mua — thêm nội tệ đơn vị nước ngoài (Lào LAK · Campuchia KHR).
 SALE_CURRENCIES: tuple[str, ...] = ("VND", "USD", "LAK", "KHR")
 

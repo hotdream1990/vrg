@@ -204,6 +204,30 @@ def set_parent(name: str, parent: str | None) -> None:
             {"p": parent, "n": name})
 
 
+def internal_targets() -> dict[str, list[str]]:
+    """{đơn vị: [đơn vị được nhận hàng tiêu thụ NỘI BỘ]} — giới hạn trong NHÓM công ty mẹ–con.
+
+    Một nhóm = 1 công ty mẹ + các công ty con của nó. Trong nhóm bán cho nhau theo cả hai chiều
+    (mẹ→con, con→mẹ, con→con cùng mẹ); ra ngoài nhóm là bán ngoài, không phải nội bộ.
+    Đơn vị đứng một mình (không mẹ, không con) KHÔNG có tiêu thụ nội bộ → không xuất hiện ở đây.
+    """
+    units = list_units(include_inactive=False)
+    children: dict[str, list[str]] = {}
+    for u in units:
+        if p := u.get("parent_company"):
+            children.setdefault(p, []).append(u["name"])
+    # Tên nhóm = tên công ty mẹ. Đơn vị mẹ thuộc chính nhóm nó; đơn vị con thuộc nhóm của mẹ.
+    group_of = {**{p: p for p in children}, **{c: p for p, cs in children.items() for c in cs}}
+    out: dict[str, list[str]] = {}
+    for name, root in group_of.items():
+        if root not in {u["name"] for u in units}:
+            continue          # công ty mẹ đã ngừng hoạt động → nhóm coi như không còn
+        peers = [x for x in [root, *children.get(root, [])] if x != name]
+        if peers:
+            out[name] = peers
+    return out
+
+
 def parents() -> set[str]:
     """Tập tên đơn vị đang là công ty mẹ của ít nhất 1 đơn vị khác.
 

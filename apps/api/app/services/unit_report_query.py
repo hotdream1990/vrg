@@ -14,8 +14,19 @@ from typing import Callable
 
 from app.services.unit_report_rows import MATERIAL_LABELS, SOURCE_LABELS
 
+#: Nhãn cho ô CHƯA KHAI — hiện rõ là thiếu dữ liệu, thay vì để chuỗi rỗng hay đoán bừa một loại.
+UNKNOWN_LABEL = "(chưa khai)"
+
 CONTRACT_LABELS = {"long_term": "HĐ dài hạn", "spot": "HĐ chuyến"}
-CHANNEL_LABELS = {"export": "XK / UTXK", "domestic": "Tiêu thụ trong nước"}
+# Đủ 3 hình thức của cơ chế hợp đồng — thiếu "internal" thì tiêu thụ nội bộ hiện ra chuỗi thô.
+CHANNEL_LABELS = {"export": "XK / UTXK", "domestic": "Tiêu thụ trong nước",
+                  "internal": "Tiêu thụ nội bộ"}
+
+
+def label_of(labels: dict[str, str], v: str | None) -> str:
+    """Nhãn của một giá trị enum; giá trị lạ/thiếu → "(chưa khai)" chứ KHÔNG lọt chuỗi thô ra UI."""
+    return labels.get(v or "", UNKNOWN_LABEL)
+
 
 #: group_by → hàm lấy nhãn nhóm của 1 dòng chi tiết.
 GROUPERS: dict[str, Callable[[dict], str | None]] = {
@@ -24,8 +35,8 @@ GROUPERS: dict[str, Callable[[dict], str | None]] = {
     "day": lambda r: r.get("as_of"),
     "grade": lambda r: r.get("grade"),
     "material": lambda r: MATERIAL_LABELS.get(r.get("material") or ""),
-    "contract": lambda r: CONTRACT_LABELS.get(r.get("contract") or ""),
-    "channel": lambda r: CHANNEL_LABELS.get(r.get("channel") or ""),
+    "contract": lambda r: label_of(CONTRACT_LABELS, r.get("contract")),
+    "channel": lambda r: label_of(CHANNEL_LABELS, r.get("channel")),
     "source": lambda r: SOURCE_LABELS.get(r.get("source") or ""),
 }
 

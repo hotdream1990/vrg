@@ -110,31 +110,16 @@ def _empty_contracts() -> dict[str, Any]:
 
 
 def contracts_on(as_of: str, companies: list[str] | None = None) -> dict[str, dict[str, Any]]:
-    """{đơn vị: {qty, by_grade, items}} — khối 3 (ĐÃ KÝ HĐ CHƯA GIAO) TỔNG HỢP tại ngày `as_of`.
+    """{đơn vị: {qty, by_grade, items}} — khối 3 (ĐÃ KÝ HĐ CHƯA GIAO) tại ngày `as_of`.
 
-    Cộng 2 nguồn để không mất số liệu lịch sử khi chuyển đổi (chốt 30/07/2026):
-      - `sales_contract` (MỚI) qua `sales_contract_report.undelivered_on` — nguồn hiện hành.
-      - `unit_stock_contract` (CŨ) qua `unit_stock_contract_repo.active_on` — hợp đồng nhập trước
-        ngày chuyển đổi vẫn còn hiệu lực; mỗi dòng đánh dấu `"legacy": True` trong `items` để phân
-        biệt nguồn khi hiển thị. Hợp đồng cũ ĐÃ chuyển sang bảng mới (`migrated`) bị loại ở đây vì
-        bản sao của nó đã được đếm ở nguồn thứ nhất.
+    Nguồn DUY NHẤT là `sales_contract` (chốt 02/08/2026). Hợp đồng nhập theo cách cũ
+    (`unit_stock_contract`) KHÔNG còn được cộng vào: hai cơ chế không cùng khuôn số liệu, trộn vào
+    nhau làm khối 3 lộn xộn. Số cũ vẫn tra cứu được ở màn "Hợp đồng cũ" và sẽ vào báo cáo sau khi
+    chạy `scripts/migrate-sales-contracts.py` (chuyển sang bảng mới rồi bật cờ `migrated`).
     """
-    from app.services import sales_contract_report, unit_stock_contract_repo
+    from app.services import sales_contract_report
 
-    out = sales_contract_report.undelivered_on(as_of, companies)
-    legacy = unit_stock_contract_repo.active_on(as_of, companies, include_migrated=False)
-    for company, rows in legacy.items():
-        if not rows:
-            continue
-        acc = out.setdefault(company, _empty_contracts())
-        for r in rows:
-            qty = r.get("qty") or 0.0
-            acc["qty"] += qty
-            grade = r.get("grade")
-            if grade:
-                acc["by_grade"][grade] = acc["by_grade"].get(grade, 0.0) + qty
-            acc["items"].append({**r, "legacy": True})
-    return out
+    return sales_contract_report.undelivered_on(as_of, companies)
 
 
 def _attach_contracts(entries: dict[str, dict[str, Any]], as_of: str, create_missing: bool) -> None:

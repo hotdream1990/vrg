@@ -84,8 +84,10 @@ export default function MemberUnitPage() {
       {tab === "units" ? (
         <>
           <p className="form-note" style={{ fontSize: 12, marginBottom: 8 }}>
-            Đơn vị con vẫn được chuyển tiêu thụ nội bộ cho BẤT KỲ đơn vị nào — cột "Công ty mẹ" chỉ dùng
-            để gom báo cáo cấp Tập đoàn và bật ô "chi phí tổng cấp công ty mẹ".
+            Cột "Công ty mẹ" định nghĩa NHÓM công ty: tiêu thụ nội bộ chỉ được bán trong nhóm
+            (mẹ ↔ con, con ↔ con cùng mẹ). Đơn vị chưa gán mẹ và không có con thì hợp đồng
+            KHÔNG chọn được hình thức "Tiêu thụ nội bộ". Cột này còn dùng để gom báo cáo cấp
+            Tập đoàn và bật ô "chi phí tổng cấp công ty mẹ".
           </p>
           <ManagedListTab<MemberUnit>
             api={unitApi} canEdit={canEdit}

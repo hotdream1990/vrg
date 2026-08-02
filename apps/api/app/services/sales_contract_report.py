@@ -48,8 +48,9 @@ def deliveries(date_from: str, date_to: str, companies: list[str] | None = None,
                customer_id: int | None = None) -> list[dict[str, Any]]:
     """Các LẦN GIAO có ngày giao trong [date_from, date_to] — nguồn số tiêu thụ của kỳ.
 
-    Phụ lục KHÔNG mang khách hàng (khách gán ở hợp đồng mẹ) → gắn `customer_id` của mẹ vào từng
-    lần giao, nếu không thì không lọc/thống kê theo khách hàng được.
+    Phụ lục KHÔNG mang khách hàng lẫn loại hợp đồng (cả hai gán ở hợp đồng mẹ) → gắn `customer_id`
+    và `contract_type` của mẹ vào từng lần giao, nếu không thì không lọc/thống kê theo khách hàng
+    và không tách được chỉ tiêu "HĐ dài hạn / HĐ chuyến".
     """
     rows = _fetch(companies,
                   ["delivered", "delivered_at IS NOT NULL",
@@ -57,11 +58,11 @@ def deliveries(date_from: str, date_to: str, companies: list[str] | None = None,
                   {"df": date_from, "dt": date_to})
     parent_ids = sorted({r["parent_id"] for r in rows if r["parent_id"] is not None})
     if parent_ids:
-        owner = {p["id"]: p["customer_id"]
+        owner = {p["id"]: (p["customer_id"], p["contract_type"])
                  for p in _fetch(None, ["id = ANY(:ps)"], {"ps": parent_ids})}
         for r in rows:
             if r["parent_id"] is not None:
-                r["customer_id"] = owner.get(r["parent_id"])
+                r["customer_id"], r["contract_type"] = owner.get(r["parent_id"], (None, None))
     if customer_id is not None:
         rows = [r for r in rows if r.get("customer_id") == customer_id]
     return rows
@@ -78,7 +79,8 @@ def consumption(date_from: str, date_to: str, companies: list[str] | None = None
     for c in deliveries(date_from, date_to, companies, customer_id):
         acc = out.setdefault(c["company"], {
             "qty": 0.0, "qty_dry": 0.0, "cost": 0.0, "revenue": 0.0, "revenue_missing": False,
-            "deliveries": 0, "by_channel": {}, "by_grade": {}, "by_customer": {},
+            "deliveries": 0, "by_channel": {}, "by_grade": {}, "by_customer": {}, "by_type": {},
+            "by_type_channel": {},
         })
         cu = str(c.get("customer_id") or 0)
         cus = acc["by_customer"].setdefault(cu, {"qty": 0.0, "revenue": 0.0})
@@ -94,6 +96,12 @@ def consumption(date_from: str, date_to: str, companies: list[str] | None = None
             acc["revenue"] += c["revenue"]
         ch = c.get("channel") or "domestic"
         acc["by_channel"][ch] = acc["by_channel"].get(ch, 0.0) + c["qty"]
+        # Loại hợp đồng lấy từ mẹ (đã gắn ở `deliveries`); dữ liệu chưa khai gom vào khoá rỗng
+        # thay vì dồn vào một loại — dồn là làm sai chỉ tiêu dài hạn/chuyến.
+        ct = c.get("contract_type") or ""
+        acc["by_type"][ct] = acc["by_type"].get(ct, 0.0) + c["qty"]
+        # Mẫu báo cáo cần ô chéo (dài hạn × xuất khẩu, chuyến × trong nước…) nên giữ luôn bảng chéo.
+        acc["by_type_channel"][f"{ct}|{ch}"] = acc["by_type_channel"].get(f"{ct}|{ch}", 0.0) + c["qty"]
         for g, q in _by_grade(c["lines"]).items():
             acc["by_grade"][g] = acc["by_grade"].get(g, 0.0) + q
     for acc in out.values():

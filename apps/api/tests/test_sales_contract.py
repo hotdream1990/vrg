@@ -18,6 +18,7 @@ client = TestClient(app)
 
 UNIT = "_zz_sc_unit"
 UNIT2 = "_zz_sc_unit2"
+UNIT3 = "_zz_sc_unit3"
 TODAY = date.today().isoformat()
 YESTERDAY = (date.today() - timedelta(days=1)).isoformat()
 
@@ -34,11 +35,12 @@ def _admin() -> dict[str, str]:
 
 
 def _cleanup(h: dict[str, str]) -> None:
+    units = [UNIT, UNIT2, UNIT3]
     with session_scope() as db:
         db.execute(text("DELETE FROM sales_contract WHERE company = ANY(:u) OR to_company = ANY(:u)"),
-                   {"u": [UNIT, UNIT2]})
-        db.execute(text("DELETE FROM unit_customer WHERE company = ANY(:u)"), {"u": [UNIT, UNIT2]})
-    for n in (UNIT, UNIT2):
+                   {"u": units})
+        db.execute(text("DELETE FROM unit_customer WHERE company = ANY(:u)"), {"u": units})
+    for n in units:
         client.delete(f"/api/member-units/{n}", headers=h)
 
 
@@ -50,8 +52,12 @@ def _line(grade="SVR 10 / CSR 10", qty=100.0, **kw) -> dict:
 def env():
     h = _admin()
     _cleanup(h)
-    client.post("/api/member-units", json={"name": UNIT}, headers=h)
-    client.post("/api/member-units", json={"name": UNIT2}, headers=h)
+    for n in (UNIT, UNIT2, UNIT3):
+        client.post("/api/member-units", json={"name": n}, headers=h)
+    # UNIT2 là công ty CON của UNIT → hai đơn vị cùng nhóm, bán cho nhau mới là tiêu thụ NỘI BỘ.
+    # UNIT3 đứng một mình (ngoài nhóm) để kiểm ràng buộc.
+    client.put(f"/api/member-units/{UNIT2}", headers=h,
+               json={"set_parent": True, "parent_company": UNIT})
     yield h
     _cleanup(h)
 
@@ -83,7 +89,7 @@ def test_contract_rejects_customer_of_another_unit(env) -> None:
     cid = client.put("/api/customers", json={"company": UNIT2, "name": "Khách B"},
                      headers=h).json()["id"]
     r = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-X", "customer_id": cid, "delivery_type": "single",
+        "company": UNIT, "code": "HD-X", "customer_id": cid, "delivery_type": "single", "contract_type": "long_term",
         "sign_date": TODAY, "lines": [_line()]}, headers=h)
     assert r.status_code == 400 and "đơn vị khác" in r.json()["detail"]
 
@@ -91,7 +97,7 @@ def test_contract_rejects_customer_of_another_unit(env) -> None:
 def test_multi_contract_children_cannot_exceed_parent(env, cus) -> None:
     h = env
     parent = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-M1", "delivery_type": "multi", "customer_id": cus, "sign_date": YESTERDAY,
+        "company": UNIT, "code": "HD-M1", "delivery_type": "multi", "contract_type": "long_term", "customer_id": cus, "sign_date": YESTERDAY,
         "lines": [_line(qty=100.0)]}, headers=h).json()["contract"]
 
     ok = client.put("/api/sales-contracts", json={
@@ -114,7 +120,7 @@ def test_dry_weight_required_on_delivery_only(env, cus) -> None:
     h = env
     # Hợp đồng mẹ giao-nhiều-lần chỉ là cam kết → KHÔNG ép quy khô.
     parent = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-L", "delivery_type": "multi", "customer_id": cus, "sign_date": YESTERDAY,
+        "company": UNIT, "code": "HD-L", "delivery_type": "multi", "contract_type": "long_term", "customer_id": cus, "sign_date": YESTERDAY,
         "lines": [_line(grade="LATEX", qty=50.0)]}, headers=h)
     assert parent.status_code == 200, parent.text
 
@@ -139,7 +145,7 @@ def test_dry_weight_required_for_all_three_grades(env, cus) -> None:
     h = env
     assert len(DRY_REQUIRED_GRADES) == 3
     for i, grade in enumerate(sorted(DRY_REQUIRED_GRADES)):
-        body = {"company": UNIT, "code": f"HD-DRY{i}", "delivery_type": "single",
+        body = {"company": UNIT, "code": f"HD-DRY{i}", "delivery_type": "single", "contract_type": "long_term",
                 "customer_id": cus, "sign_date": YESTERDAY, "delivered": True,
                 "delivered_at": TODAY, "channel": "export"}
         bad = client.put("/api/sales-contracts",
@@ -151,7 +157,7 @@ def test_dry_weight_required_for_all_three_grades(env, cus) -> None:
 
     # Chủng loại KHÔNG thuộc danh sách thì không bị ép (vd SVR 10) — tránh ép nhầm cả bảng.
     free = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-FREE", "delivery_type": "single", "customer_id": cus,
+        "company": UNIT, "code": "HD-FREE", "delivery_type": "single", "contract_type": "long_term", "customer_id": cus,
         "sign_date": YESTERDAY, "delivered": True, "delivered_at": TODAY, "channel": "export",
         "lines": [_line(qty=8.0)]}, headers=h)
     assert free.status_code == 200, free.text
@@ -160,7 +166,7 @@ def test_dry_weight_required_for_all_three_grades(env, cus) -> None:
 def test_dry_weight_enforced_when_contract_flips_to_delivered(env, cus) -> None:
     """HĐ giao-1-lần lúc tạo CHƯA giao (không ép quy khô) — khi đánh dấu đã giao thì phải ép."""
     h = env
-    body = {"company": UNIT, "code": "HD-FLIP", "delivery_type": "single", "customer_id": cus,
+    body = {"company": UNIT, "code": "HD-FLIP", "delivery_type": "single", "contract_type": "long_term", "customer_id": cus,
             "sign_date": YESTERDAY, "lines": [_line(grade="LATEX", qty=20.0)]}
     created = client.put("/api/sales-contracts", json=body, headers=h)
     assert created.status_code == 200, created.text     # chưa giao → chưa cần quy khô
@@ -174,12 +180,12 @@ def test_dry_weight_enforced_when_contract_flips_to_delivered(env, cus) -> None:
 def test_foreign_currency_needs_fx(env, cus) -> None:
     h = env
     bad = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-LAK", "delivery_type": "single", "customer_id": cus, "sign_date": TODAY,
+        "company": UNIT, "code": "HD-LAK", "delivery_type": "single", "contract_type": "long_term", "customer_id": cus, "sign_date": TODAY,
         "lines": [_line(qty=5.0, ccy="LAK")]}, headers=h)
     assert bad.status_code == 400 and "tỷ giá" in bad.json()["detail"]
 
     ok = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-LAK", "delivery_type": "single", "customer_id": cus, "sign_date": TODAY,
+        "company": UNIT, "code": "HD-LAK", "delivery_type": "single", "contract_type": "long_term", "customer_id": cus, "sign_date": TODAY,
         "lines": [_line(qty=5.0, ccy="LAK", price=900_000.0, fx=1.24)]}, headers=h)
     assert ok.status_code == 200, ok.text
     assert ok.json()["contract"]["revenue"] == pytest.approx(5.0 * 900_000.0 * 1.24)
@@ -188,7 +194,7 @@ def test_foreign_currency_needs_fx(env, cus) -> None:
 def test_consumption_and_block3_computed_from_contracts(env, cus) -> None:
     h = env
     parent = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-M2", "delivery_type": "multi", "customer_id": cus, "sign_date": YESTERDAY,
+        "company": UNIT, "code": "HD-M2", "delivery_type": "multi", "contract_type": "long_term", "customer_id": cus, "sign_date": YESTERDAY,
         "lines": [_line(qty=100.0)]}, headers=h).json()["contract"]
     client.put("/api/sales-contracts", json={
         "company": UNIT, "parent_id": parent["id"], "code": "PL-A", "start_date": YESTERDAY, "delivered_at": TODAY,
@@ -216,7 +222,7 @@ def test_revenue_unknown_when_fx_missing_is_not_zero(env, cus) -> None:
     """Thiếu tỷ giá → doanh thu là KHÔNG BIẾT (None), tuyệt đối không quy về 0."""
     h = env
     c = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-USD", "delivery_type": "single", "customer_id": cus, "sign_date": YESTERDAY,
+        "company": UNIT, "code": "HD-USD", "delivery_type": "single", "contract_type": "long_term", "customer_id": cus, "sign_date": YESTERDAY,
         "delivered": True, "delivered_at": TODAY, "channel": "export",
         "lines": [_line(qty=10.0, ccy="USD", price=1800.0, fx=26000.0)]}, headers=h)
     assert c.status_code == 200, c.text
@@ -230,10 +236,38 @@ def test_revenue_unknown_when_fx_missing_is_not_zero(env, cus) -> None:
     assert cons["qty"] == pytest.approx(10.0)
 
 
+def test_internal_sale_stays_inside_the_company_group(env, cus) -> None:
+    """Tiêu thụ NỘI BỘ chỉ trong nhóm công ty mẹ–con; bán ra ngoài nhóm là bán ngoài."""
+    h = env
+    body = {"company": UNIT, "code": "HD-IN", "delivery_type": "single",
+            "contract_type": "spot", "customer_id": cus, "sign_date": YESTERDAY,
+            "delivered_at": TODAY, "channel": "internal", "lines": [_line(qty=5.0)]}
+
+    # UNIT3 đứng ngoài nhóm → chặn, kèm câu chỉ đúng chỗ cần sửa.
+    out = client.put("/api/sales-contracts", json={**body, "to_company": UNIT3}, headers=h)
+    assert out.status_code == 400 and "không cùng nhóm" in out.json()["detail"]
+
+    # UNIT2 là con của UNIT → cùng nhóm, cho lưu.
+    ok = client.put("/api/sales-contracts", json={**body, "to_company": UNIT2}, headers=h)
+    assert ok.status_code == 200, ok.text
+
+    # Chiều ngược lại (con bán cho mẹ) cũng là nội bộ.
+    cus2 = client.put("/api/customers", json={"company": UNIT2, "name": "KH con"},
+                      headers=h).json()["id"]
+    back = client.put("/api/sales-contracts", json={
+        **body, "company": UNIT2, "code": "HD-IN2", "customer_id": cus2, "to_company": UNIT}, headers=h)
+    assert back.status_code == 200, back.text
+
+    # Form lấy danh sách đơn vị nhận từ meta — đúng nhóm, không kèm đơn vị ngoài nhóm.
+    meta = client.get("/api/sales-contracts/meta", headers=h).json()["internal_targets"]
+    assert meta[UNIT] == [UNIT2] and meta[UNIT2] == [UNIT]
+    assert UNIT3 not in meta          # đứng một mình → form ẩn hình thức tiêu thụ nội bộ
+
+
 def test_delete_parent_blocked_while_children_exist(env, cus) -> None:
     h = env
     parent = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-M3", "delivery_type": "multi", "customer_id": cus, "sign_date": YESTERDAY,
+        "company": UNIT, "code": "HD-M3", "delivery_type": "multi", "contract_type": "long_term", "customer_id": cus, "sign_date": YESTERDAY,
         "lines": [_line(qty=20.0)]}, headers=h).json()["contract"]
     child = client.put("/api/sales-contracts", json={
         "company": UNIT, "parent_id": parent["id"], "code": "PL-Z", "start_date": YESTERDAY, "delivered_at": TODAY,
@@ -245,22 +279,26 @@ def test_delete_parent_blocked_while_children_exist(env, cus) -> None:
     assert client.delete(f"/api/sales-contracts/{parent['id']}", headers=h).status_code == 200
 
 
-def test_migrated_day_is_not_counted_twice(env) -> None:
-    """Ngày đã chuyển sang hợp đồng: mảng `sales` cũ vẫn còn nhưng KHÔNG được cộng lần nữa."""
+def test_legacy_sales_never_counted_but_flagged(env) -> None:
+    """Chốt 02/08/2026: mảng `sales` cũ KHÔNG vào báo cáo dù đã chuyển đổi hay chưa.
+
+    Chưa chuyển đổi thì phải CẢNH BÁO — nếu không người đọc thấy 0 tấn lại tưởng đơn vị không bán.
+    """
     from app.services import unit_daily_repo, unit_period_report
 
     line = {"code": "X1", "contract": "long_term", "channel": "export",
             "grade": "SVR 10 / CSR 10", "qty": 40.0, "price": 45.0, "ccy": "VND"}
     unit_daily_repo.upsert("consumption", TODAY, UNIT, {"sales": [line], "revenue": 40 * 45e6}, "admin")
-    before = unit_period_report.period_report("consumption", TODAY, TODAY, [UNIT])
-    assert before["rows"][0]["total_consumption"] == pytest.approx(40.0)
+    rep = unit_period_report.period_report("consumption", TODAY, TODAY, [UNIT])
+    assert rep["rows"][0]["total_consumption"] in (0, 0.0, None)
+    assert any("CHƯA được chuyển" in w for w in rep["warnings"]), rep["warnings"]
 
-    # Bật cờ như script chuyển đổi làm — mảng cũ giữ nguyên, báo cáo phải bỏ qua.
+    # Đã bật cờ chuyển đổi → vẫn không cộng, và hết cảnh báo (số đã nằm ở hợp đồng).
     unit_daily_repo.upsert("consumption", TODAY, UNIT,
                            {"sales": [line], "revenue": 40 * 45e6, "sales_migrated": True}, "admin")
     after = unit_period_report.period_report("consumption", TODAY, TODAY, [UNIT])
-    rows = after["rows"]
-    assert not rows or rows[0]["total_consumption"] in (0, 0.0, None)
+    assert after["rows"][0]["total_consumption"] in (0, 0.0, None)
+    assert not any("ngày có số tiêu thụ" in w for w in after["warnings"]), after["warnings"]
 
     with session_scope() as db:
         db.execute(text("DELETE FROM unit_daily_report WHERE company = :c AND as_of = :d"),
@@ -287,7 +325,7 @@ def test_file_download_blocked_across_units(env, cus) -> None:
     from app.services import sales_contract_repo
 
     c = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-F", "delivery_type": "single", "customer_id": cus, "sign_date": TODAY,
+        "company": UNIT, "code": "HD-F", "delivery_type": "single", "contract_type": "long_term", "customer_id": cus, "sign_date": TODAY,
         "files": [{"file": "abc123.pdf", "filename": "hd.pdf"}],
         "lines": [_line()]}, headers=env)
     assert c.status_code == 200, c.text
@@ -314,7 +352,7 @@ def test_parent_cycle_of_any_depth_is_rejected(env) -> None:
 
 def _parent(h, cus, code="HD-G", qty=1000.0) -> dict:
     return client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": code, "delivery_type": "multi", "customer_id": cus,
+        "company": UNIT, "code": code, "delivery_type": "multi", "contract_type": "long_term", "customer_id": cus,
         "sign_date": YESTERDAY, "lines": [_line(qty=qty)]}, headers=h).json()["contract"]
 
 
@@ -337,7 +375,7 @@ def test_update_cannot_bypass_or_corrupt_the_parent(env, cus) -> None:
 
     # Mẹ đang có phụ lục mà đổi sang giao-1-lần + đã giao → tiêu thụ bị đếm 2 lần.
     r = client.put("/api/sales-contracts", json={
-        **p1, "delivery_type": "single", "delivered": True,
+        **p1, "delivery_type": "single", "contract_type": "long_term", "delivered": True,
         "delivered_at": TODAY, "channel": "export"}, headers=h)
     assert r.status_code == 400
 
@@ -352,7 +390,7 @@ def test_update_cannot_bypass_or_corrupt_the_parent(env, cus) -> None:
 def test_invalid_inputs_are_rejected_not_coerced(env, cus) -> None:
     """Giá trị sai phải BÁO LỖI. Lặng lẽ quy về VNĐ làm doanh thu sai ~38 lần."""
     h = env
-    base = {"company": UNIT, "delivery_type": "single", "customer_id": cus, "sign_date": TODAY}
+    base = {"company": UNIT, "delivery_type": "single", "contract_type": "long_term", "customer_id": cus, "sign_date": TODAY}
 
     # "usd" viết thường nay được chuẩn hoá thành USD → vẫn đòi tỷ giá (KHÔNG lặng lẽ thành VNĐ).
     r = client.put("/api/sales-contracts",
@@ -393,7 +431,7 @@ def test_nan_does_not_crash(env, cus) -> None:
 
     with pytest.raises(ValueError):
         sales_contract_repo.save(
-            {"company": UNIT, "code": "HD-NAN", "delivery_type": "single", "customer_id": cus,
+            {"company": UNIT, "code": "HD-NAN", "delivery_type": "single", "contract_type": "long_term", "customer_id": cus,
              "sign_date": TODAY,
              "lines": [{"grade": "SVR 10 / CSR 10", "qty": float("nan"), "price": 30, "ccy": "VND"}]},
             UNIT, "admin")
@@ -408,7 +446,7 @@ def test_consumption_filter_by_customer_and_xlsx(env, cus) -> None:
                        headers=h).json()["id"]
     for code, cid, qty in (("HD-C1", cus, 30.0), ("HD-C2", other, 20.0)):
         p = client.put("/api/sales-contracts", json={
-            "company": UNIT, "code": code, "delivery_type": "multi", "customer_id": cid,
+            "company": UNIT, "code": code, "delivery_type": "multi", "contract_type": "long_term", "customer_id": cid,
             "sign_date": YESTERDAY, "lines": [_line(qty=100.0)]}, headers=h).json()["contract"]
         client.put("/api/sales-contracts", json={
             "company": UNIT, "parent_id": p["id"], "code": f"PL-{code}", "start_date": YESTERDAY, "delivered_at": TODAY,
@@ -446,7 +484,7 @@ def test_batch_lifecycle_drives_block3(env, cus) -> None:
     """
     h = env
     parent = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-LC", "delivery_type": "multi", "customer_id": cus,
+        "company": UNIT, "code": "HD-LC", "delivery_type": "multi", "contract_type": "long_term", "customer_id": cus,
         "sign_date": "2026-07-01", "lines": [_line(qty=500.0)]}, headers=h).json()["contract"]
     client.put("/api/sales-contracts", json={
         "company": UNIT, "parent_id": parent["id"], "code": "PL-LC", "start_date": "2026-07-10",
@@ -483,7 +521,7 @@ def test_batch_waiting_for_delivery_sits_in_block3(env, cus) -> None:
     """Phụ lục để TRỐNG ngày giao = đang chờ giao: nằm ở khối 3, chưa vào tiêu thụ."""
     h = env
     parent = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-W", "delivery_type": "multi", "customer_id": cus,
+        "company": UNIT, "code": "HD-W", "delivery_type": "multi", "contract_type": "long_term", "customer_id": cus,
         "sign_date": YESTERDAY, "lines": [_line(qty=200.0)]}, headers=h).json()["contract"]
     kid = client.put("/api/sales-contracts", json={
         "company": UNIT, "parent_id": parent["id"], "code": "PL-W",
@@ -517,7 +555,7 @@ def test_member_scope_is_enforced(env) -> None:
         assert client.get("/api/sales-contracts/meta", headers=mh).json()["units"] == [UNIT]
         # Ghi sang đơn vị khác → 403.
         r = client.put("/api/sales-contracts", json={
-            "company": UNIT2, "code": "HD-NO", "delivery_type": "single", "sign_date": TODAY,
+            "company": UNIT2, "code": "HD-NO", "delivery_type": "single", "contract_type": "long_term", "sign_date": TODAY,
             "lines": [_line()]}, headers=mh)
         assert r.status_code == 403
     finally:

@@ -70,6 +70,8 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
           <>
             <div className="kpi-row" style={{ marginBottom: 12 }}>
               <div className="kpi"><div className="label">Khách hàng</div><div className="value">{customer?.name ?? "—"}</div></div>
+              <div className="kpi"><div className="label">Loại hợp đồng</div>
+                <div className="value">{meta.contract_types[c.contract_type ?? ""] ?? "(chưa khai)"}</div></div>
               <div className="kpi"><div className="label">Loại giao</div><div className="value">{meta.delivery_types[c.delivery_type]}</div></div>
               <div className="kpi"><div className="label">Cam kết (tấn)</div><div className="value">{t3(c.qty)}</div></div>
               <div className="kpi"><div className="label">Đã giao (tấn)</div><div className="value">{t3(d.delivered_qty)}</div></div>

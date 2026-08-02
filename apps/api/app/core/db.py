@@ -250,6 +250,7 @@ CREATE TABLE IF NOT EXISTS sales_contract (
     code          text NOT NULL,        -- số hợp đồng / số phụ lục
     customer_id   bigint,               -- khách hàng (unit_customer.id) — chỉ đặt ở hợp đồng mẹ
     delivery_type text NOT NULL DEFAULT 'single',  -- single | multi (chỉ có nghĩa ở hợp đồng mẹ)
+    contract_type text,                   -- long_term | spot — loại HỢP ĐỒNG, đặt ở mẹ (phụ lục thừa kế)
     sign_date     date,                 -- ngày ký
     expiry_date   date,                 -- thời hạn hợp đồng
     start_date    date,                 -- NGÀY BẮT ĐẦU của đợt giao (hàng gom vào kho cho đợt này)
@@ -299,6 +300,9 @@ ALTER TABLE unit_stock_contract ADD COLUMN IF NOT EXISTS migrated boolean NOT NU
 -- Ngày bắt đầu của đợt giao (chốt 02/08/2026): hàng của đợt nằm ở "đã ký HĐ chưa giao" từ ngày này
 -- đến HẾT NGÀY TRƯỚC ngày giao. Không có ngày bắt đầu = đợt chưa mở, KHÔNG tính vào khối 3.
 ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS start_date date;
+-- Loại HỢP ĐỒNG (dài hạn / chuyến) — chỉ tiêu của mẫu báo cáo, KHÁC loại GIAO (1 lần / nhiều lần).
+-- Để NULL, không đặt mặc định: đoán bừa một loại làm sai luôn chỉ tiêu "HĐ dài hạn / HĐ chuyến".
+ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS contract_type text;
 -- Nâng bản ghi cũ (1 file ở cột phẳng) lên danh sách. Idempotent: chỉ chạm dòng chưa có danh sách.
 UPDATE unit_stock_contract SET files = jsonb_build_array(
          jsonb_build_object('file', file, 'filename', COALESCE(filename, file)))

@@ -209,6 +209,8 @@ export type PeriodRow = {
 };
 export type PeriodReport = {
   kind: Kind; date_from: string; date_to: string; grades: string[]; rows: PeriodRow[];
+  /** Cảnh báo mức kỳ — hiện có: kỳ còn dữ liệu cũ chưa chuyển sang cơ chế hợp đồng. */
+  warnings?: string[];
 };
 
 // CHỈ chuyên viên/admin có quyền `unit_daily` — đơn vị thành viên không có màn này.

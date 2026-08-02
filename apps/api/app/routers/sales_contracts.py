@@ -15,6 +15,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile
 
 from app.core.market_meta import (
+    CONTRACT_TYPES,
     DELIVERY_TYPES,
     DRY_REQUIRED_GRADES,
     SALE_CHANNELS,
@@ -64,11 +65,15 @@ def meta(scope: Scope) -> dict:
         # Nội tệ của từng đơn vị — form chỉ cho chọn VND · USD · nội tệ CỦA ĐƠN VỊ ĐÓ (chốt Q10:
         # trong nước bán VND, thêm USD khi xuất khẩu; nước ngoài mới có thêm LAK/KHR).
         "unit_currency": {u["name"]: (u.get("currency") or "VND") for u in units},
-        "all_units": [u["name"] for u in units],   # đơn vị NHẬN khi tiêu thụ nội bộ (không giới hạn cây)
+        "all_units": [u["name"] for u in units],
+        # Đơn vị NHẬN khi tiêu thụ nội bộ — chỉ trong NHÓM công ty mẹ–con. Đơn vị không có tên ở đây
+        # là đứng một mình → form ẩn luôn hình thức "Tiêu thụ nội bộ".
+        "internal_targets": member_unit_repo.internal_targets(),
         "grades": list(SALE_GRADES),
         "dry_required": sorted(DRY_REQUIRED_GRADES),
         "channels": SALE_CHANNELS,
         "delivery_types": DELIVERY_TYPES,
+        "contract_types": CONTRACT_TYPES,
         "currencies": list(SALE_CURRENCIES),
         "customers": customer_repo.list_customers(companies, include_inactive=False),
     }

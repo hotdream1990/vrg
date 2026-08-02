@@ -149,7 +149,11 @@ def active_on(as_of: str, companies: list[str] | None = None,
 
 
 def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
-    """Thêm mới (không có id) hoặc cập nhật 1 hợp đồng. Raise ValueError nếu số liệu sai."""
+    """Thêm mới (không có id) hoặc cập nhật 1 hợp đồng. Raise ValueError nếu số liệu sai.
+
+    Chốt 02/08/2026: bảng này là DỮ LIỆU CŨ — màn "Hợp đồng cũ" chỉ còn CHỈ XEM, hợp đồng mới lập ở
+    `sales_contract`. Endpoint vẫn giữ nguyên để script/công cụ sửa dữ liệu lịch sử khi cần.
+    """
     d = clean(row, company)
     ensure_schema()
     before = _snapshot(d["id"]) if d["id"] is not None else None
