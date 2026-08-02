@@ -1,4 +1,6 @@
 import { App as AntApp, ConfigProvider } from "antd";
+import viVN from "antd/locale/vi_VN";
+import "dayjs/locale/vi";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import AdminLayout from "./features/command-center/AdminLayout";
@@ -106,7 +108,8 @@ function StockContractHistoryRoute() {
 
 export default function App() {
   return (
-    <ConfigProvider theme={vrgTheme}>
+    // locale vi_VN: lịch chọn ngày hiện Tháng/Thứ tiếng Việt thay vì "Jul 2026 / Su Mo Tu".
+    <ConfigProvider theme={vrgTheme} locale={viVN}>
       <AntApp>
         <BrowserRouter>
           <AuthProvider>

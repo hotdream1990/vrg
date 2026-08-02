@@ -45,26 +45,45 @@ def _by_grade(lines) -> dict[str, float]:
 
 
 def deliveries(date_from: str, date_to: str, companies: list[str] | None = None,
-               ) -> list[dict[str, Any]]:
-    """Các LẦN GIAO có ngày giao trong [date_from, date_to] — nguồn số tiêu thụ của kỳ."""
-    return _fetch(companies,
+               customer_id: int | None = None) -> list[dict[str, Any]]:
+    """Các LẦN GIAO có ngày giao trong [date_from, date_to] — nguồn số tiêu thụ của kỳ.
+
+    Phụ lục KHÔNG mang khách hàng (khách gán ở hợp đồng mẹ) → gắn `customer_id` của mẹ vào từng
+    lần giao, nếu không thì không lọc/thống kê theo khách hàng được.
+    """
+    rows = _fetch(companies,
                   ["delivered", "delivered_at IS NOT NULL",
                    "delivered_at >= CAST(:df AS date)", "delivered_at <= CAST(:dt AS date)"],
                   {"df": date_from, "dt": date_to})
+    parent_ids = sorted({r["parent_id"] for r in rows if r["parent_id"] is not None})
+    if parent_ids:
+        owner = {p["id"]: p["customer_id"]
+                 for p in _fetch(None, ["id = ANY(:ps)"], {"ps": parent_ids})}
+        for r in rows:
+            if r["parent_id"] is not None:
+                r["customer_id"] = owner.get(r["parent_id"])
+    if customer_id is not None:
+        rows = [r for r in rows if r.get("customer_id") == customer_id]
+    return rows
 
 
 def consumption(date_from: str, date_to: str, companies: list[str] | None = None,
-                ) -> dict[str, dict[str, Any]]:
+                customer_id: int | None = None) -> dict[str, dict[str, Any]]:
     """{đơn vị: số tiêu thụ trong kỳ} — cộng dồn sản lượng/doanh thu/chi phí, tách theo hình thức.
 
     `revenue` = None khi CÓ lần giao thiếu tỷ giá → báo cáo hiển thị "—" thay vì một số sai.
+    `by_customer` tách sản lượng/doanh thu theo khách hàng (yêu cầu C1 của khách).
     """
     out: dict[str, dict[str, Any]] = {}
-    for c in deliveries(date_from, date_to, companies):
+    for c in deliveries(date_from, date_to, companies, customer_id):
         acc = out.setdefault(c["company"], {
             "qty": 0.0, "qty_dry": 0.0, "cost": 0.0, "revenue": 0.0, "revenue_missing": False,
-            "deliveries": 0, "by_channel": {}, "by_grade": {},
+            "deliveries": 0, "by_channel": {}, "by_grade": {}, "by_customer": {},
         })
+        cu = str(c.get("customer_id") or 0)
+        cus = acc["by_customer"].setdefault(cu, {"qty": 0.0, "revenue": 0.0})
+        cus["qty"] += c["qty"]
+        cus["revenue"] += c["revenue"] or 0.0
         acc["qty"] += c["qty"]
         acc["qty_dry"] += c["qty_dry"]
         acc["cost"] += c["cost"]

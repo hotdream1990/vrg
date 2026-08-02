@@ -10,6 +10,7 @@ import {
   fetchContractMeta,
   listContracts,
 } from "../../../lib/sales-contract-client";
+import { dmy } from "../../../lib/date";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
@@ -135,7 +136,7 @@ export default function SalesContractPage() {
                     {r.delivery_type === "multi" ? "Nhiều lần" : "1 lần"}
                   </span>
                 </td>
-                <td>{r.sign_date ?? "—"}</td>
+                <td>{dmy(r.sign_date) || "—"}</td>
                 <td className="r">{t3(r.qty)}</td>
                 <td className="r">{t3(r.delivered_qty)}</td>
                 <td className="r">

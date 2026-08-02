@@ -1,15 +1,16 @@
-import { ExportOutlined } from "@ant-design/icons";
+import { DownloadOutlined, ExportOutlined } from "@ant-design/icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  type ConsumptionSummary,
+  type ConsumptionReport,
   type ContractMeta,
-  type UndeliveredSummary,
+  downloadConsumptionXlsx,
   fetchConsumption,
   fetchContractMeta,
-  fetchUndelivered,
 } from "../../../lib/sales-contract-client";
+import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
+import ConsumptionByCustomer from "./components/ConsumptionByCustomer";
 import "../../bulletin/bulletin.css";
 
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
@@ -21,26 +22,33 @@ const monthStart = () => `${new Date().toISOString().slice(0, 7)}-01`;
 
 /** Báo cáo → Tiêu thụ: số TÍNH TỪ HỢP ĐỒNG (các lần giao), KHÔNG còn biểu nhập tay. */
 export default function ConsumptionReportPage() {
+  const { user } = useAuth();
+  const isMember = user?.role === "member";
+
   const [meta, setMeta] = useState<ContractMeta | null>(null);
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(today());
-  const [rows, setRows] = useState<Record<string, ConsumptionSummary>>({});
-  const [undelivered, setUndelivered] = useState<Record<string, UndeliveredSummary>>({});
+  const [company, setCompany] = useState<string>("");
+  const [customerId, setCustomerId] = useState<number | null>(null);
+  const [rep, setRep] = useState<ConsumptionReport | null>(null);
   const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
   const load = useCallback(() => {
     if (!from || !to) return;
     setLoading(true); setErr("");
-    Promise.all([fetchConsumption(from, to), fetchUndelivered(to)])
-      .then(([c, u]) => { setRows(c.by_company); setUndelivered(u.by_company); })
+    fetchConsumption(from, to, company || undefined, customerId)
+      .then(setRep)
       .catch((e) => setErr(e.message))
       .finally(() => setLoading(false));
-  }, [from, to]);
+  }, [from, to, company, customerId]);
 
   useEffect(() => { fetchContractMeta().then(setMeta).catch((e) => setErr(e.message)); }, []);
   useEffect(() => { load(); }, [load]);
 
+  const rows = rep?.by_company ?? {};
+  const undelivered = rep?.undelivered ?? {};
   const companies = useMemo(
     () => Array.from(new Set([...Object.keys(rows), ...Object.keys(undelivered)])).sort(),
     [rows, undelivered]);
@@ -61,6 +69,13 @@ export default function ConsumptionReportPage() {
 
   const ch = (c: string, k: string) => rows[c]?.by_channel?.[k] ?? 0;
 
+  const exportXlsx = async () => {
+    setBusy(true); setErr("");
+    try { await downloadConsumptionXlsx(from, to, company || undefined, customerId); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
+    finally { setBusy(false); }
+  };
+
   return (
     <div className="main">
       <div className="page-title">
@@ -71,11 +86,40 @@ export default function ConsumptionReportPage() {
             số tiêu thụ nữa. Cột <b>Chưa giao</b> lấy tại ngày cuối kỳ.
           </p>
         </div>
+        <div className="actions">
+          <button className="btn btn-primary" onClick={exportXlsx} disabled={busy || loading}>
+            <DownloadOutlined /> {busy ? "Đang xuất…" : "Xuất Excel"}
+          </button>
+        </div>
       </div>
 
       <div className="blt-toolbar">
         <label className="blt-date-label">Từ ngày<DateInput value={from} onChange={setFrom} /></label>
         <label className="blt-date-label">Đến ngày<DateInput value={to} onChange={setTo} /></label>
+        {meta && (!isMember || meta.units.length > 1) && (
+          <label className="blt-date-label">Đơn vị
+            <select className="blt-date-input" value={company}
+              onChange={(e) => { setCompany(e.target.value); setCustomerId(null); }}>
+              <option value="">Tất cả</option>
+              {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </label>
+        )}
+        {meta && (
+          <label className="blt-date-label">Khách hàng
+            <select className="blt-date-input" value={customerId ?? ""}
+              onChange={(e) => setCustomerId(e.target.value ? Number(e.target.value) : null)}>
+              <option value="">Tất cả</option>
+              {/* Danh mục tách riêng theo đơn vị nên tên trùng nhau là bình thường → ghi kèm đơn vị. */}
+              {meta.customers.filter((x) => !company || x.company === company)
+                .map((x) => (
+                  <option key={x.id} value={x.id as number}>
+                    {company ? x.name : `${x.name} — ${x.company}`}
+                  </option>
+                ))}
+            </select>
+          </label>
+        )}
         <button className="btn" onClick={load} disabled={loading}>{loading ? "Đang tải…" : "Tải lại"}</button>
         <span style={{ color: "var(--muted)", fontSize: 13 }}>{companies.length} đơn vị</span>
       </div>
@@ -119,12 +163,14 @@ export default function ConsumptionReportPage() {
             ))}
             {companies.length === 0 && !loading && (
               <tr><td colSpan={10} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
-                Chưa có lần giao nào trong kỳ.
+                Chưa có lần giao nào trong kỳ — nới rộng khoảng ngày hoặc bỏ bớt bộ lọc.
               </td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {rep && <ConsumptionByCustomer rep={rep} />}
 
       <div className="form-note" style={{ fontSize: 11.5, marginTop: 10 }}>
         Doanh thu hiện “—” khi có lần giao bán bằng ngoại tệ mà chưa nhập tỷ giá — hệ thống không tự

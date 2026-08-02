@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile
 
 from app.core.market_meta import (
     DELIVERY_TYPES,
@@ -30,6 +30,7 @@ from app.services import (
     member_unit_repo,
     sales_contract_repo,
     sales_contract_report,
+    unit_analytics_excel,
 )
 
 router = APIRouter(prefix="/api/sales-contracts", tags=["sales-contracts"])
@@ -60,6 +61,9 @@ def meta(scope: Scope) -> dict:
     mine = [u["name"] for u in units] if companies is None else list(companies)
     return {
         "units": mine,
+        # Nội tệ của từng đơn vị — form chỉ cho chọn VND · USD · nội tệ CỦA ĐƠN VỊ ĐÓ (chốt Q10:
+        # trong nước bán VND, thêm USD khi xuất khẩu; nước ngoài mới có thêm LAK/KHR).
+        "unit_currency": {u["name"]: (u.get("currency") or "VND") for u in units},
         "all_units": [u["name"] for u in units],   # đơn vị NHẬN khi tiêu thụ nội bộ (không giới hạn cây)
         "grades": list(SALE_GRADES),
         "dry_required": sorted(DRY_REQUIRED_GRADES),
@@ -93,18 +97,85 @@ def list_contracts(scope: Scope, company: str | None = Query(None),
     return {"contracts": rows}
 
 
-@router.get("/consumption")
-def consumption(scope: Scope, date_from: str = Query(...), date_to: str = Query(...),
-                company: str | None = Query(None)) -> dict:
-    """TIÊU THỤ trong kỳ — tổng hợp từ các lần giao, KHÔNG còn ô nhập tay."""
-    _, companies = scope
+def _consumption(scope_companies: list[str] | None, date_from: str, date_to: str,
+                 company: str | None, customer_id: int | None) -> dict:
+    """Phần dùng chung của endpoint JSON và endpoint xuất Excel (tránh lệch số giữa 2 nơi)."""
     _check_date(date_from, "Từ ngày")
     _check_date(date_to, "Đến ngày")
+    companies = scope_companies
     if company:
         _assert_company(companies, company)
         companies = [company]
-    return {"date_from": date_from, "date_to": date_to,
-            "by_company": sales_contract_report.consumption(date_from, date_to, companies)}
+    return {
+        "date_from": date_from, "date_to": date_to,
+        "by_company": sales_contract_report.consumption(date_from, date_to, companies, customer_id),
+        "undelivered": sales_contract_report.undelivered_on(date_to, companies),
+        "customers": {str(c["id"]): c["name"] for c in customer_repo.list_customers(companies)},
+    }
+
+
+@router.get("/consumption")
+def consumption(scope: Scope, date_from: str = Query(...), date_to: str = Query(...),
+                company: str | None = Query(None),
+                customer_id: int | None = Query(None)) -> dict:
+    """TIÊU THỤ trong kỳ — tổng hợp từ các lần giao, KHÔNG còn ô nhập tay."""
+    _, companies = scope
+    return _consumption(companies, date_from, date_to, company, customer_id)
+
+
+_XLSX_COLS: list[tuple[str, str, str]] = [
+    ("deliveries", "Số lần giao", "lần"),
+    ("qty", "Sản lượng tiêu thụ", "tấn"),
+    ("qty_dry", "Quy khô", "tấn"),
+    ("qty_export", SALE_CHANNELS["export"], "tấn"),
+    ("qty_domestic", SALE_CHANNELS["domestic"], "tấn"),
+    ("qty_internal", SALE_CHANNELS["internal"], "tấn"),
+    ("revenue_ty", "Doanh thu", "tỷ đồng"),
+    ("cost", "Chi phí dòng bán", "triệu đồng"),
+    ("remaining", "Đã ký HĐ chưa giao (cuối kỳ)", "tấn"),
+]
+
+
+@router.get("/consumption.xlsx")
+def consumption_xlsx(scope: Scope, date_from: str = Query(...), date_to: str = Query(...),
+                     company: str | None = Query(None),
+                     customer_id: int | None = Query(None)):
+    """Xuất Excel bảng Báo cáo tiêu thụ — dùng CHUNG số liệu với bảng trên web."""
+    _, companies = scope
+    rep = _consumption(companies, date_from, date_to, company, customer_id)
+    rows, totals = [], {k: 0.0 for k, _, _ in _XLSX_COLS}
+    missing_fx = False
+    for name in sorted(set(rep["by_company"]) | set(rep["undelivered"])):
+        c = rep["by_company"].get(name) or {}
+        ch = c.get("by_channel") or {}
+        rev = c.get("revenue")
+        missing_fx = missing_fx or (name in rep["by_company"] and rev is None)
+        row = {
+            "label": name, "deliveries": c.get("deliveries", 0),
+            "qty": c.get("qty", 0.0), "qty_dry": c.get("qty_dry", 0.0),
+            "qty_export": ch.get("export", 0.0), "qty_domestic": ch.get("domestic", 0.0),
+            "qty_internal": ch.get("internal", 0.0),
+            # Doanh thu để TRỐNG khi thiếu tỷ giá — không quy về 0 để khỏi đọc nhầm là "bán không thu tiền".
+            "revenue_ty": None if rev is None else rev / 1_000_000_000,
+            "cost": c.get("cost", 0.0),
+            "remaining": (rep["undelivered"].get(name) or {}).get("qty", 0.0),
+        }
+        rows.append(row)
+        for k, _, _ in _XLSX_COLS:
+            v = row.get(k)
+            if isinstance(v, (int, float)):
+                totals[k] += v
+    note = "Nguồn: các lần giao ghi trên hợp đồng & phụ lục."
+    if missing_fx:
+        note += " ⚠ Có lần giao thiếu tỷ giá → doanh thu để trống, KHÔNG tính là 0."
+    data = unit_analytics_excel.build_xlsx(
+        title="BÁO CÁO TIÊU THỤ", period=f"{date_from} → {date_to}", note=note,
+        group_by="company", columns=_XLSX_COLS, rows=rows, totals=totals)
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition":
+                 f'attachment; filename="bao-cao-tieu-thu-{date_from}-den-{date_to}.xlsx"'})
 
 
 @router.get("/undelivered")

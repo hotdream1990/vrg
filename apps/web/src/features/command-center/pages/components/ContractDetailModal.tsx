@@ -1,14 +1,17 @@
-import { PlusOutlined } from "@ant-design/icons";
+import { PaperClipOutlined, PlusOutlined } from "@ant-design/icons";
 import { Modal } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
 import {
   type Contract,
   type ContractDetail,
+  type ContractDoc,
   type ContractMeta,
   deleteContract,
   fetchContract,
+  openContractFile,
 } from "../../../../lib/sales-contract-client";
+import { dmy } from "../../../../lib/date";
 import ContractFormModal from "./ContractFormModal";
 
 type Props = {
@@ -20,6 +23,21 @@ type Props = {
 };
 
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
+
+/** Danh sách file đính kèm — mở bằng fetch kèm token (endpoint đòi Bearer). */
+function Docs({ docs }: { docs: ContractDoc[] }) {
+  if (!docs.length) return <span style={{ color: "var(--muted)" }}>—</span>;
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      {docs.map((d) => (
+        <a key={d.file} href="#" title={d.filename ?? d.file} style={{ fontSize: 12 }}
+          onClick={(e) => { e.preventDefault(); openContractFile(d).catch(() => undefined); }}>
+          <PaperClipOutlined /> {(d.filename ?? d.file).slice(0, 22)}
+        </a>
+      ))}
+    </div>
+  );
+}
 const money = (n: number | null) => (n == null ? "—" : (n / 1_000_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
 
 /** Chi tiết HỢP ĐỒNG MẸ + danh sách PHỤ LỤC (mỗi phụ lục = 1 lần giao). */
@@ -56,7 +74,21 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
               <div className="kpi"><div className="label">Cam kết (tấn)</div><div className="value">{t3(c.qty)}</div></div>
               <div className="kpi"><div className="label">Đã giao (tấn)</div><div className="value">{t3(d.delivered_qty)}</div></div>
               <div className="kpi"><div className="label">Chưa giao (tấn)</div><div className="value">{t3(d.remaining_qty)}</div></div>
-              <div className="kpi"><div className="label">Ngày ký</div><div className="value">{c.sign_date ?? "—"}</div></div>
+              <div className="kpi"><div className="label">Ngày ký</div><div className="value">{dmy(c.sign_date) || "—"}</div></div>
+              <div className="kpi"><div className="label">Thời hạn</div><div className="value">{dmy(c.expiry_date) || "—"}</div></div>
+            </div>
+
+            <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 12, fontSize: 13 }}>
+              <div>
+                <div style={{ color: "var(--muted)", fontSize: 12 }}>Hợp đồng đã ký (scan)</div>
+                <Docs docs={c.files} />
+              </div>
+              {c.note && (
+                <div style={{ flex: 1, minWidth: 240 }}>
+                  <div style={{ color: "var(--muted)", fontSize: 12 }}>Ghi chú</div>
+                  {c.note}
+                </div>
+              )}
             </div>
 
             <h4 style={{ margin: "8px 0 6px" }}>Dòng chi tiết hợp đồng</h4>
@@ -100,21 +132,32 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                     <thead><tr>
                       <th>Số phụ lục</th><th>Ngày giao</th><th>Hình thức</th><th>Đơn vị nhận</th>
                       <th className="r">SL (tấn)</th><th className="r">Quy khô</th>
-                      <th className="r">Doanh thu (tỷ đ)</th><th className="r">Chi phí (tr.đ)</th>
-                      <th>Thanh toán</th>{canEdit && <th className="r" style={{ width: 150 }}>Thao tác</th>}
+                      <th className="r">Doanh thu (tỷ đ)</th><th className="r">Chi phí lô hàng (tr.đ)</th>
+                      <th>Thanh toán</th><th>Đính kèm</th>
+                      {canEdit && <th className="r" style={{ width: 150 }}>Thao tác</th>}
                     </tr></thead>
                     <tbody>
                       {d.children.map((k) => (
                         <tr key={k.id}>
                           <td style={{ fontWeight: 500 }}>{k.code}</td>
-                          <td>{k.delivered_at ?? "—"}</td>
+                          <td>{dmy(k.delivered_at) || "—"}</td>
                           <td>{k.channel ? meta.channels[k.channel] : "—"}</td>
                           <td>{k.to_company ?? "—"}</td>
                           <td className="r">{t3(k.qty)}</td>
                           <td className="r">{t3(k.qty_dry)}</td>
                           <td className="r">{money(k.revenue)}</td>
                           <td className="r">{t3(k.cost)}</td>
-                          <td>{k.payment_date ?? "—"}</td>
+                          <td style={{ whiteSpace: "nowrap", fontSize: 12.5 }}>
+                            {dmy(k.payment_date) || "—"}
+                            {(k.payment_qty != null || k.payment_cost != null) && (
+                              <div style={{ color: "var(--muted)" }}>
+                                {k.payment_qty != null && `${t3(k.payment_qty)} tấn`}
+                                {k.payment_qty != null && k.payment_cost != null && " · "}
+                                {k.payment_cost != null && `${t3(k.payment_cost)} tr.đ`}
+                              </div>
+                            )}
+                          </td>
+                          <td><Docs docs={[...k.files, ...k.payment_docs]} /></td>
                           {canEdit && (
                             <td className="r" style={{ whiteSpace: "nowrap" }}>
                               <button className="btn" onClick={() => setForm({ initial: k })}>Sửa</button>{" "}
@@ -124,7 +167,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                         </tr>
                       ))}
                       {d.children.length === 0 && (
-                        <tr><td colSpan={canEdit ? 10 : 9} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>
+                        <tr><td colSpan={canEdit ? 11 : 10} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>
                           Chưa có phụ lục nào — hợp đồng chưa giao lần nào.
                         </td></tr>
                       )}
@@ -137,7 +180,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
             {!multi && (
               <div className="form-note" style={{ fontSize: 11.5, marginTop: 10 }}>
                 Hợp đồng <b>giao 1 lần</b>: {c.delivered
-                  ? `đã giao ngày ${c.delivered_at ?? "(chưa ghi ngày)"}.`
+                  ? `đã giao ngày ${dmy(c.delivered_at) || "(chưa ghi ngày)"}.`
                   : "chưa giao — toàn bộ sản lượng đang nằm ở mục “đã ký HĐ chưa giao”."}
               </div>
             )}

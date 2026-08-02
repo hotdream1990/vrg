@@ -399,6 +399,45 @@ def test_nan_does_not_crash(env, cus) -> None:
             UNIT, "admin")
 
 
+def test_consumption_filter_by_customer_and_xlsx(env, cus) -> None:
+    """Lọc theo khách hàng + tách theo khách + xuất Excel (khách gán ở MẸ, phụ lục kế thừa)."""
+    import zipfile
+
+    h = env
+    other = client.put("/api/customers", json={"company": UNIT, "name": "KH khác"},
+                       headers=h).json()["id"]
+    for code, cid, qty in (("HD-C1", cus, 30.0), ("HD-C2", other, 20.0)):
+        p = client.put("/api/sales-contracts", json={
+            "company": UNIT, "code": code, "delivery_type": "multi", "customer_id": cid,
+            "sign_date": YESTERDAY, "lines": [_line(qty=100.0)]}, headers=h).json()["contract"]
+        client.put("/api/sales-contracts", json={
+            "company": UNIT, "parent_id": p["id"], "code": f"PL-{code}", "delivered_at": TODAY,
+            "channel": "export", "lines": [_line(qty=qty)]}, headers=h)
+
+    url = f"/api/sales-contracts/consumption?date_from={TODAY}&date_to={TODAY}&company={UNIT}"
+    rep = client.get(url, headers=h).json()
+    assert rep["by_company"][UNIT]["qty"] == pytest.approx(50.0)
+    # Phụ lục KHÔNG mang khách hàng → phải lấy từ hợp đồng mẹ, nếu không dồn hết vào "chưa gán".
+    by_cus = rep["by_company"][UNIT]["by_customer"]
+    assert by_cus[str(cus)]["qty"] == pytest.approx(30.0)
+    assert by_cus[str(other)]["qty"] == pytest.approx(20.0)
+
+    only = client.get(f"{url}&customer_id={cus}", headers=h).json()
+    assert only["by_company"][UNIT]["qty"] == pytest.approx(30.0)
+
+    xls = client.get(f"/api/sales-contracts/consumption.xlsx?date_from={TODAY}&date_to={TODAY}"
+                     f"&company={UNIT}", headers=h)
+    assert xls.status_code == 200
+    assert zipfile.is_zipfile(__import__("io").BytesIO(xls.content))   # .xlsx là file zip hợp lệ
+
+
+def test_meta_reports_currency_per_unit(env) -> None:
+    """Form chỉ cho chọn nội tệ CỦA ĐƠN VỊ đó — meta phải trả loại tiền từng đơn vị (chốt Q10)."""
+    m = client.get("/api/sales-contracts/meta", headers=env).json()
+    assert m["unit_currency"][UNIT] == "VND"          # đơn vị test mặc định trong nước
+    assert set(m["unit_currency"]) >= {UNIT, UNIT2}
+
+
 def test_member_scope_is_enforced(env) -> None:
     h = env
     client.delete("/api/users/sc_mem", headers=h)

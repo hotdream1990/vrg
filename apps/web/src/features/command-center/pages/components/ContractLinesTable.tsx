@@ -11,6 +11,8 @@ type Props = {
   meta: ContractMeta;
   /** true khi dòng thuộc MỘT LẦN GIAO thật (phụ lục / HĐ giao-1-lần đã giao) → ép quy khô. */
   requireDry: boolean;
+  /** Loại tiền được phép của ĐƠN VỊ đang chọn (đã lọc ở form) — không dùng thẳng meta.currencies. */
+  currencies: string[];
   readOnly?: boolean;
   onChange: (lines: ContractLine[]) => void;
 };
@@ -19,7 +21,7 @@ const num = (s: string) => (s.trim() === "" ? null : Number(s.replace(/\s/g, "")
 const str = (v: number | null) => (v == null ? "" : String(v));
 
 /** Bảng dòng chi tiết hợp đồng: chủng loại · tấn · quy khô · đơn giá · loại tiền · tỷ giá · chi phí. */
-export default function ContractLinesTable({ lines, meta, requireDry, readOnly, onChange }: Props) {
+export default function ContractLinesTable({ lines, meta, requireDry, currencies, readOnly, onChange }: Props) {
   const dry = new Set(meta.dry_required);
   const set = (i: number, patch: Partial<ContractLine>) =>
     onChange(lines.map((ln, k) => (k === i ? { ...ln, ...patch } : ln)));
@@ -35,7 +37,7 @@ export default function ContractLinesTable({ lines, meta, requireDry, readOnly, 
             <th className="r">Đơn giá<div style={{ fontWeight: 400, opacity: .7, fontSize: 11 }}>tr.đ/tấn · ngoại tệ/tấn</div></th>
             <th>Loại tiền</th>
             <th className="r">Tỷ giá → VNĐ</th>
-            <th className="r">Chi phí (tr.đ)</th>
+            <th className="r">Chi phí (tr.đ)<div style={{ fontWeight: 400, opacity: .7, fontSize: 11 }}>chi phí lô hàng</div></th>
             {!readOnly && <th style={{ width: 44 }} />}
           </tr></thead>
           <tbody>
@@ -71,7 +73,7 @@ export default function ContractLinesTable({ lines, meta, requireDry, readOnly, 
                   <td>
                     <select className="blt-date-input" style={{ width: 84 }} value={ln.ccy}
                       disabled={readOnly} onChange={(e) => set(i, { ccy: e.target.value })}>
-                      {meta.currencies.map((c) => <option key={c} value={c}>{c}</option>)}
+                      {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </td>
                   <td className="r">

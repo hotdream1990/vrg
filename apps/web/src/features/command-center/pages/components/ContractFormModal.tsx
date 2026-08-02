@@ -51,6 +51,12 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
   const isDelivery = isChild || (c.delivery_type === "single" && c.delivered);
   const customers = useMemo(
     () => meta.customers.filter((x) => x.company === c.company), [meta.customers, c.company]);
+  // Q10: trong nước bán VNĐ (+USD khi xuất khẩu); nước ngoài thêm NỘI TỆ CỦA CHÍNH đơn vị đó.
+  // Hiện cả LAK lẫn KHR cho mọi đơn vị là mời người dùng chọn nhầm loại tiền.
+  const currencies = useMemo(() => {
+    const local = meta.unit_currency?.[c.company];
+    return local && local !== "VND" ? ["VND", "USD", local] : ["VND", "USD"];
+  }, [meta.unit_currency, c.company]);
 
   const qty = sumQty(c.lines);
   // Sửa phụ lục thì phần đang sửa vốn đã nằm trong "đã giao" → cộng lại để không tự chặn nhầm.
@@ -108,7 +114,10 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 10 }}>
         <label className="form-field">Đơn vị
           <select className="blt-date-input" value={c.company} disabled={isChild || !!initial}
-            onChange={(e) => set({ company: e.target.value, customer_id: null })}>
+            onChange={(e) => set({
+              company: e.target.value, customer_id: null,
+              lines: c.lines.map((l) => ({ ...l, ccy: "VND", fx: null })),
+            })}>
             {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </label>
@@ -178,7 +187,7 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
 
       <h4 style={{ margin: "14px 0 6px" }}>Chi tiết {isChild ? "lần giao" : "hợp đồng"}</h4>
       <ContractLinesTable lines={c.lines} meta={meta} requireDry={isDelivery}
-        onChange={(lines) => set({ lines })} />
+        currencies={currencies} onChange={(lines) => set({ lines })} />
 
       {isChild && (
         <>
@@ -192,6 +201,11 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
             </div>
           )}
           <h4 style={{ margin: "14px 0 6px" }}>Thanh toán (mỗi phụ lục một lần)</h4>
+          <div className="form-note" style={{ fontSize: 11.5, marginBottom: 8 }}>
+            Đây là <b>ghi nhận lần thanh toán</b>. Chi phí đưa vào báo cáo tiêu thụ là ô{" "}
+            <b>Chi phí (tr.đ)</b> trên từng dòng chi tiết ở trên — ô dưới đây <b>không</b> cộng vào
+            báo cáo, tránh tính hai lần.
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 10 }}>
             <label className="form-field">Ngày thanh toán
               <DateInput value={c.payment_date ?? ""} onChange={(v) => set({ payment_date: v || null })} />
@@ -200,7 +214,7 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
               <input className="blt-date-input r" inputMode="decimal" value={c.payment_qty ?? ""}
                 onChange={(e) => set({ payment_qty: e.target.value === "" ? null : Number(e.target.value) })} />
             </label>
-            <label className="form-field">Chi phí (triệu đồng)
+            <label className="form-field">Chi phí lần thanh toán (triệu đồng)
               <input className="blt-date-input r" inputMode="decimal" value={c.payment_cost ?? ""}
                 onChange={(e) => set({ payment_cost: e.target.value === "" ? null : Number(e.target.value) })} />
             </label>

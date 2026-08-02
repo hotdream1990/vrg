@@ -71,6 +71,7 @@ export type ContractMeta = {
   channels: Record<string, string>;
   delivery_types: Record<string, string>;
   currencies: string[];
+  unit_currency: Record<string, string>;   // {đơn vị: nội tệ} — lọc loại tiền cho đúng đơn vị
   customers: Customer[];
 };
 
@@ -99,6 +100,17 @@ export type ConsumptionSummary = {
   deliveries: number;
   by_channel: Record<string, number>;
   by_grade: Record<string, number>;
+  /** {id khách hàng ("0" = chưa gán): sản lượng + doanh thu} — yêu cầu C1 của khách. */
+  by_customer: Record<string, { qty: number; revenue: number }>;
+};
+
+/** Báo cáo tiêu thụ: server trả kèm khối 3 cuối kỳ + tên khách để 1 lần gọi là đủ dựng bảng. */
+export type ConsumptionReport = {
+  date_from: string;
+  date_to: string;
+  by_company: Record<string, ConsumptionSummary>;
+  undelivered: Record<string, UndeliveredSummary>;
+  customers: Record<string, string>;
 };
 
 /** Đã ký HĐ chưa giao (khối 3) tại một ngày. */
@@ -147,10 +159,31 @@ export const saveContract = (body: Record<string, unknown>) =>
 export const deleteContract = (id: number) =>
   apiFetch<{ ok: boolean }>(`/api/sales-contracts/${id}`, { method: "DELETE" });
 
-export const fetchConsumption = (dateFrom: string, dateTo: string, company?: string) =>
-  apiFetch<{ date_from: string; date_to: string; by_company: Record<string, ConsumptionSummary> }>(
-    `/api/sales-contracts/consumption?date_from=${dateFrom}&date_to=${dateTo}`
-    + (company ? `&company=${encodeURIComponent(company)}` : ""));
+function consumptionQuery(dateFrom: string, dateTo: string, company?: string, customerId?: number | null) {
+  const p = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
+  if (company) p.set("company", company);
+  if (customerId) p.set("customer_id", String(customerId));
+  return p.toString();
+}
+
+export const fetchConsumption = (dateFrom: string, dateTo: string, company?: string,
+                                 customerId?: number | null) =>
+  apiFetch<ConsumptionReport>(
+    `/api/sales-contracts/consumption?${consumptionQuery(dateFrom, dateTo, company, customerId)}`);
+
+/** Tải Excel Báo cáo tiêu thụ (fetch kèm token → blob, endpoint đòi Bearer). */
+export async function downloadConsumptionXlsx(dateFrom: string, dateTo: string, company?: string,
+                                              customerId?: number | null): Promise<void> {
+  const qs = consumptionQuery(dateFrom, dateTo, company, customerId);
+  const res = await fetch(`${API}/api/sales-contracts/consumption.xlsx?${qs}`,
+    { headers: authHeaders() });
+  if (!res.ok) throw new Error("Không xuất được file Excel.");
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement("a"),
+    { href: url, download: `bao-cao-tieu-thu-${dateFrom}-den-${dateTo}.xlsx` });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
 
 export const fetchUndelivered = (asOf: string, company?: string) =>
   apiFetch<{ as_of: string; by_company: Record<string, UndeliveredSummary> }>(
