@@ -140,11 +140,14 @@ tr:hover td{background:#f3f7f4}
 .ud-sales .ant-input-number-input{height:22px;line-height:22px}
 .ud-sales .btn{height:24px;padding:0 8px;line-height:1;display:inline-flex;align-items:center;gap:4px}
 
-/* Tiêu thụ: MỖI BẢN GHI TRẢI 2 HÀNG (số liệu nhiều) — hàng 1 số bán, hàng 2 chứng từ.
-   Bỏ viền giữa 2 hàng để chúng đọc như một khối; chỉ kẻ viền dưới hàng chứng từ. */
-.ud-sale2 td{border-bottom:0}
-.ud-sale2 tr:hover td{background:transparent}
-.ud-sale2 tr.ud-docs-row>td{padding:0 6px 10px;border-bottom:1px solid var(--line)}
+/* Dòng chi tiết hợp đồng: các ô TỰ XUỐNG HÀNG khi khung hẹp thay vì bắt cuộn ngang.
+   Dạng bảng 8 cột luôn vượt bề ngang modal nên ô Chi phí bị cắt mất, phải kéo thanh cuộn mới thấy.
+   Mỗi ô mang nhãn riêng nên xuống hàng vẫn đọc được; viền dưới ngăn giữa các dòng. */
+.ct-line{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 12px;padding:10px 0;
+         border-bottom:1px solid var(--line)}
+.ct-line:last-child{border-bottom:0}
+.ct-line .form-field{font-size:11px;gap:3px}
+.ct-line .blt-date-input{height:30px;width:100%}
 .ud-docs{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding-left:2px}
 .ud-doc{display:flex;align-items:center;gap:6px;font-size:12px;min-height:24px}
 .ud-doc-lb{color:var(--muted);font-size:11px;white-space:nowrap}

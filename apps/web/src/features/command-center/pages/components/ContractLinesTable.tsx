@@ -18,99 +18,91 @@ type Props = {
   onChange: (lines: ContractLine[]) => void;
 };
 
-/** Ô số của bảng — dùng NumInput chung để gõ được thập phân (giữ chuỗi thô khi đang gõ). */
-const cell = (value: number | null, onChange: (v: number | null) => void,
-              readOnly?: boolean, warn = false, placeholder = "") => (
-  <NumInput value={value} onChange={onChange} readOnly={readOnly} placeholder={placeholder}
-            className={`blt-date-input r${warn ? " num-warn" : ""}`} />
-);
+/** Một ô có nhãn trong dòng chi tiết. `w` = bề rộng mong muốn, ô vẫn co lại được khi khung hẹp. */
+function Field({ label, w, children }: { label: string; w: number; children: React.ReactNode }) {
+  return (
+    <label className="form-field" style={{ flex: `0 1 ${w}px`, minWidth: 84 }}>
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
 
-/** Bảng dòng chi tiết hợp đồng: chủng loại · tấn · quy khô · đơn giá · loại tiền · tỷ giá · chi phí. */
+/**
+ * Dòng chi tiết hợp đồng: chủng loại · sản lượng · quy khô · đơn giá · loại tiền · tỷ giá · chi phí.
+ *
+ * Bố cục là KHỐI TỰ XUỐNG HÀNG, không phải bảng: 8 cột luôn vượt bề ngang modal nên người nhập phải
+ * cuộn ngang mới thấy ô Chi phí. Mỗi ô mang nhãn riêng nên xuống hàng vẫn đọc được, và ô nào không
+ * áp dụng cho dòng đó thì ẩn hẳn thay vì để một ô trống khiến người nhập tưởng còn thiếu số:
+ *   - Quy khô: chỉ latex và mủ nguyên liệu (thành phẩm bán ra vốn đã là hàng khô).
+ *   - Tỷ giá: chỉ dòng bán bằng ngoại tệ.
+ */
 export default function ContractLinesTable({ lines, meta, requireDry, currencies, readOnly, onChange }: Props) {
   const dry = new Set(meta.dry_required);
   const set = (i: number, patch: Partial<ContractLine>) =>
     onChange(lines.map((ln, k) => (k === i ? { ...ln, ...patch } : ln)));
-  // Bán bằng VNĐ thì không có gì để quy đổi → cả bảng VNĐ là BỎ HẲN cột tỷ giá, đỡ một cột trống
-  // khiến người nhập tưởng còn thiếu số. Bảng có dòng ngoại tệ thì giữ cột, dòng VNĐ để dấu "—".
-  const anyFx = lines.some((ln) => ln.ccy !== "VND");
-  // Cột quy khô cũng vậy: cả bảng toàn thành phẩm thì bỏ hẳn cột. Bảng có latex/mủ nguyên liệu thì
-  // giữ cột (một hợp đồng bán nhiều chủng loại), dòng thành phẩm để dấu "—".
-  const anyDry = lines.some((ln) => dry.has(ln.grade));
+
+  const num = (value: number | null, onValue: (v: number | null) => void,
+               warn = false, placeholder = "") => (
+    <NumInput value={value} onChange={onValue} readOnly={readOnly} placeholder={placeholder}
+              className={`blt-date-input r${warn ? " num-warn" : ""}`} />
+  );
 
   return (
     <div>
-      <div className="card" style={{ padding: 0, overflow: "auto" }}>
-        <table>
-          <thead><tr>
-            <th style={{ minWidth: 220 }}>Chủng loại</th>
-            <th className="r">SL (tấn)</th>
-            {anyDry && <th className="r">Quy khô (tấn)</th>}
-            <th className="r">Đơn giá<div style={{ fontWeight: 400, opacity: .7, fontSize: 11 }}>tr.đ/tấn · ngoại tệ/tấn</div></th>
-            <th>Loại tiền</th>
-            {anyFx && <th className="r">Tỷ giá → VNĐ</th>}
-            <th className="r">Chi phí (tr.đ)<div style={{ fontWeight: 400, opacity: .7, fontSize: 11 }}>chi phí lô hàng</div></th>
-            {!readOnly && <th style={{ width: 44 }} />}
-          </tr></thead>
-          <tbody>
-            {lines.map((ln, i) => {
-              const needDry = requireDry && dry.has(ln.grade);
-              const needFx = ln.ccy !== "VND";
-              return (
-                <tr key={i}>
-                  <td>
-                    <select className="blt-date-input" style={{ width: "100%" }} value={ln.grade}
-                      disabled={readOnly}
-                      // Đổi sang chủng loại không có quy khô phải XOÁ số cũ: ô đã ẩn nên người dùng
-                      // không tự xoá được, giữ lại thì lưu bị chặn mà không biết sửa ở đâu.
-                      onChange={(e) => set(i, {
-                        grade: e.target.value,
-                        ...(dry.has(e.target.value) ? {} : { qty_dry: null }),
-                      })}>
-                      <option value="">— chọn chủng loại —</option>
-                      {meta.grades.map((g) => <option key={g} value={g}>{g}</option>)}
-                    </select>
-                  </td>
-                  <td className="r">{cell(ln.qty, (v) => set(i, { qty: v }), readOnly)}</td>
-                  {anyDry && (
-                    <td className="r">
-                      {/* Thành phẩm bán ra đã là hàng khô → không có quy khô, tránh khai số vô nghĩa. */}
-                      {dry.has(ln.grade)
-                        ? cell(ln.qty_dry, (v) => set(i, { qty_dry: v }), readOnly,
-                               needDry && !ln.qty_dry, needDry ? "bắt buộc" : "")
-                        : <span style={{ fontSize: 11.5, color: "var(--muted)" }}>—</span>}
-                    </td>
-                  )}
-                  <td className="r">
-                    {cell(ln.price, (v) => set(i, { price: v }), readOnly)}
-                    <div className="ud-unit-hint">{ln.ccy === "VND" ? "tr.đ/tấn" : `${ln.ccy}/tấn`}</div>
-                  </td>
-                  <td>
-                    <select className="blt-date-input" style={{ width: 84 }} value={ln.ccy}
-                      disabled={readOnly} onChange={(e) => set(i, { ccy: e.target.value })}>
-                      {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </td>
-                  {anyFx && (
-                    <td className="r">
-                      {needFx
-                        ? cell(ln.fx, (v) => set(i, { fx: v }), readOnly, !ln.fx, "bắt buộc")
-                        : <span style={{ fontSize: 11.5, color: "var(--muted)" }}>—</span>}
-                    </td>
-                  )}
-                  <td className="r">{cell(ln.cost, (v) => set(i, { cost: v }), readOnly)}</td>
-                  {!readOnly && (
-                    <td className="r">
-                      <button className="btn" title="Xoá dòng" disabled={lines.length <= 1}
-                        onClick={() => onChange(lines.filter((_, k) => k !== i))}>
-                        <DeleteOutlined />
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div className="card" style={{ padding: "0 12px" }}>
+        {lines.map((ln, i) => {
+          const hasDry = dry.has(ln.grade);
+          const needDry = requireDry && hasDry;
+          const needFx = ln.ccy !== "VND";
+          return (
+            <div className="ct-line" key={i}>
+              <Field label="Chủng loại" w={230}>
+                <select className="blt-date-input" value={ln.grade} disabled={readOnly}
+                  // Đổi sang chủng loại không có quy khô phải XOÁ số cũ: ô đã ẩn nên người dùng
+                  // không tự xoá được, giữ lại thì lưu bị chặn mà không biết sửa ở đâu.
+                  onChange={(e) => set(i, {
+                    grade: e.target.value,
+                    ...(dry.has(e.target.value) ? {} : { qty_dry: null }),
+                  })}>
+                  <option value="">— chọn chủng loại —</option>
+                  {meta.grades.map((g) => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </Field>
+              <Field label="SL (tấn)" w={100}>{num(ln.qty, (v) => set(i, { qty: v }))}</Field>
+              {hasDry && (
+                <Field label="Quy khô (tấn)" w={110}>
+                  {num(ln.qty_dry, (v) => set(i, { qty_dry: v }), needDry && !ln.qty_dry,
+                       needDry ? "bắt buộc" : "")}
+                </Field>
+              )}
+              <Field label={`Đơn giá (${ln.ccy === "VND" ? "tr.đ/tấn" : `${ln.ccy}/tấn`})`} w={130}>
+                {num(ln.price, (v) => set(i, { price: v }))}
+              </Field>
+              <Field label="Loại tiền" w={92}>
+                <select className="blt-date-input" value={ln.ccy} disabled={readOnly}
+                  onChange={(e) => set(i, { ccy: e.target.value })}>
+                  {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </Field>
+              {needFx && (
+                <Field label="Tỷ giá → VNĐ" w={120}>
+                  {num(ln.fx, (v) => set(i, { fx: v }), !ln.fx, "bắt buộc")}
+                </Field>
+              )}
+              <Field label="Chi phí lô hàng (tr.đ)" w={140}>
+                {num(ln.cost, (v) => set(i, { cost: v }))}
+              </Field>
+              {!readOnly && (
+                <button className="btn" title="Xoá dòng" disabled={lines.length <= 1}
+                  style={{ marginBottom: 1 }}
+                  onClick={() => onChange(lines.filter((_, k) => k !== i))}>
+                  <DeleteOutlined />
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
       {!readOnly && (
         <div style={{ marginTop: 8 }}>
