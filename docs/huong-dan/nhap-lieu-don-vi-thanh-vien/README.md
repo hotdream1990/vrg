@@ -1,36 +1,45 @@
 # Hướng dẫn nhập liệu — Đơn vị thành viên
 
-Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu hằng ngày trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Có 5 mục cần nhập: Báo cáo thu mua, Báo cáo tiêu thụ, Báo cáo tồn kho và Nhu cầu thị trường (nhập theo NGÀY), cùng Kế hoạch năm (nhập 1 lần cho cả năm); ngoài ra có mục Thống kê hợp đồng chỉ để tra cứu.
+Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình.
+
+Từ **30/07/2026**, số tiêu thụ **không còn nhập tay theo ngày** — hệ thống tự tính từ các lần giao ghi trên hợp đồng. Đơn vị nhập 4 mục theo ngày/năm và quản lý hợp đồng bán hàng của mình; hai mục còn lại chỉ để xem.
 
 > Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-don-vi-thanh-vien.docx](./Huong-dan-nhap-lieu-don-vi-thanh-vien.docx)
+> Dựng lại ảnh khi giao diện đổi: `uv run --directory apps/api --with playwright python ../../docs/huong-dan/nhap-lieu-don-vi-thanh-vien/shoot.py`
 
-## 1. Đăng nhập và các mục cần nhập
+## 1. Có gì thay đổi so với cách làm cũ
 
-**Vị trí:** Menu bên trái, nhóm “Quản lý số liệu (thủ công)”
+Đơn vị đã quen hệ thống trước 30/07 cần nắm 4 thay đổi sau.
 
-Sau khi đăng nhập bằng tài khoản đơn vị, menu bên trái hiển thị đúng các mục đơn vị cần làm. Số liệu nhập vào luôn tự gắn với đơn vị của tài khoản — không cần và không thể chọn đơn vị khác.
+1. **Không còn phiếu nhập tiêu thụ theo ngày.** Trước đây mỗi ngày khai các dòng bán; nay mỗi lần giao hàng được ghi thành **một phụ lục của hợp đồng**, hệ thống tự cộng vào tiêu thụ đúng ngày giao.
+2. **Không còn khối “đã ký HĐ chưa giao” trong phiếu tồn kho.** Số này nay **tự tính** từ các đợt giao đã mở nhưng chưa tới ngày giao. Phiếu tồn kho còn đúng 3 khối nhập tay.
+3. **Có thêm danh mục Khách hàng.** Mỗi hợp đồng phải gắn một khách hàng của đơn vị — nhờ đó báo cáo tách được sản lượng và doanh thu theo từng khách.
+4. **Hợp đồng nhập trước 30/07 chuyển sang mục “Hợp đồng cũ”**, chỉ để tra cứu, không sửa được. Số liệu cũ vẫn còn nguyên.
+
+> Số tiêu thụ của các kỳ trước 30/07 chỉ hiện lại trên báo cáo sau khi Ban TTKD chạy chuyển đổi dữ liệu. Trong lúc chờ, báo cáo có dòng cảnh báo màu vàng nói rõ phần nào chưa được tính.
+
+## 2. Đăng nhập và các mục trên menu
+
+**Vị trí:** Menu bên trái
+
+Sau khi đăng nhập bằng tài khoản đơn vị, menu bên trái hiển thị đúng các mục đơn vị cần làm, chia thành 3 nhóm. Số liệu nhập vào luôn tự gắn với đơn vị của tài khoản — không cần và không thể chọn đơn vị khác.
 
 ![Hình 1. Menu của tài khoản đơn vị thành viên](img/01-menu.png)
 
 *Hình 1. Menu của tài khoản đơn vị thành viên*
 
-**Sáu mục trên menu** (5 mục để nhập số liệu, 1 mục để tra cứu):
+1. **Nhập liệu số liệu** — Thu mua (theo ngày) · Tồn kho (theo ngày) · Nhu cầu thị trường · Kế hoạch năm.
+2. **Quản lý hợp đồng** — Khách hàng · Hợp đồng & phụ lục. Đây là nơi ghi việc bán hàng.
+3. **Báo cáo** — Tiêu thụ (số hệ thống tự tính) · Hợp đồng cũ trước 30/07 (chỉ tra cứu).
 
-1. **Báo cáo thu mua** — sản lượng và đơn giá thu mua mủ nguyên liệu **theo ngày**.
-2. **Báo cáo tiêu thụ** — sản lượng bán theo từng hợp đồng, giá bán và doanh thu **theo ngày**.
-3. **Báo cáo tồn kho** — tồn kho thành phẩm (đã / chưa có hợp đồng) và tồn kho nguyên liệu **theo ngày**.
-4. **Thống kê hợp đồng** — tra cứu lịch sử hợp đồng đã ký, **chỉ để xem, không nhập** (xem mục 7).
-5. **Nhu cầu thị trường** — ghi nhận nhu cầu/tín hiệu thị trường của đơn vị, nhập **tự do bằng chữ**.
-6. **Kế hoạch năm** — kế hoạch thu mua và hợp đồng dài hạn đã ký, **nhập 1 lần cho cả năm**.
-
-> - Báo cáo tiêu thụ và Báo cáo tồn kho là **hai tab của cùng một phiếu ngày** — nhập bên này không làm mất số bên kia.
+> - Đơn vị **không được giao kế hoạch thu mua** sẽ không thấy mục *Thu mua* và *Kế hoạch năm*.
 > - Chỉ nhập/sửa được ngày hôm nay và một số ngày gần nhất theo quy định; ngày cũ hơn chỉ để xem.
 
-## 2. Màn hình danh sách và nút thao tác
+## 3. Màn hình danh sách và nút thao tác
 
-**Vị trí:** Menu → Báo cáo thu mua (các màn khác bố trí tương tự)
+**Vị trí:** Nhập liệu số liệu → Thu mua (các màn khác bố trí tương tự)
 
-Mỗi màn báo cáo đều có danh sách các ngày đã nhập và các nút thao tác.
+Mỗi màn nhập theo ngày đều có danh sách các ngày đã nhập kèm dòng luỹ kế.
 
 ![Hình 2. Danh sách theo ngày và các nút thao tác](img/02-thu-mua-danh-sach.png)
 
@@ -40,163 +49,192 @@ Mỗi màn báo cáo đều có danh sách các ngày đã nhập và các nút 
 2. **Biểu tượng bút** ở cuối mỗi dòng — mở lại phiếu của ngày đó để sửa.
 
 > - Danh sách chỉ hiện những ngày **đã có số liệu**; ngày chưa nhập sẽ không xuất hiện.
+> - Chọn **Khoảng thời gian** ở góc trái để xem xa hơn 90 ngày.
 
-## 3. Nhập Báo cáo thu mua — đơn vị trong nước
+## 4. Nhập Thu mua
 
-**Vị trí:** Báo cáo thu mua → Thêm số liệu ngày
+**Vị trí:** Nhập liệu số liệu → Thu mua → Thêm số liệu ngày
 
-Áp dụng cho các đơn vị tại Việt Nam. Phiếu chia theo loại mủ: mỗi loại nhập sản lượng và đơn giá đi liền nhau. Mủ chén phải chọn tính theo độ TSC hay độ DRC. Cuối phiếu là khối thu mua THÀNH PHẨM (mua lại mủ đã chế biến) — nhập theo **bảng, mỗi chủng loại một dòng**.
+Phiếu chia theo loại mủ, mỗi loại nhập sản lượng và đơn giá đi liền nhau.
 
-![Hình 3. Phiếu Thu mua của đơn vị trong nước](img/03-thu-mua-vn.png)
+![Hình 3. Phiếu Thu mua theo ngày](img/03-thu-mua-form.png)
 
-*Hình 3. Phiếu Thu mua của đơn vị trong nước*
+*Hình 3. Phiếu Thu mua theo ngày*
 
-1. Chọn **ngày báo cáo**.
+1. **Hôm nay đơn vị KHÔNG tổ chức thu mua** — chỉ tích khi thật sự không tổ chức mua. Có công bố giá và có tổ chức mua nhưng không mua được thì **đừng tích**: nhập sản lượng 0 kèm đúng mức giá đã công bố. Hai trường hợp này khác nhau khi tổng hợp báo cáo.
 2. **Mủ nước** — sản lượng (tấn, quy khô) và đơn giá (đồng/độ TSC).
-3. **Mủ chén — Đơn giá tính theo**: chọn *Độ TSC* hoặc *Độ DRC*; nhãn ô đơn giá đổi theo lựa chọn này.
-4. **Thu mua thành phẩm** — bảng nhập, **mỗi chủng loại mua trong ngày là một dòng riêng**.
-5. **Một dòng chủng loại**: chọn **Chủng loại** · **SL thu mua** (tấn) · **Đơn giá** · **Tiền** (VNĐ hay USD) · **Tỷ giá** (chỉ hiện khi dòng đó chọn USD). Cột **Thành tiền** tự tính.
-6. **Thêm chủng loại** — mua mấy chủng loại thì thêm bấy nhiêu dòng; nút thùng rác ở cuối dòng để xoá.
-7. **Lấy tỷ giá VCB cho các dòng USD** — điền tỷ giá Vietcombank cho mọi dòng đang chọn USD. Xong bấm **Lưu số liệu**.
+3. **Mủ chén** — sản lượng, chọn **Đơn giá tính theo** *Độ TSC* hay *Độ DRC*; nhãn ô đơn giá đổi theo lựa chọn này.
+4. **Mủ nguyên liệu nước chưa cán vắt (chén)** và **Mủ nguyên liệu đã cán vắt (RSS)** — hai loại này nhập **đơn giá theo đồng/kg**, tính riêng từng loại.
+5. **Thu mua thành phẩm** — bảng nhập, **mỗi chủng loại mua trong ngày là một dòng riêng**: Chủng loại · SL · Đơn giá · Loại tiền · Tỷ giá (chỉ hiện khi dòng chọn ngoại tệ). Cột Thành tiền tự tính.
 
-> - **Đơn giá đi theo loại tiền của từng dòng**: chọn VNĐ thì nhập **triệu đ/tấn**, chọn USD thì nhập **USD/tấn**. Trong một ngày có thể vừa mua bằng VNĐ vừa mua bằng USD.
-> - Ba ô cuối khối — **Tổng SL thành phẩm · Tổng giá trị · Đơn giá bình quân** — hệ thống tự cộng, không nhập tay.
-> - Đơn giá mủ nước/mủ chén nhập ở đây đồng thời ghi vào kho “Giá mủ nguyên liệu”, kèm đúng đơn vị tính (độ TSC hay độ DRC) đã chọn.
-> - Ô **Hôm nay đơn vị KHÔNG tổ chức thu mua** chỉ tích khi thật sự không tổ chức mua. Có công bố giá, có tổ chức mua nhưng không mua được thì **đừng tích** — nhập **sản lượng 0** kèm **đúng mức giá đã công bố** (không mua được ở mọi mức thì nhập 0 với **mức giá thấp nhất**). Hai trường hợp này khác nhau khi tổng hợp báo cáo.
+> - Ngày nào không phát sinh loại nào thì để trống loại đó, không nhập số 0.
+> - Nút **Lấy tỷ giá VCB cho các dòng USD** điền tỷ giá Vietcombank cho mọi dòng đang chọn USD.
 
-## 4. Nhập Báo cáo thu mua — đơn vị ngoài Việt Nam
+## 5. Nhập Tồn kho
 
-**Vị trí:** Báo cáo thu mua → Thêm số liệu ngày (đơn vị tại Lào / Campuchia)
+**Vị trí:** Nhập liệu số liệu → Tồn kho → Thêm số liệu ngày
 
-Đơn vị ở nước ngoài mua mủ bằng nội tệ (LAK/KHR) và bán bằng USD, nên phiếu có thêm ô nội tệ và HAI tỷ giá riêng. Các ô nền xám là hệ thống tự quy đổi, không nhập tay.
+Tồn kho là **số tại thời điểm cuối ngày**, không cộng dồn giữa các ngày. Phiếu còn đúng 3 khối nhập tay.
 
-![Hình 4. Phiếu Thu mua của đơn vị nước ngoài (ví dụ đơn vị tại Lào — LAK)](img/04-thu-mua-nuoc-ngoai.png)
+![Hình 4. Phiếu Tồn kho theo ngày](img/04-ton-kho.png)
 
-*Hình 4. Phiếu Thu mua của đơn vị nước ngoài (ví dụ đơn vị tại Lào — LAK)*
+*Hình 4. Phiếu Tồn kho theo ngày*
 
-**Khác biệt so với đơn vị trong nước:**
+1. **Lấy tồn ngày trước** — chép số tồn của ngày gần nhất sang rồi sửa cho đúng ngày này.
+2. **Khối 1 — Tồn kho thành phẩm chế biến chưa nhập kho**: mỗi chủng loại một dòng.
+3. **Khối 2 — Tồn kho thành phẩm đã nhập kho**: mỗi chủng loại một dòng.
+4. **Khối 3 — Tồn kho nguyên liệu chưa sản xuất (quy khô)**: một ô tổng.
 
-1. **Đơn giá theo nội tệ** (LAK/KHR trên độ) — giá mua thực tế tại nước sở tại.
-2. **Mủ chén — Đơn giá tính theo**: *Độ TSC* hoặc *Độ DRC*.
-3. **Tỷ giá thu mua** (1 nội tệ = ? VND) — quy đơn giá về đồng.
-4. **Thu mua thành phẩm** — bảng theo chủng loại, nhập y như đơn vị trong nước (mục 3).
-5. **Một dòng chủng loại**: chọn **Tiền** là *USD* thì nhập **Tỷ giá** (1 USD = ? VND) ngay ở dòng đó — hoặc bấm *Lấy tỷ giá VCB cho các dòng USD*.
+> - Ô **Tồn kho thành phẩm** ở cuối phiếu là số **tự tính** = khối 1 + khối 2.
+> - Sản lượng **đã ký hợp đồng nhưng chưa giao** không còn nhập ở đây — hệ thống tự tính từ hợp đồng, xem ở cột *Chưa giao* trên màn Báo cáo tiêu thụ.
+> - Tích **Hôm nay không phát sinh tồn kho để khai** nếu ngày đó đơn vị không có gì để báo.
 
-> - Hai tỷ giá **khác nhau và độc lập**: tỷ giá nội tệ cho đơn giá mủ nước/mủ chén; tỷ giá USD nằm trên từng dòng thành phẩm.
-> - Ô nền xám là hệ thống **tự quy đổi**, chỉ để xem.
-> - Sản lượng và cách lưu giống đơn vị trong nước (mục 3).
+## 6. Khách hàng
 
-## 5. Nhập Báo cáo tiêu thụ
+**Vị trí:** Quản lý hợp đồng → Khách hàng
 
-**Vị trí:** Menu → Báo cáo tiêu thụ → Thêm số liệu ngày
+Danh mục khách hàng **riêng của từng đơn vị** — đơn vị khác không thấy danh mục của đơn vị mình. Phải có khách hàng trước thì mới lập được hợp đồng.
 
-Mỗi hợp đồng bán là một dòng, hệ thống tự cộng lại. Phiếu có **2 bảng nhập tách riêng** — **Tiêu thụ mủ khai thác** và **Tiêu thụ mủ thu mua** — để lưu trữ riêng từng nguồn mủ; phần **Tổng hợp tiêu thụ** vẫn cộng chung cả hai.
+![Hình 5. Danh mục khách hàng của đơn vị](img/05-khach-hang.png)
 
-Vì mỗi hợp đồng có nhiều thông tin nên một bản ghi được bố trí **2 hàng**: hàng trên là số liệu bán, hàng dưới là chứng từ đi kèm.
+*Hình 5. Danh mục khách hàng của đơn vị*
 
-![Hình 5. Phiếu Tiêu thụ — 2 bảng theo nguồn mủ, mỗi bản ghi 2 hàng](img/05-tieu-thu.png)
+1. **Thêm khách hàng** — nhập tên khách, mã khách (tuỳ chọn) và ghi chú.
+2. **Sửa / Xoá** ở cuối mỗi dòng.
 
-*Hình 5. Phiếu Tiêu thụ — 2 bảng theo nguồn mủ, mỗi bản ghi 2 hàng*
+> - Trùng tên trong cùng một đơn vị sẽ bị chặn; hai đơn vị khác nhau được phép trùng tên khách.
+> - Khách hàng đang có hợp đồng thì không xoá được — hãy ngưng sử dụng thay vì xoá.
 
-1. *(Hàng trên)* **Loại HĐ** (Dài hạn / Chuyến) · **Hình thức** (XK-UTXK / Nội tiêu) · **Loại mủ** · **SL (tấn)** · **Giá bán**.
-2. *(Hàng trên)* **Loại tiền** — chọn VND hoặc USD **cho từng dòng**; chọn USD thì nhập **Tỷ giá** ngay ở dòng đó.
-3. *(Hàng dưới)* **Ngày xuất kho** · **Ngày xuất hoá đơn** và 3 chứng từ đính kèm **Bộ Hợp đồng** · **Phiếu xuất kho** · **Hoá đơn** — nhận PDF · Word · Excel · XML · ảnh (JPG, PNG, HEIC, WEBP, TIFF) · ZIP, tối đa 25 MB mỗi file. **Mỗi ô chỉ chứa 1 file**: bộ nhiều văn bản thì gộp thành 1 file PDF hoặc nén ZIP. Chưa có thì để trống; bấm tên file để mở lại.
-4. **Tiêu thụ mủ thu mua** — bảng riêng ngay bên dưới, nhập y hệt bảng mủ khai thác.
-5. **Tổng hợp tiêu thụ** — hệ thống tự cộng cả 2 bảng; **Giá BQ** = doanh thu ÷ sản lượng. Xong bấm **Lưu số liệu**.
+## 7. Hợp đồng & phụ lục — danh sách
 
-> - **Mủ khai thác và mủ thu mua nhập ở 2 bảng riêng** để lưu trữ tách bạch, nhưng mọi số tổng (SL · doanh thu · giá BQ) đều cộng chung cả hai.
-> - **Loại tiền chọn theo từng dòng** — trong ngày vừa bán USD vừa bán VNĐ vẫn nhập chung một phiếu.
-> - Nút **Lấy tỷ giá VCB cho các dòng USD** điền tỷ giá Vietcombank cho mọi dòng đang chọn USD của **cả 2 bảng**.
-> - Khối **Tổng hợp tiêu thụ** và cột **Doanh thu** từng dòng đều tự tính — không nhập tay.
+**Vị trí:** Quản lý hợp đồng → Hợp đồng & phụ lục
 
-## 6. Nhập Báo cáo tồn kho
+Danh sách các **hợp đồng mẹ** kèm tiến độ giao hàng.
 
-**Vị trí:** Menu → Báo cáo tồn kho → Thêm số liệu ngày
+![Hình 6. Danh sách hợp đồng và tiến độ giao](img/06-hop-dong-danh-sach.png)
 
-Tồn kho là số liệu **tại thời điểm cuối ngày** (không cộng dồn giữa các ngày), đơn vị tính là **tấn**. Phiếu chia thành 4 khối theo tình trạng hàng. Riêng khối 3 — **hợp đồng đã ký chưa giao** — là **phần NẰM TRONG tồn kho thành phẩm** đã có hợp đồng nhưng chưa giao (chỉ để biết trong tồn kho bao nhiêu đã có đầu ra, nên **không cộng thêm** vào tồn kho — cộng nữa là tính trùng — và cũng **không trừ ra**) và **không phải nhập lại mỗi ngày**: mỗi hợp đồng nhập **một lần** rồi hệ thống tự giữ ở khối này cho tới khi giao hàng.
+*Hình 6. Danh sách hợp đồng và tiến độ giao*
 
-![Hình 6. Phiếu Tồn kho — khối 3 là hợp đồng có vòng đời riêng](img/06-ton-kho.png)
+1. **Thêm hợp đồng** — lập hợp đồng mới (xem mục 8).
+2. **Xem / Sửa / Xoá** ở cuối mỗi dòng. Bấm **Xem** để mở chi tiết và thêm phụ lục.
 
-*Hình 6. Phiếu Tồn kho — khối 3 là hợp đồng có vòng đời riêng*
+Ý nghĩa các cột tiến độ:
 
-**Bốn khối tồn kho:**
+- **Cam kết** — tổng sản lượng ghi trên hợp đồng.
+- **Đã giao** — tổng của các phụ lục đã điền ngày giao.
+- **Chờ giao** — đợt đã mở nhưng chưa tới ngày giao; đây chính là phần “đã ký HĐ chưa giao”.
+- **Chưa mở đợt** — phần cam kết chưa được chia thành phụ lục nào.
 
-1. **Lấy tồn ngày trước** — chép khối 1, 2 và 4 của ngày gần nhất sang rồi sửa lại cho đúng ngày này.
-2. **1. Tồn kho thành phẩm chế biến chưa nhập kho** — chủng loại + số lượng (tấn).
-3. **2. Tồn kho thành phẩm đã nhập kho** — chủng loại + số lượng (tấn).
-4. **3. Số lượng đã ký hợp đồng chưa giao** — nhập **một lần cho mỗi hợp đồng**, mỗi hợp đồng trải **2 hàng**.
-5. *(Hàng trên)* **Chủng loại** · **Số HĐ/PL** · **SL (tấn)** · **Đơn giá** · **Tiền** (VND/USD) · **Tỷ giá** khi chọn USD; **Thành tiền** tự tính. Cuối hàng có nút **lưu** và **xoá** của riêng hợp đồng đó.
-6. *(Hàng dưới)* **Bắt đầu tồn kho** · **Lịch giao** · **Ngày giao** · **HĐ đã ký (scan)** — đính kèm bản Hợp đồng đã ký có đóng dấu; nhận PDF · Word · Excel · XML · ảnh (JPG, PNG, HEIC, WEBP, TIFF) · ZIP, tối đa 25 MB, **1 file cho mỗi hợp đồng**.
-7. **4. Tồn kho nguyên liệu chưa sản xuất (quy khô)** — 1 ô số lượng (tấn). Xong bấm **Lưu số liệu**.
+## 8. Thêm hợp đồng
 
-> - **Hợp đồng nằm ở khối 3 từ *Bắt đầu tồn kho* đến hết ngày TRƯỚC *Ngày giao*.** Lúc mới ký chỉ cần điền *Bắt đầu tồn kho* (để trống *Ngày giao*) — hợp đồng sẽ tự hiện ở khối 3 mọi ngày sau đó. Khi đã xuất kho thì **chỉ cần mở ra điền *Ngày giao*** là xong, không phải nhập lại gì nữa.
-> - **Ngày bắt đầu phải trước *Ngày giao* (và *Lịch giao*) ít nhất 1 ngày** — nhập sai hệ thống sẽ báo và không cho lưu.
-> - Mỗi hợp đồng **lưu riêng bằng nút lưu ở cuối hàng trên**, KHÔNG đi kèm nút *Lưu số liệu* của phiếu ngày (vì hợp đồng không thuộc riêng một ngày nào).
-> - Nút **Lấy tồn ngày trước** KHÔNG chép khối 3 — hợp đồng tự nối sang ngày mới theo vòng đời của nó, chép lại sẽ thành nhân đôi. Nút này cũng không chép các dòng bán ở tab Tiêu thụ, vì tiêu thụ là số phát sinh trong ngày.
-> - Khối **4** hiện với **mọi đơn vị**, **không phân biệt** đơn vị có nhà máy hay không. Đơn vị nào không có số thì để trống.
-> - Khối **Tổng hợp tồn kho**: *Tồn kho thành phẩm* = khối 1 + khối 2. Khối 3 là **phần đã có hợp đồng nằm trong** tồn kho thành phẩm — không cộng thêm và không trừ ra, và **không vượt quá** *Tồn kho thành phẩm*.
-> - Chủng loại tách theo từng loại giống bảng Giá sàn Tập đoàn — **SVR CV 50** và **SVR CV60** là 2 loại riêng.
+**Vị trí:** Quản lý hợp đồng → Hợp đồng & phụ lục → Thêm hợp đồng
 
-## 7. Thống kê hợp đồng
+![Hình 7. Phiếu thêm hợp đồng](img/07-hop-dong-form.png)
 
-**Vị trí:** Menu → Thống kê hợp đồng
+*Hình 7. Phiếu thêm hợp đồng*
 
-Màn này liệt kê **tất cả hợp đồng đã ký** của đơn vị, kể cả những hợp đồng **đã giao hàng**. Khi bạn điền "Ngày giao" cho một hợp đồng ở màn Báo cáo tồn kho, hợp đồng đó sẽ không còn hiện ở "Báo cáo tồn kho" theo ngày nữa, nhưng vẫn có thể tra cứu lại toàn bộ lịch sử trong màn này.
+1. **Số hợp đồng** — bắt buộc, không trùng trong cùng đơn vị.
+2. **Khách hàng** — bắt buộc, chọn từ danh mục ở mục 6.
+3. **Loại hợp đồng** — bắt buộc: *HĐ dài hạn* hay *HĐ chuyến*. Đây là chỉ tiêu của báo cáo, **khác** với Loại giao bên dưới.
+4. **Loại giao** — *Giao 1 lần* (cả hợp đồng giao trọn một lần) hay *Giao nhiều lần* (chia thành nhiều phụ lục).
+5. **Ngày ký** — bắt buộc.
+6. **Ngày bắt đầu (mở đợt)** — ngày hàng bắt đầu gom vào kho cho đợt này; chỉ hiện với hợp đồng giao 1 lần.
+7. **Chi tiết hợp đồng** — mỗi chủng loại một dòng: SL · Quy khô · Đơn giá · Loại tiền · Tỷ giá · Chi phí.
 
-**Chức năng:**
+> - Bán bằng **VNĐ** nhập đơn giá theo **triệu đồng/tấn**; bán bằng **ngoại tệ** nhập theo **ngoại tệ/tấn** và **phải có tỷ giá** quy ra VNĐ, nếu không doanh thu sẽ hiện “—”.
+> - Bán **LATEX** và 2 loại mủ nguyên liệu thì **bắt buộc nhập quy khô** mới lưu được.
+> - Hợp đồng **giao 1 lần**: điền **Ngày giao** ngay trên hợp đồng khi đã giao xong.
+> - Hợp đồng **giao nhiều lần**: không tự đánh dấu đã giao — mỗi lần giao nhập một phụ lục.
 
-1. **Xem danh sách** — tất cả hợp đồng đã ký, có thể lọc theo trạng thái (chưa giao / đã giao), khoảng ngày, hoặc tìm theo số hợp đồng.
-2. **Chỉ để xem** — không nhập/sửa được ở màn này. Để sửa thông tin hợp đồng, vào "Báo cáo tồn kho".
+## 9. Thêm phụ lục — mỗi phụ lục là một lần giao
 
-## 8. Nhập Nhu cầu thị trường
+**Vị trí:** Hợp đồng & phụ lục → **Xem** một hợp đồng giao nhiều lần → Thêm phụ lục
 
-**Vị trí:** Menu → Nhu cầu thị trường
+Mỗi phụ lục = **một đợt giao + một lần thanh toán**. Đây là cách ghi nhận tiêu thụ của cơ chế mới.
 
-Ghi nhận **các lời chào hàng từ khách hàng, nhà sản xuất** và nhu cầu thị trường mà đơn vị nắm được trong ngày — dùng để phân tích yếu tố **Cầu** trong quan hệ Cung – Cầu.
+![Hình 8. Phiếu thêm phụ lục](img/08-phu-luc-form.png)
 
-![Hình 7. Nhập Nhu cầu thị trường](img/09-nhu-cau-thi-truong.png)
+*Hình 8. Phiếu thêm phụ lục*
 
-*Hình 7. Nhập Nhu cầu thị trường*
+1. **Số phụ lục** — bắt buộc.
+2. **Ngày bắt đầu (mở đợt)** — bắt buộc; từ ngày này hàng của đợt nằm ở “đã ký HĐ chưa giao”.
+3. **Ngày giao** — để trống nghĩa là **đang chờ giao**; điền vào là đợt đã giao xong và **tính ngay vào tiêu thụ của ngày đó**.
+4. **Hình thức tiêu thụ** — *Xuất khẩu / UTXK* · *Tiêu thụ trong nước* · *Tiêu thụ nội bộ*. Bắt buộc khi đã giao.
+5. **Chi tiết lần giao** — chủng loại, sản lượng, đơn giá thực tế của lần giao này.
+6. **Thanh toán** — ngày thanh toán, sản lượng và chi phí của lần thanh toán, kèm chứng từ/hoá đơn.
 
-1. Bấm **Thêm nhu cầu** để mở ô nhập.
-2. Chọn **ngày** ghi nhận nhu cầu.
-3. Chọn **đơn vị** (tài khoản chỉ có đơn vị của mình).
-4. Nhập **nội dung** — viết tự do, nên ghi rõ: khách hàng, chủng loại, số lượng, giá chào và thời điểm giao.
-5. Bấm **Lưu**.
-6. Muốn sửa nội dung đã ghi: bấm **biểu tượng bút** ở dòng tương ứng trong danh sách bên dưới.
+> - Tổng sản lượng các phụ lục **không được vượt** cam kết của hợp đồng mẹ; phiếu hiện sẵn dòng *Còn lại của hợp đồng mẹ*.
+> - **Tiêu thụ nội bộ** chỉ hiện khi đơn vị thuộc một nhóm công ty mẹ–con, và chỉ chọn được đơn vị trong cùng nhóm.
+> - Chi phí đưa vào báo cáo là ô **Chi phí** trên từng dòng chi tiết; ô chi phí ở khối Thanh toán **không** cộng vào báo cáo.
 
-> - Nên ghi rõ: **khách hàng hoặc nhà sản xuất nào · chủng loại · số lượng · mức giá chào · thời điểm giao hàng**. Càng cụ thể thì phần phân tích Cung – Cầu càng dùng được.
-> - Đây là mục nhập **tự do bằng chữ**, không có ô số liệu.
-> - Mỗi ngày mỗi đơn vị chỉ có **một nội dung** — nhập lại ngày đã có sẽ được nhắc dùng chức năng Sửa.
+## 10. Báo cáo tiêu thụ
 
-## 9. Nhập Kế hoạch năm
+**Vị trí:** Báo cáo → Tiêu thụ
 
-**Vị trí:** Menu → Kế hoạch năm
+Bảng **chỉ để xem** — số do hệ thống tổng hợp từ các lần giao, đơn vị không nhập tay.
 
-Đây là số liệu của cả năm, chỉ nhập một lần và cập nhật lại khi có thay đổi — KHÔNG nhập hằng ngày. Số liệu này dùng để tính % thực hiện kế hoạch trong báo cáo.
+![Hình 9. Báo cáo tiêu thụ theo kỳ](img/09-bao-cao-tieu-thu.png)
 
-![Hình 8. Màn Kế hoạch năm](img/07-ke-hoach-nam.png)
+*Hình 9. Báo cáo tiêu thụ theo kỳ*
 
-*Hình 8. Màn Kế hoạch năm*
+1. **Bảng tổng hợp** — Lần giao · SL · Quy khô · Xuất khẩu · Trong nước · Nội bộ · Doanh thu · Chi phí · **Chưa giao**.
 
-1. Chọn **năm** cần khai.
-2. **Kế hoạch thu mua** (tấn) — chỉ tiêu Tập đoàn giao hoặc kế hoạch của công ty.
-3. **HĐ dài hạn đã ký** (tấn) — tổng sản lượng đã ký hợp đồng dài hạn trong năm.
-4. **HĐ dài hạn năm trước chuyển sang** (tấn).
-5. **HĐ chuyến năm trước chuyển sang** (tấn).
+> - Chọn **Từ ngày / Đến ngày** để đổi kỳ; lọc thêm theo **Khách hàng** nếu cần.
+> - Cột **Chưa giao** là số **tại ngày cuối kỳ**, không phải số cộng dồn.
+> - Khối **Theo khách hàng** bên dưới tách sản lượng và doanh thu theo từng khách.
+> - **Xuất Excel** để lấy đúng bảng đang xem.
+> - Doanh thu hiện “—” khi có lần giao bán ngoại tệ mà chưa nhập tỷ giá — bổ sung tỷ giá trên phụ lục để có số đầy đủ.
 
-> - Số liệu **tự lưu khi rời khỏi ô** — không có nút Lưu riêng.
-> - Màn này **chỉ hiện những đơn vị được giao kế hoạch thu mua**. Nếu không thấy đơn vị của mình, đề nghị quản trị viên bật ô **Có giao KH** ở Quản trị → Đơn vị thành viên.
-> - Nếu tài khoản được giao nhiều đơn vị thì màn này hiện đủ các đơn vị đó (trừ đơn vị không được giao kế hoạch).
+## 11. Nhu cầu thị trường
 
-## 10. Lưu ý chung — Cách gõ số
+**Vị trí:** Nhập liệu số liệu → Nhu cầu thị trường
 
-**Quan trọng:** Khi gõ số trên bất kỳ biểu mẫu nhập liệu nào (Thu mua, Tiêu thụ, Tồn kho, …), hãy tuân theo quy tắc dưới đây:
+Ghi nhận nhu cầu và tín hiệu thị trường của đơn vị, **nhập tự do bằng chữ** theo ngày.
 
-1. **Phần thập phân dùng DẤU PHẨY** — ví dụ: `2.238,5` (hai nghìn hai trăm ba tám phẩy năm). Đừng dùng dấu chấm làm dấu thập phân.
-2. **Dấu chấm phân cách hàng nghìn do hệ thống TỰ THÊM** khi bạn gõ số trên form — bạn chỉ cần gõ số, không cần tự gõ dấu chấm. Hệ thống sẽ tự chèn dấu chấm để phân cách hàng nghìn theo tiêu chuẩn Việt Nam.
+![Hình 10. Nhu cầu thị trường theo ngày](img/10-nhu-cau-thi-truong.png)
 
-**Ví dụ:**
-- Gõ: `2238` → Hiển thị: `2.238` (đơn giá mủ nước, tấn)
-- Gõ: `2238,5` → Hiển thị: `2.238,5` (đơn giá mủ nước với phần thập phân)
-- Gõ: `50000000` → Hiển thị: `50.000.000` (số tiền lớn)
+*Hình 10. Nhu cầu thị trường theo ngày*
+
+1. Chọn ngày rồi viết nội dung: khách hỏi mua gì, số lượng, mức giá chào, tình hình thương lượng.
+
+> Viết ngắn gọn nhưng có **con số cụ thể** (chủng loại, sản lượng, mức giá) — Ban TTKD dùng thông tin này để đối chiếu với diễn biến giá sàn.
+
+## 12. Kế hoạch năm
+
+**Vị trí:** Nhập liệu số liệu → Kế hoạch năm
+
+Số liệu nhập **một lần cho cả năm**, cập nhật khi có điều chỉnh.
+
+![Hình 11. Kế hoạch năm của đơn vị](img/11-ke-hoach-nam.png)
+
+*Hình 11. Kế hoạch năm của đơn vị*
+
+1. **Kế hoạch thu mua** (tấn) — dùng để tính % hoàn thành kế hoạch trên báo cáo.
+2. **HĐ dài hạn đã ký** (tấn) trong năm.
+3. **HĐ dài hạn / HĐ chuyến năm trước chuyển sang** (tấn).
+
+## 13. Hợp đồng cũ (trước 30/07)
+
+**Vị trí:** Báo cáo → Hợp đồng cũ (trước 30/07)
+
+Toàn bộ hợp đồng đã ký nhập theo cách cũ, **kể cả hợp đồng đã giao**. Màn này **chỉ để tra cứu** — không có nút sửa.
+
+![Hình 12. Tra cứu hợp đồng cũ](img/12-hop-dong-cu.png)
+
+*Hình 12. Tra cứu hợp đồng cũ*
+
+1. Lọc theo khu vực, đơn vị, chủng loại, trạng thái giao và khoảng thời gian; tìm nhanh theo số HĐ.
+
+> - Hợp đồng phát sinh từ 30/07 trở đi nằm ở mục **Hợp đồng & phụ lục**, không nằm ở đây.
+> - Cần sửa một hợp đồng cũ thì báo Ban TTKD.
+
+## 14. Những lỗi hay gặp
+
+| Hiện tượng | Nguyên nhân & cách xử lý |
+|---|---|
+| Không lưu được hợp đồng, báo thiếu loại hợp đồng | Chưa chọn **HĐ dài hạn / HĐ chuyến** — đây là ô bắt buộc. |
+| Doanh thu trên báo cáo hiện “—” | Có lần giao bán ngoại tệ chưa nhập tỷ giá. Mở phụ lục, điền tỷ giá quy ra VNĐ. |
+| Báo cáo tiêu thụ ra 0 dù đơn vị có bán | Ngày giao nằm ngoài kỳ đang xem, hoặc phụ lục **chưa điền Ngày giao** (vẫn đang chờ giao). |
+| Không thấy “Tiêu thụ nội bộ” | Đơn vị chưa thuộc nhóm công ty mẹ–con. Báo Ban TTKD gán Công ty mẹ. |
+| Không lưu được phụ lục, báo vượt sản lượng | Tổng các phụ lục vượt cam kết của hợp đồng mẹ. Kiểm lại dòng *Còn lại của hợp đồng mẹ*. |
+| Không sửa được số liệu ngày cũ | Ngoài cửa sổ sửa cho phép. Báo Ban TTKD nếu cần mở lại. |
