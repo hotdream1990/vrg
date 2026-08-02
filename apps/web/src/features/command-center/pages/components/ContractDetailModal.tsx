@@ -12,6 +12,7 @@ import {
   openContractFile,
 } from "../../../../lib/sales-contract-client";
 import { dmy } from "../../../../lib/date";
+import { useEditWindow } from "../../../../lib/edit-window";
 import ContractFormModal from "./ContractFormModal";
 
 type Props = {
@@ -60,6 +61,9 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
 
   const c = d?.contract;
   const multi = c?.delivery_type === "multi";
+  // Cửa sổ sửa CHỈ áp cho lần giao, mốc là ngày giao — hợp đồng mẹ sửa được suốt vòng đời.
+  const { isEditable } = useEditWindow();
+  const locked = (deliveredAt: string | null) => !!deliveredAt && !isEditable(deliveredAt);
   const customer = meta.customers.find((x) => x.id === c?.customer_id);
 
   return (
@@ -101,9 +105,16 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                     <>
                       {canEdit && (
                         <div className="blt-toolbar" style={{ marginBottom: 10 }}>
-                          <button className="btn" onClick={() => setEditSelf(true)}>
-                            <EditOutlined /> Sửa thông tin hợp đồng
-                          </button>
+                          {/* HĐ giao-1-lần ĐÃ GIAO chính là một lần giao → cũng nằm trong cửa sổ sửa. */}
+                          {locked(c.delivered_at) ? (
+                            <span style={{ color: "var(--muted)", fontSize: 12 }}>
+                              Đã giao quá hạn sửa — hợp đồng này chỉ còn xem.
+                            </span>
+                          ) : (
+                            <button className="btn" onClick={() => setEditSelf(true)}>
+                              <EditOutlined /> Sửa thông tin hợp đồng
+                            </button>
+                          )}
                         </div>
                       )}
 
@@ -199,8 +210,16 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                           <td><Docs docs={[...k.files, ...k.payment_docs]} /></td>
                           {canEdit && (
                             <td className="r" style={{ whiteSpace: "nowrap" }}>
-                              <button className="btn" onClick={() => setForm({ initial: k })}>Sửa</button>{" "}
-                              <button className="btn" onClick={() => remove(k.id as number, `phụ lục ${k.code}`)}>Xoá</button>
+                              {/* Lần giao quá cửa sổ sửa → chỉ xem. Server cũng chặn (403), nhưng
+                                  báo trước ở đây để người dùng khỏi điền xong mới biết không lưu được. */}
+                              {locked(k.delivered_at) ? (
+                                <span style={{ color: "var(--muted)", fontSize: 11 }}>(chỉ xem)</span>
+                              ) : (
+                                <>
+                                  <button className="btn" onClick={() => setForm({ initial: k })}>Sửa</button>{" "}
+                                  <button className="btn" onClick={() => remove(k.id as number, `phụ lục ${k.code}`)}>Xoá</button>
+                                </>
+                              )}
                             </td>
                           )}
                         </tr>

@@ -25,13 +25,27 @@ function shiftISO(iso: string, delta: number): string {
 /** Hook cửa sổ sửa của chuyên viên. `isEditable(dateISO)`: admin→luôn true; editor→trong N ngày.
  *  `windowDates` = các ngày sửa được (hôm nay lùi N ngày) để lưới hiện sẵn dòng trống cho nhập. */
 export function useEditorWindow() {
+  return useWindow("editor");
+}
+
+/** Cửa sổ sửa theo VAI TRÒ — đơn vị thành viên có thông số riêng với chuyên viên.
+ *  Dùng cho màn DÙNG CHUNG (Quản lý hợp đồng): cả hai vai trò vào cùng một bộ endpoint nên không
+ *  chọn cứng một thông số được, phải khớp với `security.assert_edit_window` ở server. */
+export function useEditWindow() {
+  const { user } = useAuth();
+  return useWindow(user?.role === "member" ? "member" : "editor");
+}
+
+function useWindow(kind: "member" | "editor") {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [w, setW] = useState<{ days: number; today: string } | null>(null);
 
   useEffect(() => {
-    fetchEditWindows().then((r) => setW({ days: r.editor_days, today: r.today })).catch(() => {});
-  }, []);
+    fetchEditWindows()
+      .then((r) => setW({ days: kind === "member" ? r.member_days : r.editor_days, today: r.today }))
+      .catch(() => {});
+  }, [kind]);
 
   const isEditable = (dateISO: string): boolean => {
     if (isAdmin) return true;

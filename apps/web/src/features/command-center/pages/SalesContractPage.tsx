@@ -11,6 +11,7 @@ import {
   listContracts,
 } from "../../../lib/sales-contract-client";
 import { dmy } from "../../../lib/date";
+import { useEditWindow } from "../../../lib/edit-window";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
@@ -29,6 +30,9 @@ export default function SalesContractPage() {
   const { canEditCap, user } = useAuth();
   const isMember = user?.role === "member";
   const canEdit = isMember || canEditCap("sales_contract");
+  // Cửa sổ sửa CHỈ áp cho lần giao, mốc là ngày giao (khớp `security.assert_edit_window` ở server).
+  const { isEditable } = useEditWindow();
+  const locked = (deliveredAt: string | null) => !!deliveredAt && !isEditable(deliveredAt);
 
   const [meta, setMeta] = useState<ContractMeta | null>(null);
   const [rows, setRows] = useState<ContractRow[]>([]);
@@ -150,10 +154,14 @@ export default function SalesContractPage() {
                 <td className="r">{r.delivery_type === "multi" ? r.children : "—"}</td>
                 <td className="r" style={{ whiteSpace: "nowrap" }}>
                   <button className="btn" onClick={() => setOpenId(r.id as number)}>Xem</button>{" "}
-                  {canEdit && <>
-                    <button className="btn" onClick={() => setForm({ initial: r })}>Sửa</button>{" "}
-                    <button className="btn" onClick={() => remove(r)}>Xoá</button>
-                  </>}
+                  {/* HĐ giao-1-lần ĐÃ GIAO là một lần giao → quá cửa sổ sửa thì chỉ còn xem.
+                      HĐ giao-nhiều-lần không bị khoá: còn phải thêm phụ lục suốt vòng đời. */}
+                  {canEdit && (locked(r.delivered_at)
+                    ? <span style={{ color: "var(--muted)", fontSize: 11 }}>(chỉ xem)</span>
+                    : <>
+                        <button className="btn" onClick={() => setForm({ initial: r })}>Sửa</button>{" "}
+                        <button className="btn" onClick={() => remove(r)}>Xoá</button>
+                      </>)}
                 </td>
               </tr>
             ))}
