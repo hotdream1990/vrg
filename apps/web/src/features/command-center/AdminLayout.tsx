@@ -89,9 +89,10 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
     can("sales_contract") && { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Báo cáo tiêu thụ" },
     can("unit_daily") && { key: "/bao-cao-tong-hop", icon: <FileDoneOutlined />, label: "Báo cáo tổng hợp" },
     can("unit_daily") && { key: "/thong-ke/tinh-trang-nop", icon: <CheckSquareOutlined />, label: "Theo dõi nộp báo cáo" },
+    // Xếp theo dòng chảy nghiệp vụ: mua vào → giữ kho → bán ra.
     can("unit_daily") && { key: "/thong-ke/thu-mua", icon: <ShoppingOutlined />, label: "Thống kê thu mua" },
-    can("unit_daily") && { key: "/thong-ke/tieu-thu", icon: <ExportOutlined />, label: "Thống kê tiêu thụ" },
     can("unit_daily") && { key: "/thong-ke/ton-kho", icon: <InboxOutlined />, label: "Thống kê tồn kho" },
+    can("unit_daily") && { key: "/thong-ke/tieu-thu", icon: <ExportOutlined />, label: "Thống kê tiêu thụ" },
     can("unit_daily") && { key: "/thong-ke-hop-dong", icon: <HistoryOutlined />, label: "Hợp đồng cũ (trước 30/07)" },
   ]));
   items.push(...group("analysis", <LineChartOutlined />, "Phân tích & Bản tin", [
