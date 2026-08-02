@@ -38,6 +38,8 @@ export type Contract = {
   delivery_type: "single" | "multi";
   sign_date: string | null;
   expiry_date: string | null;
+  /** Ngày MỞ ĐỢT giao — đợt nằm ở "đã ký HĐ chưa giao" từ ngày này đến hết ngày trước ngày giao. */
+  start_date: string | null;
   lines: ContractLine[];
   delivered: boolean;
   delivered_at: string | null;
@@ -58,6 +60,8 @@ export type Contract = {
 
 export type ContractRow = Contract & {
   delivered_qty: number;
+  /** Đã mở đợt nhưng CHƯA điền ngày giao — phần đang nằm trong "đã ký HĐ chưa giao". */
+  pending_qty: number;
   remaining_qty: number;
   children: number;
   customer_name?: string | null;
@@ -79,6 +83,7 @@ export type ContractDetail = {
   contract: Contract;
   children: Contract[];
   delivered_qty: number;
+  pending_qty: number;
   remaining_qty: number;
 };
 

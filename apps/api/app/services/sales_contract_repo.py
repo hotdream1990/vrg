@@ -3,9 +3,14 @@
 Chốt 30/07/2026:
   - `parent_id` NULL = HỢP ĐỒNG MẸ. Loại giao 'single' (giao trọn 1 lần) hoặc 'multi'
     (giao nhiều lần — mẹ giữ TỔNG sản lượng cam kết, nhập phụ lục tới khi hết).
-  - `parent_id` khác NULL = PHỤ LỤC: MỖI phụ lục = 1 LẦN GIAO (nhập vào là ĐÃ GIAO ngay)
-    + 1 LẦN THANH TOÁN. KHÔNG cho phụ lục vượt sản lượng còn lại của mẹ.
-Tiêu thụ = tổng các lần giao; "đã ký HĐ chưa giao" = cam kết − đã giao (xem `sales_contract_report`).
+  - `parent_id` khác NULL = PHỤ LỤC: MỖI phụ lục = 1 ĐỢT GIAO + 1 LẦN THANH TOÁN.
+    KHÔNG cho phụ lục vượt sản lượng còn lại của mẹ.
+
+Chốt 02/08/2026 — mỗi ĐỢT GIAO có vòng đời riêng: mở đợt ở `start_date` (hàng gom vào kho),
+giao ở `delivered_at`. Chưa điền ngày giao = ĐANG CHỜ GIAO. Hợp đồng giao-1-lần thì chính nó là
+một đợt (ngày bắt đầu mặc định = ngày ký).
+Tiêu thụ = tổng các đợt ĐÃ GIAO trong kỳ; "đã ký HĐ chưa giao" = các đợt đang trong khoảng
+[ngày bắt đầu → hết ngày trước ngày giao] — xem `sales_contract_report.undelivered_on`.
 """
 
 from __future__ import annotations
@@ -22,9 +27,9 @@ from app.core.market_meta import DELIVERY_TYPES, SALE_CHANNELS
 from app.services import audit_repo, contract_docs, customer_repo, sales_contract_calc as calc
 
 _COLS = ("id", "company", "parent_id", "code", "customer_id", "delivery_type", "sign_date",
-         "expiry_date", "lines", "delivered", "delivered_at", "channel", "to_company",
+         "expiry_date", "start_date", "lines", "delivered", "delivered_at", "channel", "to_company",
          "payment_date", "payment_qty", "payment_cost", "payment_docs", "files", "note")
-_DATE_COLS = ("sign_date", "expiry_date", "delivered_at", "payment_date")
+_DATE_COLS = ("sign_date", "expiry_date", "start_date", "delivered_at", "payment_date")
 
 
 def _row(r) -> dict[str, Any]:
@@ -117,14 +122,14 @@ def clean(row: dict, company: str) -> dict[str, Any]:
     delivery_type = str(row.get("delivery_type") or "single").strip()
     if delivery_type not in DELIVERY_TYPES:
         raise ValueError(f"Loại giao “{row.get('delivery_type')}” không hợp lệ.")
-    # Phụ lục LUÔN là một lần giao đã hoàn tất; hợp đồng giao-1-lần chỉ "đã giao" khi người dùng đánh dấu.
-    delivered = True if is_child else bool(row.get("delivered"))
+    # MỘT ĐỢT GIAO có vòng đời (chốt 02/08/2026): mở đợt ở `start_date`, giao ở `delivered_at`.
+    # Còn ĐANG CHỜ GIAO khi chưa điền ngày giao → nằm ở khối 3, chưa tính vào tiêu thụ.
+    delivered_at = _as_date(row.get("delivered_at"), "Ngày giao")
+    delivered = delivered_at is not None
     if is_child:
         delivery_type = "single"
     elif delivery_type == "multi" and delivered:
         raise ValueError("Hợp đồng giao nhiều lần không tự đánh dấu đã giao — hãy nhập phụ lục.")
-
-    delivered_at = _as_date(row.get("delivered_at"), "Ngày giao", required=delivered)
     raw_channel = str(row.get("channel") or "").strip()
     if raw_channel and raw_channel not in SALE_CHANNELS:
         raise ValueError(f"Hình thức tiêu thụ “{raw_channel}” không hợp lệ.")
@@ -142,6 +147,13 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         to_company = None
 
     sign = _as_date(row.get("sign_date"), "Ngày ký", required=not is_child)
+    start = _as_date(row.get("start_date"), "Ngày bắt đầu", required=is_child)
+    if start is None and delivery_type == "single" and not is_child:
+        start = sign     # HĐ giao 1 lần: chính hợp đồng là một đợt, mở từ ngày ký
+    if start and delivered_at and delivered_at < start:
+        raise ValueError("Ngày giao không thể trước Ngày bắt đầu của đợt.")
+    if start and sign and start < sign:
+        raise ValueError("Ngày bắt đầu không thể trước ngày ký hợp đồng.")
     expiry = _as_date(row.get("expiry_date"), "Thời hạn hợp đồng")
     if sign and expiry and expiry < sign:
         raise ValueError("Thời hạn hợp đồng phải sau ngày ký.")
@@ -168,6 +180,8 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         "delivery_type": delivery_type,
         "sign_date": sign.isoformat() if sign else None,
         "expiry_date": expiry.isoformat() if expiry else None,
+        "start_date": start.isoformat() if start else None,
+        # Quy khô + hình thức tiêu thụ chỉ ép khi ĐÃ GIAO — lúc mở đợt chưa bán nên chưa biết.
         "lines": calc.clean_lines(row.get("lines"), require_dry=delivered),
         "delivered": delivered,
         "delivered_at": delivered_at.isoformat() if delivered_at else None,
@@ -184,17 +198,19 @@ def clean(row: dict, company: str) -> dict[str, Any]:
 
 _INSERT = text(
     "INSERT INTO sales_contract (company, parent_id, code, customer_id, delivery_type, sign_date, "
-    " expiry_date, lines, delivered, delivered_at, channel, to_company, payment_date, payment_qty, "
-    " payment_cost, payment_docs, files, note, updated_by) "
+    " expiry_date, start_date, lines, delivered, delivered_at, channel, to_company, payment_date, "
+    " payment_qty, payment_cost, payment_docs, files, note, updated_by) "
     "VALUES (:company, :parent_id, :code, :customer_id, :delivery_type, CAST(:sign_date AS date), "
-    " CAST(:expiry_date AS date), CAST(:lines AS jsonb), :delivered, CAST(:delivered_at AS date), "
+    " CAST(:expiry_date AS date), CAST(:start_date AS date), CAST(:lines AS jsonb), :delivered, "
+    " CAST(:delivered_at AS date), "
     " :channel, :to_company, CAST(:payment_date AS date), :payment_qty, :payment_cost, "
     " CAST(:payment_docs AS jsonb), CAST(:files AS jsonb), :note, :by) RETURNING id")
 
 _UPDATE = text(
     "UPDATE sales_contract SET code = :code, customer_id = :customer_id, "
     " delivery_type = :delivery_type, sign_date = CAST(:sign_date AS date), "
-    " expiry_date = CAST(:expiry_date AS date), lines = CAST(:lines AS jsonb), "
+    " expiry_date = CAST(:expiry_date AS date), start_date = CAST(:start_date AS date), "
+    " lines = CAST(:lines AS jsonb), "
     " delivered = :delivered, delivered_at = CAST(:delivered_at AS date), channel = :channel, "
     " to_company = :to_company, payment_date = CAST(:payment_date AS date), "
     " payment_qty = :payment_qty, payment_cost = :payment_cost, "

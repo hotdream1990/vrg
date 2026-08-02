@@ -73,7 +73,8 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
               <div className="kpi"><div className="label">Loại giao</div><div className="value">{meta.delivery_types[c.delivery_type]}</div></div>
               <div className="kpi"><div className="label">Cam kết (tấn)</div><div className="value">{t3(c.qty)}</div></div>
               <div className="kpi"><div className="label">Đã giao (tấn)</div><div className="value">{t3(d.delivered_qty)}</div></div>
-              <div className="kpi"><div className="label">Chưa giao (tấn)</div><div className="value">{t3(d.remaining_qty)}</div></div>
+              <div className="kpi"><div className="label">Đang chờ giao (tấn)</div><div className="value">{t3(d.pending_qty)}</div></div>
+              <div className="kpi"><div className="label">Chưa mở đợt (tấn)</div><div className="value">{t3(d.remaining_qty)}</div></div>
               <div className="kpi"><div className="label">Ngày ký</div><div className="value">{dmy(c.sign_date) || "—"}</div></div>
               <div className="kpi"><div className="label">Thời hạn</div><div className="value">{dmy(c.expiry_date) || "—"}</div></div>
             </div>
@@ -130,7 +131,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                 <div className="card" style={{ padding: 0, overflow: "auto" }}>
                   <table>
                     <thead><tr>
-                      <th>Số phụ lục</th><th>Ngày giao</th><th>Hình thức</th><th>Đơn vị nhận</th>
+                      <th>Số phụ lục</th><th>Bắt đầu</th><th>Ngày giao</th><th>Hình thức</th><th>Đơn vị nhận</th>
                       <th className="r">SL (tấn)</th><th className="r">Quy khô</th>
                       <th className="r">Doanh thu (tỷ đ)</th><th className="r">Chi phí lô hàng (tr.đ)</th>
                       <th>Thanh toán</th><th>Đính kèm</th>
@@ -140,7 +141,12 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                       {d.children.map((k) => (
                         <tr key={k.id}>
                           <td style={{ fontWeight: 500 }}>{k.code}</td>
-                          <td>{dmy(k.delivered_at) || "—"}</td>
+                          <td>{dmy(k.start_date) || "—"}</td>
+                          <td>
+                            {k.delivered_at
+                              ? dmy(k.delivered_at)
+                              : <span className="chip warn">Đang chờ giao</span>}
+                          </td>
                           <td>{k.channel ? meta.channels[k.channel] : "—"}</td>
                           <td>{k.to_company ?? "—"}</td>
                           <td className="r">{t3(k.qty)}</td>
@@ -167,7 +173,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                         </tr>
                       ))}
                       {d.children.length === 0 && (
-                        <tr><td colSpan={canEdit ? 11 : 10} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>
+                        <tr><td colSpan={canEdit ? 12 : 11} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>
                           Chưa có phụ lục nào — hợp đồng chưa giao lần nào.
                         </td></tr>
                       )}
@@ -179,9 +185,10 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
 
             {!multi && (
               <div className="form-note" style={{ fontSize: 11.5, marginTop: 10 }}>
-                Hợp đồng <b>giao 1 lần</b>: {c.delivered
-                  ? `đã giao ngày ${dmy(c.delivered_at) || "(chưa ghi ngày)"}.`
-                  : "chưa giao — toàn bộ sản lượng đang nằm ở mục “đã ký HĐ chưa giao”."}
+                Hợp đồng <b>giao 1 lần</b>: mở đợt ngày <b>{dmy(c.start_date)}</b>
+                {c.delivered_at
+                  ? <> · đã giao ngày <b>{dmy(c.delivered_at)}</b>.</>
+                  : " · chưa giao — toàn bộ sản lượng đang nằm ở mục “đã ký HĐ chưa giao”."}
               </div>
             )}
           </>

@@ -26,7 +26,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 const blank = (company: string): Contract => ({
   id: null, company, parent_id: null, code: "", customer_id: null, delivery_type: "single",
-  sign_date: today(), expiry_date: null, lines: [{ ...EMPTY_LINE }], delivered: false,
+  sign_date: today(), expiry_date: null, start_date: today(), lines: [{ ...EMPTY_LINE }], delivered: false,
   delivered_at: null, channel: null, to_company: null, payment_date: null, payment_qty: null,
   payment_cost: null, payment_docs: [], files: [], note: null,
   qty: 0, qty_dry: 0, cost: 0, revenue: null,
@@ -47,8 +47,11 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
   const [err, setErr] = useState("");
 
   const set = (patch: Partial<Contract>) => setC((prev) => ({ ...prev, ...patch }));
-  // Phụ lục LUÔN là một lần giao; hợp đồng giao-1-lần chỉ ép quy khô khi đã đánh dấu giao.
-  const isDelivery = isChild || (c.delivery_type === "single" && c.delivered);
+  // Đợt CHỈ tính là đã giao khi có NGÀY GIAO. Chưa có = đang chờ giao (nằm ở "đã ký HĐ chưa giao"),
+  // lúc đó chưa ép quy khô / hình thức tiêu thụ vì hàng chưa bán ra.
+  const isDelivery = !!c.delivered_at;
+  // Hợp đồng mẹ giao-nhiều-lần không phải một đợt — hàng nằm ở các phụ lục.
+  const isBatch = isChild || c.delivery_type === "single";
   const customers = useMemo(
     () => meta.customers.filter((x) => x.company === c.company), [meta.customers, c.company]);
   // Q10: trong nước bán VNĐ (+USD khi xuất khẩu); nước ngoài thêm NỘI TỆ CỦA CHÍNH đơn vị đó.
@@ -70,8 +73,11 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
     if (!c.code.trim()) p.push(isChild ? "Nhập số phụ lục." : "Nhập số hợp đồng.");
     if (!isChild && !c.customer_id) p.push("Chọn khách hàng.");
     if (!isChild && !c.sign_date) p.push("Chọn ngày ký.");
-    if (isDelivery && !c.delivered_at) p.push("Chọn ngày giao.");
+    if (isBatch && !c.start_date) p.push("Chọn ngày bắt đầu (ngày mở đợt giao).");
     if (isDelivery && !c.channel) p.push("Chọn hình thức tiêu thụ.");
+    if (c.start_date && c.delivered_at && c.delivered_at < c.start_date) {
+      p.push("Ngày giao không thể trước ngày bắt đầu.");
+    }
     if (c.channel === "internal" && !c.to_company) p.push("Chọn đơn vị nhận hàng.");
     const rows = c.lines.filter((l) => l.grade || l.qty != null);
     if (!rows.length) p.push("Thêm ít nhất một dòng chi tiết.");
@@ -146,26 +152,26 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
             <label className="form-field">Thời hạn hợp đồng
               <DateInput value={c.expiry_date ?? ""} onChange={(v) => set({ expiry_date: v || null })} />
             </label>
+            {c.delivery_type === "single" && (
+              <label className="form-field">Ngày bắt đầu (mở đợt) *
+                <DateInput value={c.start_date ?? ""} onChange={(v) => set({ start_date: v || null })} />
+              </label>
+            )}
           </>
         )}
       </div>
 
-      {!isChild && c.delivery_type === "single" && (
-        <div style={{ marginTop: 10, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <label className="form-field" style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <input type="checkbox" checked={c.delivered}
-              onChange={(e) => set({ delivered: e.target.checked })} />
-            Đã giao hàng
-          </label>
-        </div>
-      )}
-
-      {isDelivery && (
+      {isBatch && (
         <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 10 }}>
-          <label className="form-field">Ngày giao *
+          {isChild && (
+            <label className="form-field">Ngày bắt đầu (mở đợt) *
+              <DateInput value={c.start_date ?? ""} onChange={(v) => set({ start_date: v || null })} />
+            </label>
+          )}
+          <label className="form-field">Ngày giao
             <DateInput value={c.delivered_at ?? ""} onChange={(v) => set({ delivered_at: v || null })} />
           </label>
-          <label className="form-field">Hình thức tiêu thụ *
+          <label className="form-field">Hình thức tiêu thụ{isDelivery ? " *" : ""}
             <select className="blt-date-input" value={c.channel ?? ""}
               onChange={(e) => set({ channel: e.target.value || null, to_company: null })}>
               <option value="">— chọn hình thức —</option>

@@ -57,9 +57,9 @@ def _exists(cur, tag: str) -> bool:
 def _insert(cur, row: dict) -> None:
     cur.execute(
         "INSERT INTO sales_contract (company, parent_id, code, customer_id, delivery_type, "
-        " sign_date, expiry_date, lines, delivered, delivered_at, channel, to_company, "
+        " sign_date, expiry_date, start_date, lines, delivered, delivered_at, channel, to_company, "
         " files, note, updated_by) "
-        "VALUES (%(company)s, NULL, %(code)s, NULL, 'single', %(sign_date)s, NULL, "
+        "VALUES (%(company)s, NULL, %(code)s, NULL, 'single', %(sign_date)s, NULL, %(start_date)s, "
         " %(lines)s::jsonb, %(delivered)s, %(delivered_at)s, %(channel)s, NULL, "
         " %(files)s::jsonb, %(note)s, 'migration')",
         row)
@@ -80,6 +80,8 @@ def migrate_stock_contracts(cur, commit: bool) -> tuple[int, list[str]]:
             continue
         row = {
             "company": company, "code": code or f"HĐ-{cid}", "sign_date": start,
+            # Hợp đồng tồn kho cũ đã có sẵn vòng đời (bắt đầu → giao) → giữ nguyên sang đợt mới.
+            "start_date": start,
             "lines": json.dumps([_line(grade, qty, price, ccy, fx)]),
             "delivered": delivered is not None,
             "delivered_at": delivered,
@@ -130,7 +132,7 @@ def migrate_sale_lines(cur, commit: bool) -> tuple[int, list[str]]:
                 row = {
                     "company": company,
                     "code": (ln.get("code") or f"{as_of}-{idx + 1}")[:80],
-                    "sign_date": as_of,
+                    "sign_date": as_of, "start_date": as_of,
                     "lines": json.dumps([_line(ln.get("grade"), ln.get("qty"), ln.get("price"),
                                                ln.get("ccy"), ln.get("fx"))]),
                     "delivered": True, "delivered_at": as_of,

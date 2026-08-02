@@ -41,9 +41,12 @@ class ContractIn(BaseModel):
     delivery_type: str = "single"     # single = giao 1 lần · multi = giao nhiều lần (mẹ–phụ lục)
     sign_date: str | None = None
     expiry_date: str | None = None
+    # Ngày MỞ ĐỢT giao (hàng gom vào kho cho đợt này) — bắt buộc với phụ lục;
+    # hợp đồng giao-1-lần bỏ trống thì mặc định = ngày ký.
+    start_date: str | None = None
     lines: list[ContractLineIn] = Field(default_factory=list)
-    delivered: bool = False
-    delivered_at: str | None = None
+    delivered: bool = False           # suy ra từ `delivered_at`, client gửi gì cũng bỏ qua
+    delivered_at: str | None = None   # trống = ĐANG CHỜ GIAO (đợt đã mở, chưa giao)
     channel: str | None = None        # export | domestic | internal
     to_company: str | None = None     # đơn vị nhận khi tiêu thụ nội bộ
     payment_date: str | None = None

@@ -252,6 +252,7 @@ CREATE TABLE IF NOT EXISTS sales_contract (
     delivery_type text NOT NULL DEFAULT 'single',  -- single | multi (chỉ có nghĩa ở hợp đồng mẹ)
     sign_date     date,                 -- ngày ký
     expiry_date   date,                 -- thời hạn hợp đồng
+    start_date    date,                 -- NGÀY BẮT ĐẦU của đợt giao (hàng gom vào kho cho đợt này)
     lines         jsonb NOT NULL DEFAULT '[]'::jsonb,
     delivered     boolean NOT NULL DEFAULT false,  -- đã giao chưa (phụ lục luôn = true)
     delivered_at  date,                 -- NGÀY GIAO — mốc tính tiêu thụ vào kỳ báo cáo
@@ -295,6 +296,9 @@ ALTER TABLE unit_stock_contract ADD COLUMN IF NOT EXISTS files jsonb NOT NULL DE
 -- Đã được script chuyển sang bảng hợp đồng 2 cấp `sales_contract` chưa. Bản ghi CŨ vẫn giữ nguyên
 -- để tra cứu, nhưng khối 3 phải BỎ QUA nó — nếu không sản lượng chưa giao bị đếm hai lần.
 ALTER TABLE unit_stock_contract ADD COLUMN IF NOT EXISTS migrated boolean NOT NULL DEFAULT false;
+-- Ngày bắt đầu của đợt giao (chốt 02/08/2026): hàng của đợt nằm ở "đã ký HĐ chưa giao" từ ngày này
+-- đến HẾT NGÀY TRƯỚC ngày giao. Không có ngày bắt đầu = đợt chưa mở, KHÔNG tính vào khối 3.
+ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS start_date date;
 -- Nâng bản ghi cũ (1 file ở cột phẳng) lên danh sách. Idempotent: chỉ chạm dòng chưa có danh sách.
 UPDATE unit_stock_contract SET files = jsonb_build_array(
          jsonb_build_object('file', file, 'filename', COALESCE(filename, file)))

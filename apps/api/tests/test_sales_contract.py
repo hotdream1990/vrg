@@ -95,13 +95,13 @@ def test_multi_contract_children_cannot_exceed_parent(env, cus) -> None:
         "lines": [_line(qty=100.0)]}, headers=h).json()["contract"]
 
     ok = client.put("/api/sales-contracts", json={
-        "company": UNIT, "parent_id": parent["id"], "code": "PL-01", "delivered_at": TODAY,
+        "company": UNIT, "parent_id": parent["id"], "code": "PL-01", "start_date": YESTERDAY, "delivered_at": TODAY,
         "channel": "export", "lines": [_line(qty=60.0)]}, headers=h)
     assert ok.status_code == 200, ok.text
     assert ok.json()["contract"]["delivered"] is True   # phụ lục tự chuyển ĐÃ GIAO
 
     over = client.put("/api/sales-contracts", json={
-        "company": UNIT, "parent_id": parent["id"], "code": "PL-02", "delivered_at": TODAY,
+        "company": UNIT, "parent_id": parent["id"], "code": "PL-02", "start_date": YESTERDAY, "delivered_at": TODAY,
         "channel": "domestic", "lines": [_line(qty=50.0)]}, headers=h)
     assert over.status_code == 400 and "vượt sản lượng còn lại" in over.json()["detail"]
 
@@ -120,13 +120,13 @@ def test_dry_weight_required_on_delivery_only(env, cus) -> None:
 
     # Phụ lục = lần giao thật → bán LATEX bắt buộc quy khô.
     bad = client.put("/api/sales-contracts", json={
-        "company": UNIT, "parent_id": parent.json()["contract"]["id"], "code": "PL-L1",
+        "company": UNIT, "parent_id": parent.json()["contract"]["id"], "code": "PL-L1", "start_date": YESTERDAY,
         "delivered_at": TODAY, "channel": "export",
         "lines": [_line(grade="LATEX", qty=10.0)]}, headers=h)
     assert bad.status_code == 400 and "quy khô" in bad.json()["detail"]
 
     good = client.put("/api/sales-contracts", json={
-        "company": UNIT, "parent_id": parent.json()["contract"]["id"], "code": "PL-L1",
+        "company": UNIT, "parent_id": parent.json()["contract"]["id"], "code": "PL-L1", "start_date": YESTERDAY,
         "delivered_at": TODAY, "channel": "export",
         "lines": [_line(grade="LATEX", qty=10.0, qty_dry=3.5)]}, headers=h)
     assert good.status_code == 200, good.text
@@ -191,7 +191,7 @@ def test_consumption_and_block3_computed_from_contracts(env, cus) -> None:
         "company": UNIT, "code": "HD-M2", "delivery_type": "multi", "customer_id": cus, "sign_date": YESTERDAY,
         "lines": [_line(qty=100.0)]}, headers=h).json()["contract"]
     client.put("/api/sales-contracts", json={
-        "company": UNIT, "parent_id": parent["id"], "code": "PL-A", "delivered_at": TODAY,
+        "company": UNIT, "parent_id": parent["id"], "code": "PL-A", "start_date": YESTERDAY, "delivered_at": TODAY,
         "channel": "internal", "to_company": UNIT2,
         "lines": [_line(qty=30.0, cost=12.0)]}, headers=h)
 
@@ -202,14 +202,14 @@ def test_consumption_and_block3_computed_from_contracts(env, cus) -> None:
     assert cons["cost"] == pytest.approx(12.0)
     assert cons["revenue"] == pytest.approx(30.0 * 40.0 * 1_000_000)
 
-    und = client.get(f"/api/sales-contracts/undelivered?as_of={TODAY}&company={UNIT}",
-                     headers=h).json()["by_company"][UNIT]
-    assert und["qty"] == pytest.approx(70.0)
-
-    # Tại NGÀY HÔM QUA lần giao chưa xảy ra → khối 3 vẫn là toàn bộ 100 tấn (không lấy số ngày khác).
+    # Khối 3 = ĐỢT ĐANG MỞ (bắt đầu → hết ngày trước ngày giao), KHÔNG phải cam kết còn lại của mẹ.
+    # Hôm nay đợt đã giao xong → rời khối 3; 70 tấn mẹ chưa phân đợt KHÔNG tính (hàng chưa gom kho).
+    assert client.get(f"/api/sales-contracts/undelivered?as_of={TODAY}&company={UNIT}",
+                      headers=h).json()["by_company"] == {}
+    # Hôm qua đợt đã mở nhưng chưa giao → đúng 30 tấn của đợt đó nằm trong khối 3.
     und_y = client.get(f"/api/sales-contracts/undelivered?as_of={YESTERDAY}&company={UNIT}",
                        headers=h).json()["by_company"][UNIT]
-    assert und_y["qty"] == pytest.approx(100.0)
+    assert und_y["qty"] == pytest.approx(30.0)
 
 
 def test_revenue_unknown_when_fx_missing_is_not_zero(env, cus) -> None:
@@ -236,7 +236,7 @@ def test_delete_parent_blocked_while_children_exist(env, cus) -> None:
         "company": UNIT, "code": "HD-M3", "delivery_type": "multi", "customer_id": cus, "sign_date": YESTERDAY,
         "lines": [_line(qty=20.0)]}, headers=h).json()["contract"]
     child = client.put("/api/sales-contracts", json={
-        "company": UNIT, "parent_id": parent["id"], "code": "PL-Z", "delivered_at": TODAY,
+        "company": UNIT, "parent_id": parent["id"], "code": "PL-Z", "start_date": YESTERDAY, "delivered_at": TODAY,
         "channel": "export", "lines": [_line(qty=5.0)]}, headers=h).json()["contract"]
 
     blocked = client.delete(f"/api/sales-contracts/{parent['id']}", headers=h)
@@ -323,7 +323,7 @@ def test_update_cannot_bypass_or_corrupt_the_parent(env, cus) -> None:
     h = env
     p1, p2 = _parent(h, cus, "HD-G1", 1000.0), _parent(h, cus, "HD-G2", 100_000.0)
     kid = client.put("/api/sales-contracts", json={
-        "company": UNIT, "parent_id": p1["id"], "code": "PL-G1", "delivered_at": TODAY,
+        "company": UNIT, "parent_id": p1["id"], "code": "PL-G1", "start_date": YESTERDAY, "delivered_at": TODAY,
         "channel": "domestic", "lines": [_line(qty=600.0)]}, headers=h).json()["contract"]
 
     # Đổi hợp đồng mẹ trong lúc sửa: hạn mức bị kiểm trên MẸ KHÁC rồi dòng vẫn nằm ở mẹ cũ.
@@ -341,10 +341,10 @@ def test_update_cannot_bypass_or_corrupt_the_parent(env, cus) -> None:
         "delivered_at": TODAY, "channel": "export"}, headers=h)
     assert r.status_code == 400
 
-    # Phụ lục không được tự bỏ trạng thái đã giao (nếu không: vừa đã giao vừa chưa giao).
-    r = client.put("/api/sales-contracts", json={**kid, "delivered": False, "delivered_at": None},
-                   headers=h)
-    assert r.status_code == 400 and "ngày giao" in r.json()["detail"].lower()
+    # Bỏ ngày giao = đợt quay lại trạng thái ĐANG CHỜ GIAO (không còn tính vào tiêu thụ).
+    r = client.put("/api/sales-contracts", json={**kid, "delivered_at": None}, headers=h)
+    assert r.status_code == 200 and r.json()["contract"]["delivered"] is False
+    # Cờ `delivered` do server suy ra từ ngày giao — client gửi ngược cũng không đổi được.
     r = client.put("/api/sales-contracts", json={**kid, "delivered": False}, headers=h)
     assert r.status_code == 200 and r.json()["contract"]["delivered"] is True
 
@@ -411,7 +411,7 @@ def test_consumption_filter_by_customer_and_xlsx(env, cus) -> None:
             "company": UNIT, "code": code, "delivery_type": "multi", "customer_id": cid,
             "sign_date": YESTERDAY, "lines": [_line(qty=100.0)]}, headers=h).json()["contract"]
         client.put("/api/sales-contracts", json={
-            "company": UNIT, "parent_id": p["id"], "code": f"PL-{code}", "delivered_at": TODAY,
+            "company": UNIT, "parent_id": p["id"], "code": f"PL-{code}", "start_date": YESTERDAY, "delivered_at": TODAY,
             "channel": "export", "lines": [_line(qty=qty)]}, headers=h)
 
     url = f"/api/sales-contracts/consumption?date_from={TODAY}&date_to={TODAY}&company={UNIT}"
@@ -436,6 +436,71 @@ def test_meta_reports_currency_per_unit(env) -> None:
     m = client.get("/api/sales-contracts/meta", headers=env).json()
     assert m["unit_currency"][UNIT] == "VND"          # đơn vị test mặc định trong nước
     assert set(m["unit_currency"]) >= {UNIT, UNIT2}
+
+
+def test_batch_lifecycle_drives_block3(env, cus) -> None:
+    """Đợt giao có vòng đời: nằm ở khối 3 từ NGÀY BẮT ĐẦU đến HẾT NGÀY TRƯỚC ngày giao.
+
+    Kịch bản khách chốt 02/08/2026: HĐ mẹ 500 tấn ký 01/07, phụ lục 120 tấn mở 10/07 giao 20/07.
+    Phần cam kết CHƯA phân đợt (380 tấn) KHÔNG tính vào khối 3 — hàng chưa gom vào kho.
+    """
+    h = env
+    parent = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-LC", "delivery_type": "multi", "customer_id": cus,
+        "sign_date": "2026-07-01", "lines": [_line(qty=500.0)]}, headers=h).json()["contract"]
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": parent["id"], "code": "PL-LC", "start_date": "2026-07-10",
+        "delivered_at": "2026-07-20", "channel": "export",
+        "lines": [_line(qty=120.0)]}, headers=h)
+
+    def block3(day: str) -> float:
+        rep = client.get(f"/api/sales-contracts/undelivered?as_of={day}&company={UNIT}",
+                         headers=h).json()["by_company"]
+        return (rep.get(UNIT) or {}).get("qty", 0.0)
+
+    assert block3("2026-07-05") == pytest.approx(0.0)     # chưa mở đợt
+    assert block3("2026-07-10") == pytest.approx(120.0)   # mở đợt → vào khối 3
+    assert block3("2026-07-19") == pytest.approx(120.0)   # hết ngày TRƯỚC ngày giao
+    assert block3("2026-07-20") == pytest.approx(0.0)     # đúng ngày giao → rời khối 3
+
+    # Tiêu thụ ghi nhận ĐÚNG ngày giao, không phải ngày mở đợt.
+    def sold(day: str) -> float:
+        rep = client.get(f"/api/sales-contracts/consumption?date_from=2026-07-01&date_to={day}"
+                         f"&company={UNIT}", headers=h).json()["by_company"]
+        return (rep.get(UNIT) or {}).get("qty", 0.0)
+
+    assert sold("2026-07-19") == pytest.approx(0.0)
+    assert sold("2026-07-20") == pytest.approx(120.0)
+
+    # 3 rổ của hợp đồng mẹ phải cộng lại đúng bằng sản lượng cam kết.
+    d = client.get(f"/api/sales-contracts/{parent['id']}", headers=h).json()
+    assert d["delivered_qty"] == pytest.approx(120.0)
+    assert d["pending_qty"] == pytest.approx(0.0)
+    assert d["remaining_qty"] == pytest.approx(380.0)
+
+
+def test_batch_waiting_for_delivery_sits_in_block3(env, cus) -> None:
+    """Phụ lục để TRỐNG ngày giao = đang chờ giao: nằm ở khối 3, chưa vào tiêu thụ."""
+    h = env
+    parent = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-W", "delivery_type": "multi", "customer_id": cus,
+        "sign_date": YESTERDAY, "lines": [_line(qty=200.0)]}, headers=h).json()["contract"]
+    kid = client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": parent["id"], "code": "PL-W",
+        "start_date": YESTERDAY, "lines": [_line(qty=80.0)]}, headers=h)
+    # Chưa giao thì KHÔNG ép hình thức tiêu thụ / quy khô — hàng chưa bán ra.
+    assert kid.status_code == 200, kid.text
+    assert kid.json()["contract"]["delivered"] is False
+
+    und = client.get(f"/api/sales-contracts/undelivered?as_of={TODAY}&company={UNIT}",
+                     headers=h).json()["by_company"][UNIT]
+    assert und["qty"] == pytest.approx(80.0)
+    cons = client.get(f"/api/sales-contracts/consumption?date_from={YESTERDAY}&date_to={TODAY}"
+                      f"&company={UNIT}", headers=h).json()["by_company"]
+    assert cons == {}       # chưa giao → chưa tính tiêu thụ
+
+    d = client.get(f"/api/sales-contracts/{parent['id']}", headers=h).json()
+    assert (d["delivered_qty"], d["pending_qty"], d["remaining_qty"]) == (0.0, 80.0, 120.0)
 
 
 def test_member_scope_is_enforced(env) -> None:

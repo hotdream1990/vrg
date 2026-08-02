@@ -105,42 +105,35 @@ def consumption(date_from: str, date_to: str, companies: list[str] | None = None
 def undelivered_on(as_of: str, companies: list[str] | None = None) -> dict[str, dict[str, Any]]:
     """{đơn vị: {qty, by_grade, items}} — ĐÃ KÝ HĐ CHƯA GIAO tại ngày `as_of` (khối 3).
 
-    Chỉ tính hợp đồng đã ký tính đến ngày đó; phần đã giao tính theo `delivered_at <= as_of`
-    (không dùng số liệu ngày khác thay). Còn lại âm thì kẹp về 0.
+    Chốt 02/08/2026 — tính theo VÒNG ĐỜI CỦA TỪNG ĐỢT GIAO, không phải theo cam kết của hợp đồng mẹ:
+    một đợt nằm trong khối 3 từ **ngày bắt đầu** đến **hết ngày trước ngày giao**.
+      - Phụ lục = một đợt của hợp đồng giao-nhiều-lần.
+      - Hợp đồng giao-1-lần = chính nó là một đợt (ngày bắt đầu mặc định = ngày ký).
+    Phần cam kết của hợp đồng mẹ **chưa phân thành đợt** KHÔNG tính vào khối 3 — hàng chưa gom vào
+    kho thì không thể nằm trong tồn kho thực tế. Nhờ vậy hợp đồng khung cả năm không thổi phồng khối 3.
     """
-    rows = _fetch(companies, ["(sign_date IS NULL OR sign_date <= CAST(:d AS date))"],
+    rows = _fetch(companies,
+                  ["start_date IS NOT NULL", "start_date <= CAST(:d AS date)",
+                   "(delivered_at IS NULL OR delivered_at > CAST(:d AS date))"],
                   {"d": as_of})
-    parents = [r for r in rows if r["parent_id"] is None]
-    kids: dict[int, list[dict]] = {}
-    for r in rows:
-        if r["parent_id"] is not None:
-            kids.setdefault(r["parent_id"], []).append(r)
-
     out: dict[str, dict[str, Any]] = {}
-    for p in parents:
-        want = _by_grade(p["lines"])
-        done: dict[str, float] = {}
-        if p["delivery_type"] == "multi":
-            for k in kids.get(p["id"], []):
-                if k["delivered_at"] and k["delivered_at"] <= as_of:
-                    for g, q in _by_grade(k["lines"]).items():
-                        done[g] = done.get(g, 0.0) + q
-        elif p["delivered"] and p["delivered_at"] and p["delivered_at"] <= as_of:
-            done = want
-        remain = {g: max(0.0, q - done.get(g, 0.0)) for g, q in want.items()}
-        total = sum(remain.values())
+    for r in rows:
+        # Hợp đồng mẹ giao-nhiều-lần không phải là một đợt — hàng của nó nằm ở các phụ lục.
+        if r["parent_id"] is None and r["delivery_type"] == "multi":
+            continue
+        by_grade = {g: q for g, q in _by_grade(r["lines"]).items() if q > 1e-9}
+        total = sum(by_grade.values())
         if total <= 1e-9:
             continue
-        acc = out.setdefault(p["company"], {"qty": 0.0, "by_grade": {}, "items": []})
+        acc = out.setdefault(r["company"], {"qty": 0.0, "by_grade": {}, "items": []})
         acc["qty"] += total
-        for g, q in remain.items():
-            if q > 1e-9:
-                acc["by_grade"][g] = acc["by_grade"].get(g, 0.0) + q
+        for g, q in by_grade.items():
+            acc["by_grade"][g] = acc["by_grade"].get(g, 0.0) + q
         acc["items"].append({
-            "id": p["id"], "code": p["code"], "customer_id": p["customer_id"],
-            "delivery_type": p["delivery_type"], "sign_date": p["sign_date"],
-            "expiry_date": p["expiry_date"], "qty": p["qty"], "remaining": total,
-            "by_grade": {g: q for g, q in remain.items() if q > 1e-9},
+            "id": r["id"], "code": r["code"], "parent_id": r["parent_id"],
+            "customer_id": r["customer_id"], "sign_date": r["sign_date"],
+            "start_date": r["start_date"], "expiry_date": r["expiry_date"],
+            "qty": r["qty"], "remaining": total, "by_grade": by_grade,
         })
     return out
 
@@ -176,13 +169,22 @@ def parents_with_progress(companies: list[str] | None = None, *, customer_id: in
         if p["parent_id"] is not None:
             continue
         ks = by_parent.get(p["id"], [])
-        done = (sum(k["qty"] for k in ks) if p["delivery_type"] == "multi"
-                else (p["qty"] if p["delivered"] else 0.0))
-        remaining = max(0.0, p["qty"] - done)
-        item = {**p, "delivered_qty": done, "remaining_qty": remaining, "children": len(ks)}
-        if status == "open" and remaining <= 1e-9:
+        # 3 rổ cộng lại bằng sản lượng cam kết:
+        #   đã giao · đang chờ giao (đã mở đợt, chưa điền ngày giao) · chưa mở đợt.
+        if p["delivery_type"] == "multi":
+            done = sum(k["qty"] for k in ks if k["delivered_at"])
+            pending = sum(k["qty"] for k in ks if not k["delivered_at"])
+        else:
+            done = p["qty"] if p["delivered_at"] else 0.0
+            pending = 0.0 if p["delivered_at"] else p["qty"]
+        remaining = max(0.0, p["qty"] - done - pending)
+        item = {**p, "delivered_qty": done, "pending_qty": pending,
+                "remaining_qty": remaining, "children": len(ks)}
+        # "Còn hàng chưa giao" = chưa giao xong, gồm cả phần đang chờ giao lẫn phần chưa mở đợt.
+        undone = pending + remaining
+        if status == "open" and undone <= 1e-9:
             continue
-        if status == "done" and remaining > 1e-9:
+        if status == "done" and undone > 1e-9:
             continue
         out.append(item)
     out.sort(key=lambda r: (r.get("sign_date") or "", r["company"], r["id"]), reverse=True)

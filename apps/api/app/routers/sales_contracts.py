@@ -198,10 +198,15 @@ def get_contract(contract_id: int, scope: Scope) -> dict:
     if not c or (companies is not None and c["company"] not in companies):
         raise HTTPException(404, "Không tìm thấy hợp đồng trong phạm vi tài khoản.")
     kids = sales_contract_repo.children(contract_id) if c["parent_id"] is None else []
-    done = sum(k["qty"] for k in kids) if c["delivery_type"] == "multi" else (
-        c["qty"] if c["delivered"] else 0.0)
-    return {"contract": c, "children": kids, "delivered_qty": done,
-            "remaining_qty": max(0.0, c["qty"] - done)}
+    # 3 rổ: đã giao · đang chờ giao (đã mở đợt, chưa có ngày giao) · chưa mở đợt.
+    if c["delivery_type"] == "multi":
+        done = sum(k["qty"] for k in kids if k["delivered_at"])
+        pending = sum(k["qty"] for k in kids if not k["delivered_at"])
+    else:
+        done = c["qty"] if c["delivered_at"] else 0.0
+        pending = 0.0 if c["delivered_at"] else c["qty"]
+    return {"contract": c, "children": kids, "delivered_qty": done, "pending_qty": pending,
+            "remaining_qty": max(0.0, c["qty"] - done - pending)}
 
 
 @router.put("")

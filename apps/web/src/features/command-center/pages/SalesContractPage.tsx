@@ -21,7 +21,8 @@ import "../../bulletin/bulletin.css";
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
 /** Quá thời hạn hợp đồng mà vẫn còn hàng chưa giao. */
 const overdue = (r: ContractRow) =>
-  r.remaining_qty > 0 && !!r.expiry_date && r.expiry_date < new Date().toISOString().slice(0, 10);
+  r.remaining_qty + r.pending_qty > 0 && !!r.expiry_date
+  && r.expiry_date < new Date().toISOString().slice(0, 10);
 
 /** Quản lý hợp đồng → Hợp đồng & phụ lục: danh sách HỢP ĐỒNG MẸ + tiến độ giao. */
 export default function SalesContractPage() {
@@ -122,7 +123,7 @@ export default function SalesContractPage() {
           <thead><tr>
             <th>Đơn vị</th><th>Số hợp đồng</th><th>Khách hàng</th><th>Loại giao</th>
             <th>Ngày ký</th><th className="r">Cam kết (tấn)</th><th className="r">Đã giao</th>
-            <th className="r">Chưa giao</th><th className="r">Phụ lục</th>
+            <th className="r">Chờ giao</th><th className="r">Chưa mở đợt</th><th className="r">Phụ lục</th>
             <th className="r" style={{ width: 160 }}>Thao tác</th>
           </tr></thead>
           <tbody>
@@ -139,9 +140,11 @@ export default function SalesContractPage() {
                 <td>{dmy(r.sign_date) || "—"}</td>
                 <td className="r">{t3(r.qty)}</td>
                 <td className="r">{t3(r.delivered_qty)}</td>
+                {/* Đang chờ giao = đã mở đợt, chưa điền ngày giao → phần đang nằm ở khối 3. */}
+                <td className="r">{t3(r.pending_qty)}</td>
                 <td className="r">
-                  {/* Còn hàng chưa giao là trạng thái BÌNH THƯỜNG của hợp đồng mới ký — chỉ tô cảnh
-                      báo khi đã QUÁ THỜI HẠN mà vẫn còn hàng. */}
+                  {/* Chưa mở đợt là trạng thái BÌNH THƯỜNG của hợp đồng mới ký — chỉ tô cảnh báo
+                      khi đã QUÁ THỜI HẠN mà vẫn còn hàng chưa giao xong. */}
                   <span className={overdue(r) ? "chip warn" : "chip"}>{t3(r.remaining_qty)}</span>
                 </td>
                 <td className="r">{r.delivery_type === "multi" ? r.children : "—"}</td>
@@ -155,7 +158,7 @@ export default function SalesContractPage() {
               </tr>
             ))}
             {rows.length === 0 && !loading && (
-              <tr><td colSpan={10} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
+              <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                 Chưa có hợp đồng nào khớp bộ lọc.
               </td></tr>
             )}
