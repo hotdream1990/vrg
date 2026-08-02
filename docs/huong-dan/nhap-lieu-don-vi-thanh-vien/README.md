@@ -116,7 +116,7 @@ Danh sách các **hợp đồng mẹ** kèm tiến độ giao hàng.
 *Hình 6. Danh sách hợp đồng và tiến độ giao*
 
 1. **Thêm hợp đồng** — lập hợp đồng mới (xem mục 8).
-2. **Xem / Sửa / Xoá** ở cuối mỗi dòng. Bấm **Xem** để mở chi tiết và thêm phụ lục.
+2. **Xem / Sửa / Xoá** ở cuối mỗi dòng. Bấm **Xem** để mở màn chi tiết (mục 9).
 
 Ý nghĩa các cột tiến độ:
 
@@ -146,15 +146,33 @@ Danh sách các **hợp đồng mẹ** kèm tiến độ giao hàng.
 > - Hợp đồng **giao 1 lần**: điền **Ngày giao** ngay trên hợp đồng khi đã giao xong.
 > - Hợp đồng **giao nhiều lần**: không tự đánh dấu đã giao — mỗi lần giao nhập một phụ lục.
 
-## 9. Thêm phụ lục — mỗi phụ lục là một lần giao
+## 9. Màn chi tiết hợp đồng
 
-**Vị trí:** Hợp đồng & phụ lục → **Xem** một hợp đồng giao nhiều lần → Thêm phụ lục
+**Vị trí:** Quản lý hợp đồng → Hợp đồng & phụ lục → bấm **Xem** ở dòng hợp đồng
+
+Nơi theo dõi tiến độ một hợp đồng và nhập các lần giao của nó.
+
+![Hình 8. Màn chi tiết hợp đồng](img/08-hop-dong-chi-tiet.png)
+
+*Hình 8. Màn chi tiết hợp đồng*
+
+1. **Hàng số liệu** — khách hàng, loại hợp đồng, sản lượng cam kết, đã giao, đang chờ giao, chưa mở đợt. Luôn hiện dù đang ở tab nào.
+2. **Tab Thông tin hợp đồng** — sửa hợp đồng, file scan, ghi chú và các dòng chi tiết đã ký.
+3. **Tab Phụ lục** — danh sách các lần giao; hợp đồng giao nhiều lần mở thẳng vào tab này.
+4. **Thêm phụ lục** — ghi một lần giao mới (xem mục 10).
+
+> - Hợp đồng **giao 1 lần** không có tab Phụ lục: chính hợp đồng là một lần giao.
+> - Nút Thêm phụ lục mờ đi khi đã giao đủ sản lượng cam kết.
+
+## 10. Thêm phụ lục — mỗi phụ lục là một lần giao
+
+**Vị trí:** Màn chi tiết hợp đồng (mục 9) → tab Phụ lục → Thêm phụ lục
 
 Mỗi phụ lục = **một đợt giao + một lần thanh toán**. Đây là cách ghi nhận tiêu thụ của cơ chế mới.
 
-![Hình 8. Phiếu thêm phụ lục](img/08-phu-luc-form.png)
+![Hình 9. Phiếu thêm phụ lục](img/09-phu-luc-form.png)
 
-*Hình 8. Phiếu thêm phụ lục*
+*Hình 9. Phiếu thêm phụ lục*
 
 1. **Số phụ lục** — bắt buộc.
 2. **Ngày bắt đầu (mở đợt)** — bắt buộc; từ ngày này hàng của đợt nằm ở “đã ký HĐ chưa giao”.
@@ -168,15 +186,15 @@ Mỗi phụ lục = **một đợt giao + một lần thanh toán**. Đây là c
 > - Chi phí đưa vào báo cáo là ô **Chi phí** trên từng dòng chi tiết; ô chi phí ở khối Thanh toán **không** cộng vào báo cáo.
 > - Lần giao đã ghi quá **số ngày cho phép sửa** sẽ chuyển sang **chỉ xem** (dòng hiện “(chỉ xem)” thay cho nút Sửa/Xoá) — kỳ báo cáo đã chốt thì không sửa lùi được nữa. Hợp đồng mẹ **không** bị khoá, vẫn thêm phụ lục mới bình thường.
 
-## 10. Báo cáo tiêu thụ
+## 11. Báo cáo tiêu thụ
 
 **Vị trí:** Báo cáo → Tiêu thụ
 
 Bảng **chỉ để xem** — số do hệ thống tổng hợp từ các lần giao, đơn vị không nhập tay.
 
-![Hình 9. Báo cáo tiêu thụ theo kỳ](img/09-bao-cao-tieu-thu.png)
+![Hình 10. Báo cáo tiêu thụ theo kỳ](img/10-bao-cao-tieu-thu.png)
 
-*Hình 9. Báo cáo tiêu thụ theo kỳ*
+*Hình 10. Báo cáo tiêu thụ theo kỳ*
 
 1. **Bảng tổng hợp** — Lần giao · SL · Quy khô · Xuất khẩu · Trong nước · Nội bộ · Doanh thu · Chi phí · **Chưa giao**.
 
@@ -186,50 +204,50 @@ Bảng **chỉ để xem** — số do hệ thống tổng hợp từ các lần
 > - **Xuất Excel** để lấy đúng bảng đang xem.
 > - Doanh thu hiện “—” khi có lần giao bán ngoại tệ mà chưa nhập tỷ giá — bổ sung tỷ giá trên phụ lục để có số đầy đủ.
 
-## 11. Nhu cầu thị trường
+## 12. Nhu cầu thị trường
 
 **Vị trí:** Nhập liệu số liệu → Nhu cầu thị trường
 
 Ghi nhận nhu cầu và tín hiệu thị trường của đơn vị, **nhập tự do bằng chữ** theo ngày.
 
-![Hình 10. Nhu cầu thị trường theo ngày](img/10-nhu-cau-thi-truong.png)
+![Hình 11. Nhu cầu thị trường theo ngày](img/11-nhu-cau-thi-truong.png)
 
-*Hình 10. Nhu cầu thị trường theo ngày*
+*Hình 11. Nhu cầu thị trường theo ngày*
 
 1. Chọn ngày rồi viết nội dung: khách hỏi mua gì, số lượng, mức giá chào, tình hình thương lượng.
 
 > Viết ngắn gọn nhưng có **con số cụ thể** (chủng loại, sản lượng, mức giá) — Ban TTKD dùng thông tin này để đối chiếu với diễn biến giá sàn.
 
-## 12. Kế hoạch năm
+## 13. Kế hoạch năm
 
 **Vị trí:** Nhập liệu số liệu → Kế hoạch năm
 
 Số liệu nhập **một lần cho cả năm**, cập nhật khi có điều chỉnh.
 
-![Hình 11. Kế hoạch năm của đơn vị](img/11-ke-hoach-nam.png)
+![Hình 12. Kế hoạch năm của đơn vị](img/12-ke-hoach-nam.png)
 
-*Hình 11. Kế hoạch năm của đơn vị*
+*Hình 12. Kế hoạch năm của đơn vị*
 
 1. **Kế hoạch thu mua** (tấn) — dùng để tính % hoàn thành kế hoạch trên báo cáo.
 2. **HĐ dài hạn đã ký** (tấn) trong năm.
 3. **HĐ dài hạn / HĐ chuyến năm trước chuyển sang** (tấn).
 
-## 13. Hợp đồng cũ (trước 30/07)
+## 14. Hợp đồng cũ (trước 30/07)
 
 **Vị trí:** Báo cáo → Hợp đồng cũ (trước 30/07)
 
 Toàn bộ hợp đồng đã ký nhập theo cách cũ, **kể cả hợp đồng đã giao**. Màn này **chỉ để tra cứu** — không có nút sửa.
 
-![Hình 12. Tra cứu hợp đồng cũ](img/12-hop-dong-cu.png)
+![Hình 13. Tra cứu hợp đồng cũ](img/13-hop-dong-cu.png)
 
-*Hình 12. Tra cứu hợp đồng cũ*
+*Hình 13. Tra cứu hợp đồng cũ*
 
 1. Lọc theo khu vực, đơn vị, chủng loại, trạng thái giao và khoảng thời gian; tìm nhanh theo số HĐ.
 
 > - Hợp đồng phát sinh từ 30/07 trở đi nằm ở mục **Hợp đồng & phụ lục**, không nằm ở đây.
 > - Cần sửa một hợp đồng cũ thì báo Ban TTKD.
 
-## 14. Những lỗi hay gặp
+## 15. Những lỗi hay gặp
 
 | Hiện tượng | Nguyên nhân & cách xử lý |
 |---|---|

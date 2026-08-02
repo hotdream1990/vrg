@@ -144,7 +144,7 @@
    "caption": "Hình 6. Danh sách hợp đồng và tiến độ giao",
    "steps": [
     "**Thêm hợp đồng** — lập hợp đồng mới (xem mục 8).",
-    "**Xem / Sửa / Xoá** ở cuối mỗi dòng. Bấm **Xem** để mở chi tiết và thêm phụ lục."
+    "**Xem / Sửa / Xoá** ở cuối mỗi dòng. Bấm **Xem** để mở màn chi tiết (mục 9)."
    ],
    "notes": [
     "**Cam kết** — tổng sản lượng ghi trên hợp đồng.",
@@ -179,15 +179,36 @@
    ]
   },
   {
-   "title": "9. Thêm phụ lục — mỗi phụ lục là một lần giao",
-   "location": "Hợp đồng & phụ lục → **Xem** một hợp đồng giao nhiều lần → Thêm phụ lục",
-   "intro": "Mỗi phụ lục = một đợt giao + một lần thanh toán. Đây là cách ghi nhận tiêu thụ của cơ chế mới.",
+   "title": "9. Màn chi tiết hợp đồng",
+   "location": "Quản lý hợp đồng → Hợp đồng & phụ lục → bấm **Xem** ở dòng hợp đồng",
+   "intro": "Nơi theo dõi tiến độ một hợp đồng và nhập các lần giao của nó.",
    "image": {
-    "path": "img/08-phu-luc-form.png",
+    "path": "img/08-hop-dong-chi-tiet.png",
     "w": 3000,
     "h": 1640
    },
-   "caption": "Hình 8. Phiếu thêm phụ lục",
+   "caption": "Hình 8. Màn chi tiết hợp đồng",
+   "steps": [
+    "**Hàng số liệu** — khách hàng, loại hợp đồng, sản lượng cam kết, đã giao, đang chờ giao, chưa mở đợt. Luôn hiện dù đang ở tab nào.",
+    "**Tab Thông tin hợp đồng** — sửa hợp đồng, file scan, ghi chú và các dòng chi tiết đã ký.",
+    "**Tab Phụ lục** — danh sách các lần giao; hợp đồng giao nhiều lần mở thẳng vào tab này.",
+    "**Thêm phụ lục** — ghi một lần giao mới (xem mục 10)."
+   ],
+   "notes": [
+    "Hợp đồng **giao 1 lần** không có tab Phụ lục: chính hợp đồng là một lần giao.",
+    "Nút Thêm phụ lục mờ đi khi đã giao đủ sản lượng cam kết."
+   ]
+  },
+  {
+   "title": "10. Thêm phụ lục — mỗi phụ lục là một lần giao",
+   "location": "Màn chi tiết hợp đồng (mục 9) → tab Phụ lục → Thêm phụ lục",
+   "intro": "Mỗi phụ lục = một đợt giao + một lần thanh toán. Đây là cách ghi nhận tiêu thụ của cơ chế mới.",
+   "image": {
+    "path": "img/09-phu-luc-form.png",
+    "w": 3000,
+    "h": 1640
+   },
+   "caption": "Hình 9. Phiếu thêm phụ lục",
    "steps": [
     "**Số phụ lục** — bắt buộc.",
     "**Ngày bắt đầu (mở đợt)** — bắt buộc; từ ngày này hàng của đợt nằm ở “đã ký HĐ chưa giao”.",
@@ -204,15 +225,15 @@
    ]
   },
   {
-   "title": "10. Báo cáo tiêu thụ",
+   "title": "11. Báo cáo tiêu thụ",
    "location": "Báo cáo → Tiêu thụ",
    "intro": "Bảng chỉ để xem — số do hệ thống tổng hợp từ các lần giao, đơn vị không nhập tay.",
    "image": {
-    "path": "img/09-bao-cao-tieu-thu.png",
+    "path": "img/10-bao-cao-tieu-thu.png",
     "w": 3000,
     "h": 1640
    },
-   "caption": "Hình 9. Báo cáo tiêu thụ theo kỳ",
+   "caption": "Hình 10. Báo cáo tiêu thụ theo kỳ",
    "steps": [
     "**Bảng tổng hợp** — Lần giao · SL · Quy khô · Xuất khẩu · Trong nước · Nội bộ · Doanh thu · Chi phí · **Chưa giao**."
    ],
@@ -225,15 +246,15 @@
    ]
   },
   {
-   "title": "11. Nhu cầu thị trường",
+   "title": "12. Nhu cầu thị trường",
    "location": "Nhập liệu số liệu → Nhu cầu thị trường",
    "intro": "Ghi nhận nhu cầu và tín hiệu thị trường của đơn vị, nhập tự do bằng chữ theo ngày.",
    "image": {
-    "path": "img/10-nhu-cau-thi-truong.png",
+    "path": "img/11-nhu-cau-thi-truong.png",
     "w": 3000,
     "h": 1640
    },
-   "caption": "Hình 10. Nhu cầu thị trường theo ngày",
+   "caption": "Hình 11. Nhu cầu thị trường theo ngày",
    "steps": [
     "Chọn ngày rồi viết nội dung: khách hỏi mua gì, số lượng, mức giá chào, tình hình thương lượng."
    ],
@@ -242,15 +263,15 @@
    ]
   },
   {
-   "title": "12. Kế hoạch năm",
+   "title": "13. Kế hoạch năm",
    "location": "Nhập liệu số liệu → Kế hoạch năm",
    "intro": "Số liệu nhập một lần cho cả năm, cập nhật khi có điều chỉnh.",
    "image": {
-    "path": "img/11-ke-hoach-nam.png",
+    "path": "img/12-ke-hoach-nam.png",
     "w": 3000,
     "h": 1640
    },
-   "caption": "Hình 11. Kế hoạch năm của đơn vị",
+   "caption": "Hình 12. Kế hoạch năm của đơn vị",
    "steps": [
     "**Kế hoạch thu mua** (tấn) — dùng để tính % hoàn thành kế hoạch trên báo cáo.",
     "**HĐ dài hạn đã ký** (tấn) trong năm.",
@@ -258,15 +279,15 @@
    ]
   },
   {
-   "title": "13. Hợp đồng cũ (trước 30/07)",
+   "title": "14. Hợp đồng cũ (trước 30/07)",
    "location": "Báo cáo → Hợp đồng cũ (trước 30/07)",
    "intro": "Toàn bộ hợp đồng đã ký nhập theo cách cũ, kể cả hợp đồng đã giao. Màn này chỉ để tra cứu — không có nút sửa.",
    "image": {
-    "path": "img/12-hop-dong-cu.png",
+    "path": "img/13-hop-dong-cu.png",
     "w": 3000,
     "h": 1640
    },
-   "caption": "Hình 12. Tra cứu hợp đồng cũ",
+   "caption": "Hình 13. Tra cứu hợp đồng cũ",
    "steps": [
     "Lọc theo khu vực, đơn vị, chủng loại, trạng thái giao và khoảng thời gian; tìm nhanh theo số HĐ."
    ],
@@ -276,7 +297,7 @@
    ]
   },
   {
-   "title": "14. Những lỗi hay gặp",
+   "title": "15. Những lỗi hay gặp",
    "notes": [
     "**Không lưu được hợp đồng, báo thiếu loại hợp đồng** → Chưa chọn **HĐ dài hạn / HĐ chuyến** — đây là ô bắt buộc.",
     "**Doanh thu trên báo cáo hiện “—”** → Có lần giao bán ngoại tệ chưa nhập tỷ giá. Mở phụ lục, điền tỷ giá quy ra VNĐ.",

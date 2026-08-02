@@ -105,6 +105,24 @@ def seed(tok: str) -> None:
                    "fx": 26200}]})
 
 
+def seed_legacy() -> None:
+    """1 hợp đồng ở bảng CŨ (`unit_stock_contract`) — màn "Hợp đồng cũ" chỉ đọc bảng này, không
+    seed thì ảnh chụp ra bảng trống. Ghi thẳng DB vì giao diện đã chuyển sang chỉ-xem."""
+    import os
+
+    import psycopg
+
+    dsn = os.environ.get("DATABASE_URL", "postgresql://vrg:changeme@localhost:5433/vrg_caosu")
+    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO unit_stock_contract (company, code, grade, qty, price, ccy, start_date, "
+            " delivered_date, updated_by) VALUES "
+            " (%s,'HĐ-088/2026','SVR 3L',180,43.1,'VND',%s::date,%s::date,'seed'),"
+            " (%s,'HĐ-092/2026','SVR 10 / CSR 10',240,41.6,'VND',%s::date,NULL,'seed')",
+            (UNIT, D(45), D(28), UNIT, D(20)))
+        conn.commit()
+
+
 def clean() -> None:
     """Xoá SẠCH số liệu mẫu (chỉ của đơn vị mẫu) — không để lại rác trong DB dev."""
     import os
@@ -114,7 +132,8 @@ def clean() -> None:
     dsn = os.environ.get("DATABASE_URL", "postgresql://vrg:changeme@localhost:5433/vrg_caosu")
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
         cur.execute("DELETE FROM sales_contract WHERE company = %s OR to_company = %s", (UNIT, UNIT))
-        for t in ("unit_customer", "unit_daily_report", "unit_purchase_plan", "market_demand"):
+        for t in ("unit_customer", "unit_daily_report", "unit_purchase_plan", "market_demand",
+                  "unit_stock_contract"):
             cur.execute(f"DELETE FROM {t} WHERE company = %s", (UNIT,))
         conn.commit()
 
@@ -207,6 +226,27 @@ def open_modal(page, button_text: str) -> None:
     page.wait_for_timeout(500)
 
 
+CONTRACT_DETAIL = """(() => {
+  const m = [...document.querySelectorAll('.ant-modal')].pop();
+  const tab = (t) => [...m.querySelectorAll('.ant-tabs-tab')].find(e => e.textContent.startsWith(t));
+  const add = [...m.querySelectorAll('button')].find(b => b.textContent.includes('Thêm phụ lục'));
+  return window.__annotate([m.querySelector('.kpi-row'), tab('Thông tin'), tab('Phụ lục'), add]);
+})()"""
+
+
+def open_detail(page) -> None:
+    """Mở màn chi tiết của hợp đồng giao-nhiều-lần (bấm Xem trên bảng danh sách)."""
+    page.add_style_tag(content=".ant-modal,.ant-modal-mask{opacity:1!important;"
+                               "transform:none!important;animation:none!important}")
+    page.evaluate("""(() => {
+      const row = [...document.querySelectorAll('table tbody tr')]
+          .find(r => r.textContent.includes('HĐ-102/2026'));
+      [...row.querySelectorAll('button')].find(b => b.textContent.trim() === 'Xem').click();
+    })()""")
+    page.wait_for_selector(".ant-modal", timeout=8000)
+    page.wait_for_timeout(700)
+
+
 def open_annex_form(page) -> None:
     """Form PHỤ LỤC nằm 2 lớp: bấm Xem hợp đồng giao-nhiều-lần → Thêm phụ lục."""
     page.add_style_tag(content=".ant-modal,.ant-modal-mask{opacity:1!important;"
@@ -228,6 +268,7 @@ def main() -> int:
     tok = call("POST", "/api/auth/impersonate", admin, {"username": MEMBER})["access_token"]
     clean()               # chạy lại lần 2 không nhân đôi dữ liệu mẫu
     seed(tok)
+    seed_legacy()
     OUT.mkdir(exist_ok=True)
 
     with sync_playwright() as p:
@@ -263,20 +304,22 @@ def main() -> int:
                            "Ngày ký", "Ngày bắt đầu"),
              "07-hop-dong-form.png", wait_for="table",
              setup=lambda pg: open_modal(pg, "Thêm hợp đồng"))
+        shot(f"{WEB}/hop-dong", CONTRACT_DETAIL, "08-hop-dong-chi-tiet.png",
+             wait_for="table", setup=open_detail)
         shot(f"{WEB}/hop-dong",
              field_targets("Số phụ lục", "Ngày bắt đầu", "Ngày giao", "Hình thức tiêu thụ"),
-             "08-phu-luc-form.png", wait_for="table", setup=open_annex_form)
+             "09-phu-luc-form.png", wait_for="table", setup=open_annex_form)
         shot(f"{WEB}/bao-cao-tieu-thu",
              "(() => window.__annotate([document.querySelector('table')]))()",
-             "09-bao-cao-tieu-thu.png", wait_for="table")
+             "10-bao-cao-tieu-thu.png", wait_for="table")
         shot(f"{WEB}/nhu-cau-thi-truong",
              "(() => window.__annotate([document.querySelector('.card')]))()",
-             "10-nhu-cau-thi-truong.png", wait_for=".card")
+             "11-nhu-cau-thi-truong.png", wait_for=".card")
         shot(f"{WEB}/ke-hoach-nam", "(() => window.__annotate([document.querySelector('table')]))()",
-             "11-ke-hoach-nam.png", wait_for="table")
+             "12-ke-hoach-nam.png", wait_for="table")
         shot(f"{WEB}/thong-ke-hop-dong",
              "(() => window.__annotate([document.querySelector('.ant-table')]))()",
-             "12-hop-dong-cu.png", wait_for=".ant-table")
+             "13-hop-dong-cu.png", wait_for=".ant-table")
 
     clean()
     print(f"Xong. Ảnh ở {OUT}")
