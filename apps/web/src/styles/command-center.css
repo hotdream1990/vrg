@@ -147,7 +147,10 @@ tr:hover td{background:#f3f7f4}
          border-bottom:1px solid var(--line)}
 .ct-line:last-child{border-bottom:0}
 .ct-line .form-field{font-size:11px;gap:3px}
-.ct-line .blt-date-input{height:30px;width:100%}
+/* KHÔNG ép chiều cao ô: `.blt-date-input` có sẵn padding 8px trên/dưới + viền, ép 30px thì phần
+   chứa chữ chỉ còn 12px trong khi cỡ chữ 13px — chữ bị cắt cụt đầu và chân. Để ô cao tự nhiên,
+   bằng đúng các ô khác trong cùng form. */
+.ct-line .blt-date-input{width:100%}
 .ud-docs{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding-left:2px}
 .ud-doc{display:flex;align-items:center;gap:6px;font-size:12px;min-height:24px}
 .ud-doc-lb{color:var(--muted);font-size:11px;white-space:nowrap}

@@ -128,8 +128,10 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
     ? `${initial ? "Sửa" : "Thêm"} phụ lục — HĐ ${parent!.code}`
     : `${initial ? "Sửa" : "Thêm"} hợp đồng`;
 
+  // Modal rộng để dòng chi tiết đủ chỗ nằm một hàng; `min()` giữ mép modal không tràn ra ngoài
+  // màn hình hẹp — số cứng 1280 sẽ vượt khung ở laptop 13".
   return (
-    <Modal open width={1040} title={title} onCancel={onClose} okText="Lưu" cancelText="Đóng"
+    <Modal open width="min(1280px, 94vw)" title={title} onCancel={onClose} okText="Lưu" cancelText="Đóng"
       onOk={submit} okButtonProps={{ loading: busy, disabled: overCap }} destroyOnHidden>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 10 }}>
         <label className="form-field">Đơn vị
