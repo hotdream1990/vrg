@@ -139,7 +139,7 @@ Danh sách các **hợp đồng mẹ** kèm tiến độ giao hàng.
 4. **Loại giao** — *Giao 1 lần* (cả hợp đồng giao trọn một lần) hay *Giao nhiều lần* (chia thành nhiều phụ lục).
 5. **Ngày ký** — bắt buộc.
 6. **Ngày bắt đầu (mở đợt)** — ngày hàng bắt đầu gom vào kho cho đợt này; chỉ hiện với hợp đồng giao 1 lần.
-7. **Chi tiết hợp đồng** — mỗi chủng loại một dòng: SL · Quy khô · Đơn giá · Loại tiền · Tỷ giá · Chi phí.
+7. **Chi tiết hợp đồng** — mỗi chủng loại một dòng. Ô **Quy khô** chỉ hiện với latex và mủ nguyên liệu; ô **Tỷ giá** chỉ hiện khi dòng bán bằng ngoại tệ.
 
 > - Bán bằng **VNĐ** nhập đơn giá theo **triệu đồng/tấn**; bán bằng **ngoại tệ** nhập theo **ngoại tệ/tấn** và **phải có tỷ giá** quy ra VNĐ, nếu không doanh thu sẽ hiện “—”.
 > - Bán **LATEX** và 2 loại mủ nguyên liệu thì **bắt buộc nhập quy khô** mới lưu được.
@@ -160,12 +160,13 @@ Mỗi phụ lục = **một đợt giao + một lần thanh toán**. Đây là c
 2. **Ngày bắt đầu (mở đợt)** — bắt buộc; từ ngày này hàng của đợt nằm ở “đã ký HĐ chưa giao”.
 3. **Ngày giao** — để trống nghĩa là **đang chờ giao**; điền vào là đợt đã giao xong và **tính ngay vào tiêu thụ của ngày đó**.
 4. **Hình thức tiêu thụ** — *Xuất khẩu / UTXK* · *Tiêu thụ trong nước* · *Tiêu thụ nội bộ*. Bắt buộc khi đã giao.
-5. **Chi tiết lần giao** — chủng loại, sản lượng, đơn giá thực tế của lần giao này.
+5. **Chi tiết lần giao** — chủng loại, sản lượng, đơn giá thực tế của lần giao này. Ô Quy khô và Tỷ giá chỉ hiện khi áp dụng, giống phiếu hợp đồng.
 6. **Thanh toán** — ngày thanh toán, sản lượng và chi phí của lần thanh toán, kèm chứng từ/hoá đơn.
 
 > - Tổng sản lượng các phụ lục **không được vượt** cam kết của hợp đồng mẹ; phiếu hiện sẵn dòng *Còn lại của hợp đồng mẹ*.
 > - **Tiêu thụ nội bộ** chỉ hiện khi đơn vị thuộc một nhóm công ty mẹ–con, và chỉ chọn được đơn vị trong cùng nhóm.
 > - Chi phí đưa vào báo cáo là ô **Chi phí** trên từng dòng chi tiết; ô chi phí ở khối Thanh toán **không** cộng vào báo cáo.
+> - Lần giao đã ghi quá **số ngày cho phép sửa** sẽ chuyển sang **chỉ xem** (dòng hiện “(chỉ xem)” thay cho nút Sửa/Xoá) — kỳ báo cáo đã chốt thì không sửa lùi được nữa. Hợp đồng mẹ **không** bị khoá, vẫn thêm phụ lục mới bình thường.
 
 ## 10. Báo cáo tiêu thụ
 
@@ -238,3 +239,4 @@ Toàn bộ hợp đồng đã ký nhập theo cách cũ, **kể cả hợp đồ
 | Không thấy “Tiêu thụ nội bộ” | Đơn vị chưa thuộc nhóm công ty mẹ–con. Báo Ban TTKD gán Công ty mẹ. |
 | Không lưu được phụ lục, báo vượt sản lượng | Tổng các phụ lục vượt cam kết của hợp đồng mẹ. Kiểm lại dòng *Còn lại của hợp đồng mẹ*. |
 | Không sửa được số liệu ngày cũ | Ngoài cửa sổ sửa cho phép. Báo Ban TTKD nếu cần mở lại. |
+| Phụ lục hiện “(chỉ xem)”, không có nút Sửa | Lần giao đã quá số ngày cho phép sửa. Báo Ban TTKD nếu thật sự cần chỉnh. |

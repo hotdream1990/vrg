@@ -146,21 +146,43 @@ CONTRACT_LIST = """(() => {
   return window.__annotate([add, act]);
 })()"""
 
+#: Ô nhập có nhãn (`.form-field`) — dùng cho form hợp đồng / phụ lục.
 FIELD = """(() => {
-  const root = document.querySelector('.ant-modal') || document;
-  // Ô nhập là `.form-field`, nhưng TIÊU ĐỀ KHỐI (vd "1. Tồn kho…") là thẻ thường → dò cả hai,
-  // lấy phần tử SÂU NHẤT khớp để khung ôm đúng chỗ chứ không bọc cả trang.
+  // Form phụ lục mở CHỒNG lên modal chi tiết → có 2 `.ant-modal`. Phải lấy cái TRÊN CÙNG,
+  // không thì dò nhầm sang modal dưới và không thấy ô nào.
+  const modals = [...document.querySelectorAll('.ant-modal')];
+  const root = modals.length ? modals[modals.length - 1] : document;
+  const f = (t) => [...root.querySelectorAll('.form-field')]
+      .find(e => e.textContent.trim().startsWith(t)) || null;
+  return window.__annotate(%s);
+})()"""
+
+#: TIÊU ĐỀ KHỐI (vd "1. Tồn kho thành phẩm…") là thẻ thường, không phải `.form-field`. Lấy phần tử
+#: SÂU NHẤT khớp để khung ôm đúng dòng tiêu đề chứ không bọc cả khối bên dưới.
+BLOCK = """(() => {
+  // Form phụ lục mở CHỒNG lên modal chi tiết → có 2 `.ant-modal`. Phải lấy cái TRÊN CÙNG,
+  // không thì dò nhầm sang modal dưới và không thấy ô nào.
+  const modals = [...document.querySelectorAll('.ant-modal')];
+  const root = modals.length ? modals[modals.length - 1] : document;
   const f = (t) => {
-    const hit = [...root.querySelectorAll('.form-field, label, h3, h4, div, strong')]
+    const hit = [...root.querySelectorAll('label, h3, h4, div, strong, button')]
         .filter(e => e.textContent.trim().startsWith(t));
-    return hit.length ? hit[hit.length - 1].closest('.form-field') || hit[hit.length - 1] : null;
+    return hit.length ? hit[hit.length - 1] : null;
   };
   return window.__annotate(%s);
 })()"""
 
 
+def _targets(tpl: str, labels: tuple[str, ...]) -> str:
+    return tpl % ("[" + ", ".join(f"f({x!r})" for x in labels) + "]")
+
+
 def field_targets(*labels: str) -> str:
-    return FIELD % ("[" + ", ".join(f"f({x!r})" for x in labels) + "]")
+    return _targets(FIELD, labels)
+
+
+def block_targets(*labels: str) -> str:
+    return _targets(BLOCK, labels)
 
 
 #: Đăng nhập hộ có thanh cảnh báo vàng cố định trên cùng — đơn vị thật KHÔNG thấy nó, phải gỡ
@@ -225,12 +247,12 @@ def main() -> int:
         shot(f"{WEB}/bao-cao-thu-mua", LIST_SCREEN, "02-thu-mua-danh-sach.png",
              wait_for=".ant-table")
         shot(f"{WEB}/bao-cao-thu-mua",
-             field_targets("Hôm nay đơn vị KHÔNG", "Mủ nước", "Mủ chén",
+             block_targets("Hôm nay đơn vị KHÔNG", "Mủ nước", "Mủ chén",
                            "Mủ nguyên liệu nước chưa cán vắt", "Thu mua thành phẩm"),
              "03-thu-mua-form.png", wait_for=".ant-table",
              setup=lambda pg: open_modal(pg, "Thêm số liệu"))
         shot(f"{WEB}/bao-cao-ton-kho",
-             field_targets("Lấy tồn ngày trước", "1. Tồn kho thành phẩm chế biến",
+             block_targets("Lấy tồn ngày trước", "1. Tồn kho thành phẩm chế biến",
                            "2. Tồn kho thành phẩm đã nhập kho", "3. Tồn kho nguyên liệu"),
              "04-ton-kho.png", wait_for=".ant-table",
              setup=lambda pg: open_modal(pg, "Thêm số liệu"))
