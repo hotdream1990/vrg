@@ -132,6 +132,22 @@ def assert_editor_window(username: str, as_of: str) -> None:
     edit_window.assert_editable(as_of, edit_window.editor_window())
 
 
+def assert_edit_window(username: str, as_of: str) -> None:
+    """Cửa sổ sửa cho endpoint DÙNG CHUNG giữa đơn vị thành viên và chuyên viên.
+
+    Mỗi vai trò một thông số riêng (admin cấu hình độc lập): đơn vị thành viên theo
+    MEMBER_EDIT_WINDOW_DAYS, chuyên viên theo EDITOR_EDIT_WINDOW_DAYS, admin miễn. Dùng ở
+    `/api/sales-contracts` — router đó phục vụ cả hai vai trò nên không thể chọn cứng một thông số.
+    """
+    from app.core import edit_window
+
+    role = _active_user(username).get("role")
+    if role == "admin":
+        return
+    window = edit_window.member_window() if role == "member" else edit_window.editor_window()
+    edit_window.assert_editable(as_of, window)
+
+
 def get_current_member(username: str = Depends(get_current_user)) -> dict:
     """Dependency cho tài khoản đơn vị thành viên — trả user dict (có `member_units`).
 

@@ -22,6 +22,7 @@ from app.core.market_meta import (
     SALE_CURRENCIES,
     SALE_GRADES,
 )
+from app.core import security
 from app.core.permissions import LEVEL_EDIT
 from app.core.security import cap_or_member_scope
 from app.schemas.sales_contract import ContractIn
@@ -214,11 +215,31 @@ def get_contract(contract_id: int, scope: Scope) -> dict:
             "remaining_qty": max(0.0, c["qty"] - done - pending)}
 
 
+def _assert_delivery_window(username: str, contract_id: int | None, new_delivered_at: str | None) -> None:
+    """Cửa sổ sửa — chỉ áp cho LẦN GIAO, mốc là NGÀY GIAO (chốt 02/08/2026).
+
+    Lần giao là bản ghi tiêu thụ, đúng thứ cửa sổ sửa sinh ra để bảo vệ: giao xong quá N ngày thì
+    kỳ báo cáo đã chốt, sửa lùi là làm lệch số đã gửi đi.
+
+    KHÔNG áp cho hợp đồng mẹ: hợp đồng dài hạn ký từ đầu năm vẫn phải sửa và thêm phụ lục suốt
+    vòng đời — khoá theo ngày ký là chặn đúng nghiệp vụ chính. Các mốc tương lai (thời hạn hợp đồng,
+    ngày mở đợt, ngày thanh toán) cũng không đụng tới, vì `assert_editable` chặn cả ngày tương lai.
+
+    Kiểm CẢ HAI đầu: ngày giao ĐANG lưu (không cho sửa/xoá lần giao đã khoá) và ngày giao MỚI gửi
+    lên (không cho khai lùi ra ngoài cửa sổ).
+    """
+    old = sales_contract_repo.get(contract_id) if contract_id else None
+    for as_of in (old.get("delivered_at") if old else None, new_delivered_at):
+        if as_of:
+            security.assert_edit_window(username, as_of)
+
+
 @router.put("")
 def save_contract(body: ContractIn, scope: EditScope) -> dict:
     """Thêm mới / cập nhật hợp đồng mẹ hoặc phụ lục (phụ lục tự tính là ĐÃ GIAO)."""
     username, companies = scope
     _assert_company(companies, body.company)
+    _assert_delivery_window(username, body.id, body.delivered_at)
     try:
         return {"contract": sales_contract_repo.save(body.model_dump(), body.company, username)}
     except ValueError as exc:
@@ -228,7 +249,8 @@ def save_contract(body: ContractIn, scope: EditScope) -> dict:
 @router.delete("/{contract_id}")
 def delete_contract(contract_id: int, scope: EditScope) -> dict:
     """Xoá 1 hợp đồng / phụ lục (hợp đồng mẹ còn phụ lục thì phải xoá phụ lục trước)."""
-    _, companies = scope
+    username, companies = scope
+    _assert_delivery_window(username, contract_id, None)
     try:
         ok = sales_contract_repo.delete(contract_id, companies)
     except ValueError as exc:

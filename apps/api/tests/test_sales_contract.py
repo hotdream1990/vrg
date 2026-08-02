@@ -283,6 +283,54 @@ def test_internal_sale_stays_inside_the_company_group(env, cus) -> None:
     assert UNIT3 not in meta          # đứng một mình → form ẩn hình thức tiêu thụ nội bộ
 
 
+def test_edit_window_locks_old_deliveries_only(env, cus) -> None:
+    """Cửa sổ sửa CHỈ khoá LẦN GIAO theo ngày giao; hợp đồng mẹ vẫn sửa và thêm phụ lục được.
+
+    Khoá hợp đồng mẹ theo ngày ký sẽ chặn đúng nghiệp vụ chính: hợp đồng dài hạn ký từ lâu vẫn phải
+    nhập phụ lục cho từng lần giao.
+    """
+    from app.services import config_repo
+
+    h = env
+    old_day = (date.today() - timedelta(days=40)).isoformat()
+    config_repo.set_config({"EDITOR_EDIT_WINDOW_DAYS": "7"}, "test")
+    # Admin được MIỄN cửa sổ → dùng tài khoản chuyên viên để kiểm hàng rào.
+    client.delete("/api/users/zz_ct_ed", headers=h)
+    client.post("/api/users", json={"username": "zz_ct_ed", "password": "pass123", "role": "editor",
+                                    "permissions": ["sales_contract"]}, headers=h)
+    eh = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'zz_ct_ed', 'password': 'pass123'}).json()['access_token']}"}
+
+    # Hợp đồng mẹ KÝ TỪ LÂU vẫn sửa được...
+    parent = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-OLD", "delivery_type": "multi", "contract_type": "long_term",
+        "customer_id": cus, "sign_date": old_day, "lines": [_line(qty=100.0)]}, headers=eh)
+    assert parent.status_code == 200, parent.text
+    pid = parent.json()["contract"]["id"]
+
+    # ...và vẫn thêm được phụ lục giao TRONG cửa sổ.
+    ok = client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": pid, "code": "PL-NAY", "start_date": YESTERDAY,
+        "delivered_at": TODAY, "channel": "export", "lines": [_line(qty=10.0)]}, headers=eh)
+    assert ok.status_code == 200, ok.text
+
+    # Nhưng KHÔNG khai được lần giao lùi quá cửa sổ.
+    late = client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": pid, "code": "PL-CU", "start_date": old_day,
+        "delivered_at": old_day, "channel": "export", "lines": [_line(qty=10.0)]}, headers=eh)
+    assert late.status_code == 403 and "chỉ xem" in late.json()["detail"]
+
+    # Lần giao đã khoá thì không sửa, không xoá được (ghi thẳng DB cho giống dữ liệu cũ).
+    with session_scope() as db:
+        locked = db.execute(text(
+            "INSERT INTO sales_contract (company, parent_id, code, delivery_type, sign_date, "
+            " start_date, lines, delivered, delivered_at, channel, updated_by) "
+            "VALUES (:c, :p, 'PL-KHOA', 'single', CAST(:d AS date), CAST(:d AS date), "
+            " '[]'::jsonb, true, CAST(:d AS date), 'export', 'test') RETURNING id"),
+            {"c": UNIT, "p": pid, "d": old_day}).scalar()
+    assert client.delete(f"/api/sales-contracts/{locked}", headers=eh).status_code == 403
+    client.delete("/api/users/zz_ct_ed", headers=h)
+
+
 def test_delete_parent_blocked_while_children_exist(env, cus) -> None:
     h = env
     parent = client.put("/api/sales-contracts", json={
