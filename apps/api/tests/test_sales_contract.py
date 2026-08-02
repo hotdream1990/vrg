@@ -163,6 +163,25 @@ def test_dry_weight_required_for_all_three_grades(env, cus) -> None:
     assert free.status_code == 200, free.text
 
 
+def test_dry_weight_rejected_for_finished_grades(env, cus) -> None:
+    """Thành phẩm bán ra đã là hàng khô → khai quy khô là số vô nghĩa, phải chặn.
+
+    Nhận bừa thì chỉ tiêu "quy khô" trên Báo cáo tiêu thụ cộng cả số rác mà nhìn không ra.
+    """
+    h = env
+    bad = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-DRYX", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY,
+        "lines": [_line(qty=10.0, qty_dry=5.0)]}, headers=h)          # SVR 10 — hàng khô
+    assert bad.status_code == 400 and "không có quy khô" in bad.json()["detail"]
+
+    ok = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-DRYX", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY,
+        "lines": [_line(qty=10.0)]}, headers=h)
+    assert ok.status_code == 200, ok.text
+
+
 def test_dry_weight_enforced_when_contract_flips_to_delivered(env, cus) -> None:
     """HĐ giao-1-lần lúc tạo CHƯA giao (không ép quy khô) — khi đánh dấu đã giao thì phải ép."""
     h = env

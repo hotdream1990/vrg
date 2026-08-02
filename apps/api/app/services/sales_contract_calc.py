@@ -52,6 +52,12 @@ def clean_lines(lines, *, require_dry: bool) -> list[dict[str, Any]]:
         if qty is None or qty <= 0:
             raise ValueError(f"Dòng {i} ({grade}): số lượng phải lớn hơn 0.")
         qty_dry = _num(ln.get("qty_dry"))
+        # Quy khô CHỈ có nghĩa với mủ còn nước (latex + 2 loại nguyên liệu). Thành phẩm SVR/RSS/CSR
+        # bán ra đã là hàng khô — số lượng chính là khối lượng khô. Nhận bừa ô này cho mọi chủng
+        # loại thì chỉ tiêu "quy khô" trên báo cáo cộng cả số vô nghĩa mà nhìn không ra.
+        if grade not in DRY_REQUIRED_GRADES and qty_dry is not None:
+            raise ValueError(f"Dòng {i} ({grade}): chủng loại này không có quy khô — số lượng bán "
+                             "đã là khối lượng khô. Chỉ latex và mủ nguyên liệu mới khai quy khô.")
         if require_dry and grade in DRY_REQUIRED_GRADES and (qty_dry is None or qty_dry <= 0):
             raise ValueError(f"Dòng {i} ({grade}): bắt buộc nhập quy khô mới lưu được.")
         if qty_dry is not None and qty_dry > qty + 1e-9:

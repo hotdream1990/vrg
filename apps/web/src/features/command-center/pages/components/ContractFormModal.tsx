@@ -41,7 +41,15 @@ const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 }
 export default function ContractFormModal({ meta, parent, remaining = 0, initial, onClose, onSaved }: Props) {
   const isChild = !!parent;
   const [c, setC] = useState<Contract>(() => {
-    if (initial) return { ...initial, lines: initial.lines.length ? initial.lines : [{ ...EMPTY_LINE }] };
+    if (initial) {
+      // Bản ghi cũ có thể mang quy khô ở chủng loại KHÔNG dùng quy khô (trước đây ô này hiện cho
+      // mọi dòng). Dọn ngay khi mở form — không thì ô đã ẩn, người dùng không xoá được mà lưu lại
+      // bị chặn, kẹt không biết sửa ở đâu.
+      const okDry = new Set(meta.dry_required);
+      const lines = (initial.lines.length ? initial.lines : [{ ...EMPTY_LINE }])
+        .map((l) => (okDry.has(l.grade) ? l : { ...l, qty_dry: null }));
+      return { ...initial, lines };
+    }
     const base = blank(parent?.company ?? meta.units[0] ?? "");
     return isChild ? { ...base, parent_id: parent!.id, delivered: true } : base;
   });

@@ -51,7 +51,13 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
                 <tr key={i}>
                   <td>
                     <select className="blt-date-input" style={{ width: "100%" }} value={ln.grade}
-                      disabled={readOnly} onChange={(e) => set(i, { grade: e.target.value })}>
+                      disabled={readOnly}
+                      // Đổi sang chủng loại không có quy khô phải XOÁ số cũ: ô đã ẩn nên người dùng
+                      // không tự xoá được, giữ lại thì lưu bị chặn mà không biết sửa ở đâu.
+                      onChange={(e) => set(i, {
+                        grade: e.target.value,
+                        ...(dry.has(e.target.value) ? {} : { qty_dry: null }),
+                      })}>
                       <option value="">— chọn chủng loại —</option>
                       {meta.grades.map((g) => <option key={g} value={g}>{g}</option>)}
                     </select>
@@ -62,10 +68,13 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
                       onChange={(e) => set(i, { qty: num(e.target.value) })} />
                   </td>
                   <td className="r">
-                    <input className={`blt-date-input r${needDry && !ln.qty_dry ? " num-warn" : ""}`}
-                      style={{ width: 92 }} inputMode="decimal" disabled={readOnly} value={str(ln.qty_dry)}
-                      placeholder={needDry ? "bắt buộc" : ""}
-                      onChange={(e) => set(i, { qty_dry: num(e.target.value) })} />
+                    {/* Thành phẩm bán ra đã là hàng khô → không có ô quy khô, tránh khai số vô nghĩa. */}
+                    {dry.has(ln.grade) ? (
+                      <input className={`blt-date-input r${needDry && !ln.qty_dry ? " num-warn" : ""}`}
+                        style={{ width: 92 }} inputMode="decimal" disabled={readOnly} value={str(ln.qty_dry)}
+                        placeholder={needDry ? "bắt buộc" : ""}
+                        onChange={(e) => set(i, { qty_dry: num(e.target.value) })} />
+                    ) : <span style={{ fontSize: 11.5, color: "var(--muted)" }}>—</span>}
                   </td>
                   <td className="r">
                     <input className="blt-date-input r" style={{ width: 100 }} inputMode="decimal"
