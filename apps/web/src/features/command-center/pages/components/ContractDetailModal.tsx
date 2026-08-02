@@ -1,4 +1,4 @@
-import { PaperClipOutlined, PlusOutlined } from "@ant-design/icons";
+import { EditOutlined, PaperClipOutlined, PlusOutlined } from "@ant-design/icons";
 import { Modal } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
@@ -45,6 +45,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
   const [d, setD] = useState<ContractDetail | null>(null);
   const [err, setErr] = useState("");
   const [form, setForm] = useState<{ initial: Contract | null } | null>(null);
+  const [editSelf, setEditSelf] = useState(false);
 
   const load = useCallback(() => {
     fetchContract(contractId).then(setD).catch((e) => setErr(e.message));
@@ -63,7 +64,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
 
   return (
     <>
-      <Modal open width={1080} title={c ? `Hợp đồng ${c.code} — ${c.company}` : "Đang tải…"}
+      <Modal open width="min(1280px, 94vw)" title={c ? `Hợp đồng ${c.code} — ${c.company}` : "Đang tải…"}
         onCancel={onClose} footer={null} destroyOnHidden>
         {err && <div className="blt-error">{err}</div>}
         {c && d && (
@@ -72,7 +73,12 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
               <div className="kpi"><div className="label">Khách hàng</div><div className="value">{customer?.name ?? "—"}</div></div>
               <div className="kpi"><div className="label">Loại hợp đồng</div>
                 <div className="value">{meta.contract_types[c.contract_type ?? ""] ?? "(chưa khai)"}</div></div>
-              <div className="kpi"><div className="label">Loại giao</div><div className="value">{meta.delivery_types[c.delivery_type]}</div></div>
+              {/* Nhãn đầy đủ "Giao nhiều lần (hợp đồng mẹ – phụ lục)" vắt 3 dòng làm cao vống cả
+                  hàng thẻ. Ô này hiện bản ngắn, chữ đầy đủ để ở tooltip — giống bảng danh sách. */}
+              <div className="kpi"><div className="label">Loại giao</div>
+                <div className="value" title={meta.delivery_types[c.delivery_type]}>
+                  {multi ? "Giao nhiều lần" : "Giao 1 lần"}
+                </div></div>
               <div className="kpi"><div className="label">Cam kết (tấn)</div><div className="value">{t3(c.qty)}</div></div>
               <div className="kpi"><div className="label">Đã giao (tấn)</div><div className="value">{t3(d.delivered_qty)}</div></div>
               <div className="kpi"><div className="label">Đang chờ giao (tấn)</div><div className="value">{t3(d.pending_qty)}</div></div>
@@ -80,6 +86,14 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
               <div className="kpi"><div className="label">Ngày ký</div><div className="value">{dmy(c.sign_date) || "—"}</div></div>
               <div className="kpi"><div className="label">Thời hạn</div><div className="value">{dmy(c.expiry_date) || "—"}</div></div>
             </div>
+
+            {canEdit && (
+              <div className="blt-toolbar" style={{ marginBottom: 10 }}>
+                <button className="btn" onClick={() => setEditSelf(true)}>
+                  <EditOutlined /> Sửa thông tin hợp đồng
+                </button>
+              </div>
+            )}
 
             <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 12, fontSize: 13 }}>
               <div>
@@ -197,6 +211,11 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
         )}
       </Modal>
 
+      {/* Sửa CHÍNH hợp đồng mẹ: không truyền `parent` → form mở ở chế độ hợp đồng, không phải phụ lục. */}
+      {editSelf && c && (
+        <ContractFormModal meta={meta} initial={c} onClose={() => setEditSelf(false)}
+          onSaved={() => { load(); onChanged(); }} />
+      )}
       {form && c && (
         <ContractFormModal meta={meta} parent={c} remaining={d?.remaining_qty ?? 0}
           initial={form.initial} onClose={() => setForm(null)}
