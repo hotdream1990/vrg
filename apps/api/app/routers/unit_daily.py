@@ -256,8 +256,12 @@ def period_report_xlsx(kind: str = Query(..., pattern="^(purchase|consumption)$"
 @router.get("/plan")
 def get_plan(year: int = Query(..., ge=2020, le=2100),
              username: str = Depends(_require)) -> dict:
-    """Số liệu NĂM (kế hoạch thu mua + HĐ dài hạn đã ký) — chỉ đơn vị CÓ giao kế hoạch thu mua."""
-    return {"year": year, "units": member_unit_repo.plan_names(),
+    """Số liệu NĂM (kế hoạch thu mua/tiêu thụ + HĐ dài hạn đã ký) — MỌI đơn vị đang hoạt động.
+
+    Chốt 03/08/2026: bỏ cờ bật/tắt theo đơn vị. Màn này luôn mở cho mọi đơn vị, và CHÍNH ô
+    "kế hoạch thu mua" ở đây là công tắc bật màn Thu mua của đơn vị đó.
+    """
+    return {"year": year, "units": member_unit_repo.active_names(),
             "plans": unit_daily_repo.year_plan(year)}
 
 
@@ -267,7 +271,8 @@ def set_plan(body: PurchasePlanEdit, username: str = Depends(_require_edit)) -> 
     if body.company not in member_unit_repo.active_names():
         raise HTTPException(400, "Đơn vị không hợp lệ.")
     unit_daily_repo.set_year_plan(body.year, body.company, body.plan_tonnes, body.signed_lt_tonnes,
-                                  body.carry_lt_tonnes, body.carry_spot_tonnes, username)
+                                  body.carry_lt_tonnes, body.carry_spot_tonnes,
+                                  body.plan_sales_spot_tonnes, username)
     return {"ok": True}
 
 

@@ -8,6 +8,7 @@ Khối 3 (`stock_signed_undelivered`, đã ký HĐ chưa giao) KHÔNG nằm tron
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from sqlalchemy import text
@@ -268,14 +269,11 @@ def day_extras(kind: str, as_of: str, units: list[str]) -> dict[str, Any]:
     - currencies: {đơn vị: 'VND'|'LAK'|'KHR'} — ≠VND ⇒ đơn vị nước ngoài, form hiện ô tỷ giá.
     - prices (chỉ kind='purchase'): {đơn vị: {latex, cup}} đơn giá mủ nước/mủ chén ĐÚNG NGÀY
       (đồng/độ TSC), lấy từ kho 'Giá mủ nguyên liệu' — hiển thị lại, KHÔNG nhập/lưu trùng.
-    - parents: các đơn vị đang là CÔNG TY MẸ của ít nhất một đơn vị khác — form Tồn kho mới hiện
-      ô "chi phí tổng cấp công ty mẹ" cho đúng những đơn vị này.
     """
     from app.services import member_unit_repo, price_repo
 
     cur = member_unit_repo.currency_by_name()
     fac = member_unit_repo.factory_by_name()
-    parents = sorted(member_unit_repo.parents() & set(units))
     currencies = {u: cur.get(u, "VND") for u in units}
     factories = {u: fac.get(u, True) for u in units}   # có nhà máy? (Tiêu thụ: ẩn/hiện tồn kho nguyên liệu)
     prices: dict[str, dict[str, float | None]] = {}
@@ -283,7 +281,7 @@ def day_extras(kind: str, as_of: str, units: list[str]) -> dict[str, Any]:
         latex = price_repo.purchase_by_company_on_date(as_of, "purchase", UNIT_SRC)
         cup = price_repo.purchase_by_company_on_date(as_of, "purchase_cup", UNIT_SRC)
         prices = {u: {"latex": latex.get(u), "cup": cup.get(u)} for u in units}
-    return {"currencies": currencies, "factories": factories, "prices": prices, "parents": parents}
+    return {"currencies": currencies, "factories": factories, "prices": prices}
 
 
 # ── Chỉ tiêu kế hoạch thu mua theo năm (tính % kế hoạch) ──
@@ -298,6 +296,28 @@ def plans_for_year(year: int) -> dict[str, float]:
     return {r["company"]: r["plan_tonnes"] for r in rows if r["plan_tonnes"] is not None}
 
 
+def companies_with_purchase_plan(year: int | None = None) -> set[str]:
+    """Đơn vị ĐƯỢC GIAO kế hoạch thu mua → mới bật màn Thu mua (chốt 03/08/2026).
+
+    Thay cho cờ bật/tắt thủ công trước đây: chính con số ở màn "Kế hoạch năm" là công tắc.
+    Với MỖI đơn vị, lấy **năm gần nhất ≤ năm đang xét mà đơn vị đó có khai số**, rồi bật khi
+    số đó **> 0**. Nhờ vậy:
+      - Đầu năm chưa ai kịp nhập kế hoạch năm mới → vẫn dùng số năm ngoái, không đơn vị nào
+        đột ngột mất màn Thu mua đúng lúc cần nhập số đầu năm.
+      - Khai **0** = KHÔNG tổ chức thu mua → tắt hẳn (khác với "chưa khai").
+    """
+    ensure_schema()
+    y = year or date.today().year
+    with session_scope() as db:
+        rows = db.execute(
+            text("SELECT DISTINCT ON (company) company, plan_tonnes FROM unit_purchase_plan "
+                 "WHERE year <= :y AND plan_tonnes IS NOT NULL "
+                 "ORDER BY company, year DESC"),
+            {"y": y},
+        ).mappings().all()
+    return {r["company"] for r in rows if (r["plan_tonnes"] or 0) > 0}
+
+
 def year_plan(year: int, companies: list[str] | None = None) -> dict[str, dict[str, float | None]]:
     """Số liệu NĂM (nhập 1 lần, không theo ngày) → {company: {plan_tonnes, signed_lt_tonnes}}.
 
@@ -306,36 +326,43 @@ def year_plan(year: int, companies: list[str] | None = None) -> dict[str, dict[s
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(
-            text("SELECT company, plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, carry_spot_tonnes "
+            text("SELECT company, plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, carry_spot_tonnes, "
+                 "       plan_sales_spot_tonnes "
                  "FROM unit_purchase_plan WHERE year = :y"),
             {"y": year},
         ).mappings().all()
     keep = set(companies) if companies is not None else None
     return {r["company"]: {"plan_tonnes": r["plan_tonnes"], "signed_lt_tonnes": r["signed_lt_tonnes"],
-                           "carry_lt_tonnes": r["carry_lt_tonnes"], "carry_spot_tonnes": r["carry_spot_tonnes"]}
+                           "carry_lt_tonnes": r["carry_lt_tonnes"], "carry_spot_tonnes": r["carry_spot_tonnes"],
+                           "plan_sales_spot_tonnes": r["plan_sales_spot_tonnes"]}
             for r in rows if keep is None or r["company"] in keep}
 
 
 def set_year_plan(year: int, company: str, plan_tonnes: float | None, signed_lt_tonnes: float | None,
                   carry_lt_tonnes: float | None, carry_spot_tonnes: float | None,
+                  plan_sales_spot_tonnes: float | None,
                   updated_by: str | None) -> None:
     """Đặt số liệu năm cho 1 đơn vị (ghi đè các ô; None = xoá ô đó)."""
     ensure_schema()
     after = {"plan_tonnes": plan_tonnes, "signed_lt_tonnes": signed_lt_tonnes,
-             "carry_lt_tonnes": carry_lt_tonnes, "carry_spot_tonnes": carry_spot_tonnes}
+             "carry_lt_tonnes": carry_lt_tonnes, "carry_spot_tonnes": carry_spot_tonnes,
+             "plan_sales_spot_tonnes": plan_sales_spot_tonnes}
     with session_scope() as db:
         before = _plan_snapshot(db, year, company)
         db.execute(
             text("INSERT INTO unit_purchase_plan "
                  "(year, company, plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, carry_spot_tonnes, "
+                 " plan_sales_spot_tonnes, "
                  " updated_by, updated_at) "
-                 "VALUES (:y, :c, :p, :s, :cl, :cs, :by, now()) "
+                 "VALUES (:y, :c, :p, :s, :cl, :cs, :ps, :by, now()) "
                  "ON CONFLICT (year, company) DO UPDATE SET "
                  "plan_tonnes = EXCLUDED.plan_tonnes, signed_lt_tonnes = EXCLUDED.signed_lt_tonnes, "
+                 "plan_sales_spot_tonnes = EXCLUDED.plan_sales_spot_tonnes, "
                  "carry_lt_tonnes = EXCLUDED.carry_lt_tonnes, carry_spot_tonnes = EXCLUDED.carry_spot_tonnes, "
                  "updated_by = EXCLUDED.updated_by, updated_at = now()"),
             {"y": year, "c": company, "p": plan_tonnes, "s": signed_lt_tonnes,
-             "cl": carry_lt_tonnes, "cs": carry_spot_tonnes, "by": updated_by},
+             "cl": carry_lt_tonnes, "cs": carry_spot_tonnes, "ps": plan_sales_spot_tonnes,
+             "by": updated_by},
         )
     audit_repo.log("unit_plan", "update" if before else "create", f"{year}|{company}",
                    before=before, after=after, company=company, note=f"Số liệu năm {year}")

@@ -54,7 +54,6 @@ def filters(username: str = Depends(_require)) -> dict:
     """Danh mục cho các ô lọc: đơn vị (kèm khu vực) · khu vực · chủng loại · loại mủ."""
     return {
         "units": [{"name": u["name"], "region": u.get("region"),
-                   "has_purchase_plan": u.get("has_purchase_plan", True),
                    "has_factory": u.get("has_factory", True)}
                   for u in member_unit_repo.list_units(include_inactive=False)],
         "regions": member_region_repo.active_names(),

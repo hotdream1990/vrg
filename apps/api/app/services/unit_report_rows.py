@@ -56,7 +56,7 @@ def line_revenue_vnd(qty: Any, price: Any, ccy: str | None, fx: Any) -> float | 
 
 
 def unit_meta() -> dict[str, dict[str, Any]]:
-    """{tên đơn vị: {region, country, has_factory, has_purchase_plan}} — đơn vị đang hoạt động."""
+    """{tên đơn vị: {region, country, has_factory}} — đơn vị đang hoạt động."""
     return {u["name"]: u for u in member_unit_repo.list_units(include_inactive=False)}
 
 

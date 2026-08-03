@@ -19,6 +19,8 @@ import type { ConsumptionTab } from "./ConsumptionForm";
 import UnitDailyEditModal from "./UnitDailyEditModal";
 import UnitDailyOverview from "./UnitDailyOverview";
 import UnitDailyTimeline from "./UnitDailyTimeline";
+import { MultiSelect } from "./analytics/AnalyticsFilters";
+import { filterDayByGrades, gradesOf } from "../../../lib/unit-daily-stock-filter";
 import "../../bulletin/bulletin.css";
 
 const VIEW_OPTS = [
@@ -46,6 +48,7 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
   // Tổng hợp (chỉ HQ): lưới toàn đơn vị theo 1 ngày.
   const [ovDay, setOvDay] = useState(todayISO());
   const [ov, setOv] = useState<DayData | null>(null);
+  const [ovGrades, setOvGrades] = useState<string[]>([]);   // lọc chủng loại cho lưới tồn kho
   const [ovLoading, setOvLoading] = useState(false);
 
   const reload = () => setRefreshKey((k) => k + 1);
@@ -63,6 +66,12 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
   // Chuyên viên chỉ được cấp mức Xem → luôn "Xem" dù ngày còn trong cửa sổ sửa.
   const mayEdit = isMember || canEditCap("unit_daily");
   const showImport = mayEdit && EXCEL_IMPORT_ENABLED;
+  // Danh mục chủng loại lấy từ CHÍNH số liệu đang xem — không cần gọi thêm API, và chỉ hiện những
+  // chủng loại thật sự có tồn kho trong ngày đó.
+  const ovGradeOpts = useMemo(() => gradesOf(ov), [ov]);
+  // Lọc chủng loại chạy ở máy: dữ liệu ngày đã tải đủ, lọc lại ở server chỉ thêm một vòng chờ.
+  const ovShown = useMemo(() => filterDayByGrades(ov, ovGrades), [ov, ovGrades]);
+
   const ovCanEdit = useMemo(
     () => mayEdit && (isAdmin || (ov ? ovDay <= ov.today : false)),
     [mayEdit, isAdmin, ov, ovDay],
@@ -88,7 +97,18 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
       {!isMember && view === "overview" && (
         <div className="card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <DateInput value={ovDay} onChange={setOvDay} noFuture style={{ width: 190 }} />
+          {/* Lọc chủng loại chỉ có nghĩa với biểu TỒN KHO: khối 1 & khối 2 vốn khai theo từng
+              chủng loại nên lọc được; biểu Thu mua khai theo loại nguyên liệu, không có bảng này. */}
+          {kind === "consumption" && (
+            <MultiSelect placeholder="Tất cả chủng loại" options={ovGradeOpts} width={230}
+              value={ovGrades} onChange={setOvGrades} />
+          )}
           <Button icon={<ReloadOutlined />} onClick={loadOv}>Làm mới</Button>
+          {!!ovGrades.length && (
+            <span className="form-note" style={{ fontSize: 11.5 }}>
+              Cột tồn kho chỉ cộng {ovGrades.length} chủng loại đang chọn.
+            </span>
+          )}
         </div>
       )}
 
@@ -101,7 +121,7 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
       ) : (
         <div className="card">
           <Spin spinning={ovLoading}>
-            {ov && <UnitDailyOverview kind={kind} data={ov} canEdit={ovCanEdit} onEdit={(day, company) => setEdit({ day, company })} />}
+            {ovShown && <UnitDailyOverview kind={kind} data={ovShown} canEdit={ovCanEdit} onEdit={(day, company) => setEdit({ day, company })} />}
           </Spin>
         </div>
       )}

@@ -15,7 +15,7 @@ from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import PURCHASE_SOURCES, VRG_COMPANIES
 from app.services import audit_repo
 
-_COLS = ("name, sort_order, is_active, region, country, currency, has_factory, has_purchase_plan, "
+_COLS = ("name, sort_order, is_active, region, country, currency, has_factory, "
          "parent_company")
 
 
@@ -55,7 +55,7 @@ def list_units(include_inactive: bool = True) -> list[dict[str, Any]]:
         clause = "" if include_inactive else "WHERE is_active"
         rows = db.execute(text(
             "SELECT name, sort_order, is_active, region, country, currency, has_factory, "
-            f"has_purchase_plan, parent_company FROM member_unit {clause} "
+            f"parent_company FROM member_unit {clause} "
             "ORDER BY sort_order, name")).mappings().all()
         return [dict(r) for r in rows]
 
@@ -63,11 +63,6 @@ def list_units(include_inactive: bool = True) -> list[dict[str, Any]]:
 def active_names() -> list[str]:
     """Tên các đơn vị đang active (theo thứ tự) — dùng cho purchase_sheet + bản tin."""
     return [u["name"] for u in list_units(include_inactive=False)]
-
-
-def plan_names() -> list[str]:
-    """Tên các đơn vị active CÓ giao kế hoạch thu mua (theo thứ tự) — dùng cho màn Kế hoạch năm."""
-    return [u["name"] for u in list_units(include_inactive=False) if u.get("has_purchase_plan", True)]
 
 
 def add_unit(name: str) -> None:
@@ -231,7 +226,7 @@ def internal_targets() -> dict[str, list[str]]:
 def parents() -> set[str]:
     """Tập tên đơn vị đang là công ty mẹ của ít nhất 1 đơn vị khác.
 
-    Dùng ở nơi cần biết đơn vị nào cần nhập "chi phí tổng cấp công ty mẹ" (chỉ đơn vị mẹ mới có).
+    Dùng ở nơi cần biết đơn vị nào đứng đầu một nhóm công ty mẹ – con.
     """
     ensure_schema()
     with session_scope() as db:
@@ -239,12 +234,6 @@ def parents() -> set[str]:
             text("SELECT DISTINCT parent_company FROM member_unit WHERE parent_company IS NOT NULL")
         ).scalars().all()
     return set(rows)
-
-
-def set_purchase_plan(name: str, has_purchase_plan: bool) -> None:
-    """Đặt cờ đơn vị có giao kế hoạch thu mua năm (bật ⇒ hiện ở màn Kế hoạch năm)."""
-    _update(name, "UPDATE member_unit SET has_purchase_plan = :p WHERE name = :n",
-            {"p": has_purchase_plan, "n": name})
 
 
 def reorder(names: list[str]) -> None:

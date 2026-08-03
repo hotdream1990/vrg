@@ -21,14 +21,13 @@ type Props = {
   company?: string;               // đơn vị đang nhập (Tồn kho: nút "Lấy tồn ngày trước")
   day?: string;                   // ngày đang nhập  (Tồn kho: nút "Lấy tồn ngày trước")
   defaultTab?: ConsumptionTab;    // giữ chữ ký cũ (biểu chỉ còn Tồn kho)
-  isParent?: boolean;             // đơn vị là công ty MẸ → hiện ô chi phí tổng
   linkedPrice?: UnitPurchasePrice | null; // đơn giá mủ nước/mủ chén đúng ngày (Thu mua)
   onDirty?: (dirty: boolean) => void;
   footer?: (dirty: boolean, current: Values, prices: PriceDraft) => React.ReactNode;
 };
 
 export default function UnitDailyForm(
-  { kind, values, readOnly, formKey, currency, role, company, day, defaultTab, isParent, linkedPrice, onDirty, footer }: Props,
+  { kind, values, readOnly, formKey, currency, role, company, day, defaultTab, linkedPrice, onDirty, footer }: Props,
 ) {
   if (kind === "purchase") {
     return (
@@ -39,6 +38,6 @@ export default function UnitDailyForm(
   return (
     <ConsumptionForm values={values} readOnly={readOnly} formKey={formKey}
       currency={currency} role={role} company={company} day={day}
-      defaultTab={defaultTab} isParent={isParent} onDirty={onDirty} footer={footer} />
+      defaultTab={defaultTab} onDirty={onDirty} footer={footer} />
   );
 }

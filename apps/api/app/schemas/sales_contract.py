@@ -22,14 +22,13 @@ class CustomerIn(BaseModel):
 
 
 class ContractLineIn(BaseModel):
-    """1 dòng chi tiết: chủng loại · tấn · quy khô · đơn giá · loại tiền · tỷ giá · chi phí."""
+    """1 dòng chi tiết: chủng loại · tấn · quy khô · đơn giá · loại tiền · tỷ giá."""
     grade: str = ""
     qty: float | None = None
     qty_dry: float | None = None      # quy khô (tấn) — bắt buộc khi bán LATEX + 2 loại NL mới
     price: float | None = None        # VNĐ: triệu đ/tấn · ngoại tệ: /tấn
     ccy: str = "VND"
     fx: float | None = None           # tỷ giá quy về VNĐ (bắt buộc khi ccy ≠ VND)
-    cost: float | None = None         # chi phí của dòng bán (triệu đồng)
 
 
 class ContractIn(BaseModel):
@@ -54,7 +53,6 @@ class ContractIn(BaseModel):
     to_company: str | None = None     # đơn vị nhận khi tiêu thụ nội bộ
     payment_date: str | None = None
     payment_qty: float | None = None
-    payment_cost: float | None = None
     payment_docs: list[ContractDocIn] = Field(default_factory=list)
     files: list[ContractDocIn] = Field(default_factory=list)
     note: str | None = None

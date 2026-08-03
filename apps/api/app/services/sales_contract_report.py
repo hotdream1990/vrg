@@ -15,6 +15,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
+from app.services import sales_contract_calc as calc
 from app.services.sales_contract_repo import _COLS, _row
 
 _SELECT = f"SELECT {', '.join(_COLS)} FROM sales_contract"
@@ -45,12 +46,17 @@ def _by_grade(lines) -> dict[str, float]:
 
 
 def deliveries(date_from: str, date_to: str, companies: list[str] | None = None,
-               customer_ids: list[int] | None = None) -> list[dict[str, Any]]:
+               customer_ids: list[int] | None = None,
+               grades: list[str] | None = None) -> list[dict[str, Any]]:
     """Các LẦN GIAO có ngày giao trong [date_from, date_to] — nguồn số tiêu thụ của kỳ.
 
     Phụ lục KHÔNG mang khách hàng lẫn loại hợp đồng (cả hai gán ở hợp đồng mẹ) → gắn `customer_id`
     và `contract_type` của mẹ vào từng lần giao, nếu không thì không lọc/thống kê theo khách hàng
     và không tách được chỉ tiêu "HĐ dài hạn / HĐ chuyến".
+
+    `grades` lọc theo CHỦNG LOẠI ở mức DÒNG: một lần giao có thể gồm nhiều chủng loại, nên phải
+    bỏ các dòng không khớp rồi TÍNH LẠI sản lượng/quy khô/thành tiền của lần giao đó. Giữ nguyên
+    cả lần giao là cộng luôn sản lượng của chủng loại người dùng không chọn.
     """
     rows = _fetch(companies,
                   ["delivered", "delivered_at IS NOT NULL",
@@ -66,20 +72,40 @@ def deliveries(date_from: str, date_to: str, companies: list[str] | None = None,
     if customer_ids:
         keep = set(customer_ids)
         rows = [r for r in rows if r.get("customer_id") in keep]
+    if grades:
+        rows = _only_grades(rows, grades)
     return rows
 
 
+def _only_grades(rows: list[dict[str, Any]], grades: list[str]) -> list[dict[str, Any]]:
+    """Giữ lại các dòng chi tiết thuộc `grades` rồi tính lại số tổng của từng lần giao.
+
+    Lần giao không còn dòng nào khớp thì bị loại hẳn — kể cả khỏi số ĐẾM lần giao, vì với chủng
+    loại đang lọc thì lần giao đó không tồn tại.
+    """
+    keep, out = set(grades), []
+    for r in rows:
+        lines = [ln for ln in (r.get("lines") or []) if (ln.get("grade") or "") in keep]
+        if not lines:
+            continue
+        out.append({**r, "lines": lines,
+                    "qty": calc.total_qty(lines), "qty_dry": calc.total_qty_dry(lines),
+                    "revenue": calc.total_revenue_vnd(lines)})
+    return out
+
+
 def consumption(date_from: str, date_to: str, companies: list[str] | None = None,
-                customer_ids: list[int] | None = None) -> dict[str, dict[str, Any]]:
-    """{đơn vị: số tiêu thụ trong kỳ} — cộng dồn sản lượng/doanh thu/chi phí, tách theo hình thức.
+                customer_ids: list[int] | None = None,
+                grades: list[str] | None = None) -> dict[str, dict[str, Any]]:
+    """{đơn vị: số tiêu thụ trong kỳ} — cộng dồn sản lượng/doanh thu, tách theo hình thức.
 
     `revenue` = None khi CÓ lần giao thiếu tỷ giá → báo cáo hiển thị "—" thay vì một số sai.
     `by_customer` tách sản lượng/doanh thu theo khách hàng (yêu cầu C1 của khách).
     """
     out: dict[str, dict[str, Any]] = {}
-    for c in deliveries(date_from, date_to, companies, customer_ids):
+    for c in deliveries(date_from, date_to, companies, customer_ids, grades):
         acc = out.setdefault(c["company"], {
-            "qty": 0.0, "qty_dry": 0.0, "cost": 0.0, "revenue": 0.0, "revenue_missing": False,
+            "qty": 0.0, "qty_dry": 0.0, "revenue": 0.0, "revenue_missing": False,
             "deliveries": 0, "by_channel": {}, "by_grade": {}, "by_customer": {}, "by_type": {},
             "by_type_channel": {},
         })
@@ -89,7 +115,6 @@ def consumption(date_from: str, date_to: str, companies: list[str] | None = None
         cus["revenue"] += c["revenue"] or 0.0
         acc["qty"] += c["qty"]
         acc["qty_dry"] += c["qty_dry"]
-        acc["cost"] += c["cost"]
         acc["deliveries"] += 1
         if c["revenue"] is None:
             acc["revenue_missing"] = True
@@ -111,7 +136,8 @@ def consumption(date_from: str, date_to: str, companies: list[str] | None = None
     return out
 
 
-def undelivered_on(as_of: str, companies: list[str] | None = None) -> dict[str, dict[str, Any]]:
+def undelivered_on(as_of: str, companies: list[str] | None = None,
+                   grades: list[str] | None = None) -> dict[str, dict[str, Any]]:
     """{đơn vị: {qty, by_grade, items}} — ĐÃ KÝ HĐ CHƯA GIAO tại ngày `as_of` (khối 3).
 
     Chốt 02/08/2026 — tính theo VÒNG ĐỜI CỦA TỪNG ĐỢT GIAO, không phải theo cam kết của hợp đồng mẹ:
@@ -130,7 +156,8 @@ def undelivered_on(as_of: str, companies: list[str] | None = None) -> dict[str, 
         # Hợp đồng mẹ giao-nhiều-lần không phải là một đợt — hàng của nó nằm ở các phụ lục.
         if r["parent_id"] is None and r["delivery_type"] == "multi":
             continue
-        by_grade = {g: q for g, q in _by_grade(r["lines"]).items() if q > 1e-9}
+        by_grade = {g: q for g, q in _by_grade(r["lines"]).items()
+                    if q > 1e-9 and (not grades or g in grades)}
         total = sum(by_grade.values())
         if total <= 1e-9:
             continue

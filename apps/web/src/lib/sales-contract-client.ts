@@ -26,7 +26,6 @@ export type ContractLine = {
   price: number | null;
   ccy: string;
   fx: number | null;
-  cost: number | null;
 };
 
 /** Loại hợp đồng: dài hạn | chuyến. null = chưa khai (bản ghi chuyển từ cơ chế cũ). */
@@ -53,14 +52,13 @@ export type Contract = {
   to_company: string | null;
   payment_date: string | null;
   payment_qty: number | null;
-  payment_cost: number | null;
   payment_docs: ContractDoc[];
   files: ContractDoc[];
   note: string | null;
   /* Số suy ra từ `lines`, server trả kèm cho tiện hiển thị. */
   qty: number;
   qty_dry: number;
-  cost: number;
+  /** Thành tiền quy về ĐỒNG. null = có dòng ngoại tệ thiếu tỷ giá (KHÔNG phải 0). */
   revenue: number | null;
 };
 
@@ -113,7 +111,6 @@ export type ContractFilters = {
 export type ConsumptionSummary = {
   qty: number;
   qty_dry: number;
-  cost: number;
   revenue: number | null;
   deliveries: number;
   by_channel: Record<string, number>;
@@ -194,22 +191,23 @@ export const deleteContract = (id: number) =>
   apiFetch<{ ok: boolean }>(`/api/sales-contracts/${id}`, { method: "DELETE" });
 
 function consumptionQuery(dateFrom: string, dateTo: string, company?: string,
-                          customerIds?: number[]) {
+                          customerIds?: number[], grades?: string[]) {
   const p = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
   if (company) p.set("company", company);
   (customerIds ?? []).forEach((id) => p.append("customer_id", String(id)));
+  (grades ?? []).forEach((g) => p.append("grade", g));
   return p.toString();
 }
 
 export const fetchConsumption = (dateFrom: string, dateTo: string, company?: string,
-                                 customerIds?: number[]) =>
+                                 customerIds?: number[], grades?: string[]) =>
   apiFetch<ConsumptionReport>(
-    `/api/sales-contracts/consumption?${consumptionQuery(dateFrom, dateTo, company, customerIds)}`);
+    `/api/sales-contracts/consumption?${consumptionQuery(dateFrom, dateTo, company, customerIds, grades)}`);
 
 /** Tải Excel Báo cáo tiêu thụ (fetch kèm token → blob, endpoint đòi Bearer). */
 export async function downloadConsumptionXlsx(dateFrom: string, dateTo: string, company?: string,
-                                              customerIds?: number[]): Promise<void> {
-  const qs = consumptionQuery(dateFrom, dateTo, company, customerIds);
+                                              customerIds?: number[], grades?: string[]): Promise<void> {
+  const qs = consumptionQuery(dateFrom, dateTo, company, customerIds, grades);
   const res = await fetch(`${API}/api/sales-contracts/consumption.xlsx?${qs}`,
     { headers: authHeaders() });
   if (!res.ok) throw new Error("Không xuất được file Excel.");

@@ -13,7 +13,6 @@ class MemberUnit(BaseModel):
     country: str = "VN"             # quốc gia (VN/LA/KH)
     currency: str = "VND"           # loại tiền thu mua (VND/LAK/KHR) — ≠ VND ⇒ cần tỷ giá
     has_factory: bool = True        # có nhà máy chế biến — False ⇒ nhập tồn kho nguyên liệu
-    has_purchase_plan: bool = True  # có giao kế hoạch thu mua năm — chỉ đơn vị bật cờ mới hiện ở "Kế hoạch năm"
     parent_company: str | None = None  # công ty mẹ đã gán (cây mẹ-con, chỉ dùng cho báo cáo cấp Tập đoàn)
 
 
@@ -33,8 +32,6 @@ class MemberUnitUpdate(BaseModel):
     set_locale: bool = False        # True = áp country + currency
     has_factory: bool | None = None # có nhà máy chế biến (áp khi set_factory=True)
     set_factory: bool = False       # True = áp has_factory
-    has_purchase_plan: bool | None = None  # có giao kế hoạch thu mua năm (áp khi set_purchase_plan=True)
-    set_purchase_plan: bool = False        # True = áp has_purchase_plan
     parent_company: str | None = None      # công ty mẹ (áp khi set_parent=True); "" hoặc None = bỏ gán
     set_parent: bool = False               # True = áp parent_company
 

@@ -128,7 +128,8 @@ export default function SalesContractPage() {
         <table>
           <thead><tr>
             <th>Đơn vị</th><th>Số hợp đồng</th><th>Khách hàng</th><th>Loại giao</th>
-            <th>Ngày ký</th><th className="r">Cam kết (tấn)</th><th className="r">Đã giao</th>
+            <th>Ngày ký</th><th className="r">Cam kết (tấn)</th><th className="r">Thành tiền (tr.đ)</th>
+            <th className="r">Đã giao</th>
             <th className="r">Chờ giao</th><th className="r">Chưa mở đợt</th><th className="r">Phụ lục</th>
             <th className="r" style={{ width: 160 }}>Thao tác</th>
           </tr></thead>
@@ -145,6 +146,9 @@ export default function SalesContractPage() {
                 </td>
                 <td>{dmy(r.sign_date) || "—"}</td>
                 <td className="r">{t3(r.qty)}</td>
+                {/* Thành tiền = tổng dòng chi tiết, quy VNĐ. "—" khi có dòng ngoại tệ thiếu tỷ giá
+                    (KHÔNG hiện 0 — 0 sẽ bị đọc là bán không thu tiền). */}
+                <td className="r">{r.revenue == null ? "—" : t3(r.revenue / 1_000_000)}</td>
                 <td className="r">{t3(r.delivered_qty)}</td>
                 {/* Đang chờ giao = đã mở đợt, chưa điền ngày giao → phần đang nằm ở khối 3. */}
                 <td className="r">{t3(r.pending_qty)}</td>
@@ -168,7 +172,7 @@ export default function SalesContractPage() {
               </tr>
             ))}
             {rows.length === 0 && !loading && (
-              <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
+              <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                 Chưa có hợp đồng nào khớp bộ lọc.
               </td></tr>
             )}

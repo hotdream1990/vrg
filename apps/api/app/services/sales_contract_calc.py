@@ -1,6 +1,6 @@
 """Chuẩn hoá + quy đổi DÒNG CHI TIẾT của hợp đồng bán hàng (tách khỏi repo cho gọn file).
 
-Mỗi dòng: chủng loại · số lượng (tấn) · QUY KHÔ (tấn) · đơn giá · loại tiền · tỷ giá · chi phí.
+Mỗi dòng: chủng loại · số lượng (tấn) · QUY KHÔ (tấn) · đơn giá · loại tiền · tỷ giá.
 Quy đổi doanh thu về BASE = ĐỒNG, đúng quy ước đang dùng ở biểu tiêu thụ cũ:
   - `ccy = VND`  → đơn giá tính bằng TRIỆU ĐỒNG/TẤN  → doanh thu = qty × price × 1.000.000
   - `ccy` khác   → đơn giá tính bằng NGOẠI TỆ/TẤN     → doanh thu = qty × price × tỷ giá
@@ -72,10 +72,9 @@ def clean_lines(lines, *, require_dry: bool) -> list[dict[str, Any]]:
         fx = _num(ln.get("fx"))
         if ccy != "VND" and (fx is None or fx <= 0):
             raise ValueError(f"Dòng {i} ({grade}): bán bằng {ccy} thì phải nhập tỷ giá quy ra VNĐ.")
-        price, cost = _num(ln.get("price")), _num(ln.get("cost"))
-        for label, v in (("đơn giá", price), ("chi phí", cost)):
-            if v is not None and v < 0:
-                raise ValueError(f"Dòng {i} ({grade}): {label} không được âm.")
+        price = _num(ln.get("price"))
+        if price is not None and price < 0:
+            raise ValueError(f"Dòng {i} ({grade}): đơn giá không được âm.")
         out.append({
             "grade": grade,
             "qty": qty,
@@ -83,7 +82,6 @@ def clean_lines(lines, *, require_dry: bool) -> list[dict[str, Any]]:
             "price": price,
             "ccy": ccy,
             "fx": fx,
-            "cost": cost,   # chi phí của dòng bán (triệu đồng)
         })
     if not out:
         raise ValueError("Hợp đồng phải có ít nhất một dòng chi tiết.")
@@ -113,11 +111,6 @@ def total_qty(lines) -> float:
 def total_qty_dry(lines) -> float:
     """Tổng quy khô (tấn)."""
     return _sum(lines, "qty_dry")
-
-
-def total_cost(lines) -> float:
-    """Tổng chi phí ghi trên từng dòng bán (triệu đồng)."""
-    return _sum(lines, "cost")
 
 
 def total_revenue_vnd(lines) -> float | None:

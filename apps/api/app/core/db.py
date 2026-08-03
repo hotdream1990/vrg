@@ -261,7 +261,7 @@ CREATE TABLE IF NOT EXISTS sales_contract (
     to_company    text,                 -- đơn vị NHẬN khi channel = 'internal' (tiêu thụ nội bộ)
     payment_date  date,                 -- 1 lần thanh toán / phụ lục (chốt Q7) — KHÔNG theo dõi công nợ
     payment_qty   double precision,     -- sản lượng thanh toán (tấn)
-    payment_cost  double precision,     -- chi phí lần thanh toán (triệu đồng)
+    payment_cost  double precision,     -- (BỎ 03/08/2026) chi phí lần thanh toán — giữ cột cho dữ liệu cũ
     payment_docs  jsonb NOT NULL DEFAULT '[]'::jsonb,  -- chứng từ/hoá đơn: [{file, filename}]
     files         jsonb NOT NULL DEFAULT '[]'::jsonb,  -- hợp đồng scan: [{file, filename}]
     note          text,
@@ -286,12 +286,15 @@ ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS has_factory boolean NOT NULL DE
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS has_purchase_plan boolean NOT NULL DEFAULT true;
 -- Cây công ty MẸ – CON (chốt 30/07/2026): tên đơn vị mẹ của đơn vị này (rỗng = không thuộc cây nào).
 -- Đơn vị con vẫn được chuyển TIÊU THỤ NỘI BỘ cho BẤT KỲ đơn vị thành viên nào (không giới hạn trong
--- cây); cột này để báo cáo cấp Tập đoàn biết quan hệ và để hiện ô "chi phí tổng" ở công ty mẹ.
+-- cây); cột này để báo cáo cấp Tập đoàn biết quan hệ giữa các đơn vị.
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS parent_company text;
 -- Số liệu năm nhập 1 lần (không theo ngày): tổng SL đã ký HĐ dài hạn của năm.
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS signed_lt_tonnes double precision;
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS carry_lt_tonnes double precision;
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS carry_spot_tonnes double precision;
+-- Kế hoạch TIÊU THỤ cho hợp đồng chuyến (chốt 03/08/2026) — chỉ để đối chiếu % thực hiện,
+-- KHÔNG bật/tắt màn nào (khác kế hoạch thu mua: cái đó là công tắc của màn Thu mua).
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_sales_spot_tonnes double precision;
 -- Hợp đồng tồn kho: đính kèm NHIỀU file. Cột file/filename cũ giữ nguyên = file ĐẦU danh sách.
 ALTER TABLE unit_stock_contract ADD COLUMN IF NOT EXISTS files jsonb NOT NULL DEFAULT '[]'::jsonb;
 -- Đã được script chuyển sang bảng hợp đồng 2 cấp `sales_contract` chưa. Bản ghi CŨ vẫn giữ nguyên

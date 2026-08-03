@@ -31,11 +31,24 @@ const blank = (company: string): Contract => ({
   contract_type: null,
   sign_date: today(), expiry_date: null, start_date: today(), lines: [{ ...EMPTY_LINE }], delivered: false,
   delivered_at: null, channel: null, to_company: null, payment_date: null, payment_qty: null,
-  payment_cost: null, payment_docs: [], files: [], note: null,
-  qty: 0, qty_dry: 0, cost: 0, revenue: null,
+  payment_docs: [], files: [], note: null,
+  qty: 0, qty_dry: 0, revenue: null,
 });
 
 const sumQty = (lines: ContractLine[]) => lines.reduce((s, l) => s + (l.qty ?? 0), 0);
+
+/** Tổng thành tiền quy về ĐỒNG. null khi CÓ dòng ngoại tệ thiếu tỷ giá — giống `total_revenue_vnd`
+ *  ở server: thiếu dữ kiện thì báo "—", không lặng lẽ coi là 0. */
+function sumAmountVnd(lines: ContractLine[]): number | null {
+  let total = 0;
+  for (const l of lines) {
+    if (l.qty == null || l.price == null) continue;
+    if (l.ccy === "VND") total += l.qty * l.price * 1_000_000;
+    else if (l.fx) total += l.qty * l.price * l.fx;
+    else return null;
+  }
+  return total;
+}
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
 
 /** Modal thêm/sửa HỢP ĐỒNG MẸ hoặc PHỤ LỤC (phụ lục = 1 lần giao + 1 lần thanh toán). */
@@ -75,6 +88,7 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
   }, [meta.unit_currency, c.company]);
 
   const qty = sumQty(c.lines);
+  const amountVnd = sumAmountVnd(c.lines);
   // Sửa phụ lục thì phần đang sửa vốn đã nằm trong "đã giao" → cộng lại để không tự chặn nhầm.
   const cap = isChild ? remaining + (initial ? sumQty(initial.lines) : 0) : Infinity;
   const overCap = isChild && qty > cap + 1e-9;
@@ -229,10 +243,22 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
       <ContractLinesTable lines={c.lines} meta={meta} requireDry={isDelivery}
         currencies={currencies} onChange={(lines) => set({ lines })} />
 
+      {/* Tổng của cả hợp đồng/phụ lục — quy về VNĐ để cộng được các dòng khác loại tiền.
+          Thiếu tỷ giá thì để "—" (KHÔNG coi là 0), đúng cách báo cáo đang làm. */}
+      <div style={{ marginTop: 8, fontSize: 13 }}>
+        Tổng sản lượng: <b>{t3(qty)}</b> tấn · <b>Thành tiền:</b>{" "}
+        <b>{amountVnd == null ? "—" : `${t3(amountVnd / 1_000_000)} triệu đồng`}</b>
+        {amountVnd == null && (
+          <span className="form-note" style={{ marginLeft: 8, fontSize: 11.5 }}>
+            (có dòng bán ngoại tệ chưa nhập tỷ giá)
+          </span>
+        )}
+      </div>
+
       {isChild && (
         <>
-          <div style={{ marginTop: 8, fontSize: 13 }}>
-            Sản lượng phụ lục: <b>{t3(qty)}</b> tấn · Còn lại của hợp đồng mẹ:{" "}
+          <div style={{ marginTop: 4, fontSize: 13 }}>
+            Còn lại của hợp đồng mẹ:{" "}
             <b style={{ color: overCap ? "var(--danger)" : undefined }}>{t3(cap)}</b> tấn
           </div>
           {overCap && (
@@ -242,9 +268,8 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
           )}
           <h4 style={{ margin: "14px 0 6px" }}>Thanh toán (mỗi phụ lục một lần)</h4>
           <div className="form-note" style={{ fontSize: 11.5, marginBottom: 8 }}>
-            Đây là <b>ghi nhận lần thanh toán</b>. Chi phí đưa vào báo cáo tiêu thụ là ô{" "}
-            <b>Chi phí (tr.đ)</b> trên từng dòng chi tiết ở trên — ô dưới đây <b>không</b> cộng vào
-            báo cáo, tránh tính hai lần.
+            Đây là <b>ghi nhận lần thanh toán</b> — số liệu tiêu thụ và doanh thu vẫn lấy từ các
+            dòng chi tiết ở trên.
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 10 }}>
             <label className="form-field">Ngày thanh toán
@@ -253,10 +278,6 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
             <label className="form-field">Sản lượng thanh toán (tấn)
               <input className="blt-date-input r" inputMode="decimal" value={c.payment_qty ?? ""}
                 onChange={(e) => set({ payment_qty: e.target.value === "" ? null : Number(e.target.value) })} />
-            </label>
-            <label className="form-field">Chi phí lần thanh toán (triệu đồng)
-              <input className="blt-date-input r" inputMode="decimal" value={c.payment_cost ?? ""}
-                onChange={(e) => set({ payment_cost: e.target.value === "" ? null : Number(e.target.value) })} />
             </label>
           </div>
           <div style={{ marginTop: 10 }}>

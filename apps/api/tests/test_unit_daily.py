@@ -6,8 +6,9 @@ from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
-from app.core.db import db_healthy
+from app.core.db import db_healthy, session_scope
 from app.main import app
 from app.services import user_repo
 
@@ -118,7 +119,8 @@ def test_unit_daily_member_and_editor_flow() -> None:
                       headers=eh).status_code == 200
     pl = client.get(f"/api/unit-daily/plan?year={date.today().year}", headers=eh)
     assert pl.json()["plans"][unit] == {"plan_tonnes": 2000, "signed_lt_tonnes": 1500,
-                                        "carry_lt_tonnes": 40, "carry_spot_tonnes": 15}
+                                        "carry_lt_tonnes": 40, "carry_spot_tonnes": 15,
+                                        "plan_sales_spot_tonnes": None}
 
     # Đơn vị thành viên tự cập nhật số liệu năm của mình; không đụng được đơn vị khác.
     assert client.put("/api/member/plan",
@@ -290,8 +292,15 @@ def test_cup_basis_and_prev_stock() -> None:
     _cleanup(h, ["ud_basis"], [unit])
 
 
-def test_year_plan_respects_has_purchase_plan_flag() -> None:
-    """Chỉ đơn vị bật cờ 'có giao kế hoạch thu mua' mới hiện ở màn Kế hoạch năm (HQ + member)."""
+def test_year_plan_open_to_all_units_and_drives_purchase_screen() -> None:
+    """Chốt 03/08/2026: Kế hoạch năm mở cho MỌI đơn vị; chính SỐ kế hoạch bật màn Thu mua.
+
+    Không còn cờ bật/tắt theo đơn vị. Quy tắc:
+      - chưa khai số  → đơn vị vẫn hiện ở Kế hoạch năm, nhưng KHÔNG có màn Thu mua;
+      - khai `0`      → coi như không tổ chức thu mua (vẫn tắt);
+      - khai `> 0`    → bật màn Thu mua;
+      - năm nay chưa khai thì lấy NĂM GẦN NHẤT đã khai (đầu năm không ai bị mất màn Thu mua).
+    """
     h = _admin()
     unit = "_zz_ud_plan_flag"
     year = date.today().year
@@ -299,27 +308,57 @@ def test_year_plan_respects_has_purchase_plan_flag() -> None:
     client.post("/api/member-units", json={"name": unit}, headers=h)
     client.post("/api/users", json={"username": "ud_pf", "password": "pass123",
                                     "role": "member", "member_units": [unit]}, headers=h)
-    mh = _bearer("ud_pf", "pass123")
 
-    hq_units = lambda: client.get(f"/api/unit-daily/plan?year={year}", headers=h).json()["units"]
-    my_units = lambda: client.get(f"/api/member/plan?year={year}", headers=mh).json()["units"]
+    def hq_units() -> list[str]:
+        return client.get(f"/api/unit-daily/plan?year={year}", headers=h).json()["units"]
 
-    # Mặc định BẬT → đơn vị hiện ở cả danh sách HQ lẫn danh sách đơn vị thành viên.
+    def my_units() -> list[str]:
+        mh = _bearer("ud_pf", "pass123")
+        return client.get(f"/api/member/plan?year={year}", headers=mh).json()["units"]
+
+    def has_purchase() -> bool:
+        mh = _bearer("ud_pf", "pass123")
+        return client.get("/api/auth/me", headers=mh).json()["member_has_purchase_plan"]
+
+    # Chưa khai kế hoạch: vẫn hiện ở Kế hoạch năm (cả HQ lẫn đơn vị), nhưng chưa có màn Thu mua.
+    assert unit in hq_units() and unit in my_units()
+    assert has_purchase() is False
+
+    # Khai 0 = không tổ chức thu mua → vẫn tắt.
+    assert client.put("/api/unit-daily/plan", headers=h,
+                      json={"year": year, "company": unit, "plan_tonnes": 0}).status_code == 200
+    assert has_purchase() is False
+
+    # Khai > 0 → bật màn Thu mua, đơn vị vẫn nằm nguyên trong danh sách Kế hoạch năm.
+    assert client.put("/api/unit-daily/plan", headers=h,
+                      json={"year": year, "company": unit, "plan_tonnes": 1200}).status_code == 200
+    assert has_purchase() is True
     assert unit in hq_units() and unit in my_units()
 
-    # TẮT cờ → đơn vị biến mất khỏi cả hai danh sách Kế hoạch năm.
-    assert client.put(f"/api/member-units/{unit}",
-                      json={"set_purchase_plan": True, "has_purchase_plan": False},
-                      headers=h).status_code == 200
-    assert unit not in hq_units() and unit not in my_units()
+    # Sang năm sau CHƯA khai → vẫn bật nhờ số của năm gần nhất (đầu năm không mất màn Thu mua).
+    from app.services import unit_daily_repo
+    assert unit in unit_daily_repo.companies_with_purchase_plan(year + 1)
 
-    # BẬT lại → đơn vị trở lại danh sách.
-    assert client.put(f"/api/member-units/{unit}",
-                      json={"set_purchase_plan": True, "has_purchase_plan": True},
-                      headers=h).status_code == 200
-    assert unit in hq_units() and unit in my_units()
-
+    with session_scope() as db:
+        db.execute(text("DELETE FROM unit_purchase_plan WHERE company = :c"), {"c": unit})
     _cleanup(h, ["ud_pf"], [unit])
+
+
+def test_year_plan_stores_spot_sales_plan() -> None:
+    """Kế hoạch TIÊU THỤ cho HĐ chuyến: lưu được và trả về đúng ô (chốt 03/08/2026)."""
+    h = _admin()
+    unit = "_zz_ud_plan_spot"
+    year = date.today().year
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    assert client.put("/api/unit-daily/plan", headers=h,
+                      json={"year": year, "company": unit, "plan_tonnes": 100,
+                            "plan_sales_spot_tonnes": 80}).status_code == 200
+    row = client.get(f"/api/unit-daily/plan?year={year}", headers=h).json()["plans"][unit]
+    assert row["plan_sales_spot_tonnes"] == 80 and row["plan_tonnes"] == 100
+
+    with session_scope() as db:
+        db.execute(text("DELETE FROM unit_purchase_plan WHERE company = :c"), {"c": unit})
+    _cleanup(h, [], [unit])
 
 
 def test_stock_contract_history() -> None:

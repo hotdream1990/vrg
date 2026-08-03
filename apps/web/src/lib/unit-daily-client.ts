@@ -45,7 +45,6 @@ export type DayData = {
   entries: Record<string, DailyEntry | null>;
   currencies?: Record<string, string>;      // {đơn vị: VND/LAK/KHR} — ≠VND ⇒ hiện ô tỷ giá
   factories?: Record<string, boolean>;      // {đơn vị: có nhà máy?} — false ⇒ hiện tồn kho nguyên liệu
-  parents?: string[];                       // đơn vị là CÔNG TY MẸ ⇒ hiện ô chi phí tổng cấp mẹ
   prices?: Record<string, UnitPurchasePrice>; // {đơn vị: đơn giá mủ nước/mủ chén} (chỉ kind=purchase)
 };
 export type TimelineRow = {
@@ -58,7 +57,8 @@ export type Timeline = {
 };
 /** Số liệu NĂM của 1 đơn vị (nhập 1 lần, cập nhật khi có thay đổi). */
 export type YearPlanRow = {
-  plan_tonnes: number | null;        // kế hoạch thu mua năm (tấn)
+  plan_tonnes: number | null;        // kế hoạch thu mua năm (tấn) — >0 là CÔNG TẮC bật màn Thu mua
+  plan_sales_spot_tonnes: number | null;  // kế hoạch TIÊU THỤ cho HĐ chuyến (tấn)
   signed_lt_tonnes: number | null;   // tổng SL đã ký HĐ dài hạn (tấn)
   carry_lt_tonnes: number | null;    // HĐ dài hạn năm trước chuyển sang (tấn)
   carry_spot_tonnes: number | null;  // HĐ chuyến năm trước chuyển sang (tấn)

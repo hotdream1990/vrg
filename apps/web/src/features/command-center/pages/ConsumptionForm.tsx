@@ -38,7 +38,6 @@ type Props = {
   company?: string;                        // đơn vị đang nhập
   day?: string;                            // ngày đang nhập
   defaultTab?: ConsumptionTab;
-  isParent?: boolean;                      // đơn vị là CÔNG TY MẸ → hiện ô chi phí tổng
   onDirty?: (dirty: boolean) => void;
   footer?: (dirty: boolean, current: Values, prices: PriceDraft) => React.ReactNode;
 };
@@ -59,12 +58,10 @@ function initData(values: Values, currency?: string): ConsumptionData {
     stock_warehoused: Array.isArray(v.stock_warehoused) ? v.stock_warehoused.map((r) => ({ ...r })) : [],
     stock_material: v.stock_material ?? null,
     no_stock: v.no_stock === true,
-    cost_total: v.cost_total ?? null,
-    internal_purchase_cost: v.internal_purchase_cost ?? null,
   };
 }
 
-export default function ConsumptionForm({ values, readOnly, formKey, currency, role = "member", company, day, isParent, onDirty, footer }: Props) {
+export default function ConsumptionForm({ values, readOnly, formKey, currency, role = "member", company, day, onDirty, footer }: Props) {
   const [data, setData] = useState<ConsumptionData>(() => initData(values, currency));
   const [prevLoading, setPrevLoading] = useState(false);
   useEffect(() => { setData(initData(values, currency)); }, [formKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -179,26 +176,6 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
         {fieldLabel("Số lượng", "tấn")}
         {numInput(num(data.stock_material), (v) => setData((d) => ({ ...d, stock_material: v })), readOnly, undefined, TONNES_STOCK)}
       </label>
-
-      {isParent && (
-        <>
-          {head("4. Chi phí cấp công ty mẹ", false, "công ty mẹ tự khai")}
-          <div style={gridStyle}>
-            <label style={{ display: "block" }}>
-              {fieldLabel("Tổng chi phí", "triệu đồng")}
-              {numInput(num(data.cost_total), (v) => setData((d) => ({ ...d, cost_total: v })), readOnly)}
-            </label>
-            <label style={{ display: "block" }}>
-              {fieldLabel("Trong đó: mua từ công ty con", "triệu đồng")}
-              {numInput(num(data.internal_purchase_cost), (v) => setData((d) => ({ ...d, internal_purchase_cost: v })), readOnly)}
-            </label>
-          </div>
-          <div className="form-note" style={{ fontSize: 11.5, marginTop: 6 }}>
-            Ô này do <b>công ty mẹ tự tính và tự chịu trách nhiệm</b> — hệ thống <b>không đối soát</b>
-            {" "}với tổng chi phí ghi trên từng dòng bán của các công ty con.
-          </div>
-        </>
-      )}
 
       {head("Tổng hợp tồn kho")}
       <div style={gridStyle}>

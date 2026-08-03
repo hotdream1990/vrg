@@ -218,13 +218,12 @@ def test_consumption_and_block3_computed_from_contracts(env, cus) -> None:
     client.put("/api/sales-contracts", json={
         "company": UNIT, "parent_id": parent["id"], "code": "PL-A", "start_date": YESTERDAY, "delivered_at": TODAY,
         "channel": "internal", "to_company": UNIT2,
-        "lines": [_line(qty=30.0, cost=12.0)]}, headers=h)
+        "lines": [_line(qty=30.0)]}, headers=h)
 
     cons = client.get(f"/api/sales-contracts/consumption?date_from={TODAY}&date_to={TODAY}"
                       f"&company={UNIT}", headers=h).json()["by_company"][UNIT]
     assert cons["qty"] == pytest.approx(30.0)
     assert cons["by_channel"]["internal"] == pytest.approx(30.0)
-    assert cons["cost"] == pytest.approx(12.0)
     assert cons["revenue"] == pytest.approx(30.0 * 40.0 * 1_000_000)
 
     # Khối 3 = ĐỢT ĐANG MỞ (bắt đầu → hết ngày trước ngày giao), KHÔNG phải cam kết còn lại của mẹ.
@@ -468,10 +467,9 @@ def test_invalid_inputs_are_rejected_not_coerced(env, cus) -> None:
                    json={**base, "code": "HD-EUR", "lines": [_line(ccy="EUR")]}, headers=h)
     assert r.status_code == 400 and "loại tiền" in r.json()["detail"].lower()
 
-    for bad, key in ((-30.0, "price"), (-5.0, "cost")):
-        r = client.put("/api/sales-contracts",
-                       json={**base, "code": "HD-NEG", "lines": [_line(**{key: bad})]}, headers=h)
-        assert r.status_code == 400 and "không được âm" in r.json()["detail"]
+    r = client.put("/api/sales-contracts",
+                   json={**base, "code": "HD-NEG", "lines": [_line(price=-30.0)]}, headers=h)
+    assert r.status_code == 400 and "không được âm" in r.json()["detail"]
 
     # Quy khô lớn hơn số lượng ướt là vô lý.
     r = client.put("/api/sales-contracts", json={
@@ -687,3 +685,30 @@ def test_contract_list_filters_by_one_or_many_customers(env) -> None:
     assert one["customer_name"] == "KH B"
     # Màn chi tiết không còn tải sẵn danh mục khách → tên khách phải do server trả kèm.
     assert client.get(f"/api/sales-contracts/{one['id']}", headers=h).json()["customer_name"] == "KH B"
+
+
+def test_cost_is_gone_everywhere(env, cus) -> None:
+    """Chi phí đã bỏ khỏi hệ thống (chốt 03/08/2026): client cũ gửi lên cũng KHÔNG được lưu.
+
+    Ô chi phí biến mất khỏi màn hình là chưa đủ — bản web cũ còn trong cache trình duyệt vẫn gửi
+    `cost`/`payment_cost` lên. Nếu server âm thầm nhận, số liệu chi phí lại mọc lại trong dữ liệu
+    mà không màn nào hiển thị.
+    """
+    h = env
+    made = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-NOCOST", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": TODAY, "start_date": TODAY, "delivered_at": TODAY,
+        "channel": "domestic", "payment_cost": 99.0,
+        "lines": [_line(qty=10.0, cost=77.0)]}, headers=h)
+    assert made.status_code == 200, made.text
+    c = made.json()["contract"]
+    assert "cost" not in c and "payment_cost" not in c
+    assert all("cost" not in ln for ln in c["lines"])
+
+    # Báo cáo tiêu thụ + báo cáo kỳ không còn chỉ tiêu chi phí nào.
+    cons = client.get(f"/api/sales-contracts/consumption?date_from={TODAY}&date_to={TODAY}"
+                      f"&company={UNIT}", headers=h).json()["by_company"][UNIT]
+    assert "cost" not in cons
+    rep = client.get(f"/api/unit-daily/period?kind=consumption&date_from={TODAY}&date_to={TODAY}",
+                     headers=h).json()
+    assert not [k for r in rep.get("rows", []) for k in r if k.startswith("cost")]

@@ -19,7 +19,6 @@ import {
   setUnitFactory,
   setUnitLocale,
   setUnitParent,
-  setUnitPurchasePlan,
   setUnitRegion,
   updateUnit,
 } from "../../../lib/member-unit-client";
@@ -87,7 +86,7 @@ export default function MemberUnitPage() {
             Cột "Công ty mẹ" định nghĩa NHÓM công ty: tiêu thụ nội bộ chỉ được bán trong nhóm
             (mẹ ↔ con, con ↔ con cùng mẹ). Đơn vị chưa gán mẹ và không có con thì hợp đồng
             KHÔNG chọn được hình thức "Tiêu thụ nội bộ". Cột này còn dùng để gom báo cáo cấp
-            Tập đoàn và bật ô "chi phí tổng cấp công ty mẹ".
+            Tập đoàn.
           </p>
           <ManagedListTab<MemberUnit>
             api={unitApi} canEdit={canEdit}
@@ -128,16 +127,6 @@ export default function MemberUnitPage() {
                     <option value="1">Có nhà máy</option>
                     <option value="0">Không có nhà máy</option>
                   </select>
-                ),
-              },
-              {
-                header: "Kế hoạch thu mua", width: 140,
-                render: (u, run) => (
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", cursor: canEdit ? "pointer" : "default" }}>
-                    <input type="checkbox" checked={u.has_purchase_plan} disabled={!canEdit}
-                      onChange={(e) => run(() => setUnitPurchasePlan(u.name, e.target.checked))} />
-                    <span style={{ fontSize: 13, color: "var(--muted)" }}>Có giao KH</span>
-                  </label>
                 ),
               },
               {

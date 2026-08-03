@@ -75,11 +75,6 @@ CONSUMPTION_FIELDS: frozenset[str] = frozenset({
     "finished_sold_raw",        # số user gõ — giữ để mở lại form
     "finished_sold_revenue",    # doanh thu tương ứng — BASE = đồng
     "finished_sold_fx",         # tỷ giá USD→VND
-    # ── Chi phí cấp CÔNG TY MẸ (chốt Q3 — 30/07/2026) ──
-    # Ngoài chi phí ghi trên từng dòng bán của hợp đồng, công ty mẹ tự khai TỔNG chi phí ở đây.
-    # CỐ Ý KHÔNG đối soát với tổng dòng con: "công ty mẹ tự tính chi phí tổng, tự chịu sai".
-    "cost_total",               # tổng chi phí trong ngày của công ty mẹ (triệu đồng)
-    "internal_purchase_cost",   # trong đó: chi phí mua hàng từ công ty con (triệu đồng)
 })
 
 CONSUMPTION_TEXT: dict[str, frozenset[str]] = {

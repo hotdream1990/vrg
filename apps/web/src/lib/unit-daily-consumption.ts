@@ -110,9 +110,6 @@ export type ConsumptionData = {
   stock_signed_undelivered?: StockSignedSummary; // 3 — HỆ THỐNG TỰ TÍNH từ hợp đồng (chỉ xem)
   stock_material?: number | null;         // 4 — nguyên liệu chưa sản xuất, quy khô (tấn)
   no_stock?: boolean;                     // cờ "hôm nay không phát sinh tồn kho để khai"
-  // Chi phí cấp CÔNG TY MẸ (chốt Q3 30/07/2026) — mẹ tự khai tổng, CỐ Ý không đối soát dòng con.
-  cost_total?: number | null;             // tổng chi phí trong ngày (triệu đồng)
-  internal_purchase_cost?: number | null; // trong đó: chi phí mua hàng từ công ty con (triệu đồng)
 
   // ── Tiêu thụ mủ THU MUA và mủ THÀNH PHẨM (chuyển từ biểu Thu mua sang) ──
   // `*_raw` = số user gõ (tỷ đồng khi VND · USD khi USD); `*_revenue` = đã quy về đồng để báo cáo.

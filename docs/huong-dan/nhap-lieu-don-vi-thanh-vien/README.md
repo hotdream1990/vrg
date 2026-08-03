@@ -32,7 +32,7 @@ Sau khi đăng nhập bằng tài khoản đơn vị, menu bên trái hiển th�
 2. **Quản lý hợp đồng** — Khách hàng · Hợp đồng & phụ lục. Đây là nơi ghi việc bán hàng.
 3. **Báo cáo** — Tiêu thụ (số hệ thống tự tính) · Hợp đồng cũ trước 30/07 (chỉ tra cứu).
 
-> - Đơn vị **không được giao kế hoạch thu mua** sẽ không thấy mục *Thu mua* và *Kế hoạch năm*.
+> - **Kế hoạch năm** luôn có cho mọi đơn vị. Mục *Thu mua* chỉ hiện khi đơn vị **có kế hoạch thu mua > 0** khai ở màn Kế hoạch năm.
 > - Chỉ nhập/sửa được ngày hôm nay và một số ngày gần nhất theo quy định; ngày cũ hơn chỉ để xem.
 
 ## 3. Màn hình danh sách và nút thao tác
@@ -141,6 +141,7 @@ Danh sách các **hợp đồng mẹ** kèm tiến độ giao hàng.
 5. **Ngày ký** — bắt buộc.
 6. **Ngày bắt đầu (mở đợt)** — ngày hàng bắt đầu gom vào kho cho đợt này; chỉ hiện với hợp đồng giao 1 lần.
 7. **Chi tiết hợp đồng** — mỗi chủng loại một dòng. Ô **Quy khô** chỉ hiện với latex và mủ nguyên liệu; ô **Tỷ giá** chỉ hiện khi dòng bán bằng ngoại tệ.
+8. **Thành tiền** — ô CHỈ ĐỌC ở cuối mỗi dòng (= số lượng × đơn giá, theo đúng loại tiền của dòng). Tổng thành tiền của hợp đồng hiện ngay dưới bảng, quy về triệu đồng.
 
 > - Bán bằng **VNĐ** nhập đơn giá theo **triệu đồng/tấn**; bán bằng **ngoại tệ** nhập theo **ngoại tệ/tấn** và **phải có tỷ giá** quy ra VNĐ, nếu không doanh thu sẽ hiện “—”.
 > - Bán **LATEX** và 2 loại mủ nguyên liệu thì **bắt buộc nhập quy khô** mới lưu được.
@@ -180,11 +181,11 @@ Mỗi phụ lục = **một đợt giao + một lần thanh toán**. Đây là c
 3. **Ngày giao** — để trống nghĩa là **đang chờ giao**; điền vào là đợt đã giao xong và **tính ngay vào tiêu thụ của ngày đó**.
 4. **Hình thức tiêu thụ** — *Xuất khẩu / UTXK* · *Tiêu thụ trong nước* · *Tiêu thụ nội bộ*. Bắt buộc khi đã giao.
 5. **Chi tiết lần giao** — chủng loại, sản lượng, đơn giá thực tế của lần giao này. Ô Quy khô và Tỷ giá chỉ hiện khi áp dụng, giống phiếu hợp đồng.
-6. **Thanh toán** — ngày thanh toán, sản lượng và chi phí của lần thanh toán, kèm chứng từ/hoá đơn.
+6. **Thanh toán** — ngày thanh toán, sản lượng của lần thanh toán, kèm chứng từ/hoá đơn.
 
 > - Tổng sản lượng các phụ lục **không được vượt** cam kết của hợp đồng mẹ; phiếu hiện sẵn dòng *Còn lại của hợp đồng mẹ*.
 > - **Tiêu thụ nội bộ** chỉ hiện khi đơn vị thuộc một nhóm công ty mẹ–con, và chỉ chọn được đơn vị trong cùng nhóm.
-> - Chi phí đưa vào báo cáo là ô **Chi phí** trên từng dòng chi tiết; ô chi phí ở khối Thanh toán **không** cộng vào báo cáo.
+> - **Thành tiền** của mỗi dòng = số lượng × đơn giá, hệ thống tự tính (không nhập tay); tổng của cả hợp đồng hiện ngay dưới bảng chi tiết.
 > - Lần giao đã ghi quá **số ngày cho phép sửa** sẽ chuyển sang **chỉ xem** (dòng hiện “(chỉ xem)” thay cho nút Sửa/Xoá) — kỳ báo cáo đã chốt thì không sửa lùi được nữa. Hợp đồng mẹ **không** bị khoá, vẫn thêm phụ lục mới bình thường.
 
 ## 11. Báo cáo tiêu thụ
@@ -197,9 +198,9 @@ Bảng **chỉ để xem** — số do hệ thống tổng hợp từ các lần
 
 *Hình 10. Báo cáo tiêu thụ theo kỳ*
 
-1. **Bảng tổng hợp** — Lần giao · SL · Quy khô · Xuất khẩu · Trong nước · Nội bộ · Doanh thu · Chi phí · **Chưa giao**.
+1. **Bảng tổng hợp** — Lần giao · SL · Quy khô · Xuất khẩu · Trong nước · Nội bộ · Doanh thu · **Chưa giao**.
 
-> - Chọn **Từ ngày / Đến ngày** để đổi kỳ; lọc thêm theo **Khách hàng** (gõ để tìm, chọn được nhiều khách) nếu cần.
+> - Chọn **Từ ngày / Đến ngày** để đổi kỳ; lọc thêm theo **Khách hàng** (gõ để tìm, chọn được nhiều khách) và theo **Chủng loại** nếu cần.
 > - Cột **Chưa giao** là số **tại ngày cuối kỳ**, không phải số cộng dồn.
 > - Khối **Theo khách hàng** bên dưới tách sản lượng và doanh thu theo từng khách.
 > - **Xuất Excel** để lấy đúng bảng đang xem.
@@ -230,8 +231,12 @@ Số liệu nhập **một lần cho cả năm**, cập nhật khi có điều c
 *Hình 12. Kế hoạch năm của đơn vị*
 
 1. **Kế hoạch thu mua** (tấn) — dùng để tính % hoàn thành kế hoạch trên báo cáo.
-2. **HĐ dài hạn đã ký** (tấn) trong năm.
-3. **HĐ dài hạn / HĐ chuyến năm trước chuyển sang** (tấn).
+2. **Kế hoạch tiêu thụ — HĐ chuyến** (tấn) — chỉ tiêu tiêu thụ giao cho hợp đồng chuyến trong năm.
+3. **HĐ dài hạn đã ký** (tấn) trong năm.
+4. **HĐ dài hạn / HĐ chuyến năm trước chuyển sang** (tấn).
+
+> - Ô **Kế hoạch thu mua** chính là công tắc: có số **> 0** thì đơn vị mới thấy màn **Báo cáo thu mua**; để trống hoặc **0** = đơn vị không tổ chức thu mua.
+> - Ô **Kế hoạch tiêu thụ — HĐ chuyến** dùng để đối chiếu **% thực hiện** trên báo cáo kỳ; ô này KHÔNG bật/tắt màn nào.
 
 ## 14. Hợp đồng cũ (trước 30/07)
 

@@ -3,9 +3,16 @@ import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import type { ContractLine, ContractMeta } from "../../../../lib/sales-contract-client";
 import NumInput from "../../sections/NumInput";
 
+const fmtAmount = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
+
 export const EMPTY_LINE: ContractLine = {
-  grade: "", qty: null, qty_dry: null, price: null, ccy: "VND", fx: null, cost: null,
+  grade: "", qty: null, qty_dry: null, price: null, ccy: "VND", fx: null,
 };
+
+/** Thành tiền của 1 dòng theo NGUYÊN TỆ của dòng (VNĐ: triệu đồng · ngoại tệ: chính nó).
+ *  Không quy đổi ở mức dòng vì đơn giá vốn nhập theo nguyên tệ — quy đổi để dành cho ô tổng. */
+export const lineAmount = (ln: ContractLine): number | null =>
+  (ln.qty == null || ln.price == null ? null : ln.qty * ln.price);
 
 type Props = {
   lines: ContractLine[];
@@ -29,10 +36,11 @@ function Field({ label, w, children }: { label: string; w: number; children: Rea
 }
 
 /**
- * Dòng chi tiết hợp đồng: chủng loại · sản lượng · quy khô · đơn giá · loại tiền · tỷ giá · chi phí.
+ * Dòng chi tiết hợp đồng: chủng loại · sản lượng · quy khô · đơn giá · loại tiền · tỷ giá ·
+ * THÀNH TIỀN (tự tính, chỉ đọc).
  *
- * Bố cục là KHỐI TỰ XUỐNG HÀNG, không phải bảng: 8 cột luôn vượt bề ngang modal nên người nhập phải
- * cuộn ngang mới thấy ô Chi phí. Mỗi ô mang nhãn riêng nên xuống hàng vẫn đọc được, và ô nào không
+ * Bố cục là KHỐI TỰ XUỐNG HÀNG, không phải bảng: nhiều cột luôn vượt bề ngang modal nên người nhập
+ * phải cuộn ngang mới thấy ô cuối. Mỗi ô mang nhãn riêng nên xuống hàng vẫn đọc được, và ô nào không
  * áp dụng cho dòng đó thì ẩn hẳn thay vì để một ô trống khiến người nhập tưởng còn thiếu số:
  *   - Quy khô: chỉ latex và mủ nguyên liệu (thành phẩm bán ra vốn đã là hàng khô).
  *   - Tỷ giá: chỉ dòng bán bằng ngoại tệ.
@@ -47,6 +55,7 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
     <NumInput value={value} onChange={onValue} readOnly={readOnly} placeholder={placeholder}
               className={`blt-date-input r${warn ? " num-warn" : ""}`} />
   );
+  const amount = (i: number) => lineAmount(lines[i]);
 
   return (
     <div>
@@ -90,8 +99,12 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
                   {num(ln.fx, (v) => set(i, { fx: v }), !ln.fx, "bắt buộc")}
                 </Field>
               )}
-              <Field label="Chi phí lô hàng (tr.đ)" w={140}>
-                {num(ln.cost, (v) => set(i, { cost: v }))}
+              {/* Thành tiền = SL × đơn giá, hiện theo ĐÚNG loại tiền của dòng. Ô CHỈ ĐỌC — sửa
+                  được thì người nhập sẽ sửa tay rồi lệch với số hệ thống tính cho báo cáo. */}
+              <Field label={`Thành tiền (${ln.ccy === "VND" ? "tr.đ" : ln.ccy})`} w={140}>
+                <input className="blt-date-input r" readOnly tabIndex={-1}
+                  style={{ background: "transparent", fontWeight: 500 }}
+                  value={amount(i) == null ? "—" : fmtAmount(amount(i) as number)} />
               </Field>
               {!readOnly && (
                 <button className="btn" title="Xoá dòng" disabled={lines.length <= 1}

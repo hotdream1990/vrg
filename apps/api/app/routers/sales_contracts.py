@@ -109,7 +109,8 @@ def list_contracts(scope: Scope, company: str | None = Query(None),
 
 
 def _consumption(scope_companies: list[str] | None, date_from: str, date_to: str,
-                 company: str | None, customer_ids: list[int] | None) -> dict:
+                 company: str | None, customer_ids: list[int] | None,
+                 grades: list[str] | None = None) -> dict:
     """Phần dùng chung của endpoint JSON và endpoint xuất Excel (tránh lệch số giữa 2 nơi)."""
     _check_date(date_from, "Từ ngày")
     _check_date(date_to, "Đến ngày")
@@ -117,13 +118,16 @@ def _consumption(scope_companies: list[str] | None, date_from: str, date_to: str
     if company:
         _assert_company(companies, company)
         companies = [company]
-    by_company = sales_contract_report.consumption(date_from, date_to, companies, customer_ids)
+    by_company = sales_contract_report.consumption(date_from, date_to, companies,
+                                                  customer_ids, grades)
     # Bảng "tách theo khách hàng" chỉ cần tên của các khách CÓ trong kỳ ("0" = chưa gán khách).
     shown = sorted({int(k) for c in by_company.values() for k in c["by_customer"] if k != "0"})
     return {
         "date_from": date_from, "date_to": date_to,
         "by_company": by_company,
-        "undelivered": sales_contract_report.undelivered_on(date_to, companies),
+        # Lọc chủng loại áp cho CẢ cột "đã ký HĐ chưa giao" — không thì bảng có cột đã lọc
+        # đứng cạnh cột chưa lọc, người đọc tưởng số vênh nhau.
+        "undelivered": sales_contract_report.undelivered_on(date_to, companies, grades),
         "customers": {str(i): n for i, n in customer_repo.names_by_id(companies, shown).items()},
     }
 
@@ -131,10 +135,11 @@ def _consumption(scope_companies: list[str] | None, date_from: str, date_to: str
 @router.get("/consumption")
 def consumption(scope: Scope, date_from: str = Query(...), date_to: str = Query(...),
                 company: str | None = Query(None),
-                customer_id: list[int] | None = Query(None)) -> dict:
+                customer_id: list[int] | None = Query(None),
+                grade: list[str] | None = Query(None, description="Lọc 1 hoặc NHIỀU chủng loại")) -> dict:
     """TIÊU THỤ trong kỳ — tổng hợp từ các lần giao, KHÔNG còn ô nhập tay."""
     _, companies = scope
-    return _consumption(companies, date_from, date_to, company, customer_id)
+    return _consumption(companies, date_from, date_to, company, customer_id, grade)
 
 
 _XLSX_COLS: list[tuple[str, str, str]] = [
@@ -145,7 +150,6 @@ _XLSX_COLS: list[tuple[str, str, str]] = [
     ("qty_domestic", SALE_CHANNELS["domestic"], "tấn"),
     ("qty_internal", SALE_CHANNELS["internal"], "tấn"),
     ("revenue_ty", "Doanh thu", "tỷ đồng"),
-    ("cost", "Chi phí dòng bán", "triệu đồng"),
     ("remaining", "Đã ký HĐ chưa giao (cuối kỳ)", "tấn"),
 ]
 
@@ -153,10 +157,11 @@ _XLSX_COLS: list[tuple[str, str, str]] = [
 @router.get("/consumption.xlsx")
 def consumption_xlsx(scope: Scope, date_from: str = Query(...), date_to: str = Query(...),
                      company: str | None = Query(None),
-                     customer_id: list[int] | None = Query(None)):
+                     customer_id: list[int] | None = Query(None),
+                     grade: list[str] | None = Query(None)):
     """Xuất Excel bảng Báo cáo tiêu thụ — dùng CHUNG số liệu với bảng trên web."""
     _, companies = scope
-    rep = _consumption(companies, date_from, date_to, company, customer_id)
+    rep = _consumption(companies, date_from, date_to, company, customer_id, grade)
     rows, totals = [], {k: 0.0 for k, _, _ in _XLSX_COLS}
     missing_fx = False
     for name in sorted(set(rep["by_company"]) | set(rep["undelivered"])):
@@ -171,7 +176,6 @@ def consumption_xlsx(scope: Scope, date_from: str = Query(...), date_to: str = Q
             "qty_internal": ch.get("internal", 0.0),
             # Doanh thu để TRỐNG khi thiếu tỷ giá — không quy về 0 để khỏi đọc nhầm là "bán không thu tiền".
             "revenue_ty": None if rev is None else rev / 1_000_000_000,
-            "cost": c.get("cost", 0.0),
             "remaining": (rep["undelivered"].get(name) or {}).get("qty", 0.0),
         }
         rows.append(row)
@@ -180,6 +184,8 @@ def consumption_xlsx(scope: Scope, date_from: str = Query(...), date_to: str = Q
             if isinstance(v, (int, float)):
                 totals[k] += v
     note = "Nguồn: các lần giao ghi trên hợp đồng & phụ lục."
+    if grade:
+        note += f" Chỉ tính chủng loại: {', '.join(grade)}."
     if missing_fx:
         note += " ⚠ Có lần giao thiếu tỷ giá → doanh thu để trống, KHÔNG tính là 0."
     data = unit_analytics_excel.build_xlsx(

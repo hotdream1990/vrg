@@ -138,24 +138,9 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
     }
 
 
-def _cost_by_channel(companies: list[str] | None, date_from: str, date_to: str,
-                     ) -> dict[str, dict[str, float]]:
-    """{đơn vị: {export, domestic, internal: chi phí (triệu đồng)}} — chi phí dòng bán của HỢP ĐỒNG
-    tách theo hình thức. `sales_contract_report.consumption()` chỉ gộp TỔNG chi phí nên phải tự
-    nhóm lại từ danh sách LẦN GIAO trong kỳ.
-    """
-    out: dict[str, dict[str, float]] = {}
-    for d in sales_contract_report.deliveries(date_from, date_to, companies):
-        acc = out.setdefault(d["company"], {"export": 0.0, "domestic": 0.0, "internal": 0.0})
-        ch = d.get("channel") or "domestic"
-        acc[ch] = acc.get(ch, 0.0) + (d.get("cost") or 0.0)
-    return out
-
-
 # ── Biểu (1): Tiêu thụ – Tồn kho ───────────────────────────────────────────────
 def _consumption_rows(entries: list[dict], plan: dict, signed: dict[str, Any] | None = None,
-                      contract: dict[str, Any] | None = None,
-                      cost_by_channel: dict[str, float] | None = None) -> dict[str, Any]:
+                      contract: dict[str, Any] | None = None) -> dict[str, Any]:
     # ── Tiêu thụ CHỈ lấy từ HỢP ĐỒNG (chốt 02/08/2026) ────────────────────────────────────────
     # Hai mảng `sales`/`sales_own` cũ KHÔNG còn được cộng vào báo cáo: chừng nào chưa chạy script
     # chuyển đổi thì chúng chỉ là dữ liệu tra cứu. Trộn hai cơ chế làm số lộn xộn (loại hợp đồng,
@@ -164,7 +149,6 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: dict[str, Any] | 
     has_contract = bool(contract.get("deliveries"))
     c_qty = contract.get("qty", 0.0)
     c_revenue = contract.get("revenue")     # None nếu CÓ lần giao thiếu tỷ giá — KHÔNG đoán bằng 0
-    c_cost = contract.get("cost")
     by_channel = contract.get("by_channel") or {}
     c_export = by_channel.get("export", 0.0)
     c_domestic = by_channel.get("domestic", 0.0)
@@ -180,7 +164,6 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: dict[str, Any] | 
 
     total = c_qty
     revenue = None if (has_contract and c_revenue is None) else (c_revenue if has_contract else None)
-    cbc = cost_by_channel or {}
 
     # Tồn kho = THỜI ĐIỂM: lấy lần chốt tồn GẦN NHẤT trong kỳ (KHÔNG cộng dồn các ngày).
     last, stock_as_of = _latest_stock(entries)
@@ -206,6 +189,11 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: dict[str, Any] | 
     stock_hd = signed.get("qty") or 0.0
     return {
         "signed_lt_tonnes": _num(plan.get("signed_lt_tonnes")),
+        # Kế hoạch TIÊU THỤ chỉ đặt cho HĐ CHUYẾN → % thực hiện so với tiêu thụ của riêng loại
+        # hợp đồng đó, KHÔNG so với tổng tiêu thụ (so tổng là luôn vượt kế hoạch một cách giả tạo).
+        "plan_sales_spot_tonnes": _num(plan.get("plan_sales_spot_tonnes")),
+        "pct_plan_sales_spot": ((spot_total / p_sales * 100)
+                                if (p_sales := _num(plan.get("plan_sales_spot_tonnes"))) else None),
         "lt_export": lt_e or None, "lt_domestic": lt_d or None,
         "lt_total": lt_total or None,
         "spot_export": sp_e or None, "spot_domestic": sp_d or None,
@@ -216,11 +204,6 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: dict[str, Any] | 
         "internal_total": c_internal or None,
         "revenue_ty": (revenue / TY) if revenue is not None else None,
         "avg_sell_price": (r / TRIEU if (r := _ratio(revenue, total)) is not None else None),
-        # ── Chi phí trên dòng bán (chỉ có ở hợp đồng — mảng sales/sales_own cũ không ghi chi phí) ──
-        "cost_lines": c_cost if has_contract else None,
-        "cost_export": cbc.get("export") if has_contract else None,
-        "cost_domestic": cbc.get("domestic") if has_contract else None,
-        "cost_internal": cbc.get("internal") if has_contract else None,
         # Ngày của ảnh chụp tồn kho — có thể SỚM HƠN ngày cuối kỳ (đơn vị chưa cập nhật tồn).
         "stock_as_of": stock_as_of,
         "stock_finished": t(stock_finished),
@@ -257,8 +240,6 @@ def period_report(kind: str, date_from: str, date_to: str,
     # Tiêu thụ từ HỢP ĐỒNG (nguồn mới) — cộng thêm lên mảng sales/sales_own cũ trong _consumption_rows.
     contract_consumption = (sales_contract_report.consumption(date_from, date_to, companies)
                             if kind == "consumption" else {})
-    contract_cost = (_cost_by_channel(companies, date_from, date_to)
-                     if kind == "consumption" else {})
 
     rows = []
     for u in units:
@@ -268,7 +249,7 @@ def period_report(kind: str, date_from: str, date_to: str,
         data = (_purchase_rows(ent, prices, plan, sold_by_company.get(name, []))
                 if kind == "purchase"
                 else _consumption_rows(ent, plan, signed_at_close.get(name),
-                                       contract_consumption.get(name), contract_cost.get(name)))
+                                       contract_consumption.get(name)))
         rows.append({
             "company": name, "region": u.get("region"),
             "days": len(ent), "last_day": max((e["as_of"] for e in ent), default=None),

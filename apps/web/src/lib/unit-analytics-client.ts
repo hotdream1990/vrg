@@ -5,7 +5,7 @@ import { authHeaders } from "./auth-token";
 import { API, apiFetch } from "./http";
 
 export type Opt = { value: string; label: string };
-export type FilterUnit = { name: string; region: string | null; has_purchase_plan: boolean; has_factory: boolean };
+export type FilterUnit = { name: string; region: string | null; has_factory: boolean };
 export type FilterCatalog = {
   units: FilterUnit[]; regions: string[]; grades: string[];
   materials: Opt[]; contracts: Opt[]; channels: Opt[]; sources: Opt[];

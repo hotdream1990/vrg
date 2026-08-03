@@ -28,7 +28,7 @@ from app.services import audit_repo, contract_docs, customer_repo, sales_contrac
 
 _COLS = ("id", "company", "parent_id", "code", "customer_id", "delivery_type", "contract_type",
          "sign_date", "expiry_date", "start_date", "lines", "delivered", "delivered_at", "channel",
-         "to_company", "payment_date", "payment_qty", "payment_cost", "payment_docs", "files", "note")
+         "to_company", "payment_date", "payment_qty", "payment_docs", "files", "note")
 _DATE_COLS = ("sign_date", "expiry_date", "start_date", "delivered_at", "payment_date")
 
 
@@ -41,7 +41,6 @@ def _row(r) -> dict[str, Any]:
     d["payment_docs"] = contract_docs.normalize(d.get("payment_docs"), None, None)
     d["qty"] = calc.total_qty(d["lines"])
     d["qty_dry"] = calc.total_qty_dry(d["lines"])
-    d["cost"] = calc.total_cost(d["lines"])
     d["revenue"] = calc.total_revenue_vnd(d["lines"])
     return d
 
@@ -68,7 +67,7 @@ def _num(v) -> float | None:
 
 
 def _money(v, label: str) -> float | None:
-    """Ô tiền/sản lượng nhập tay — không được âm (âm làm doanh thu/chi phí kỳ bị trừ ngược)."""
+    """Ô tiền/sản lượng nhập tay — không được âm (âm làm số liệu kỳ bị trừ ngược)."""
     f = _num(v)
     if f is not None and f < 0:
         raise ValueError(f"{label} không được âm.")
@@ -217,7 +216,6 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         "to_company": to_company,
         "payment_date": paid_at.isoformat() if paid_at else None,
         "payment_qty": _money(row.get("payment_qty"), "Sản lượng thanh toán"),
-        "payment_cost": _money(row.get("payment_cost"), "Chi phí thanh toán"),
         "payment_docs": contract_docs.normalize(row.get("payment_docs"), None, None),
         "files": contract_docs.normalize(row.get("files"), None, None),
         "note": str(row.get("note") or "").strip()[:500] or None,
@@ -228,12 +226,12 @@ _INSERT = text(
     "INSERT INTO sales_contract (company, parent_id, code, customer_id, delivery_type, "
     " contract_type, sign_date, "
     " expiry_date, start_date, lines, delivered, delivered_at, channel, to_company, payment_date, "
-    " payment_qty, payment_cost, payment_docs, files, note, updated_by) "
+    " payment_qty, payment_docs, files, note, updated_by) "
     "VALUES (:company, :parent_id, :code, :customer_id, :delivery_type, :contract_type, "
     " CAST(:sign_date AS date), "
     " CAST(:expiry_date AS date), CAST(:start_date AS date), CAST(:lines AS jsonb), :delivered, "
     " CAST(:delivered_at AS date), "
-    " :channel, :to_company, CAST(:payment_date AS date), :payment_qty, :payment_cost, "
+    " :channel, :to_company, CAST(:payment_date AS date), :payment_qty, "
     " CAST(:payment_docs AS jsonb), CAST(:files AS jsonb), :note, :by) RETURNING id")
 
 _UPDATE = text(
@@ -244,7 +242,7 @@ _UPDATE = text(
     " lines = CAST(:lines AS jsonb), "
     " delivered = :delivered, delivered_at = CAST(:delivered_at AS date), channel = :channel, "
     " to_company = :to_company, payment_date = CAST(:payment_date AS date), "
-    " payment_qty = :payment_qty, payment_cost = :payment_cost, "
+    " payment_qty = :payment_qty, "
     " payment_docs = CAST(:payment_docs AS jsonb), files = CAST(:files AS jsonb), note = :note, "
     " updated_by = :by, updated_at = now() WHERE id = :id")
 

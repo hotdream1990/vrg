@@ -10,6 +10,7 @@ import {
 } from "../../../lib/sales-contract-client";
 import { useAuth } from "../../auth/AuthContext";
 import CustomerPicker from "../sections/CustomerPicker";
+import { MultiSelect } from "./analytics/AnalyticsFilters";
 import DateInput from "../sections/DateInput";
 import ConsumptionByCustomer from "./components/ConsumptionByCustomer";
 import "../../bulletin/bulletin.css";
@@ -31,6 +32,7 @@ export default function ConsumptionReportPage() {
   const [to, setTo] = useState(today());
   const [company, setCompany] = useState<string>("");
   const [customerIds, setCustomerIds] = useState<number[]>([]);
+  const [grades, setGrades] = useState<string[]>([]);
   const [rep, setRep] = useState<ConsumptionReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -39,11 +41,11 @@ export default function ConsumptionReportPage() {
   const load = useCallback(() => {
     if (!from || !to) return;
     setLoading(true); setErr("");
-    fetchConsumption(from, to, company || undefined, customerIds)
+    fetchConsumption(from, to, company || undefined, customerIds, grades)
       .then(setRep)
       .catch((e) => setErr(e.message))
       .finally(() => setLoading(false));
-  }, [from, to, company, customerIds]);
+  }, [from, to, company, customerIds, grades]);
 
   useEffect(() => { fetchContractMeta().then(setMeta).catch((e) => setErr(e.message)); }, []);
   useEffect(() => { load(); }, [load]);
@@ -55,11 +57,11 @@ export default function ConsumptionReportPage() {
     [rows, undelivered]);
 
   const totals = useMemo(() => {
-    const acc = { qty: 0, qty_dry: 0, cost: 0, revenue: 0 as number | null, deliveries: 0, remaining: 0 };
+    const acc = { qty: 0, qty_dry: 0, revenue: 0 as number | null, deliveries: 0, remaining: 0 };
     for (const c of companies) {
       const r = rows[c];
       if (r) {
-        acc.qty += r.qty; acc.qty_dry += r.qty_dry; acc.cost += r.cost; acc.deliveries += r.deliveries;
+        acc.qty += r.qty; acc.qty_dry += r.qty_dry; acc.deliveries += r.deliveries;
         if (r.revenue == null) acc.revenue = null;
         else if (acc.revenue != null) acc.revenue += r.revenue;
       }
@@ -72,7 +74,7 @@ export default function ConsumptionReportPage() {
 
   const exportXlsx = async () => {
     setBusy(true); setErr("");
-    try { await downloadConsumptionXlsx(from, to, company || undefined, customerIds); }
+    try { await downloadConsumptionXlsx(from, to, company || undefined, customerIds, grades); }
     catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
     finally { setBusy(false); }
   };
@@ -110,6 +112,12 @@ export default function ConsumptionReportPage() {
           <CustomerPicker multiple width={320} value={customerIds} company={company || undefined}
             onChange={setCustomerIds} />
         </label>
+        {/* Lọc chủng loại tính LẠI theo từng dòng chi tiết (một lần giao có thể nhiều chủng loại)
+            — cả bảng, khối "theo khách hàng", cột chưa giao lẫn file Excel đều theo bộ lọc này. */}
+        <label className="blt-date-label">Chủng loại
+          <MultiSelect placeholder="Tất cả chủng loại" options={meta?.grades ?? []} width={220}
+            value={grades} onChange={setGrades} />
+        </label>
         <button className="btn" onClick={load} disabled={loading}>{loading ? "Đang tải…" : "Tải lại"}</button>
         <span style={{ color: "var(--muted)", fontSize: 13 }}>{companies.length} đơn vị</span>
       </div>
@@ -120,7 +128,6 @@ export default function ConsumptionReportPage() {
         <div className="kpi"><div className="label">Sản lượng tiêu thụ (tấn)</div><div className="value">{t3(totals.qty)}</div></div>
         <div className="kpi"><div className="label">Quy khô (tấn)</div><div className="value">{t3(totals.qty_dry)}</div></div>
         <div className="kpi"><div className="label">Doanh thu (tỷ đồng)</div><div className="value">{ty(totals.revenue)}</div></div>
-        <div className="kpi"><div className="label">Chi phí dòng bán (tr.đ)</div><div className="value">{t3(totals.cost)}</div></div>
         <div className="kpi"><div className="label">Số lần giao</div><div className="value">{totals.deliveries}</div></div>
         <div className="kpi"><div className="label">Đã ký chưa giao (tấn)</div><div className="value">{t3(totals.remaining)}</div></div>
       </div>
@@ -133,7 +140,7 @@ export default function ConsumptionReportPage() {
             <th className="r">{meta?.channels.export ?? "Xuất khẩu"}</th>
             <th className="r">{meta?.channels.domestic ?? "Trong nước"}</th>
             <th className="r">{meta?.channels.internal ?? "Nội bộ"}</th>
-            <th className="r">Doanh thu (tỷ đ)</th><th className="r">Chi phí (tr.đ)</th>
+            <th className="r">Doanh thu (tỷ đ)</th>
             <th className="r">Chưa giao (tấn)</th>
           </tr></thead>
           <tbody>
@@ -147,7 +154,6 @@ export default function ConsumptionReportPage() {
                 <td className="r">{t3(ch(c, "domestic"))}</td>
                 <td className="r">{t3(ch(c, "internal"))}</td>
                 <td className="r">{ty(rows[c]?.revenue ?? null)}</td>
-                <td className="r">{t3(rows[c]?.cost ?? 0)}</td>
                 <td className="r">{t3(undelivered[c]?.qty ?? 0)}</td>
               </tr>
             ))}

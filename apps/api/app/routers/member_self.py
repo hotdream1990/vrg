@@ -23,7 +23,7 @@ from app.schemas.unit_daily import (
     ExcelImportCommit, PurchasePlanEdit, StockContractEdit, UnitDailyEdit, UnitDailyMove,
 )
 from app.services import (
-    contract_files, market_demand_repo, member_unit_repo, price_repo, unit_daily_excel_io,
+    contract_files, market_demand_repo, price_repo, unit_daily_excel_io,
     unit_daily_repo, unit_stock_contract_repo,
 )
 from app.services.unit_report_query import split_csv
@@ -165,8 +165,8 @@ def my_daily(kind: str = Query(..., pattern="^(purchase|consumption)$"),
 def my_year_plan(year: int = Query(..., ge=2020, le=2100),
                  member: dict = Depends(get_current_member)) -> dict:
     """Số liệu năm của CÁC đơn vị được gán — chỉ đơn vị CÓ giao kế hoạch thu mua."""
-    plan_set = set(member_unit_repo.plan_names())
-    units = [u for u in member["member_units"] if u in plan_set]
+    # Màn Kế hoạch năm mở cho MỌI đơn vị của tài khoản (chốt 03/08/2026 — bỏ cờ bật/tắt).
+    units = list(member["member_units"])
     return {"year": year, "units": units, "plans": unit_daily_repo.year_plan(year, companies=units)}
 
 
@@ -176,7 +176,8 @@ def upsert_my_year_plan(body: PurchasePlanEdit,
     """Đơn vị tự cập nhật số liệu năm của mình (không giới hạn cửa sổ ngày — số liệu năm)."""
     _assert_company(member, body.company)
     unit_daily_repo.set_year_plan(body.year, body.company, body.plan_tonnes, body.signed_lt_tonnes,
-                                  body.carry_lt_tonnes, body.carry_spot_tonnes, member.get("username"))
+                                  body.carry_lt_tonnes, body.carry_spot_tonnes,
+                                  body.plan_sales_spot_tonnes, member.get("username"))
     return {"ok": True}
 
 

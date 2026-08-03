@@ -5,7 +5,9 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.db import db_healthy
+from sqlalchemy import text
+
+from app.core.db import db_healthy, session_scope
 from app.main import app
 from app.services import user_repo
 
@@ -251,15 +253,22 @@ def test_member_self_price_flow() -> None:
 
 
 def test_member_has_purchase_plan_flag() -> None:
-    """Cờ `member_has_purchase_plan`: True nếu member có ≥1 đơn vị được giao KH thu mua, ngược lại False."""
-    from app.services import member_unit_repo
+    """Cờ `member_has_purchase_plan` suy từ SỐ KẾ HOẠCH THU MUA ở màn Kế hoạch năm (chốt 03/08/2026).
+
+    Không còn cờ bật/tắt trên từng đơn vị: có số > 0 thì đơn vị mới thấy màn Thu mua; khai 0 =
+    không tổ chức thu mua.
+    """
+    from datetime import date
+
+    from app.services import member_unit_repo, unit_daily_repo
 
     h = _admin_headers()
     plan_unit, no_plan_unit = "Cao su Có KH Test", "Cao su Không KH Test"
     member_unit_repo.add_unit(plan_unit)
     member_unit_repo.add_unit(no_plan_unit)
-    member_unit_repo.set_purchase_plan(plan_unit, True)
-    member_unit_repo.set_purchase_plan(no_plan_unit, False)
+    year = date.today().year
+    unit_daily_repo.set_year_plan(year, plan_unit, 1000.0, None, None, None, None, "admin")
+    unit_daily_repo.set_year_plan(year, no_plan_unit, 0.0, None, None, None, None, "admin")
     client.delete("/api/users/mem_plan", headers=h)  # dọn nếu sót
 
     # Chỉ gắn đơn vị KHÔNG có KH thu mua → cờ False.
@@ -279,5 +288,8 @@ def test_member_has_purchase_plan_flag() -> None:
 
     # Dọn.
     client.delete("/api/users/mem_plan", headers=h)
+    with session_scope() as db:
+        db.execute(text("DELETE FROM unit_purchase_plan WHERE company = ANY(:c)"),
+                   {"c": [plan_unit, no_plan_unit]})
     member_unit_repo.delete_unit(plan_unit)
     member_unit_repo.delete_unit(no_plan_unit)

@@ -14,6 +14,7 @@ import {
 import { dmy } from "../../../../lib/date";
 import { useEditWindow } from "../../../../lib/edit-window";
 import ContractFormModal from "./ContractFormModal";
+import { lineAmount } from "./ContractLinesTable";
 
 type Props = {
   contractId: number;
@@ -39,7 +40,9 @@ function Docs({ docs }: { docs: ContractDoc[] }) {
     </div>
   );
 }
-const money = (n: number | null) => (n == null ? "—" : (n / 1_000_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
+/** Thành tiền quy VNĐ, hiện theo TRIỆU ĐỒNG — thống nhất với ô "Thành tiền" ở form nhập.
+ *  null = có dòng ngoại tệ thiếu tỷ giá → "—", KHÔNG hiển thị 0. */
+const money = (n: number | null) => (n == null ? "—" : (n / 1_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
 
 /** Chi tiết HỢP ĐỒNG MẸ + danh sách PHỤ LỤC (mỗi phụ lục = 1 lần giao). */
 export default function ContractDetailModal({ contractId, meta, canEdit, onClose, onChanged }: Props) {
@@ -86,6 +89,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                   {multi ? "Giao nhiều lần" : "Giao 1 lần"}
                 </div></div>
               <div className="kpi"><div className="label">Cam kết (tấn)</div><div className="value">{t3(c.qty)}</div></div>
+              <div className="kpi"><div className="label">Thành tiền (tr.đ)</div><div className="value">{money(c.revenue)}</div></div>
               <div className="kpi"><div className="label">Đã giao (tấn)</div><div className="value">{t3(d.delivered_qty)}</div></div>
               <div className="kpi"><div className="label">Đang chờ giao (tấn)</div><div className="value">{t3(d.pending_qty)}</div></div>
               <div className="kpi"><div className="label">Chưa mở đợt (tấn)</div><div className="value">{t3(d.remaining_qty)}</div></div>
@@ -136,7 +140,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                         <table>
                           <thead><tr>
                             <th>Chủng loại</th><th className="r">SL (tấn)</th><th className="r">Quy khô</th>
-                            <th className="r">Đơn giá</th><th>Loại tiền</th><th className="r">Chi phí (tr.đ)</th>
+                            <th className="r">Đơn giá</th><th>Loại tiền</th><th className="r">Thành tiền</th>
                           </tr></thead>
                           <tbody>
                             {c.lines.map((ln, i) => (
@@ -146,7 +150,12 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                                 <td className="r">{ln.qty_dry == null ? "—" : t3(ln.qty_dry)}</td>
                                 <td className="r">{ln.price == null ? "—" : t3(ln.price)}</td>
                                 <td>{ln.ccy}</td>
-                                <td className="r">{ln.cost == null ? "—" : t3(ln.cost)}</td>
+                                {/* Thành tiền của dòng theo NGUYÊN TỆ của dòng (giống form nhập). */}
+                                <td className="r">
+                                  {lineAmount(ln) == null
+                                    ? "—"
+                                    : `${t3(lineAmount(ln) as number)} ${ln.ccy === "VND" ? "tr.đ" : ln.ccy}`}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -177,7 +186,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                     <thead><tr>
                       <th>Số phụ lục</th><th>Bắt đầu</th><th>Ngày giao</th><th>Hình thức</th><th>Đơn vị nhận</th>
                       <th className="r">SL (tấn)</th><th className="r">Quy khô</th>
-                      <th className="r">Doanh thu (tỷ đ)</th><th className="r">Chi phí lô hàng (tr.đ)</th>
+                      <th className="r">Thành tiền (tr.đ)</th>
                       <th>Thanh toán</th><th>Đính kèm</th>
                       {canEdit && <th className="r" style={{ width: 150 }}>Thao tác</th>}
                     </tr></thead>
@@ -196,15 +205,10 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                           <td className="r">{t3(k.qty)}</td>
                           <td className="r">{t3(k.qty_dry)}</td>
                           <td className="r">{money(k.revenue)}</td>
-                          <td className="r">{t3(k.cost)}</td>
                           <td style={{ whiteSpace: "nowrap", fontSize: 12.5 }}>
                             {dmy(k.payment_date) || "—"}
-                            {(k.payment_qty != null || k.payment_cost != null) && (
-                              <div style={{ color: "var(--muted)" }}>
-                                {k.payment_qty != null && `${t3(k.payment_qty)} tấn`}
-                                {k.payment_qty != null && k.payment_cost != null && " · "}
-                                {k.payment_cost != null && `${t3(k.payment_cost)} tr.đ`}
-                              </div>
+                            {k.payment_qty != null && (
+                              <div style={{ color: "var(--muted)" }}>{t3(k.payment_qty)} tấn</div>
                             )}
                           </td>
                           <td><Docs docs={[...k.files, ...k.payment_docs]} /></td>
