@@ -86,7 +86,8 @@ export type ContractMeta = {
   internal_targets: Record<string, string[]>;
   currencies: string[];
   unit_currency: Record<string, string>;   // {đơn vị: nội tệ} — lọc loại tiền cho đúng đơn vị
-  customers: Customer[];
+  /* KHÔNG có danh mục khách hàng: mỗi đơn vị một danh mục riêng nên tổng số khách tăng theo số
+     đơn vị → dùng <CustomerPicker> (tìm ở server) thay vì tải cả danh mục về máy. */
 };
 
 export type ContractDetail = {
@@ -95,11 +96,13 @@ export type ContractDetail = {
   delivered_qty: number;
   pending_qty: number;
   remaining_qty: number;
+  customer_name: string | null;
 };
 
 export type ContractFilters = {
   company?: string;
-  customer_id?: number | null;
+  /** Lọc theo MỘT HOẶC NHIỀU khách hàng (rỗng = tất cả). */
+  customer_ids?: number[];
   status?: "all" | "open" | "done";
   date_from?: string;
   date_to?: string;
@@ -143,6 +146,21 @@ export const listCustomers = (includeInactive = true, q = "") =>
   apiFetch<Customer[]>(
     `/api/customers?include_inactive=${includeInactive}${q ? `&q=${encodeURIComponent(q)}` : ""}`);
 
+/** Tìm khách hàng Ở SERVER cho ô chọn khách (danh mục riêng từng đơn vị nên rất dài).
+ *  Phạm vi đơn vị do server ép theo tài khoản; `company` chỉ thu hẹp thêm trong phạm vi đó.
+ *  `ids` dùng để tra lại TÊN của các khách đang được chọn khi chúng không nằm trong kết quả tìm. */
+export function searchCustomers(
+  opt: { q?: string; company?: string; ids?: number[]; limit?: number; includeInactive?: boolean },
+) {
+  const p = new URLSearchParams();
+  if (opt.q) p.set("q", opt.q);
+  if (opt.company) p.set("company", opt.company);
+  if (opt.limit) p.set("limit", String(opt.limit));
+  p.set("include_inactive", String(opt.includeInactive ?? false));
+  (opt.ids ?? []).forEach((id) => p.append("ids", String(id)));
+  return apiFetch<Customer[]>(`/api/customers?${p.toString()}`);
+}
+
 export const saveCustomer = (body: Partial<Customer> & { company: string; name: string }) =>
   apiFetch<Customer>("/api/customers", { method: "PUT", headers: J, body: JSON.stringify(body) });
 
@@ -155,7 +173,8 @@ export const fetchContractMeta = () => apiFetch<ContractMeta>("/api/sales-contra
 export function listContracts(f: ContractFilters = {}) {
   const p = new URLSearchParams();
   if (f.company) p.set("company", f.company);
-  if (f.customer_id) p.set("customer_id", String(f.customer_id));
+  // Lọc nhiều khách = lặp lại tham số (`customer_id=1&customer_id=2`) — FastAPI gom thành list.
+  (f.customer_ids ?? []).forEach((id) => p.append("customer_id", String(id)));
   if (f.status && f.status !== "all") p.set("status", f.status);
   if (f.date_from) p.set("date_from", f.date_from);
   if (f.date_to) p.set("date_to", f.date_to);
@@ -174,22 +193,23 @@ export const saveContract = (body: Record<string, unknown>) =>
 export const deleteContract = (id: number) =>
   apiFetch<{ ok: boolean }>(`/api/sales-contracts/${id}`, { method: "DELETE" });
 
-function consumptionQuery(dateFrom: string, dateTo: string, company?: string, customerId?: number | null) {
+function consumptionQuery(dateFrom: string, dateTo: string, company?: string,
+                          customerIds?: number[]) {
   const p = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
   if (company) p.set("company", company);
-  if (customerId) p.set("customer_id", String(customerId));
+  (customerIds ?? []).forEach((id) => p.append("customer_id", String(id)));
   return p.toString();
 }
 
 export const fetchConsumption = (dateFrom: string, dateTo: string, company?: string,
-                                 customerId?: number | null) =>
+                                 customerIds?: number[]) =>
   apiFetch<ConsumptionReport>(
-    `/api/sales-contracts/consumption?${consumptionQuery(dateFrom, dateTo, company, customerId)}`);
+    `/api/sales-contracts/consumption?${consumptionQuery(dateFrom, dateTo, company, customerIds)}`);
 
 /** Tải Excel Báo cáo tiêu thụ (fetch kèm token → blob, endpoint đòi Bearer). */
 export async function downloadConsumptionXlsx(dateFrom: string, dateTo: string, company?: string,
-                                              customerId?: number | null): Promise<void> {
-  const qs = consumptionQuery(dateFrom, dateTo, company, customerId);
+                                              customerIds?: number[]): Promise<void> {
+  const qs = consumptionQuery(dateFrom, dateTo, company, customerIds);
   const res = await fetch(`${API}/api/sales-contracts/consumption.xlsx?${qs}`,
     { headers: authHeaders() });
   if (!res.ok) throw new Error("Không xuất được file Excel.");

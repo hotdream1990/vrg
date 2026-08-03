@@ -8,6 +8,7 @@ import {
   type ContractType,
   saveContract,
 } from "../../../../lib/sales-contract-client";
+import CustomerPicker from "../../sections/CustomerPicker";
 import DateInput from "../../sections/DateInput";
 import ContractAttach from "./ContractAttach";
 import ContractLinesTable, { EMPTY_LINE } from "./ContractLinesTable";
@@ -62,8 +63,6 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
   const isDelivery = !!c.delivered_at;
   // Hợp đồng mẹ giao-nhiều-lần không phải một đợt — hàng nằm ở các phụ lục.
   const isBatch = isChild || c.delivery_type === "single";
-  const customers = useMemo(
-    () => meta.customers.filter((x) => x.company === c.company), [meta.customers, c.company]);
   // Đơn vị nhận hàng nội bộ = các đơn vị CÙNG NHÓM công ty mẹ–con. Rỗng = đơn vị đứng một mình,
   // không có tiêu thụ nội bộ (server cũng chặn, xem `_assert_same_group`).
   const peers = useMemo(
@@ -152,11 +151,11 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
         {!isChild && (
           <>
             <label className="form-field">Khách hàng *
-              <select className="blt-date-input" value={c.customer_id ?? ""}
-                onChange={(e) => set({ customer_id: e.target.value ? Number(e.target.value) : null })}>
-                <option value="">— chọn khách hàng —</option>
-                {customers.map((x) => <option key={x.id} value={x.id as number}>{x.name}</option>)}
-              </select>
+              {/* Chỉ tìm trong danh mục CỦA ĐƠN VỊ đang chọn — server cũng chặn gán khách của
+                  đơn vị khác (xem `sales_contract_repo.save`). */}
+              <CustomerPicker width="100%" company={c.company} placeholder="Gõ để tìm khách hàng"
+                value={c.customer_id ? [c.customer_id] : []}
+                onChange={(ids) => set({ customer_id: ids[0] ?? null })} />
             </label>
             {/* Loại HỢP ĐỒNG là chỉ tiêu của báo cáo (dài hạn/chuyến) — KHÁC loại GIAO bên dưới:
                 một hợp đồng dài hạn vẫn có thể giao trọn 1 lần. */}

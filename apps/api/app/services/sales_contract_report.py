@@ -45,7 +45,7 @@ def _by_grade(lines) -> dict[str, float]:
 
 
 def deliveries(date_from: str, date_to: str, companies: list[str] | None = None,
-               customer_id: int | None = None) -> list[dict[str, Any]]:
+               customer_ids: list[int] | None = None) -> list[dict[str, Any]]:
     """Các LẦN GIAO có ngày giao trong [date_from, date_to] — nguồn số tiêu thụ của kỳ.
 
     Phụ lục KHÔNG mang khách hàng lẫn loại hợp đồng (cả hai gán ở hợp đồng mẹ) → gắn `customer_id`
@@ -63,20 +63,21 @@ def deliveries(date_from: str, date_to: str, companies: list[str] | None = None,
         for r in rows:
             if r["parent_id"] is not None:
                 r["customer_id"], r["contract_type"] = owner.get(r["parent_id"], (None, None))
-    if customer_id is not None:
-        rows = [r for r in rows if r.get("customer_id") == customer_id]
+    if customer_ids:
+        keep = set(customer_ids)
+        rows = [r for r in rows if r.get("customer_id") in keep]
     return rows
 
 
 def consumption(date_from: str, date_to: str, companies: list[str] | None = None,
-                customer_id: int | None = None) -> dict[str, dict[str, Any]]:
+                customer_ids: list[int] | None = None) -> dict[str, dict[str, Any]]:
     """{đơn vị: số tiêu thụ trong kỳ} — cộng dồn sản lượng/doanh thu/chi phí, tách theo hình thức.
 
     `revenue` = None khi CÓ lần giao thiếu tỷ giá → báo cáo hiển thị "—" thay vì một số sai.
     `by_customer` tách sản lượng/doanh thu theo khách hàng (yêu cầu C1 của khách).
     """
     out: dict[str, dict[str, Any]] = {}
-    for c in deliveries(date_from, date_to, companies, customer_id):
+    for c in deliveries(date_from, date_to, companies, customer_ids):
         acc = out.setdefault(c["company"], {
             "qty": 0.0, "qty_dry": 0.0, "cost": 0.0, "revenue": 0.0, "revenue_missing": False,
             "deliveries": 0, "by_channel": {}, "by_grade": {}, "by_customer": {}, "by_type": {},
@@ -146,15 +147,16 @@ def undelivered_on(as_of: str, companies: list[str] | None = None) -> dict[str, 
     return out
 
 
-def parents_with_progress(companies: list[str] | None = None, *, customer_id: int | None = None,
+def parents_with_progress(companies: list[str] | None = None, *,
+                          customer_ids: list[int] | None = None,
                           status: str | None = None, q: str | None = None,
                           date_from: str | None = None, date_to: str | None = None,
                           ) -> list[dict[str, Any]]:
     """Danh sách HỢP ĐỒNG MẸ kèm tiến độ giao (đã giao / còn lại / số phụ lục) cho màn danh sách."""
     extra, params = [], {}
-    if customer_id is not None:
-        extra.append("customer_id = :cu")
-        params["cu"] = customer_id
+    if customer_ids:
+        extra.append("customer_id = ANY(:cu)")
+        params["cu"] = list(customer_ids)
     if date_from:
         extra.append("(sign_date IS NULL OR sign_date >= CAST(:df AS date))")
         params["df"] = date_from

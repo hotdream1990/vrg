@@ -39,8 +39,16 @@ def clean(row: dict, company: str) -> dict[str, Any]:
 
 
 def list_customers(companies: list[str] | None = None, include_inactive: bool = True,
-                   q: str | None = None) -> list[dict[str, Any]]:
-    """Danh sách khách hàng. `companies=None` = mọi đơn vị (chuyên viên); `[]` = không đơn vị nào."""
+                   q: str | None = None, *, company: str | None = None,
+                   ids: list[int] | None = None, limit: int | None = None) -> list[dict[str, Any]]:
+    """Danh sách khách hàng. `companies=None` = mọi đơn vị (chuyên viên); `[]` = không đơn vị nào.
+
+    `companies` là PHẠM VI QUYỀN (server ép, không bao giờ bỏ qua); `company` là bộ lọc người dùng
+    chọn thêm — hai thứ khác nhau, cùng áp một lúc.
+    `q` tìm theo tên / mã / mã số thuế; `ids` lấy đúng vài khách theo id (ô chọn khách hàng cần
+    tra lại TÊN của các id đang chọn khi chúng không nằm trong trang kết quả tìm kiếm hiện tại);
+    `limit` chặn số dòng trả về cho ô tìm kiếm (danh mục có thể rất dài).
+    """
     ensure_schema()
     where, params = ["1 = 1"], {}
     if companies is not None:
@@ -48,23 +56,36 @@ def list_customers(companies: list[str] | None = None, include_inactive: bool = 
             return []
         where.append("company = ANY(:cs)")
         params["cs"] = list(companies)
+    if company:
+        where.append("company = :co")
+        params["co"] = company
+    if ids is not None:
+        if not ids:
+            return []
+        where.append("id = ANY(:ids)")
+        params["ids"] = [int(i) for i in ids]
     if not include_inactive:
         where.append("is_active")
     if q:
         where.append("(name ILIKE :q OR code ILIKE :q OR tax_code ILIKE :q)")
         params["q"] = f"%{q}%"
+    sql = (f"SELECT {', '.join(_COLS)} FROM unit_customer WHERE {' AND '.join(where)} "
+           "ORDER BY company, name")
+    if limit:
+        sql += " LIMIT :lim"
+        params["lim"] = int(limit)
     with session_scope() as db:
-        rows = db.execute(
-            text(f"SELECT {', '.join(_COLS)} FROM unit_customer WHERE {' AND '.join(where)} "
-                 "ORDER BY company, name"),
-            params,
-        ).mappings().all()
+        rows = db.execute(text(sql), params).mappings().all()
     return [_row(r) for r in rows]
 
 
-def names_by_id(companies: list[str] | None = None) -> dict[int, str]:
-    """{id: tên khách} — dùng để gắn tên khách vào danh sách hợp đồng mà không join thêm."""
-    return {c["id"]: c["name"] for c in list_customers(companies)}
+def names_by_id(companies: list[str] | None = None,
+                ids: list[int] | None = None) -> dict[int, str]:
+    """{id: tên khách} — gắn tên khách vào danh sách hợp đồng/báo cáo mà không join thêm.
+
+    Truyền `ids` để chỉ lấy đúng các khách đang cần (danh mục cả Tập đoàn có thể rất dài).
+    """
+    return {c["id"]: c["name"] for c in list_customers(companies, ids=ids)}
 
 
 def _snapshot(customer_id: int) -> dict[str, Any] | None:

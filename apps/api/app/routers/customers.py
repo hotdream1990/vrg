@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.permissions import LEVEL_EDIT
 from app.core.security import cap_or_member_scope
@@ -29,10 +29,21 @@ def _assert_company(companies: list[str] | None, company: str) -> None:
 
 
 @router.get("")
-def list_customers(scope: Scope, include_inactive: bool = True, q: str | None = None):
-    """Danh sách khách hàng trong phạm vi tài khoản."""
+def list_customers(scope: Scope, include_inactive: bool = True,
+                   q: str | None = Query(None, max_length=120, description="Tìm theo tên/mã/MST"),
+                   company: str | None = Query(None, description="Chỉ khách của 1 đơn vị"),
+                   ids: list[int] | None = Query(None, description="Lấy đúng vài khách theo id"),
+                   limit: int | None = Query(None, ge=1, le=200)):
+    """Danh sách khách hàng trong phạm vi tài khoản — kèm TÌM KIẾM ở server.
+
+    Ô chọn khách hàng trên web gọi endpoint này (`q` + `limit`) thay vì tải cả danh mục về máy:
+    danh mục là của TỪNG đơn vị nên tổng số khách tăng theo số đơn vị, tải hết sẽ ngày càng nặng.
+    """
     _, companies = scope
-    return customer_repo.list_customers(companies, include_inactive, q)
+    if company:
+        _assert_company(companies, company)
+    return customer_repo.list_customers(companies, include_inactive, q,
+                                        company=company, ids=ids, limit=limit)
 
 
 @router.put("")

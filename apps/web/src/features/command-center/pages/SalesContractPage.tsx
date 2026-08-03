@@ -13,6 +13,7 @@ import {
 import { dmy } from "../../../lib/date";
 import { useEditWindow } from "../../../lib/edit-window";
 import { useAuth } from "../../auth/AuthContext";
+import CustomerPicker from "../sections/CustomerPicker";
 import DateInput from "../sections/DateInput";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import ContractDetailModal from "./components/ContractDetailModal";
@@ -85,18 +86,19 @@ export default function SalesContractPage() {
           {!isMember || meta.units.length > 1 ? (
             <label className="blt-date-label">Đơn vị
               <select className="blt-date-input" value={f.company ?? ""}
-                onChange={(e) => setF({ ...f, company: e.target.value || undefined })}>
+                onChange={(e) => setF({
+                  // Đổi đơn vị thì bỏ luôn khách đã chọn — khách là của RIÊNG từng đơn vị, giữ
+                  // lại sẽ ra danh sách rỗng mà người dùng không hiểu vì sao.
+                  ...f, company: e.target.value || undefined, customer_ids: [],
+                })}>
                 <option value="">Tất cả</option>
                 {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
               </select>
             </label>
           ) : null}
           <label className="blt-date-label">Khách hàng
-            <select className="blt-date-input" value={f.customer_id ?? ""}
-              onChange={(e) => setF({ ...f, customer_id: e.target.value ? Number(e.target.value) : null })}>
-              <option value="">Tất cả</option>
-              {meta.customers.map((x) => <option key={x.id} value={x.id as number}>{x.name}</option>)}
-            </select>
+            <CustomerPicker multiple width={320} value={f.customer_ids ?? []} company={f.company}
+              onChange={(ids) => setF({ ...f, customer_ids: ids })} />
           </label>
           <label className="blt-date-label">Trạng thái
             <select className="blt-date-input" value={f.status ?? "all"}

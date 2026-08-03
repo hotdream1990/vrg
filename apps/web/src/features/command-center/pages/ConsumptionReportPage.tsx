@@ -9,6 +9,7 @@ import {
   fetchContractMeta,
 } from "../../../lib/sales-contract-client";
 import { useAuth } from "../../auth/AuthContext";
+import CustomerPicker from "../sections/CustomerPicker";
 import DateInput from "../sections/DateInput";
 import ConsumptionByCustomer from "./components/ConsumptionByCustomer";
 import "../../bulletin/bulletin.css";
@@ -29,7 +30,7 @@ export default function ConsumptionReportPage() {
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(today());
   const [company, setCompany] = useState<string>("");
-  const [customerId, setCustomerId] = useState<number | null>(null);
+  const [customerIds, setCustomerIds] = useState<number[]>([]);
   const [rep, setRep] = useState<ConsumptionReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -38,11 +39,11 @@ export default function ConsumptionReportPage() {
   const load = useCallback(() => {
     if (!from || !to) return;
     setLoading(true); setErr("");
-    fetchConsumption(from, to, company || undefined, customerId)
+    fetchConsumption(from, to, company || undefined, customerIds)
       .then(setRep)
       .catch((e) => setErr(e.message))
       .finally(() => setLoading(false));
-  }, [from, to, company, customerId]);
+  }, [from, to, company, customerIds]);
 
   useEffect(() => { fetchContractMeta().then(setMeta).catch((e) => setErr(e.message)); }, []);
   useEffect(() => { load(); }, [load]);
@@ -71,7 +72,7 @@ export default function ConsumptionReportPage() {
 
   const exportXlsx = async () => {
     setBusy(true); setErr("");
-    try { await downloadConsumptionXlsx(from, to, company || undefined, customerId); }
+    try { await downloadConsumptionXlsx(from, to, company || undefined, customerIds); }
     catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
     finally { setBusy(false); }
   };
@@ -99,27 +100,16 @@ export default function ConsumptionReportPage() {
         {meta && (!isMember || meta.units.length > 1) && (
           <label className="blt-date-label">Đơn vị
             <select className="blt-date-input" value={company}
-              onChange={(e) => { setCompany(e.target.value); setCustomerId(null); }}>
+              onChange={(e) => { setCompany(e.target.value); setCustomerIds([]); }}>
               <option value="">Tất cả</option>
               {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
           </label>
         )}
-        {meta && (
-          <label className="blt-date-label">Khách hàng
-            <select className="blt-date-input" value={customerId ?? ""}
-              onChange={(e) => setCustomerId(e.target.value ? Number(e.target.value) : null)}>
-              <option value="">Tất cả</option>
-              {/* Danh mục tách riêng theo đơn vị nên tên trùng nhau là bình thường → ghi kèm đơn vị. */}
-              {meta.customers.filter((x) => !company || x.company === company)
-                .map((x) => (
-                  <option key={x.id} value={x.id as number}>
-                    {company ? x.name : `${x.name} — ${x.company}`}
-                  </option>
-                ))}
-            </select>
-          </label>
-        )}
+        <label className="blt-date-label">Khách hàng
+          <CustomerPicker multiple width={320} value={customerIds} company={company || undefined}
+            onChange={setCustomerIds} />
+        </label>
         <button className="btn" onClick={load} disabled={loading}>{loading ? "Đang tải…" : "Tải lại"}</button>
         <span style={{ color: "var(--muted)", fontSize: 13 }}>{companies.length} đơn vị</span>
       </div>

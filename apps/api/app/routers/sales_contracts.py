@@ -57,7 +57,11 @@ def _check_date(value: str | None, label: str) -> None:
 
 @router.get("/meta")
 def meta(scope: Scope) -> dict:
-    """Danh mục dùng cho form: đơn vị · chủng loại · hình thức · loại giao · loại tiền · khách hàng."""
+    """Danh mục dùng cho form: đơn vị · chủng loại · hình thức · loại giao · loại tiền.
+
+    KHÔNG kèm danh mục khách hàng: mỗi đơn vị có danh mục riêng nên tổng số khách tăng theo số
+    đơn vị — web dùng ô tìm kiếm gọi `/api/customers?q=` thay vì tải cả danh mục về máy.
+    """
     _, companies = scope
     units = member_unit_repo.list_units(include_inactive=False)
     mine = [u["name"] for u in units] if companies is None else list(companies)
@@ -76,13 +80,12 @@ def meta(scope: Scope) -> dict:
         "delivery_types": DELIVERY_TYPES,
         "contract_types": CONTRACT_TYPES,
         "currencies": list(SALE_CURRENCIES),
-        "customers": customer_repo.list_customers(companies, include_inactive=False),
     }
 
 
 @router.get("")
 def list_contracts(scope: Scope, company: str | None = Query(None),
-                   customer_id: int | None = Query(None),
+                   customer_id: list[int] | None = Query(None, description="Lọc 1 hoặc NHIỀU khách"),
                    status: str = Query("all", pattern="^(all|open|done)$"),
                    date_from: str | None = Query(None, description="Ngày ký từ 'YYYY-MM-DD'"),
                    date_to: str | None = Query(None, description="Ngày ký đến 'YYYY-MM-DD'"),
@@ -95,16 +98,18 @@ def list_contracts(scope: Scope, company: str | None = Query(None),
         _assert_company(companies, company)
         companies = [company]
     rows = sales_contract_report.parents_with_progress(
-        companies, customer_id=customer_id, status=None if status == "all" else status,
+        companies, customer_ids=customer_id, status=None if status == "all" else status,
         q=q, date_from=date_from, date_to=date_to)
-    names = customer_repo.names_by_id(companies)
+    # Chỉ tra tên của đúng những khách xuất hiện trong danh sách — danh mục cả Tập đoàn rất dài.
+    names = customer_repo.names_by_id(companies, sorted({
+        r["customer_id"] for r in rows if r.get("customer_id")}))
     for r in rows:
         r["customer_name"] = names.get(r.get("customer_id") or 0)
     return {"contracts": rows}
 
 
 def _consumption(scope_companies: list[str] | None, date_from: str, date_to: str,
-                 company: str | None, customer_id: int | None) -> dict:
+                 company: str | None, customer_ids: list[int] | None) -> dict:
     """Phần dùng chung của endpoint JSON và endpoint xuất Excel (tránh lệch số giữa 2 nơi)."""
     _check_date(date_from, "Từ ngày")
     _check_date(date_to, "Đến ngày")
@@ -112,18 +117,21 @@ def _consumption(scope_companies: list[str] | None, date_from: str, date_to: str
     if company:
         _assert_company(companies, company)
         companies = [company]
+    by_company = sales_contract_report.consumption(date_from, date_to, companies, customer_ids)
+    # Bảng "tách theo khách hàng" chỉ cần tên của các khách CÓ trong kỳ ("0" = chưa gán khách).
+    shown = sorted({int(k) for c in by_company.values() for k in c["by_customer"] if k != "0"})
     return {
         "date_from": date_from, "date_to": date_to,
-        "by_company": sales_contract_report.consumption(date_from, date_to, companies, customer_id),
+        "by_company": by_company,
         "undelivered": sales_contract_report.undelivered_on(date_to, companies),
-        "customers": {str(c["id"]): c["name"] for c in customer_repo.list_customers(companies)},
+        "customers": {str(i): n for i, n in customer_repo.names_by_id(companies, shown).items()},
     }
 
 
 @router.get("/consumption")
 def consumption(scope: Scope, date_from: str = Query(...), date_to: str = Query(...),
                 company: str | None = Query(None),
-                customer_id: int | None = Query(None)) -> dict:
+                customer_id: list[int] | None = Query(None)) -> dict:
     """TIÊU THỤ trong kỳ — tổng hợp từ các lần giao, KHÔNG còn ô nhập tay."""
     _, companies = scope
     return _consumption(companies, date_from, date_to, company, customer_id)
@@ -145,7 +153,7 @@ _XLSX_COLS: list[tuple[str, str, str]] = [
 @router.get("/consumption.xlsx")
 def consumption_xlsx(scope: Scope, date_from: str = Query(...), date_to: str = Query(...),
                      company: str | None = Query(None),
-                     customer_id: int | None = Query(None)):
+                     customer_id: list[int] | None = Query(None)):
     """Xuất Excel bảng Báo cáo tiêu thụ — dùng CHUNG số liệu với bảng trên web."""
     _, companies = scope
     rep = _consumption(companies, date_from, date_to, company, customer_id)
@@ -211,8 +219,13 @@ def get_contract(contract_id: int, scope: Scope) -> dict:
     else:
         done = c["qty"] if c["delivered_at"] else 0.0
         pending = 0.0 if c["delivered_at"] else c["qty"]
+    # Tên khách trả kèm ở đây (không để web tự tra trong danh mục tải sẵn nữa — danh mục đã bỏ
+    # khỏi /meta): thiếu nó là ô "Khách hàng" trên màn chi tiết luôn hiện "—".
+    names = customer_repo.names_by_id([c["company"]],
+                                      [c["customer_id"]] if c.get("customer_id") else [])
     return {"contract": c, "children": kids, "delivered_qty": done, "pending_qty": pending,
-            "remaining_qty": max(0.0, c["qty"] - done - pending)}
+            "remaining_qty": max(0.0, c["qty"] - done - pending),
+            "customer_name": names.get(c.get("customer_id") or 0)}
 
 
 def _assert_delivery_window(username: str, contract_id: int | None, new_delivered_at: str | None) -> None:

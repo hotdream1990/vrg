@@ -64,7 +64,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
   // Cửa sổ sửa CHỈ áp cho lần giao, mốc là ngày giao — hợp đồng mẹ sửa được suốt vòng đời.
   const { isEditable } = useEditWindow();
   const locked = (deliveredAt: string | null) => !!deliveredAt && !isEditable(deliveredAt);
-  const customer = meta.customers.find((x) => x.id === c?.customer_id);
+  // Tên khách do server trả kèm chi tiết (danh mục khách không còn nằm trong /meta).
 
   return (
     <>
@@ -76,7 +76,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
             {/* Hàng số liệu để NGOÀI tab: đây là thứ người dùng mở hợp đồng ra để xem đầu tiên,
                 cần thấy ngay cả khi đang ở tab phụ lục. */}
             <div className="kpi-row ct-kpi">
-              <div className="kpi"><div className="label">Khách hàng</div><div className="value">{customer?.name ?? "—"}</div></div>
+              <div className="kpi"><div className="label">Khách hàng</div><div className="value">{d.customer_name ?? "—"}</div></div>
               <div className="kpi"><div className="label">Loại hợp đồng</div>
                 <div className="value">{meta.contract_types[c.contract_type ?? ""] ?? "(chưa khai)"}</div></div>
               {/* Nhãn đầy đủ "Giao nhiều lần (hợp đồng mẹ – phụ lục)" vắt 3 dòng làm cao vống cả

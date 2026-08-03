@@ -620,6 +620,12 @@ def test_member_scope_is_enforced(env) -> None:
     try:
         # Đơn vị chỉ thấy đơn vị của mình trong meta.
         assert client.get("/api/sales-contracts/meta", headers=mh).json()["units"] == [UNIT]
+        # Tìm khách hàng cũng bị ép phạm vi: chỉ ra khách CỦA MÌNH, đòi đơn vị khác thì 403.
+        client.put("/api/customers", json={"company": UNIT, "name": "KH của tôi"}, headers=h)
+        client.put("/api/customers", json={"company": UNIT2, "name": "KH đơn vị khác"}, headers=h)
+        seen = client.get("/api/customers?q=KH", headers=mh).json()
+        assert {c["company"] for c in seen} == {UNIT}
+        assert client.get(f"/api/customers?company={UNIT2}", headers=mh).status_code == 403
         # Ghi sang đơn vị khác → 403.
         r = client.put("/api/sales-contracts", json={
             "company": UNIT2, "code": "HD-NO", "delivery_type": "single", "contract_type": "long_term", "sign_date": TODAY,
@@ -627,3 +633,57 @@ def test_member_scope_is_enforced(env) -> None:
         assert r.status_code == 403
     finally:
         client.delete("/api/users/sc_mem", headers=h)
+
+
+def test_customer_search_runs_on_server(env) -> None:
+    """Ô chọn khách tìm Ở SERVER: theo từ khoá/mã · thu hẹp theo đơn vị · cắt theo `limit` · tra theo `ids`.
+
+    Hai đơn vị hay có khách TÊN GẦN GIỐNG nhau (danh mục tách riêng) nên phải lọc được theo đơn vị
+    và tra lại được tên theo id — thiếu hai thứ đó là người dùng chọn nhầm khách của đơn vị khác.
+    """
+    h = env
+    a = client.put("/api/customers", json={"company": UNIT, "name": "SINTEX CHEMICAL CORPORATION"},
+                   headers=h).json()["id"]
+    b = client.put("/api/customers", json={"company": UNIT2, "name": "SINTEX CHEMICAL CORP.",
+                                           "code": "SIN2"}, headers=h).json()["id"]
+    client.put("/api/customers", json={"company": UNIT, "name": "Khách không liên quan"}, headers=h)
+
+    def ids(qs: str) -> set[int]:
+        return {c["id"] for c in client.get(f"/api/customers?{qs}", headers=h).json()}
+
+    assert ids("q=sintex") == {a, b}
+    assert ids(f"q=sintex&company={UNIT2}") == {b}
+    assert ids("q=SIN2") == {b}                       # tìm được cả theo MÃ, không chỉ theo tên
+    assert len(client.get("/api/customers?q=sintex&limit=1", headers=h).json()) == 1
+
+    # Khách đã ẩn: không hiện khi tìm, nhưng tra theo id vẫn ra tên (hợp đồng cũ còn gắn khách đó).
+    client.put("/api/customers", json={"id": b, "company": UNIT2, "name": "SINTEX CHEMICAL CORP.",
+                                       "code": "SIN2", "is_active": False}, headers=h)
+    assert ids("q=sintex&include_inactive=false") == {a}
+    assert ids(f"ids={a}&ids={b}&include_inactive=true") == {a, b}
+
+
+def test_contract_list_filters_by_one_or_many_customers(env) -> None:
+    """Bộ lọc khách hàng nhận 1 HOẶC NHIỀU khách; danh sách trả kèm tên khách cho cột hiển thị."""
+    h = env
+    cid, code = {}, {}
+    for name in ("KH A", "KH B", "KH C"):
+        cid[name] = client.put("/api/customers", json={"company": UNIT, "name": name},
+                               headers=h).json()["id"]
+        code[name] = f"HD-{name[-1]}"
+        client.put("/api/sales-contracts", json={
+            "company": UNIT, "code": code[name], "delivery_type": "single", "contract_type": "spot",
+            "customer_id": cid[name], "sign_date": TODAY, "lines": [_line()]}, headers=h)
+
+    def rows(qs: str) -> list[dict]:
+        return client.get(f"/api/sales-contracts?company={UNIT}&{qs}", headers=h).json()["contracts"]
+
+    assert {r["code"] for r in rows("")} == set(code.values())
+    assert {r["code"] for r in rows(f"customer_id={cid['KH A']}")} == {"HD-A"}
+    assert ({r["code"] for r in rows(f"customer_id={cid['KH A']}&customer_id={cid['KH C']}")}
+            == {"HD-A", "HD-C"})
+
+    one = rows(f"customer_id={cid['KH B']}")[0]
+    assert one["customer_name"] == "KH B"
+    # Màn chi tiết không còn tải sẵn danh mục khách → tên khách phải do server trả kèm.
+    assert client.get(f"/api/sales-contracts/{one['id']}", headers=h).json()["customer_name"] == "KH B"

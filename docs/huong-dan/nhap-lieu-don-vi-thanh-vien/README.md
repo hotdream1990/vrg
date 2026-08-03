@@ -124,6 +124,7 @@ Danh sách các **hợp đồng mẹ** kèm tiến độ giao hàng.
 - **Đã giao** — tổng của các phụ lục đã điền ngày giao.
 - **Chờ giao** — đợt đã mở nhưng chưa tới ngày giao; đây chính là phần “đã ký HĐ chưa giao”.
 - **Chưa mở đợt** — phần cam kết chưa được chia thành phụ lục nào.
+- Lọc theo **Khách hàng**: gõ vài chữ trong tên (hoặc mã khách) để tìm, chọn được **nhiều khách** cùng lúc. Mỗi dòng hiện kèm **tên đơn vị** sở hữu khách đó.
 
 ## 8. Thêm hợp đồng
 
@@ -134,7 +135,7 @@ Danh sách các **hợp đồng mẹ** kèm tiến độ giao hàng.
 *Hình 7. Phiếu thêm hợp đồng*
 
 1. **Số hợp đồng** — bắt buộc, không trùng trong cùng đơn vị.
-2. **Khách hàng** — bắt buộc, chọn từ danh mục ở mục 6.
+2. **Khách hàng** — bắt buộc; gõ vài chữ trong tên (hoặc mã khách) rồi chọn. Danh sách chỉ có khách của chính đơn vị (mục 6).
 3. **Loại hợp đồng** — bắt buộc: *HĐ dài hạn* hay *HĐ chuyến*. Đây là chỉ tiêu của báo cáo, **khác** với Loại giao bên dưới.
 4. **Loại giao** — *Giao 1 lần* (cả hợp đồng giao trọn một lần) hay *Giao nhiều lần* (chia thành nhiều phụ lục).
 5. **Ngày ký** — bắt buộc.
@@ -198,7 +199,7 @@ Bảng **chỉ để xem** — số do hệ thống tổng hợp từ các lần
 
 1. **Bảng tổng hợp** — Lần giao · SL · Quy khô · Xuất khẩu · Trong nước · Nội bộ · Doanh thu · Chi phí · **Chưa giao**.
 
-> - Chọn **Từ ngày / Đến ngày** để đổi kỳ; lọc thêm theo **Khách hàng** nếu cần.
+> - Chọn **Từ ngày / Đến ngày** để đổi kỳ; lọc thêm theo **Khách hàng** (gõ để tìm, chọn được nhiều khách) nếu cần.
 > - Cột **Chưa giao** là số **tại ngày cuối kỳ**, không phải số cộng dồn.
 > - Khối **Theo khách hàng** bên dưới tách sản lượng và doanh thu theo từng khách.
 > - **Xuất Excel** để lấy đúng bảng đang xem.
