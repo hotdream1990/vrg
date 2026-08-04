@@ -1,89 +1,72 @@
 # Thông báo cập nhật hệ thống — gửi VRG
 
-> Soạn 04/08/2026. **Gửi SAU khi đã cập nhật lên hệ thống thật**, điền ngày vào chỗ `__/08/2026`.
-> Bản đầy đủ dùng cho email; bản ngắn ở cuối dùng cho Zalo.
+> Soạn 04/08/2026, theo đúng khuôn thông báo Ban TTKD đã dùng cho đợt 03/08.
+> **Gửi sau khi bản mới đã lên hệ thống thật.** Chỗ cần điền: ngày gửi ở mục 2 và 3.
+> Bản gửi email/Zalo là phần trong khung dưới đây — copy nguyên văn, không kèm phần ghi chú này.
 
 ---
 
-## BẢN ĐẦY ĐỦ (email)
+Kính gửi các anh chị phụ trách công tác báo cáo trên price.vrg.vn của các Công ty,
 
-**Tiêu đề:** Thông báo cập nhật Hệ thống Dự báo & Quản trị Giá Cao su — ngày `__/08/2026`
+Ban Thị trường kinh doanh kính báo các anh chị như sau:
 
-Kính gửi Ban Thương mại Kinh doanh và các đơn vị thành viên,
+**1. Đã hoàn tất nâng cấp phần hợp đồng, tiêu thụ và kế hoạch năm theo góp ý của các đơn vị trong
+buổi làm việc ngày 30/07 và 03/08. Thay đổi chính:**
 
-Theo kết luận cuộc họp ngày 03/08/2026, hệ thống đã được cập nhật theo hướng **chỉ quản lý doanh
-thu** — sản lượng, giá bán và doanh thu. Phần chi phí và lãi/lỗ không còn theo dõi trên hệ thống.
++ Bỏ toàn bộ phần chi phí. Ô "Chi phí lô hàng" trên từng dòng hợp đồng và ô "Chi phí lần thanh toán"
+  đã gỡ khỏi hệ thống — đây là phần hành kế toán, các anh chị không phải khai nữa. Số chi phí đã
+  nhập trước đây cũng được xoá theo.
++ Thêm cột "Thành tiền" trên hợp đồng và phụ lục. Hệ thống tự tính bằng số lượng nhân đơn giá, các
+  anh chị không nhập tay: hiện ở từng dòng chi tiết (theo đúng loại tiền của dòng), tổng của cả hợp
+  đồng, một cột trong danh sách hợp đồng và một ô ở màn chi tiết. Dòng bán bằng ngoại tệ chưa nhập
+  tỷ giá thì thành tiền hiện dấu "—", nhập tỷ giá vào là có số ngay.
++ Thêm bộ lọc theo chủng loại ở màn Báo cáo tiêu thụ và Báo cáo tồn kho, chọn được nhiều chủng loại
+  cùng lúc. Ở Báo cáo tiêu thụ, bộ lọc áp cho cả bảng tổng hợp, khối "Theo khách hàng", cột "Chưa
+  giao" và file Excel xuất ra.
++ Ô chọn Khách hàng nay gõ để tìm, chọn được nhiều khách hàng cùng lúc, và hiện kèm tên đơn vị chủ
+  quản để tránh nhầm giữa các khách hàng trùng tên ở hai đơn vị khác nhau.
 
-### 1. Các đơn vị thành viên
+**2. Về màn Kế hoạch năm — đề nghị các anh chị rà soát ngay trong tuần này:**
 
-**a. Không phải nhập chi phí nữa.** Ô *Chi phí lô hàng* trên từng dòng hợp đồng và ô *Chi phí lần
-thanh toán* đã được gỡ bỏ. Đây là nội dung thuộc phần hành kế toán, đơn vị không phải khai trên hệ
-thống này.
++ Màn Kế hoạch năm nay mở cho tất cả các đơn vị, không còn phải bật/tắt cho từng đơn vị như trước.
++ Ô "Kế hoạch thu mua" chính là công tắc của màn Báo cáo thu mua: đơn vị khai số lớn hơn 0 thì mới
+  thấy màn Thu mua; để trống hoặc khai 0 nghĩa là đơn vị không tổ chức thu mua. **Đơn vị nào có tổ
+  chức thu mua mà chưa khai kế hoạch năm 2026 thì bổ sung ngay**, nếu không sẽ không vào được màn
+  Báo cáo thu mua.
++ Có thêm ô "Kế hoạch tiêu thụ — HĐ chuyến". Đơn vị được giao chỉ tiêu này thì khai vào, hệ thống
+  dùng để tính % thực hiện kế hoạch tiêu thụ trên báo cáo kỳ.
 
-**b. Có thêm cột "Thành tiền".** Hệ thống tự tính = số lượng × đơn giá, đơn vị không nhập tay:
-- trên **từng dòng** của hợp đồng/phụ lục, theo đúng loại tiền của dòng;
-- **tổng của cả hợp đồng** hiện ngay dưới bảng chi tiết, quy về triệu đồng;
-- thêm **một cột** ở danh sách hợp đồng và một ô ở màn chi tiết.
+**3. Cách nhập không đổi, các anh chị tiếp tục công việc như thường lệ:**
 
-Dòng bán bằng ngoại tệ mà chưa nhập tỷ giá thì thành tiền hiện dấu **"—"** (không hiện 0) — nhập tỷ
-giá vào là có số ngay.
++ Thu mua và Tồn kho: giữ nguyên cách nhập theo ngày.
++ Hợp đồng và phụ lục: giữ nguyên cách lập hợp đồng rồi nhập từng phụ lục cho mỗi lần giao. Chỉ bớt
+  đi ô chi phí và thêm ô Thành tiền tự tính.
++ Số tiêu thụ vẫn do hệ thống tự tổng hợp từ các lần giao, các anh chị không nhập tay.
 
-**c. Lọc theo chủng loại.** Màn **Báo cáo tiêu thụ** và **Báo cáo tồn kho** có thêm ô lọc *Chủng
-loại*, chọn được nhiều loại cùng lúc. Ở Báo cáo tiêu thụ, bộ lọc áp cho cả bảng, khối *Theo khách
-hàng*, cột *Chưa giao* và file Excel xuất ra.
+**4. Sau khi nhận thông báo này, đề nghị các anh chị:**
 
-**d. Kế hoạch năm.** Màn *Kế hoạch năm* nay mở cho **mọi đơn vị**. Ô **Kế hoạch thu mua** chính là
-công tắc: khai số **lớn hơn 0** thì đơn vị mới thấy màn *Báo cáo thu mua*; để trống hoặc khai **0**
-nghĩa là đơn vị không tổ chức thu mua. Màn này cũng có thêm ô **Kế hoạch tiêu thụ — HĐ chuyến**
-để đối chiếu % thực hiện trên báo cáo kỳ.
++ Mở lại hệ thống và bấm tổ hợp phím Ctrl + Shift + R (máy Mac là Cmd + Shift + R) để trình duyệt
+  lấy bản mới. Nếu chỉ bấm F5 thì có thể vẫn thấy giao diện cũ.
++ Rà lại kế hoạch thu mua năm 2026 của đơn vị mình theo mục 2 nêu trên.
++ Riêng các đơn vị có bán mủ Latex: nhờ các anh chị xác nhận giúp ô "Số lượng" của Latex đang khai
+  là mủ nước hay đã quy khô, và đơn giá thoả thuận theo tấn ướt hay tấn khô, kèm một hợp đồng Latex
+  thực tế để Ban rà soát trước khi điều chỉnh cách tính doanh thu cho đúng.
 
-### 2. Ban Thương mại Kinh doanh và Quản trị viên
+**5. Tài liệu hướng dẫn đã cập nhật theo giao diện mới, gửi kèm thông báo này, có ảnh minh hoạ từng
+bước:**
 
-- Màn **Đơn vị thành viên** bỏ ô tích *"Có giao KH thu mua"* — việc bật/tắt màn Thu mua của đơn vị
-  nay lấy theo số kế hoạch khai ở màn *Kế hoạch năm*.
-- **Báo cáo kỳ (Excel)** bỏ 4 cột chi phí, thay bằng **Kế hoạch tiêu thụ — HĐ chuyến** và
-  **% thực hiện kế hoạch tiêu thụ** (so với sản lượng tiêu thụ của riêng hợp đồng chuyến).
-- Số liệu chi phí đã nhập trước đây được xoá khỏi hệ thống theo đúng kết luận cuộc họp.
++ Hướng dẫn nhập liệu — Đơn vị thành viên.
++ Hướng dẫn quản trị hệ thống và cấu hình đơn vị thành viên.
 
-### 3. Đề nghị thực hiện sau khi cập nhật
-
-1. **Tải lại trang bằng phím tắt `Ctrl` + `Shift` + `R`** (máy Mac: `Cmd` + `Shift` + `R`). Nếu chỉ
-   bấm F5, trình duyệt có thể vẫn giữ bản cũ.
-2. **Rà lại kế hoạch thu mua năm 2026** ở màn *Kế hoạch năm*: đơn vị nào có tổ chức thu mua mà chưa
-   khai số thì bổ sung, nếu không sẽ không thấy màn *Báo cáo thu mua*.
-3. Bổ sung **Kế hoạch tiêu thụ — HĐ chuyến** cho các đơn vị được giao chỉ tiêu này.
-
-### 4. Nội dung chưa thay đổi trong đợt này
-
-Cách tính doanh thu của **mủ Latex** giữ nguyên (doanh thu = sản lượng × đơn giá). Rất mong các đơn
-vị xác nhận giúp: ô *Số lượng* của Latex đang khai là **mủ nước hay đã quy khô**, và đơn giá thoả
-thuận theo **tấn ướt hay tấn khô** — kèm một hợp đồng Latex thực tế để chúng tôi đối chiếu trước khi
-điều chỉnh.
-
-### 5. Tài liệu hướng dẫn
-
-Hai tài liệu đã cập nhật kèm ảnh minh hoạ mới:
-- *Hướng dẫn nhập liệu — Đơn vị thành viên*
-- *Hướng dẫn quản trị hệ thống & cấu hình đơn vị thành viên*
-
-Trân trọng,
-**Bizino AI × Thái Hưng Infotech**
+Trân trọng cảm ơn các anh chị đã đọc và phối hợp!
 
 ---
 
-## BẢN NGẮN (Zalo / tin nhắn nhóm)
+## Ghi chú nội bộ (KHÔNG gửi kèm)
 
-> 📢 **Cập nhật hệ thống Giá Cao su — ngày `__/08/2026`**
->
-> 1. **Bỏ hẳn phần chi phí** — hợp đồng và phụ lục không còn ô nhập chi phí.
-> 2. **Thêm "Thành tiền"** (số lượng × đơn giá) — hệ thống tự tính ở từng dòng, tổng hợp đồng và
->    danh sách hợp đồng.
-> 3. **Lọc theo chủng loại** ở Báo cáo tiêu thụ và Báo cáo tồn kho.
-> 4. **Kế hoạch năm mở cho mọi đơn vị**; đơn vị có *kế hoạch thu mua > 0* thì mới hiện màn Thu mua.
->    Có thêm ô *Kế hoạch tiêu thụ — HĐ chuyến*.
->
-> ⚠️ Vào lại hệ thống nhớ bấm **Ctrl + Shift + R** (Mac: Cmd + Shift + R) để lấy bản mới.
-> ⚠️ Đơn vị nào có thu mua mà chưa khai kế hoạch năm 2026 thì bổ sung ngay, nếu không sẽ không thấy
-> màn Báo cáo thu mua.
->
-> Hướng dẫn có ảnh minh hoạ mới đã gửi kèm.
+- Mục 2 là cách xử lý êm vụ **VRG Oudomxay** đang để kế hoạch thu mua bằng 0: để các đơn vị tự rà
+  thay vì gọi riêng một đơn vị.
+- Mục 4 gạch đầu dòng cuối là câu hỏi **Latex** còn treo (sản lượng ướt hay quy khô, đơn giá theo
+  tấn nào) — hỏi cả loạt một lần cho đỡ mất công hỏi riêng từng đơn vị.
+- Cách tính doanh thu Latex **giữ nguyên** trong bản này (doanh thu = sản lượng × đơn giá), chờ đơn
+  vị trả lời rồi mới sửa.
