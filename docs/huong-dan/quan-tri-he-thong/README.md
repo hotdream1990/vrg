@@ -140,6 +140,9 @@ Ba nút thao tác nằm ở cột cuối cùng. Bảng rộng nên phải cuộn
 4. Cột **Khu vực** — chọn khu vực cho đơn vị; dùng để gom giá mủ nguyên liệu theo vùng trong bản tin.
 5. Cột **Quốc gia / Tiền** — Việt Nam (VND) · Lào (LAK) · Campuchia (KHR).
 6. Cột **Nhà máy** — *Có nhà máy* hoặc *Không có nhà máy*.
+7. Cột **Công ty mẹ** — gán đơn vị vào NHÓM công ty mẹ – con; chỉ trong cùng nhóm mới bán **Tiêu thụ nội bộ** cho nhau.
+
+> - Đơn vị có thấy màn **Báo cáo thu mua** hay không do **kế hoạch thu mua** ở màn *Kế hoạch năm* quyết định (khai **> 0** thì hiện) — không còn ô bật/tắt ở màn này.
 
 > - **Đổi tên đơn vị giữ nguyên toàn bộ lịch sử giá đã nhập** — cứ đổi khi tên thay đổi, không mất dữ liệu.
 > - Ba cột cấu hình lưu **ngay khi chọn**, không cần bấm nút lưu.

@@ -198,7 +198,8 @@ Bảng **chỉ để xem** — số do hệ thống tổng hợp từ các lần
 
 *Hình 10. Báo cáo tiêu thụ theo kỳ*
 
-1. **Bảng tổng hợp** — Lần giao · SL · Quy khô · Xuất khẩu · Trong nước · Nội bộ · Doanh thu · **Chưa giao**.
+1. **Bộ lọc** — Từ ngày / Đến ngày · Đơn vị · **Khách hàng** (gõ để tìm, chọn nhiều) · **Chủng loại** (chọn nhiều). Bảng, khối theo khách hàng và file Excel đều theo bộ lọc này.
+2. **Bảng tổng hợp** — Lần giao · SL · Quy khô · Xuất khẩu · Trong nước · Nội bộ · Doanh thu · **Chưa giao**.
 
 > - Chọn **Từ ngày / Đến ngày** để đổi kỳ; lọc thêm theo **Khách hàng** (gõ để tìm, chọn được nhiều khách) và theo **Chủng loại** nếu cần.
 > - Cột **Chưa giao** là số **tại ngày cuối kỳ**, không phải số cộng dồn.

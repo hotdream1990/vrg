@@ -67,6 +67,7 @@ def seed(tok: str) -> None:
                    "stock_material": 95.0}})
     call("PUT", "/api/member/plan", tok, {
         "year": TODAY.year, "company": UNIT, "plan_tonnes": 12000,
+        "plan_sales_spot_tonnes": 4500,
         "signed_lt_tonnes": 8200, "carry_lt_tonnes": 350, "carry_spot_tonnes": 120})
     call("PUT", "/api/member/market-demand", tok, {
         "company": UNIT, "as_of": D(0),
@@ -95,9 +96,9 @@ def seed(tok: str) -> None:
     call("PUT", "/api/sales-contracts", tok, {
         "company": UNIT, "parent_id": parent["id"], "code": "PL-01/HĐ-102",
         "start_date": D(12), "delivered_at": D(0), "channel": "export",
-        "payment_date": D(0), "payment_qty": 300, "payment_cost": 145,
+        "payment_date": D(0), "payment_qty": 300,
         "lines": [{"grade": "SVR 10 / CSR 10", "qty": 300, "price": 1620, "ccy": "USD",
-                   "fx": 26150, "cost": 145}]})
+                   "fx": 26150}]})
     call("PUT", "/api/sales-contracts", tok, {
         "company": UNIT, "parent_id": parent["id"], "code": "PL-02/HĐ-102",
         "start_date": D(2), "channel": "export",
@@ -200,6 +201,27 @@ def field_targets(*labels: str) -> str:
     return _targets(FIELD, labels)
 
 
+#: Trộn ô-có-nhãn `f('…')` và tiêu-đề-khối `b('…')` trong CÙNG một ảnh — form hợp đồng cần cả hai
+#: (các ô ở đầu form + khối "Chi tiết hợp đồng" + ô "Thành tiền" nằm trong bảng dòng chi tiết).
+MIXED = """(() => {
+  const modals = [...document.querySelectorAll('.ant-modal')];
+  const root = modals.length ? modals[modals.length - 1] : document;
+  const f = (t) => [...root.querySelectorAll('.form-field')]
+      .find(e => e.textContent.trim().startsWith(t)) || null;
+  const b = (t) => {
+    const hit = [...root.querySelectorAll('label, h3, h4, div, strong, button')]
+        .filter(e => e.textContent.trim().startsWith(t));
+    return hit.length ? hit[hit.length - 1] : null;
+  };
+  return window.__annotate([%s]);
+})()"""
+
+
+def mixed_targets(*items: tuple[str, str]) -> str:
+    """`("f", "Số hợp đồng")` = ô có nhãn · `("b", "Chi tiết hợp đồng")` = tiêu đề khối."""
+    return MIXED % ", ".join(f"{kind}({label!r})" for kind, label in items)
+
+
 def block_targets(*labels: str) -> str:
     return _targets(BLOCK, labels)
 
@@ -300,8 +322,9 @@ def main() -> int:
         shot(f"{WEB}/hop-dong/khach-hang", CONTRACT_LIST, "05-khach-hang.png", wait_for="table")
         shot(f"{WEB}/hop-dong", CONTRACT_LIST, "06-hop-dong-danh-sach.png", wait_for="table")
         shot(f"{WEB}/hop-dong",
-             field_targets("Số hợp đồng", "Khách hàng", "Loại hợp đồng", "Loại giao",
-                           "Ngày ký", "Ngày bắt đầu"),
+             mixed_targets(("f", "Số hợp đồng"), ("f", "Khách hàng"), ("f", "Loại hợp đồng"),
+                           ("f", "Loại giao"), ("f", "Ngày ký"), ("f", "Ngày bắt đầu"),
+                           ("b", "Chi tiết hợp đồng"), ("f", "Thành tiền")),
              "07-hop-dong-form.png", wait_for="table",
              setup=lambda pg: open_modal(pg, "Thêm hợp đồng"))
         shot(f"{WEB}/hop-dong", CONTRACT_DETAIL, "08-hop-dong-chi-tiet.png",
@@ -310,12 +333,24 @@ def main() -> int:
              field_targets("Số phụ lục", "Ngày bắt đầu", "Ngày giao", "Hình thức tiêu thụ"),
              "09-phu-luc-form.png", wait_for="table", setup=open_annex_form)
         shot(f"{WEB}/bao-cao-tieu-thu",
-             "(() => window.__annotate([document.querySelector('table')]))()",
+             "(() => window.__annotate([document.querySelector('.blt-toolbar'),"
+             " document.querySelector('table')]))()",
              "10-bao-cao-tieu-thu.png", wait_for="table")
         shot(f"{WEB}/nhu-cau-thi-truong",
              "(() => window.__annotate([document.querySelector('.card')]))()",
              "11-nhu-cau-thi-truong.png", wait_for=".card")
-        shot(f"{WEB}/ke-hoach-nam", "(() => window.__annotate([document.querySelector('table')]))()",
+        shot(f"{WEB}/ke-hoach-nam",
+             r"""(() => {
+               // Khớp CẢ HAI mảnh chữ: 4 cột đầu đều bắt đầu bằng "HĐ dài hạn"/"Kế hoạch" nên
+               // chỉ dò startsWith sẽ trỏ trùng ô, số bước bị chồng lên nhau.
+               const th = (a, b) => [...document.querySelectorAll('th')].find((e) => {
+                 const t = e.textContent.replace(/\s+/g, ' ').trim();
+                 return t.startsWith(a) && (!b || t.includes(b));
+               });
+               return window.__annotate([th('Kế hoạch thu mua'), th('Kế hoạch tiêu thụ'),
+                                         th('HĐ dài hạn', 'đã ký'),
+                                         th('HĐ dài hạn', 'chuyển sang')]);
+             })()""",
              "12-ke-hoach-nam.png", wait_for="table")
         shot(f"{WEB}/thong-ke-hop-dong",
              "(() => window.__annotate([document.querySelector('.ant-table')]))()",

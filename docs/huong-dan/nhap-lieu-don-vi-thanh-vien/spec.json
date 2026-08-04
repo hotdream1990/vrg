@@ -237,6 +237,7 @@
    },
    "caption": "Hình 10. Báo cáo tiêu thụ theo kỳ",
    "steps": [
+    "**Bộ lọc** — Từ ngày / Đến ngày · Đơn vị · **Khách hàng** (gõ để tìm, chọn nhiều) · **Chủng loại** (chọn nhiều). Bảng, khối theo khách hàng và file Excel đều theo bộ lọc này.",
     "**Bảng tổng hợp** — Lần giao · SL · Quy khô · Xuất khẩu · Trong nước · Nội bộ · Doanh thu · **Chưa giao**."
    ],
    "notes": [
