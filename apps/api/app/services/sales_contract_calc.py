@@ -104,8 +104,27 @@ def _sum(lines, key: str) -> float:
 
 
 def total_qty(lines) -> float:
-    """Tổng sản lượng cam kết/giao (tấn)."""
+    """Tổng sản lượng theo HỢP ĐỒNG (tấn) — với latex/mủ NL là **mủ nước**.
+
+    Dùng cho cam kết & tiến độ giao của hợp đồng và cho THÀNH TIỀN (đơn giá là giá theo tấn nước).
+    """
     return _sum(lines, "qty")
+
+
+def sale_qty(line: dict) -> float:
+    """Sản lượng TIÊU THỤ THỰC TẾ của 1 dòng (tấn) — chốt PA1 ngày 04/08/2026.
+
+    Latex và 2 loại mủ nguyên liệu bán theo **mủ nước** nhưng sản lượng tiêu thụ thực tế là phần
+    **quy khô** → báo cáo lấy quy khô. Chủng loại thành phẩm không có quy khô thì chính SL là số khô.
+    ⚠ KHÁC `total_qty`: tiền vẫn tính trên mủ nước, chỉ SẢN LƯỢNG BÁO CÁO đổi sang quy khô.
+    """
+    dry = _num(line.get("qty_dry"))
+    return dry if dry else (_num(line.get("qty")) or 0.0)
+
+
+def total_sale_qty(lines) -> float:
+    """Tổng sản lượng tiêu thụ thực tế (tấn) — xem `sale_qty`."""
+    return sum(sale_qty(ln) for ln in lines or [])
 
 
 def total_qty_dry(lines) -> float:

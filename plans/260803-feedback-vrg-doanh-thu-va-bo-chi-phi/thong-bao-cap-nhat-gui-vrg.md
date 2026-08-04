@@ -26,11 +26,12 @@ Ban Thị trường kinh doanh kính báo các anh chị như sau:
 **3. Cách nhập không đổi**, các anh chị tiếp tục như thường lệ. Vào lại hệ thống nhớ bấm
 Ctrl + Shift + R (máy Mac: Cmd + Shift + R) để lấy bản mới.
 
-**4. Riêng các đơn vị có bán mủ Latex — Ban xin ý kiến:** trên hợp đồng hiện có hai ô là "Số lượng
-(tấn)" và "Quy khô (tấn)", hệ thống đang tính doanh thu theo ô "Số lượng". Nhờ các anh chị cho biết
-đơn vị mình đang khai ô "Số lượng" là **mủ nước** hay **đã quy khô**, và giá bán ghi trong hợp đồng
-tính trên **tấn mủ nước** hay **tấn quy khô**; gửi kèm một hợp đồng Latex thực tế để Ban đối chiếu.
-Nếu các đơn vị đang khai khác nhau, Ban sẽ thống nhất lại cách tính cho đúng doanh thu.
+**4. Riêng mủ Latex và 2 loại mủ nguyên liệu — thống nhất cách khai:**
+
++ Ô "SL nước (tấn)" là sản lượng **mủ nước**, đơn giá là **giá theo tấn mủ nước** — hệ thống lấy hai
+  số này nhân với nhau ra **Thành tiền**.
++ Ô "Quy khô (tấn)" là phần **sản lượng tiêu thụ thực tế**, hệ thống lấy số này lên các báo cáo tiêu
+  thụ. Vì vậy hai ô đều phải khai đủ và đúng.
 
 **5. Tài liệu hướng dẫn đã cập nhật theo giao diện mới, gửi kèm thông báo này.**
 

@@ -268,6 +268,7 @@ duyệt từng màn đã sửa.
 3. Nhắc mọi người **hard-refresh** (Cmd/Ctrl+Shift+R).
 
 ### Vẫn giữ nguyên, KHÔNG đụng tới
-- **Latex (E1)**: doanh thu vẫn = **SL × đơn giá** (không dùng quy khô). Đổi cách tính khi chưa có
-  câu trả lời là làm sai toàn bộ số doanh thu — chờ đơn vị trả lời + gửi 1 hợp đồng Latex thật.
+- ~~**Latex (E1)**~~ → ✅ **ĐÃ CHỐT 04/08/2026 (PA1)**: ô SL = **mủ nước** (đổi nhãn *SL nước*),
+  **thành tiền = SL nước × đơn giá** (đơn giá là giá theo tấn nước), còn **sản lượng tiêu thụ trên
+  báo cáo lấy theo QUY KHÔ**. Cam kết/tiến độ của hợp đồng vẫn theo SL nước (số ghi trên hợp đồng).
 - **Tàn dư nguồn mủ (E3)**: ô lọc “Nguồn mủ” + 3 cột báo cáo kỳ vẫn còn, chờ khách chốt bỏ/giữ.

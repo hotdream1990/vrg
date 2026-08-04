@@ -712,3 +712,39 @@ def test_cost_is_gone_everywhere(env, cus) -> None:
     rep = client.get(f"/api/unit-daily/period?kind=consumption&date_from={TODAY}&date_to={TODAY}",
                      headers=h).json()
     assert not [k for r in rep.get("rows", []) for k in r if k.startswith("cost")]
+
+
+def test_latex_reports_dry_tonnes_but_bills_wet(env, cus) -> None:
+    """PA1 (04/08/2026): latex bán theo MỦ NƯỚC — tiền tính trên SL nước, SẢN LƯỢNG báo cáo lấy QUY KHÔ.
+
+    Đây là chỗ dễ sai nhất: lẫn hai gốc số thì hoặc doanh thu bị thổi lên (tính tiền trên số nước
+    rồi lại nhân giá khô), hoặc sản lượng tiêu thụ bị đội gấp ~3 lần (báo cáo số mủ nước).
+    """
+    h = env
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-LTX", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": TODAY, "start_date": TODAY, "delivered_at": TODAY,
+        "channel": "domestic",
+        "lines": [_line(grade="LATEX", qty=30.0, qty_dry=10.0, price=20.0)]}, headers=h)
+
+    cons = client.get(f"/api/sales-contracts/consumption?date_from={TODAY}&date_to={TODAY}"
+                      f"&company={UNIT}", headers=h).json()["by_company"][UNIT]
+    assert cons["qty"] == pytest.approx(10.0)                    # sản lượng = QUY KHÔ
+    assert cons["by_grade"]["LATEX"] == pytest.approx(10.0)
+    assert cons["by_channel"]["domestic"] == pytest.approx(10.0)
+    assert cons["revenue"] == pytest.approx(30.0 * 20.0 * 1_000_000)   # tiền = SL NƯỚC × đơn giá
+
+    # Cam kết/tiến độ của hợp đồng vẫn là SL NƯỚC — đó là số ghi trên hợp đồng.
+    row = next(c for c in client.get(f"/api/sales-contracts?company={UNIT}", headers=h)
+               .json()["contracts"] if c["code"] == "HD-LTX")
+    assert row["qty"] == pytest.approx(30.0) and row["delivered_qty"] == pytest.approx(30.0)
+    assert row["revenue"] == pytest.approx(30.0 * 20.0 * 1_000_000)
+
+    # Chủng loại KHÔNG có quy khô: sản lượng báo cáo vẫn là chính nó.
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-SVR", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": TODAY, "start_date": TODAY, "delivered_at": TODAY,
+        "channel": "domestic", "lines": [_line(qty=7.0)]}, headers=h)
+    cons2 = client.get(f"/api/sales-contracts/consumption?date_from={TODAY}&date_to={TODAY}"
+                       f"&company={UNIT}", headers=h).json()["by_company"][UNIT]
+    assert cons2["qty"] == pytest.approx(17.0)                   # 10 (quy khô latex) + 7

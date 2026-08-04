@@ -139,7 +139,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                       <div className="card" style={{ padding: 0, overflow: "auto" }}>
                         <table>
                           <thead><tr>
-                            <th>Chủng loại</th><th className="r">SL (tấn)</th><th className="r">Quy khô</th>
+                            <th>Chủng loại</th><th className="r">SL nước (tấn)</th><th className="r">Quy khô</th>
                             <th className="r">Đơn giá</th><th>Loại tiền</th><th className="r">Thành tiền</th>
                           </tr></thead>
                           <tbody>

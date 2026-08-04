@@ -78,7 +78,11 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
                   {meta.grades.map((g) => <option key={g} value={g}>{g}</option>)}
                 </select>
               </Field>
-              <Field label="SL (tấn)" w={100}>{num(ln.qty, (v) => set(i, { qty: v }))}</Field>
+              {/* Latex + 2 loại mủ nguyên liệu bán theo MỦ NƯỚC — ghi thẳng vào nhãn, vì tiền
+                  tính trên số này còn sản lượng tiêu thụ trên báo cáo lại lấy ô Quy khô. */}
+              <Field label={hasDry ? "SL nước (tấn)" : "SL (tấn)"} w={110}>
+                {num(ln.qty, (v) => set(i, { qty: v }))}
+              </Field>
               {hasDry && (
                 <Field label="Quy khô (tấn)" w={110}>
                   {num(ln.qty_dry, (v) => set(i, { qty_dry: v }), needDry && !ln.qty_dry,
@@ -128,6 +132,9 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
         Đơn giá: bán bằng <b>VNĐ</b> nhập theo <b>triệu đồng/tấn</b>; bán bằng ngoại tệ nhập theo
         <b> ngoại tệ/tấn</b> và phải có tỷ giá quy ra VNĐ. Bán <b>LATEX</b> và 2 loại mủ nguyên liệu
         mới thì <b>bắt buộc nhập quy khô</b> mới lưu được.
+        <br />
+        Với 3 chủng loại đó: <b>SL nước</b> là số để tính <b>thành tiền</b> (đơn giá là giá theo tấn
+        mủ nước), còn <b>sản lượng tiêu thụ trên báo cáo lấy theo số quy khô</b>.
       </div>
     </div>
   );

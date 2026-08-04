@@ -39,9 +39,10 @@ def _fetch(companies: list[str] | None, extra: list[str] | None = None,
 
 
 def _by_grade(lines) -> dict[str, float]:
+    """{chủng loại: sản lượng TIÊU THỤ THỰC TẾ} — latex/mủ NL tính theo QUY KHÔ (xem `calc.sale_qty`)."""
     out: dict[str, float] = {}
     for ln in lines or []:
-        out[ln.get("grade") or ""] = out.get(ln.get("grade") or "", 0.0) + (ln.get("qty") or 0.0)
+        out[ln.get("grade") or ""] = out.get(ln.get("grade") or "", 0.0) + calc.sale_qty(ln)
     return out
 
 
@@ -74,6 +75,11 @@ def deliveries(date_from: str, date_to: str, companies: list[str] | None = None,
         rows = [r for r in rows if r.get("customer_id") in keep]
     if grades:
         rows = _only_grades(rows, grades)
+    # Số SẢN LƯỢNG của mọi báo cáo tiêu thụ lấy theo QUY KHÔ khi dòng có quy khô (PA1 — 04/08/2026).
+    # Ghi đè ngay tại đây để mọi nơi đọc `deliveries()` (báo cáo kỳ, thống kê, tiêu thụ) cùng một số;
+    # `revenue` vẫn tính trên mủ nước nên KHÔNG đụng tới.
+    for r in rows:
+        r["qty"] = calc.total_sale_qty(r["lines"])
     return rows
 
 
@@ -89,7 +95,7 @@ def _only_grades(rows: list[dict[str, Any]], grades: list[str]) -> list[dict[str
         if not lines:
             continue
         out.append({**r, "lines": lines,
-                    "qty": calc.total_qty(lines), "qty_dry": calc.total_qty_dry(lines),
+                    "qty": calc.total_sale_qty(lines), "qty_dry": calc.total_qty_dry(lines),
                     "revenue": calc.total_revenue_vnd(lines)})
     return out
 

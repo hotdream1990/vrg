@@ -145,7 +145,7 @@ def _delivery_rows(date_from: str, date_to: str, companies: list[str] | None,
     Không có 2 mảng cũ nữa nên `source` để trống và `contract` lấy theo loại giao của hợp đồng;
     các cột còn lại giữ đúng khuôn dòng cũ để màn Thống kê tiêu thụ dùng chung một bảng.
     """
-    from app.services import sales_contract_report
+    from app.services import sales_contract_calc, sales_contract_report
 
     out: list[dict[str, Any]] = []
     for d in sales_contract_report.deliveries(date_from, date_to, companies):
@@ -154,11 +154,13 @@ def _delivery_rows(date_from: str, date_to: str, companies: list[str] | None,
         for ln in d.get("lines") or []:
             ccy = ln.get("ccy") or "VND"
             fx = _num(ln.get("fx"))
-            qty = _num(ln.get("qty"))
-            rev = (qty * _num(ln.get("price")) * TRIEU
-                   if ccy == "VND" and qty is not None and _num(ln.get("price")) is not None
-                   else (qty * _num(ln.get("price")) * fx
-                         if qty is not None and _num(ln.get("price")) is not None and fx else None))
+            # Sản lượng BÁO CÁO = quy khô khi có (PA1); doanh thu vẫn tính trên MỦ NƯỚC.
+            qty_wet = _num(ln.get("qty"))
+            qty = sales_contract_calc.sale_qty(ln)
+            rev = (qty_wet * _num(ln.get("price")) * TRIEU
+                   if ccy == "VND" and qty_wet is not None and _num(ln.get("price")) is not None
+                   else (qty_wet * _num(ln.get("price")) * fx
+                         if qty_wet is not None and _num(ln.get("price")) is not None and fx else None))
             out.append({
                 **base, "source": "contract", "code": d.get("code"),
                 # Loại HỢP ĐỒNG (dài hạn/chuyến) — KHÔNG lấy `delivery_type` (loại GIAO): suy từ đó

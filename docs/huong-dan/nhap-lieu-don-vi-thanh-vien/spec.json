@@ -170,10 +170,11 @@
     "**Loại giao** — “Giao 1 lần” (cả hợp đồng giao trọn một lần) hay “Giao nhiều lần” (chia thành nhiều phụ lục).",
     "**Ngày ký** — bắt buộc.",
     "**Ngày bắt đầu (mở đợt)** — ngày hàng bắt đầu gom vào kho cho đợt này; chỉ hiện với hợp đồng giao 1 lần.",
-    "**Chi tiết hợp đồng** — mỗi chủng loại một dòng. Ô **Quy khô** chỉ hiện với latex và mủ nguyên liệu; ô **Tỷ giá** chỉ hiện khi dòng bán bằng ngoại tệ.",
+    "**Chi tiết hợp đồng** — mỗi chủng loại một dòng (ô SL đổi nhãn thành *SL nước* với latex và mủ nguyên liệu). Ô **Quy khô** chỉ hiện với latex và mủ nguyên liệu; ô **Tỷ giá** chỉ hiện khi dòng bán bằng ngoại tệ.",
     "**Thành tiền** — ô CHỈ ĐỌC ở cuối mỗi dòng (= số lượng × đơn giá, theo đúng loại tiền của dòng). Tổng thành tiền của hợp đồng hiện ngay dưới bảng, quy về triệu đồng."
    ],
    "notes": [
+    "**LATEX và 2 loại mủ nguyên liệu bán theo MỦ NƯỚC:** ô *SL nước (tấn)* là số để tính **Thành tiền** (đơn giá là giá theo tấn mủ nước), còn **sản lượng tiêu thụ trên báo cáo lấy theo ô *Quy khô***. Vì vậy hai ô này phải khai đủ và đúng.",
     "Bán bằng **VNĐ** nhập đơn giá theo **triệu đồng/tấn**; bán bằng **ngoại tệ** nhập theo **ngoại tệ/tấn** và **phải có tỷ giá** quy ra VNĐ, nếu không doanh thu sẽ hiện “—”.",
     "Bán **LATEX** và 2 loại mủ nguyên liệu thì **bắt buộc nhập quy khô** mới lưu được.",
     "Hợp đồng **giao 1 lần**: điền **Ngày giao** ngay trên hợp đồng khi đã giao xong.",
@@ -241,6 +242,7 @@
     "**Bảng tổng hợp** — Lần giao · SL · Quy khô · Xuất khẩu · Trong nước · Nội bộ · Doanh thu · **Chưa giao**."
    ],
    "notes": [
+    "Cột **SL (tấn)** là sản lượng tiêu thụ thực tế: latex và mủ nguyên liệu tính theo **quy khô**, các chủng loại thành phẩm tính theo chính số lượng bán.",
     "Chọn **Từ ngày / Đến ngày** để đổi kỳ; lọc thêm theo **Khách hàng** và **Chủng loại** (gõ để tìm, chọn được nhiều khách) và theo **Chủng loại** nếu cần.",
     "Cột **Chưa giao** là số **tại ngày cuối kỳ**, không phải số cộng dồn.",
     "Khối **Theo khách hàng** bên dưới tách sản lượng và doanh thu theo từng khách.",
