@@ -18,7 +18,6 @@ export type StatsFilters = {
   materials?: string[];      // thu mua: latex | cup | finished
   contract?: string[];       // tiêu thụ: long_term | spot
   channel?: string[];        // tiêu thụ: export | domestic
-  source?: string[];         // tiêu thụ: sales (mủ thu mua) | sales_own (mủ khai thác)
   groupBy: string;
 };
 
@@ -50,7 +49,6 @@ export function statsQuery(f: StatsFilters): string {
   put("materials", f.materials);
   put("contract", f.contract);
   put("channel", f.channel);
-  put("source", f.source);
   return p.toString();
 }
 

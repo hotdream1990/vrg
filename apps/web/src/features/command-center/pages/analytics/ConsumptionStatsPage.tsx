@@ -52,21 +52,22 @@ const KPIS: Kpi[] = [
   { key: "lines", label: "Số dòng bán", unit: "dòng" },
 ];
 
-// Ngoài chuỗi drill còn xem nhanh theo chủng loại / loại HĐ / hình thức / nguồn mủ.
+// Ngoài chuỗi drill còn xem nhanh theo chủng loại / loại HĐ / hình thức.
+// KHÔNG còn nhóm/lọc theo "nguồn mủ" (mủ thu mua ↔ mủ khai thác): từ 30/07/2026 tiêu thụ tính từ
+// lần giao của hợp đồng nên không tách 2 nguồn nữa, số liệu mới luôn rơi vào một nhãn duy nhất.
 const GROUPS = [
   ...(["region", "company", "day", "grade"] as const).map((v) => ({ value: v, label: DIM_LABEL[v] })),
   { value: "contract", label: "Loại HĐ" },
   { value: "channel", label: "Hình thức HĐ" },
-  { value: "source", label: "Nguồn mủ" },
   { value: "none", label: "Chi tiết từng dòng" },
 ];
 /** Các cách nhóm KHÔNG nằm trong chuỗi drill → chỉ để xem, không bấm sâu tiếp được. */
-const OFF_CHAIN = new Set(["contract", "channel", "source", "none"]);
+const OFF_CHAIN = new Set(["contract", "channel", "none"]);
 
 export default function ConsumptionStatsPage() {
   const catalog = useFilterCatalog();
   const [base, setBase] = useState<StatsFilters>(
-    { ...initialFilters("region"), contract: [], channel: [], source: [] });
+    { ...initialFilters("region"), contract: [], channel: [] });
   const [groupOverride, setGroupOverride] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const drill = useDrill(CHAINS.consumption);
@@ -98,7 +99,7 @@ export default function ConsumptionStatsPage() {
           <h2><ExportOutlined style={{ marginRight: 8 }} />Thống kê tiêu thụ</h2>
           <p>
             Toàn Tập đoàn → <b>khu vực</b> → <b>công ty</b> → <b>ngày</b> → <b>từng dòng bán</b>.
-            Lọc thêm theo chủng loại · loại HĐ · hình thức HĐ · nguồn mủ.
+            Lọc thêm theo chủng loại · loại HĐ · hình thức HĐ.
             Dòng bán bằng USD thiếu tỷ giá không được tính vào doanh thu.
           </p>
         </div>
@@ -113,8 +114,6 @@ export default function ConsumptionStatsPage() {
                          value={base.contract ?? []} onChange={(v) => change({ ...base, contract: v })} />
             <MultiSelect placeholder="Tất cả hình thức" options={catalog?.channels ?? []} width={175}
                          value={base.channel ?? []} onChange={(v) => change({ ...base, channel: v })} />
-            <MultiSelect placeholder="Tất cả nguồn mủ" options={catalog?.sources ?? []} width={180}
-                         value={base.source ?? []} onChange={(v) => change({ ...base, source: v })} />
           </>
         }
         onReload={reload} onExport={exportXlsx} loading={loading} exporting={saving}
