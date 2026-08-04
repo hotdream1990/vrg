@@ -1,7 +1,7 @@
-# Thông báo cập nhật hệ thống — gửi VRG
+# Thông báo cập nhật hệ thống — BẢN GỬI (04/08/2026)
 
-> Soạn 04/08/2026, theo khuôn thông báo Ban TTKD. **Gửi sau khi bản mới đã lên hệ thống thật.**
-> Copy nguyên phần trong khung, bỏ phần ghi chú nội bộ ở cuối.
+> Hệ thống đã cập nhật xong (bản 0.3.4, chiều 04/08/2026). Copy nguyên phần trong khung, gửi kèm
+> **2 file Word hướng dẫn** đã cập nhật ảnh mới. Phần ghi chú nội bộ ở cuối KHÔNG gửi.
 
 ---
 
@@ -43,5 +43,7 @@ Trân trọng cảm ơn các anh chị đã đọc và phối hợp!
 
 - Mục 2 là cách xử êm vụ **VRG Oudomxay** đang để kế hoạch thu mua bằng 0 — để các đơn vị tự rà,
   không gọi đích danh.
-- Mục 4 là câu hỏi **Latex** còn treo. Cách tính doanh thu Latex **giữ nguyên** trong bản này
-  (doanh thu = sản lượng × đơn giá), chờ đơn vị trả lời rồi mới sửa.
+- File đính kèm: `Huong-dan-nhap-lieu-don-vi-thanh-vien.docx` (gửi các đơn vị) và
+  `Huong-dan-quan-tri-he-thong.docx` (gửi Ban TTKD / quản trị viên).
+- Đã bỏ ô lọc "nguồn mủ" ở màn Thống kê tiêu thụ — không nhắc trong thông báo vì đơn vị thành viên
+  không dùng màn đó.
