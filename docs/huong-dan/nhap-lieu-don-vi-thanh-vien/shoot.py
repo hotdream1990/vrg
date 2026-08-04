@@ -256,6 +256,15 @@ CONTRACT_DETAIL = """(() => {
 })()"""
 
 
+def open_contract_form(page) -> None:
+    """Form hợp đồng, dòng đầu chọn sẵn LATEX — có vậy ảnh mới hiện đúng cặp ô "SL nước (tấn)" +
+    "Quy khô (tấn)" của 3 chủng loại bán theo mủ nước (chốt PA1). Để trống chủng loại thì nhãn chỉ
+    là "SL (tấn)", người đọc hướng dẫn không thấy được chỗ khác biệt."""
+    open_modal(page, "Thêm hợp đồng")
+    page.locator(".ct-line select").first.select_option(label="LATEX")
+    page.wait_for_timeout(400)
+
+
 def open_detail(page) -> None:
     """Mở màn chi tiết của hợp đồng giao-nhiều-lần (bấm Xem trên bảng danh sách)."""
     page.add_style_tag(content=".ant-modal,.ant-modal-mask{opacity:1!important;"
@@ -325,8 +334,7 @@ def main() -> int:
              mixed_targets(("f", "Số hợp đồng"), ("f", "Khách hàng"), ("f", "Loại hợp đồng"),
                            ("f", "Loại giao"), ("f", "Ngày ký"), ("f", "Ngày bắt đầu"),
                            ("b", "Chi tiết hợp đồng"), ("f", "Thành tiền")),
-             "07-hop-dong-form.png", wait_for="table",
-             setup=lambda pg: open_modal(pg, "Thêm hợp đồng"))
+             "07-hop-dong-form.png", wait_for="table", setup=open_contract_form)
         shot(f"{WEB}/hop-dong", CONTRACT_DETAIL, "08-hop-dong-chi-tiet.png",
              wait_for="table", setup=open_detail)
         shot(f"{WEB}/hop-dong",

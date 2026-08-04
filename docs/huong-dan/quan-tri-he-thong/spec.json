@@ -51,7 +51,7 @@
     "**Thêm tài khoản** — tạo tài khoản mới.",
     "**Vai trò** — một trong bốn vai trò (xem bảng bên dưới).",
     "**Quyền / Đơn vị** — chuyên viên hiện danh sách quyền; đơn vị thành viên hiện tên đơn vị được gán.",
-    "**Trạng thái** — *Đang dùng* hoặc *Đã khoá*."
+    "**Trạng thái** — **Đang dùng** hoặc **Đã khoá**."
    ],
    "pre": "Bốn vai trò:",
    "notes": [
@@ -74,13 +74,13 @@
    "steps": [
     "**Tên đăng nhập** — nên dùng email công việc, tối thiểu 3 ký tự.",
     "**Mật khẩu** — tối thiểu 6 ký tự; nhắc người dùng tự đổi sau lần đăng nhập đầu.",
-    "**Vai trò** — chọn *Chuyên viên nhập liệu*.",
+    "**Vai trò** — chọn **Chuyên viên nhập liệu**.",
     "**Quyền theo mục** — tích các mục được phép. Danh sách chia ba nhóm: Quản lý số liệu (tự động) · Quản lý số liệu (thủ công) · Phân tích & Bản tin.",
     "Kéo xuống cuối cửa sổ, bấm **Lưu**."
    ],
    "notes": [
     "**Không tích mục nào thì tài khoản gần như trống** — đăng nhập được nhưng menu không có gì để làm.",
-    "Quyền **Báo cáo tiêu thụ - tồn kho** cho phép xem/sửa số liệu của **mọi** đơn vị, gồm cả màn *Báo cáo tổng hợp*. Chỉ cấp cho người thực sự cần tổng hợp toàn Tập đoàn.",
+    "Quyền **Báo cáo tiêu thụ - tồn kho** cho phép xem/sửa số liệu của **mọi** đơn vị, gồm cả màn **Báo cáo tổng hợp**. Chỉ cấp cho người thực sự cần tổng hợp toàn Tập đoàn.",
     "Quyền **Đơn vị thành viên** cho phép sửa danh mục đơn vị (mục 7) — nên giữ ở phạm vi hẹp."
    ]
   },
@@ -96,7 +96,7 @@
    "caption": "Hình 4. Tạo tài khoản cho công ty thành viên và gán đơn vị",
    "steps": [
     "**Tên đăng nhập** — thường dùng email của phòng Kế hoạch – Kinh doanh đơn vị.",
-    "**Vai trò** — chọn *Đơn vị thành viên*. Khi chọn xong, ô “Quyền theo mục” biến mất và thay bằng ô chọn đơn vị.",
+    "**Vai trò** — chọn **Đơn vị thành viên**. Khi chọn xong, ô “Quyền theo mục” biến mất và thay bằng ô chọn đơn vị.",
     "**Đơn vị thành viên** — chọn một hoặc nhiều đơn vị mà tài khoản này được phép nhập.",
     "Bấm **Lưu**."
    ],
@@ -117,9 +117,9 @@
    },
    "caption": "Hình 5. Cửa sổ sửa tài khoản",
    "steps": [
-    "**Vai trò** — đổi vai trò nếu cần (đổi sang *Đơn vị thành viên* thì phải gán đơn vị).",
+    "**Vai trò** — đổi vai trò nếu cần (đổi sang **Đơn vị thành viên** thì phải gán đơn vị).",
     "**Quyền theo mục** — tích thêm hoặc bỏ tích để thu hồi quyền.",
-    "**Trạng thái** — chuyển *Đã khoá* để chặn đăng nhập mà vẫn giữ lịch sử số liệu đã nhập."
+    "**Trạng thái** — chuyển **Đã khoá** để chặn đăng nhập mà vẫn giữ lịch sử số liệu đã nhập."
    ],
    "notes": [
     "**Ưu tiên khoá thay vì xoá** khi cán bộ nghỉ việc — xoá tài khoản sẽ mất dấu vết người nhập.",
@@ -143,7 +143,7 @@
    ],
    "notes": [
     "Nút **Xoá** ở dòng của chính bạn bị vô hiệu hoá — hệ thống không cho tự xoá tài khoản đang đăng nhập.",
-    "Sau khi đặt lại mật khẩu, báo lại cho người dùng và nhắc họ tự đổi ở mục *Hồ sơ cá nhân*."
+    "Sau khi đặt lại mật khẩu, báo lại cho người dùng và nhắc họ tự đổi ở mục **Hồ sơ cá nhân**."
    ]
   },
   {
@@ -162,14 +162,14 @@
     "Ô **Tên đơn vị mới** + nút **Thêm đơn vị** — khai báo đơn vị mới.",
     "Cột **Khu vực** — chọn khu vực cho đơn vị; dùng để gom giá mủ nguyên liệu theo vùng trong bản tin.",
     "Cột **Quốc gia / Tiền** — Việt Nam (VND) · Lào (LAK) · Campuchia (KHR).",
-    "Cột **Nhà máy** — *Có nhà máy* hoặc *Không có nhà máy*.",
+    "Cột **Nhà máy** — **Có nhà máy** hoặc **Không có nhà máy**.",
     "Cột **Công ty mẹ** — gán đơn vị vào NHÓM công ty mẹ – con; chỉ trong cùng nhóm mới bán **Tiêu thụ nội bộ** cho nhau."
    ],
    "notes": [
     "**Đổi tên đơn vị giữ nguyên toàn bộ lịch sử giá đã nhập** — cứ đổi khi tên thay đổi, không mất dữ liệu.",
     "Ba cột cấu hình lưu **ngay khi chọn**, không cần bấm nút lưu.",
     "Nút **Ẩn** dùng cho đơn vị ngừng hoạt động: không còn hiện ở ô chọn nhưng số liệu cũ vẫn giữ. An toàn hơn **Xoá**.",
-    "Đơn vị có thấy màn **Báo cáo thu mua** hay không do **kế hoạch thu mua** ở màn *Kế hoạch năm* quyết định (khai **> 0** thì hiện) — không còn ô bật/tắt ở màn này."
+    "Đơn vị có thấy màn **Báo cáo thu mua** hay không do **kế hoạch thu mua** ở màn **Kế hoạch năm** quyết định (khai **> 0** thì hiện) — không còn ô bật/tắt ở màn này."
    ]
   },
   {
@@ -183,9 +183,9 @@
    },
    "caption": "Hình 8. Các đơn vị tại Lào (LAK) và Campuchia (KHR)",
    "steps": [
-    "Cột **Khu vực** — đơn vị ngoài nước thường để *Chưa gán*.",
-    "Cột **Quốc gia / Tiền** — chọn *Lào (LAK)* hoặc *Campuchia (KHR)*.",
-    "Cột **Nhà máy** — chọn *Không có nhà máy* nếu đơn vị chưa có nhà máy chế biến."
+    "Cột **Khu vực** — đơn vị ngoài nước thường để **Chưa gán**.",
+    "Cột **Quốc gia / Tiền** — chọn **Lào (LAK)** hoặc **Campuchia (KHR)**.",
+    "Cột **Nhà máy** — chọn **Không có nhà máy** nếu đơn vị chưa có nhà máy chế biến."
    ],
    "pre": "Hệ quả của từng lựa chọn:",
    "notes": [
@@ -205,13 +205,13 @@
    },
    "caption": "Hình 9. Tab Khu vực",
    "steps": [
-    "Ô **Tên khu vực mới** — nhập tên vùng, vd *Bình Dương*.",
+    "Ô **Tên khu vực mới** — nhập tên vùng, vd **Bình Dương**.",
     "Bấm **Thêm khu vực**.",
     "Mỗi dòng có nút **↑ ↓** đổi thứ tự hiển thị, **Đổi tên**, **Ẩn**, **Xoá**."
    ],
    "notes": [
-    "Tạo khu vực xong mới gán được cho đơn vị ở tab *Đơn vị* (mục 7).",
-    "**Xoá một khu vực sẽ gỡ gán** ở tất cả đơn vị đang thuộc khu vực đó — cân nhắc dùng *Ẩn* thay vì *Xoá*.",
+    "Tạo khu vực xong mới gán được cho đơn vị ở tab **Đơn vị** (mục 7).",
+    "**Xoá một khu vực sẽ gỡ gán** ở tất cả đơn vị đang thuộc khu vực đó — cân nhắc dùng **Ẩn** thay vì **Xoá**.",
     "Đơn vị chưa gán khu vực sẽ **không xuất hiện** trong phần giá mủ nguyên liệu gom theo vùng của bản tin."
    ]
   },
@@ -233,8 +233,8 @@
     "Bấm **Lưu cấu hình**."
    ],
    "notes": [
-    "**Khoá API và mật khẩu luôn bị che**, chỉ hiện nhãn *Đã đặt*. **Để trống nghĩa là giữ nguyên giá trị cũ** — chỉ nhập khi thực sự muốn thay.",
-    "Tab **Cửa sổ nhập liệu** có hai thông số độc lập cho đơn vị thành viên và cho chuyên viên (mặc định 7 ngày). Quá số ngày này, dòng số liệu chuyển sang *(chỉ xem)*.",
+    "**Khoá API và mật khẩu luôn bị che**, chỉ hiện nhãn **Đã đặt**. **Để trống nghĩa là giữ nguyên giá trị cũ** — chỉ nhập khi thực sự muốn thay.",
+    "Tab **Cửa sổ nhập liệu** có hai thông số độc lập cho đơn vị thành viên và cho chuyên viên (mặc định 7 ngày). Quá số ngày này, dòng số liệu chuyển sang **(chỉ xem)**.",
     "Quản trị viên không bị giới hạn bởi cửa sổ nhập liệu."
    ]
   },
@@ -252,7 +252,7 @@
     "**Tác vụ** — tên và mục đích của từng tác vụ.",
     "**Giờ chạy (hàng ngày)** — đặt giờ chạy.",
     "**Bật** — bật/tắt từng tác vụ.",
-    "**Lần chạy gần nhất** — kết quả lần chạy vừa rồi: *Thành công* · *Lỗi* · *Không có dữ liệu* · *Đang chạy*."
+    "**Lần chạy gần nhất** — kết quả lần chạy vừa rồi: **Thành công** · **Lỗi** · **Không có dữ liệu** · **Đang chạy**."
    ],
    "notes": [
     "Trạng thái **Không có dữ liệu** thường gặp vào thứ Bảy, Chủ nhật và ngày lễ — các sàn nghỉ giao dịch, không phải lỗi hệ thống.",
