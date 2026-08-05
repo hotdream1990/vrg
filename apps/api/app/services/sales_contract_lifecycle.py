@@ -126,13 +126,13 @@ def set_delivery_type(contract_id: int, delivery_type: str, companies: list[str]
     return after
 
 
-def _unique_code(db, company: str, base: str) -> str:
-    """Số đợt giao chưa dùng trong đơn vị — số hợp đồng/đợt giao không được trùng."""
+def _unique_code(db, parent_id: int, base: str) -> str:
+    """Số đợt giao chưa dùng TRONG HỢP ĐỒNG này — số đợt chỉ cần duy nhất ở phạm vi hợp đồng."""
     for i in range(1, 100):
         code = f"{base}{i}"
-        taken = db.execute(text("SELECT 1 FROM sales_contract WHERE company = :c "
+        taken = db.execute(text("SELECT 1 FROM sales_contract WHERE parent_id = :p "
                                 "AND lower(code) = lower(:k) LIMIT 1"),
-                           {"c": company, "k": code}).scalar()
+                           {"p": parent_id, "k": code}).scalar()
         if not taken:
             return code
     raise ValueError("Không tạo được số đợt giao (đã thử 99 số) — đổi số hợp đồng rồi thử lại.")
@@ -145,7 +145,7 @@ def _move_delivery_to_batch(db, contract: dict[str, Any], username: str | None) 
     ở lại hợp đồng vì đó là chứng từ cấp hợp đồng, không phải của đợt.
     """
     cols = ", ".join(_BATCH_COLS)
-    code = _unique_code(db, contract["company"], f"{contract['code']}-Đợt ")
+    code = _unique_code(db, contract["id"], f"{contract['code']}-Đợt ")
     db.execute(text(
         f"INSERT INTO sales_contract (company, parent_id, code, delivery_type, lines, delivered, "
         f" {cols}, note, updated_by) "

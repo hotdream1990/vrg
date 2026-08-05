@@ -168,13 +168,19 @@ def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
             if kids:
                 _assert_within_cap(_batches_qty(db, d["id"], None), calc.total_qty(d["lines"]),
                                    "Tổng các đợt giao")
-        # Trùng số hợp đồng trong cùng đơn vị → chặn: lưu lại do mạng chập chờn sẽ nhân đôi sản lượng.
+        # Trùng số → chặn: lưu lại do mạng chập chờn sẽ nhân đôi sản lượng. Phạm vi kiểm phải theo
+        # ĐÚNG cấp: số hợp đồng là duy nhất trong ĐƠN VỊ, còn số đợt giao đánh lại từ 1 ở MỖI hợp
+        # đồng — kiểm cả đơn vị thì đợt "2" của hợp đồng này đụng đợt "2" của hợp đồng khác.
         dup = db.execute(text(
-            "SELECT 1 FROM sales_contract WHERE company = :c AND lower(code) = lower(:k) "
-            "AND (CAST(:i AS bigint) IS NULL OR id <> CAST(:i AS bigint)) LIMIT 1"),
-            {"c": company, "k": d["code"], "i": d["id"]}).scalar()
+            "SELECT 1 FROM sales_contract WHERE lower(code) = lower(:k) "
+            " AND ((CAST(:p AS bigint) IS NULL AND parent_id IS NULL AND company = :c) "
+            "   OR (CAST(:p AS bigint) IS NOT NULL AND parent_id = CAST(:p AS bigint))) "
+            " AND (CAST(:i AS bigint) IS NULL OR id <> CAST(:i AS bigint)) LIMIT 1"),
+            {"c": company, "p": d["parent_id"], "k": d["code"], "i": d["id"]}).scalar()
         if dup:
-            raise ValueError(f"Đơn vị đã có hợp đồng/đợt giao số “{d['code']}”.")
+            raise ValueError(f"Hợp đồng này đã có đợt giao số “{d['code']}”."
+                             if d["parent_id"] is not None else
+                             f"Đơn vị đã có hợp đồng số “{d['code']}”.")
 
         if d["parent_id"] is not None:
             parent = _parent_of(db, d["parent_id"])

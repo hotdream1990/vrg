@@ -502,6 +502,38 @@ def test_invalid_inputs_are_rejected_not_coerced(env, cus) -> None:
     assert r.status_code == 400
 
 
+def test_batch_number_restarts_at_one_in_every_contract(env, cus) -> None:
+    """Số đợt giao chỉ cần duy nhất TRONG hợp đồng — mọi hợp đồng đều đánh đợt 1, 2, 3…
+
+    Kiểm trùng theo cả đơn vị thì đơn vị nào cũng chỉ nhập được đợt "2" đúng một lần trong đời.
+    """
+    h = env
+    base = {"company": UNIT, "delivery_type": "multi", "contract_type": "long_term",
+            "customer_id": cus, "sign_date": YESTERDAY, "lines": [_line(qty=100.0)]}
+    hd1 = client.put("/api/sales-contracts", json={**base, "code": "HD-B1"},
+                     headers=h).json()["contract"]
+    hd2 = client.put("/api/sales-contracts", json={**base, "code": "HD-B2"},
+                     headers=h).json()["contract"]
+
+    def batch(parent_id: int, code: str):
+        return client.put("/api/sales-contracts", json={
+            "company": UNIT, "parent_id": parent_id, "code": code, "delivered_at": TODAY,
+            "channel": "domestic", "lines": [_line(qty=10.0)]}, headers=h)
+
+    assert batch(hd1["id"], "1").status_code == 200
+    assert batch(hd1["id"], "2").status_code == 200
+    # Hợp đồng khác của CÙNG đơn vị vẫn được đánh số 1, 2.
+    assert batch(hd2["id"], "1").status_code == 200
+    assert batch(hd2["id"], "2").status_code == 200
+    # Trùng trong CÙNG hợp đồng thì vẫn chặn (lưu hai lần do mạng chập chờn = nhân đôi sản lượng).
+    dup = batch(hd1["id"], "2")
+    assert dup.status_code == 400 and "đã có đợt giao" in dup.json()["detail"]
+    # Số hợp đồng trùng số đợt giao không phải là trùng.
+    ok = client.put("/api/sales-contracts",
+                    json={**base, "code": "1", "delivery_type": "single"}, headers=h)
+    assert ok.status_code == 200, ok.text
+
+
 def test_nan_does_not_crash(env, cus) -> None:
     """`nan <= 0` là False nên lọt mọi kiểm tra, rồi jsonb từ chối → 500."""
     from app.services import sales_contract_repo
