@@ -91,6 +91,8 @@ def list_contracts(scope: Scope, company: str | None = Query(None),
                    date_from: str | None = Query(None, description="Ngày ký từ 'YYYY-MM-DD'"),
                    date_to: str | None = Query(None, description="Ngày ký đến 'YYYY-MM-DD'"),
                    q: str | None = Query(None, max_length=120),
+                   channel: list[str] | None = Query(
+                       None, description="Lọc hình thức tiêu thụ; '' = chưa khai hình thức"),
                    page: int = Query(1, ge=1),
                    page_size: int = Query(25, ge=1, le=200)) -> dict:
     """MỘT TRANG hợp đồng kèm tiến độ giao → `{contracts, total, page, page_size}`.
@@ -104,9 +106,12 @@ def list_contracts(scope: Scope, company: str | None = Query(None),
     if company:
         _assert_company(companies, company)
         companies = [company]
+    for c in channel or []:
+        if c and c not in SALE_CHANNELS:
+            raise HTTPException(400, f"Hình thức tiêu thụ “{c}” không hợp lệ.")
     res = sales_contract_report.parents_with_progress(
         companies, customer_ids=customer_id, status=None if status == "all" else status,
-        q=q, date_from=date_from, date_to=date_to,
+        q=q, date_from=date_from, date_to=date_to, channels=channel,
         limit=page_size, offset=(page - 1) * page_size)
     rows = res["rows"]
     # Chỉ tra tên của đúng những khách xuất hiện TRONG TRANG — danh mục cả Tập đoàn rất dài.

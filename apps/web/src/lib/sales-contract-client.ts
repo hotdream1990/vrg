@@ -80,6 +80,8 @@ export type ContractRow = Contract & {
   remaining_qty: number;
   /** Phần giao VƯỢT sản lượng hợp đồng (thực giao được lệch, trần 110%). */
   over_qty: number;
+  /** Các HÌNH THỨC TIÊU THỤ có trong hợp đồng (của chính nó + các đợt giao); rỗng = chưa khai. */
+  channels: string[];
   children: number;
   customer_name?: string | null;
 };
@@ -119,6 +121,8 @@ export type ContractFilters = {
   /** Lọc theo MỘT HOẶC NHIỀU khách hàng (rỗng = tất cả). */
   customer_ids?: number[];
   status?: "all" | "open" | "done" | "completed";
+  /** Lọc hình thức tiêu thụ; chuỗi rỗng = hợp đồng chưa khai hình thức. */
+  channels?: string[];
   date_from?: string;
   date_to?: string;
   q?: string;
@@ -207,6 +211,7 @@ export function listContracts(f: ContractFilters = {}) {
   // Lọc nhiều khách = lặp lại tham số (`customer_id=1&customer_id=2`) — FastAPI gom thành list.
   (f.customer_ids ?? []).forEach((id) => p.append("customer_id", String(id)));
   if (f.status && f.status !== "all") p.set("status", f.status);
+  (f.channels ?? []).forEach((c) => p.append("channel", c));
   if (f.date_from) p.set("date_from", f.date_from);
   if (f.date_to) p.set("date_to", f.date_to);
   if (f.q) p.set("q", f.q);

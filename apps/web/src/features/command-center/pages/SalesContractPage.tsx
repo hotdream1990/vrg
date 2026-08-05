@@ -117,6 +117,18 @@ export default function SalesContractPage() {
               <option value="completed">Đã hoàn thành</option>
             </select>
           </label>
+          {/* Hình thức nằm ở LẦN GIAO; hợp đồng giao nhiều lần được tính theo hình thức của
+              các đợt (xem `parents_with_progress`). "Chưa khai" để rà lại hợp đồng cũ. */}
+          <label className="blt-date-label">Hình thức
+            <select className="blt-date-input" value={f.channels?.[0] ?? ""}
+              onChange={(e) => setFilter({
+                ...f, channels: e.target.value === "" ? [] : [e.target.value === "_none" ? "" : e.target.value],
+              })}>
+              <option value="">Tất cả</option>
+              {Object.entries(meta.channels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              <option value="_none">— Chưa khai hình thức —</option>
+            </select>
+          </label>
           <label className="blt-date-label">Ngày ký từ
             <DateInput value={f.date_from ?? ""} onChange={(v) => setFilter({ ...f, date_from: v || undefined })} />
           </label>
@@ -137,6 +149,7 @@ export default function SalesContractPage() {
         <table>
           <thead><tr>
             <th>Đơn vị</th><th>Số hợp đồng</th><th>Khách hàng</th><th>Loại giao</th>
+            <th>Hình thức</th>
             <th>Ngày ký</th><th className="r">SL hợp đồng (tấn)</th><th className="r">Thành tiền (tr.đ)</th>
             <th className="r">Đã giao</th>
             <th className="r">Còn phải giao</th><th className="r">Đợt giao</th><th>Trạng thái</th>
@@ -152,6 +165,15 @@ export default function SalesContractPage() {
                   <span className="chip" title={meta?.delivery_types[r.delivery_type]}>
                     {r.delivery_type === "multi" ? "Nhiều lần" : "1 lần"}
                   </span>
+                </td>
+                <td style={{ whiteSpace: "nowrap", fontSize: 12.5 }}>
+                  {/* Gộp hình thức của mọi đợt giao; hợp đồng chưa giao lần nào thì chưa có. */}
+                  {r.channels.length
+                    ? r.channels.map((c) => (
+                        <span key={c} className="chip" style={{ marginRight: 4 }}>
+                          {meta?.channels[c] ?? c}
+                        </span>))
+                    : <span style={{ color: "var(--muted)" }}>—</span>}
                 </td>
                 <td>{dmy(r.sign_date) || "—"}</td>
                 <td className="r">{t3(r.qty)}</td>
@@ -201,7 +223,7 @@ export default function SalesContractPage() {
               </tr>
             ))}
             {rows.length === 0 && !loading && (
-              <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
+              <tr><td colSpan={13} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                 Chưa có hợp đồng nào khớp bộ lọc.
               </td></tr>
             )}

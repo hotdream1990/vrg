@@ -968,6 +968,53 @@ def test_latex_reports_dry_tonnes_but_bills_wet(env, cus) -> None:
     assert cons2["qty"] == pytest.approx(17.0)                   # 10 (quy khô latex) + 7
 
 
+def test_contract_list_filters_by_sale_channel(env, cus) -> None:
+    """Lọc HÌNH THỨC TIÊU THỤ ở danh sách hợp đồng (yêu cầu 05/08/2026).
+
+    Hình thức nằm ở LẦN GIAO, không nằm ở hợp đồng: hợp đồng giao-nhiều-lần phải khớp khi MỘT
+    ĐỢT của nó có hình thức đó — lọc theo cột `channel` của hợp đồng thôi thì mọi hợp đồng chia
+    đợt đều rơi ra ngoài.
+    """
+    h = env
+    xk = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-XK", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY, "delivered_at": TODAY, "channel": "export",
+        "lines": [_line(qty=10.0)]}, headers=h).json()["contract"]
+    tn = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-TN", "delivery_type": "multi", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY, "lines": [_line(qty=20.0)]},
+        headers=h).json()["contract"]
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": tn["id"], "code": "Đợt 01", "delivered_at": TODAY,
+        "channel": "domestic", "lines": [_line(qty=20.0)]}, headers=h)
+    chua = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-CHUA", "delivery_type": "multi", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY, "lines": [_line(qty=30.0)]},
+        headers=h).json()["contract"]
+
+    def codes(**q) -> set[str]:
+        r = client.get("/api/sales-contracts", headers=h, params={"company": UNIT, **q})
+        assert r.status_code == 200, r.text
+        return {c["code"] for c in r.json()["contracts"]}
+
+    assert codes(channel="export") == {"HD-XK"}
+    # Hợp đồng chia đợt: hình thức lấy từ ĐỢT GIAO của nó.
+    assert codes(channel="domestic") == {"HD-TN"}
+    assert codes(channel=["export", "domestic"]) == {"HD-XK", "HD-TN"}
+    # Chuỗi rỗng = CHƯA KHAI hình thức — dùng để rà lại hợp đồng cũ.
+    assert codes(channel="") == {"HD-CHUA"}
+    assert codes() == {"HD-XK", "HD-TN", "HD-CHUA"}
+
+    # Mỗi dòng trả kèm hình thức để bảng hiện thành cột.
+    rows = {c["code"]: c["channels"] for c in
+            client.get("/api/sales-contracts", headers=h, params={"company": UNIT}).json()["contracts"]}
+    assert rows["HD-XK"] == ["export"] and rows["HD-TN"] == ["domestic"] and rows["HD-CHUA"] == []
+
+    bad = client.get("/api/sales-contracts", headers=h, params={"channel": "xuat_khau"})
+    assert bad.status_code == 400 and "không hợp lệ" in bad.json()["detail"]
+    assert xk["id"] and chua["id"]
+
+
 def test_contract_list_is_paged_on_server(env, cus) -> None:
     """Danh sách hợp đồng CẮT TRANG ở server: trả đúng cỡ trang + tổng số, không kéo hết về máy.
 

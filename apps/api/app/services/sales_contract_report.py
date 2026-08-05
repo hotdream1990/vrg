@@ -262,6 +262,7 @@ def parents_with_progress(companies: list[str] | None = None, *,
                           customer_ids: list[int] | None = None,
                           status: str | None = None, q: str | None = None,
                           date_from: str | None = None, date_to: str | None = None,
+                          channels: list[str] | None = None,
                           limit: int = 25, offset: int = 0) -> dict[str, Any]:
     """MỘT TRANG hợp đồng kèm tiến độ giao → `{"rows": [...], "total": <tổng khớp lọc>}`.
 
@@ -273,6 +274,11 @@ def parents_with_progress(companies: list[str] | None = None, *,
       - `delivered_qty` đã giao · `remaining_qty` = **sản lượng hợp đồng − đã giao** (còn phải giao)
       - `pending_qty` phần đã LẬP ĐỢT nhưng chưa điền ngày giao (nằm trong `remaining_qty`)
       - `over_qty` phần giao VƯỢT hợp đồng (thực giao được lệch, xem `repo.MAX_OVER_RATIO`)
+
+    `channels` lọc theo HÌNH THỨC TIÊU THỤ (xuất khẩu / trong nước / nội bộ) — dùng `[""]` để tìm
+    các hợp đồng CHƯA KHAI hình thức. Hình thức nằm ở LẦN GIAO chứ không ở hợp đồng, nên hợp đồng
+    giao-nhiều-lần phải xét cả các đợt của nó; mỗi dòng trả về kèm `channels` (các hình thức có
+    trong hợp đồng) để bảng hiện được cột này.
     """
     where = ["parent_id IS NULL"]
     params: dict[str, Any] = {"lim": max(1, limit), "off": max(0, offset)}
@@ -300,6 +306,18 @@ def parents_with_progress(companies: list[str] | None = None, *,
     keep = {"open": "completed_at IS NULL AND remaining_qty > 1e-9",
             "done": "remaining_qty <= 1e-9",
             "completed": "completed_at IS NOT NULL"}.get(status or "", "TRUE")
+    # Lọc hình thức PHẢI đặt ở đây (sau khi đã gom `channels` của hợp đồng + các đợt), không đặt
+    # được trong CTE `parent`: hợp đồng giao-nhiều-lần bản thân nó không mang hình thức nào.
+    if channels:
+        want = [c for c in channels if c]
+        blank = len(want) < len(channels)      # có chọn "chưa khai hình thức"
+        cond = []
+        if want:
+            cond.append("channels && :ch")
+            params["ch"] = want
+        if blank:
+            cond.append("cardinality(channels) = 0")
+        keep += " AND (" + " OR ".join(cond) + ")"
     sql = f"""
         WITH parent AS (
             SELECT {', '.join(_COLS)}, {_QTY_SQL % 'lines'} AS pqty
@@ -309,11 +327,17 @@ def parents_with_progress(companies: list[str] | None = None, *,
                    COALESCE(sum({_QTY_SQL % 'k.lines'})
                             FILTER (WHERE k.delivered_at IS NOT NULL), 0) AS done,
                    COALESCE(sum({_QTY_SQL % 'k.lines'})
-                            FILTER (WHERE k.delivered_at IS NULL), 0) AS pending
+                            FILTER (WHERE k.delivered_at IS NULL), 0) AS pending,
+                   COALESCE(array_agg(DISTINCT k.channel)
+                            FILTER (WHERE k.channel IS NOT NULL), '{{}}') AS kid_channels
             FROM sales_contract k
             WHERE k.parent_id IN (SELECT id FROM parent) GROUP BY 1
         ), progress AS (
             SELECT p.*, COALESCE(kid.n, 0) AS children,
+                   -- Hình thức của hợp đồng = của chính nó (giao 1 lần) + của mọi đợt giao.
+                   COALESCE(kid.kid_channels, '{{}}')
+                     || CASE WHEN p.channel IS NULL THEN '{{}}'::text[]
+                             ELSE ARRAY[p.channel] END AS channels,
                    CASE WHEN p.delivery_type = 'multi' THEN COALESCE(kid.done, 0)
                         WHEN p.delivered_at IS NOT NULL THEN p.pqty ELSE 0 END AS delivered_qty,
                    -- Chỉ đợt đã LẬP mà chưa có ngày giao mới là "đang chờ giao"; hợp đồng giao
@@ -339,6 +363,7 @@ def parents_with_progress(companies: list[str] | None = None, *,
         for k in ("pqty", "total"):
             item.pop(k, None)
         item["children"] = int(item["children"])
+        item["channels"] = sorted(set(item.get("channels") or []))
         # `sum()` của Postgres trả về numeric → psycopg dựng thành Decimal, JSON hoá thành CHUỖI
         # ("30.0") làm web tính toán/so sánh sai. Ép float ngay tại đây.
         for k in ("delivered_qty", "pending_qty", "remaining_qty", "over_qty"):
