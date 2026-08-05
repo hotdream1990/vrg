@@ -85,23 +85,26 @@ def seed(tok: str) -> None:
     delivered_1 = max(D(1), D(TODAY.day - 1))
     call("PUT", "/api/sales-contracts", tok, {
         "company": UNIT, "code": "HĐ-101/2026", "customer_id": cus, "delivery_type": "single",
-        "contract_type": "spot", "sign_date": D(9), "start_date": D(9),
+        "contract_type": "spot", "sign_date": D(9),
         "delivered_at": delivered_1, "channel": "domestic",
+        "invoice_no": "HĐ 0001234",
         "lines": [{"grade": "SVR 3L", "qty": 120, "price": 43.5, "ccy": "VND"}]})
-    # HĐ giao nhiều lần: 1 phụ lục đã giao + 1 phụ lục đang chờ giao (nằm ở "đã ký HĐ chưa giao").
+    # HĐ giao nhiều lần: 1 đợt đã giao + 1 đợt đang chờ giao. Còn 350 tấn chưa lập đợt để ảnh
+    # "Hoàn thành hợp đồng" có phần chênh thật (nếu giao vừa đủ thì màn đó không nói lên điều gì).
     parent = call("PUT", "/api/sales-contracts", tok, {
         "company": UNIT, "code": "HĐ-102/2026", "customer_id": cus, "delivery_type": "multi",
         "contract_type": "long_term", "sign_date": D(20), "expiry_date": D(-160),
         "lines": [{"grade": "SVR 10 / CSR 10", "qty": 900, "price": 41.8, "ccy": "VND"}]})["contract"]
     call("PUT", "/api/sales-contracts", tok, {
-        "company": UNIT, "parent_id": parent["id"], "code": "PL-01/HĐ-102",
-        "start_date": D(12), "delivered_at": D(0), "channel": "export",
+        "company": UNIT, "parent_id": parent["id"], "code": "Đợt 01/HĐ-102",
+        "delivered_at": D(0), "channel": "export",
+        "invoice_no": "HĐ 0001255",
         "payment_date": D(0), "payment_qty": 300,
         "lines": [{"grade": "SVR 10 / CSR 10", "qty": 300, "price": 1620, "ccy": "USD",
                    "fx": 26150}]})
     call("PUT", "/api/sales-contracts", tok, {
-        "company": UNIT, "parent_id": parent["id"], "code": "PL-02/HĐ-102",
-        "start_date": D(2), "channel": "export",
+        "company": UNIT, "parent_id": parent["id"], "code": "Đợt 02/HĐ-102",
+        "channel": "export",
         "lines": [{"grade": "SVR 10 / CSR 10", "qty": 250, "price": 1635, "ccy": "USD",
                    "fx": 26200}]})
 
@@ -159,8 +162,10 @@ LIST_SCREEN = """(() => {
   return window.__annotate([add, edit]);
 })()"""
 
+#: Dùng chung cho màn Khách hàng và màn Hợp đồng — nút thêm ở hai màn khác chữ ("Thêm khách
+#: hàng" / "Thêm hợp đồng") nên dò theo 'Thêm', dò cả câu là màn kia mất badge số 1.
 CONTRACT_LIST = """(() => {
-  const add = [...document.querySelectorAll('button')].find(b=>b.textContent.includes('Thêm hợp đồng'));
+  const add = [...document.querySelectorAll('button')].find(b=>b.textContent.includes('Thêm'));
   const row = document.querySelector('table tbody tr');
   const act = row && row.querySelector('button');
   return window.__annotate([add, act]);
@@ -251,8 +256,22 @@ def open_modal(page, button_text: str) -> None:
 CONTRACT_DETAIL = """(() => {
   const m = [...document.querySelectorAll('.ant-modal')].pop();
   const tab = (t) => [...m.querySelectorAll('.ant-tabs-tab')].find(e => e.textContent.startsWith(t));
-  const add = [...m.querySelectorAll('button')].find(b => b.textContent.includes('Thêm phụ lục'));
-  return window.__annotate([m.querySelector('.kpi-row'), tab('Thông tin'), tab('Phụ lục'), add]);
+  const btn = (t) => [...m.querySelectorAll('button')].find(b => b.textContent.includes(t));
+  // Nút đổi loại giao đổi CHỮ theo hợp đồng ("Chuyển sang giao nhiều lần" / "Chuyển về giao 1
+  // lần") — dò đúng một câu là ảnh mất badge và các số bước sau bị dồn lên.
+  return window.__annotate([m.querySelector('.kpi-row'), btn('Chuyển'),
+                            btn('Hoàn thành hợp đồng'), tab('Thông tin'), tab('Đợt giao'),
+                            btn('Thêm đợt giao')]);
+})()"""
+
+#: Màn "Hoàn thành hợp đồng" — modal nhỏ nên nút ở đáy vẫn nằm trong khung nhìn.
+COMPLETE_MODAL = """(() => {
+  const m = [...document.querySelectorAll('.ant-modal')].pop();
+  const sum = m.querySelector('.ant-modal-body > div');
+  const day = [...m.querySelectorAll('.form-field')]
+      .find(e => e.textContent.trim().startsWith('Ngày hoàn thành'));
+  const ok = m.querySelector('.ant-modal-footer .ant-btn-primary');
+  return window.__annotate([sum, day, ok]);
 })()"""
 
 
@@ -278,18 +297,17 @@ def open_detail(page) -> None:
     page.wait_for_timeout(700)
 
 
-def open_annex_form(page) -> None:
-    """Form PHỤ LỤC nằm 2 lớp: bấm Xem hợp đồng giao-nhiều-lần → Thêm phụ lục."""
-    page.add_style_tag(content=".ant-modal,.ant-modal-mask{opacity:1!important;"
-                               "transform:none!important;animation:none!important}")
-    page.evaluate("""(() => {
-      const row = [...document.querySelectorAll('table tbody tr')]
-          .find(r => r.textContent.includes('HĐ-102/2026'));
-      [...row.querySelectorAll('button')].find(b => b.textContent.trim() === 'Xem').click();
-    })()""")
-    page.wait_for_selector(".ant-modal", timeout=8000)
-    page.wait_for_timeout(400)
-    page.click('button:has-text("Thêm phụ lục")')
+def open_batch_form(page) -> None:
+    """Form ĐỢT GIAO nằm 2 lớp: bấm Xem hợp đồng giao-nhiều-lần → Thêm đợt giao."""
+    open_detail(page)
+    page.click('button:has-text("Thêm đợt giao")')
+    page.wait_for_timeout(600)
+
+
+def open_complete_modal(page) -> None:
+    """Màn chốt HOÀN THÀNH hợp đồng — chỉ MỞ để chụp, không bấm nút hoàn thành."""
+    open_detail(page)
+    page.click('button:has-text("Hoàn thành hợp đồng")')
     page.wait_for_timeout(600)
 
 
@@ -332,21 +350,25 @@ def main() -> int:
         shot(f"{WEB}/hop-dong", CONTRACT_LIST, "06-hop-dong-danh-sach.png", wait_for="table")
         shot(f"{WEB}/hop-dong",
              mixed_targets(("f", "Số hợp đồng"), ("f", "Khách hàng"), ("f", "Loại hợp đồng"),
-                           ("f", "Loại giao"), ("f", "Ngày ký"), ("f", "Ngày bắt đầu"),
+                           ("f", "Loại giao"), ("f", "Ngày ký"), ("f", "Ngày giao"),
                            ("b", "Chi tiết hợp đồng"), ("f", "Thành tiền")),
              "07-hop-dong-form.png", wait_for="table", setup=open_contract_form)
         shot(f"{WEB}/hop-dong", CONTRACT_DETAIL, "08-hop-dong-chi-tiet.png",
              wait_for="table", setup=open_detail)
         shot(f"{WEB}/hop-dong",
-             field_targets("Số phụ lục", "Ngày bắt đầu", "Ngày giao", "Hình thức tiêu thụ"),
-             "09-phu-luc-form.png", wait_for="table", setup=open_annex_form)
+             mixed_targets(("f", "Số đợt giao"), ("f", "Ngày giao"), ("f", "Hình thức tiêu thụ"),
+                           ("b", "Chi tiết đợt giao"), ("f", "Số hoá đơn"),
+                           ("b", "Thanh toán (mỗi đợt")),
+             "09-dot-giao-form.png", wait_for="table", setup=open_batch_form)
+        shot(f"{WEB}/hop-dong", COMPLETE_MODAL, "10-hoan-thanh-hop-dong.png",
+             wait_for="table", setup=open_complete_modal)
         shot(f"{WEB}/bao-cao-tieu-thu",
              "(() => window.__annotate([document.querySelector('.blt-toolbar'),"
              " document.querySelector('table')]))()",
-             "10-bao-cao-tieu-thu.png", wait_for="table")
+             "11-bao-cao-tieu-thu.png", wait_for="table")
         shot(f"{WEB}/nhu-cau-thi-truong",
              "(() => window.__annotate([document.querySelector('.card')]))()",
-             "11-nhu-cau-thi-truong.png", wait_for=".card")
+             "12-nhu-cau-thi-truong.png", wait_for=".card")
         shot(f"{WEB}/ke-hoach-nam",
              r"""(() => {
                // Khớp CẢ HAI mảnh chữ: 4 cột đầu đều bắt đầu bằng "HĐ dài hạn"/"Kế hoạch" nên
@@ -359,10 +381,10 @@ def main() -> int:
                                          th('HĐ dài hạn', 'đã ký'),
                                          th('HĐ dài hạn', 'chuyển sang')]);
              })()""",
-             "12-ke-hoach-nam.png", wait_for="table")
+             "13-ke-hoach-nam.png", wait_for="table")
         shot(f"{WEB}/thong-ke-hop-dong",
              "(() => window.__annotate([document.querySelector('.ant-table')]))()",
-             "13-hop-dong-cu.png", wait_for=".ant-table")
+             "14-hop-dong-cu.png", wait_for=".ant-table")
 
     clean()
     print(f"Xong. Ảnh ở {OUT}")
