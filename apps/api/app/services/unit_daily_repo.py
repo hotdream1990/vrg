@@ -172,27 +172,39 @@ def entries_on(kind: str, as_of: str) -> dict[str, dict[str, Any]]:
 
 
 def recent(kind: str, date_from: str, companies: list[str] | None = None,
-           date_to: str | None = None) -> list[dict[str, Any]]:
-    """Các bản ghi CÓ số liệu trong khoảng [date_from, date_to] (date_to=None → tới nay), ngày giảm dần — cho timeline.
-    `companies`=None → mọi đơn vị (chuyên viên); có danh sách → chỉ các đơn vị đó (đơn vị thành viên)."""
+           date_to: str | None = None, limit: int | None = None,
+           offset: int = 0) -> dict[str, Any]:
+    """Bản ghi CÓ số liệu trong khoảng [date_from, date_to] → `{"entries": [...], "total": n}`.
+
+    Ngày giảm dần. `companies`=None → mọi đơn vị (chuyên viên); có danh sách → chỉ các đơn vị đó.
+    Lọc đơn vị làm Ở SQL (trước đây đọc hết mọi đơn vị rồi mới lọc trong Python — tài khoản một
+    đơn vị vẫn phải kéo cả Tập đoàn về máy chủ).
+
+    `limit`/`offset` cắt trang: bản ghi Tiêu thụ–Tồn kho mang cả mảng dòng bán + danh sách file nên
+    một khoảng 90 ngày đã gần 1 MB, tải hết về trình duyệt là quá nặng cho một bảng vài chục dòng.
+    """
     ensure_schema()
     where = ["kind = :k", "as_of >= CAST(:d AS date)", "payload <> '{}'::jsonb"]
     params: dict[str, Any] = {"k": kind, "d": date_from}
     if date_to:
         where.append("as_of <= CAST(:dt AS date)")
         params["dt"] = date_to
+    if companies is not None:
+        if not companies:
+            return {"entries": [], "total": 0}
+        where.append("company = ANY(:cs)")
+        params["cs"] = list(companies)
+    sql = ("SELECT as_of, company, payload, updated_at, updated_by, count(*) OVER () AS total "
+           f"FROM unit_daily_report WHERE {' AND '.join(where)} ORDER BY as_of DESC, company")
+    if limit:
+        sql += " LIMIT :lim OFFSET :off"
+        params["lim"], params["off"] = int(limit), max(0, int(offset))
     with session_scope() as db:
-        rows = db.execute(
-            text("SELECT as_of, company, payload, updated_at, updated_by FROM unit_daily_report "
-                 f"WHERE {' AND '.join(where)} ORDER BY as_of DESC, company"),
-            params,
-        ).mappings().all()
-    keep = set(companies) if companies is not None else None
+        rows = db.execute(text(sql), params).mappings().all()
     out = [{"as_of": str(r["as_of"]), "company": r["company"], "fields": dict(r["payload"] or {}),
-            "updated_at": str(r["updated_at"]), "updated_by": r["updated_by"]}
-           for r in rows if keep is None or r["company"] in keep]
+            "updated_at": str(r["updated_at"]), "updated_by": r["updated_by"]} for r in rows]
     _attach_contracts_to_list(out, kind)
-    return out
+    return {"entries": out, "total": int(rows[0]["total"]) if rows else 0}
 
 
 def in_range(kind: str, date_from: str, date_to: str,

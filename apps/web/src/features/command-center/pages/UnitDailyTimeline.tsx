@@ -41,24 +41,27 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
   const [from, setFrom] = useState(() => daysAgoISO(30));
   const [to, setTo] = useState(() => todayISO());
   const [data, setData] = useState<Timeline | null>(null);
+  // Biểu Tiêu thụ – Tồn kho cắt trang Ở SERVER (bản ghi mang mảng dòng bán + danh sách file);
+  // biểu Thu mua server trả trọn khoảng để dòng "Lũy kế (khoảng đang xem)" vẫn đúng.
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
   const load = useCallback(() => {
     setLoading(true); setErr("");
-    (role === "member" ? fetchMyDailyTimeline : fetchDailyTimeline)(kind, range)
+    (role === "member" ? fetchMyDailyTimeline : fetchDailyTimeline)(kind, range, page)
       .then(setData).catch((e) => setErr(e.message)).finally(() => setLoading(false));
-  }, [role, kind, range]);
+  }, [role, kind, range, page]);
   useEffect(() => { load(); }, [load, refreshKey]);
 
   const onPreset = (v: string) => {
     if (v === CUSTOM) { setCustom(true); return; }   // chờ bấm "Xem" mới tải, giữ nguyên bảng hiện tại
-    setCustom(false); setRange({ days: Number(v) });
+    setCustom(false); setPage(1); setRange({ days: Number(v) });
   };
   const applyCustom = () => {
     if (!from || !to) { setErr("Vui lòng chọn đủ từ ngày và đến ngày."); return; }
     if (from > to) { setErr("Khoảng ngày không hợp lệ: từ ngày sau đến ngày."); return; }
-    setErr(""); setRange({ from, to });
+    setErr(""); setPage(1); setRange({ from, to });
   };
   const selValue = custom ? CUSTOM : String("days" in range ? range.days : 90);
 
@@ -177,7 +180,13 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
           loading={loading}
           columns={columns}
           dataSource={rows}
-          pagination={false}
+          pagination={data?.paged
+            ? {
+                current: page, pageSize: data.page_size, total: data.total,
+                showSizeChanger: false, onChange: setPage,
+                showTotal: (t) => `${t.toLocaleString("vi-VN")} dòng`,
+              }
+            : false}
           scroll={{ x: "max-content", y: 560 }}
           summary={renderSummary}
           locale={{ emptyText: <Empty description="Chưa có số liệu ngày nào trong khoảng này." /> }}

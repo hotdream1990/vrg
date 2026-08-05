@@ -16,7 +16,7 @@ from app.core import edit_window
 from app.core.feature_flags import require_excel_import
 from app.core.market_meta import PURCHASE_SOURCE_UNIT, UNIT_STOCK_GRADES
 from app.core.security import get_current_member
-from app.routers.unit_daily import resolve_timeline_range
+from app.routers.unit_daily import resolve_timeline_range, timeline_page
 from app.schemas.market_demand import MarketDemandEdit
 from app.schemas.member_self import MemberPriceEdit
 from app.schemas.unit_daily import (
@@ -129,17 +129,20 @@ def my_daily_timeline(kind: str = Query(..., pattern="^(purchase|consumption)$")
                       days: int = Query(90, ge=1, le=730),
                       date_from: str | None = Query(None, description="Từ ngày 'YYYY-MM-DD' — khoảng tự chọn (kèm date_to)"),
                       date_to: str | None = Query(None, description="Đến ngày 'YYYY-MM-DD' — khoảng tự chọn (kèm date_from)"),
+                      page: int = Query(1, ge=1),
+                      page_size: int = Query(50, ge=1, le=500),
                       member: dict = Depends(get_current_member)) -> dict:
     """Timeline báo cáo — CHỈ các đơn vị được gán (đa đơn vị), ẩn ngày trống.
-    Mặc định `days` ngày gần nhất; truyền cả `date_from`+`date_to` → lọc theo khoảng tự chọn."""
+    Mặc định `days` ngày gần nhất; truyền cả `date_from`+`date_to` → lọc theo khoảng tự chọn.
+    Cắt trang giống endpoint chuyên viên (xem `unit_daily.timeline`)."""
     units = list(member["member_units"])
     today = edit_window.today()
     d_from, d_to = resolve_timeline_range(days, date_from, date_to, today)
-    entries = unit_daily_repo.recent(kind, d_from, companies=units, date_to=d_to)
-    unit_daily_repo.attach_purchase_prices(entries, kind)
+    res = timeline_page(kind, d_from, d_to, units, page, page_size)
+    unit_daily_repo.attach_purchase_prices(res["entries"], kind)
     return {"today": today.isoformat(), "edit_window_days": edit_window.member_window(),
             "units": units, "plans": unit_daily_repo.plans_for_year(today.year),
-            "entries": entries}
+            **res, "page": page, "page_size": page_size}
 
 
 @router.get("/daily-report")

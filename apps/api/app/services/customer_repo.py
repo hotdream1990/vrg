@@ -19,7 +19,9 @@ _COLS = ("id", "company", "code", "name", "tax_code", "note", "is_active")
 
 
 def _row(r) -> dict[str, Any]:
-    return dict(r)
+    d = dict(r)
+    d.pop("total", None)      # cột đếm tổng của câu phân trang, không thuộc bản ghi khách hàng
+    return d
 
 
 def clean(row: dict, company: str) -> dict[str, Any]:
@@ -40,20 +42,22 @@ def clean(row: dict, company: str) -> dict[str, Any]:
 
 def list_customers(companies: list[str] | None = None, include_inactive: bool = True,
                    q: str | None = None, *, company: str | None = None,
-                   ids: list[int] | None = None, limit: int | None = None) -> list[dict[str, Any]]:
+                   ids: list[int] | None = None, limit: int | None = None,
+                   offset: int = 0) -> dict[str, Any]:
     """Danh sách khách hàng. `companies=None` = mọi đơn vị (chuyên viên); `[]` = không đơn vị nào.
 
     `companies` là PHẠM VI QUYỀN (server ép, không bao giờ bỏ qua); `company` là bộ lọc người dùng
     chọn thêm — hai thứ khác nhau, cùng áp một lúc.
     `q` tìm theo tên / mã / mã số thuế; `ids` lấy đúng vài khách theo id (ô chọn khách hàng cần
     tra lại TÊN của các id đang chọn khi chúng không nằm trong trang kết quả tìm kiếm hiện tại);
-    `limit` chặn số dòng trả về cho ô tìm kiếm (danh mục có thể rất dài).
+    `limit`/`offset` cắt trang Ở SERVER — danh mục của cả Tập đoàn dài dần theo từng đơn vị nên
+    KHÔNG bao giờ trả hết về máy; trả kèm `total` để màn quản lý hiện đúng tổng số.
     """
     ensure_schema()
     where, params = ["1 = 1"], {}
     if companies is not None:
         if not companies:
-            return []
+            return {"items": [], "total": 0}
         where.append("company = ANY(:cs)")
         params["cs"] = list(companies)
     if company:
@@ -61,7 +65,7 @@ def list_customers(companies: list[str] | None = None, include_inactive: bool = 
         params["co"] = company
     if ids is not None:
         if not ids:
-            return []
+            return {"items": [], "total": 0}
         where.append("id = ANY(:ids)")
         params["ids"] = [int(i) for i in ids]
     if not include_inactive:
@@ -69,14 +73,15 @@ def list_customers(companies: list[str] | None = None, include_inactive: bool = 
     if q:
         where.append("(name ILIKE :q OR code ILIKE :q OR tax_code ILIKE :q)")
         params["q"] = f"%{q}%"
-    sql = (f"SELECT {', '.join(_COLS)} FROM unit_customer WHERE {' AND '.join(where)} "
-           "ORDER BY company, name")
+    sql = (f"SELECT {', '.join(_COLS)}, count(*) OVER () AS total FROM unit_customer "
+           f"WHERE {' AND '.join(where)} ORDER BY company, name")
     if limit:
-        sql += " LIMIT :lim"
-        params["lim"] = int(limit)
+        sql += " LIMIT :lim OFFSET :off"
+        params["lim"], params["off"] = int(limit), max(0, int(offset))
     with session_scope() as db:
         rows = db.execute(text(sql), params).mappings().all()
-    return [_row(r) for r in rows]
+    return {"items": [_row(r) for r in rows],
+            "total": int(rows[0]["total"]) if rows else 0}
 
 
 def names_by_id(companies: list[str] | None = None,
@@ -85,7 +90,7 @@ def names_by_id(companies: list[str] | None = None,
 
     Truyền `ids` để chỉ lấy đúng các khách đang cần (danh mục cả Tập đoàn có thể rất dài).
     """
-    return {c["id"]: c["name"] for c in list_customers(companies, ids=ids)}
+    return {c["id"]: c["name"] for c in list_customers(companies, ids=ids)["items"]}
 
 
 def _snapshot(customer_id: int) -> dict[str, Any] | None:

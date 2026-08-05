@@ -98,8 +98,13 @@ def _count_filled(payload: dict[str, Any]) -> int:
     return total
 
 
-def list_quotes(date_from: str | None = None, date_to: str | None = None) -> list[dict[str, Any]]:
-    """Danh sách phiếu (mới nhất trước), lọc theo ngày."""
+def list_quotes(date_from: str | None = None, date_to: str | None = None,
+                limit: int = 200) -> list[dict[str, Any]]:
+    """Danh sách phiếu (mới nhất trước), lọc theo ngày, TỐI ĐA `limit` phiếu.
+
+    Mỗi ngày một phiếu nên danh sách dài thêm mãi — chặn trần ở server, xem phiếu cũ hơn thì
+    lọc theo khoảng ngày.
+    """
     ensure_schema()
     where, params = [], {}
     if date_from:
@@ -111,8 +116,9 @@ def list_quotes(date_from: str | None = None, date_to: str | None = None) -> lis
     clause = ("WHERE " + " AND ".join(where)) if where else ""
     with session_scope() as db:
         rows = db.execute(text(
-            f"SELECT as_of, payload, updated_at FROM market_quote {clause} ORDER BY as_of DESC"
-        ), params).mappings().all()
+            f"SELECT as_of, payload, updated_at FROM market_quote {clause} "
+            "ORDER BY as_of DESC LIMIT :lim"
+        ), {**params, "lim": max(1, int(limit))}).mappings().all()
     return [{
         "as_of": str(r["as_of"]),
         "filled": _count_filled(_as_payload(r["payload"])),

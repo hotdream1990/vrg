@@ -19,13 +19,20 @@ export type StatsFilters = {
   contract?: string[];       // tiêu thụ: long_term | spot
   channel?: string[];        // tiêu thụ: export | domestic
   groupBy: string;
+  /** Chế độ CHI TIẾT (groupBy="none") cắt trang ở server — trang đang xem. */
+  page?: number;
 };
 
 export type StatsRow = { key: string; label: string; region: string | null; [k: string]: unknown };
 export type StatsReport = {
   date_from: string; date_to: string; group_by: string; detail?: boolean;
   rows: StatsRow[]; totals: StatsRow; warnings: string[];
+  /** Chỉ có ở chế độ chi tiết: tổng số dòng khớp lọc (rows chỉ là trang đang xem). */
+  total?: number;
 };
+
+/** Số dòng mỗi trang ở chế độ chi tiết — khớp mặc định của server. */
+export const DETAIL_PAGE_SIZE = 100;
 
 export type StatusCell = "ok" | "no_purchase" | "none";
 export type StatusRow = {
@@ -49,6 +56,10 @@ export function statsQuery(f: StatsFilters): string {
   put("materials", f.materials);
   put("contract", f.contract);
   put("channel", f.channel);
+  if (f.groupBy === "none") {
+    p.set("page", String(f.page ?? 1));
+    p.set("page_size", String(DETAIL_PAGE_SIZE));
+  }
   return p.toString();
 }
 

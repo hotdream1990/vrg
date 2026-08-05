@@ -50,7 +50,7 @@ def _customer(h: dict[str, str], company: str) -> int:
     made = client.put("/api/customers", json={"company": company, "name": f"KH {company}"},
                       headers=h).json().get("id")
     return made if made is not None else next(
-        c["id"] for c in client.get("/api/customers", headers=h).json() if c["company"] == company)
+        c["id"] for c in client.get("/api/customers", headers=h).json()["items"] if c["company"] == company)
 
 
 def _deliver(h: dict[str, str], company: str, code: str, day: str, ctype: str, channel: str,
@@ -197,7 +197,7 @@ def test_internal_channel_is_not_counted_as_domestic(seeded) -> None:
     client.put(f"/api/member-units/{UNIT_B}", headers=h,
                json={"set_parent": True, "parent_company": UNIT_A})
     client.put("/api/customers", json={"company": UNIT_B, "name": f"KH {UNIT_B}"}, headers=h)
-    cus = next(c["id"] for c in client.get("/api/customers", headers=h).json()
+    cus = next(c["id"] for c in client.get("/api/customers", headers=h).json()["items"]
                if c["company"] == UNIT_B)
     r = client.put("/api/sales-contracts", json={
         "company": UNIT_B, "code": "HD-INT", "customer_id": cus, "delivery_type": "single",
@@ -281,3 +281,22 @@ def test_requires_unit_daily_cap(seeded) -> None:
     res = client.get(f"{API}/purchase", headers=nh, params={"date_from": D0, "date_to": D1})
     assert res.status_code == 403
     client.delete("/api/users/an_noperm", headers=h)
+
+
+def test_consumption_detail_rows_are_paged(seeded) -> None:
+    """Thống kê tiêu thụ ở chế độ CHI TIẾT cắt trang, nhưng dòng Tổng cộng vẫn tính CẢ KỲ.
+
+    Chi tiết trả từng lần bán nên số dòng tăng theo ngày; nếu tổng cũng cắt theo trang thì người
+    đọc sẽ tưởng cả kỳ chỉ bán bằng đúng một trang.
+    """
+    h = seeded
+    url = f"{API}/consumption?date_from={D0}&date_to={D1}&companies={UNIT_A}&group_by=none"
+    page1 = client.get(f"{url}&page=1&page_size=2", headers=h).json()
+    assert page1["detail"] is True and len(page1["rows"]) == 2 and page1["total"] == 3
+    assert page1["totals"]["qty"] == pytest.approx(35.0)     # 10 + 20 + 5 tấn của CẢ kỳ
+
+    page2 = client.get(f"{url}&page=2&page_size=2", headers=h).json()
+    assert len(page2["rows"]) == 1 and page2["total"] == 3
+    assert page2["totals"]["qty"] == pytest.approx(35.0)
+    keys = {(r["as_of"], r["code"]) for r in page1["rows"]}
+    assert not (keys & {(r["as_of"], r["code"]) for r in page2["rows"]})

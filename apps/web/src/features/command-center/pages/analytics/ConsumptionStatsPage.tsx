@@ -7,7 +7,7 @@ import { message } from "antd";
 import { useMemo, useState } from "react";
 
 import {
-  type StatsFilters, type StatsReport, downloadStatsXlsx, fetchConsumptionStats,
+  DETAIL_PAGE_SIZE, type StatsFilters, type StatsReport, downloadStatsXlsx, fetchConsumptionStats,
 } from "../../../../lib/unit-analytics-client";
 import AnalyticsFilters, { MultiSelect } from "./AnalyticsFilters";
 import DrillHeader, { type Kpi } from "./DrillHeader";
@@ -69,20 +69,25 @@ export default function ConsumptionStatsPage() {
   const [base, setBase] = useState<StatsFilters>(
     { ...initialFilters("region"), contract: [], channel: [] });
   const [groupOverride, setGroupOverride] = useState<string | null>(null);
+  // Chế độ chi tiết (từng dòng bán) cắt trang Ở SERVER — số lần giao tăng theo ngày.
+  const [page, setPage] = useState(1);
   const [saving, setSaving] = useState(false);
   const drill = useDrill(CHAINS.consumption);
 
   const dim = groupOverride ?? drill.currentDim;
   const filters = useMemo(() => {
     const f = applyDrill(base, CHAINS.consumption, drill.steps, catalog);
-    return { ...f, groupBy: dim };
-  }, [base, drill.steps, catalog, dim]);
+    return { ...f, groupBy: dim, page };
+  }, [base, drill.steps, catalog, dim, page]);
   const { data, loading, reload } = useStatsReport<StatsReport>(fetchConsumptionStats, filters);
 
   const detail = dim === "none";
   const canDrill = drill.canDrill && !OFF_CHAIN.has(dim);
-  const goDeeper = (value: string) => { setGroupOverride(null); drill.down(value, dim as DrillDim); };
-  const change = (f: StatsFilters) => { drill.reset(); setBase(f); };
+  const goDeeper = (value: string) => {
+    setPage(1); setGroupOverride(null); drill.down(value, dim as DrillDim);
+  };
+  const change = (f: StatsFilters) => { setPage(1); drill.reset(); setBase(f); };
+  const pages = Math.ceil((data?.total ?? 0) / DETAIL_PAGE_SIZE);
 
   const exportXlsx = async () => {
     setSaving(true);
@@ -133,6 +138,20 @@ export default function ConsumptionStatsPage() {
         onRowClick={canDrill ? (r) => goDeeper(r.key) : undefined}
         empty="Kỳ này chưa có dòng tiêu thụ nào khớp bộ lọc."
       />
+
+      {/* Chi tiết: server chỉ trả trang đang xem — dòng Tổng cộng phía trên vẫn tính cả kỳ. */}
+      {detail && pages > 1 && (
+        <div className="blt-toolbar" style={{ justifyContent: "flex-end", gap: 10 }}>
+          <span style={{ color: "var(--muted)", fontSize: 13 }}>
+            {(data?.total ?? 0).toLocaleString("vi-VN")} dòng bán
+          </span>
+          <button className="btn" disabled={page <= 1 || loading}
+            onClick={() => setPage((v) => Math.max(1, v - 1))}>‹ Trước</button>
+          <span style={{ fontSize: 13 }}>Trang {page} / {pages}</span>
+          <button className="btn" disabled={page >= pages || loading}
+            onClick={() => setPage((v) => v + 1)}>Sau ›</button>
+        </div>
+      )}
     </div>
   );
 }

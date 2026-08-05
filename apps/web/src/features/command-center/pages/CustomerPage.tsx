@@ -1,5 +1,5 @@
 import { ContactsOutlined, PlusOutlined } from "@ant-design/icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   type Customer,
@@ -13,6 +13,7 @@ import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import "../../bulletin/bulletin.css";
 
 type Draft = { id: number | null; company: string; code: string; name: string; tax_code: string; note: string };
+const PAGE_SIZE = 50;
 const EMPTY: Draft = { id: null, company: "", code: "", name: "", tax_code: "", note: "" };
 
 /** Quản lý hợp đồng → Khách hàng: danh mục RIÊNG của từng đơn vị (không dùng chung Tập đoàn). */
@@ -23,14 +24,20 @@ export default function CustomerPage() {
 
   const [units, setUnits] = useState<string[]>([]);
   const [rows, setRows] = useState<Customer[]>([]);
+  // Tìm kiếm + phân trang Ở SERVER: danh mục là của TỪNG đơn vị nên tổng số khách tăng theo số
+  // đơn vị — tải hết về máy rồi lọc tại chỗ sẽ nặng dần và không bao giờ tự dừng lại.
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [form, setForm] = useState<Draft>({ ...EMPTY });
   const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
   const load = useCallback(() => {
-    listCustomers().then(setRows).catch((e) => setErr(e.message));
-  }, []);
+    listCustomers({ q: filter.trim() || undefined, page, pageSize: PAGE_SIZE })
+      .then((r) => { setRows(r.items); setTotal(r.total); })
+      .catch((e) => setErr(e.message));
+  }, [filter, page]);
 
   useEffect(() => {
     fetchContractMeta()
@@ -42,12 +49,7 @@ export default function CustomerPage() {
     load();
   }, [load]);
 
-  const shown = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => `${r.name} ${r.code ?? ""} ${r.tax_code ?? ""} ${r.company}`
-      .toLowerCase().includes(q));
-  }, [rows, filter]);
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const save = async () => {
     if (!form.company) { setErr("Chọn đơn vị sở hữu danh mục."); return; }
@@ -136,8 +138,19 @@ export default function CustomerPage() {
 
       <div className="blt-toolbar">
         <input className="blt-date-input" style={{ width: 260 }} value={filter} placeholder="Tìm theo tên · mã · MST"
-          onChange={(e) => setFilter(e.target.value)} />
-        <span style={{ color: "var(--muted)", fontSize: 13 }}>{shown.length} khách hàng</span>
+          onChange={(e) => { setPage(1); setFilter(e.target.value); }} />
+        <span style={{ color: "var(--muted)", fontSize: 13 }}>
+          {total.toLocaleString("vi-VN")} khách hàng
+        </span>
+        {pages > 1 && (
+          <>
+            <button className="btn" disabled={page <= 1}
+              onClick={() => setPage((v) => Math.max(1, v - 1))}>‹ Trước</button>
+            <span style={{ fontSize: 13 }}>Trang {page} / {pages}</span>
+            <button className="btn" disabled={page >= pages}
+              onClick={() => setPage((v) => v + 1)}>Sau ›</button>
+          </>
+        )}
       </div>
 
       <div className="card" style={{ padding: 0, overflow: "auto" }}>
@@ -147,7 +160,7 @@ export default function CustomerPage() {
             <th>Trạng thái</th><th>Ghi chú</th>{canEdit && <th className="r" style={{ width: 190 }}>Thao tác</th>}
           </tr></thead>
           <tbody>
-            {shown.map((c) => (
+            {rows.map((c) => (
               <tr key={c.id} style={{ background: form.id === c.id ? "var(--card-2, #eef6f0)" : undefined }}>
                 <td>{c.company}</td>
                 <td>{c.code ?? "—"}</td>
@@ -164,7 +177,7 @@ export default function CustomerPage() {
                 )}
               </tr>
             ))}
-            {shown.length === 0 && (
+            {rows.length === 0 && (
               <tr><td colSpan={canEdit ? 7 : 6} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                 Chưa có khách hàng nào.
               </td></tr>

@@ -33,17 +33,22 @@ def list_customers(scope: Scope, include_inactive: bool = True,
                    q: str | None = Query(None, max_length=120, description="Tìm theo tên/mã/MST"),
                    company: str | None = Query(None, description="Chỉ khách của 1 đơn vị"),
                    ids: list[int] | None = Query(None, description="Lấy đúng vài khách theo id"),
-                   limit: int | None = Query(None, ge=1, le=200)):
-    """Danh sách khách hàng trong phạm vi tài khoản — kèm TÌM KIẾM ở server.
+                   limit: int | None = Query(None, ge=1, le=200),
+                   page: int = Query(1, ge=1),
+                   page_size: int = Query(50, ge=1, le=200)) -> dict:
+    """MỘT TRANG khách hàng trong phạm vi tài khoản → `{items, total, page, page_size}`.
 
-    Ô chọn khách hàng trên web gọi endpoint này (`q` + `limit`) thay vì tải cả danh mục về máy:
-    danh mục là của TỪNG đơn vị nên tổng số khách tăng theo số đơn vị, tải hết sẽ ngày càng nặng.
+    Tìm kiếm + cắt trang đều Ở SERVER: danh mục là của TỪNG đơn vị nên tổng số khách tăng theo số
+    đơn vị, tải hết về máy sẽ ngày càng nặng. `limit` (ô chọn khách) vẫn dùng được như cũ —
+    khi có `limit` thì nó thay cho `page_size`.
     """
     _, companies = scope
     if company:
         _assert_company(companies, company)
-    return customer_repo.list_customers(companies, include_inactive, q,
-                                        company=company, ids=ids, limit=limit)
+    size = limit or page_size
+    res = customer_repo.list_customers(companies, include_inactive, q, company=company, ids=ids,
+                                       limit=size, offset=0 if limit else (page - 1) * page_size)
+    return {**res, "page": 1 if limit else page, "page_size": size}
 
 
 @router.put("")

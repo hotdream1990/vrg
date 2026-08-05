@@ -54,6 +54,11 @@ export type TimelineRow = {
 export type Timeline = {
   today: string; edit_window_days: number; units: string[];
   plans: Record<string, number>; entries: TimelineRow[];
+  /** Tổng số dòng khớp khoảng ngày (server cắt trang, `entries` chỉ là trang đang xem). */
+  total: number;
+  /** false = biểu Thu mua, server trả trọn khoảng để dòng "Lũy kế" đúng (dữ liệu nhẹ). */
+  paged: boolean;
+  page: number; page_size: number;
 };
 /** Số liệu NĂM của 1 đơn vị (nhập 1 lần, cập nhật khi có thay đổi). */
 export type YearPlanRow = {
@@ -70,10 +75,12 @@ const J = { "Content-Type": "application/json" };
 /** Bộ lọc thời gian timeline: preset `days` (mặc định) hoặc khoảng TỰ CHỌN `{from, to}`. */
 export type TimelineRange = { days: number } | { from: string; to: string };
 
-const timelineQuery = (kind: Kind, r: TimelineRange): string => {
+const timelineQuery = (kind: Kind, r: TimelineRange, page = 1, pageSize = 50): string => {
   const p = new URLSearchParams({ kind });
   if ("days" in r) p.set("days", String(r.days));
   else { p.set("date_from", r.from); p.set("date_to", r.to); }
+  p.set("page", String(page));
+  p.set("page_size", String(pageSize));
   return p.toString();
 };
 
@@ -81,8 +88,8 @@ const timelineQuery = (kind: Kind, r: TimelineRange): string => {
 export const fetchMyDay = (kind: Kind, asOf: string) =>
   apiFetch<DayData>(`/api/member/daily-report?kind=${kind}&as_of=${asOf}`);
 
-export const fetchMyDailyTimeline = (kind: Kind, range: TimelineRange = { days: 90 }) =>
-  apiFetch<Timeline>(`/api/member/daily-report/timeline?${timelineQuery(kind, range)}`);
+export const fetchMyDailyTimeline = (kind: Kind, range: TimelineRange = { days: 90 }, page = 1) =>
+  apiFetch<Timeline>(`/api/member/daily-report/timeline?${timelineQuery(kind, range, page)}`);
 
 export const saveMyDaily = (kind: Kind, company: string, asOf: string, fields: Values, createOnly = false) =>
   apiFetch<{ ok: boolean }>(`/api/member/daily-report`, {
@@ -94,8 +101,8 @@ export const saveMyDaily = (kind: Kind, company: string, asOf: string, fields: V
 export const fetchDay = (kind: Kind, asOf: string) =>
   apiFetch<DayData>(`/api/unit-daily/day?kind=${kind}&as_of=${asOf}`);
 
-export const fetchDailyTimeline = (kind: Kind, range: TimelineRange = { days: 90 }) =>
-  apiFetch<Timeline>(`/api/unit-daily/timeline?${timelineQuery(kind, range)}`);
+export const fetchDailyTimeline = (kind: Kind, range: TimelineRange = { days: 90 }, page = 1) =>
+  apiFetch<Timeline>(`/api/unit-daily/timeline?${timelineQuery(kind, range, page)}`);
 
 export const saveDaily = (kind: Kind, company: string, asOf: string, fields: Values, createOnly = false) =>
   apiFetch<{ ok: boolean }>(`/api/unit-daily/report`, {

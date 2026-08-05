@@ -59,7 +59,8 @@ def _close_consumption(g: dict) -> dict[str, Any]:
 def consumption_report(date_from: str, date_to: str, *, companies: str | None = None,
                        regions: str | None = None, grades: str | None = None,
                        contract: str | None = None, channel: str | None = None,
-                       source: str | None = None, group_by: str = "company") -> dict[str, Any]:
+                       source: str | None = None, group_by: str = "company",
+                       limit: int | None = None, offset: int = 0) -> dict[str, Any]:
     """Bảng thống kê Tiêu thụ (đơn vị · khu vực · chủng loại · loại HĐ · hình thức · nguồn mủ).
 
     `group_by='none'` → trả DÒNG CHI TIẾT từng lần bán (để đối chiếu chứng từ).
@@ -84,11 +85,15 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
             "totals": _close_consumption(total), "warnings": warnings}
     if group_by == "none":
         rows.sort(key=lambda r: (r["as_of"], r["company"]))
+        # Chế độ CHI TIẾT trả từng lần bán nên số dòng tăng theo ngày (đã hơn 3.000) → cắt trang.
+        # Dòng "Tổng cộng" vẫn tính trên TOÀN BỘ dữ liệu khớp lọc, không phải trên trang đang xem.
+        total = len(rows)
+        page_rows = rows[offset:offset + limit] if limit else rows
         # Nhãn tiếng Việt gắn sẵn để bảng web và file Excel dùng chung, không dịch 2 nơi.
         detail = [{**r, "source_label": SOURCE_LABELS.get(r["source"], r["source"]),
                    "contract_label": label_of(CONTRACT_LABELS, r["contract"]),
-                   "channel_label": label_of(CHANNEL_LABELS, r["channel"])} for r in rows]
-        return {**base, "detail": True, "rows": detail}
+                   "channel_label": label_of(CHANNEL_LABELS, r["channel"])} for r in page_rows]
+        return {**base, "detail": True, "rows": detail, "total": total}
 
     key_of = GROUPERS[group_by]
     groups: dict[str, dict] = {}

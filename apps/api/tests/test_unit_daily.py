@@ -625,3 +625,41 @@ def test_move_report_date_respects_edit_window() -> None:
     for u in ("ud_mv_mem", "ud_mv_ed"):
         client.delete(f"/api/users/{u}", headers=h)
     _cleanup(h, ["ud_mv_mem", "ud_mv_ed"], [unit])
+
+
+def test_consumption_timeline_is_paged_but_purchase_is_not() -> None:
+    """Timeline Tiêu thụ–Tồn kho cắt trang ở server; Thu mua trả trọn khoảng.
+
+    Bản ghi tiêu thụ mang cả mảng dòng bán + danh sách file nên phải cắt trang. Biểu Thu mua thì
+    KHÔNG được cắt: bảng có dòng "Lũy kế (khoảng đang xem)" — cắt trang là lũy kế báo sai.
+    """
+    h = _admin()
+    unit = "_zz_ud_page"
+    client.delete("/api/users/ud_page", headers=h)
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    client.post("/api/users", json={"username": "ud_page", "password": "pass123",
+                                    "role": "member", "member_units": [unit]}, headers=h)
+    mh = _bearer("ud_page", "pass123")
+    days = [(date.today() - timedelta(days=i)).isoformat() for i in range(5)]
+    for i, d in enumerate(days):
+        for kind, fields in (("consumption", {"stock_material": 10.0 + i}),
+                             ("purchase", {"latex_wet": 5.0 + i})):
+            assert client.put("/api/member/daily-report", headers=mh,
+                              json={"kind": kind, "company": unit, "as_of": d,
+                                    "fields": fields}).status_code == 200
+
+    got = client.get("/api/member/daily-report/timeline?kind=consumption&days=30&page=1&page_size=2",
+                     headers=mh).json()
+    assert got["paged"] is True and len(got["entries"]) == 2 and got["total"] == 5
+    page2 = client.get("/api/member/daily-report/timeline?kind=consumption&days=30&page=2&page_size=2",
+                       headers=mh).json()
+    assert [e["as_of"] for e in page2["entries"]] == days[2:4]      # ngày giảm dần, không lặp trang 1
+
+    whole = client.get("/api/member/daily-report/timeline?kind=purchase&days=30&page_size=2",
+                       headers=mh).json()
+    assert whole["paged"] is False and len(whole["entries"]) == 5 == whole["total"]
+
+    with session_scope() as db:
+        db.execute(text("DELETE FROM unit_daily_report WHERE company = :c"), {"c": unit})
+    client.delete("/api/users/ud_page", headers=h)
+    client.delete(f"/api/member-units/{unit}", headers=h)

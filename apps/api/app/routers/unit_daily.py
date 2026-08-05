@@ -51,6 +51,23 @@ def resolve_timeline_range(days: int, date_from: str | None, date_to: str | None
     return (today - timedelta(days=days)).isoformat(), None
 
 
+def timeline_page(kind: str, d_from: str, d_to: str | None, companies: list[str] | None,
+                  page: int, page_size: int) -> dict:
+    """Lấy MỘT TRANG timeline (dùng chung cho chuyên viên & đơn vị thành viên).
+
+    Biểu **Thu mua** cố ý lấy TRỌN khoảng: mỗi bản ghi chỉ là mấy con số (cả lịch sử chưa tới
+    130 KB) và bảng có dòng "Lũy kế (khoảng đang xem)" — cắt trang sẽ làm lũy kế chỉ còn đúng cho
+    trang đang xem, tức là báo sai. Biểu **Tiêu thụ – Tồn kho** nặng gấp ~14 lần (mảng dòng bán +
+    danh sách file) và KHÔNG có dòng lũy kế nên cắt trang bình thường.
+    """
+    if kind == "purchase":
+        res = unit_daily_repo.recent(kind, d_from, companies=companies, date_to=d_to)
+        return {"entries": res["entries"], "total": res["total"], "paged": False}
+    res = unit_daily_repo.recent(kind, d_from, companies=companies, date_to=d_to,
+                                 limit=page_size, offset=(page - 1) * page_size)
+    return {"entries": res["entries"], "total": res["total"], "paged": True}
+
+
 def _year_of(as_of: str) -> int:
     """Năm dương lịch của ngày báo cáo — dùng khớp chỉ tiêu kế hoạch năm."""
     return date.fromisoformat(as_of).year
@@ -61,19 +78,26 @@ def timeline(kind: str = Query(..., pattern="^(purchase|consumption)$"),
              days: int = Query(90, ge=1, le=730),
              date_from: str | None = Query(None, description="Từ ngày 'YYYY-MM-DD' — khoảng tự chọn (kèm date_to)"),
              date_to: str | None = Query(None, description="Đến ngày 'YYYY-MM-DD' — khoảng tự chọn (kèm date_from)"),
+             page: int = Query(1, ge=1),
+             page_size: int = Query(50, ge=1, le=500),
              username: str = Depends(_require)) -> dict:
     """Timeline tổng quát: các bản ghi ĐÃ có số liệu (ẩn ngày trống).
-    Mặc định `days` ngày gần nhất; truyền cả `date_from`+`date_to` → lọc theo khoảng tự chọn."""
+    Mặc định `days` ngày gần nhất; truyền cả `date_from`+`date_to` → lọc theo khoảng tự chọn.
+
+    Biểu **Tiêu thụ – Tồn kho** cắt trang Ở SERVER (bản ghi mang mảng dòng bán + danh sách file,
+    90 ngày đã gần 1 MB). Biểu **Thu mua** cố ý KHÔNG cắt trang: dòng dữ liệu chỉ vài số nên cả
+    khoảng cũng rất nhẹ, mà bảng có dòng "Lũy kế (khoảng đang xem)" — cắt trang là lũy kế sai.
+    """
     today = edit_window.today()
     d_from, d_to = resolve_timeline_range(days, date_from, date_to, today)
-    entries = unit_daily_repo.recent(kind, d_from, date_to=d_to)
-    unit_daily_repo.attach_purchase_prices(entries, kind)
+    res = timeline_page(kind, d_from, d_to, None, page, page_size)
+    unit_daily_repo.attach_purchase_prices(res["entries"], kind)
     return {
         "today": today.isoformat(),
         "edit_window_days": edit_window.editor_window(),
         "units": member_unit_repo.active_names(),
         "plans": unit_daily_repo.plans_for_year(today.year),
-        "entries": entries,
+        **res, "page": page, "page_size": page_size,
     }
 
 

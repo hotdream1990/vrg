@@ -49,9 +49,13 @@ def _keep_sections_without_edit_right(data: dict, username: str) -> dict:
 def list_quotes(
     date_from: str | None = Query(None, description="từ ngày YYYY-MM-DD"),
     date_to: str | None = Query(None, description="đến ngày YYYY-MM-DD"),
+    limit: int = Query(200, ge=1, le=1000, description="Trần số phiếu trả về (mới nhất trước)"),
 ):
-    """Danh sách phiếu báo giá theo ngày (mới nhất trước)."""
-    return market_quote_repo.list_quotes(date_from, date_to)
+    """Danh sách phiếu báo giá theo ngày (mới nhất trước), tối đa `limit` phiếu.
+
+    Mỗi ngày một phiếu nên danh sách dài thêm mãi — phiếu cũ hơn tra bằng bộ lọc khoảng ngày.
+    """
+    return market_quote_repo.list_quotes(date_from, date_to, limit)
 
 
 @router.get("/meta", response_model=MarketQuoteMeta)

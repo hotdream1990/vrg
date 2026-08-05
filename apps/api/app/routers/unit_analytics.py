@@ -101,11 +101,12 @@ def purchase_xlsx(date_from: str = Query(...), date_to: str = Query(...),
 # ── 2. Tiêu thụ ───────────────────────────────────────────────────────────────
 def _consumption(date_from: str, date_to: str, companies: str | None, regions: str | None,
                  grades: str | None, contract: str | None, channel: str | None,
-                 source: str | None, group_by: str) -> dict:
+                 source: str | None, group_by: str, limit: int | None = None,
+                 offset: int = 0) -> dict:
     assert_range(date_from, date_to)
     return con.consumption_report(date_from, date_to, companies=companies, regions=regions,
                                   grades=grades, contract=contract, channel=channel,
-                                  source=source, group_by=group_by)
+                                  source=source, group_by=group_by, limit=limit, offset=offset)
 
 
 _CONSUMPTION_GROUPS = "^(company|region|grade|contract|channel|source|day|none)$"
@@ -119,10 +120,17 @@ def consumption(date_from: str = Query(...), date_to: str = Query(...),
                 channel: str | None = Query(None, description="export,domestic"),
                 source: str | None = Query(None, description="sales (mủ thu mua), sales_own (mủ khai thác)"),
                 group_by: str = Query("company", pattern=_CONSUMPTION_GROUPS),
+                page: int = Query(1, ge=1),
+                page_size: int = Query(100, ge=1, le=500),
                 username: str = Depends(_require)) -> dict:
-    """Bảng Tiêu thụ theo bộ lọc — `group_by=none` trả từng dòng bán để đối chiếu chứng từ."""
+    """Bảng Tiêu thụ theo bộ lọc — `group_by=none` trả từng dòng bán để đối chiếu chứng từ.
+
+    Chế độ chi tiết CẮT TRANG (`page`/`page_size`, trả kèm `total`): số lần giao tăng theo ngày.
+    Các chế độ gộp nhóm còn lại vốn đã bị chặn bởi số đơn vị/khu vực/chủng loại/ngày trong kỳ.
+    Bản xuất Excel KHÔNG cắt trang — file phải đủ dữ liệu để đối chiếu.
+    """
     return _consumption(date_from, date_to, companies, regions, grades, contract, channel,
-                        source, group_by)
+                        source, group_by, limit=page_size, offset=(page - 1) * page_size)
 
 
 @router.get("/consumption.xlsx")
