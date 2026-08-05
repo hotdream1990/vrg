@@ -15,6 +15,7 @@ from typing import Any
 
 from sqlalchemy import text
 
+from app.core import vn_text
 from app.core.db import ensure_schema, session_scope
 from app.services import sales_contract_calc as calc
 from app.services.sales_contract_repo import _COLS, _row
@@ -290,8 +291,11 @@ def parents_with_progress(companies: list[str] | None = None, *,
         where.append("(sign_date IS NULL OR sign_date <= CAST(:dt AS date))")
         params["dt"] = date_to
     if q:
-        where.append("(code ILIKE :q OR note ILIKE :q)")
-        params["q"] = f"%{q}%"
+        # Tìm KHÔNG DẤU (giống ô chọn khách hàng): số hợp đồng phần lớn là chữ không dấu, nhưng
+        # ghi chú thì có dấu — gõ "chuyen tu hop dong ton kho" vẫn phải ra.
+        where.append(f"({vn_text.fold_sql('code')} LIKE :q OR {vn_text.fold_sql('note')} LIKE :q)")
+        params.update(vn_text.FOLD_PARAMS)
+        params["q"] = f"%{vn_text.fold(q)}%"
     # "Còn hàng chưa giao" bỏ qua hợp đồng đã chốt hoàn thành — chốt xong là hết trách nhiệm giao.
     keep = {"open": "completed_at IS NULL AND remaining_qty > 1e-9",
             "done": "remaining_qty <= 1e-9",

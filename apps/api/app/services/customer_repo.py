@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
+from app.core import vn_text
 from app.core.db import ensure_schema, session_scope
 from app.services import audit_repo
 
@@ -71,8 +72,12 @@ def list_customers(companies: list[str] | None = None, include_inactive: bool = 
     if not include_inactive:
         where.append("is_active")
     if q:
-        where.append("(name ILIKE :q OR code ILIKE :q OR tax_code ILIKE :q)")
-        params["q"] = f"%{q}%"
+        # Tìm KHÔNG DẤU: gõ "sai gon" phải ra "Công ty CP Cao su Sài Gòn". Người nhập liệu gõ vội,
+        # gõ đúng dấu mới ra kết quả thì họ tưởng chưa có khách hàng rồi tạo trùng một bản ghi nữa.
+        cols = " OR ".join(f"{vn_text.fold_sql(c)} LIKE :q" for c in ("name", "code", "tax_code"))
+        where.append(f"({cols})")
+        params.update(vn_text.FOLD_PARAMS)
+        params["q"] = f"%{vn_text.fold(q)}%"
     sql = (f"SELECT {', '.join(_COLS)}, count(*) OVER () AS total FROM unit_customer "
            f"WHERE {' AND '.join(where)} ORDER BY company, name")
     if limit:

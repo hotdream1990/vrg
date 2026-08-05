@@ -774,6 +774,45 @@ def test_customer_search_runs_on_server(env) -> None:
     assert ids(f"ids={a}&ids={b}&include_inactive=true") == {a, b}
 
 
+def test_search_ignores_vietnamese_marks(env) -> None:
+    """Gõ KHÔNG DẤU vẫn ra: người nhập gõ vội, không ra kết quả là họ tạo trùng khách hàng."""
+    h = env
+    sg = client.put("/api/customers", json={"company": UNIT, "name": "Công ty CP Cao su Sài Gòn"},
+                    headers=h).json()["id"]
+    dn = client.put("/api/customers", json={"company": UNIT, "name": "Cao su Đồng Nai"},
+                    headers=h).json()["id"]
+
+    def ids(qs: str) -> set[int]:
+        return {c["id"] for c in client.get(f"/api/customers?{qs}", headers=h).json()["items"]}
+
+    assert ids("q=sai gon") == {sg}
+    assert ids("q=SAI GON") == {sg}          # gõ hoa không dấu
+    assert ids("q=Sài Gòn") == {sg}          # gõ đủ dấu vẫn phải ra như cũ
+    assert ids("q=dong nai") == {dn}         # `đ` cũng phải bỏ dấu
+    assert ids("q=CAO SU") == {sg, dn}
+
+    # Ô "Tìm theo số HĐ" tìm cả trong ghi chú — chỗ có dấu nhiều nhất.
+    cid = client.put("/api/customers", json={"company": UNIT, "name": "KH ghi chú"},
+                     headers=h).json()["id"]
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-KD", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cid, "sign_date": TODAY, "note": "Chuyển từ hợp đồng tồn kho cũ",
+        "lines": [_line(qty=5.0)]}, headers=h)
+    # Giới hạn theo đơn vị test: DB dev là bản sao của prod, ở đó có hàng trăm hợp đồng mang đúng
+    # ghi chú "Chuyển từ hợp đồng tồn kho cũ" do script chuyển dữ liệu ghi vào.
+    found = client.get(f"/api/sales-contracts?q=chuyen tu hop dong&company={UNIT}", headers=h).json()
+    assert [c["code"] for c in found["contracts"]] == ["HD-KD"]
+
+
+def test_accent_folding_table_cannot_swallow_letters() -> None:
+    """Hai chuỗi của `translate()` phải dài BẰNG NHAU — lệch là Postgres xoá bớt chữ của tên khách."""
+    from app.core.vn_text import MARKS, PLAIN, fold
+
+    assert len(MARKS) == len(PLAIN)
+    assert len(set(MARKS)) == len(MARKS)         # không ký tự nào khai hai lần
+    assert fold("Đắk Lắk – Sài Gòn") == "dak lak – sai gon"
+
+
 def test_contract_list_filters_by_one_or_many_customers(env) -> None:
     """Bộ lọc khách hàng nhận 1 HOẶC NHIỀU khách; danh sách trả kèm tên khách cho cột hiển thị."""
     h = env
