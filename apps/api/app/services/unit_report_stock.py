@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from app.services import member_unit_repo, unit_daily_repo, unit_report_rows
+from app.services import member_unit_repo, unit_daily_fields as fields, unit_daily_repo, unit_report_rows
 from app.services.unit_report_query import dmy, filter_scope, sort_groups, split_csv
 
 _BLOCK_KEY = {"stock_not_warehoused": "not_warehoused", "stock_warehoused": "warehoused"}
@@ -97,12 +97,18 @@ def status_report(kind: str, date_from: str, date_to: str, *, companies: str | N
                   regions: str | None = None) -> dict[str, Any]:
     """Ma trận đơn vị × ngày: `ok` đã nhập · `no_purchase` không tổ chức thu mua · `none` chưa nhập.
 
-    Biểu Thu mua chỉ tính các đơn vị ĐƯỢC GIAO kế hoạch thu mua (đơn vị khác không phải nộp).
+    Biểu Thu mua chỉ tính các đơn vị ĐƯỢC GIAO kế hoạch thu mua (đơn vị khác không phải nộp) —
+    lấy ĐÚNG danh sách bật màn Thu mua cho người dùng, xem `companies_with_purchase_plan`.
+    Đơn vị chỉ tính là ĐÃ NỘP khi bản ghi có số liệu thật của biểu đó (`fields.has_data`).
     """
     comps, regs = split_csv(companies), split_csv(regions)
     units = member_unit_repo.list_units(include_inactive=False)
     if kind == "purchase":
-        units = [u for u in units if u.get("has_purchase_plan", True)]
+        # KHÔNG dùng cờ `member_unit.has_purchase_plan`: cờ đó bỏ từ 03/08/2026, số ở màn Kế hoạch
+        # năm mới là công tắc. Dùng cờ cũ thì bảng đòi nộp cả những đơn vị KHÔNG có màn Thu mua.
+        planned = unit_daily_repo.companies_with_purchase_plan(
+            date.fromisoformat(date_to).year)
+        units = [u for u in units if u["name"] in planned]
     if comps:
         keep = set(comps)
         units = [u for u in units if u["name"] in keep]
@@ -113,6 +119,10 @@ def status_report(kind: str, date_from: str, date_to: str, *, companies: str | N
     entries = unit_daily_repo.in_range(kind, date_from, date_to, [u["name"] for u in units])
     state: dict[tuple[str, str], str] = {}
     for e in entries:
+        # Bản ghi rỗng KHÔNG tính là đã nộp — biểu Tồn kho đang mang hàng trăm bản ghi cũ của biểu
+        # Tiêu thụ (chỉ có mảng `sales` + cờ `sales_migrated`), tính vào là báo cáo tỷ lệ nộp ảo.
+        if not fields.has_data(kind, e["fields"]):
+            continue
         no_buy = kind == "purchase" and e["fields"].get("no_purchase") is True
         state[(e["company"], e["as_of"])] = "no_purchase" if no_buy else "ok"
 

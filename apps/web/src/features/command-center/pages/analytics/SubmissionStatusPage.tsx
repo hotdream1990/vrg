@@ -17,7 +17,7 @@ import { MultiSelect } from "./AnalyticsFilters";
 import { initialFilters, useFilterCatalog } from "./use-stats";
 import "../../../bulletin/bulletin.css";
 
-const KINDS = [{ label: "Thu mua", value: "purchase" }, { label: "Tiêu thụ – Tồn kho", value: "consumption" }];
+const KINDS = [{ label: "Thu mua", value: "purchase" }, { label: "Tồn kho", value: "consumption" }];
 const SPANS = [7, 14, 30] as const;
 
 const CELL: Record<StatusCell, { icon: JSX.Element; title: string }> = {
@@ -71,7 +71,9 @@ export default function SubmissionStatusPage() {
           <h2>Theo dõi nộp báo cáo</h2>
           <p>
             Ma trận <b>đơn vị × ngày</b> cho biết đơn vị nào chưa nhập số liệu ngày nào.
-            Biểu Thu mua chỉ tính các đơn vị <b>được giao kế hoạch thu mua</b>.
+            Cả hai biểu đều nhập <b>theo từng ngày</b>. Biểu Thu mua chỉ tính các đơn vị{" "}
+            <b>được giao kế hoạch thu mua</b>; ngày chỉ tính là đã nộp khi bản ghi <b>có số liệu
+            thật</b> (hoặc đơn vị đã tích “không tổ chức thu mua” / “không phát sinh tồn kho”).
           </p>
         </div>
       </div>

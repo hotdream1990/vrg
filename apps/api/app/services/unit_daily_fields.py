@@ -90,6 +90,33 @@ CONSUMPTION_TEXT: dict[str, frozenset[str]] = {
 #                      không sản lượng/doanh thu bị đếm hai lần (một ở mảng cũ, một ở hợp đồng).
 CONSUMPTION_FLAGS: frozenset[str] = frozenset({"no_stock", "sales_migrated"})
 
+#: Hai khối tồn kho thành phẩm nhập thành BẢNG nhiều dòng (khối 1 & 2 của biểu Tồn kho).
+STOCK_TABLES: tuple[str, ...] = ("stock_not_warehoused", "stock_warehoused")
+
+#: Ô/khối chứng tỏ đơn vị ĐÃ THẬT SỰ NỘP biểu đó cho một ngày (dùng ở màn "Theo dõi nộp báo cáo").
+#:
+#: ⚠ CÓ BẢN GHI ≠ ĐÃ NỘP. Biểu Tồn kho nhận một loạt bản ghi CŨ của biểu Tiêu thụ (mảng `sales` +
+#: cờ `sales_migrated`) — những ngày đó đơn vị khai TIÊU THỤ theo cơ chế cũ, chưa hề khai tồn kho.
+#: Đếm theo "có dòng trong bảng" thì các ngày ấy hiện ✅ và bảng theo dõi báo tỷ lệ nộp cao hơn
+#: thực tế (đo 05/08/2026: 151/566 ngày là bản ghi cũ như vậy). Vì thế phải soi ĐÚNG ô của biểu.
+_SUBMITTED_KEYS: dict[str, frozenset[str]] = {
+    "purchase": PURCHASE_FIELDS | PURCHASE_FLAGS | {FINISHED_TABLE},
+    # CỐ Ý bỏ `sales`/`sales_own`/`revenue`/`sales_migrated`: form nay chỉ còn khối Tồn kho.
+    "consumption": frozenset({"no_stock", "stock_material", *STOCK_TABLES}),
+}
+
+
+def has_data(kind: str, fields: dict) -> bool:
+    """Bản ghi này có số liệu THẬT của biểu `kind` chưa (bảng rỗng / ô None không tính)."""
+    for key in _SUBMITTED_KEYS.get(kind, frozenset()):
+        v = fields.get(key)
+        if isinstance(v, list):
+            if v:
+                return True
+        elif v is not None and v != "":
+            return True
+    return False
+
 _SALE_CONTRACTS = {"long_term", "spot"}   # loại HĐ: Dài hạn | Chuyến
 _SALE_CHANNELS = {"export", "domestic"}   # hình thức: XK/UTXK | Tiêu thụ trong nước
 
@@ -209,7 +236,7 @@ def clean_fields(kind: str, fields: dict) -> dict:
         for key in SALE_TABLES:
             if key in fields:
                 out[key] = _clean_sales(fields.get(key))
-        for key in ("stock_not_warehoused", "stock_warehoused"):
+        for key in STOCK_TABLES:
             if key in fields:
                 out[key] = _clean_stock_qty(fields.get(key))
         # Khối 3 (đã ký HĐ) KHÔNG lưu trong payload ngày — client có gửi kèm cũng bỏ qua.

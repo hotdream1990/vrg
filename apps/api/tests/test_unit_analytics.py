@@ -98,6 +98,11 @@ def seeded():
          "fields": {"latex_wet": 300, "finished": [{"grade": "SVR 10", "qty": 5, "price": 2000,
                                                     "ccy": "USD", "fx": None}]}})
     put({"kind": "purchase", "company": UNIT_B, "as_of": D1, "fields": {"no_purchase": True}})
+    # Biểu Thu mua chỉ đòi các đơn vị ĐƯỢC GIAO kế hoạch — không có số kế hoạch thì đơn vị không
+    # có màn Thu mua, bảng theo dõi cũng không được đòi nộp.
+    for n in (UNIT_A, UNIT_B):
+        client.put("/api/unit-daily/plan",
+                   json={"year": date.today().year, "company": n, "plan_tonnes": 1000}, headers=h)
 
     # Tồn kho 2 ngày (vẫn nhập tay theo ngày).
     put({"kind": "consumption", "company": UNIT_A, "as_of": D0,
@@ -261,6 +266,39 @@ def test_status_matrix(seeded) -> None:
     assert a["cells"][D0] == "ok" and a["filled"] == 2 and a["missing"] == 0
     assert b["cells"][D0] == "none" and b["cells"][D1] == "no_purchase"
     assert b["missing"] == 1 and rep["totals"]["expected"] == 4
+
+
+def test_status_ignores_rows_without_real_data(seeded) -> None:
+    """CÓ BẢN GHI ≠ ĐÃ NỘP.
+
+    Biểu Tồn kho mang sẵn hàng trăm bản ghi CŨ của biểu Tiêu thụ (chỉ có mảng `sales` + cờ
+    `sales_migrated`, không có khối tồn kho nào). Đếm theo "có dòng trong bảng" thì những ngày đó
+    hiện ✅ và tỷ lệ nộp báo cáo cao hơn thực tế — đo trên prod 05/08/2026 là 151/566 ngày.
+    """
+    h = seeded
+    client.put("/api/unit-daily/report", headers=h, json={
+        "kind": "consumption", "company": UNIT_B, "as_of": D0,
+        "fields": {"sales": [{"grade": "SVR 3L", "qty": 12, "contract": "spot",
+                              "channel": "domestic"}], "sales_migrated": True}})
+    rep = _get("status", seeded, kind="consumption", companies=f"{UNIT_A},{UNIT_B}")
+    b = next(r for r in rep["rows"] if r["company"] == UNIT_B)
+    assert b["cells"][D0] == "none" and b["filled"] == 0
+
+    # Đơn vị bật cờ "không phát sinh tồn kho" thì VẪN tính là đã nộp.
+    client.put("/api/unit-daily/report", headers=h, json={
+        "kind": "consumption", "company": UNIT_B, "as_of": D1, "fields": {"no_stock": True}})
+    rep2 = _get("status", seeded, kind="consumption", companies=f"{UNIT_A},{UNIT_B}")
+    assert next(r for r in rep2["rows"] if r["company"] == UNIT_B)["cells"][D1] == "ok"
+
+
+def test_status_purchase_only_asks_units_with_a_plan(seeded) -> None:
+    """Bảng Thu mua chỉ đòi đơn vị ĐƯỢC GIAO kế hoạch — dùng đúng công tắc của màn Thu mua."""
+    h = seeded
+    client.put("/api/unit-daily/plan", headers=h,
+               json={"year": date.today().year, "company": UNIT_B, "plan_tonnes": 0})
+    rep = _get("status", seeded, kind="purchase", companies=f"{UNIT_A},{UNIT_B}")
+    assert [r["company"] for r in rep["rows"]] == [UNIT_A]      # B khai kế hoạch 0 → không phải nộp
+    assert rep["totals"]["expected"] == 2                        # 1 đơn vị × 2 ngày
 
 
 def test_range_validation_and_xlsx(seeded) -> None:

@@ -23,6 +23,7 @@ import {
   updateUnit,
 } from "../../../lib/member-unit-client";
 import { useAuth } from "../../auth/AuthContext";
+import UnitLoginButton from "./components/UnitLoginButton";
 import DataSourceNote from "../sections/DataSourceNote";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import ManagedListTab, { type ListApi } from "./components/ManagedListTab";
@@ -141,6 +142,12 @@ export default function MemberUnitPage() {
                     filterOption={(i, o) => (o?.label ?? "").toLowerCase().includes(i.toLowerCase())}
                     onChange={(v) => run(() => setUnitParent(u.name, v ?? null))} />
                 ),
+              },
+              // Chỉ admin thấy cột này (component tự ẩn) — vào thẳng tài khoản của đơn vị để xem
+              // đúng thứ họ đang thấy, khỏi phải dò tên đăng nhập (là email) ở màn Tài khoản.
+              {
+                header: "Đăng nhập hộ", width: 170,
+                render: (u) => <UnitLoginButton unit={u.name} />,
               },
             ]}
           />
