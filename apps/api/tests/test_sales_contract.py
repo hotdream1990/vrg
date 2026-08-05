@@ -804,6 +804,40 @@ def test_search_ignores_vietnamese_marks(env) -> None:
     assert [c["code"] for c in found["contracts"]] == ["HD-KD"]
 
 
+def test_batch_delivered_on_or_after_the_signing_date(env, cus) -> None:
+    """Đợt giao KHÔNG có ngày ký riêng — chỉ so với ngày ký của HỢP ĐỒNG.
+
+    Lỗi thật đã gặp: form đợt giao không hiện ô Ngày ký nhưng vẫn gửi kèm ngày mặc định (hôm nay),
+    server tưởng đợt "ký hôm nay" nên chặn MỌI ngày giao trong quá khứ bằng thông báo
+    "Ngày giao không thể trước ngày ký hợp đồng" — kể cả khi giao đúng ngày ký hợp đồng.
+    """
+    h = env
+    parent = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-SIGN", "delivery_type": "multi", "contract_type": "spot",
+        "customer_id": cus, "sign_date": "2026-07-30",
+        "lines": [_line(qty=100.0)]}, headers=h).json()["contract"]
+    # Client gửi kèm `sign_date` = HÔM NAY như form đang làm — server phải bỏ qua.
+    same_day = client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": parent["id"], "code": "Đợt 01/HD-SIGN",
+        "sign_date": TODAY, "delivered_at": "2026-07-30", "channel": "export",
+        "lines": [_line(qty=20.0)]}, headers=h)
+    assert same_day.status_code == 200, same_day.text
+    assert same_day.json()["contract"]["sign_date"] is None   # đợt không mang ngày ký riêng
+
+    older = client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": parent["id"], "code": "Đợt 02/HD-SIGN",
+        "sign_date": TODAY, "delivered_at": "2026-07-25", "channel": "export",
+        "lines": [_line(qty=10.0)]}, headers=h)
+    assert older.status_code == 400 and "trước ngày ký" in older.json()["detail"]
+
+    # Hợp đồng giao-1-lần vẫn phải giữ luật: ngày giao không được trước chính ngày ký của nó.
+    bad = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-SIGN2", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": "2026-07-30", "delivered_at": "2026-07-29",
+        "channel": "export", "lines": [_line(qty=5.0)]}, headers=h)
+    assert bad.status_code == 400 and "trước ngày ký" in bad.json()["detail"]
+
+
 def test_accent_folding_table_cannot_swallow_letters() -> None:
     """Hai chuỗi của `translate()` phải dài BẰNG NHAU — lệch là Postgres xoá bớt chữ của tên khách."""
     from app.core.vn_text import MARKS, PLAIN, fold

@@ -127,7 +127,11 @@ def clean(row: dict, company: str) -> dict[str, Any]:
     else:
         to_company = None
 
-    sign = _as_date(row.get("sign_date"), "Ngày ký", required=not is_child)
+    # Ngày ký chỉ có ở HỢP ĐỒNG. Đợt giao KHÔNG có ngày ký riêng — form không hiện ô này nhưng vẫn
+    # gửi kèm ngày mặc định (hôm nay), nhận vào là mọi đợt giao ngày cũ bị chặn oan bằng thông báo
+    # "Ngày giao không thể trước ngày ký hợp đồng". Ngày ký của hợp đồng đã được kiểm ở
+    # `sales_contract_repo.save` (so với ngày ký THẬT của hợp đồng cha).
+    sign = None if is_child else _as_date(row.get("sign_date"), "Ngày ký", required=True)
     # Ngày mở đợt: đã BỎ khỏi form (05/08/2026) vì khối 3 nay tính trên hợp đồng, không theo vòng
     # đời từng đợt nữa. Chỉ lưu lại nguyên giá trị cũ (không kiểm, không tính toán) để bản ghi cũ
     # sửa lại vẫn giữ được dữ kiện đã nhập.

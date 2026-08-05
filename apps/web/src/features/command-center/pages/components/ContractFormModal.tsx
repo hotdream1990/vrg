@@ -68,7 +68,9 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
       return { ...initial, lines };
     }
     const base = blank(parent?.company ?? meta.units[0] ?? "");
-    return isChild ? { ...base, parent_id: parent!.id } : base;
+    // Đợt giao không có ngày ký riêng: form không hiện ô đó, gửi kèm ngày mặc định (hôm nay) là
+    // server tưởng đợt được "ký" hôm nay rồi chặn mọi ngày giao trong quá khứ.
+    return isChild ? { ...base, parent_id: parent!.id, sign_date: null } : base;
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
