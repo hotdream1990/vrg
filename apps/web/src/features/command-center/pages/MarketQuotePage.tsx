@@ -298,7 +298,7 @@ export default function MarketQuotePage() {
             onStatus={(g, v) => setStatus("domestic_private", g, v)}
             onNote={(v) => setSect("domestic_private", { note: v })} />
 
-          <GradePriceTable title="2. Giá nội địa — hàng xuất khẩu" subtitle="VNĐ/tấn + tình trạng" grades={grades}
+          <GradePriceTable title="2. Giá xuất khẩu — hàng tư nhân" subtitle="VNĐ/tấn + tình trạng" grades={grades}
             section={draft.domestic_export ?? { prices: {}, packaging: {}, shipping: {}, status: {}, note: "" }}
             unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editableBasic}
             prevPrices={prev?.domestic_export?.prices}

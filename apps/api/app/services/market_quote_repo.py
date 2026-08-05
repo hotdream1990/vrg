@@ -41,7 +41,7 @@ def meta() -> dict[str, Any]:
 # price_type mirror → (section key, nhãn, đơn vị) cho biểu đồ lịch sử
 _HISTORY_SECTIONS = [
     ("market_domestic_private", "domestic_private", "Giá nội địa — tư nhân", "VNĐ/tấn"),
-    ("market_domestic_export", "domestic_export", "Giá nội địa — hàng xuất khẩu", "VNĐ/tấn"),
+    ("market_domestic_export", "domestic_export", "Giá xuất khẩu — hàng tư nhân", "VNĐ/tấn"),
     ("market_export_vrg", "export_vrg", "Giá xuất khẩu — VRG", "USD/tấn"),
     ("market_domestic_vrg", "domestic_vrg", "Giá nội địa — VRG", "VNĐ/tấn"),
 ]

@@ -6,7 +6,7 @@ export const MANUAL_NOTES: Record<string, DataSourceNote> = {
     kind: "manual",
     tagline: "Nhập tay phiếu báo giá mủ thị trường theo ngày; Mục 6 (giá mủ nước + mủ chén) đồng bộ kho Giá mủ nguyên liệu.",
     intro:
-      "1 phiếu/ngày: tỷ giá VCB + giá SVR (nội địa tư nhân · nội địa hàng xuất khẩu · VRG xuất khẩu · VRG nội địa, kèm bao bì + đơn vị vận chuyển) + đề xuất mua từ khách hàng + giá mủ khu vực (nước + chén) + ghi chú.",
+      "1 phiếu/ngày: tỷ giá VCB + giá SVR (nội địa tư nhân · xuất khẩu hàng tư nhân · VRG xuất khẩu · VRG nội địa, kèm bao bì + đơn vị vận chuyển) + đề xuất mua từ khách hàng - hàng VRG + giá mủ khu vực (nước + chén) + ghi chú.",
     sources: [
       {
         name: "Phiếu báo giá mủ thị trường (nội bộ)",
@@ -14,8 +14,8 @@ export const MANUAL_NOTES: Record<string, DataSourceNote> = {
         method: "Nhập tay tại trang này",
         steps: [
           "Bấm '＋ Tạo phiếu mới', chọn ngày báo giá.",
-          "Điền tỷ giá VCB, giá SVR cho 4 mục (NĐ tư nhân / NĐ hàng XK / VRG XK / VRG nội địa) + bao bì (hàng rời/pallet) + đơn vị vận chuyển; Mục 4 thêm tình trạng.",
-          "Điền Mục 5 (đề xuất mua từ khách hàng: số lượng + đơn giá) — chỉ lưu trong phiếu.",
+          "Điền tỷ giá VCB, giá SVR cho 4 mục (NĐ tư nhân / XK hàng tư nhân / VRG XK / VRG nội địa) + bao bì (hàng rời/pallet) + đơn vị vận chuyển; Mục 4 thêm tình trạng.",
+          "Điền Mục 5 (đề xuất mua từ khách hàng - hàng VRG: số lượng + đơn giá) — chỉ lưu trong phiếu.",
           "Điền Mục 6 (giá mủ nước + mủ chén theo đơn vị) — tự ghi vào kho 'Giá mủ nguyên liệu'.",
           "Phiếu tự lưu khi nhập.",
         ],

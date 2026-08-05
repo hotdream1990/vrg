@@ -1,4 +1,4 @@
-/* Mục 5 — Đề xuất mua từ khách hàng: số lượng (tấn) + đơn giá (VNĐ/tấn) theo chủng loại.
+/* Mục 5 — Đề xuất mua từ khách hàng - hàng VRG: số lượng (tấn) + đơn giá (VNĐ/tấn) theo chủng loại.
    Chỉ lưu trong phiếu (không mirror sang chuỗi giá). */
 
 import { type ProposalSection } from "../../../../lib/market-quote-client";
@@ -19,7 +19,7 @@ export default function ProposalTable({ grades, section, readOnly, prevQty, prev
   return (
     <div className="card blt-section blt-editable" style={{ marginBottom: 16 }}>
       <div className="blt-section-header">
-        <h3>5. Đề xuất mua từ khách hàng</h3>
+        <h3>5. Đề xuất mua từ khách hàng - Hàng VRG</h3>
         <span style={{ color: "var(--muted)", fontSize: 12 }}>số lượng (tấn) · đơn giá (VNĐ/tấn)</span>
       </div>
       <table>
