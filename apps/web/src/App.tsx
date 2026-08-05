@@ -56,7 +56,7 @@ function HomeRoute() {
   return <DashboardPage />;
 }
 
-/** Quản lý hợp đồng (khách hàng · hợp đồng & phụ lục): đơn vị thành viên → đơn vị mình; chuyên viên có quyền `sales_contract` → mọi đơn vị. */
+/** Quản lý hợp đồng (khách hàng · hợp đồng & đợt giao): đơn vị thành viên → đơn vị mình; chuyên viên có quyền `sales_contract` → mọi đơn vị. */
 function ContractRoute({ children }: { children: React.ReactNode }) {
   const { user, can } = useAuth();
   if (user?.role === "member" || can("sales_contract")) return <>{children}</>;

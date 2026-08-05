@@ -34,25 +34,38 @@ class ContractLineIn(BaseModel):
 class ContractIn(BaseModel):
     id: int | None = None
     company: str
-    parent_id: int | None = None      # khác None = PHỤ LỤC (một lần giao + một lần thanh toán)
+    parent_id: int | None = None      # khác None = ĐỢT GIAO (một lần giao + một lần thanh toán)
     code: str
     customer_id: int | None = None
-    delivery_type: str = "single"     # single = giao 1 lần · multi = giao nhiều lần (mẹ–phụ lục)
-    # Loại HỢP ĐỒNG (chỉ tiêu báo cáo): long_term = dài hạn · spot = chuyến. Bắt buộc ở hợp đồng
-    # MẸ; phụ lục bỏ trống và thừa kế của mẹ. KHÔNG suy từ `delivery_type` — hai khái niệm khác nhau.
+    delivery_type: str = "single"     # single = giao 1 lần · multi = giao nhiều lần (chia đợt)
+    # Loại HỢP ĐỒNG (chỉ tiêu báo cáo): long_term = dài hạn · spot = chuyến. Bắt buộc ở hợp đồng;
+    # đợt giao bỏ trống và thừa kế của hợp đồng. KHÔNG suy từ `delivery_type` — hai khái niệm khác.
     contract_type: str | None = None
     sign_date: str | None = None
     expiry_date: str | None = None
-    # Ngày MỞ ĐỢT giao (hàng gom vào kho cho đợt này) — bắt buộc với phụ lục;
-    # hợp đồng giao-1-lần bỏ trống thì mặc định = ngày ký.
+    # Ngày mở đợt — ô này đã BỎ khỏi form (05/08/2026) vì khối 3 nay tính trên hợp đồng, không
+    # theo vòng đời từng đợt nữa. Vẫn nhận để bản ghi cũ sửa lại không mất dữ liệu.
     start_date: str | None = None
     lines: list[ContractLineIn] = Field(default_factory=list)
     delivered: bool = False           # suy ra từ `delivered_at`, client gửi gì cũng bỏ qua
-    delivered_at: str | None = None   # trống = ĐANG CHỜ GIAO (đợt đã mở, chưa giao)
+    delivered_at: str | None = None   # trống = ĐANG CHỜ GIAO (đợt đã lập, chưa giao)
     channel: str | None = None        # export | domestic | internal
     to_company: str | None = None     # đơn vị nhận khi tiêu thụ nội bộ
+    # Hoá đơn của đợt giao: số + file scan (chốt 05/08/2026).
+    invoice_no: str | None = None
+    invoice_docs: list[ContractDocIn] = Field(default_factory=list)
     payment_date: str | None = None
     payment_qty: float | None = None
     payment_docs: list[ContractDocIn] = Field(default_factory=list)
     files: list[ContractDocIn] = Field(default_factory=list)
     note: str | None = None
+
+
+class CompletionIn(BaseModel):
+    """Chốt HOÀN THÀNH hợp đồng — `completed_at = None` là MỞ LẠI hợp đồng."""
+    completed_at: str | None = None
+
+
+class DeliveryTypeIn(BaseModel):
+    """Chuyển giao-1-lần ↔ giao-nhiều-lần mà không phải xoá hợp đồng nhập lại."""
+    delivery_type: str

@@ -17,7 +17,7 @@ export const lineAmount = (ln: ContractLine): number | null =>
 type Props = {
   lines: ContractLine[];
   meta: ContractMeta;
-  /** true khi dòng thuộc MỘT LẦN GIAO thật (phụ lục / HĐ giao-1-lần đã giao) → ép quy khô. */
+  /** true khi dòng thuộc MỘT LẦN GIAO thật (đợt giao / HĐ giao-1-lần đã giao) → ép quy khô. */
   requireDry: boolean;
   /** Loại tiền được phép của ĐƠN VỊ đang chọn (đã lọc ở form) — không dùng thẳng meta.currencies. */
   currencies: string[];

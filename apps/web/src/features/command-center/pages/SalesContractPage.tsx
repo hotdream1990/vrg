@@ -20,13 +20,14 @@ import ContractDetailModal from "./components/ContractDetailModal";
 import ContractFormModal from "./components/ContractFormModal";
 import "../../bulletin/bulletin.css";
 
+const PAGE_SIZE = 25;
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
-/** Quá thời hạn hợp đồng mà vẫn còn hàng chưa giao. */
+/** Quá thời hạn hợp đồng mà vẫn còn hàng chưa giao (hợp đồng đã chốt hoàn thành thì thôi). */
 const overdue = (r: ContractRow) =>
-  r.remaining_qty + r.pending_qty > 0 && !!r.expiry_date
+  r.remaining_qty > 0 && !r.completed_at && !!r.expiry_date
   && r.expiry_date < new Date().toISOString().slice(0, 10);
 
-/** Quản lý hợp đồng → Hợp đồng & phụ lục: danh sách HỢP ĐỒNG MẸ + tiến độ giao. */
+/** Quản lý hợp đồng → Hợp đồng & đợt giao: danh sách HỢP ĐỒNG + tiến độ giao. */
 export default function SalesContractPage() {
   const { canEditCap, user } = useAuth();
   const isMember = user?.role === "member";
@@ -37,6 +38,10 @@ export default function SalesContractPage() {
 
   const [meta, setMeta] = useState<ContractMeta | null>(null);
   const [rows, setRows] = useState<ContractRow[]>([]);
+  // Phân trang Ở SERVER: chỉ tải đúng trang đang xem (danh sách đã hơn 3.000 hợp đồng và dài thêm
+  // mỗi ngày). `total` là tổng số hợp đồng khớp bộ lọc, không phải số dòng đang hiện.
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [f, setF] = useState<ContractFilters>({ status: "all" });
   const [openId, setOpenId] = useState<number | null>(null);
   const [form, setForm] = useState<{ initial: Contract | null } | null>(null);
@@ -45,14 +50,16 @@ export default function SalesContractPage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    listContracts(f)
-      .then((r) => setRows(r.contracts))
+    listContracts({ ...f, page, page_size: PAGE_SIZE })
+      .then((r) => { setRows(r.contracts); setTotal(r.total); })
       .catch((e) => setErr(e.message))
       .finally(() => setLoading(false));
-  }, [f]);
+  }, [f, page]);
 
   useEffect(() => { fetchContractMeta().then(setMeta).catch((e) => setErr(e.message)); }, []);
   useEffect(() => { load(); }, [load]);
+  // Đổi bộ lọc thì về trang 1 — nếu không, đang ở trang 7 mà lọc còn 2 trang sẽ ra bảng trống.
+  const setFilter = (next: ContractFilters) => { setPage(1); setF(next); };
 
   const remove = async (r: ContractRow) => {
     if (!confirm(`Xoá hợp đồng ${r.code} của ${r.company}?`)) return;
@@ -64,10 +71,11 @@ export default function SalesContractPage() {
     <div className="main">
       <div className="page-title">
         <div>
-          <h2><FileProtectOutlined style={{ marginRight: 8 }} />Hợp đồng &amp; phụ lục</h2>
+          <h2><FileProtectOutlined style={{ marginRight: 8 }} />Hợp đồng &amp; đợt giao</h2>
           <p>
-            Danh sách <b>hợp đồng mẹ</b>. Hợp đồng <b>giao nhiều lần</b> thì mở ra để thêm{" "}
-            <b>phụ lục</b> — mỗi phụ lục là một lần giao đã hoàn tất, tính ngay vào tiêu thụ.
+            Hợp đồng <b>giao nhiều lần</b> thì mở ra để thêm <b>đợt giao</b> — mỗi đợt gồm hoá đơn,
+            ngày giao và chi tiết hàng. Giao xong hoặc kết thúc hợp đồng thì bấm{" "}
+            <b>Hoàn thành hợp đồng</b> để phần chưa giao rời khỏi “đã ký HĐ chưa giao”.
           </p>
         </div>
         {canEdit && meta && (
@@ -86,7 +94,7 @@ export default function SalesContractPage() {
           {!isMember || meta.units.length > 1 ? (
             <label className="blt-date-label">Đơn vị
               <select className="blt-date-input" value={f.company ?? ""}
-                onChange={(e) => setF({
+                onChange={(e) => setFilter({
                   // Đổi đơn vị thì bỏ luôn khách đã chọn — khách là của RIÊNG từng đơn vị, giữ
                   // lại sẽ ra danh sách rỗng mà người dùng không hiểu vì sao.
                   ...f, company: e.target.value || undefined, customer_ids: [],
@@ -98,26 +106,27 @@ export default function SalesContractPage() {
           ) : null}
           <label className="blt-date-label">Khách hàng
             <CustomerPicker multiple width={320} value={f.customer_ids ?? []} company={f.company}
-              onChange={(ids) => setF({ ...f, customer_ids: ids })} />
+              onChange={(ids) => setFilter({ ...f, customer_ids: ids })} />
           </label>
           <label className="blt-date-label">Trạng thái
             <select className="blt-date-input" value={f.status ?? "all"}
-              onChange={(e) => setF({ ...f, status: e.target.value as ContractFilters["status"] })}>
+              onChange={(e) => setFilter({ ...f, status: e.target.value as ContractFilters["status"] })}>
               <option value="all">Tất cả</option>
               <option value="open">Còn hàng chưa giao</option>
               <option value="done">Đã giao đủ</option>
+              <option value="completed">Đã hoàn thành</option>
             </select>
           </label>
           <label className="blt-date-label">Ngày ký từ
-            <DateInput value={f.date_from ?? ""} onChange={(v) => setF({ ...f, date_from: v || undefined })} />
+            <DateInput value={f.date_from ?? ""} onChange={(v) => setFilter({ ...f, date_from: v || undefined })} />
           </label>
           <label className="blt-date-label">đến
-            <DateInput value={f.date_to ?? ""} onChange={(v) => setF({ ...f, date_to: v || undefined })} />
+            <DateInput value={f.date_to ?? ""} onChange={(v) => setFilter({ ...f, date_to: v || undefined })} />
           </label>
           <input className="blt-date-input" style={{ width: 200 }} placeholder="Tìm theo số HĐ"
-            value={f.q ?? ""} onChange={(e) => setF({ ...f, q: e.target.value || undefined })} />
+            value={f.q ?? ""} onChange={(e) => setFilter({ ...f, q: e.target.value || undefined })} />
           <span style={{ color: "var(--muted)", fontSize: 13 }}>
-            {loading ? "Đang tải…" : `${rows.length} hợp đồng`}
+            {loading ? "Đang tải…" : `${total.toLocaleString("vi-VN")} hợp đồng`}
           </span>
         </div>
       )}
@@ -128,9 +137,9 @@ export default function SalesContractPage() {
         <table>
           <thead><tr>
             <th>Đơn vị</th><th>Số hợp đồng</th><th>Khách hàng</th><th>Loại giao</th>
-            <th>Ngày ký</th><th className="r">Cam kết (tấn)</th><th className="r">Thành tiền (tr.đ)</th>
+            <th>Ngày ký</th><th className="r">SL hợp đồng (tấn)</th><th className="r">Thành tiền (tr.đ)</th>
             <th className="r">Đã giao</th>
-            <th className="r">Chờ giao</th><th className="r">Chưa mở đợt</th><th className="r">Phụ lục</th>
+            <th className="r">Còn phải giao</th><th className="r">Đợt giao</th><th>Trạng thái</th>
             <th className="r" style={{ width: 160 }}>Thao tác</th>
           </tr></thead>
           <tbody>
@@ -149,25 +158,45 @@ export default function SalesContractPage() {
                 {/* Thành tiền = tổng dòng chi tiết, quy VNĐ. "—" khi có dòng ngoại tệ thiếu tỷ giá
                     (KHÔNG hiện 0 — 0 sẽ bị đọc là bán không thu tiền). */}
                 <td className="r">{r.revenue == null ? "—" : t3(r.revenue / 1_000_000)}</td>
-                <td className="r">{t3(r.delivered_qty)}</td>
-                {/* Đang chờ giao = đã mở đợt, chưa điền ngày giao → phần đang nằm ở khối 3. */}
-                <td className="r">{t3(r.pending_qty)}</td>
                 <td className="r">
-                  {/* Chưa mở đợt là trạng thái BÌNH THƯỜNG của hợp đồng mới ký — chỉ tô cảnh báo
-                      khi đã QUÁ THỜI HẠN mà vẫn còn hàng chưa giao xong. */}
+                  {t3(r.delivered_qty)}
+                  {/* Thực giao được phép lệch so với hợp đồng — nêu rõ phần vượt để khỏi tưởng nhầm
+                      là gõ sai số. */}
+                  {r.over_qty > 0 && (
+                    <div style={{ fontSize: 11, color: "var(--warn, #d48806)" }}>
+                      vượt {t3(r.over_qty)}
+                    </div>
+                  )}
+                </td>
+                <td className="r">
+                  {/* Còn phải giao = SL hợp đồng − đã giao. Còn hàng là trạng thái BÌNH THƯỜNG của
+                      hợp đồng mới ký — chỉ tô cảnh báo khi đã QUÁ THỜI HẠN. */}
                   <span className={overdue(r) ? "chip warn" : "chip"}>{t3(r.remaining_qty)}</span>
+                  {r.pending_qty > 0 && (
+                    <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                      chờ giao {t3(r.pending_qty)}
+                    </div>
+                  )}
                 </td>
                 <td className="r">{r.delivery_type === "multi" ? r.children : "—"}</td>
+                <td style={{ whiteSpace: "nowrap", fontSize: 12.5 }}>
+                  {r.completed_at
+                    ? <span className="chip">Hoàn thành {dmy(r.completed_at)}</span>
+                    : <span style={{ color: "var(--muted)" }}>Đang thực hiện</span>}
+                </td>
                 <td className="r" style={{ whiteSpace: "nowrap" }}>
                   <button className="btn" onClick={() => setOpenId(r.id as number)}>Xem</button>{" "}
                   {/* HĐ giao-1-lần ĐÃ GIAO là một lần giao → quá cửa sổ sửa thì chỉ còn xem.
-                      HĐ giao-nhiều-lần không bị khoá: còn phải thêm phụ lục suốt vòng đời. */}
+                      HĐ giao-nhiều-lần không bị khoá: còn phải thêm đợt giao suốt vòng đời. */}
+                  {/* Hợp đồng đã chốt hoàn thành thì khoá — mở lại ở màn chi tiết mới sửa được. */}
                   {canEdit && (locked(r.delivered_at)
                     ? <span style={{ color: "var(--muted)", fontSize: 11 }}>(chỉ xem)</span>
-                    : <>
-                        <button className="btn" onClick={() => setForm({ initial: r })}>Sửa</button>{" "}
-                        <button className="btn" onClick={() => remove(r)}>Xoá</button>
-                      </>)}
+                    : r.completed_at
+                      ? <span style={{ color: "var(--muted)", fontSize: 11 }}>(đã chốt)</span>
+                      : <>
+                          <button className="btn" onClick={() => setForm({ initial: r })}>Sửa</button>{" "}
+                          <button className="btn" onClick={() => remove(r)}>Xoá</button>
+                        </>)}
                 </td>
               </tr>
             ))}
@@ -179,6 +208,24 @@ export default function SalesContractPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Thanh trang — server chỉ trả đúng trang đang xem nên đây là cách duy nhất để xem tiếp. */}
+      {total > PAGE_SIZE && (
+        <div className="blt-toolbar" style={{ justifyContent: "flex-end", gap: 10 }}>
+          <span style={{ color: "var(--muted)", fontSize: 13 }}>
+            Dòng {((page - 1) * PAGE_SIZE + 1).toLocaleString("vi-VN")}–
+            {Math.min(page * PAGE_SIZE, total).toLocaleString("vi-VN")} / {total.toLocaleString("vi-VN")}
+          </span>
+          <button className="btn" disabled={page <= 1 || loading} onClick={() => setPage(1)}>« Đầu</button>
+          <button className="btn" disabled={page <= 1 || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Trước</button>
+          <span style={{ fontSize: 13 }}>Trang {page} / {Math.ceil(total / PAGE_SIZE)}</span>
+          <button className="btn" disabled={page >= Math.ceil(total / PAGE_SIZE) || loading}
+            onClick={() => setPage((p) => p + 1)}>Sau ›</button>
+          <button className="btn" disabled={page >= Math.ceil(total / PAGE_SIZE) || loading}
+            onClick={() => setPage(Math.ceil(total / PAGE_SIZE))}>Cuối »</button>
+        </div>
+      )}
 
       {meta && openId != null && (
         <ContractDetailModal contractId={openId} meta={meta} canEdit={canEdit}

@@ -40,7 +40,7 @@ _TYPES: dict[str, tuple[str, bool]] = {
     ".xls": ("application/vnd.ms-excel", False),
     ".xlsx": ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", False),
     ".xml": ("application/xml", False),  # bản gốc hoá đơn điện tử
-    ".zip": ("application/zip", False),  # gói cả bộ hợp đồng + phụ lục
+    ".zip": ("application/zip", False),  # gói cả bộ hợp đồng + đợt giao
 }
 
 # Kiểu MIME trình duyệt khai báo → đuôi file, dùng khi tên file không có đuôi.

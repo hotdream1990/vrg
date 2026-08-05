@@ -6,19 +6,21 @@ import {
   type ContractLine,
   type ContractMeta,
   type ContractType,
+  MAX_OVER_RATIO,
   saveContract,
 } from "../../../../lib/sales-contract-client";
 import CustomerPicker from "../../sections/CustomerPicker";
 import DateInput from "../../sections/DateInput";
 import ContractAttach from "./ContractAttach";
+import ContractBatchDocs from "./ContractBatchDocs";
 import ContractLinesTable, { EMPTY_LINE } from "./ContractLinesTable";
 
 type Props = {
   meta: ContractMeta;
-  /** Có giá trị = đang thêm/sửa PHỤ LỤC của hợp đồng mẹ này. */
+  /** Có giá trị = đang thêm/sửa ĐỢT GIAO của hợp đồng này. */
   parent?: Contract | null;
-  /** Sản lượng còn lại của hợp đồng mẹ (chỉ dùng khi thêm phụ lục). */
-  remaining?: number;
+  /** Tổng sản lượng các đợt giao KHÁC của hợp đồng (không tính đợt đang sửa). */
+  otherQty?: number;
   initial?: Contract | null;
   onClose: () => void;
   onSaved: () => void;
@@ -29,10 +31,11 @@ const today = () => new Date().toISOString().slice(0, 10);
 const blank = (company: string): Contract => ({
   id: null, company, parent_id: null, code: "", customer_id: null, delivery_type: "single",
   contract_type: null,
-  sign_date: today(), expiry_date: null, start_date: today(), lines: [{ ...EMPTY_LINE }], delivered: false,
-  delivered_at: null, channel: null, to_company: null, payment_date: null, payment_qty: null,
-  payment_docs: [], files: [], note: null,
-  qty: 0, qty_dry: 0, revenue: null,
+  sign_date: today(), expiry_date: null, start_date: null, lines: [{ ...EMPTY_LINE }],
+  delivered: false, delivered_at: null, channel: null, to_company: null,
+  invoice_no: null, invoice_docs: [],
+  payment_date: null, payment_qty: null, payment_docs: [], files: [], note: null,
+  completed_at: null, qty: 0, qty_dry: 0, revenue: null,
 });
 
 const sumQty = (lines: ContractLine[]) => lines.reduce((s, l) => s + (l.qty ?? 0), 0);
@@ -51,8 +54,8 @@ function sumAmountVnd(lines: ContractLine[]): number | null {
 }
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
 
-/** Modal thêm/sửa HỢP ĐỒNG MẸ hoặc PHỤ LỤC (phụ lục = 1 lần giao + 1 lần thanh toán). */
-export default function ContractFormModal({ meta, parent, remaining = 0, initial, onClose, onSaved }: Props) {
+/** Modal thêm/sửa HỢP ĐỒNG hoặc ĐỢT GIAO (mỗi đợt = 1 lần giao + 1 lần thanh toán). */
+export default function ContractFormModal({ meta, parent, otherQty = 0, initial, onClose, onSaved }: Props) {
   const isChild = !!parent;
   const [c, setC] = useState<Contract>(() => {
     if (initial) {
@@ -65,16 +68,16 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
       return { ...initial, lines };
     }
     const base = blank(parent?.company ?? meta.units[0] ?? "");
-    return isChild ? { ...base, parent_id: parent!.id, delivered: true } : base;
+    return isChild ? { ...base, parent_id: parent!.id } : base;
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
   const set = (patch: Partial<Contract>) => setC((prev) => ({ ...prev, ...patch }));
-  // Đợt CHỈ tính là đã giao khi có NGÀY GIAO. Chưa có = đang chờ giao (nằm ở "đã ký HĐ chưa giao"),
-  // lúc đó chưa ép quy khô / hình thức tiêu thụ vì hàng chưa bán ra.
+  // Đợt CHỈ tính là đã giao khi có NGÀY GIAO. Chưa có = đang chờ giao (vẫn nằm trong phần chưa
+  // giao của hợp đồng), lúc đó chưa ép quy khô / hình thức tiêu thụ vì hàng chưa bán ra.
   const isDelivery = !!c.delivered_at;
-  // Hợp đồng mẹ giao-nhiều-lần không phải một đợt — hàng nằm ở các phụ lục.
+  // Bản ghi này có phải MỘT LẦN GIAO không: đợt giao, hoặc hợp đồng giao trọn 1 lần.
   const isBatch = isChild || c.delivery_type === "single";
   // Đơn vị nhận hàng nội bộ = các đơn vị CÙNG NHÓM công ty mẹ–con. Rỗng = đơn vị đứng một mình,
   // không có tiêu thụ nội bộ (server cũng chặn, xem `_assert_same_group`).
@@ -89,22 +92,22 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
 
   const qty = sumQty(c.lines);
   const amountVnd = sumAmountVnd(c.lines);
-  // Sửa phụ lục thì phần đang sửa vốn đã nằm trong "đã giao" → cộng lại để không tự chặn nhầm.
-  const cap = isChild ? remaining + (initial ? sumQty(initial.lines) : 0) : Infinity;
+  // Sản lượng thực giao được phép LỆCH so với hợp đồng (cân hàng, hao hụt): vượt thì cảnh báo,
+  // quá trần 110% mới chặn — đúng như server (`repo.MAX_OVER_RATIO`).
+  const signed = parent?.qty ?? 0;
+  const left = Math.max(0, signed - otherQty);          // còn theo đúng hợp đồng
+  const cap = isChild ? signed * MAX_OVER_RATIO - otherQty : Infinity;
   const overCap = isChild && qty > cap + 1e-9;
+  const overSigned = isChild && !overCap && qty > left + 1e-9;
 
   /** Kiểm TẤT CẢ ô bắt buộc trong một lượt, trả danh sách lỗi để hiện cùng lúc. */
   const problems = (): string[] => {
     const p: string[] = [];
     if (!c.company) p.push("Chọn đơn vị.");
-    if (!c.code.trim()) p.push(isChild ? "Nhập số phụ lục." : "Nhập số hợp đồng.");
+    if (!c.code.trim()) p.push(isChild ? "Nhập số đợt giao." : "Nhập số hợp đồng.");
     if (!isChild && !c.customer_id) p.push("Chọn khách hàng.");
     if (!isChild && !c.sign_date) p.push("Chọn ngày ký.");
-    if (isBatch && !c.start_date) p.push("Chọn ngày bắt đầu (ngày mở đợt giao).");
     if (isDelivery && !c.channel) p.push("Chọn hình thức tiêu thụ.");
-    if (c.start_date && c.delivered_at && c.delivered_at < c.start_date) {
-      p.push("Ngày giao không thể trước ngày bắt đầu.");
-    }
     if (c.channel === "internal" && !c.to_company) p.push("Chọn đơn vị nhận hàng.");
     const rows = c.lines.filter((l) => l.grade || l.qty != null);
     if (!rows.length) p.push("Thêm ít nhất một dòng chi tiết.");
@@ -117,7 +120,7 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
       }
       if (l.ccy !== "VND" && !l.fx) p.push(`${at}: bán bằng ${l.ccy} thì phải nhập tỷ giá.`);
     });
-    if (overCap) p.push("Giảm sản lượng phụ lục cho vừa phần còn lại của hợp đồng mẹ.");
+    if (overCap) p.push(`Giảm sản lượng đợt giao xuống tối đa ${t3(Math.max(0, cap))} tấn.`);
     return p;
   };
 
@@ -130,7 +133,6 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
         ...c,
         lines: c.lines.filter((l) => l.grade || l.qty != null),
         parent_id: isChild ? parent!.id : null,
-        delivered: isChild ? true : c.delivered,
       } as unknown as Record<string, unknown>);
       onSaved(); onClose();
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
@@ -138,7 +140,7 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
   };
 
   const title = isChild
-    ? `${initial ? "Sửa" : "Thêm"} phụ lục — HĐ ${parent!.code}`
+    ? `${initial ? "Sửa" : "Thêm"} đợt giao — HĐ ${parent!.code}`
     : `${initial ? "Sửa" : "Thêm"} hợp đồng`;
 
   // Modal rộng để dòng chi tiết đủ chỗ nằm một hàng; `min()` giữ mép modal không tràn ra ngoài
@@ -158,7 +160,7 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
             {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </label>
-        <label className="form-field">{isChild ? "Số phụ lục *" : "Số hợp đồng *"}
+        <label className="form-field">{isChild ? "Số đợt giao *" : "Số hợp đồng *"}
           <input className="blt-date-input" value={c.code}
             onChange={(e) => set({ code: e.target.value })} />
         </label>
@@ -172,7 +174,8 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
                 onChange={(ids) => set({ customer_id: ids[0] ?? null })} />
             </label>
             {/* Loại HỢP ĐỒNG là chỉ tiêu của báo cáo (dài hạn/chuyến) — KHÁC loại GIAO bên dưới:
-                một hợp đồng dài hạn vẫn có thể giao trọn 1 lần. */}
+                một hợp đồng dài hạn vẫn có thể giao trọn 1 lần. Đơn vị có hợp đồng khung thì nhập
+                MỖI PHỤ LỤC NHƯ MỘT HỢP ĐỒNG và chọn "HĐ dài hạn" ở đây. */}
             <label className="form-field">Loại hợp đồng *
               <select className="blt-date-input" value={c.contract_type ?? ""}
                 onChange={(e) => set({ contract_type: (e.target.value || null) as ContractType })}>
@@ -182,7 +185,7 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
             </label>
             <label className="form-field">Loại giao
               <select className="blt-date-input" value={c.delivery_type} disabled={!!initial}
-                onChange={(e) => set({ delivery_type: e.target.value as "single" | "multi", delivered: false })}>
+                onChange={(e) => set({ delivery_type: e.target.value as "single" | "multi" })}>
                 {Object.entries(meta.delivery_types).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </label>
@@ -192,22 +195,21 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
             <label className="form-field">Thời hạn hợp đồng
               <DateInput value={c.expiry_date ?? ""} onChange={(v) => set({ expiry_date: v || null })} />
             </label>
-            {c.delivery_type === "single" && (
-              <label className="form-field">Ngày bắt đầu (mở đợt) *
-                <DateInput value={c.start_date ?? ""} onChange={(v) => set({ start_date: v || null })} />
-              </label>
-            )}
           </>
         )}
       </div>
 
+      {!isChild && (
+        <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
+          Hệ thống <b>không quản lý hợp đồng khung</b>: đơn vị có hợp đồng dài hạn thì nhập{" "}
+          <b>mỗi phụ lục như một hợp đồng</b> và chọn loại <b>HĐ dài hạn</b> để phân biệt.
+          {initial && <> Đổi <b>loại giao</b> bằng nút <b>Chuyển sang giao nhiều lần</b> ở màn chi
+            tiết hợp đồng — lần giao đã nhập sẽ tự thành đợt giao đầu tiên, không phải nhập lại.</>}
+        </p>
+      )}
+
       {isBatch && (
         <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 10 }}>
-          {isChild && (
-            <label className="form-field">Ngày bắt đầu (mở đợt) *
-              <DateInput value={c.start_date ?? ""} onChange={(v) => set({ start_date: v || null })} />
-            </label>
-          )}
           <label className="form-field">Ngày giao
             <DateInput value={c.delivered_at ?? ""} onChange={(v) => set({ delivered_at: v || null })} />
           </label>
@@ -230,20 +232,21 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
               </select>
             </label>
           )}
-          {!peers.length && (
-            <p className="form-note" style={{ gridColumn: "1 / -1", margin: 0, fontSize: 12 }}>
-              “{c.company}” chưa thuộc nhóm công ty mẹ–con nên không có <b>Tiêu thụ nội bộ</b>.
-              Gán <b>Công ty mẹ</b> ở màn Đơn vị thành viên nếu đơn vị này có bán nội bộ.
-            </p>
-          )}
+          <p className="form-note" style={{ gridColumn: "1 / -1", margin: 0, fontSize: 12 }}>
+            Để trống <b>Ngày giao</b> nếu đợt mới lập, chưa xuất hàng — đợt vẫn nằm ở phần chưa giao
+            của hợp đồng và chưa tính vào tiêu thụ.
+            {!peers.length && <>{" "}“{c.company}” chưa thuộc nhóm công ty mẹ–con nên không có{" "}
+              <b>Tiêu thụ nội bộ</b>. Gán <b>Công ty mẹ</b> ở màn Đơn vị thành viên nếu đơn vị này
+              có bán nội bộ.</>}
+          </p>
         </div>
       )}
 
-      <h4 style={{ margin: "14px 0 6px" }}>Chi tiết {isChild ? "lần giao" : "hợp đồng"}</h4>
+      <h4 style={{ margin: "14px 0 6px" }}>Chi tiết {isChild ? "đợt giao" : "hợp đồng"}</h4>
       <ContractLinesTable lines={c.lines} meta={meta} requireDry={isDelivery}
         currencies={currencies} onChange={(lines) => set({ lines })} />
 
-      {/* Tổng của cả hợp đồng/phụ lục — quy về VNĐ để cộng được các dòng khác loại tiền.
+      {/* Tổng của cả hợp đồng/đợt giao — quy về VNĐ để cộng được các dòng khác loại tiền.
           Thiếu tỷ giá thì để "—" (KHÔNG coi là 0), đúng cách báo cáo đang làm. */}
       <div style={{ marginTop: 8, fontSize: 13 }}>
         Tổng sản lượng: <b>{t3(qty)}</b> tấn · <b>Thành tiền:</b>{" "}
@@ -258,38 +261,33 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
       {isChild && (
         <>
           <div style={{ marginTop: 4, fontSize: 13 }}>
-            Còn lại của hợp đồng mẹ:{" "}
-            <b style={{ color: overCap ? "var(--danger)" : undefined }}>{t3(cap)}</b> tấn
+            Còn phải giao theo hợp đồng: <b>{t3(left)}</b> tấn · tối đa nhập được{" "}
+            <b style={{ color: overCap ? "var(--danger)" : undefined }}>{t3(Math.max(0, cap))}</b> tấn
+            <span style={{ color: "var(--muted)" }}> (trần {Math.round(MAX_OVER_RATIO * 100)}% sản lượng hợp đồng)</span>
           </div>
-          {overCap && (
-            <div className="blt-error" style={{ marginTop: 6 }}>
-              Phụ lục vượt sản lượng còn lại của hợp đồng mẹ — giảm số lượng rồi lưu lại.
+          {overSigned && (
+            <div className="chip warn" style={{ marginTop: 6 }}>
+              Tổng đã giao sẽ vượt hợp đồng {t3(qty + otherQty - signed)} tấn
+              {signed > 0 && ` (+${(((qty + otherQty) / signed - 1) * 100).toFixed(1)}%)`} — vẫn lưu
+              được, kiểm lại số cân trước khi lưu.
             </div>
           )}
-          <h4 style={{ margin: "14px 0 6px" }}>Thanh toán (mỗi phụ lục một lần)</h4>
-          <div className="form-note" style={{ fontSize: 11.5, marginBottom: 8 }}>
-            Đây là <b>ghi nhận lần thanh toán</b> — số liệu tiêu thụ và doanh thu vẫn lấy từ các
-            dòng chi tiết ở trên.
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 10 }}>
-            <label className="form-field">Ngày thanh toán
-              <DateInput value={c.payment_date ?? ""} onChange={(v) => set({ payment_date: v || null })} />
-            </label>
-            <label className="form-field">Sản lượng thanh toán (tấn)
-              <input className="blt-date-input r" inputMode="decimal" value={c.payment_qty ?? ""}
-                onChange={(e) => set({ payment_qty: e.target.value === "" ? null : Number(e.target.value) })} />
-            </label>
-          </div>
-          <div style={{ marginTop: 10 }}>
-            <ContractAttach label="Chứng từ / hoá đơn" docs={c.payment_docs}
-              onChange={(payment_docs) => set({ payment_docs })} />
-          </div>
+          {overCap && (
+            <div className="blt-error" style={{ marginTop: 6 }}>
+              Vượt quá {Math.round(MAX_OVER_RATIO * 100)}% sản lượng hợp đồng — giảm số lượng, hoặc
+              sửa sản lượng trên hợp đồng nếu hai bên đã thống nhất tăng.
+            </div>
+          )}
         </>
       )}
 
+      {isBatch && <ContractBatchDocs c={c} set={set} />}
+
+      {/* Đợt giao vẫn giữ ô đính kèm chung: các đợt chuyển từ cách nhập cũ có sẵn file ở đây,
+          ẩn đi là người dùng không xem/gỡ được nữa. */}
       <div style={{ marginTop: 12 }}>
-        <ContractAttach label={isChild ? "File phụ lục" : "Hợp đồng đã ký (scan)"} docs={c.files}
-          onChange={(files) => set({ files })} />
+        <ContractAttach label={isChild ? "Hồ sơ khác của đợt giao" : "Hợp đồng đã ký (scan)"}
+          docs={c.files} onChange={(files) => set({ files })} />
       </div>
 
       <label className="form-field" style={{ marginTop: 10, display: "block" }}>Ghi chú
@@ -297,12 +295,6 @@ export default function ContractFormModal({ meta, parent, remaining = 0, initial
           onChange={(e) => set({ note: e.target.value || null })} />
       </label>
 
-      {isChild && (
-        <div className="form-note" style={{ fontSize: 11.5, marginTop: 8 }}>
-          Mỗi phụ lục là <b>một lần giao đã hoàn tất</b>: lưu xong là tính ngay vào tiêu thụ và trừ
-          vào phần chưa giao của hợp đồng mẹ.
-        </div>
-      )}
       {err && <div className="blt-error" style={{ marginTop: 8 }}>{err}</div>}
     </Modal>
   );

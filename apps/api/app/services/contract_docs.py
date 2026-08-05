@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-MAX_DOCS = 20        # trần số file mỗi ô — đủ cho một bộ hợp đồng nhiều phụ lục
+MAX_DOCS = 20        # trần số file mỗi ô — đủ cho một bộ hợp đồng nhiều đợt giao
 _NAME_MAX = 120      # khớp độ dài tên lưu (uuid + đuôi) đang dùng
 _ORIG_MAX = 200      # tên gốc hiển thị
 

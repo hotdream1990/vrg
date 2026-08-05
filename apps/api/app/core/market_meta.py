@@ -133,14 +133,16 @@ SALE_CHANNELS: dict[str, str] = {
     "internal": "Tiêu thụ nội bộ",
 }
 
-# Loại giao của hợp đồng mẹ: giao trọn 1 lần, hoặc giao nhiều lần qua các phụ lục.
+# Loại giao của hợp đồng: giao trọn 1 lần, hoặc chia thành nhiều ĐỢT GIAO.
 DELIVERY_TYPES: dict[str, str] = {
     "single": "Giao 1 lần",
-    "multi": "Giao nhiều lần (hợp đồng mẹ – phụ lục)",
+    "multi": "Giao nhiều lần (chia đợt giao)",
 }
 
 # Loại HỢP ĐỒNG — chỉ tiêu báo cáo (mẫu Tiêu thụ – Tồn kho, Kế hoạch năm). ĐỘC LẬP với loại GIAO:
 # một hợp đồng dài hạn vẫn có thể giao trọn 1 lần, nên KHÔNG suy ra từ `DELIVERY_TYPES`.
+# KHÔNG quản lý hợp đồng khung: đơn vị có hợp đồng dài hạn nhập MỖI PHỤ LỤC NHƯ MỘT HỢP ĐỒNG rồi
+# chọn "HĐ dài hạn" ở đây để phân biệt loại (chốt 05/08/2026).
 CONTRACT_TYPES: dict[str, str] = {
     "long_term": "HĐ dài hạn",
     "spot": "HĐ chuyến",

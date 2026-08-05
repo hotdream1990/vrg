@@ -27,7 +27,7 @@ export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
   { key: "auto_data", label: "Số liệu tự động", hint: "Bảng tính giá các sàn · Tỷ giá · Quét đa sàn" },
   { key: "market_demand", label: "Nhu cầu thị trường", hint: "nhu cầu của mọi đơn vị" },
   { key: "unit_daily", label: "Báo cáo đơn vị theo ngày", hint: "thu mua · tồn kho (mọi đơn vị)" },
-  { key: "sales_contract", label: "Hợp đồng & khách hàng", hint: "hợp đồng 2 cấp · phụ lục · danh mục khách (mọi đơn vị)" },
+  { key: "sales_contract", label: "Hợp đồng & khách hàng", hint: "hợp đồng · đợt giao · danh mục khách (mọi đơn vị)" },
   { key: "floor_suggest", label: "Gợi ý giá sàn", hint: "màn phân tích" },
   { key: "bulletin_daily", label: "Bản tin ngày", hint: "màn phân tích" },
   { key: "bulletin_weekly", label: "Báo cáo tuần", hint: "màn phân tích" },

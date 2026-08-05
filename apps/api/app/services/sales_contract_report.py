@@ -1,10 +1,11 @@
 """Tổng hợp TIÊU THỤ và KHỐI 3 (đã ký HĐ chưa giao) TỪ HỢP ĐỒNG — thay cho ô nhập tay cũ.
 
 Hai con số hệ thống tự tính (chốt 30/07/2026), đơn vị KHÔNG nhập trực tiếp nữa:
-  - **Tiêu thụ** = tổng các LẦN GIAO (phụ lục, hoặc hợp đồng giao-1-lần đã đánh dấu giao)
+  - **Tiêu thụ** = tổng các ĐỢT ĐÃ GIAO (đợt giao, hoặc hợp đồng giao-1-lần đã đánh dấu giao)
     có `delivered_at` nằm trong kỳ báo cáo.
-  - **Khối 3** = SL cam kết − tổng đã giao, TÍNH TẠI NGÀY báo cáo. Vẫn là phần NẰM TRONG tồn kho
-    thành phẩm (không cộng thêm, không trừ ra).
+  - **Khối 3** = sản lượng CỦA HỢP ĐỒNG − tổng đã giao tính tới ngày báo cáo (chốt 05/08/2026),
+    cho tới khi hợp đồng được đánh dấu HOÀN THÀNH. Trước đây chỉ đếm phần đã chia thành đợt; nay
+    tính trên hợp đồng vì đơn vị KHÔNG nhập hợp đồng khung — mỗi hợp đồng là một lô hàng thật.
 Sản lượng đọc từ dòng chi tiết nên tách được theo chủng loại; doanh thu quy về ĐỒNG (xem `calc`).
 """
 
@@ -19,6 +20,10 @@ from app.services import sales_contract_calc as calc
 from app.services.sales_contract_repo import _COLS, _row
 
 _SELECT = f"SELECT {', '.join(_COLS)} FROM sales_contract"
+
+#: Tổng sản lượng (tấn) của một cột `lines` jsonb — phải cho ra đúng số như `calc.total_qty`.
+_QTY_SQL = ("COALESCE((SELECT sum(COALESCE(NULLIF(e->>'qty', '')::numeric, 0)) "
+            "FROM jsonb_array_elements(%s) e), 0)")
 
 
 def _fetch(companies: list[str] | None, extra: list[str] | None = None,
@@ -51,8 +56,8 @@ def deliveries(date_from: str, date_to: str, companies: list[str] | None = None,
                grades: list[str] | None = None) -> list[dict[str, Any]]:
     """Các LẦN GIAO có ngày giao trong [date_from, date_to] — nguồn số tiêu thụ của kỳ.
 
-    Phụ lục KHÔNG mang khách hàng lẫn loại hợp đồng (cả hai gán ở hợp đồng mẹ) → gắn `customer_id`
-    và `contract_type` của mẹ vào từng lần giao, nếu không thì không lọc/thống kê theo khách hàng
+    Đợt giao KHÔNG mang khách hàng lẫn loại hợp đồng (cả hai gán ở hợp đồng) → gắn `customer_id`
+    và `contract_type` của hợp đồng vào từng lần giao, nếu không thì không lọc/thống kê theo khách hàng
     và không tách được chỉ tiêu "HĐ dài hạn / HĐ chuyến".
 
     `grades` lọc theo CHỦNG LOẠI ở mức DÒNG: một lần giao có thể gồm nhiều chủng loại, nên phải
@@ -142,40 +147,112 @@ def consumption(date_from: str, date_to: str, companies: list[str] | None = None
     return out
 
 
+#: Sản lượng theo CHỦNG LOẠI của một cột `lines` jsonb, mỗi dòng chi tiết một bản ghi.
+_GRADE_SQL = ("COALESCE(NULLIF(e->>'grade', ''), '(chưa khai)') AS grade, "
+              "COALESCE(NULLIF(e->>'qty', '')::numeric, 0) AS qty")
+
+#: Khối 3 tại ngày :d = cam kết của HỢP ĐỒNG − đã giao tính tới hết ngày đó, tách theo chủng loại.
+#: Gom ở SQL chứ không kéo cả bảng về Python: lưới nhập liệu gọi hàm này MỘT LẦN CHO MỖI NGÀY,
+#: mà số hợp đồng thì tăng đều (đã hơn 3.000) — quét cả bảng 30 lần là treo màn hình.
+_BLOCK3_SQL = """
+WITH parent AS (
+    SELECT id, company, code, customer_id, sign_date, expiry_date, lines, delivered_at
+    FROM sales_contract
+    WHERE parent_id IS NULL
+      AND (sign_date IS NULL OR sign_date <= CAST(:d AS date))
+      AND (completed_at IS NULL OR completed_at > CAST(:d AS date))
+      {scope}
+), commit_g AS (
+    SELECT p.id, {grade_sql} FROM parent p CROSS JOIN LATERAL jsonb_array_elements(p.lines) e
+), done_g AS (
+    SELECT p.id, {grade_sql} FROM parent p CROSS JOIN LATERAL jsonb_array_elements(p.lines) e
+     WHERE p.delivered_at IS NOT NULL AND p.delivered_at <= CAST(:d AS date)
+    UNION ALL
+    SELECT k.parent_id AS id, {grade_sql}
+      FROM sales_contract k CROSS JOIN LATERAL jsonb_array_elements(k.lines) e
+     WHERE k.parent_id IN (SELECT id FROM parent)
+       AND k.delivered_at IS NOT NULL AND k.delivered_at <= CAST(:d AS date)
+), c AS (SELECT id, grade, sum(qty) AS qty FROM commit_g GROUP BY 1, 2
+), d AS (SELECT id, grade, sum(qty) AS qty FROM done_g GROUP BY 1, 2
+), dtot AS (SELECT id, sum(qty) AS qty FROM done_g GROUP BY 1)
+SELECT p.id, p.company, p.code, p.customer_id, p.sign_date, p.expiry_date,
+       c.grade, c.qty AS commit_qty, COALESCE(dtot.qty, 0) AS done_total,
+       COALESCE(d.qty, 0) AS done_qty
+  FROM parent p
+  JOIN c ON c.id = p.id
+  LEFT JOIN d ON d.id = p.id AND d.grade = c.grade
+  LEFT JOIN dtot ON dtot.id = p.id
+ ORDER BY p.company, p.id
+"""
+
+
+def _remaining_by_grade(rows: list[dict[str, Any]]) -> tuple[float, dict[str, float]]:
+    """Phần CHƯA GIAO của một hợp đồng: tổng và tách theo chủng loại.
+
+    Tổng luôn là `cam kết − đã giao` (không âm). Phần theo chủng loại lấy hiệu của từng chủng loại,
+    rồi HẠ ĐỀU cho khớp tổng: giao vượt ở chủng loại này / giao chủng loại khác với hợp đồng sẽ làm
+    tổng hai bên lệch nhau, khi đó cột tổng và bảng chi tiết phải kể cùng một câu chuyện.
+    """
+    commit_total = sum(float(r["commit_qty"] or 0) for r in rows)
+    done_total = float(rows[0]["done_total"] or 0) if rows else 0.0
+    total = max(0.0, commit_total - done_total)
+    by_grade = {}
+    for r in rows:
+        left = float(r["commit_qty"] or 0) - float(r["done_qty"] or 0)
+        if left > 1e-9:
+            by_grade[r["grade"]] = by_grade.get(r["grade"], 0.0) + left
+    spread = sum(by_grade.values())
+    if spread > total + 1e-9 and spread > 0:
+        by_grade = {g: q * total / spread for g, q in by_grade.items()}
+    return total, by_grade
+
+
 def undelivered_on(as_of: str, companies: list[str] | None = None,
                    grades: list[str] | None = None) -> dict[str, dict[str, Any]]:
     """{đơn vị: {qty, by_grade, items}} — ĐÃ KÝ HĐ CHƯA GIAO tại ngày `as_of` (khối 3).
 
-    Chốt 02/08/2026 — tính theo VÒNG ĐỜI CỦA TỪNG ĐỢT GIAO, không phải theo cam kết của hợp đồng mẹ:
-    một đợt nằm trong khối 3 từ **ngày bắt đầu** đến **hết ngày trước ngày giao**.
-      - Phụ lục = một đợt của hợp đồng giao-nhiều-lần.
-      - Hợp đồng giao-1-lần = chính nó là một đợt (ngày bắt đầu mặc định = ngày ký).
-    Phần cam kết của hợp đồng mẹ **chưa phân thành đợt** KHÔNG tính vào khối 3 — hàng chưa gom vào
-    kho thì không thể nằm trong tồn kho thực tế. Nhờ vậy hợp đồng khung cả năm không thổi phồng khối 3.
+    Chốt 05/08/2026 — tính TRÊN HỢP ĐỒNG: `sản lượng hợp đồng − đã giao tính tới ngày as_of`.
+    Một hợp đồng nằm trong khối 3 từ **ngày ký** cho tới khi giao hết, hoặc tới ngày được đánh dấu
+    **hoàn thành** (thực giao lệch với hợp đồng là chuyện thường — chốt hoàn thành để phần chênh
+    rời khỏi khối này).
+
+    Sản lượng dùng số GHI TRÊN HỢP ĐỒNG (mủ nước với latex), cùng gốc với tiến độ giao — trộn với
+    quy khô của các đợt đã giao sẽ để lại một phần dư ảo ở hợp đồng đã giao xong.
     """
-    rows = _fetch(companies,
-                  ["start_date IS NOT NULL", "start_date <= CAST(:d AS date)",
-                   "(delivered_at IS NULL OR delivered_at > CAST(:d AS date))"],
-                  {"d": as_of})
-    out: dict[str, dict[str, Any]] = {}
+    ensure_schema()
+    scope, params = "", {"d": as_of}
+    if companies is not None:
+        if not companies:
+            return {}
+        scope, params["cs"] = "AND company = ANY(:cs)", list(companies)
+    sql = _BLOCK3_SQL.format(scope=scope, grade_sql=_GRADE_SQL)
+    with session_scope() as db:
+        rows = db.execute(text(sql), params).mappings().all()
+
+    per_contract: dict[int, list[dict[str, Any]]] = {}
     for r in rows:
-        # Hợp đồng mẹ giao-nhiều-lần không phải là một đợt — hàng của nó nằm ở các phụ lục.
-        if r["parent_id"] is None and r["delivery_type"] == "multi":
-            continue
-        by_grade = {g: q for g, q in _by_grade(r["lines"]).items()
-                    if q > 1e-9 and (not grades or g in grades)}
-        total = sum(by_grade.values())
+        per_contract.setdefault(r["id"], []).append(dict(r))
+
+    out: dict[str, dict[str, Any]] = {}
+    for lines in per_contract.values():
+        head = lines[0]
+        total, by_grade = _remaining_by_grade(lines)
+        if grades:
+            by_grade = {g: q for g, q in by_grade.items() if g in grades}
+            total = sum(by_grade.values())
         if total <= 1e-9:
             continue
-        acc = out.setdefault(r["company"], {"qty": 0.0, "by_grade": {}, "items": []})
+        acc = out.setdefault(head["company"], {"qty": 0.0, "by_grade": {}, "items": []})
         acc["qty"] += total
         for g, q in by_grade.items():
             acc["by_grade"][g] = acc["by_grade"].get(g, 0.0) + q
         acc["items"].append({
-            "id": r["id"], "code": r["code"], "parent_id": r["parent_id"],
-            "customer_id": r["customer_id"], "sign_date": r["sign_date"],
-            "start_date": r["start_date"], "expiry_date": r["expiry_date"],
-            "qty": r["qty"], "remaining": total, "by_grade": by_grade,
+            "id": head["id"], "code": head["code"], "parent_id": None,
+            "customer_id": head["customer_id"],
+            "sign_date": str(head["sign_date"]) if head["sign_date"] else None,
+            "expiry_date": str(head["expiry_date"]) if head["expiry_date"] else None,
+            "qty": sum(float(r["commit_qty"] or 0) for r in lines),
+            "remaining": total, "by_grade": by_grade,
         })
     return out
 
@@ -184,51 +261,83 @@ def parents_with_progress(companies: list[str] | None = None, *,
                           customer_ids: list[int] | None = None,
                           status: str | None = None, q: str | None = None,
                           date_from: str | None = None, date_to: str | None = None,
-                          ) -> list[dict[str, Any]]:
-    """Danh sách HỢP ĐỒNG MẸ kèm tiến độ giao (đã giao / còn lại / số phụ lục) cho màn danh sách."""
-    extra, params = [], {}
+                          limit: int = 25, offset: int = 0) -> dict[str, Any]:
+    """MỘT TRANG hợp đồng kèm tiến độ giao → `{"rows": [...], "total": <tổng khớp lọc>}`.
+
+    Lọc · tính tiến độ · sắp xếp · cắt trang đều làm Ở SQL. Danh sách hợp đồng dài thêm mỗi ngày
+    (mỗi lần giao là một bản ghi) nên kéo hết về Python rồi mới cắt là vừa chậm vừa nặng đường
+    truyền — mà màn hình chỉ hiện được vài chục dòng.
+
+    Tiến độ của một hợp đồng:
+      - `delivered_qty` đã giao · `remaining_qty` = **sản lượng hợp đồng − đã giao** (còn phải giao)
+      - `pending_qty` phần đã LẬP ĐỢT nhưng chưa điền ngày giao (nằm trong `remaining_qty`)
+      - `over_qty` phần giao VƯỢT hợp đồng (thực giao được lệch, xem `repo.MAX_OVER_RATIO`)
+    """
+    where = ["parent_id IS NULL"]
+    params: dict[str, Any] = {"lim": max(1, limit), "off": max(0, offset)}
+    if companies is not None:
+        if not companies:
+            return {"rows": [], "total": 0}
+        where.append("company = ANY(:cs)")
+        params["cs"] = list(companies)
     if customer_ids:
-        extra.append("customer_id = ANY(:cu)")
+        where.append("customer_id = ANY(:cu)")
         params["cu"] = list(customer_ids)
     if date_from:
-        extra.append("(sign_date IS NULL OR sign_date >= CAST(:df AS date))")
+        where.append("(sign_date IS NULL OR sign_date >= CAST(:df AS date))")
         params["df"] = date_from
     if date_to:
-        extra.append("(sign_date IS NULL OR sign_date <= CAST(:dt AS date))")
+        where.append("(sign_date IS NULL OR sign_date <= CAST(:dt AS date))")
         params["dt"] = date_to
     if q:
-        extra.append("(code ILIKE :q OR note ILIKE :q)")
+        where.append("(code ILIKE :q OR note ILIKE :q)")
         params["q"] = f"%{q}%"
-    rows = _fetch(companies, extra, params)
-    # Phụ lục luôn phải lấy kèm (kể cả khi bộ lọc chỉ khớp hợp đồng mẹ) để tính đúng tiến độ.
-    parent_ids = [r["id"] for r in rows if r["parent_id"] is None]
-    kids = _fetch(None, ["parent_id = ANY(:ps)"], {"ps": parent_ids}) if parent_ids else []
-    by_parent: dict[int, list[dict]] = {}
-    for k in kids:
-        by_parent.setdefault(k["parent_id"], []).append(k)
-
-    out: list[dict[str, Any]] = []
-    for p in rows:
-        if p["parent_id"] is not None:
-            continue
-        ks = by_parent.get(p["id"], [])
-        # 3 rổ cộng lại bằng sản lượng cam kết:
-        #   đã giao · đang chờ giao (đã mở đợt, chưa điền ngày giao) · chưa mở đợt.
-        if p["delivery_type"] == "multi":
-            done = sum(k["qty"] for k in ks if k["delivered_at"])
-            pending = sum(k["qty"] for k in ks if not k["delivered_at"])
-        else:
-            done = p["qty"] if p["delivered_at"] else 0.0
-            pending = 0.0 if p["delivered_at"] else p["qty"]
-        remaining = max(0.0, p["qty"] - done - pending)
-        item = {**p, "delivered_qty": done, "pending_qty": pending,
-                "remaining_qty": remaining, "children": len(ks)}
-        # "Còn hàng chưa giao" = chưa giao xong, gồm cả phần đang chờ giao lẫn phần chưa mở đợt.
-        undone = pending + remaining
-        if status == "open" and undone <= 1e-9:
-            continue
-        if status == "done" and undone > 1e-9:
-            continue
+    # "Còn hàng chưa giao" bỏ qua hợp đồng đã chốt hoàn thành — chốt xong là hết trách nhiệm giao.
+    keep = {"open": "completed_at IS NULL AND remaining_qty > 1e-9",
+            "done": "remaining_qty <= 1e-9",
+            "completed": "completed_at IS NOT NULL"}.get(status or "", "TRUE")
+    sql = f"""
+        WITH parent AS (
+            SELECT {', '.join(_COLS)}, {_QTY_SQL % 'lines'} AS pqty
+            FROM sales_contract WHERE {' AND '.join(where)}
+        ), kid AS (
+            SELECT k.parent_id, count(*) AS n,
+                   COALESCE(sum({_QTY_SQL % 'k.lines'})
+                            FILTER (WHERE k.delivered_at IS NOT NULL), 0) AS done,
+                   COALESCE(sum({_QTY_SQL % 'k.lines'})
+                            FILTER (WHERE k.delivered_at IS NULL), 0) AS pending
+            FROM sales_contract k
+            WHERE k.parent_id IN (SELECT id FROM parent) GROUP BY 1
+        ), progress AS (
+            SELECT p.*, COALESCE(kid.n, 0) AS children,
+                   CASE WHEN p.delivery_type = 'multi' THEN COALESCE(kid.done, 0)
+                        WHEN p.delivered_at IS NOT NULL THEN p.pqty ELSE 0 END AS delivered_qty,
+                   -- Chỉ đợt đã LẬP mà chưa có ngày giao mới là "đang chờ giao"; hợp đồng giao
+                   -- 1 lần chưa giao thì toàn bộ nằm ở "còn phải giao", không tách rổ riêng.
+                   CASE WHEN p.delivery_type = 'multi' THEN COALESCE(kid.pending, 0)
+                        ELSE 0 END AS pending_qty
+            FROM parent p LEFT JOIN kid ON kid.parent_id = p.id
+        ), scored AS (
+            SELECT g.*, GREATEST(g.pqty - g.delivered_qty, 0) AS remaining_qty,
+                   GREATEST(g.delivered_qty - g.pqty, 0) AS over_qty
+            FROM progress g
+        )
+        SELECT *, count(*) OVER () AS total FROM scored WHERE {keep}
+        ORDER BY sign_date DESC NULLS LAST, company DESC, id DESC
+        LIMIT :lim OFFSET :off
+    """
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(text(sql), params).mappings().all()
+    out = []
+    for r in rows:
+        item = _row(r)
+        for k in ("pqty", "total"):
+            item.pop(k, None)
+        item["children"] = int(item["children"])
+        # `sum()` của Postgres trả về numeric → psycopg dựng thành Decimal, JSON hoá thành CHUỖI
+        # ("30.0") làm web tính toán/so sánh sai. Ép float ngay tại đây.
+        for k in ("delivered_qty", "pending_qty", "remaining_qty", "over_qty"):
+            item[k] = float(item[k] or 0)
         out.append(item)
-    out.sort(key=lambda r: (r.get("sign_date") or "", r["company"], r["id"]), reverse=True)
-    return out
+    return {"rows": out, "total": int(rows[0]["total"]) if rows else 0}

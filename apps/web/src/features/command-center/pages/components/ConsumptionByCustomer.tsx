@@ -5,7 +5,7 @@ const ty = (n: number) => (n / 1_000_000_000).toLocaleString("vi-VN", { maximumF
 
 type Row = { key: string; name: string; company: string; qty: number; revenue: number };
 
-/** Tiêu thụ tách theo KHÁCH HÀNG (yêu cầu C1) — khách gán ở hợp đồng mẹ, phụ lục kế thừa.
+/** Tiêu thụ tách theo KHÁCH HÀNG (yêu cầu C1) — khách gán ở hợp đồng, đợt giao kế thừa.
     Danh mục khách tách riêng theo đơn vị nên luôn kèm tên đơn vị, tránh 2 dòng trùng tên. */
 export default function ConsumptionByCustomer({ rep }: { rep: ConsumptionReport }) {
   const rows: Row[] = [];

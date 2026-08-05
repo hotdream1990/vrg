@@ -25,11 +25,12 @@ from app.core.market_meta import (
 from app.core import security
 from app.core.permissions import LEVEL_EDIT
 from app.core.security import cap_or_member_scope
-from app.schemas.sales_contract import ContractIn
+from app.schemas.sales_contract import CompletionIn, ContractIn, DeliveryTypeIn
 from app.services import (
     contract_files,
     customer_repo,
     member_unit_repo,
+    sales_contract_lifecycle,
     sales_contract_repo,
     sales_contract_report,
     unit_analytics_excel,
@@ -86,26 +87,34 @@ def meta(scope: Scope) -> dict:
 @router.get("")
 def list_contracts(scope: Scope, company: str | None = Query(None),
                    customer_id: list[int] | None = Query(None, description="Lọc 1 hoặc NHIỀU khách"),
-                   status: str = Query("all", pattern="^(all|open|done)$"),
+                   status: str = Query("all", pattern="^(all|open|done|completed)$"),
                    date_from: str | None = Query(None, description="Ngày ký từ 'YYYY-MM-DD'"),
                    date_to: str | None = Query(None, description="Ngày ký đến 'YYYY-MM-DD'"),
-                   q: str | None = Query(None, max_length=120)) -> dict:
-    """Danh sách HỢP ĐỒNG MẸ kèm tiến độ giao. Mở một hợp đồng để xem/thêm phụ lục."""
+                   q: str | None = Query(None, max_length=120),
+                   page: int = Query(1, ge=1),
+                   page_size: int = Query(25, ge=1, le=200)) -> dict:
+    """MỘT TRANG hợp đồng kèm tiến độ giao → `{contracts, total, page, page_size}`.
+
+    Phân trang Ở SERVER: danh sách dài thêm mỗi ngày (hiện đã hơn 3.000 hợp đồng), trả hết một
+    lượt thì trình duyệt phải tải vài MB cho một màn hình chỉ hiện được vài chục dòng.
+    """
     _, companies = scope
     _check_date(date_from, "Từ ngày")
     _check_date(date_to, "Đến ngày")
     if company:
         _assert_company(companies, company)
         companies = [company]
-    rows = sales_contract_report.parents_with_progress(
+    res = sales_contract_report.parents_with_progress(
         companies, customer_ids=customer_id, status=None if status == "all" else status,
-        q=q, date_from=date_from, date_to=date_to)
-    # Chỉ tra tên của đúng những khách xuất hiện trong danh sách — danh mục cả Tập đoàn rất dài.
+        q=q, date_from=date_from, date_to=date_to,
+        limit=page_size, offset=(page - 1) * page_size)
+    rows = res["rows"]
+    # Chỉ tra tên của đúng những khách xuất hiện TRONG TRANG — danh mục cả Tập đoàn rất dài.
     names = customer_repo.names_by_id(companies, sorted({
         r["customer_id"] for r in rows if r.get("customer_id")}))
     for r in rows:
         r["customer_name"] = names.get(r.get("customer_id") or 0)
-    return {"contracts": rows}
+    return {"contracts": rows, "total": res["total"], "page": page, "page_size": page_size}
 
 
 def _consumption(scope_companies: list[str] | None, date_from: str, date_to: str,
@@ -183,7 +192,7 @@ def consumption_xlsx(scope: Scope, date_from: str = Query(...), date_to: str = Q
             v = row.get(k)
             if isinstance(v, (int, float)):
                 totals[k] += v
-    note = "Nguồn: các lần giao ghi trên hợp đồng & phụ lục."
+    note = "Nguồn: các lần giao ghi trên hợp đồng & đợt giao."
     if grade:
         note += f" Chỉ tính chủng loại: {', '.join(grade)}."
     if missing_fx:
@@ -212,25 +221,28 @@ def undelivered(scope: Scope, as_of: str = Query(..., description="Tính tại n
 
 @router.get("/{contract_id}")
 def get_contract(contract_id: int, scope: Scope) -> dict:
-    """Chi tiết 1 hợp đồng mẹ + toàn bộ phụ lục (mỗi phụ lục = 1 lần giao + 1 lần thanh toán)."""
+    """Chi tiết 1 hợp đồng + toàn bộ ĐỢT GIAO (mỗi đợt = 1 lần giao + 1 lần thanh toán)."""
     _, companies = scope
     c = sales_contract_repo.get(contract_id)
     if not c or (companies is not None and c["company"] not in companies):
         raise HTTPException(404, "Không tìm thấy hợp đồng trong phạm vi tài khoản.")
     kids = sales_contract_repo.children(contract_id) if c["parent_id"] is None else []
-    # 3 rổ: đã giao · đang chờ giao (đã mở đợt, chưa có ngày giao) · chưa mở đợt.
     if c["delivery_type"] == "multi":
         done = sum(k["qty"] for k in kids if k["delivered_at"])
+        # "Đang chờ giao" = đợt đã lập, chưa điền ngày giao. Nó NẰM TRONG phần còn phải giao,
+        # không phải một rổ tách riêng (khác cách tính trước 05/08/2026).
         pending = sum(k["qty"] for k in kids if not k["delivered_at"])
     else:
         done = c["qty"] if c["delivered_at"] else 0.0
-        pending = 0.0 if c["delivered_at"] else c["qty"]
+        pending = 0.0
     # Tên khách trả kèm ở đây (không để web tự tra trong danh mục tải sẵn nữa — danh mục đã bỏ
     # khỏi /meta): thiếu nó là ô "Khách hàng" trên màn chi tiết luôn hiện "—".
     names = customer_repo.names_by_id([c["company"]],
                                       [c["customer_id"]] if c.get("customer_id") else [])
     return {"contract": c, "children": kids, "delivered_qty": done, "pending_qty": pending,
-            "remaining_qty": max(0.0, c["qty"] - done - pending),
+            "remaining_qty": max(0.0, c["qty"] - done),
+            "over_qty": max(0.0, done - c["qty"]),
+            "max_qty": c["qty"] * sales_contract_repo.MAX_OVER_RATIO,
             "customer_name": names.get(c.get("customer_id") or 0)}
 
 
@@ -240,7 +252,7 @@ def _assert_delivery_window(username: str, contract_id: int | None, new_delivere
     Lần giao là bản ghi tiêu thụ, đúng thứ cửa sổ sửa sinh ra để bảo vệ: giao xong quá N ngày thì
     kỳ báo cáo đã chốt, sửa lùi là làm lệch số đã gửi đi.
 
-    KHÔNG áp cho hợp đồng mẹ: hợp đồng dài hạn ký từ đầu năm vẫn phải sửa và thêm phụ lục suốt
+    KHÔNG áp cho hợp đồng: hợp đồng ký từ lâu vẫn phải sửa và thêm đợt giao suốt
     vòng đời — khoá theo ngày ký là chặn đúng nghiệp vụ chính. Các mốc tương lai (thời hạn hợp đồng,
     ngày mở đợt, ngày thanh toán) cũng không đụng tới, vì `assert_editable` chặn cả ngày tương lai.
 
@@ -255,7 +267,7 @@ def _assert_delivery_window(username: str, contract_id: int | None, new_delivere
 
 @router.put("")
 def save_contract(body: ContractIn, scope: EditScope) -> dict:
-    """Thêm mới / cập nhật hợp đồng mẹ hoặc phụ lục (phụ lục tự tính là ĐÃ GIAO)."""
+    """Thêm mới / cập nhật hợp đồng hoặc ĐỢT GIAO (đợt có ngày giao mới tính là đã giao)."""
     username, companies = scope
     _assert_company(companies, body.company)
     _assert_delivery_window(username, body.id, body.delivered_at)
@@ -265,9 +277,43 @@ def save_contract(body: ContractIn, scope: EditScope) -> dict:
         raise HTTPException(400, str(exc)) from exc
 
 
+@router.put("/{contract_id}/completion")
+def set_completion(contract_id: int, body: CompletionIn, scope: EditScope) -> dict:
+    """HOÀN THÀNH hợp đồng (chốt ngày kết thúc) — `completed_at = null` là MỞ LẠI.
+
+    Chốt xong, phần chênh giữa sản lượng hợp đồng và sản lượng thực giao rời khỏi
+    "đã ký HĐ chưa giao" kể từ ngày hoàn thành.
+    """
+    username, companies = scope
+    try:
+        return {"contract": sales_contract_lifecycle.set_completion(
+            contract_id, body.completed_at, companies, username)}
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.put("/{contract_id}/delivery-type")
+def set_delivery_type(contract_id: int, body: DeliveryTypeIn, scope: EditScope) -> dict:
+    """Chuyển giao-1-lần ↔ giao-nhiều-lần tại chỗ (không phải xoá hợp đồng nhập lại).
+
+    Hợp đồng giao-1-lần ĐÃ GIAO thì lần giao đó được dời xuống thành đợt giao đầu tiên, giữ
+    nguyên ngày giao / hoá đơn / thanh toán / dòng chi tiết.
+    """
+    username, companies = scope
+    try:
+        return {"contract": sales_contract_lifecycle.set_delivery_type(
+            contract_id, body.delivery_type, companies, username)}
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
 @router.delete("/{contract_id}")
 def delete_contract(contract_id: int, scope: EditScope) -> dict:
-    """Xoá 1 hợp đồng / phụ lục (hợp đồng mẹ còn phụ lục thì phải xoá phụ lục trước)."""
+    """Xoá 1 hợp đồng / đợt giao (hợp đồng còn đợt giao thì phải xoá các đợt trước)."""
     username, companies = scope
     _assert_delivery_window(username, contract_id, None)
     try:

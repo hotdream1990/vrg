@@ -237,29 +237,32 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_unit_customer_name ON unit_customer (compan
 CREATE INDEX IF NOT EXISTS ix_unit_customer_company ON unit_customer (company, is_active);
 
 -- HỢP ĐỒNG BÁN HÀNG 2 CẤP (chốt 30/07/2026) — thay thế cách nhập tiêu thụ theo ngày:
---   `parent_id` NULL  = HỢP ĐỒNG MẸ. `delivery_type` = 'single' (giao trọn 1 lần)
---                       hoặc 'multi' (giao nhiều lần; mẹ giữ TỔNG SL cam kết ở `lines`).
---   `parent_id` khác  = PHỤ LỤC. MỖI PHỤ LỤC = 1 LẦN GIAO (tự chuyển ĐÃ GIAO khi nhập)
---                       + 1 LẦN THANH TOÁN. Không cho vượt SL còn lại của mẹ.
--- Tiêu thụ = tổng các LẦN GIAO; "đã ký HĐ chưa giao" (khối 3) = SL cam kết − tổng đã giao.
+--   `parent_id` NULL  = HỢP ĐỒNG. `delivery_type` = 'single' (giao trọn 1 lần)
+--                       hoặc 'multi' (giao nhiều lần; hợp đồng giữ TỔNG SL cam kết ở `lines`).
+--   `parent_id` khác  = ĐỢT GIAO (tên cũ: phụ lục). Mỗi đợt = 1 lần giao: hoá đơn · giấy xuất
+--                       hàng · ngày giao · dòng chi tiết + 1 lần thanh toán.
+-- KHÔNG quản lý hợp đồng khung: đơn vị có hợp đồng dài hạn thì nhập MỖI PHỤ LỤC NHƯ MỘT HỢP ĐỒNG
+-- và chọn `contract_type = long_term` để phân biệt loại (chốt 05/08/2026).
+-- Tiêu thụ = tổng các ĐỢT ĐÃ GIAO; "đã ký HĐ chưa giao" (khối 3) = SL cam kết của HỢP ĐỒNG
+-- − tổng đã giao, tính tới khi hợp đồng được đánh dấu HOÀN THÀNH (`completed_at`).
 -- `lines` jsonb: [{grade, qty, qty_dry, price, ccy, fx, cost}] — nhiều chủng loại trên 1 hợp đồng.
 CREATE TABLE IF NOT EXISTS sales_contract (
     id            bigserial PRIMARY KEY,
     company       text NOT NULL,        -- đơn vị bán (khớp member_unit)
-    parent_id     bigint,               -- NULL = hợp đồng mẹ; khác NULL = phụ lục của hợp đồng đó
-    code          text NOT NULL,        -- số hợp đồng / số phụ lục
+    parent_id     bigint,               -- NULL = hợp đồng; khác NULL = ĐỢT GIAO của hợp đồng đó
+    code          text NOT NULL,        -- số hợp đồng / số đợt giao
     customer_id   bigint,               -- khách hàng (unit_customer.id) — chỉ đặt ở hợp đồng mẹ
     delivery_type text NOT NULL DEFAULT 'single',  -- single | multi (chỉ có nghĩa ở hợp đồng mẹ)
-    contract_type text,                   -- long_term | spot — loại HỢP ĐỒNG, đặt ở mẹ (phụ lục thừa kế)
+    contract_type text,                 -- long_term | spot — loại HĐ, đặt ở hợp đồng (đợt thừa kế)
     sign_date     date,                 -- ngày ký
     expiry_date   date,                 -- thời hạn hợp đồng
     start_date    date,                 -- NGÀY BẮT ĐẦU của đợt giao (hàng gom vào kho cho đợt này)
     lines         jsonb NOT NULL DEFAULT '[]'::jsonb,
-    delivered     boolean NOT NULL DEFAULT false,  -- đã giao chưa (phụ lục luôn = true)
+    delivered     boolean NOT NULL DEFAULT false,  -- suy từ delivered_at (có ngày giao = đã giao)
     delivered_at  date,                 -- NGÀY GIAO — mốc tính tiêu thụ vào kỳ báo cáo
     channel       text,                 -- export | domestic | internal (hình thức tiêu thụ)
     to_company    text,                 -- đơn vị NHẬN khi channel = 'internal' (tiêu thụ nội bộ)
-    payment_date  date,                 -- 1 lần thanh toán / phụ lục (chốt Q7) — KHÔNG theo dõi công nợ
+    payment_date  date,                 -- 1 lần thanh toán / đợt giao (Q7) — KHÔNG theo dõi công nợ
     payment_qty   double precision,     -- sản lượng thanh toán (tấn)
     payment_cost  double precision,     -- (BỎ 03/08/2026) chi phí lần thanh toán — giữ cột cho dữ liệu cũ
     payment_docs  jsonb NOT NULL DEFAULT '[]'::jsonb,  -- chứng từ/hoá đơn: [{file, filename}]
@@ -306,6 +309,14 @@ ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS start_date date;
 -- Loại HỢP ĐỒNG (dài hạn / chuyến) — chỉ tiêu của mẫu báo cáo, KHÁC loại GIAO (1 lần / nhiều lần).
 -- Để NULL, không đặt mặc định: đoán bừa một loại làm sai luôn chỉ tiêu "HĐ dài hạn / HĐ chuyến".
 ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS contract_type text;
+-- HOÁ ĐƠN của MỘT ĐỢT GIAO (chốt 05/08/2026): số hoá đơn + danh sách file scan. Trước đây hoá đơn
+-- dồn chung vào `payment_docs` nên không tra cứu được theo số hoá đơn.
+ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS invoice_no text;
+ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS invoice_docs jsonb NOT NULL DEFAULT '[]'::jsonb;
+-- HOÀN THÀNH HỢP ĐỒNG (chốt 05/08/2026): sản lượng thực giao được phép lệch so với hợp đồng ký,
+-- nên phải có thao tác CHỐT để phần chênh còn lại rời khỏi "đã ký HĐ chưa giao". Đặt ở hợp đồng
+-- mẹ; NULL = đang thực hiện.
+ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS completed_at date;
 -- Nâng bản ghi cũ (1 file ở cột phẳng) lên danh sách. Idempotent: chỉ chạm dòng chưa có danh sách.
 UPDATE unit_stock_contract SET files = jsonb_build_array(
          jsonb_build_object('file', file, 'filename', COALESCE(filename, file)))

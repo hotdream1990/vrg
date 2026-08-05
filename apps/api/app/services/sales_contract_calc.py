@@ -33,9 +33,9 @@ def _num(v) -> float | None:
 def clean_lines(lines, *, require_dry: bool) -> list[dict[str, Any]]:
     """Lọc/kiểm tra danh sách dòng chi tiết. Raise ValueError với thông báo tiếng Việt.
 
-    `require_dry=True` khi dòng là MỘT LẦN GIAO thực tế (phụ lục, hoặc hợp đồng giao-1-lần đã giao):
+    `require_dry=True` khi dòng là MỘT LẦN GIAO thực tế (đợt giao, hoặc hợp đồng giao-1-lần đã giao):
     bán LATEX và 2 loại mủ nguyên liệu mới thì BẮT BUỘC nhập quy khô mới cho lưu (chốt Q4).
-    Hợp đồng mẹ loại giao-nhiều-lần chỉ là cam kết nên không ép quy khô.
+    Hợp đồng loại giao-nhiều-lần chỉ là cam kết nên không ép quy khô.
     """
     out: list[dict[str, Any]] = []
     for i, ln in enumerate(lines if isinstance(lines, list) else [], start=1):

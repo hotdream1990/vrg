@@ -83,7 +83,7 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
   ]));
   items.push(...group("contracts", <FileProtectOutlined />, "Quản lý hợp đồng", [
     can("sales_contract") && { key: "/hop-dong/khach-hang", icon: <ContactsOutlined />, label: "Khách hàng" },
-    can("sales_contract") && { key: "/hop-dong", icon: <FileProtectOutlined />, label: "Hợp đồng & phụ lục" },
+    can("sales_contract") && { key: "/hop-dong", icon: <FileProtectOutlined />, label: "Hợp đồng & đợt giao" },
   ]));
   items.push(...group("stats", <BarChartOutlined />, "Báo cáo & Thống kê", [
     can("sales_contract") && { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Báo cáo tiêu thụ" },
@@ -131,7 +131,7 @@ function buildMemberMenu(hasPurchasePlan: boolean) {
     ]),
     ...group("contracts", <FileProtectOutlined />, "Quản lý hợp đồng", [
       { key: "/hop-dong/khach-hang", icon: <ContactsOutlined />, label: "Khách hàng" },
-      { key: "/hop-dong", icon: <FileProtectOutlined />, label: "Hợp đồng & phụ lục" },
+      { key: "/hop-dong", icon: <FileProtectOutlined />, label: "Hợp đồng & đợt giao" },
     ]),
     ...group("reports", <BarChartOutlined />, "Báo cáo", [
       { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Tiêu thụ" },

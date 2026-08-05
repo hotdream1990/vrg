@@ -85,7 +85,7 @@ export default function ConsumptionReportPage() {
         <div>
           <h2><ExportOutlined style={{ marginRight: 8 }} />Báo cáo tiêu thụ</h2>
           <p>
-            Tổng hợp từ <b>các lần giao</b> ghi trên hợp đồng &amp; phụ lục — đơn vị không nhập tay
+            Tổng hợp từ <b>các lần giao</b> ghi trên hợp đồng &amp; đợt giao — đơn vị không nhập tay
             số tiêu thụ nữa. Cột <b>Chưa giao</b> lấy tại ngày cuối kỳ.
           </p>
         </div>
@@ -170,7 +170,7 @@ export default function ConsumptionReportPage() {
 
       <div className="form-note" style={{ fontSize: 11.5, marginTop: 10 }}>
         Doanh thu hiện “—” khi có lần giao bán bằng ngoại tệ mà chưa nhập tỷ giá — hệ thống không tự
-        suy ra tỷ giá của ngày khác. Bổ sung tỷ giá trên phụ lục để có số đầy đủ.
+        suy ra tỷ giá của ngày khác. Bổ sung tỷ giá trên đợt giao để có số đầy đủ.
       </div>
     </div>
   );

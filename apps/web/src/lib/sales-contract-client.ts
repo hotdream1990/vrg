@@ -19,6 +19,11 @@ export type Customer = {
 
 export type ContractDoc = { file: string; filename: string | null };
 
+/** Trần sản lượng thực giao so với hợp đồng đã ký (110%). Thực tế cân hàng lệch quanh 5% nên
+ *  chặn đúng 100% là chặn nghiệp vụ thật. PHẢI khớp `sales_contract_repo.MAX_OVER_RATIO` ở server
+ *  — lệch nhau thì form cho lưu mà server trả lỗi (hoặc ngược lại, chặn oan). */
+export const MAX_OVER_RATIO = 1.1;
+
 export type ContractLine = {
   grade: string;
   qty: number | null;
@@ -38,23 +43,28 @@ export type Contract = {
   code: string;
   customer_id: number | null;
   delivery_type: "single" | "multi";
-  /** Loại HỢP ĐỒNG (chỉ tiêu báo cáo) — độc lập với loại GIAO ở trên. Chỉ đặt ở hợp đồng mẹ;
-   *  phụ lục để null và thừa kế của mẹ khi thống kê. */
+  /** Loại HỢP ĐỒNG (chỉ tiêu báo cáo) — độc lập với loại GIAO ở trên. Chỉ đặt ở hợp đồng;
+   *  đợt giao để null và thừa kế của hợp đồng khi thống kê. */
   contract_type: ContractType;
   sign_date: string | null;
   expiry_date: string | null;
-  /** Ngày MỞ ĐỢT giao — đợt nằm ở "đã ký HĐ chưa giao" từ ngày này đến hết ngày trước ngày giao. */
+  /** Ngày mở đợt — ô đã BỎ khỏi form (05/08/2026), chỉ còn giữ dữ liệu cũ. */
   start_date: string | null;
   lines: ContractLine[];
   delivered: boolean;
   delivered_at: string | null;
   channel: string | null;
   to_company: string | null;
+  /** Hoá đơn của ĐỢT GIAO: số hoá đơn + danh sách file scan. */
+  invoice_no: string | null;
+  invoice_docs: ContractDoc[];
   payment_date: string | null;
   payment_qty: number | null;
   payment_docs: ContractDoc[];
   files: ContractDoc[];
   note: string | null;
+  /** Ngày HOÀN THÀNH hợp đồng — null = đang thực hiện (còn nằm ở "đã ký HĐ chưa giao"). */
+  completed_at: string | null;
   /* Số suy ra từ `lines`, server trả kèm cho tiện hiển thị. */
   qty: number;
   qty_dry: number;
@@ -64,9 +74,12 @@ export type Contract = {
 
 export type ContractRow = Contract & {
   delivered_qty: number;
-  /** Đã mở đợt nhưng CHƯA điền ngày giao — phần đang nằm trong "đã ký HĐ chưa giao". */
+  /** Đã lập đợt nhưng CHƯA điền ngày giao — phần này NẰM TRONG `remaining_qty`. */
   pending_qty: number;
+  /** Còn phải giao = sản lượng hợp đồng − đã giao. */
   remaining_qty: number;
+  /** Phần giao VƯỢT sản lượng hợp đồng (thực giao được lệch, trần 110%). */
+  over_qty: number;
   children: number;
   customer_name?: string | null;
 };
@@ -90,10 +103,14 @@ export type ContractMeta = {
 
 export type ContractDetail = {
   contract: Contract;
+  /** Các ĐỢT GIAO của hợp đồng (rỗng với hợp đồng giao 1 lần). */
   children: Contract[];
   delivered_qty: number;
   pending_qty: number;
   remaining_qty: number;
+  over_qty: number;
+  /** Trần sản lượng được phép giao (110% sản lượng hợp đồng). */
+  max_qty: number;
   customer_name: string | null;
 };
 
@@ -101,10 +118,17 @@ export type ContractFilters = {
   company?: string;
   /** Lọc theo MỘT HOẶC NHIỀU khách hàng (rỗng = tất cả). */
   customer_ids?: number[];
-  status?: "all" | "open" | "done";
+  status?: "all" | "open" | "done" | "completed";
   date_from?: string;
   date_to?: string;
   q?: string;
+  /** Phân trang Ở SERVER — danh sách hợp đồng dài thêm mỗi ngày, không tải hết về máy. */
+  page?: number;
+  page_size?: number;
+};
+
+export type ContractPage = {
+  contracts: ContractRow[]; total: number; page: number; page_size: number;
 };
 
 /** Tổng hợp tiêu thụ theo đơn vị trong kỳ — TÍNH TỪ các lần giao, không còn ô nhập tay. */
@@ -139,9 +163,19 @@ export type UndeliveredSummary = {
 };
 
 // ── Khách hàng ──
-export const listCustomers = (includeInactive = true, q = "") =>
-  apiFetch<Customer[]>(
-    `/api/customers?include_inactive=${includeInactive}${q ? `&q=${encodeURIComponent(q)}` : ""}`);
+export type CustomerPage = { items: Customer[]; total: number; page: number; page_size: number };
+
+/** MỘT TRANG khách hàng — tìm kiếm và cắt trang đều ở server (danh mục của cả Tập đoàn rất dài). */
+export function listCustomers(
+  opt: { q?: string; page?: number; pageSize?: number; includeInactive?: boolean } = {},
+) {
+  const p = new URLSearchParams();
+  p.set("include_inactive", String(opt.includeInactive ?? true));
+  if (opt.q) p.set("q", opt.q);
+  p.set("page", String(opt.page ?? 1));
+  p.set("page_size", String(opt.pageSize ?? 50));
+  return apiFetch<CustomerPage>(`/api/customers?${p}`);
+}
 
 /** Tìm khách hàng Ở SERVER cho ô chọn khách (danh mục riêng từng đơn vị nên rất dài).
  *  Phạm vi đơn vị do server ép theo tài khoản; `company` chỉ thu hẹp thêm trong phạm vi đó.
@@ -155,7 +189,7 @@ export function searchCustomers(
   if (opt.limit) p.set("limit", String(opt.limit));
   p.set("include_inactive", String(opt.includeInactive ?? false));
   (opt.ids ?? []).forEach((id) => p.append("ids", String(id)));
-  return apiFetch<Customer[]>(`/api/customers?${p.toString()}`);
+  return apiFetch<CustomerPage>(`/api/customers?${p}`).then((r) => r.items);
 }
 
 export const saveCustomer = (body: Partial<Customer> & { company: string; name: string }) =>
@@ -176,8 +210,9 @@ export function listContracts(f: ContractFilters = {}) {
   if (f.date_from) p.set("date_from", f.date_from);
   if (f.date_to) p.set("date_to", f.date_to);
   if (f.q) p.set("q", f.q);
-  const qs = p.toString();
-  return apiFetch<{ contracts: ContractRow[] }>(`/api/sales-contracts${qs ? `?${qs}` : ""}`);
+  p.set("page", String(f.page ?? 1));
+  p.set("page_size", String(f.page_size ?? 25));
+  return apiFetch<ContractPage>(`/api/sales-contracts?${p}`);
 }
 
 export const fetchContract = (id: number) =>
@@ -189,6 +224,17 @@ export const saveContract = (body: Record<string, unknown>) =>
 
 export const deleteContract = (id: number) =>
   apiFetch<{ ok: boolean }>(`/api/sales-contracts/${id}`, { method: "DELETE" });
+
+/** Chốt HOÀN THÀNH hợp đồng (`completedAt = null` là mở lại) — phần chênh còn lại rời khỏi
+ *  "đã ký HĐ chưa giao" kể từ ngày chốt. */
+export const setContractCompletion = (id: number, completedAt: string | null) =>
+  apiFetch<{ contract: Contract }>(`/api/sales-contracts/${id}/completion`,
+    { method: "PUT", headers: J, body: JSON.stringify({ completed_at: completedAt }) });
+
+/** Chuyển giao-1-lần ↔ giao-nhiều-lần tại chỗ; lần giao đang có được dời thành đợt giao đầu tiên. */
+export const setContractDeliveryType = (id: number, deliveryType: "single" | "multi") =>
+  apiFetch<{ contract: Contract }>(`/api/sales-contracts/${id}/delivery-type`,
+    { method: "PUT", headers: J, body: JSON.stringify({ delivery_type: deliveryType }) });
 
 function consumptionQuery(dateFrom: string, dateTo: string, company?: string,
                           customerIds?: number[], grades?: string[]) {
