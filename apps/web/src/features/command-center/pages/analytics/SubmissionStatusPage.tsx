@@ -13,6 +13,7 @@ import {
   type StatsFilters, type StatusCell, type StatusReport, fetchSubmissionStatus,
 } from "../../../../lib/unit-analytics-client";
 import DateInput from "../../sections/DateInput";
+import UnitLoginButton from "../components/UnitLoginButton";
 import { MultiSelect } from "./AnalyticsFilters";
 import { initialFilters, useFilterCatalog } from "./use-stats";
 import "../../../bulletin/bulletin.css";
@@ -111,7 +112,7 @@ export default function SubmissionStatusPage() {
             <thead>
               <tr>
                 <th style={{ minWidth: 110 }}>Khu vực</th>
-                <th style={{ minWidth: 170 }}>Đơn vị</th>
+                <th style={{ minWidth: 210 }}>Đơn vị</th>
                 {(data?.dates ?? []).map((d) => (
                   <th key={d} className="r" style={{ minWidth: 46 }}>{dm(d)}</th>
                 ))}
@@ -123,7 +124,12 @@ export default function SubmissionStatusPage() {
               {(data?.rows ?? []).map((r) => (
                 <tr key={r.company}>
                   <td>{r.region ?? "—"}</td>
-                  <td style={{ fontWeight: 500 }}>{r.company}</td>
+                  {/* Nút đăng nhập hộ nằm NGAY CẠNH TÊN: bảng cuộn ngang theo số ngày nên cột
+                      thêm ở cuối sẽ nằm ngoài màn hình. Chỉ admin thấy (component tự ẩn). */}
+                  <td style={{ fontWeight: 500, whiteSpace: "nowrap" }}>
+                    {r.company}
+                    <UnitLoginButton unit={r.company} compact />
+                  </td>
                   {(data?.dates ?? []).map((d) => (
                     <td key={d} style={{ textAlign: "center" }} title={`${dm(d)} — ${CELL[r.cells[d]].title}`}>
                       {CELL[r.cells[d]].icon}

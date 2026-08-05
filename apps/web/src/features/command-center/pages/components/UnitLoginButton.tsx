@@ -15,8 +15,11 @@ const memberAccounts = () => (cache ??= listUsers());
  *
  *  Trước đây muốn vào tài khoản đơn vị phải sang màn Tài khoản rồi dò theo tên đăng nhập (là email,
  *  không gợi ra tên đơn vị). Nút này đi thẳng từ dòng đơn vị; đơn vị có nhiều tài khoản thì chọn
- *  trong danh sách xổ xuống. */
-export default function UnitLoginButton({ unit }: { unit: string }) {
+ *  trong danh sách xổ xuống.
+ *
+ *  `compact` = chỉ biểu tượng, dùng khi nút nằm CHEN trong ô có sẵn nội dung (ma trận theo dõi nộp
+ *  báo cáo cuộn ngang, không thể thêm cột mới ở cuối vì cột đó nằm ngoài màn hình). */
+export default function UnitLoginButton({ unit, compact }: { unit: string; compact?: boolean }) {
   const { user: me, impersonate } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<AppUser[] | null>(null);
@@ -38,10 +41,17 @@ export default function UnitLoginButton({ unit }: { unit: string }) {
     } catch (e) { message.error(e instanceof Error ? e.message : "Lỗi"); }
   };
 
-  if (!users) return <span style={{ color: "var(--muted)", fontSize: 12 }}>…</span>;
+  // Ở chế độ compact thì im lặng khi chưa tải xong / đơn vị chưa có tài khoản — ma trận theo dõi
+  // có tới 67 dòng, thêm chữ "…" hay "chưa có tài khoản" vào mỗi dòng là rối mắt.
+  if (!users) return compact ? null : <span style={{ color: "var(--muted)", fontSize: 12 }}>…</span>;
   if (!accounts.length) {
-    return <span style={{ color: "var(--muted)", fontSize: 12 }}>chưa có tài khoản</span>;
+    return compact ? null : <span style={{ color: "var(--muted)", fontSize: 12 }}>chưa có tài khoản</span>;
   }
+  const label = (n: number) => (compact ? "" : ` Đăng nhập hộ${n > 1 ? ` (${n})` : ""}`);
+  const style = compact
+    ? { padding: "0 6px", lineHeight: 1.6, marginLeft: 6 }
+    : { whiteSpace: "nowrap" as const };
+
   // Một tài khoản: bấm là vào luôn (vẫn hỏi lại — đang mạo danh thì mọi thao tác ghi mang tên đơn vị).
   if (accounts.length === 1) {
     return (
@@ -49,20 +59,18 @@ export default function UnitLoginButton({ unit }: { unit: string }) {
         <Popconfirm title={`Đăng nhập với tư cách "${accounts[0].username}"?`}
           description="Bạn sẽ thấy đúng giao diện và quyền của đơn vị; thoát bằng nút trên thanh cảnh báo."
           okText="Đăng nhập" cancelText="Huỷ" onConfirm={() => go(accounts[0].username)}>
-          <button className="btn" style={{ whiteSpace: "nowrap" }}>
-            <LoginOutlined /> Đăng nhập hộ
-          </button>
+          <button className="btn" style={style}><LoginOutlined />{label(1)}</button>
         </Popconfirm>
       </Tooltip>
     );
   }
   return (
-    <Dropdown menu={{
-      items: accounts.map((u) => ({ key: u.username, label: u.username, onClick: () => go(u.username) })),
-    }}>
-      <button className="btn" style={{ whiteSpace: "nowrap" }}>
-        <LoginOutlined /> Đăng nhập hộ ({accounts.length})
-      </button>
-    </Dropdown>
+    <Tooltip title={`${accounts.length} tài khoản — chọn tài khoản để đăng nhập hộ`}>
+      <Dropdown menu={{
+        items: accounts.map((u) => ({ key: u.username, label: u.username, onClick: () => go(u.username) })),
+      }}>
+        <button className="btn" style={style}><LoginOutlined />{label(accounts.length)}</button>
+      </Dropdown>
+    </Tooltip>
   );
 }
