@@ -146,14 +146,16 @@
       "caption": "Hình 6. Danh sách hợp đồng và tiến độ giao",
       "steps": [
         "**Thêm hợp đồng** — lập hợp đồng mới (xem mục 8).",
+        "**Lọc theo Hình thức** — *Xuất khẩu / UTXK* · *Tiêu thụ trong nước* · *Tiêu thụ nội bộ*, hoặc **Chưa khai hình thức** để tìm nhanh những hợp đồng cũ còn thiếu mục này.",
         "**Xem / Sửa / Xoá** ở cuối mỗi dòng. Bấm **Xem** để mở màn chi tiết (mục 9)."
       ],
       "notes": [
         "**SL hợp đồng** — tổng sản lượng ghi trên hợp đồng đã ký.",
         "**Đã giao** — tổng của các đợt giao đã điền ngày giao (kèm dòng *vượt …* nếu giao quá hợp đồng).",
         "**Còn phải giao** = SL hợp đồng − Đã giao. Đây chính là phần “đã ký HĐ chưa giao”; dòng nhỏ *chờ giao …* cho biết trong đó bao nhiêu đã lập đợt nhưng chưa điền ngày giao.",
+        "**Hình thức** — hình thức tiêu thụ khai ở **lần giao**, nên hợp đồng giao nhiều lần hiện **tất cả** hình thức của các đợt; hợp đồng chưa giao lần nào thì để trống.",
         "**Trạng thái** — *Đang thực hiện* hay *Hoàn thành dd/mm/yyyy*. Hợp đồng đã hoàn thành không còn tính vào “đã ký HĐ chưa giao” và bị khoá sửa.",
-        "Bộ lọc **Trạng thái** có thêm lựa chọn **Đã hoàn thành**; lọc theo **Khách hàng** thì gõ vài chữ trong tên (hoặc mã khách), chọn được nhiều khách cùng lúc."
+        "Các bộ lọc dùng chung được: **Đơn vị · Khách hàng** (gõ để tìm, chọn nhiều) **· Trạng thái · Hình thức · Ngày ký** và ô **tìm theo số HĐ** (gõ không dấu vẫn ra)."
       ]
     },
     {

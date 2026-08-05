@@ -171,6 +171,16 @@ CONTRACT_LIST = """(() => {
   return window.__annotate([add, act]);
 })()"""
 
+#: Riêng màn HỢP ĐỒNG: chỉ thêm ô lọc **Hình thức** (khoanh đúng ô, không khoanh cả thanh lọc —
+#: hướng dẫn cần chỉ vào thứ người đọc phải bấm).
+CONTRACT_LIST_SCREEN = """(() => {
+  const add = [...document.querySelectorAll('button')].find(b=>b.textContent.includes('Thêm hợp đồng'));
+  const chan = [...document.querySelectorAll('.blt-date-label')]
+      .find(e => e.textContent.trim().startsWith('Hình thức'));
+  const row = document.querySelector('table tbody tr');
+  return window.__annotate([add, chan, row && row.querySelector('button')]);
+})()"""
+
 #: Ô nhập có nhãn (`.form-field`) — dùng cho form hợp đồng / phụ lục.
 FIELD = """(() => {
   // Form phụ lục mở CHỒNG lên modal chi tiết → có 2 `.ant-modal`. Phải lấy cái TRÊN CÙNG,
@@ -347,7 +357,7 @@ def main() -> int:
              "04-ton-kho.png", wait_for=".ant-table",
              setup=lambda pg: open_modal(pg, "Thêm số liệu"))
         shot(f"{WEB}/hop-dong/khach-hang", CONTRACT_LIST, "05-khach-hang.png", wait_for="table")
-        shot(f"{WEB}/hop-dong", CONTRACT_LIST, "06-hop-dong-danh-sach.png", wait_for="table")
+        shot(f"{WEB}/hop-dong", CONTRACT_LIST_SCREEN, "06-hop-dong-danh-sach.png", wait_for="table")
         shot(f"{WEB}/hop-dong",
              mixed_targets(("f", "Số hợp đồng"), ("f", "Khách hàng"), ("f", "Loại hợp đồng"),
                            ("f", "Loại giao"), ("f", "Ngày ký"), ("f", "Ngày giao"),
