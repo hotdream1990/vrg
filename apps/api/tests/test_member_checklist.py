@@ -40,6 +40,10 @@ def _member() -> dict[str, str]:
     return {"Authorization": f"Bearer {tok}"}
 
 
+def today_year() -> int:
+    return date.today().year
+
+
 def _cleanup(h: dict[str, str]) -> None:
     client.delete(f"/api/users/{USER}", headers=h)
     with session_scope() as db:
@@ -91,6 +95,35 @@ def test_checklist_lists_only_fixable_days_and_respects_purchase_plan() -> None:
         unit_daily_repo.upsert("purchase", d1, UNIT, {"no_purchase": True}, "admin")
         u = client.get("/api/member/checklist", headers=mh).json()["units"][0]
         assert d1 not in u["purchase_missing"]
+    finally:
+        _cleanup(h)
+
+
+def test_year_plan_counts_toward_total() -> None:
+    """`total_missing` = 0 làm banner chuyển sang "Đã nhập đủ" VÀ ẩn phần chi tiết → mọi việc còn
+    thiếu đều phải được cộng vào tổng, nếu không nó biến mất khỏi màn hình."""
+    h = _admin()
+    _cleanup(h)
+    member_unit_repo.add_unit(UNIT)
+    assert client.post("/api/users", json={"username": USER, "password": "pass123",
+                                           "role": "member", "member_units": [UNIT]},
+                       headers=h).status_code == 200
+    mh = _member()
+    try:
+        # Khai đủ MỌI ngày trong cửa sổ cho biểu Tồn kho → chỉ còn thiếu kế hoạch năm.
+        r = client.get("/api/member/checklist", headers=mh).json()
+        for d in r["days"]:
+            unit_daily_repo.upsert("consumption", d, UNIT, {"no_stock": True}, "admin")
+        r = client.get("/api/member/checklist", headers=mh).json()
+        u = r["units"][0]
+        assert u["stock_missing"] == [] and u["purchase_missing"] == []
+        assert u["year_plan_missing"] is True
+        assert r["total_missing"] == 1        # KHÔNG được là 0 — còn nợ kế hoạch năm
+
+        # Khai 0 = "đơn vị không tổ chức thu mua": đã khai nên hết nợ, và cũng không bị đòi biểu
+        # Thu mua (khai số > 0 mới bật màn đó — lúc ấy lại thiếu đúng các ngày chưa nhập).
+        unit_daily_repo.set_year_plan(today_year(), UNIT, 0.0, None, None, None, None, "admin")
+        assert client.get("/api/member/checklist", headers=mh).json()["total_missing"] == 0
     finally:
         _cleanup(h)
 

@@ -106,7 +106,9 @@ def checklist(units: list[str]) -> dict[str, Any]:
         # "Chưa khai kế hoạch năm NAY" — `companies_with_purchase_plan` cố ý dùng lại số năm
         # trước để đơn vị không mất màn Thu mua đầu năm, nên phải hỏi riêng năm hiện tại.
         plan_missing = (plan_now.get(u) or {}).get("plan_tonnes") is None
-        total += len(miss_p) + len(miss_s) + len(pending.get(u, []))
+        # Kế hoạch năm PHẢI cộng vào tổng: tổng = 0 thì banner chuyển sang dòng xanh "Đã nhập đủ"
+        # và KHÔNG hiện phần chi tiết nữa → việc còn thiếu biến mất khỏi màn hình.
+        total += len(miss_p) + len(miss_s) + len(pending.get(u, [])) + (1 if plan_missing else 0)
         rows.append({"company": u, "needs_purchase": needs_purchase,
                      "purchase_missing": miss_p, "stock_missing": miss_s,
                      "year_plan_missing": plan_missing, "year": today.year,
