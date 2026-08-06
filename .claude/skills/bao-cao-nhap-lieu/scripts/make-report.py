@@ -54,9 +54,11 @@ def run_sql(sql: str, local: bool) -> str:
     return res.stdout
 
 
-def collect(days: int, local: bool) -> dict[str, list]:
-    """Gom kết quả theo nhóm: A tình trạng nộp · B giá mủ sai đơn vị · C giá bán sai · D thiếu đơn giá."""
-    sql = (HERE / "collect.sql").read_text().replace(":days", str(days))
+def collect(days: int, local: bool, until: date) -> dict[str, list]:
+    """Gom kết quả theo nhóm: A tình trạng nộp · B giá mủ sai đơn vị · C giá bán sai · D thiếu đơn giá
+    · E tồn kho theo ngày. Kỳ xét = `days` ngày, chốt tới `until`."""
+    sql = ((HERE / "collect.sql").read_text()
+           .replace(":days", str(days)).replace(":until", f"'{until.isoformat()}'"))
     rows = [ln.split("|") for ln in run_sql(sql, local).splitlines() if ln.strip()]
     return {g: [r[1:] for r in rows if r[0] == g] for g in "ABCDE"}
 
@@ -99,15 +101,14 @@ def mark(v: str) -> str:
             else f'<td class="mark good">✓ {v} ngày</td>')
 
 
-def page_missing(rows_a: list, rows_d: list, days: int) -> str:
+def page_missing(rows_a: list, rows_d: list, days: int, until: date) -> str:
     """Ảnh A: KHÔNG NỘP GÌ (thiếu mọi biểu áp dụng) và THIẾU MỘT PHẦN (thiếu ít nhất 1 biểu)."""
     def missing(v: str) -> bool:      # '-' = không áp dụng → không tính là thiếu
         return v != "-" and int(v) == 0
 
     full = [a for a in rows_a if all(missing(v) or v == "-" for v in a[1:])]
     part = [a for a in rows_a if a not in full and any(missing(v) for v in a[1:])]
-    today = date.today()
-    ky = f"{(today - timedelta(days=days - 1)).strftime('%d/%m')} – {today.strftime('%d/%m/%Y')}"
+    ky = f"{(until - timedelta(days=days - 1)).strftime('%d/%m')} – {until.strftime('%d/%m/%Y')}"
 
     def block(title: str, items: list) -> str:
         out = [f'<tr class="grp"><td colspan="4">{title} — {len(items)} đơn vị</td></tr>']
@@ -179,15 +180,14 @@ def page_wrong(rows_b: list, rows_c: list) -> str:
 """
 
 
-def page_stock_missing(rows_e: list, days: int) -> str:
+def page_stock_missing(rows_e: list, days: int, until: date) -> str:
     """Ảnh C: RIÊNG biểu Tồn kho, cùng khuôn với ảnh A (chia nhóm, không phải ma trận).
 
     Chia 2 nhóm để đốc thúc đúng đối tượng: đơn vị **không nhập ngày nào** (cần gọi ngay) và đơn vị
     **thiếu một phần** (chỉ cần nhắc bù ngày trống). Nhóm sau liệt kê luôn ngày còn thiếu.
     """
-    today = date.today()
-    dates = [(today - timedelta(days=i)).isoformat() for i in range(days - 1, -1, -1)]
-    ky = f"{dates[0][8:10]}/{dates[0][5:7]} – {today.strftime('%d/%m/%Y')}"
+    dates = [(until - timedelta(days=i)).isoformat() for i in range(days - 1, -1, -1)]
+    ky = f"{dates[0][8:10]}/{dates[0][5:7]} – {until.strftime('%d/%m/%Y')}"
     dm = lambda d: f"{d[8:10]}/{d[5:7]}"  # noqa: E731
 
     units = []
@@ -266,17 +266,23 @@ def main() -> None:
     ap.add_argument("--out", default="plans/visuals", help="thư mục lưu ảnh (mặc định plans/visuals)")
     ap.add_argument("--local", action="store_true", help="lấy số liệu ở DB local thay vì prod")
     ap.add_argument("--only", choices=("all", "stock"), default="all",
-                    help="'stock' = chỉ ảnh ma trận Tồn kho theo ngày (mặc định: cả 3 ảnh)")
+                    help="'stock' = chỉ ảnh Tồn kho (mặc định: cả 3 ảnh)")
+    # Chốt kỳ tới HÔM QUA là mặc định hợp lý cho báo cáo đốc thúc: hôm nay chưa hết ngày, đơn vị
+    # chưa nhập không phải là nợ. Muốn tính cả hôm nay thì --until <ngày hôm nay>.
+    ap.add_argument("--until", default=(date.today() - timedelta(days=1)).isoformat(),
+                    help="ngày CUỐI kỳ, YYYY-MM-DD (mặc định: hôm qua)")
     args = ap.parse_args()
 
-    g = collect(args.days, args.local)
+    until = date.fromisoformat(args.until)
+    g = collect(args.days, args.local, until)
     out_dir = pathlib.Path(args.out)
     if not out_dir.is_absolute():
         out_dir = ROOT / out_dir
     # 1500px: đủ cho 14 cột ngày + tên đơn vị nằm gọn 1 dòng (ngày dài hơn thì nới thêm).
-    pages = [("C-don-vi-chua-nhap-ton-kho.png", page_stock_missing(g["E"], args.days), 1200)]
+    pages = [("C-don-vi-chua-nhap-ton-kho.png",
+              page_stock_missing(g["E"], args.days, until), 1200)]
     if args.only == "all":
-        pages = [("A-don-vi-chua-nhap-lieu.png", page_missing(g["A"], g["D"], args.days)),
+        pages = [("A-don-vi-chua-nhap-lieu.png", page_missing(g["A"], g["D"], args.days, until)),
                  ("B-don-vi-nhap-sai-don-vi-tinh.png", page_wrong(g["B"], g["C"]))] + pages
     made = shoot(pages, out_dir)
     print(f"{len(g['A'])} đơn vị đang hoạt động · {len(g['D'])} ngày thiếu đơn giá · "

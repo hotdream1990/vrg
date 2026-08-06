@@ -21,7 +21,8 @@ uv run --directory apps/api python .claude/skills/bao-cao-nhap-lieu/scripts/make
 
 | Tuỳ chọn | Mặc định | Ý nghĩa |
 |---|---|---|
-| `--days N` | 7 | Kỳ xét "đã nộp chưa" = N ngày gần nhất |
+| `--days N` | 7 | Kỳ xét "đã nộp chưa" = N ngày |
+| `--until NGÀY` | **hôm qua** | Ngày cuối kỳ. Mặc định BỎ hôm nay: hôm nay chưa hết ngày, đơn vị chưa nhập không phải là nợ — kể vào là nhắc oan và làm loãng danh sách thật |
 | `--out DIR` | `plans/visuals` | Thư mục lưu ảnh (có plan đang mở thì trỏ vào `{plan_dir}/visuals/`) |
 | `--local` | tắt | Lấy số liệu ở DB local thay vì prod (để thử) |
 | `--only stock` | `all` | Chỉ dựng ảnh C (Tồn kho); mặc định dựng cả 3 ảnh |

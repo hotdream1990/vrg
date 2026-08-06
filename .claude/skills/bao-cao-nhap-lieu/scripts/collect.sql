@@ -1,6 +1,8 @@
 -- Số liệu cho ảnh "tình trạng nhập liệu của đơn vị". Mỗi dòng ra là chuỗi phân cách '|',
 -- ký tự đầu là NHÓM (A/B/C) để script gom lại. Chạy với psql -tA (không header, không canh cột).
--- Tham số: :days = số ngày của kỳ xét "đã nộp chưa" (mặc định do script truyền vào).
+-- Tham số: :days = số ngày của kỳ xét "đã nộp chưa" · :until = ngày CUỐI kỳ (script truyền vào).
+-- ⚠ Kỳ chốt tới :until chứ không phải CURRENT_DATE: báo cáo đốc thúc thường chốt tới HÔM QUA,
+--   vì hôm nay chưa hết ngày, đơn vị chưa nhập là chuyện bình thường — kể vào là nhắc oan.
 
 -- ── A) Tình trạng nộp trong kỳ: A|đơn vị|thu mua|tiêu thụ-tồn kho ──────────────────────────
 -- Số = SỐ NGÀY đã nộp trong kỳ; 0 = chưa nhập; '-' = KHÔNG ÁP DỤNG.
@@ -18,11 +20,11 @@
 SELECT 'A|' || u.name || '|' ||
        CASE WHEN COALESCE((SELECT p.plan_tonnes > 0 FROM unit_purchase_plan p
                             WHERE p.company = u.name AND p.plan_tonnes IS NOT NULL
-                              AND p.year <= EXTRACT(YEAR FROM CURRENT_DATE)
+                              AND p.year <= EXTRACT(YEAR FROM CAST(:until AS date))
                             ORDER BY p.year DESC LIMIT 1), false) THEN
          (SELECT count(*) FROM unit_daily_report r
            WHERE r.company = u.name AND r.kind = 'purchase'
-             AND r.as_of BETWEEN CURRENT_DATE - (:days - 1) AND CURRENT_DATE
+             AND r.as_of BETWEEN CAST(:until AS date) - (:days - 1) AND CAST(:until AS date)
              AND (EXISTS (SELECT 1 FROM jsonb_each(r.payload) e
                            WHERE e.key = ANY (ARRAY['latex_wet', 'coagulum', 'cup_raw',
                                    'cup_raw_price', 'rss_pressed', 'rss_pressed_price',
@@ -34,7 +36,7 @@ SELECT 'A|' || u.name || '|' ||
        ELSE '-' END || '|' ||
        (SELECT count(*) FROM unit_daily_report r
          WHERE r.company = u.name AND r.kind = 'consumption'
-           AND r.as_of BETWEEN CURRENT_DATE - (:days - 1) AND CURRENT_DATE
+           AND r.as_of BETWEEN CAST(:until AS date) - (:days - 1) AND CAST(:until AS date)
            AND (EXISTS (SELECT 1 FROM jsonb_each(r.payload) e
                          WHERE e.key IN ('no_stock', 'stock_material')
                            AND e.value NOT IN ('null'::jsonb, '""'::jsonb))
@@ -51,7 +53,7 @@ SELECT 'A|' || u.name || '|' ||
 SELECT 'D|' || r.company || '|' || r.as_of::text
   FROM unit_daily_report r
  WHERE r.kind = 'purchase' AND r.payload <> '{}'::jsonb
-   AND r.as_of BETWEEN CURRENT_DATE - (:days - 1) AND CURRENT_DATE
+   AND r.as_of BETWEEN CAST(:until AS date) - (:days - 1) AND CAST(:until AS date)
    AND COALESCE((r.payload->>'no_purchase')::bool, false) = false
    AND NOT EXISTS (SELECT 1 FROM fact_price f
                     WHERE f.source = 'vrg_unit' AND f.grade = r.company AND f.as_of = r.as_of
@@ -101,7 +103,7 @@ SELECT 'E|' || u.name || '|' || COALESCE(u.region, '') || '|' ||
        COALESCE((SELECT string_agg(to_char(r.as_of, 'YYYY-MM-DD'), ',' ORDER BY r.as_of)
                    FROM unit_daily_report r
                   WHERE r.company = u.name AND r.kind = 'consumption'
-                    AND r.as_of BETWEEN CURRENT_DATE - (:days - 1) AND CURRENT_DATE
+                    AND r.as_of BETWEEN CAST(:until AS date) - (:days - 1) AND CAST(:until AS date)
                     AND (EXISTS (SELECT 1 FROM jsonb_each(r.payload) e
                                   WHERE e.key IN ('no_stock', 'stock_material')
                                     AND e.value NOT IN ('null'::jsonb, '""'::jsonb))
