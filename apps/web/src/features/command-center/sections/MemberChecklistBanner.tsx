@@ -10,6 +10,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { dmy } from "../../../lib/date";
 import { DATA_SAVED_EVENT } from "../../../lib/http";
 import { type MemberChecklist, type UnitChecklist, fetchMyChecklist } from "../../../lib/member-client";
+import { useAuth } from "../../auth/AuthContext";
 
 const COLLAPSE_KEY = "vrg_checklist_collapsed";
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
@@ -40,8 +41,8 @@ function DayChips({ days, today, editableFrom, onPick }: {
   );
 }
 
-function UnitRow({ u, today, editableFrom, go }: {
-  u: UnitChecklist; today: string; editableFrom: string;
+function UnitRow({ u, today, editableFrom, canOpenPlan, go }: {
+  u: UnitChecklist; today: string; editableFrom: string; canOpenPlan: boolean;
   go: (path: string, day?: string, company?: string) => void;
 }) {
   const items: JSX.Element[] = [];
@@ -67,8 +68,15 @@ function UnitRow({ u, today, editableFrom, go }: {
     items.push(
       <div key="y" style={{ marginBottom: 4 }}>
         <b>Kế hoạch năm {u.year}</b> — chưa khai.{" "}
-        <button className="chip info" style={{ border: 0, cursor: "pointer" }}
-          onClick={() => go("/ke-hoach-nam")}>Khai ngay</button>
+        {/* Màn Kế hoạch năm chỉ mở cho đơn vị ĐÃ có số kế hoạch (chính con số đó là công tắc bật
+            màn Thu mua) → đơn vị chưa khai lần nào bấm vào sẽ bị đá về. Nói thẳng thay vì mời bấm. */}
+        {canOpenPlan ? (
+          <button className="chip info" style={{ border: 0, cursor: "pointer" }}
+            onClick={() => go("/ke-hoach-nam")}>Khai ngay</button>
+        ) : (
+          <span style={{ color: "var(--muted)" }}>Đơn vị chưa từng khai nên chưa mở màn này —
+            báo Ban TTKD khai hộ.</span>
+        )}
       </div>,
     );
   }
@@ -96,6 +104,7 @@ function UnitRow({ u, today, editableFrom, go }: {
 export default function MemberChecklistBanner() {
   const nav = useNavigate();
   const { pathname } = useLocation();
+  const { user } = useAuth();
   const [data, setData] = useState<MemberChecklist | null>(null);
   const [open, setOpen] = useState(sessionStorage.getItem(COLLAPSE_KEY) !== "1");
 
@@ -150,7 +159,8 @@ export default function MemberChecklistBanner() {
         <span className="dsn-toggle">{open ? <>Thu gọn <UpOutlined /></> : <>Xem chi tiết <DownOutlined /></>}</span>
       </button>
       {open && data.units.map((u) => (
-        <UnitRow key={u.company} u={u} today={data.today} editableFrom={data.editable_from} go={go} />
+        <UnitRow key={u.company} u={u} today={data.today} editableFrom={data.editable_from}
+          canOpenPlan={user?.member_has_purchase_plan ?? false} go={go} />
       ))}
     </div>
   );
