@@ -39,5 +39,15 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   if (!res.ok) {
     throw new Error(await errorMessage(res));
   }
+  if ((init?.method ?? "GET") !== "GET") notifyDataSaved(path);
   return (await res.json()) as T;
+}
+
+/** Sự kiện "vừa ghi số liệu" — phát ở ĐÂY thay vì ở từng màn nhập, để bảng nhắc việc của đơn vị
+ *  không bao giờ nhắc thứ vừa được nhập xong. Gắn tay vào từng chỗ lưu là kiểu gì cũng sót một chỗ. */
+export const DATA_SAVED_EVENT = "vrg:data-saved";
+
+function notifyDataSaved(path: string): void {
+  if (path.startsWith("/api/member/checklist")) return;   // tránh vòng lặp tự kích hoạt
+  window.dispatchEvent(new CustomEvent(DATA_SAVED_EVENT, { detail: { path } }));
 }

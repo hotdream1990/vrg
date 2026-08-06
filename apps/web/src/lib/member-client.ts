@@ -37,3 +37,34 @@ export const clearMyPrice = (company: string, as_of: string, price_type: MemberP
   apiFetch<{ deleted: boolean }>(
     `/api/member/prices?company=${encodeURIComponent(company)}&as_of=${as_of}&price_type=${price_type}`,
     { method: "DELETE" });
+
+// ── Đơn vị còn thiếu gì (bảng nhắc hiện trên mọi màn) ──
+export type PendingBatch = {
+  id: number;
+  code: string;             // số đợt giao
+  contract_code: string;    // số hợp đồng cha
+  qty: number;              // sản lượng đang treo (tấn)
+  since: string;            // lần ghi gần nhất của đợt
+  days: number;             // đã treo bao nhiêu ngày
+};
+
+export type UnitChecklist = {
+  company: string;
+  needs_purchase: boolean;      // đơn vị có kế hoạch thu mua → mới phải nộp biểu Thu mua
+  purchase_missing: string[];   // ngày chưa nhập (mới → cũ)
+  stock_missing: string[];
+  year_plan_missing: boolean;
+  year: number;
+  pending_batches: PendingBatch[];
+};
+
+export type MemberChecklist = {
+  today: string;
+  window_days: number;          // còn sửa được: hôm nay + N ngày
+  days: string[];               // các ngày trong cửa sổ (mới → cũ)
+  units: UnitChecklist[];
+  total_missing: number;
+};
+
+/** Việc còn thiếu của các đơn vị được gán — chỉ tính phần CÒN SỬA ĐƯỢC. */
+export const fetchMyChecklist = () => apiFetch<MemberChecklist>("/api/member/checklist");

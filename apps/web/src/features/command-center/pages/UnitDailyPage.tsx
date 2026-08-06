@@ -7,6 +7,7 @@
 import { ReloadOutlined } from "@ant-design/icons";
 import { Button, Segmented, Spin, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../../auth/AuthContext";
 import { todayISO } from "../../../lib/date";
@@ -44,6 +45,16 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
   const [view, setView] = useState<"list" | "overview">(isMember ? "list" : "overview");
   const [refreshKey, setRefreshKey] = useState(0);
   const [edit, setEdit] = useState<{ day: string; company: string } | null>(null);
+
+  // `?ngay=&don-vi=` — bảng nhắc việc bấm thẳng vào ngày còn thiếu thì mở luôn phiếu của ngày đó.
+  // Xoá tham số ngay sau khi mở: để lại thì bấm F5 hay quay lại trang là form tự bật lần nữa.
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const day = params.get("ngay");
+    if (!day) return;
+    setEdit({ day, company: params.get("don-vi") || "" });
+    setParams({}, { replace: true });
+  }, [params, setParams]);
 
   // Tổng hợp (chỉ HQ): lưới toàn đơn vị theo 1 ngày.
   const [ovDay, setOvDay] = useState(todayISO());

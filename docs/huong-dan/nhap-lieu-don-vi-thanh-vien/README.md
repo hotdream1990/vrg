@@ -9,7 +9,7 @@ Số tiêu thụ **không còn nhập tay theo ngày** — hệ thống tự tí
 
 ## 1. Có gì thay đổi so với cách làm cũ
 
-Đơn vị đã quen hệ thống trước 30/07 cần nắm 4 thay đổi sau.
+Đơn vị đã quen hệ thống trước 30/07 cần nắm 5 thay đổi sau.
 
 1. **Không còn phiếu nhập tiêu thụ theo ngày.** Trước đây mỗi ngày khai các dòng bán; nay mỗi lần giao hàng được ghi thành **một đợt giao của hợp đồng**, hệ thống tự cộng vào tiêu thụ đúng ngày giao.
 2. **Không còn khối “đã ký HĐ chưa giao” trong phiếu tồn kho.** Số này nay **tự tính** = sản lượng hợp đồng − đã giao. Phiếu tồn kho còn đúng 3 khối nhập tay.
@@ -20,6 +20,7 @@ Số tiêu thụ **không còn nhập tay theo ngày** — hệ thống tự tí
 > - Từ 05/08/2026 gọi là **đợt giao** thay cho “phụ lục”, và mỗi đợt ghi thêm **số hoá đơn** kèm file scan. Hợp đồng đã nhập trước đó giữ nguyên, chỉ đổi tên gọi trên màn hình.
 > - **“Đã ký HĐ chưa giao” nay tính trên cả hợp đồng** (trước chỉ tính phần đã chia thành đợt) nên con số này sẽ lớn hơn trước — đó là phần hàng đã ký bán mà chưa giao, kể cả chưa sản xuất.
 > - Từ 06/08/2026, **thêm/sửa khách hàng nhập trong popup**: trang Khách hàng chỉ còn nút **Thêm khách hàng**, bấm vào mới hiện ô nhập. Cách nhập và các quy tắc không đổi.
+> - Từ 06/08/2026, mọi màn của đơn vị có thêm **bảng nhắc “còn thiếu gì”** ở đầu trang — xem mục 3. Đơn vị không phải tự dò xem mình đã nộp đủ chưa.
 
 ## 2. Đăng nhập và các mục trên menu
 
@@ -38,7 +39,27 @@ Sau khi đăng nhập bằng tài khoản đơn vị, menu bên trái hiển th�
 > - Đơn vị **không được giao kế hoạch thu mua** sẽ không thấy mục “Thu mua” và “Kế hoạch năm”.
 > - Chỉ nhập/sửa được ngày hôm nay và một số ngày gần nhất theo quy định; ngày cũ hơn chỉ để xem.
 
-## 3. Màn hình danh sách và nút thao tác
+## 3. Bảng nhắc “còn thiếu gì”
+
+**Vị trí:** Hiện sẵn ở đầu mọi màn hình
+
+Ngay khi đăng nhập, hệ thống tự đối chiếu số liệu đơn vị đã nộp và hiện một bảng nhắc ở đầu màn hình: còn thiếu biểu nào, ngày nào. Bảng chỉ liệt kê những ngày ĐANG CÒN SỬA ĐƯỢC — hết hạn đó thì ngày cũ chuyển sang chỉ xem, có muốn bổ sung cũng không được nữa.
+
+![Hình 1b. Bảng nhắc việc hiện ở đầu mọi màn hình](img/01b-nhac-viec.png)
+
+*Hình 1b. Bảng nhắc việc hiện ở đầu mọi màn hình*
+
+1. **Số việc còn thiếu** — tổng số việc đơn vị chưa làm. Nếu đã nộp đủ, chỗ này là dòng xanh **“Đã nhập đủ”**.
+2. **Thu mua** — các ngày chưa nhập biểu Thu mua. Chỉ hiện với đơn vị được giao kế hoạch thu mua.
+3. **Tồn kho** — các ngày chưa nhập biểu Tồn kho.
+4. **Thu gọn / Xem chi tiết** — thu bảng lại còn một dòng khi đang tập trung làm việc khác.
+
+> - **Bấm thẳng vào ngày** (ô màu cam) là mở luôn phiếu nhập của đúng ngày đó — không phải tự đi tìm trong danh sách.
+> - Nhập xong bảng tự trừ ngay việc đó, không cần tải lại trang.
+> - Bảng còn nhắc: **chưa khai Kế hoạch năm** và **đợt giao bỏ trống ngày giao** (sản lượng của đợt đó chưa được tính vào tiêu thụ cho tới khi điền ngày giao).
+> - Ngày đã tích “không tổ chức thu mua” / “không phát sinh tồn kho” được tính là **đã nộp** — không bị nhắc nữa.
+
+## 4. Màn hình danh sách và nút thao tác
 
 **Vị trí:** Nhập liệu số liệu → Thu mua (các màn khác bố trí tương tự)
 
@@ -54,7 +75,7 @@ Mỗi màn nhập theo ngày đều có danh sách các ngày đã nhập kèm d
 > - Danh sách chỉ hiện những ngày **đã có số liệu**; ngày chưa nhập sẽ không xuất hiện.
 > - Chọn **Khoảng thời gian** ở góc trái để xem xa hơn 90 ngày.
 
-## 4. Nhập Thu mua
+## 5. Nhập Thu mua
 
 **Vị trí:** Nhập liệu số liệu → Thu mua → Thêm số liệu ngày
 
@@ -73,7 +94,7 @@ Phiếu chia theo loại mủ, mỗi loại nhập sản lượng và đơn giá
 > - Ngày nào không phát sinh loại nào thì để trống loại đó, không nhập số 0.
 > - Nút **Lấy tỷ giá VCB cho các dòng USD** điền tỷ giá Vietcombank cho mọi dòng đang chọn USD.
 
-## 5. Nhập Tồn kho
+## 6. Nhập Tồn kho
 
 **Vị trí:** Nhập liệu số liệu → Tồn kho → Thêm số liệu ngày
 
@@ -92,7 +113,7 @@ Tồn kho là số tại thời điểm cuối ngày, không cộng dồn giữa
 > - Sản lượng **đã ký hợp đồng nhưng chưa giao** không còn nhập ở đây — hệ thống tự tính từ hợp đồng, xem ở cột “Chưa giao” trên màn Báo cáo tiêu thụ.
 > - Tích **Hôm nay không phát sinh tồn kho để khai** nếu ngày đó đơn vị không có gì để báo.
 
-## 6. Khách hàng
+## 7. Khách hàng
 
 **Vị trí:** Quản lý hợp đồng → Khách hàng
 
@@ -114,7 +135,7 @@ Danh mục khách hàng riêng của từng đơn vị — đơn vị khác khô
 > - Trùng tên trong cùng một đơn vị sẽ bị chặn; hai đơn vị khác nhau được phép trùng tên khách.
 > - Khách hàng đang có hợp đồng thì không xoá được — hãy ẩn thay vì xoá.
 
-## 7. Hợp đồng & đợt giao — danh sách
+## 8. Hợp đồng & đợt giao — danh sách
 
 **Vị trí:** Quản lý hợp đồng → Hợp đồng & đợt giao
 
@@ -124,9 +145,9 @@ Danh sách các hợp đồng của đơn vị kèm tiến độ giao hàng.
 
 *Hình 6. Danh sách hợp đồng và tiến độ giao*
 
-1. **Thêm hợp đồng** — lập hợp đồng mới (xem mục 8).
+1. **Thêm hợp đồng** — lập hợp đồng mới (xem mục 9).
 2. **Lọc theo Hình thức** — *Xuất khẩu / UTXK* · *Tiêu thụ trong nước* · *Tiêu thụ nội bộ*, hoặc **Chưa khai hình thức** để tìm nhanh những hợp đồng cũ còn thiếu mục này.
-3. **Xem / Sửa / Xoá** ở cuối mỗi dòng. Bấm **Xem** để mở màn chi tiết (mục 9).
+3. **Xem / Sửa / Xoá** ở cuối mỗi dòng. Bấm **Xem** để mở màn chi tiết (mục 10).
 
 > - **SL hợp đồng** — tổng sản lượng ghi trên hợp đồng đã ký.
 > - **Đã giao** — tổng của các đợt giao đã điền ngày giao (kèm dòng *vượt …* nếu giao quá hợp đồng).
@@ -135,7 +156,7 @@ Danh sách các hợp đồng của đơn vị kèm tiến độ giao hàng.
 > - **Trạng thái** — *Đang thực hiện* hay *Hoàn thành dd/mm/yyyy*. Hợp đồng đã hoàn thành không còn tính vào “đã ký HĐ chưa giao” và bị khoá sửa.
 > - Các bộ lọc dùng chung được: **Đơn vị · Khách hàng** (gõ để tìm, chọn nhiều) **· Trạng thái · Hình thức · Ngày ký** và ô **tìm theo số HĐ** (gõ không dấu vẫn ra).
 
-## 8. Thêm hợp đồng
+## 9. Thêm hợp đồng
 
 **Vị trí:** Quản lý hợp đồng → Hợp đồng & đợt giao → Thêm hợp đồng
 
@@ -144,9 +165,9 @@ Danh sách các hợp đồng của đơn vị kèm tiến độ giao hàng.
 *Hình 7. Phiếu thêm hợp đồng*
 
 1. **Số hợp đồng** — bắt buộc, không trùng trong cùng đơn vị.
-2. **Khách hàng** — bắt buộc; gõ vài chữ trong tên (hoặc mã khách) rồi chọn. Danh sách chỉ có khách của chính đơn vị (mục 6).
+2. **Khách hàng** — bắt buộc; gõ vài chữ trong tên (hoặc mã khách) rồi chọn. Danh sách chỉ có khách của chính đơn vị (mục 7).
 3. **Loại hợp đồng** — bắt buộc: *HĐ dài hạn* hay *HĐ chuyến*. Đây là chỉ tiêu của báo cáo, **khác** với Loại giao bên dưới.
-4. **Loại giao** — *Giao 1 lần* (cả hợp đồng giao trọn một lần) hay *Giao nhiều lần* (chia thành nhiều đợt giao). Chọn nhầm vẫn đổi được sau, xem mục 9.
+4. **Loại giao** — *Giao 1 lần* (cả hợp đồng giao trọn một lần) hay *Giao nhiều lần* (chia thành nhiều đợt giao). Chọn nhầm vẫn đổi được sau, xem mục 10.
 5. **Ngày ký** — bắt buộc. Từ ngày này, sản lượng hợp đồng nằm ở mục “đã ký HĐ chưa giao”.
 6. **Ngày giao** — chỉ hiện với hợp đồng *giao 1 lần*; điền khi đã giao xong. Bên dưới là **Hình thức tiêu thụ** và khối **Hoá đơn** (số hoá đơn + file scan).
 7. **Chi tiết hợp đồng** — mỗi chủng loại một dòng (ô SL đổi nhãn thành **SL nước** với latex và mủ nguyên liệu). Ô **Quy khô** chỉ hiện với latex và mủ nguyên liệu; ô **Tỷ giá** chỉ hiện khi dòng bán bằng ngoại tệ.
@@ -158,7 +179,7 @@ Danh sách các hợp đồng của đơn vị kèm tiến độ giao hàng.
 > - Bán **LATEX** và 2 loại mủ nguyên liệu thì **bắt buộc nhập quy khô** mới lưu được.
 > - Hợp đồng **giao nhiều lần** không tự đánh dấu đã giao — mỗi lần giao nhập một đợt giao.
 
-## 9. Màn chi tiết hợp đồng
+## 10. Màn chi tiết hợp đồng
 
 **Vị trí:** Quản lý hợp đồng → Hợp đồng & đợt giao → bấm Xem ở dòng hợp đồng
 
@@ -170,18 +191,18 @@ Nơi theo dõi tiến độ một hợp đồng, nhập các đợt giao và ch�
 
 1. **Hàng số liệu** — khách hàng, loại hợp đồng, sản lượng hợp đồng, đã giao, còn phải giao, trạng thái. Luôn hiện dù đang ở tab nào.
 2. **Chuyển sang giao nhiều lần / Chuyển về giao 1 lần** — đổi loại giao ngay tại đây, **không phải xoá hợp đồng nhập lại**. Hợp đồng giao-1-lần đã ghi ngày giao thì lần giao đó tự chuyển thành **đợt giao đầu tiên** (giữ nguyên ngày giao, hoá đơn, thanh toán, chi tiết hàng).
-3. **Hoàn thành hợp đồng** — chốt thời điểm kết thúc (xem mục 11).
+3. **Hoàn thành hợp đồng** — chốt thời điểm kết thúc (xem mục 12).
 4. **Tab Thông tin hợp đồng** — sửa hợp đồng, file scan, ghi chú và các dòng chi tiết đã ký.
 5. **Tab Đợt giao** — danh sách các lần giao; hợp đồng giao nhiều lần mở thẳng vào tab này.
-6. **Thêm đợt giao** — ghi một lần giao mới (xem mục 10).
+6. **Thêm đợt giao** — ghi một lần giao mới (xem mục 11).
 
 > - Hợp đồng **giao 1 lần** không có tab Đợt giao: chính hợp đồng là một lần giao.
 > - Chỉ chuyển được **về** giao 1 lần khi hợp đồng chưa có đợt giao nào.
 > - Hợp đồng **đã hoàn thành** chỉ còn nút **Mở lại hợp đồng**; muốn sửa hay thêm đợt giao thì phải mở lại trước.
 
-## 10. Thêm đợt giao — mỗi đợt là một lần giao
+## 11. Thêm đợt giao — mỗi đợt là một lần giao
 
-**Vị trí:** Màn chi tiết hợp đồng (mục 9) → tab Đợt giao → Thêm đợt giao
+**Vị trí:** Màn chi tiết hợp đồng (mục 10) → tab Đợt giao → Thêm đợt giao
 
 Mỗi đợt giao = một lần giao hàng + một lần thanh toán. Đây là cách ghi nhận tiêu thụ của cơ chế mới.
 
@@ -201,9 +222,9 @@ Mỗi đợt giao = một lần giao hàng + một lần thanh toán. Đây là 
 > - **Thành tiền** của mỗi dòng = số lượng × đơn giá, hệ thống tự tính (không nhập tay); tổng của cả đợt hiện ngay dưới bảng chi tiết.
 > - Lần giao đã ghi quá **số ngày cho phép sửa** sẽ chuyển sang **chỉ xem** (dòng hiện “(chỉ xem)” thay cho nút Sửa/Xoá). Hợp đồng **không** bị khoá, vẫn thêm đợt giao mới bình thường.
 
-## 11. Hoàn thành hợp đồng
+## 12. Hoàn thành hợp đồng
 
-**Vị trí:** Màn chi tiết hợp đồng (mục 9) → Hoàn thành hợp đồng
+**Vị trí:** Màn chi tiết hợp đồng (mục 10) → Hoàn thành hợp đồng
 
 Sản lượng thực giao thường lệch vài phần trăm so với hợp đồng đã ký. Khi hai bên đã kết thúc hợp đồng, bấm Hoàn thành hợp đồng để chốt lại — phần chênh còn lại thôi không nằm ở “đã ký HĐ chưa giao” nữa.
 
@@ -219,7 +240,7 @@ Sản lượng thực giao thường lệch vài phần trăm so với hợp đ�
 > - Bấm nhầm thì vào lại màn chi tiết bấm **Mở lại hợp đồng**, mọi số liệu trở về như cũ.
 > - Nếu còn đợt **chưa điền ngày giao**, màn này báo bằng khung vàng — điền ngày giao trước, nếu không sản lượng đó sẽ không được tính vào tiêu thụ.
 
-## 12. Báo cáo tiêu thụ
+## 13. Báo cáo tiêu thụ
 
 **Vị trí:** Báo cáo → Tiêu thụ
 
@@ -238,7 +259,7 @@ Bảng chỉ để xem — số do hệ thống tổng hợp từ các lần gia
 > - **Xuất Excel** để lấy đúng bảng đang xem.
 > - Doanh thu hiện “—” khi có lần giao bán ngoại tệ mà chưa nhập tỷ giá — bổ sung tỷ giá trên đợt giao để có số đầy đủ.
 
-## 13. Nhu cầu thị trường
+## 14. Nhu cầu thị trường
 
 **Vị trí:** Nhập liệu số liệu → Nhu cầu thị trường
 
@@ -252,7 +273,7 @@ Ghi nhận nhu cầu và tín hiệu thị trường của đơn vị, nhập t�
 
 > Viết ngắn gọn nhưng có **con số cụ thể** (chủng loại, sản lượng, mức giá) — Ban TTKD dùng thông tin này để đối chiếu với diễn biến giá sàn.
 
-## 14. Kế hoạch năm
+## 15. Kế hoạch năm
 
 **Vị trí:** Nhập liệu số liệu → Kế hoạch năm
 
@@ -270,7 +291,7 @@ Số liệu nhập một lần cho cả năm, cập nhật khi có điều chỉ
 > - Ô **Kế hoạch thu mua** chính là công tắc: có số **> 0** thì đơn vị mới thấy màn **Báo cáo thu mua**; để trống hoặc **0** = đơn vị không tổ chức thu mua.
 > - Ô **Kế hoạch tiêu thụ — HĐ chuyến** dùng để đối chiếu **% thực hiện** trên báo cáo kỳ; ô này KHÔNG bật/tắt màn nào.
 
-## 15. Hợp đồng cũ (trước 30/07)
+## 16. Hợp đồng cũ (trước 30/07)
 
 **Vị trí:** Báo cáo → Hợp đồng cũ (trước 30/07)
 
@@ -285,7 +306,7 @@ Toàn bộ hợp đồng đã ký nhập theo cách cũ, kể cả hợp đồng
 > - Hợp đồng phát sinh từ 30/07 trở đi nằm ở mục **Hợp đồng & đợt giao**, không nằm ở đây.
 > - Cần sửa một hợp đồng cũ thì báo Ban TTKD.
 
-## 16. Những lỗi hay gặp
+## 17. Những lỗi hay gặp
 
 | Hiện tượng | Nguyên nhân & cách xử lý |
 |---|---|

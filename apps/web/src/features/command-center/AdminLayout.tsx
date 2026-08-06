@@ -44,6 +44,7 @@ import type { Cap } from "../../lib/permissions";
 import { VRG } from "../../theme";
 import { useAuth } from "../auth/AuthContext";
 import { IMPERSONATION_BANNER_HEIGHT } from "../auth/ImpersonationBanner";
+import MemberChecklistBanner from "./sections/MemberChecklistBanner";
 
 const { Header, Sider, Content, Footer } = Layout;
 
@@ -259,6 +260,9 @@ export default function AdminLayout() {
         </Header>
 
         <Content style={{ overflow: "auto" }}>
+          {/* Nhắc việc của đơn vị đặt Ở ĐÂY (khung), không ở từng trang: đơn vị vào màn nào cũng
+              thấy ngay mình còn nợ số liệu ngày nào. */}
+          {isMember && <MemberChecklistBanner />}
           <main className="main"><Outlet /></main>
         </Content>
         <Footer style={{ textAlign: "center", color: "#5f6f67", fontSize: 12, padding: "12px 24px" }}>

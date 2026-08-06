@@ -19,7 +19,7 @@
   "sections": [
     {
       "title": "1. Có gì thay đổi so với cách làm cũ",
-      "intro": "Đơn vị đã quen hệ thống trước 30/07 cần nắm 4 thay đổi sau.",
+      "intro": "Đơn vị đã quen hệ thống trước 30/07 cần nắm 5 thay đổi sau.",
       "steps": [
         "**Không còn phiếu nhập tiêu thụ theo ngày.** Trước đây mỗi ngày khai các dòng bán; nay mỗi lần giao hàng được ghi thành **một đợt giao của hợp đồng**, hệ thống tự cộng vào tiêu thụ đúng ngày giao.",
         "**Không còn khối “đã ký HĐ chưa giao” trong phiếu tồn kho.** Số này nay **tự tính** = sản lượng hợp đồng − đã giao. Phiếu tồn kho còn đúng 3 khối nhập tay.",
@@ -30,7 +30,8 @@
       "notes": [
         "Từ 05/08/2026 gọi là **đợt giao** thay cho “phụ lục”, và mỗi đợt ghi thêm **số hoá đơn** kèm file scan. Hợp đồng đã nhập trước đó giữ nguyên, chỉ đổi tên gọi trên màn hình.",
         "**“Đã ký HĐ chưa giao” nay tính trên cả hợp đồng** (trước chỉ tính phần đã chia thành đợt) nên con số này sẽ lớn hơn trước — đó là phần hàng đã ký bán mà chưa giao, kể cả chưa sản xuất.",
-        "Từ 06/08/2026, **thêm/sửa khách hàng nhập trong popup**: trang Khách hàng chỉ còn nút **Thêm khách hàng**, bấm vào mới hiện ô nhập. Cách nhập và các quy tắc không đổi."
+        "Từ 06/08/2026, **thêm/sửa khách hàng nhập trong popup**: trang Khách hàng chỉ còn nút **Thêm khách hàng**, bấm vào mới hiện ô nhập. Cách nhập và các quy tắc không đổi.",
+        "Từ 06/08/2026, mọi màn của đơn vị có thêm **bảng nhắc “còn thiếu gì”** ở đầu trang — xem mục 3. Đơn vị không phải tự dò xem mình đã nộp đủ chưa."
       ]
     },
     {
@@ -54,7 +55,30 @@
       ]
     },
     {
-      "title": "3. Màn hình danh sách và nút thao tác",
+      "title": "3. Bảng nhắc “còn thiếu gì”",
+      "location": "Hiện sẵn ở đầu mọi màn hình",
+      "intro": "Ngay khi đăng nhập, hệ thống tự đối chiếu số liệu đơn vị đã nộp và hiện một bảng nhắc ở đầu màn hình: còn thiếu biểu nào, ngày nào. Bảng chỉ liệt kê những ngày ĐANG CÒN SỬA ĐƯỢC — hết hạn đó thì ngày cũ chuyển sang chỉ xem, có muốn bổ sung cũng không được nữa.",
+      "image": {
+        "path": "img/01b-nhac-viec.png",
+        "w": 3000,
+        "h": 1640
+      },
+      "caption": "Hình 1b. Bảng nhắc việc hiện ở đầu mọi màn hình",
+      "steps": [
+        "**Số việc còn thiếu** — tổng số việc đơn vị chưa làm. Nếu đã nộp đủ, chỗ này là dòng xanh **“Đã nhập đủ”**.",
+        "**Thu mua** — các ngày chưa nhập biểu Thu mua. Chỉ hiện với đơn vị được giao kế hoạch thu mua.",
+        "**Tồn kho** — các ngày chưa nhập biểu Tồn kho.",
+        "**Thu gọn / Xem chi tiết** — thu bảng lại còn một dòng khi đang tập trung làm việc khác."
+      ],
+      "notes": [
+        "**Bấm thẳng vào ngày** (ô màu cam) là mở luôn phiếu nhập của đúng ngày đó — không phải tự đi tìm trong danh sách.",
+        "Nhập xong bảng tự trừ ngay việc đó, không cần tải lại trang.",
+        "Bảng còn nhắc: **chưa khai Kế hoạch năm** và **đợt giao bỏ trống ngày giao** (sản lượng của đợt đó chưa được tính vào tiêu thụ cho tới khi điền ngày giao).",
+        "Ngày đã tích “không tổ chức thu mua” / “không phát sinh tồn kho” được tính là **đã nộp** — không bị nhắc nữa."
+      ]
+    },
+    {
+      "title": "4. Màn hình danh sách và nút thao tác",
       "location": "Nhập liệu số liệu → Thu mua (các màn khác bố trí tương tự)",
       "intro": "Mỗi màn nhập theo ngày đều có danh sách các ngày đã nhập kèm dòng luỹ kế.",
       "image": {
@@ -73,7 +97,7 @@
       ]
     },
     {
-      "title": "4. Nhập Thu mua",
+      "title": "5. Nhập Thu mua",
       "location": "Nhập liệu số liệu → Thu mua → Thêm số liệu ngày",
       "intro": "Phiếu chia theo loại mủ, mỗi loại nhập sản lượng và đơn giá đi liền nhau.",
       "image": {
@@ -95,7 +119,7 @@
       ]
     },
     {
-      "title": "5. Nhập Tồn kho",
+      "title": "6. Nhập Tồn kho",
       "location": "Nhập liệu số liệu → Tồn kho → Thêm số liệu ngày",
       "intro": "Tồn kho là số tại thời điểm cuối ngày, không cộng dồn giữa các ngày. Phiếu còn đúng 3 khối nhập tay.",
       "image": {
@@ -117,7 +141,7 @@
       ]
     },
     {
-      "title": "6. Khách hàng",
+      "title": "7. Khách hàng",
       "location": "Quản lý hợp đồng → Khách hàng",
       "intro": "Danh mục khách hàng riêng của từng đơn vị — đơn vị khác không thấy danh mục của đơn vị mình. Phải có khách hàng trước thì mới lập được hợp đồng.",
       "image": [
@@ -148,7 +172,7 @@
       ]
     },
     {
-      "title": "7. Hợp đồng & đợt giao — danh sách",
+      "title": "8. Hợp đồng & đợt giao — danh sách",
       "location": "Quản lý hợp đồng → Hợp đồng & đợt giao",
       "intro": "Danh sách các hợp đồng của đơn vị kèm tiến độ giao hàng.",
       "image": {
@@ -158,9 +182,9 @@
       },
       "caption": "Hình 6. Danh sách hợp đồng và tiến độ giao",
       "steps": [
-        "**Thêm hợp đồng** — lập hợp đồng mới (xem mục 8).",
+        "**Thêm hợp đồng** — lập hợp đồng mới (xem mục 9).",
         "**Lọc theo Hình thức** — *Xuất khẩu / UTXK* · *Tiêu thụ trong nước* · *Tiêu thụ nội bộ*, hoặc **Chưa khai hình thức** để tìm nhanh những hợp đồng cũ còn thiếu mục này.",
-        "**Xem / Sửa / Xoá** ở cuối mỗi dòng. Bấm **Xem** để mở màn chi tiết (mục 9)."
+        "**Xem / Sửa / Xoá** ở cuối mỗi dòng. Bấm **Xem** để mở màn chi tiết (mục 10)."
       ],
       "notes": [
         "**SL hợp đồng** — tổng sản lượng ghi trên hợp đồng đã ký.",
@@ -172,7 +196,7 @@
       ]
     },
     {
-      "title": "8. Thêm hợp đồng",
+      "title": "9. Thêm hợp đồng",
       "location": "Quản lý hợp đồng → Hợp đồng & đợt giao → Thêm hợp đồng",
       "image": {
         "path": "img/07-hop-dong-form.png",
@@ -182,9 +206,9 @@
       "caption": "Hình 7. Phiếu thêm hợp đồng",
       "steps": [
         "**Số hợp đồng** — bắt buộc, không trùng trong cùng đơn vị.",
-        "**Khách hàng** — bắt buộc; gõ vài chữ trong tên (hoặc mã khách) rồi chọn. Danh sách chỉ có khách của chính đơn vị (mục 6).",
+        "**Khách hàng** — bắt buộc; gõ vài chữ trong tên (hoặc mã khách) rồi chọn. Danh sách chỉ có khách của chính đơn vị (mục 7).",
         "**Loại hợp đồng** — bắt buộc: *HĐ dài hạn* hay *HĐ chuyến*. Đây là chỉ tiêu của báo cáo, **khác** với Loại giao bên dưới.",
-        "**Loại giao** — *Giao 1 lần* (cả hợp đồng giao trọn một lần) hay *Giao nhiều lần* (chia thành nhiều đợt giao). Chọn nhầm vẫn đổi được sau, xem mục 9.",
+        "**Loại giao** — *Giao 1 lần* (cả hợp đồng giao trọn một lần) hay *Giao nhiều lần* (chia thành nhiều đợt giao). Chọn nhầm vẫn đổi được sau, xem mục 10.",
         "**Ngày ký** — bắt buộc. Từ ngày này, sản lượng hợp đồng nằm ở mục “đã ký HĐ chưa giao”.",
         "**Ngày giao** — chỉ hiện với hợp đồng *giao 1 lần*; điền khi đã giao xong. Bên dưới là **Hình thức tiêu thụ** và khối **Hoá đơn** (số hoá đơn + file scan).",
         "**Chi tiết hợp đồng** — mỗi chủng loại một dòng (ô SL đổi nhãn thành **SL nước** với latex và mủ nguyên liệu). Ô **Quy khô** chỉ hiện với latex và mủ nguyên liệu; ô **Tỷ giá** chỉ hiện khi dòng bán bằng ngoại tệ.",
@@ -199,7 +223,7 @@
       ]
     },
     {
-      "title": "9. Màn chi tiết hợp đồng",
+      "title": "10. Màn chi tiết hợp đồng",
       "location": "Quản lý hợp đồng → Hợp đồng & đợt giao → bấm Xem ở dòng hợp đồng",
       "intro": "Nơi theo dõi tiến độ một hợp đồng, nhập các đợt giao và chốt hợp đồng khi kết thúc.",
       "image": {
@@ -211,10 +235,10 @@
       "steps": [
         "**Hàng số liệu** — khách hàng, loại hợp đồng, sản lượng hợp đồng, đã giao, còn phải giao, trạng thái. Luôn hiện dù đang ở tab nào.",
         "**Chuyển sang giao nhiều lần / Chuyển về giao 1 lần** — đổi loại giao ngay tại đây, **không phải xoá hợp đồng nhập lại**. Hợp đồng giao-1-lần đã ghi ngày giao thì lần giao đó tự chuyển thành **đợt giao đầu tiên** (giữ nguyên ngày giao, hoá đơn, thanh toán, chi tiết hàng).",
-        "**Hoàn thành hợp đồng** — chốt thời điểm kết thúc (xem mục 11).",
+        "**Hoàn thành hợp đồng** — chốt thời điểm kết thúc (xem mục 12).",
         "**Tab Thông tin hợp đồng** — sửa hợp đồng, file scan, ghi chú và các dòng chi tiết đã ký.",
         "**Tab Đợt giao** — danh sách các lần giao; hợp đồng giao nhiều lần mở thẳng vào tab này.",
-        "**Thêm đợt giao** — ghi một lần giao mới (xem mục 10)."
+        "**Thêm đợt giao** — ghi một lần giao mới (xem mục 11)."
       ],
       "notes": [
         "Hợp đồng **giao 1 lần** không có tab Đợt giao: chính hợp đồng là một lần giao.",
@@ -223,8 +247,8 @@
       ]
     },
     {
-      "title": "10. Thêm đợt giao — mỗi đợt là một lần giao",
-      "location": "Màn chi tiết hợp đồng (mục 9) → tab Đợt giao → Thêm đợt giao",
+      "title": "11. Thêm đợt giao — mỗi đợt là một lần giao",
+      "location": "Màn chi tiết hợp đồng (mục 10) → tab Đợt giao → Thêm đợt giao",
       "intro": "Mỗi đợt giao = một lần giao hàng + một lần thanh toán. Đây là cách ghi nhận tiêu thụ của cơ chế mới.",
       "image": {
         "path": "img/09-dot-giao-form.png",
@@ -248,8 +272,8 @@
       ]
     },
     {
-      "title": "11. Hoàn thành hợp đồng",
-      "location": "Màn chi tiết hợp đồng (mục 9) → Hoàn thành hợp đồng",
+      "title": "12. Hoàn thành hợp đồng",
+      "location": "Màn chi tiết hợp đồng (mục 10) → Hoàn thành hợp đồng",
       "intro": "Sản lượng thực giao thường lệch vài phần trăm so với hợp đồng đã ký. Khi hai bên đã kết thúc hợp đồng, bấm Hoàn thành hợp đồng để chốt lại — phần chênh còn lại thôi không nằm ở “đã ký HĐ chưa giao” nữa.",
       "image": {
         "path": "img/10-hoan-thanh-hop-dong.png",
@@ -269,7 +293,7 @@
       ]
     },
     {
-      "title": "12. Báo cáo tiêu thụ",
+      "title": "13. Báo cáo tiêu thụ",
       "location": "Báo cáo → Tiêu thụ",
       "intro": "Bảng chỉ để xem — số do hệ thống tổng hợp từ các lần giao, đơn vị không nhập tay.",
       "image": {
@@ -291,7 +315,7 @@
       ]
     },
     {
-      "title": "13. Nhu cầu thị trường",
+      "title": "14. Nhu cầu thị trường",
       "location": "Nhập liệu số liệu → Nhu cầu thị trường",
       "intro": "Ghi nhận nhu cầu và tín hiệu thị trường của đơn vị, nhập tự do bằng chữ theo ngày.",
       "image": {
@@ -308,7 +332,7 @@
       ]
     },
     {
-      "title": "14. Kế hoạch năm",
+      "title": "15. Kế hoạch năm",
       "location": "Nhập liệu số liệu → Kế hoạch năm",
       "intro": "Số liệu nhập một lần cho cả năm, cập nhật khi có điều chỉnh.",
       "image": {
@@ -329,7 +353,7 @@
       ]
     },
     {
-      "title": "15. Hợp đồng cũ (trước 30/07)",
+      "title": "16. Hợp đồng cũ (trước 30/07)",
       "location": "Báo cáo → Hợp đồng cũ (trước 30/07)",
       "intro": "Toàn bộ hợp đồng đã ký nhập theo cách cũ, kể cả hợp đồng đã giao. Màn này chỉ để tra cứu — không có nút sửa.",
       "image": {
@@ -347,7 +371,7 @@
       ]
     },
     {
-      "title": "16. Những lỗi hay gặp",
+      "title": "17. Những lỗi hay gặp",
       "notes": [
         "**Không lưu được hợp đồng, báo thiếu loại hợp đồng** → Chưa chọn **HĐ dài hạn / HĐ chuyến** — đây là ô bắt buộc.",
         "**Doanh thu trên báo cáo hiện “—”** → Có lần giao bán ngoại tệ chưa nhập tỷ giá. Mở đợt giao, điền tỷ giá quy ra VNĐ.",

@@ -263,6 +263,14 @@ def open_modal(page, button_text: str) -> None:
     page.wait_for_timeout(500)
 
 
+#: Hộp nhắc việc "đơn vị còn thiếu gì" — nằm ở khung nên hiện trên MỌI màn của đơn vị.
+CHECKLIST = """(() => {
+  const box = document.querySelector('.dsn');
+  const row = (t) => [...box.querySelectorAll('div')].find(e => e.textContent.trim().startsWith(t));
+  return window.__annotate([box.querySelector('.dsn-badge'), row('Thu mua'), row('Tồn kho'),
+                            box.querySelector('.dsn-toggle')]);
+})()"""
+
 #: Popup thêm/sửa khách hàng (từ 06/08/2026 nhập trong popup, không nhập thẳng trên trang nữa).
 CUSTOMER_MODAL = """(() => {
   const m = [...document.querySelectorAll('.ant-modal')].pop();
@@ -360,6 +368,7 @@ def main() -> int:
             annotated_shot(page, url, targets, str(OUT / name), wait_for=wait_for, setup=_prep)
 
         shot(f"{WEB}/bao-cao-thu-mua", MENU, "01-menu.png", wait_for=".ant-menu")
+        shot(f"{WEB}/bao-cao-thu-mua", CHECKLIST, "01b-nhac-viec.png", wait_for=".dsn")
         shot(f"{WEB}/bao-cao-thu-mua", LIST_SCREEN, "02-thu-mua-danh-sach.png",
              wait_for=".ant-table")
         shot(f"{WEB}/bao-cao-thu-mua",

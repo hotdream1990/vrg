@@ -23,7 +23,7 @@ from app.schemas.unit_daily import (
     ExcelImportCommit, PurchasePlanEdit, StockContractEdit, UnitDailyEdit, UnitDailyMove,
 )
 from app.services import (
-    contract_files, market_demand_repo, price_repo, unit_daily_excel_io,
+    contract_files, market_demand_repo, member_checklist, price_repo, unit_daily_excel_io,
     unit_daily_repo, unit_stock_contract_repo,
 )
 from app.services.unit_report_query import split_csv
@@ -45,6 +45,12 @@ def _assert_company(member: dict, company: str) -> None:
     """Chặn ghi cho đơn vị không được gán cho tài khoản này."""
     if company not in (member.get("member_units") or []):
         raise HTTPException(403, "Đơn vị không thuộc quyền quản lý của tài khoản.")
+
+
+@router.get("/checklist")
+def my_checklist(member: dict = Depends(get_current_member)) -> dict:
+    """Đơn vị còn thiếu gì — hiện ngay trên mọi màn của tài khoản đơn vị (xem `member_checklist`)."""
+    return member_checklist.checklist(list(member["member_units"]))
 
 
 @router.get("/prices")
