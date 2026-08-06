@@ -5,13 +5,15 @@ description: Chụp ảnh bảng (kiểu Excel) thống kê tình trạng nhập
 
 # Báo cáo tình trạng nhập liệu của đơn vị
 
-Ra **3 ảnh PNG** gửi thẳng cho các đơn vị (không cần mở hệ thống):
+Ra **5 ảnh PNG** gửi thẳng cho các đơn vị (không cần mở hệ thống):
 
 | Ảnh | Nội dung |
 |---|---|
 | `A-don-vi-chua-nhap-lieu.png` | **Không nộp gì trong kỳ** + **Thiếu một phần** theo **2 biểu** (Thu mua · Tiêu thụ–Tồn kho), kèm bảng phụ **có mua nhưng chưa nhập đơn giá** |
 | `B-don-vi-nhap-sai-don-vi-tinh.png` | **Nhập sai đơn vị tính**: giá mủ nguyên liệu (phải là đ/độ) và giá bán ở biểu Tiêu thụ (phải là triệu đ/tấn) |
 | `C-don-vi-chua-nhap-ton-kho.png` | RIÊNG biểu **Tồn kho**, cùng khuôn ảnh A nhưng liệt kê **từng ngày còn thiếu** của mỗi đơn vị — dùng khi chỉ đốc thúc tồn kho (`--only stock`) |
+| `D-don-vi-chua-nhap-thu-mua.png` | RIÊNG biểu **Thu mua** cho kỳ DÀI: gom theo **tháng** (T1…T12) thay vì liệt kê ngày — kỳ 200 ngày mà kể từng ngày thì không ai đọc (`--only purchase`) |
+| `E-ke-hoach-nam-khai-thieu.png` | **Kế hoạch năm**: đơn vị bỏ trống chỉ tiêu nào trong **5 ô** của màn đó (`--only plan`) |
 
 ## Chạy
 
@@ -25,7 +27,7 @@ uv run --directory apps/api python .claude/skills/bao-cao-nhap-lieu/scripts/make
 | `--until NGÀY` | **hôm qua** | Ngày cuối kỳ. Mặc định BỎ hôm nay: hôm nay chưa hết ngày, đơn vị chưa nhập không phải là nợ — kể vào là nhắc oan và làm loãng danh sách thật |
 | `--out DIR` | `plans/visuals` | Thư mục lưu ảnh (có plan đang mở thì trỏ vào `{plan_dir}/visuals/`) |
 | `--local` | tắt | Lấy số liệu ở DB local thay vì prod (để thử) |
-| `--only stock` | `all` | Chỉ dựng ảnh C (Tồn kho); mặc định dựng cả 3 ảnh |
+| `--only` | `all` | `stock` · `purchase` · `plan` = chỉ dựng ảnh của riêng biểu đó |
 
 Số liệu lấy từ **DB prod** qua SSH (dùng chung `.claude/skills/deploy/dokploy-target.local.env`) — DB
 không mở ra ngoài. Ảnh chụp bằng Playwright trong venv `apps/api`.
@@ -41,6 +43,14 @@ hàng trăm bản ghi cũ của biểu Tiêu thụ nên đếm theo bản ghi s�
 `unit_daily_fields.has_data` — cùng luật với màn *Theo dõi nộp báo cáo* và bảng nhắc việc của đơn vị.
 
 **Chia nhóm:** thiếu **mọi** biểu áp dụng → *KHÔNG NỘP GÌ TRONG KỲ*; thiếu **ít nhất một** → *THIẾU MỘT PHẦN*.
+
+**Kế hoạch năm — khai số 0 là ĐÃ KHAI** (nghĩa là "không có"), chỉ ô **NULL** mới tính là bỏ trống.
+Gộp hai thứ này là báo oan đơn vị cố ý khai 0. 5 chỉ tiêu theo đúng thứ tự cột trên màn hình.
+
+⚠ **Kỳ dài không phản ánh ý thức đơn vị nếu hệ thống chưa chạy**: bản ghi thu mua sớm nhất trên prod
+chỉ ghi từ **24–27/07/2026** (tài khoản đơn vị cấp giữa tháng 7), nên báo cáo "từ đầu năm" cho ra
+~22% là do chưa có hệ thống, không phải đơn vị lười. Muốn so sánh giữa các đơn vị thì lấy kỳ **từ
+24/07/2026** trở đi.
 
 **Chỉ có 2 biểu phải nộp — KHÔNG tách "Giá mủ nguyên liệu" thành mục thứ 3.** Đơn giá mủ nước/mủ chén
 nhập **ngay trong biểu Thu mua** (ô "Đơn giá thu mua"), chỉ là được lưu sang kho giá `vrg_unit` cho các
@@ -70,10 +80,10 @@ thu mua mà ô đơn giá còn trống. Ngày `no_purchase = true` được lo�
 
 ## Sửa nội dung/bố cục
 
-- Truy vấn: `scripts/collect.sql` — 5 nhóm **A** tình trạng nộp · **D** thiếu đơn giá · **B** giá mủ
-  sai đơn vị · **C** giá bán sai đơn vị · **E** tồn kho theo ngày; mỗi dòng ra là chuỗi ngăn bằng `|`, ký tự đầu là tên nhóm.
+- Truy vấn: `scripts/collect.sql` — 7 nhóm **A** tình trạng nộp · **D** thiếu đơn giá · **B** giá mủ
+  sai đơn vị · **C** giá bán sai đơn vị · **E** tồn kho theo ngày · **F** thu mua theo tháng · **G** kế hoạch năm; mỗi dòng ra là chuỗi ngăn bằng `|`, ký tự đầu là tên nhóm.
 - HTML/CSS + chụp ảnh: `scripts/make-report.py` (`page_missing`, `page_wrong`,
-  `page_stock_missing`, `CSS`). Bảng nhiều cột thì truyền bề ngang ở tham số thứ 3 của
+  `page_stock_missing`, `page_purchase_months`, `page_year_plan`, `CSS`). Bảng nhiều cột thì truyền bề ngang ở tham số thứ 3 của
   mỗi trang trong `shoot()`, không thì tên đơn vị vắt dòng và ảnh cao gấp mấy lần.
 - Đổi ngưỡng phát hiện thì sửa **cả** `collect.sql` lẫn tiêu đề mục trong `page_wrong` cho khớp.
 

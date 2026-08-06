@@ -112,3 +112,45 @@ SELECT 'E|' || u.name || '|' || COALESCE(u.region, '') || '|' ||
                          OR (jsonb_typeof(r.payload->'stock_not_warehoused') = 'array'
                              AND jsonb_array_length(r.payload->'stock_not_warehoused') > 0))), '')
   FROM member_unit u WHERE u.is_active ORDER BY u.sort_order, u.name;
+
+-- ── F) THU MUA gom theo THÁNG: F|đơn vị|khu vực|phải nộp(t/f)|YYYY-MM:số ngày đã nộp,... ────
+-- Dùng cho báo cáo kỳ DÀI (từ đầu năm): liệt kê từng ngày thiếu của 200+ ngày thì không ai đọc,
+-- gom theo tháng mới thấy được đơn vị hụt ở giai đoạn nào.
+-- Luật "phải nộp" và "đã nộp" dùng CHUNG với nhóm A — sửa thì sửa cả hai.
+SELECT 'F|' || u.name || '|' || COALESCE(u.region, '') || '|' ||
+       CASE WHEN COALESCE((SELECT p.plan_tonnes > 0 FROM unit_purchase_plan p
+                            WHERE p.company = u.name AND p.plan_tonnes IS NOT NULL
+                              AND p.year <= EXTRACT(YEAR FROM CAST(:until AS date))
+                            ORDER BY p.year DESC LIMIT 1), false) THEN 't' ELSE 'f' END || '|' ||
+       COALESCE((SELECT string_agg(m || ':' || c, ',' ORDER BY m)
+                   FROM (SELECT to_char(r.as_of, 'YYYY-MM') AS m, count(*) AS c
+                           FROM unit_daily_report r
+                          WHERE r.company = u.name AND r.kind = 'purchase'
+                            AND r.as_of BETWEEN CAST(:until AS date) - (:days - 1)
+                                            AND CAST(:until AS date)
+                            AND (EXISTS (SELECT 1 FROM jsonb_each(r.payload) e
+                                          WHERE e.key = ANY (ARRAY['latex_wet', 'coagulum',
+                                                  'cup_raw', 'cup_raw_price', 'rss_pressed',
+                                                  'rss_pressed_price', 'price_latex_local',
+                                                  'price_cup_local', 'fx_purchase', 'no_purchase'])
+                                            AND e.value NOT IN ('null'::jsonb, '""'::jsonb))
+                                 OR (jsonb_typeof(r.payload->'finished') = 'array'
+                                     AND jsonb_array_length(r.payload->'finished') > 0))
+                          GROUP BY 1) x), '')
+  FROM member_unit u WHERE u.is_active ORDER BY u.sort_order, u.name;
+
+-- ── G) KẾ HOẠCH NĂM khai thiếu: G|đơn vị|khu vực|5 ô theo thứ tự trên màn (t=đã khai, f=bỏ trống) ──
+-- Thứ tự khớp cột của màn Kế hoạch năm: KH thu mua · KH tiêu thụ HĐ chuyến · HĐ dài hạn đã ký ·
+-- HĐ dài hạn năm trước chuyển sang · HĐ chuyến năm trước chuyển sang.
+-- ⚠ Số 0 là ĐÃ KHAI (nghĩa là "không có"), chỉ NULL mới là chưa khai — đừng gộp hai thứ này.
+-- Đơn vị chưa có dòng nào của năm → LEFT JOIN cho ra cả 5 ô 'f'.
+SELECT 'G|' || u.name || '|' || COALESCE(u.region, '') || '|' ||
+       CASE WHEN p.plan_tonnes IS NULL THEN 'f' ELSE 't' END || '|' ||
+       CASE WHEN p.plan_sales_spot_tonnes IS NULL THEN 'f' ELSE 't' END || '|' ||
+       CASE WHEN p.signed_lt_tonnes IS NULL THEN 'f' ELSE 't' END || '|' ||
+       CASE WHEN p.carry_lt_tonnes IS NULL THEN 'f' ELSE 't' END || '|' ||
+       CASE WHEN p.carry_spot_tonnes IS NULL THEN 'f' ELSE 't' END
+  FROM member_unit u
+  LEFT JOIN unit_purchase_plan p
+         ON p.company = u.name AND p.year = EXTRACT(YEAR FROM CAST(:until AS date))
+ WHERE u.is_active ORDER BY u.sort_order, u.name;

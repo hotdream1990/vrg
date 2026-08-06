@@ -60,7 +60,7 @@ def collect(days: int, local: bool, until: date) -> dict[str, list]:
     sql = ((HERE / "collect.sql").read_text()
            .replace(":days", str(days)).replace(":until", f"'{until.isoformat()}'"))
     rows = [ln.split("|") for ln in run_sql(sql, local).splitlines() if ln.strip()]
-    return {g: [r[1:] for r in rows if r[0] == g] for g in "ABCDE"}
+    return {g: [r[1:] for r in rows if r[0] == g] for g in "ABCDEFG"}
 
 
 # ── Dựng HTML ─────────────────────────────────────────────────────────────────
@@ -234,6 +234,127 @@ def page_stock_missing(rows_e: list, days: int, until: date) -> str:
 """
 
 
+def page_purchase_months(rows_f: list, days: int, until: date) -> str:
+    """Ảnh D: biểu THU MUA cho kỳ DÀI (vd từ đầu năm) — cùng khuôn ảnh C nhưng gom theo THÁNG.
+
+    Kỳ 200+ ngày mà liệt kê từng ngày thiếu thì không ai đọc; cột tháng cho thấy đơn vị hụt ở
+    giai đoạn nào. Đơn vị KHÔNG được giao kế hoạch thu mua bị loại khỏi bảng (họ không phải nộp),
+    chỉ đếm ở dòng ghi chú.
+    """
+    start = until - timedelta(days=days - 1)
+    # Số ngày CỦA KỲ trong từng tháng — mẫu số phải cắt theo kỳ, không phải số ngày của cả tháng.
+    per_month: dict[str, int] = {}
+    for i in range(days):
+        per_month[(start + timedelta(days=i)).strftime("%Y-%m")] = \
+            per_month.get((start + timedelta(days=i)).strftime("%Y-%m"), 0) + 1
+    months = sorted(per_month)
+
+    units, skipped = [], 0
+    for name, region, applies, csv in rows_f:
+        if applies != "t":
+            skipped += 1
+            continue
+        got = {}
+        for part in filter(None, csv.split(",")):
+            m, c = part.split(":")
+            got[m] = int(c)
+        units.append({"name": name, "region": region or "—", "got": got,
+                      "filled": sum(got.values())})
+    none = sorted([u for u in units if not u["filled"]], key=lambda u: u["name"])
+    part = sorted([u for u in units if 0 < u["filled"] < days], key=lambda u: u["filled"])
+    full = len(units) - len(none) - len(part)
+    filled_total = sum(u["filled"] for u in units)
+    total = days * len(units)
+    ky = f"{start.strftime('%d/%m')} – {until.strftime('%d/%m/%Y')}"
+
+    head = "".join(f'<th>T{int(m[5:7])}<div class="den">/{per_month[m]}</div></th>' for m in months)
+
+    def block(title: str, items: list) -> str:
+        out = [f'<tr class="grp"><td colspan="{4 + len(months)}">{title} — {len(items)} đơn vị</td></tr>']
+        for i, u in enumerate(items, 1):
+            cells = "".join(
+                f'<td class="mon {"bad" if u["got"].get(m, 0) < per_month[m] else "good"}">'
+                f'{u["got"].get(m, 0)}</td>' for m in months)
+            cell = ('<td class="mark bad">✗ chưa nhập</td>' if not u["filled"]
+                    else f'<td class="mark good">✓ {u["filled"]}/{days} ngày</td>')
+            out.append(f'<tr><td class="stt">{i}</td><td>{u["name"]}</td>'
+                       f'<td class="reg">{u["region"]}</td>{cell}{cells}</tr>')
+        return "".join(out)
+
+    return f"""{CSS}
+<style>
+  td.reg {{ color: #5f6f67; font-size: 12px; white-space: nowrap; }}
+  td.mon {{ text-align: center; font-variant-numeric: tabular-nums; width: 46px; }}
+  td.mon.bad {{ background: #fdecea; }}
+  thead .den {{ font-weight: 400; font-size: 10.5px; opacity: .85; }}
+  tbody td:nth-child(2) {{ white-space: nowrap; }}
+</style>
+<h1>ĐƠN VỊ CHƯA NHẬP THU MUA</h1>
+<div class="sub">Kỳ {ky} ({days} ngày) · {len(units)} đơn vị phải nộp ·
+  đã nhập {vn(filled_total)}/{vn(total)} lượt ({round(filled_total / total * 100) if total else 0}%) ·
+  nguồn: Hệ thống Dự báo &amp; Quản trị Giá Cao su</div>
+<table>
+  <thead><tr><th>#</th><th style="text-align:left">Đơn vị</th><th>Khu vực</th>
+    <th>Thu mua</th>{head}</tr></thead>
+  <tbody>{block("KHÔNG NHẬP NGÀY NÀO CẢ KỲ", none)}{block("THIẾU MỘT PHẦN", part)}</tbody>
+</table>
+<div class="note">Số trong ô tháng = số ngày đã nhập / tổng số ngày của tháng đó trong kỳ (ô đỏ =
+  còn thiếu). Ngày tích “không tổ chức thu mua” vẫn tính là ĐÃ NỘP. {full} đơn vị nhập đủ cả kỳ và
+  {skipped} đơn vị không được giao kế hoạch thu mua không có tên trong bảng.</div>
+"""
+
+
+#: 5 chỉ tiêu của màn Kế hoạch năm, ĐÚNG thứ tự cột trên màn hình (đổi thứ tự là đọc chéo bảng).
+PLAN_COLS = ("KH thu mua", "KH tiêu thụ<br>HĐ chuyến", "HĐ dài hạn<br>đã ký",
+             "HĐ dài hạn<br>năm trước", "HĐ chuyến<br>năm trước")
+
+
+def page_year_plan(rows_g: list, year: int) -> str:
+    """Ảnh E: đơn vị khai thiếu 5 chỉ tiêu Kế hoạch năm. Bỏ trống ≠ khai 0 (0 nghĩa là KHÔNG có)."""
+    units = [{"name": r[0], "region": r[1] or "—", "ok": [c == "t" for c in r[2:7]]}
+             for r in rows_g]
+    for u in units:
+        u["done"] = sum(u["ok"])
+    none = [u for u in units if u["done"] == 0]
+    part = sorted([u for u in units if 0 < u["done"] < 5], key=lambda u: (u["done"], u["name"]))
+    full = len(units) - len(none) - len(part)
+    cells_done = sum(u["done"] for u in units)
+
+    def block(title: str, items: list) -> str:
+        out = [f'<tr class="grp"><td colspan="{4 + len(PLAN_COLS)}">{title} — {len(items)} đơn vị</td></tr>']
+        for i, u in enumerate(items, 1):
+            cells = "".join(f'<td class="mon {"good" if ok else "bad"}">{"✓" if ok else "✗"}</td>'
+                            for ok in u["ok"])
+            out.append(f'<tr><td class="stt">{i}</td><td>{u["name"]}</td>'
+                       f'<td class="reg">{u["region"]}</td>'
+                       f'<td class="mark {"bad" if not u["done"] else "good"}">{u["done"]}/5</td>'
+                       f'{cells}</tr>')
+        return "".join(out)
+
+    head = "".join(f"<th>{c}</th>" for c in PLAN_COLS)
+    return f"""{CSS}
+<style>
+  td.reg {{ color: #5f6f67; font-size: 12px; white-space: nowrap; }}
+  td.mon {{ text-align: center; font-weight: 700; width: 92px; }}
+  td.mon.bad {{ background: #fdecea; }}
+  td.mark {{ width: 70px; }}
+  tbody td:nth-child(2) {{ white-space: nowrap; }}
+</style>
+<h1>ĐƠN VỊ KHAI THIẾU KẾ HOẠCH NĂM {year}</h1>
+<div class="sub">{len(units)} đơn vị đang hoạt động · đã khai {cells_done}/{len(units) * 5} chỉ tiêu
+  ({round(cells_done / (len(units) * 5) * 100) if units else 0}%) ·
+  nguồn: Hệ thống Dự báo &amp; Quản trị Giá Cao su</div>
+<table>
+  <thead><tr><th>#</th><th style="text-align:left">Đơn vị</th><th>Khu vực</th>
+    <th>Đã khai</th>{head}</tr></thead>
+  <tbody>{block("CHƯA KHAI CHỈ TIÊU NÀO", none)}{block("KHAI THIẾU", part)}</tbody>
+</table>
+<div class="note">✗ = ô còn bỏ trống. <b>Khai số 0 vẫn tính là đã khai</b> (nghĩa là “không có”),
+  chỉ ô để trống mới bị nêu tên. {full} đơn vị khai đủ cả 5 chỉ tiêu không có tên trong bảng.
+  Ô “Kế hoạch thu mua” là công tắc của màn Báo cáo thu mua: khai &gt; 0 thì đơn vị mới thấy màn đó.</div>
+"""
+
+
 # ── Chụp ảnh ──────────────────────────────────────────────────────────────────
 def shoot(pages: list[tuple], out_dir: pathlib.Path) -> list[pathlib.Path]:
     """Mỗi trang: (tên file, html[, bề ngang px]). Bảng nhiều cột phải nới bề ngang, không thì tên
@@ -265,8 +386,8 @@ def main() -> None:
     ap.add_argument("--days", type=int, default=7, help="số ngày của kỳ xét đã nộp (mặc định 7)")
     ap.add_argument("--out", default="plans/visuals", help="thư mục lưu ảnh (mặc định plans/visuals)")
     ap.add_argument("--local", action="store_true", help="lấy số liệu ở DB local thay vì prod")
-    ap.add_argument("--only", choices=("all", "stock"), default="all",
-                    help="'stock' = chỉ ảnh Tồn kho (mặc định: cả 3 ảnh)")
+    ap.add_argument("--only", choices=("all", "stock", "purchase", "plan"), default="all",
+                    help="chỉ dựng ảnh của riêng một biểu (mặc định: cả 5 ảnh)")
     # Chốt kỳ tới HÔM QUA là mặc định hợp lý cho báo cáo đốc thúc: hôm nay chưa hết ngày, đơn vị
     # chưa nhập không phải là nợ. Muốn tính cả hôm nay thì --until <ngày hôm nay>.
     ap.add_argument("--until", default=(date.today() - timedelta(days=1)).isoformat(),
@@ -281,7 +402,16 @@ def main() -> None:
     # 1500px: đủ cho 14 cột ngày + tên đơn vị nằm gọn 1 dòng (ngày dài hơn thì nới thêm).
     pages = [("C-don-vi-chua-nhap-ton-kho.png",
               page_stock_missing(g["E"], args.days, until), 1200)]
-    if args.only == "all":
+    if args.only == "purchase":
+        pages = [("D-don-vi-chua-nhap-thu-mua.png",
+                  page_purchase_months(g["F"], args.days, until), 1240)]
+    elif args.only == "plan":
+        pages = [("E-ke-hoach-nam-khai-thieu.png", page_year_plan(g["G"], until.year), 1180)]
+    elif args.only == "all":
+        pages.append(("D-don-vi-chua-nhap-thu-mua.png",
+                      page_purchase_months(g["F"], args.days, until), 1240))
+        pages.append(("E-ke-hoach-nam-khai-thieu.png",
+                      page_year_plan(g["G"], until.year), 1180))
         pages = [("A-don-vi-chua-nhap-lieu.png", page_missing(g["A"], g["D"], args.days, until)),
                  ("B-don-vi-nhap-sai-don-vi-tinh.png", page_wrong(g["B"], g["C"]))] + pages
     made = shoot(pages, out_dir)
