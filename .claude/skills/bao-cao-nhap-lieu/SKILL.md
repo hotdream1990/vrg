@@ -5,7 +5,7 @@ description: Chụp ảnh bảng (kiểu Excel) thống kê tình trạng nhập
 
 # Báo cáo tình trạng nhập liệu của đơn vị
 
-Ra **2 ảnh PNG** gửi thẳng cho các đơn vị (không cần mở hệ thống):
+Ra **3 ảnh PNG** gửi thẳng cho các đơn vị (không cần mở hệ thống):
 
 | Ảnh | Nội dung |
 |---|---|
@@ -31,9 +31,13 @@ không mở ra ngoài. Ảnh chụp bằng Playwright trong venv `apps/api`.
 
 ## Luật nghiệp vụ đã cài sẵn
 
-**Thu mua — đơn vị không có chỉ tiêu thì KHÔNG tính là thiếu.** `member_unit.has_purchase_plan = false`
-→ ô hiện *"không áp dụng"* (xám), không xếp vào nhóm chưa nộp. Admin bật/tắt cờ này ở
-**Quản trị → Đơn vị thành viên**; sai cờ là báo oan đơn vị.
+**Thu mua — đơn vị không có chỉ tiêu thì KHÔNG tính là thiếu.** Công tắc là **số kế hoạch thu mua
+của năm gần nhất ≤ năm nay**: `> 0` mới phải nộp, không thì ô hiện *"không áp dụng"* (xám). Đơn vị sửa
+số này ở **Kế hoạch năm** (cờ `member_unit.has_purchase_plan` đã BỎ từ 03/08/2026 — đừng dùng lại).
+
+**"Đã nộp" = có ô số liệu THẬT của chính biểu đó**, không phải "có bản ghi": biểu Tồn kho còn mang
+hàng trăm bản ghi cũ của biểu Tiêu thụ nên đếm theo bản ghi sẽ ra tỷ lệ nộp ảo. Luật này phải khớp
+`unit_daily_fields.has_data` — cùng luật với màn *Theo dõi nộp báo cáo* và bảng nhắc việc của đơn vị.
 
 **Chia nhóm:** thiếu **mọi** biểu áp dụng → *KHÔNG NỘP GÌ TRONG KỲ*; thiếu **ít nhất một** → *THIẾU MỘT PHẦN*.
 
@@ -65,9 +69,11 @@ thu mua mà ô đơn giá còn trống. Ngày `no_purchase = true` được lo�
 
 ## Sửa nội dung/bố cục
 
-- Truy vấn: `scripts/collect.sql` — 4 nhóm **A** tình trạng nộp · **D** thiếu đơn giá · **B** giá mủ
-  sai đơn vị · **C** giá bán sai đơn vị; mỗi dòng ra là chuỗi ngăn bằng `|`, ký tự đầu là tên nhóm.
-- HTML/CSS + chụp ảnh: `scripts/make-report.py` (`page_missing`, `page_wrong`, `CSS`).
+- Truy vấn: `scripts/collect.sql` — 5 nhóm **A** tình trạng nộp · **D** thiếu đơn giá · **B** giá mủ
+  sai đơn vị · **C** giá bán sai đơn vị · **E** tồn kho theo ngày; mỗi dòng ra là chuỗi ngăn bằng `|`, ký tự đầu là tên nhóm.
+- HTML/CSS + chụp ảnh: `scripts/make-report.py` (`page_missing`, `page_wrong`,
+  `page_stock_missing`, `CSS`). Bảng nhiều cột thì truyền bề ngang ở tham số thứ 3 của
+  mỗi trang trong `shoot()`, không thì tên đơn vị vắt dòng và ảnh cao gấp mấy lần.
 - Đổi ngưỡng phát hiện thì sửa **cả** `collect.sql` lẫn tiêu đề mục trong `page_wrong` cho khớp.
 
 ## Sau khi có ảnh
