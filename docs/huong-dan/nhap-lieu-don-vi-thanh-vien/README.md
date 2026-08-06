@@ -36,7 +36,7 @@ Sau khi đăng nhập bằng tài khoản đơn vị, menu bên trái hiển th�
 2. **Quản lý hợp đồng** — Khách hàng · Hợp đồng & đợt giao. Đây là nơi ghi việc bán hàng.
 3. **Báo cáo** — Tiêu thụ (số hệ thống tự tính) · Hợp đồng cũ trước 30/07 (chỉ tra cứu).
 
-> - Đơn vị **không được giao kế hoạch thu mua** sẽ không thấy mục “Thu mua” và “Kế hoạch năm”.
+> - Đơn vị **không được giao kế hoạch thu mua** sẽ không thấy mục “Thu mua”. Mục **Kế hoạch năm luôn hiện** cho mọi đơn vị — chính số khai ở đó mới bật màn Thu mua.
 > - Chỉ nhập/sửa được ngày hôm nay và một số ngày gần nhất theo quy định; ngày cũ hơn chỉ để xem.
 
 ## 3. Bảng nhắc “còn thiếu gì”

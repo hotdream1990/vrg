@@ -324,6 +324,17 @@ def test_year_plan_open_to_all_units_and_drives_purchase_screen() -> None:
     assert unit in hq_units() and unit in my_units()
     assert has_purchase() is False
 
+    # ⚠ Đơn vị CHƯA khai lần nào vẫn phải TỰ KHAI ĐƯỢC. Khoá màn này lại (từng khoá ở frontend tới
+    # 06/08/2026) là bẫy vòng tròn: số khai ở đây mới bật màn Thu mua, mà muốn khai thì phải vào
+    # được màn — 31 đơn vị trên prod đã kẹt đúng kiểu đó.
+    mh0 = _bearer("ud_pf", "pass123")
+    assert client.put("/api/member/plan", headers=mh0,
+                      json={"year": year, "company": unit, "plan_tonnes": 500}).status_code == 200
+    assert has_purchase() is True
+    with session_scope() as db:      # trả lại trạng thái "chưa khai" cho các bước sau
+        db.execute(text("DELETE FROM unit_purchase_plan WHERE company = :c"), {"c": unit})
+    assert has_purchase() is False
+
     # Khai 0 = không tổ chức thu mua → vẫn tắt.
     assert client.put("/api/unit-daily/plan", headers=h,
                       json={"year": year, "company": unit, "plan_tonnes": 0}).status_code == 200

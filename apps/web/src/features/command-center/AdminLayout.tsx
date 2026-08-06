@@ -128,7 +128,9 @@ function buildMemberMenu(hasPurchasePlan: boolean) {
       hasPurchasePlan && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Thu mua (theo ngày)" },
       { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Tồn kho (theo ngày)" },
       { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
-      hasPurchasePlan && { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
+      // Kế hoạch năm mở cho MỌI đơn vị, kể cả đơn vị chưa khai số nào: chính con số ở màn này là
+      // công tắc bật màn Thu mua, khoá màn lại thì đơn vị chưa khai lần nào không bao giờ tự khai được.
+      { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
     ]),
     ...group("contracts", <FileProtectOutlined />, "Quản lý hợp đồng", [
       { key: "/hop-dong/khach-hang", icon: <ContactsOutlined />, label: "Khách hàng" },

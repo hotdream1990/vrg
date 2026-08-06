@@ -93,8 +93,8 @@ function PeriodReportRoute() {
 function YearPlanRoute() {
   const { user, can } = useAuth();
   const isMember = user?.role === "member";
-  // Đơn vị thành viên KHÔNG được giao kế hoạch thu mua → không vào Kế hoạch năm (kể cả gõ URL).
-  if (isMember && !user?.member_has_purchase_plan) return <Navigate to="/bao-cao-ton-kho" replace />;
+  // Mở cho MỌI đơn vị thành viên, không phụ thuộc kế hoạch thu mua đã khai hay chưa: số khai ở đây
+  // mới là công tắc bật màn Thu mua, chặn ở đây thì đơn vị chưa khai bị kẹt không lối ra.
   if (isMember || can("unit_daily")) return <YearPlanPage />;
   return <Navigate to="/" replace />;
 }
