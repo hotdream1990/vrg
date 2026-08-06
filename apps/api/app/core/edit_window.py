@@ -18,18 +18,23 @@ DEFAULT_WINDOW_DAYS = 7
 MEMBER_KEY = "MEMBER_EDIT_WINDOW_DAYS"
 EDITOR_KEY = "EDITOR_EDIT_WINDOW_DAYS"
 
+#: Bảng nhắc việc của đơn vị rà bao nhiêu ngày gần nhất (TÍNH CẢ HÔM NAY) — độc lập với cửa sổ
+#: sửa ở trên: rà xa hơn để đơn vị biết mình còn nợ, kể cả ngày đã khoá (nhờ Ban TTKD nhập hộ).
+ALERT_KEY = "MEMBER_ALERT_DAYS"
+DEFAULT_ALERT_DAYS = 14
+
 
 def today() -> date:
     return datetime.now(_TZ).date()
 
 
-def _parse(raw: str | None) -> int:
-    """Chuỗi cấu hình → số ngày (≥0). Rỗng/không hợp lệ → mặc định."""
+def _parse(raw: str | None, default: int = DEFAULT_WINDOW_DAYS) -> int:
+    """Chuỗi cấu hình → số ngày (≥0). Rỗng/không hợp lệ/số âm → mặc định."""
     try:
         n = int(str(raw).strip())
     except (TypeError, ValueError):
-        return DEFAULT_WINDOW_DAYS
-    return n if n >= 0 else DEFAULT_WINDOW_DAYS
+        return default
+    return n if n >= 0 else default
 
 
 def window_days(key: str) -> int:
@@ -44,6 +49,13 @@ def member_window() -> int:
 
 def editor_window() -> int:
     return window_days(EDITOR_KEY)
+
+
+def alert_days() -> int:
+    """Số ngày bảng nhắc việc rà lại. **0 = TẮT cảnh báo** (số âm coi như chưa cấu hình)."""
+    from app.services import config_repo
+
+    return _parse(config_repo.get_value(ALERT_KEY), DEFAULT_ALERT_DAYS)
 
 
 def assert_editable(as_of: str | date, window: int) -> None:

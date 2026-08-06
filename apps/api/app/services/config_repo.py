@@ -44,6 +44,11 @@ CONFIG_SPEC = [
     {"key": "EDITOR_EDIT_WINDOW_DAYS", "group": "data_entry", "secret": False,
      "label": "Số ngày sửa được — chuyên viên nhập liệu (Giá mủ nguyên liệu · Physical · Tồn kho · Báo giá)",
      "placeholder": "Mặc định 7 — số ngày gần nhất được nhập/sửa (0 = chỉ hôm nay); admin không bị giới hạn"},
+    # Phạm vi RÀ của bảng nhắc việc — khác cửa sổ sửa ở trên: rà xa hơn thì đơn vị thấy cả những
+    # ngày đã khoá mà mình còn nợ (nhờ Ban TTKD nhập hộ), rà ngắn lại thì bảng gọn.
+    {"key": "MEMBER_ALERT_DAYS", "group": "data_entry", "secret": False,
+     "label": "Cảnh báo thiếu số liệu — rà bao nhiêu ngày gần nhất (đơn vị thành viên)",
+     "placeholder": "Mặc định 14 — tính cả hôm nay (vd 30, 300). Đặt 0 = TẮT cảnh báo"},
 ]
 
 # Model OpenAI gợi ý khi chưa có key (sau khi đặt key → lấy danh sách thật từ tài khoản).

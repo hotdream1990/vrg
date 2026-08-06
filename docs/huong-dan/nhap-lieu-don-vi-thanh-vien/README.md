@@ -43,7 +43,7 @@ Sau khi đăng nhập bằng tài khoản đơn vị, menu bên trái hiển th�
 
 **Vị trí:** Hiện sẵn ở đầu mọi màn hình
 
-Ngay khi đăng nhập, hệ thống tự đối chiếu số liệu đơn vị đã nộp và hiện một bảng nhắc ở đầu màn hình: còn thiếu biểu nào, ngày nào. Bảng chỉ liệt kê những ngày ĐANG CÒN SỬA ĐƯỢC — hết hạn đó thì ngày cũ chuyển sang chỉ xem, có muốn bổ sung cũng không được nữa.
+Ngay khi đăng nhập, hệ thống tự đối chiếu số liệu đơn vị đã nộp và hiện một bảng nhắc ở đầu màn hình: còn thiếu biểu nào, ngày nào. Mặc định bảng rà lại 14 ngày gần nhất — quản trị viên đổi được số ngày này (30, 300… tuỳ yêu cầu quản lý).
 
 ![Hình 1b. Bảng nhắc việc hiện ở đầu mọi màn hình](img/01b-nhac-viec.png)
 
@@ -54,7 +54,7 @@ Ngay khi đăng nhập, hệ thống tự đối chiếu số liệu đơn vị 
 3. **Tồn kho** — các ngày chưa nhập biểu Tồn kho.
 4. **Thu gọn / Xem chi tiết** — thu bảng lại còn một dòng khi đang tập trung làm việc khác.
 
-> - **Bấm thẳng vào ngày** (ô màu cam) là mở luôn phiếu nhập của đúng ngày đó — không phải tự đi tìm trong danh sách.
+> - Ngày **màu cam** bấm vào là mở luôn phiếu nhập của đúng ngày đó — không phải tự đi tìm trong danh sách. Ngày **màu xám** là đã quá hạn sửa: đơn vị không tự nhập được nữa, phải báo Ban TTKD nhập hộ.
 > - Nhập xong bảng tự trừ ngay việc đó, không cần tải lại trang.
 > - Bảng còn nhắc: **chưa khai Kế hoạch năm** và **đợt giao bỏ trống ngày giao** (sản lượng của đợt đó chưa được tính vào tiêu thụ cho tới khi điền ngày giao).
 > - Ngày đã tích “không tổ chức thu mua” / “không phát sinh tồn kho” được tính là **đã nộp** — không bị nhắc nữa.

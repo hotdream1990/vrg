@@ -17,29 +17,39 @@ const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 }
 /** Nhãn ngày ngắn gọn — "hôm nay" đọc nhanh hơn ngày tháng khi đang nhắc việc. */
 const dayLabel = (d: string, today: string) => (d === today ? "hôm nay" : dmy(d));
 
-function DayChips({ days, today, onPick }: { days: string[]; today: string; onPick: (d: string) => void }) {
+/** Ngày cũ hơn `editableFrom` thì đơn vị KHÔNG tự sửa được nữa — vẫn phải hiện (để biết mình còn
+ *  nợ) nhưng để dạng chữ xám, không bấm được: mời bấm rồi chặn ở form là hứa hão. */
+function DayChips({ days, today, editableFrom, onPick }: {
+  days: string[]; today: string; editableFrom: string; onPick: (d: string) => void;
+}) {
   return (
     <>
-      {days.map((d) => (
+      {days.map((d) => (d >= editableFrom ? (
         <button key={d} className="chip warn" onClick={() => onPick(d)}
           style={{ border: 0, cursor: "pointer", marginRight: 6 }}
           title="Bấm để mở phiếu nhập của ngày này">
           {dayLabel(d, today)}
         </button>
-      ))}
+      ) : (
+        <span key={d} className="chip" style={{ background: "var(--panel-2, #eef1ef)", color: "var(--muted)", marginRight: 6 }}
+          title="Quá hạn sửa — báo Ban TTKD nhập hộ">
+          {dayLabel(d, today)}
+        </span>
+      )))}
     </>
   );
 }
 
-function UnitRow({ u, today, go }: {
-  u: UnitChecklist; today: string; go: (path: string, day?: string, company?: string) => void;
+function UnitRow({ u, today, editableFrom, go }: {
+  u: UnitChecklist; today: string; editableFrom: string;
+  go: (path: string, day?: string, company?: string) => void;
 }) {
   const items: JSX.Element[] = [];
   if (u.purchase_missing.length) {
     items.push(
       <div key="p" style={{ marginBottom: 4 }}>
         <b>Thu mua</b> — chưa nhập {u.purchase_missing.length} ngày:{" "}
-        <DayChips days={u.purchase_missing} today={today}
+        <DayChips days={u.purchase_missing} today={today} editableFrom={editableFrom}
           onPick={(d) => go("/bao-cao-thu-mua", d, u.company)} />
       </div>,
     );
@@ -48,7 +58,7 @@ function UnitRow({ u, today, go }: {
     items.push(
       <div key="s" style={{ marginBottom: 4 }}>
         <b>Tồn kho</b> — chưa nhập {u.stock_missing.length} ngày:{" "}
-        <DayChips days={u.stock_missing} today={today}
+        <DayChips days={u.stock_missing} today={today} editableFrom={editableFrom}
           onPick={(d) => go("/bao-cao-ton-kho", d, u.company)} />
       </div>,
     );
@@ -112,7 +122,8 @@ export default function MemberChecklistBanner() {
     nav(`${path}${q}`);
   };
 
-  if (!data) return null;
+  // Admin đặt số ngày rà = 0 → tắt hẳn cảnh báo, không chiếm chỗ trên đầu mọi màn.
+  if (!data || !data.enabled) return null;
 
   if (!data.total_missing) {
     return (
@@ -120,7 +131,7 @@ export default function MemberChecklistBanner() {
         <div className="dsn-head" style={{ cursor: "default" }}>
           <span className="dsn-badge"><CheckCircleFilled /> Đã nhập đủ</span>
           <span className="dsn-tagline">
-            Không thiếu số liệu nào trong {data.window_days} ngày còn sửa được.
+            Không thiếu số liệu nào trong {data.alert_days} ngày gần nhất.
           </span>
         </div>
       </div>
@@ -132,12 +143,15 @@ export default function MemberChecklistBanner() {
       <button className="dsn-head" onClick={toggle}>
         <span className="dsn-badge"><WarningFilled /> Còn thiếu {data.total_missing} việc</span>
         <span className="dsn-tagline">
-          Đơn vị chưa nhập đủ số liệu trong {data.window_days} ngày gần nhất — quá hạn này sẽ
-          không sửa được nữa.
+          Đơn vị chưa nhập đủ số liệu trong {data.alert_days} ngày gần nhất. Ngày để{" "}
+          <b>màu cam</b> bấm vào là nhập được ngay; ngày <b>xám</b> đã quá hạn sửa — báo Ban TTKD
+          nhập hộ.
         </span>
         <span className="dsn-toggle">{open ? <>Thu gọn <UpOutlined /></> : <>Xem chi tiết <DownOutlined /></>}</span>
       </button>
-      {open && data.units.map((u) => <UnitRow key={u.company} u={u} today={data.today} go={go} />)}
+      {open && data.units.map((u) => (
+        <UnitRow key={u.company} u={u} today={data.today} editableFrom={data.editable_from} go={go} />
+      ))}
     </div>
   );
 }

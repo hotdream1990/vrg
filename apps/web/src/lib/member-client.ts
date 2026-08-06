@@ -60,8 +60,10 @@ export type UnitChecklist = {
 
 export type MemberChecklist = {
   today: string;
-  window_days: number;          // còn sửa được: hôm nay + N ngày
-  days: string[];               // các ngày trong cửa sổ (mới → cũ)
+  alert_days: number;           // rà bao nhiêu ngày gần nhất (admin cấu hình)
+  enabled: boolean;             // admin đặt 0 ngày = tắt hẳn cảnh báo
+  editable_from: string;        // ngày cũ hơn mốc này đơn vị KHÔNG tự sửa được nữa
+  days: string[];               // các ngày được rà (mới → cũ)
   units: UnitChecklist[];
   total_missing: number;
 };

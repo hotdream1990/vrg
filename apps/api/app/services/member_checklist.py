@@ -37,9 +37,9 @@ _PENDING_SQL = text("""
 """)
 
 
-def _days(window: int, today: date) -> list[str]:
-    """Các ngày CÒN SỬA ĐƯỢC, mới nhất trước. Khớp `edit_window.assert_editable` (gồm cả hôm nay)."""
-    return [(today - timedelta(days=i)).isoformat() for i in range(window + 1)]
+def _days(alert: int, today: date) -> list[str]:
+    """`alert` ngày gần nhất, TÍNH CẢ HÔM NAY, mới nhất trước (admin cấu hình `MEMBER_ALERT_DAYS`)."""
+    return [(today - timedelta(days=i)).isoformat() for i in range(alert)]
 
 
 _ENTRIES_SQL = text("""
@@ -85,13 +85,20 @@ def checklist(units: list[str]) -> dict[str, Any]:
 
     Ba nhóm: (1) ngày chưa nhập biểu Thu mua · (2) ngày chưa nhập biểu Tồn kho ·
     (3) nhắc khác — chưa khai Kế hoạch năm, đợt giao quên điền ngày giao.
+
+    Phạm vi rà = `MEMBER_ALERT_DAYS` (admin cấu hình, mặc định 14 ngày, **0 = tắt cảnh báo**).
+    Rà có thể XA HƠN cửa sổ sửa → trả kèm `editable_from` để giao diện phân biệt ngày còn tự sửa
+    được với ngày đã khoá (đơn vị phải nhờ Ban TTKD nhập hộ), không hứa hão là bấm vào sửa được.
     """
     units = list(units)
-    window, today = edit_window.member_window(), edit_window.today()
-    days = _days(window, today)
-    if not units:
-        return {"today": today.isoformat(), "window_days": window, "days": days,
-                "units": [], "total_missing": 0}
+    today = edit_window.today()
+    alert = edit_window.alert_days()
+    editable_from = (today - timedelta(days=edit_window.member_window())).isoformat()
+    base = {"today": today.isoformat(), "alert_days": alert, "enabled": alert > 0,
+            "editable_from": editable_from}
+    if alert <= 0 or not units:
+        return {**base, "days": [], "units": [], "total_missing": 0}
+    days = _days(alert, today)
 
     planned = unit_daily_repo.companies_with_purchase_plan(today.year)
     plan_now = unit_daily_repo.year_plan(today.year, units)
@@ -113,5 +120,4 @@ def checklist(units: list[str]) -> dict[str, Any]:
                      "purchase_missing": miss_p, "stock_missing": miss_s,
                      "year_plan_missing": plan_missing, "year": today.year,
                      "pending_batches": pending.get(u, [])})
-    return {"today": today.isoformat(), "window_days": window, "days": days,
-            "units": rows, "total_missing": total}
+    return {**base, "days": days, "units": rows, "total_missing": total}

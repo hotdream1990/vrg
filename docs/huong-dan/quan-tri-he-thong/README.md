@@ -204,6 +204,7 @@ Nơi khai báo khoá API của AI, mật khẩu trang công khai và cửa sổ 
 
 > - **Khoá API và mật khẩu luôn bị che**, chỉ hiện nhãn *Đã đặt*. **Để trống nghĩa là giữ nguyên giá trị cũ** — chỉ nhập khi thực sự muốn thay.
 > - Tab **Cửa sổ nhập liệu** có hai thông số độc lập cho đơn vị thành viên và cho chuyên viên (mặc định 7 ngày). Quá số ngày này, dòng số liệu chuyển sang *(chỉ xem)*.
+> - Tab **Cửa sổ nhập liệu** còn ô **“Cảnh báo thiếu số liệu — rà bao nhiêu ngày gần nhất”** (mặc định **14**): bảng nhắc trên màn hình đơn vị rà lại bấy nhiêu ngày. Đặt **0 = tắt hẳn cảnh báo**; số âm bị bỏ qua, quay về mặc định. Rà xa hơn số ngày sửa được vẫn hợp lệ — những ngày quá hạn hiện màu xám, đơn vị phải báo Ban TTKD nhập hộ.
 > - Quản trị viên không bị giới hạn bởi cửa sổ nhập liệu.
 
 ## 11. Lịch chạy tác vụ tự động

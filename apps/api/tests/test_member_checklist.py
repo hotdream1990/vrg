@@ -128,6 +128,41 @@ def test_year_plan_counts_toward_total() -> None:
         _cleanup(h)
 
 
+def test_alert_days_is_configurable_and_zero_turns_it_off() -> None:
+    """Admin chỉnh `MEMBER_ALERT_DAYS`: đổi phạm vi rà, đặt 0 là TẮT hẳn cảnh báo."""
+    h = _admin()
+    _cleanup(h)
+    member_unit_repo.add_unit(UNIT)
+    assert client.post("/api/users", json={"username": USER, "password": "pass123",
+                                           "role": "member", "member_units": [UNIT]},
+                       headers=h).status_code == 200
+    mh = _member()
+    try:
+        # Mặc định 14 ngày (tính cả hôm nay) khi chưa cấu hình.
+        client.put("/api/config", json={"MEMBER_ALERT_DAYS": "__CLEAR__"}, headers=h)
+        r = client.get("/api/member/checklist", headers=mh).json()
+        assert r["enabled"] is True and r["alert_days"] == 14 and len(r["days"]) == 14
+
+        # Rà xa hơn cửa sổ sửa → vẫn liệt kê, nhưng có mốc `editable_from` để UI tách ngày đã khoá.
+        client.put("/api/config", json={"MEMBER_ALERT_DAYS": "30"}, headers=h)
+        r = client.get("/api/member/checklist", headers=mh).json()
+        assert r["alert_days"] == 30 and len(r["days"]) == 30
+        assert len(r["units"][0]["stock_missing"]) == 30
+        assert r["editable_from"] > r["days"][-1]      # ngày cũ nhất nằm ngoài cửa sổ sửa
+
+        # Số âm = cấu hình sai → quay về mặc định, KHÔNG tắt nhầm cảnh báo.
+        client.put("/api/config", json={"MEMBER_ALERT_DAYS": "-5"}, headers=h)
+        assert client.get("/api/member/checklist", headers=mh).json()["alert_days"] == 14
+
+        # 0 = tắt: không rà ngày nào, không báo việc nào.
+        client.put("/api/config", json={"MEMBER_ALERT_DAYS": "0"}, headers=h)
+        r = client.get("/api/member/checklist", headers=mh).json()
+        assert r["enabled"] is False and r["total_missing"] == 0 and r["days"] == []
+    finally:
+        client.put("/api/config", json={"MEMBER_ALERT_DAYS": "__CLEAR__"}, headers=h)
+        _cleanup(h)
+
+
 def test_checklist_needs_member_role() -> None:
     """Chuyên viên/admin không có "đơn vị của mình" → endpoint này không dành cho họ."""
     assert client.get("/api/member/checklist", headers=_admin()).status_code == 403
