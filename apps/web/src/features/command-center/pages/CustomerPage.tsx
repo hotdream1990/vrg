@@ -10,11 +10,10 @@ import {
 } from "../../../lib/sales-contract-client";
 import { useAuth } from "../../auth/AuthContext";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
+import CustomerFormModal from "./components/CustomerFormModal";
 import "../../bulletin/bulletin.css";
 
-type Draft = { id: number | null; company: string; code: string; name: string; tax_code: string; note: string };
 const PAGE_SIZE = 50;
-const EMPTY: Draft = { id: null, company: "", code: "", name: "", tax_code: "", note: "" };
 
 /** Quản lý hợp đồng → Khách hàng: danh mục RIÊNG của từng đơn vị (không dùng chung Tập đoàn). */
 export default function CustomerPage() {
@@ -28,7 +27,10 @@ export default function CustomerPage() {
   // đơn vị — tải hết về máy rồi lọc tại chỗ sẽ nặng dần và không bao giờ tự dừng lại.
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [form, setForm] = useState<Draft>({ ...EMPTY });
+  // `editing` = khách đang sửa · `adding` = đang thêm mới; cả hai cùng mở một modal.
+  const [editing, setEditing] = useState<Customer | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [lastCompany, setLastCompany] = useState("");
   const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -43,28 +45,13 @@ export default function CustomerPage() {
     fetchContractMeta()
       .then((m) => {
         setUnits(m.units);
-        setForm((f) => (f.company ? f : { ...f, company: m.units[0] ?? "" }));
+        setLastCompany((v) => v || m.units[0] || "");
       })
       .catch((e) => setErr(e.message));
     load();
   }, [load]);
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  const save = async () => {
-    if (!form.company) { setErr("Chọn đơn vị sở hữu danh mục."); return; }
-    if (!form.name.trim()) { setErr("Nhập tên khách hàng."); return; }
-    setBusy(true); setErr("");
-    try {
-      await saveCustomer({
-        id: form.id, company: form.company, code: form.code || null, name: form.name.trim(),
-        tax_code: form.tax_code || null, note: form.note || null, is_active: true,
-      });
-      setForm({ ...EMPTY, company: form.company });
-      load();
-    } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
-    finally { setBusy(false); }
-  };
 
   const toggleActive = async (c: Customer) => {
     setBusy(true); setErr("");
@@ -81,11 +68,6 @@ export default function CustomerPage() {
     finally { setBusy(false); }
   };
 
-  const edit = (c: Customer) => setForm({
-    id: c.id, company: c.company, code: c.code ?? "", name: c.name,
-    tax_code: c.tax_code ?? "", note: c.note ?? "",
-  });
-
   return (
     <div className="main">
       <div className="page-title">
@@ -97,46 +79,14 @@ export default function CustomerPage() {
 
       {!isMember && <ReadOnlyNotice cap="sales_contract" />}
 
-      {canEdit && (
-        <div className="card" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <label className="form-field">Đơn vị
-            <select className="blt-date-input" value={form.company} disabled={form.id != null}
-              onChange={(e) => setForm({ ...form, company: e.target.value })}>
-              {units.map((u) => <option key={u} value={u}>{u}</option>)}
-            </select>
-          </label>
-          <label className="form-field">Mã KH
-            <input className="blt-date-input" style={{ width: 110 }} value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })} />
-          </label>
-          <label className="form-field" style={{ flex: 1, minWidth: 220 }}>Tên khách hàng
-            <input className="blt-date-input" value={form.name} placeholder="vd: Công ty TNHH ABC"
-              onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </label>
-          <label className="form-field">Mã số thuế
-            <input className="blt-date-input" style={{ width: 140 }} value={form.tax_code}
-              onChange={(e) => setForm({ ...form, tax_code: e.target.value })} />
-          </label>
-          <label className="form-field" style={{ flex: 1, minWidth: 160 }}>Ghi chú
-            <input className="blt-date-input" value={form.note}
-              onChange={(e) => setForm({ ...form, note: e.target.value })} />
-          </label>
-          <button className="btn btn-primary" onClick={save} disabled={busy || !form.name.trim()}>
-            {form.id != null ? "Cập nhật" : <><PlusOutlined /> Thêm khách hàng</>}
-          </button>
-          {form.id != null && (
-            <button className="btn" onClick={() => setForm({ ...EMPTY, company: form.company })} disabled={busy}>Hủy</button>
-          )}
-          <div className="form-note" style={{ fontSize: 11.5, flexBasis: "100%" }}>
-            Lưu ý: danh mục tách riêng theo đơn vị nên trùng tên giữa hai đơn vị là bình thường; trong
-            cùng một đơn vị thì không được trùng tên. Khách đã gắn hợp đồng chỉ ẩn được, không xoá.
-          </div>
-        </div>
-      )}
-
       {err && <div className="blt-error">{err}</div>}
 
       <div className="blt-toolbar">
+        {canEdit && (
+          <button className="btn btn-primary" onClick={() => setAdding(true)} disabled={busy}>
+            <PlusOutlined /> Thêm khách hàng
+          </button>
+        )}
         <input className="blt-date-input" style={{ width: 260 }} value={filter} placeholder="Tìm theo tên · mã · MST"
           onChange={(e) => { setPage(1); setFilter(e.target.value); }} />
         <span style={{ color: "var(--muted)", fontSize: 13 }}>
@@ -161,7 +111,7 @@ export default function CustomerPage() {
           </tr></thead>
           <tbody>
             {rows.map((c) => (
-              <tr key={c.id} style={{ background: form.id === c.id ? "var(--card-2, #eef6f0)" : undefined }}>
+              <tr key={c.id}>
                 <td>{c.company}</td>
                 <td>{c.code ?? "—"}</td>
                 <td style={{ fontWeight: 500 }}>{c.name}</td>
@@ -170,7 +120,7 @@ export default function CustomerPage() {
                 <td style={{ color: "var(--muted)" }}>{c.note ?? "—"}</td>
                 {canEdit && (
                   <td className="r" style={{ whiteSpace: "nowrap" }}>
-                    <button className="btn" onClick={() => edit(c)} disabled={busy}>Sửa</button>{" "}
+                    <button className="btn" onClick={() => setEditing(c)} disabled={busy}>Sửa</button>{" "}
                     <button className="btn" onClick={() => toggleActive(c)} disabled={busy}>{c.is_active ? "Ẩn" : "Hiện"}</button>{" "}
                     <button className="btn" onClick={() => remove(c)} disabled={busy}>Xoá</button>
                   </td>
@@ -185,6 +135,12 @@ export default function CustomerPage() {
           </tbody>
         </table>
       </div>
+
+      {(adding || editing) && (
+        <CustomerFormModal units={units} initial={editing} defaultCompany={lastCompany}
+          onClose={() => { setAdding(false); setEditing(null); }}
+          onSaved={(company) => { setLastCompany(company); load(); }} />
+      )}
     </div>
   );
 }

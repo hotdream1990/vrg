@@ -263,6 +263,15 @@ def open_modal(page, button_text: str) -> None:
     page.wait_for_timeout(500)
 
 
+#: Popup thêm/sửa khách hàng (từ 06/08/2026 nhập trong popup, không nhập thẳng trên trang nữa).
+CUSTOMER_MODAL = """(() => {
+  const m = [...document.querySelectorAll('.ant-modal')].pop();
+  const f = (t) => [...m.querySelectorAll('.form-field')]
+      .find(e => e.textContent.trim().startsWith(t));
+  return window.__annotate([f('Đơn vị'), f('Tên khách hàng'), f('Mã KH'), f('Mã số thuế'),
+                            m.querySelector('.ant-modal-footer .ant-btn-primary')]);
+})()"""
+
 CONTRACT_DETAIL = """(() => {
   const m = [...document.querySelectorAll('.ant-modal')].pop();
   const tab = (t) => [...m.querySelectorAll('.ant-tabs-tab')].find(e => e.textContent.startsWith(t));
@@ -335,8 +344,15 @@ def main() -> int:
         page.context.add_init_script(f"localStorage.setItem('vrg_token', {tok!r});"
                                      "localStorage.removeItem('vrg_admin_token');")
 
+        # Chụp lại MỘT vài ảnh: `… shoot.py 05` (lọc theo đầu tên file). Ảnh mang ngày tháng của
+        # số liệu mẫu nên chụp lại cả bộ là 14 file đều đổi — chỉ nên làm khi đổi giao diện diện rộng.
+        only = tuple(sys.argv[1:])
+
         def shot(url: str, targets: str, name: str, *, wait_for: str, setup=None) -> None:
             """Mọi ảnh đều gỡ thanh 'đăng nhập hộ' trước, rồi mới chạy setup riêng của màn."""
+            if only and not name.startswith(only):
+                return
+
             def _prep(pg):
                 pg.evaluate(HIDE_BANNER)
                 if setup:
@@ -357,6 +373,8 @@ def main() -> int:
              "04-ton-kho.png", wait_for=".ant-table",
              setup=lambda pg: open_modal(pg, "Thêm số liệu"))
         shot(f"{WEB}/hop-dong/khach-hang", CONTRACT_LIST, "05-khach-hang.png", wait_for="table")
+        shot(f"{WEB}/hop-dong/khach-hang", CUSTOMER_MODAL, "05b-khach-hang-popup.png",
+             wait_for="table", setup=lambda pg: open_modal(pg, "Thêm khách hàng"))
         shot(f"{WEB}/hop-dong", CONTRACT_LIST_SCREEN, "06-hop-dong-danh-sach.png", wait_for="table")
         shot(f"{WEB}/hop-dong",
              mixed_targets(("f", "Số hợp đồng"), ("f", "Khách hàng"), ("f", "Loại hợp đồng"),

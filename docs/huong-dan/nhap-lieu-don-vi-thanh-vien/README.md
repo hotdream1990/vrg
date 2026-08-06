@@ -5,7 +5,7 @@ Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu t
 Số tiêu thụ **không còn nhập tay theo ngày** — hệ thống tự tính từ các **đợt giao** ghi trên hợp đồng. Đơn vị nhập 4 mục theo ngày/năm và quản lý hợp đồng bán hàng của mình; hai mục còn lại chỉ để xem.
 
 > Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-don-vi-thanh-vien.docx](./Huong-dan-nhap-lieu-don-vi-thanh-vien.docx)
-> Dựng lại ảnh khi giao diện đổi: `uv run --directory apps/api --with playwright python ../../docs/huong-dan/nhap-lieu-don-vi-thanh-vien/shoot.py`
+> Dựng lại ảnh khi giao diện đổi: `uv run --directory apps/api --with playwright python ../../docs/huong-dan/nhap-lieu-don-vi-thanh-vien/shoot.py` — thêm tham số để chụp lại vài ảnh, vd `… shoot.py 05` chỉ chụp màn Khách hàng.
 
 ## 1. Có gì thay đổi so với cách làm cũ
 
@@ -19,6 +19,7 @@ Số tiêu thụ **không còn nhập tay theo ngày** — hệ thống tự tí
 
 > - Từ 05/08/2026 gọi là **đợt giao** thay cho “phụ lục”, và mỗi đợt ghi thêm **số hoá đơn** kèm file scan. Hợp đồng đã nhập trước đó giữ nguyên, chỉ đổi tên gọi trên màn hình.
 > - **“Đã ký HĐ chưa giao” nay tính trên cả hợp đồng** (trước chỉ tính phần đã chia thành đợt) nên con số này sẽ lớn hơn trước — đó là phần hàng đã ký bán mà chưa giao, kể cả chưa sản xuất.
+> - Từ 06/08/2026, **thêm/sửa khách hàng nhập trong popup**: trang Khách hàng chỉ còn nút **Thêm khách hàng**, bấm vào mới hiện ô nhập. Cách nhập và các quy tắc không đổi.
 
 ## 2. Đăng nhập và các mục trên menu
 
@@ -101,11 +102,17 @@ Danh mục khách hàng riêng của từng đơn vị — đơn vị khác khô
 
 *Hình 5. Danh mục khách hàng của đơn vị*
 
-1. **Thêm khách hàng** — nhập tên khách, mã khách (tuỳ chọn) và ghi chú.
-2. **Sửa / Xoá** ở cuối mỗi dòng.
+![Hình 5b. Popup thêm/sửa khách hàng](img/05b-khach-hang-popup.png)
 
+*Hình 5b. Popup thêm/sửa khách hàng*
+
+1. **Thêm khách hàng** — bấm nút ở đầu trang, popup hiện ra để nhập.
+2. Trong popup: chọn **Đơn vị** (1), nhập **Tên khách hàng** (2) — bắt buộc; **Mã KH** (3) và **Mã số thuế** (4) nhập nếu có. Bấm **Lưu** (5), popup đóng lại và khách hàng hiện trong bảng.
+3. **Sửa** ở cuối mỗi dòng mở lại chính popup đó với dữ liệu đã điền sẵn; **Ẩn / Xoá** nằm cạnh bên.
+
+> - Ô **Đơn vị** bị khoá khi sửa — khách hàng đã tạo không chuyển sang đơn vị khác được (hợp đồng đang gắn sẽ theo sang). Cần khách đó ở đơn vị khác thì tạo mới.
 > - Trùng tên trong cùng một đơn vị sẽ bị chặn; hai đơn vị khác nhau được phép trùng tên khách.
-> - Khách hàng đang có hợp đồng thì không xoá được — hãy ngưng sử dụng thay vì xoá.
+> - Khách hàng đang có hợp đồng thì không xoá được — hãy ẩn thay vì xoá.
 
 ## 7. Hợp đồng & đợt giao — danh sách
 

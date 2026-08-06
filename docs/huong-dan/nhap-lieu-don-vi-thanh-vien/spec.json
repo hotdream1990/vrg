@@ -29,7 +29,8 @@
       ],
       "notes": [
         "Từ 05/08/2026 gọi là **đợt giao** thay cho “phụ lục”, và mỗi đợt ghi thêm **số hoá đơn** kèm file scan. Hợp đồng đã nhập trước đó giữ nguyên, chỉ đổi tên gọi trên màn hình.",
-        "**“Đã ký HĐ chưa giao” nay tính trên cả hợp đồng** (trước chỉ tính phần đã chia thành đợt) nên con số này sẽ lớn hơn trước — đó là phần hàng đã ký bán mà chưa giao, kể cả chưa sản xuất."
+        "**“Đã ký HĐ chưa giao” nay tính trên cả hợp đồng** (trước chỉ tính phần đã chia thành đợt) nên con số này sẽ lớn hơn trước — đó là phần hàng đã ký bán mà chưa giao, kể cả chưa sản xuất.",
+        "Từ 06/08/2026, **thêm/sửa khách hàng nhập trong popup**: trang Khách hàng chỉ còn nút **Thêm khách hàng**, bấm vào mới hiện ô nhập. Cách nhập và các quy tắc không đổi."
       ]
     },
     {
@@ -119,19 +120,31 @@
       "title": "6. Khách hàng",
       "location": "Quản lý hợp đồng → Khách hàng",
       "intro": "Danh mục khách hàng riêng của từng đơn vị — đơn vị khác không thấy danh mục của đơn vị mình. Phải có khách hàng trước thì mới lập được hợp đồng.",
-      "image": {
-        "path": "img/05-khach-hang.png",
-        "w": 3000,
-        "h": 1640
-      },
-      "caption": "Hình 5. Danh mục khách hàng của đơn vị",
+      "image": [
+        {
+          "path": "img/05-khach-hang.png",
+          "w": 3000,
+          "h": 1640
+        },
+        {
+          "path": "img/05b-khach-hang-popup.png",
+          "w": 3000,
+          "h": 1640
+        }
+      ],
+      "caption": [
+        "Hình 5. Danh mục khách hàng của đơn vị",
+        "Hình 5b. Popup thêm/sửa khách hàng"
+      ],
       "steps": [
-        "**Thêm khách hàng** — nhập tên khách, mã khách (tuỳ chọn) và ghi chú.",
-        "**Sửa / Xoá** ở cuối mỗi dòng."
+        "**Thêm khách hàng** — bấm nút ở đầu trang, popup hiện ra để nhập.",
+        "Trong popup: chọn **Đơn vị** (1), nhập **Tên khách hàng** (2) — bắt buộc; **Mã KH** (3) và **Mã số thuế** (4) nhập nếu có. Bấm **Lưu** (5), popup đóng lại và khách hàng hiện trong bảng.",
+        "**Sửa** ở cuối mỗi dòng mở lại chính popup đó với dữ liệu đã điền sẵn; **Ẩn / Xoá** nằm cạnh bên."
       ],
       "notes": [
+        "Ô **Đơn vị** bị khoá khi sửa — khách hàng đã tạo không chuyển sang đơn vị khác được (hợp đồng đang gắn sẽ theo sang). Cần khách đó ở đơn vị khác thì tạo mới.",
         "Trùng tên trong cùng một đơn vị sẽ bị chặn; hai đơn vị khác nhau được phép trùng tên khách.",
-        "Khách hàng đang có hợp đồng thì không xoá được — hãy ngưng sử dụng thay vì xoá."
+        "Khách hàng đang có hợp đồng thì không xoá được — hãy ẩn thay vì xoá."
       ]
     },
     {
