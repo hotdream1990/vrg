@@ -106,9 +106,9 @@ Danh mục khách hàng riêng của từng đơn vị — đơn vị khác khô
 
 *Hình 5b. Popup thêm/sửa khách hàng*
 
-1. **Thêm khách hàng** — bấm nút ở đầu trang, popup hiện ra để nhập.
-2. Trong popup: chọn **Đơn vị** (1), nhập **Tên khách hàng** (2) — bắt buộc; **Mã KH** (3) và **Mã số thuế** (4) nhập nếu có. Bấm **Lưu** (5), popup đóng lại và khách hàng hiện trong bảng.
-3. **Sửa** ở cuối mỗi dòng mở lại chính popup đó với dữ liệu đã điền sẵn; **Ẩn / Xoá** nằm cạnh bên.
+1. **Thêm khách hàng** — bấm nút ở đầu trang (Hình 5 · ①), popup hiện ra để nhập.
+2. Trong popup (Hình 5b): chọn **Đơn vị** (1), nhập **Tên khách hàng** (2) — bắt buộc; **Mã KH** (3) và **Mã số thuế** (4) nhập nếu có. Bấm **Lưu** (5), popup đóng lại và khách hàng hiện trong bảng.
+3. **Sửa** ở cuối mỗi dòng (Hình 5 · ②) mở lại chính popup đó với dữ liệu đã điền sẵn; **Ẩn / Xoá** nằm cạnh bên.
 
 > - Ô **Đơn vị** bị khoá khi sửa — khách hàng đã tạo không chuyển sang đơn vị khác được (hợp đồng đang gắn sẽ theo sang). Cần khách đó ở đơn vị khác thì tạo mới.
 > - Trùng tên trong cùng một đơn vị sẽ bị chặn; hai đơn vị khác nhau được phép trùng tên khách.
