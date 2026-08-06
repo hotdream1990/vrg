@@ -4,22 +4,44 @@
 
 -- ── A) Tình trạng nộp trong kỳ: A|đơn vị|thu mua|tiêu thụ-tồn kho ──────────────────────────
 -- Số = SỐ NGÀY đã nộp trong kỳ; 0 = chưa nhập; '-' = KHÔNG ÁP DỤNG.
--- ⚠ Đơn vị không được giao kế hoạch thu mua (has_purchase_plan = false) thì KHÔNG phải nộp biểu
---   Thu mua → trả '-' để không tính là thiếu.
+-- ⚠ Hai luật dưới đây phải GIỐNG HỆT màn *Theo dõi nộp báo cáo* và bảng nhắc việc của đơn vị
+--   (`unit_daily_fields.has_data` + `companies_with_purchase_plan`), nếu không ba nơi báo ba số
+--   khác nhau và đơn vị bị nhắc oan:
+--   1. Đơn vị phải nộp biểu Thu mua = có **số kế hoạch thu mua > 0** ở năm gần nhất ≤ năm nay
+--      (cờ `member_unit.has_purchase_plan` đã BỎ từ 03/08/2026 — cột còn trong DB nhưng không dùng).
+--   2. "Đã nộp" = payload có **ô số liệu THẬT của chính biểu đó**, không phải "có bản ghi":
+--      biểu Tồn kho còn mang hàng trăm bản ghi cũ của biểu Tiêu thụ (chỉ có mảng `sales`) → đếm
+--      theo bản ghi là báo tỷ lệ nộp ảo.
 -- ⚠ CHỈ 2 biểu. Đơn giá mủ nguyên liệu nhập NGAY TRONG biểu Thu mua (ô "Đơn giá thu mua", lưu sang
 --   kho giá `vrg_unit`) nên KHÔNG phải mục nộp riêng — tách ra thành cột thứ 3 là đếm trùng và báo
 --   oan các đơn vị có ngày không tổ chức thu mua (ngày đó vốn không có giá). Thiếu giá xem nhóm D.
 SELECT 'A|' || u.name || '|' ||
-       CASE WHEN u.has_purchase_plan THEN
+       CASE WHEN COALESCE((SELECT p.plan_tonnes > 0 FROM unit_purchase_plan p
+                            WHERE p.company = u.name AND p.plan_tonnes IS NOT NULL
+                              AND p.year <= EXTRACT(YEAR FROM CURRENT_DATE)
+                            ORDER BY p.year DESC LIMIT 1), false) THEN
          (SELECT count(*) FROM unit_daily_report r
            WHERE r.company = u.name AND r.kind = 'purchase'
              AND r.as_of BETWEEN CURRENT_DATE - (:days - 1) AND CURRENT_DATE
-             AND r.payload <> '{}'::jsonb)::text
+             AND (EXISTS (SELECT 1 FROM jsonb_each(r.payload) e
+                           WHERE e.key = ANY (ARRAY['latex_wet', 'coagulum', 'cup_raw',
+                                   'cup_raw_price', 'rss_pressed', 'rss_pressed_price',
+                                   'price_latex_local', 'price_cup_local', 'fx_purchase',
+                                   'no_purchase'])
+                             AND e.value NOT IN ('null'::jsonb, '""'::jsonb))
+                  OR (jsonb_typeof(r.payload->'finished') = 'array'
+                      AND jsonb_array_length(r.payload->'finished') > 0)))::text
        ELSE '-' END || '|' ||
        (SELECT count(*) FROM unit_daily_report r
          WHERE r.company = u.name AND r.kind = 'consumption'
            AND r.as_of BETWEEN CURRENT_DATE - (:days - 1) AND CURRENT_DATE
-           AND r.payload <> '{}'::jsonb)::text
+           AND (EXISTS (SELECT 1 FROM jsonb_each(r.payload) e
+                         WHERE e.key IN ('no_stock', 'stock_material')
+                           AND e.value NOT IN ('null'::jsonb, '""'::jsonb))
+                OR (jsonb_typeof(r.payload->'stock_warehoused') = 'array'
+                    AND jsonb_array_length(r.payload->'stock_warehoused') > 0)
+                OR (jsonb_typeof(r.payload->'stock_not_warehoused') = 'array'
+                    AND jsonb_array_length(r.payload->'stock_not_warehoused') > 0)))::text
   FROM member_unit u WHERE u.is_active ORDER BY u.sort_order, u.name;
 
 -- ── D) Có tổ chức thu mua nhưng THIẾU ĐƠN GIÁ: D|đơn vị|ngày ───────────────────────────────
