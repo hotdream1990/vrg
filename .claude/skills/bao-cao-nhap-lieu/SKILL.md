@@ -11,6 +11,7 @@ Ra **2 ảnh PNG** gửi thẳng cho các đơn vị (không cần mở hệ th�
 |---|---|
 | `A-don-vi-chua-nhap-lieu.png` | **Không nộp gì trong kỳ** + **Thiếu một phần** theo **2 biểu** (Thu mua · Tiêu thụ–Tồn kho), kèm bảng phụ **có mua nhưng chưa nhập đơn giá** |
 | `B-don-vi-nhap-sai-don-vi-tinh.png` | **Nhập sai đơn vị tính**: giá mủ nguyên liệu (phải là đ/độ) và giá bán ở biểu Tiêu thụ (phải là triệu đ/tấn) |
+| `C-don-vi-chua-nhap-ton-kho.png` | RIÊNG biểu **Tồn kho**, cùng khuôn ảnh A nhưng liệt kê **từng ngày còn thiếu** của mỗi đơn vị — dùng khi chỉ đốc thúc tồn kho (`--only stock`) |
 
 ## Chạy
 
@@ -23,6 +24,7 @@ uv run --directory apps/api python .claude/skills/bao-cao-nhap-lieu/scripts/make
 | `--days N` | 7 | Kỳ xét "đã nộp chưa" = N ngày gần nhất |
 | `--out DIR` | `plans/visuals` | Thư mục lưu ảnh (có plan đang mở thì trỏ vào `{plan_dir}/visuals/`) |
 | `--local` | tắt | Lấy số liệu ở DB local thay vì prod (để thử) |
+| `--only stock` | `all` | Chỉ dựng ảnh C (Tồn kho); mặc định dựng cả 3 ảnh |
 
 Số liệu lấy từ **DB prod** qua SSH (dùng chung `.claude/skills/deploy/dokploy-target.local.env`) — DB
 không mở ra ngoài. Ảnh chụp bằng Playwright trong venv `apps/api`.

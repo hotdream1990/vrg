@@ -92,3 +92,21 @@ SELECT 'C|' || company || '|' || count(*) || '|' || min(as_of)::text || '|' || m
   ) t
  WHERE (ccy = 'VND' AND price > 200) OR (ccy = 'USD' AND price > 10000)
  GROUP BY company ORDER BY count(*) DESC, company;
+
+-- ── E) TỒN KHO theo NGÀY: E|đơn vị|khu vực|các ngày ĐÃ nộp (YYYY-MM-DD, ngăn bằng dấu phẩy) ──
+-- Dựng ma trận đơn vị × ngày y như màn *Theo dõi nộp báo cáo* (tab Tồn kho). Luật "đã nộp" dùng
+-- CHUNG với nhóm A ở trên — sửa một chỗ phải sửa cả hai, nếu không hai bảng trong cùng một bộ ảnh
+-- lại nói khác nhau.
+SELECT 'E|' || u.name || '|' || COALESCE(u.region, '') || '|' ||
+       COALESCE((SELECT string_agg(to_char(r.as_of, 'YYYY-MM-DD'), ',' ORDER BY r.as_of)
+                   FROM unit_daily_report r
+                  WHERE r.company = u.name AND r.kind = 'consumption'
+                    AND r.as_of BETWEEN CURRENT_DATE - (:days - 1) AND CURRENT_DATE
+                    AND (EXISTS (SELECT 1 FROM jsonb_each(r.payload) e
+                                  WHERE e.key IN ('no_stock', 'stock_material')
+                                    AND e.value NOT IN ('null'::jsonb, '""'::jsonb))
+                         OR (jsonb_typeof(r.payload->'stock_warehoused') = 'array'
+                             AND jsonb_array_length(r.payload->'stock_warehoused') > 0)
+                         OR (jsonb_typeof(r.payload->'stock_not_warehoused') = 'array'
+                             AND jsonb_array_length(r.payload->'stock_not_warehoused') > 0))), '')
+  FROM member_unit u WHERE u.is_active ORDER BY u.sort_order, u.name;

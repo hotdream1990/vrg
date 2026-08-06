@@ -58,7 +58,7 @@ def collect(days: int, local: bool) -> dict[str, list]:
     """Gom kết quả theo nhóm: A tình trạng nộp · B giá mủ sai đơn vị · C giá bán sai · D thiếu đơn giá."""
     sql = (HERE / "collect.sql").read_text().replace(":days", str(days))
     rows = [ln.split("|") for ln in run_sql(sql, local).splitlines() if ln.strip()]
-    return {g: [r[1:] for r in rows if r[0] == g] for g in "ABCD"}
+    return {g: [r[1:] for r in rows if r[0] == g] for g in "ABCDE"}
 
 
 # ── Dựng HTML ─────────────────────────────────────────────────────────────────
@@ -179,8 +179,65 @@ def page_wrong(rows_b: list, rows_c: list) -> str:
 """
 
 
+def page_stock_missing(rows_e: list, days: int) -> str:
+    """Ảnh C: RIÊNG biểu Tồn kho, cùng khuôn với ảnh A (chia nhóm, không phải ma trận).
+
+    Chia 2 nhóm để đốc thúc đúng đối tượng: đơn vị **không nhập ngày nào** (cần gọi ngay) và đơn vị
+    **thiếu một phần** (chỉ cần nhắc bù ngày trống). Nhóm sau liệt kê luôn ngày còn thiếu.
+    """
+    today = date.today()
+    dates = [(today - timedelta(days=i)).isoformat() for i in range(days - 1, -1, -1)]
+    ky = f"{dates[0][8:10]}/{dates[0][5:7]} – {today.strftime('%d/%m/%Y')}"
+    dm = lambda d: f"{d[8:10]}/{d[5:7]}"  # noqa: E731
+
+    units = []
+    for name, region, done_csv in rows_e:
+        done = set(filter(None, done_csv.split(",")))
+        miss = [d for d in dates if d not in done]
+        units.append({"name": name, "region": region or "—", "miss": miss,
+                      "filled": len(dates) - len(miss)})
+    none = [u for u in units if u["filled"] == 0]
+    part = sorted([u for u in units if u["miss"] and u["filled"]],
+                  key=lambda u: (-len(u["miss"]), u["name"]))
+    filled_total = sum(u["filled"] for u in units)
+    total = len(dates) * len(units)
+
+    def block(title: str, items: list, show_days: bool) -> str:
+        out = [f'<tr class="grp"><td colspan="5">{title} — {len(items)} đơn vị</td></tr>']
+        for i, u in enumerate(items, 1):
+            cell = ('<td class="mark bad">✗ chưa nhập</td>' if not u["filled"]
+                    else f'<td class="mark good">✓ {u["filled"]}/{len(dates)} ngày</td>')
+            miss_txt = ", ".join(dm(d) for d in u["miss"]) if show_days else ""
+            out.append(f'<tr><td class="stt">{i}</td><td>{u["name"]}</td>'
+                       f'<td class="reg">{u["region"]}</td>{cell}'
+                       f'<td class="days">{miss_txt}</td></tr>')
+        return "".join(out)
+
+    return f"""{CSS}
+<style>
+  td.reg {{ color: #5f6f67; font-size: 12px; white-space: nowrap; }}
+  td.days {{ color: #c0392b; font-size: 12px; }}
+  tbody td:nth-child(2) {{ white-space: nowrap; }}
+</style>
+<h1>ĐƠN VỊ CHƯA NHẬP TỒN KHO</h1>
+<div class="sub">Kỳ {ky} · {len(units)} đơn vị đang hoạt động · đã nhập {vn(filled_total)}/{vn(total)}
+  lượt ({round(filled_total / total * 100) if total else 0}%) ·
+  nguồn: Hệ thống Dự báo &amp; Quản trị Giá Cao su</div>
+<table>
+  <thead><tr><th>#</th><th style="text-align:left">Đơn vị</th><th>Khu vực</th>
+    <th>Tồn kho</th><th style="text-align:left">Ngày còn thiếu</th></tr></thead>
+  <tbody>{block(f"KHÔNG NHẬP NGÀY NÀO TRONG {len(dates)} NGÀY", none, False)}
+         {block("THIẾU MỘT PHẦN", part, True)}</tbody>
+</table>
+<div class="note">Ngày đơn vị tích “không phát sinh tồn kho để khai” vẫn được tính là ĐÃ NỘP.
+  Đơn vị nhập đủ cả kỳ không có tên trong bảng này.</div>
+"""
+
+
 # ── Chụp ảnh ──────────────────────────────────────────────────────────────────
-def shoot(pages: list[tuple[str, str]], out_dir: pathlib.Path) -> list[pathlib.Path]:
+def shoot(pages: list[tuple], out_dir: pathlib.Path) -> list[pathlib.Path]:
+    """Mỗi trang: (tên file, html[, bề ngang px]). Bảng nhiều cột phải nới bề ngang, không thì tên
+    đơn vị vắt 4-5 dòng và ảnh cao gấp mấy lần — gửi Zalo không ai đọc nổi."""
     from playwright.sync_api import sync_playwright
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -191,7 +248,9 @@ def shoot(pages: list[tuple[str, str]], out_dir: pathlib.Path) -> list[pathlib.P
         # Viewport để THẤP: ảnh full_page không bao giờ ngắn hơn viewport, để cao thì bảng ít dòng
         # sẽ thừa một mảng trắng dưới đáy.
         page = browser.new_page(viewport={"width": 1000, "height": 200}, device_scale_factor=2)
-        for name, html in pages:
+        for entry in pages:
+            name, html = entry[0], entry[1]
+            page.set_viewport_size({"width": entry[2] if len(entry) > 2 else 1000, "height": 200})
             page.set_content(html)
             page.wait_for_timeout(250)
             path = out_dir / name
@@ -206,14 +265,20 @@ def main() -> None:
     ap.add_argument("--days", type=int, default=7, help="số ngày của kỳ xét đã nộp (mặc định 7)")
     ap.add_argument("--out", default="plans/visuals", help="thư mục lưu ảnh (mặc định plans/visuals)")
     ap.add_argument("--local", action="store_true", help="lấy số liệu ở DB local thay vì prod")
+    ap.add_argument("--only", choices=("all", "stock"), default="all",
+                    help="'stock' = chỉ ảnh ma trận Tồn kho theo ngày (mặc định: cả 3 ảnh)")
     args = ap.parse_args()
 
     g = collect(args.days, args.local)
     out_dir = pathlib.Path(args.out)
     if not out_dir.is_absolute():
         out_dir = ROOT / out_dir
-    made = shoot([("A-don-vi-chua-nhap-lieu.png", page_missing(g["A"], g["D"], args.days)),
-                  ("B-don-vi-nhap-sai-don-vi-tinh.png", page_wrong(g["B"], g["C"]))], out_dir)
+    # 1500px: đủ cho 14 cột ngày + tên đơn vị nằm gọn 1 dòng (ngày dài hơn thì nới thêm).
+    pages = [("C-don-vi-chua-nhap-ton-kho.png", page_stock_missing(g["E"], args.days), 1200)]
+    if args.only == "all":
+        pages = [("A-don-vi-chua-nhap-lieu.png", page_missing(g["A"], g["D"], args.days)),
+                 ("B-don-vi-nhap-sai-don-vi-tinh.png", page_wrong(g["B"], g["C"]))] + pages
+    made = shoot(pages, out_dir)
     print(f"{len(g['A'])} đơn vị đang hoạt động · {len(g['D'])} ngày thiếu đơn giá · "
           f"{len(g['B'])} ô giá mủ sai đơn vị · {len(g['C'])} đơn vị sai giá bán")
     for p in made:
