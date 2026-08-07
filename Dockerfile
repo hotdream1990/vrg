@@ -23,6 +23,7 @@ ENV WEB_DIST_DIR=/app/web_dist \
     API_HOST=0.0.0.0 \
     PYTHONUNBUFFERED=1 \
     UV_NO_SYNC=1 \
+    UV_HTTP_TIMEOUT=180 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # Deps API
