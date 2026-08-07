@@ -22,7 +22,9 @@ from app.services import (
 router = APIRouter(prefix="/api/unit-daily/analytics", tags=["unit-analytics"])
 _require = require_cap("unit_daily")
 
-MAX_STATUS_DAYS = 92          # ma trận tình trạng nộp: quá dài thì không đọc nổi
+# Một năm đủ để Ban TTKD rà soát theo kỳ/năm, đồng thời vẫn giữ kích thước phản hồi an toàn.
+# Ma trận được cuộn ngang ở web nên không cần bó hẹp ở 3 tháng như phiên bản đầu.
+MAX_STATUS_DAYS = 366
 
 
 def assert_range(date_from: str, date_to: str) -> None:

@@ -268,6 +268,14 @@ def test_status_matrix(seeded) -> None:
     assert b["missing"] == 1 and rep["totals"]["expected"] == 4
 
 
+def test_status_allows_a_custom_period_longer_than_three_months(seeded) -> None:
+    """Theo dõi có thể chọn một kỳ dài đến một năm, không còn bị chặn ở 92 ngày."""
+    long_to = (date.fromisoformat(D0) + timedelta(days=92)).isoformat()
+    rep = _get("status", seeded, kind="purchase", companies=UNIT_A, date_to=long_to)
+    assert len(rep["dates"]) == 93
+    assert rep["dates"][0] == D0 and rep["dates"][-1] == long_to
+
+
 def test_status_ignores_rows_without_real_data(seeded) -> None:
     """CÓ BẢN GHI ≠ ĐÃ NỘP.
 

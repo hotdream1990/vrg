@@ -19,7 +19,8 @@ import { initialFilters, useFilterCatalog } from "./use-stats";
 import "../../../bulletin/bulletin.css";
 
 const KINDS = [{ label: "Thu mua", value: "purchase" }, { label: "Tồn kho", value: "consumption" }];
-const SPANS = [7, 14, 30] as const;
+const SPANS = [7, 14, 30, 90, 180, 365] as const;
+const MAX_STATUS_DAYS = 366;
 
 const CELL: Record<StatusCell, { icon: JSX.Element; title: string }> = {
   ok: { icon: <CheckCircleFilled style={{ color: "var(--ok, #52c41a)" }} />, title: "Đã nhập" },
@@ -55,6 +56,12 @@ export default function SubmissionStatusPage() {
 
   const reload = useCallback(() => {
     if (filters.from > filters.to) { message.warning("Khoảng ngày không hợp lệ."); return; }
+    const days = Math.floor((new Date(`${filters.to}T00:00:00`).getTime() -
+      new Date(`${filters.from}T00:00:00`).getTime()) / 86_400_000) + 1;
+    if (days > MAX_STATUS_DAYS) {
+      message.warning(`Chỉ có thể theo dõi tối đa ${MAX_STATUS_DAYS} ngày trong một lần xem.`);
+      return;
+    }
     setLoading(true);
     fetchSubmissionStatus(kind, filters)
       .then(setData).catch((e: Error) => message.error(e.message)).finally(() => setLoading(false));
@@ -72,6 +79,7 @@ export default function SubmissionStatusPage() {
           <h2>Theo dõi nộp báo cáo</h2>
           <p>
             Ma trận <b>đơn vị × ngày</b> cho biết đơn vị nào chưa nhập số liệu ngày nào.
+            Có thể chọn nhanh đến <b>365 ngày</b> hoặc tự chọn kỳ theo dõi (tối đa 366 ngày mỗi lần xem).
             Cả hai biểu đều nhập <b>theo từng ngày</b>. Biểu Thu mua chỉ tính các đơn vị{" "}
             <b>được giao kế hoạch thu mua</b>; ngày chỉ tính là đã nộp khi bản ghi <b>có số liệu
             thật</b> (hoặc đơn vị đã tích “không tổ chức thu mua” / “không phát sinh tồn kho”).
@@ -111,8 +119,8 @@ export default function SubmissionStatusPage() {
           <table>
             <thead>
               <tr>
-                <th style={{ minWidth: 110 }}>Khu vực</th>
-                <th style={{ minWidth: 210 }}>Đơn vị</th>
+                <th style={{ minWidth: 110, position: "sticky", left: 0, zIndex: 2, background: "var(--card, #fff)" }}>Khu vực</th>
+                <th style={{ minWidth: 210, position: "sticky", left: 110, zIndex: 2, background: "var(--card, #fff)" }}>Đơn vị</th>
                 {(data?.dates ?? []).map((d) => (
                   <th key={d} className="r" style={{ minWidth: 46 }}>{dm(d)}</th>
                 ))}
@@ -123,10 +131,10 @@ export default function SubmissionStatusPage() {
             <tbody>
               {(data?.rows ?? []).map((r) => (
                 <tr key={r.company}>
-                  <td>{r.region ?? "—"}</td>
+                  <td style={{ position: "sticky", left: 0, zIndex: 1, background: "var(--card, #fff)" }}>{r.region ?? "—"}</td>
                   {/* Nút đăng nhập hộ nằm NGAY CẠNH TÊN: bảng cuộn ngang theo số ngày nên cột
                       thêm ở cuối sẽ nằm ngoài màn hình. Chỉ admin thấy (component tự ẩn). */}
-                  <td style={{ fontWeight: 500, whiteSpace: "nowrap" }}>
+                  <td style={{ fontWeight: 500, whiteSpace: "nowrap", position: "sticky", left: 110, zIndex: 1, background: "var(--card, #fff)" }}>
                     {r.company}
                     <UnitLoginButton unit={r.company} compact />
                   </td>
