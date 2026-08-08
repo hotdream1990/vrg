@@ -11,7 +11,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
-from app.core.market_meta import UNIT_STOCK_GRADES
+from app.core.market_meta import UNIT_GRADES
 from app.core.security import require_cap
 from app.services import (
     member_region_repo, member_unit_repo, unit_analytics_excel as xls,
@@ -59,7 +59,7 @@ def filters(username: str = Depends(_require)) -> dict:
                    "has_factory": u.get("has_factory", True)}
                   for u in member_unit_repo.list_units(include_inactive=False)],
         "regions": member_region_repo.active_names(),
-        "grades": list(UNIT_STOCK_GRADES),
+        "grades": list(UNIT_GRADES),
         "materials": [{"value": k, "label": v} for k, v in q.MATERIAL_LABELS.items()],
         "contracts": [{"value": k, "label": v} for k, v in q.CONTRACT_LABELS.items()],
         "channels": [{"value": k, "label": v} for k, v in q.CHANNEL_LABELS.items()],

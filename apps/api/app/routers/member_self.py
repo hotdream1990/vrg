@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse
 
 from app.core import edit_window
 from app.core.feature_flags import require_excel_import
-from app.core.market_meta import PURCHASE_SOURCE_UNIT, UNIT_STOCK_GRADES
+from app.core.market_meta import PURCHASE_SOURCE_UNIT, UNIT_GRADES
 from app.core.security import get_current_member
 from app.routers.unit_daily import resolve_timeline_range, timeline_page
 from app.schemas.market_demand import MarketDemandEdit
@@ -224,7 +224,7 @@ def my_stock_contract_history(status: str = Query("all", pattern="^(all|undelive
         companies=units, status=None if status == "all" else status,
         date_from=date_from, date_to=date_to, q=q, grades=split_csv(grades))
     contracts.sort(key=lambda c: (c["start_date"] or "", c["id"] or 0), reverse=True)
-    return {"units": units, "grades": list(UNIT_STOCK_GRADES), "contracts": contracts}
+    return {"units": units, "grades": list(UNIT_GRADES), "contracts": contracts}
 
 
 @router.put("/stock-contracts")

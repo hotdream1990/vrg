@@ -104,14 +104,6 @@ VRG_FLOOR_GRADES = [
 VRG_DOMESTIC_ONLY_GRADES = {"Skim Block"}
 
 
-# Chủng loại cho báo cáo TIÊU THỤ – TỒN KHO của đơn vị thành viên — TÁCH THEO TỪNG LOẠI y như
-# bảng Giá sàn Tập đoàn (SVR CV 50 và SVR CV60 là 2 loại riêng, không gộp). Bám thẳng
-# `VRG_FLOOR_GRADES` để hai nơi luôn khớp nhau, thêm 2 mục biểu mẫu tuần cần mà giá sàn không có:
-#   - "SVR 10CV / 20CV": dòng 13.2 của biểu mẫu tuần.
-#   - "Chủng loại khác": gom phần còn lại (dòng 13.8).
-UNIT_STOCK_GRADES = [*VRG_FLOOR_GRADES, "SVR 10CV / 20CV", "Chủng loại khác"]
-
-
 # 2 loại MỦ NGUYÊN LIỆU bổ sung (chốt 30/07/2026) — tên giữ NGUYÊN VĂN như khách chốt.
 # Vừa là dòng THU MUA (có đơn giá riêng từng loại), vừa là chủng loại BÁN được trên hợp đồng.
 RAW_MATERIAL_GRADES = [
@@ -119,9 +111,21 @@ RAW_MATERIAL_GRADES = [
     "Mủ nguyên liệu đã cán vắt (RSS)",
 ]
 
-# Chủng loại chọn được trên DÒNG HỢP ĐỒNG (bán) = thành phẩm + 2 loại nguyên liệu mới.
-# Tồn kho thành phẩm vẫn chỉ dùng `UNIT_STOCK_GRADES` (nguyên liệu không phải thành phẩm).
-SALE_GRADES = [*UNIT_STOCK_GRADES, *RAW_MATERIAL_GRADES]
+# DANH MỤC CHỦNG LOẠI DÙNG CHUNG cho MỌI màn nhập liệu của đơn vị thành viên — thu mua · tồn kho ·
+# tiêu thụ đều đọc đúng danh sách này (đồng bộ 08/08/2026). Trước đó tồn kho/thu mua thiếu 2 loại
+# mủ nguyên liệu mà hợp đồng bán lại có, nên cùng một đơn vị thấy 3 danh mục khác nhau.
+#
+# TÁCH THEO TỪNG LOẠI y như bảng Giá sàn Tập đoàn (SVR CV 50 và SVR CV60 là 2 loại riêng, không
+# gộp). Bám thẳng `VRG_FLOOR_GRADES` để hai nơi luôn khớp, rồi thêm các mục giá sàn không có:
+#   - "SVR 10CV / 20CV": dòng 13.2 của biểu mẫu tuần.
+#   - "Chủng loại khác": gom phần còn lại (dòng 13.8).
+#   - "Mủ ngoại lệ": hàng không xếp được vào loại nào ở trên (chốt 08/08/2026).
+# ⚠ THỨ TỰ là thứ tự hiện trên ô chọn của người nhập — đổi chỗ là đổi trải nghiệm nhập liệu.
+# Web giữ một bản sao ở `apps/web/src/lib/unit-daily-consumption.ts`; `test_unit_daily.py` so 2 bên
+# và sẽ đỏ nếu lệch — sửa ở đây thì sửa luôn bên đó.
+UNIT_GRADES = [
+    *VRG_FLOOR_GRADES, "SVR 10CV / 20CV", "Chủng loại khác", "Mủ ngoại lệ", *RAW_MATERIAL_GRADES,
+]
 
 # Bán các loại này BẮT BUỘC nhập quy khô mới cho lưu (chốt Q4 — 30/07/2026).
 DRY_REQUIRED_GRADES = frozenset({"LATEX", *RAW_MATERIAL_GRADES})

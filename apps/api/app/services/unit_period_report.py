@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC, UNIT_STOCK_GRADES
+from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC, UNIT_GRADES
 from app.services import (
     legacy_data_notice, member_unit_repo, price_repo, sales_contract_report, unit_daily_repo,
     unit_report_rows,
@@ -26,7 +26,7 @@ TY = 1_000_000_000      # 1 tỷ đồng
 TRIEU = 1_000_000       # 1 triệu đồng
 
 # Chủng loại tồn kho — tách theo từng loại như bảng Giá sàn (khớp GRADES ở web).
-GRADES: list[str] = list(UNIT_STOCK_GRADES)
+GRADES: list[str] = list(UNIT_GRADES)
 
 
 def _num(v: Any) -> float | None:

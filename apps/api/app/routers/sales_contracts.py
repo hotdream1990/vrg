@@ -20,7 +20,7 @@ from app.core.market_meta import (
     DRY_REQUIRED_GRADES,
     SALE_CHANNELS,
     SALE_CURRENCIES,
-    SALE_GRADES,
+    UNIT_GRADES,
 )
 from app.core import security
 from app.core.permissions import LEVEL_EDIT
@@ -76,7 +76,7 @@ def meta(scope: Scope) -> dict:
         # Đơn vị NHẬN khi tiêu thụ nội bộ — chỉ trong NHÓM công ty mẹ–con. Đơn vị không có tên ở đây
         # là đứng một mình → form ẩn luôn hình thức "Tiêu thụ nội bộ".
         "internal_targets": member_unit_repo.internal_targets(),
-        "grades": list(SALE_GRADES),
+        "grades": list(UNIT_GRADES),
         "dry_required": sorted(DRY_REQUIRED_GRADES),
         "channels": SALE_CHANNELS,
         "delivery_types": DELIVERY_TYPES,

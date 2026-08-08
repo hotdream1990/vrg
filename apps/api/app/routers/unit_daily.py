@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse
 
 from app.core import edit_window
 from app.core.feature_flags import require_excel_import
-from app.core.market_meta import UNIT_STOCK_GRADES
+from app.core.market_meta import UNIT_GRADES
 from app.core.security import assert_editor_window, require_cap, require_cap_edit
 from app.schemas.unit_daily import (
     ExcelImportCommit, PurchasePlanEdit, StockContractEdit, UnitDailyEdit, UnitDailyMove,
@@ -166,7 +166,7 @@ def contract_history(company: str | None = Query(None),
         c["region"] = region_of.get(c["company"])
     contracts.sort(key=lambda c: (c["start_date"] or "", c["id"] or 0), reverse=True)
     return {"units": [u["name"] for u in units], "regions": member_region_repo.active_names(),
-            "grades": list(UNIT_STOCK_GRADES), "contracts": contracts}
+            "grades": list(UNIT_GRADES), "contracts": contracts}
 
 
 @router.put("/stock-contracts")

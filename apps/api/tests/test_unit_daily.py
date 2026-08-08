@@ -674,3 +674,40 @@ def test_consumption_timeline_is_paged_but_purchase_is_not() -> None:
         db.execute(text("DELETE FROM unit_daily_report WHERE company = :c"), {"c": unit})
     client.delete("/api/users/ud_page", headers=h)
     client.delete(f"/api/member-units/{unit}", headers=h)
+
+
+def test_grade_catalog_is_one_list_shared_by_every_entry_screen() -> None:
+    """Thu mua · tồn kho · tiêu thụ phải CÙNG một danh mục chủng loại, và web không được lệch.
+
+    Trước 08/08/2026 mỗi màn đọc một hằng số khác nhau (tồn kho/thu mua thiếu 2 loại mủ nguyên
+    liệu mà hợp đồng bán lại có) nên cùng một đơn vị nhìn thấy 3 danh mục — test này chốt lại.
+    """
+    import re
+    from pathlib import Path
+
+    from app.core.market_meta import UNIT_GRADES
+    from app.services import unit_daily_excel_io, unit_period_report
+
+    # "Mủ ngoại lệ" nằm NGAY DƯỚI "Chủng loại khác" (khách chốt 08/08/2026) — thứ tự là thứ tự
+    # hiện trên ô chọn, đổi chỗ là đổi trải nghiệm nhập liệu nên phải khoá lại.
+    assert UNIT_GRADES[UNIT_GRADES.index("Chủng loại khác") + 1] == "Mủ ngoại lệ"
+    assert len(UNIT_GRADES) == len(set(UNIT_GRADES)), "Danh mục chủng loại có mục trùng."
+
+    # Mọi nơi phía backend dùng đúng danh sách đó (biểu Excel, báo cáo kỳ).
+    assert unit_daily_excel_io.GRADES == list(UNIT_GRADES)
+    assert unit_period_report.GRADES == list(UNIT_GRADES)
+
+    # …và 3 endpoint cấp danh mục cho 3 màn nhập liệu đều trả về đúng nó.
+    h = _admin()
+    for url in ("/api/sales-contracts/meta", "/api/unit-daily/contracts/history",
+                "/api/unit-daily/analytics/filters"):
+        got = client.get(url, headers=h)
+        assert got.status_code == 200, f"{url}: {got.text}"
+        assert got.json()["grades"] == list(UNIT_GRADES), f"{url} trả danh mục lệch."
+
+    # Web giữ bản sao riêng (form dựng ngay khi mở, không chờ gọi API) → so thẳng từng phần tử.
+    src = Path(__file__).resolve().parents[3] / "apps/web/src/lib/unit-daily-consumption.ts"
+    block = re.search(r"export const GRADES: string\[\] = \[(.*?)\];", src.read_text("utf-8"),
+                      re.S).group(1)
+    assert re.findall(r'"([^"]+)"', block) == list(UNIT_GRADES), (
+        "Danh mục chủng loại ở web đã lệch khỏi UNIT_GRADES — sửa cả 2 nơi.")

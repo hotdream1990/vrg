@@ -29,7 +29,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from app.core import request_ctx
-from app.core.market_meta import UNIT_STOCK_GRADES
+from app.core.market_meta import UNIT_GRADES
 from app.core.paths import bulletin_dir
 from app.core.market_meta import PURCHASE_SOURCE_UNIT
 from app.services import member_unit_repo, price_repo, unit_daily_repo
@@ -59,7 +59,7 @@ STOCK_GROUPS = {
     "Đã nhập kho": "warehoused",
 }
 _RETIRED_STOCK_GROUPS = {"Đã ký HĐ": "signed_undelivered"}
-GRADES = list(UNIT_STOCK_GRADES)
+GRADES = list(UNIT_GRADES)
 
 
 @dataclass

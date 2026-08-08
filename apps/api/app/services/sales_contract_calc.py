@@ -13,11 +13,11 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from app.core.market_meta import DRY_REQUIRED_GRADES, SALE_CURRENCIES, SALE_GRADES
+from app.core.market_meta import DRY_REQUIRED_GRADES, SALE_CURRENCIES, UNIT_GRADES
 
 TRIEU = 1_000_000
 _CCY = frozenset(SALE_CURRENCIES)
-_GRADES = frozenset(SALE_GRADES)
+_GRADES = frozenset(UNIT_GRADES)
 
 
 def _num(v) -> float | None:

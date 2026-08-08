@@ -137,13 +137,18 @@ export const CHANNELS: { value: SaleChannel; label: string }[] = [
   { value: "export", label: "XK / UTXK" },
   { value: "domestic", label: "Tiêu thụ trong nước" },
 ];
-/** Chủng loại mủ — TÁCH THEO TỪNG LOẠI y như bảng Giá sàn Tập đoàn (SVR CV 50 và SVR CV60 là
-    2 loại riêng, không gộp), thêm "SVR 10CV / 20CV" + "Chủng loại khác" cho đủ biểu mẫu tuần.
-    PHẢI khớp `UNIT_STOCK_GRADES` ở backend (app/core/market_meta.py). */
+/** Chủng loại mủ dùng CHUNG cho mọi màn nhập liệu của đơn vị thành viên — thu mua · tồn kho ·
+    tiêu thụ cùng một danh mục (đồng bộ 08/08/2026). Tách theo từng loại y như bảng Giá sàn
+    Tập đoàn (SVR CV 50 và SVR CV60 là 2 loại riêng, không gộp).
+
+    ⚠ PHẢI khớp TỪNG PHẦN TỬ VÀ ĐÚNG THỨ TỰ với `UNIT_GRADES` ở backend
+    (apps/api/app/core/market_meta.py) — `test_unit_daily.py` đọc thẳng file này để so, lệch là đỏ.
+    Thứ tự ở đây chính là thứ tự hiện trên ô chọn của người nhập. */
 export const GRADES: string[] = [
   "SVR CV 50", "SVR CV60", "SVR L", "SVR 3L Mix", "SVR 3L", "SVR 5S", "SVR 5",
   "SVR 10 Mix", "SVR 10 / CSR 10", "SVR 20 / CSR 20", "RSS 3", "RSS 1", "LATEX", "Skim Block",
-  "SVR 10CV / 20CV", "Chủng loại khác",
+  "SVR 10CV / 20CV", "Chủng loại khác", "Mủ ngoại lệ",
+  "Mủ nguyên liệu nước chưa cán vắt (chén)", "Mủ nguyên liệu đã cán vắt (RSS)",
 ];
 
 const TY = 1_000_000_000;   // 1 tỷ đồng
