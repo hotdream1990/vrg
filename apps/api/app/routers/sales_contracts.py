@@ -30,6 +30,7 @@ from app.services import (
     contract_files,
     customer_repo,
     member_unit_repo,
+    sales_contract_delivery_history,
     sales_contract_lifecycle,
     sales_contract_repo,
     sales_contract_report,
@@ -154,6 +155,29 @@ def consumption(scope: Scope, date_from: str = Query(...), date_to: str = Query(
     """TIÊU THỤ trong kỳ — tổng hợp từ các lần giao, KHÔNG còn ô nhập tay."""
     _, companies = scope
     return _consumption(companies, date_from, date_to, company, customer_id, grade)
+
+
+@router.get("/consumption/deliveries")
+def consumption_deliveries(scope: Scope, date_from: str = Query(...), date_to: str = Query(...),
+                           company: str | None = Query(None),
+                           customer_id: list[int] | None = Query(None),
+                           grade: list[str] | None = Query(None),
+                           page: int = Query(1, ge=1),
+                           page_size: int = Query(50, ge=1,
+                                                  le=sales_contract_delivery_history.MAX_PAGE_SIZE),
+                           ) -> dict:
+    """LỊCH SỬ từng lần giao của kỳ — để soát chi tiết đằng sau con số tổng hợp.
+
+    Cùng bộ lọc với `/consumption` nên tổng của mọi trang khớp đúng bảng tổng hợp.
+    """
+    _, companies = scope
+    _check_date(date_from, "Từ ngày")
+    _check_date(date_to, "Đến ngày")
+    if company:
+        _assert_company(companies, company)
+        companies = [company]
+    return sales_contract_delivery_history.history(
+        date_from, date_to, companies, customer_id, grade, page=page, page_size=page_size)
 
 
 _XLSX_COLS: list[tuple[str, str, str]] = [

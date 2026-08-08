@@ -69,13 +69,17 @@ def deliveries(date_from: str, date_to: str, companies: list[str] | None = None,
                   ["delivered", "delivered_at IS NOT NULL",
                    "delivered_at >= CAST(:df AS date)", "delivered_at <= CAST(:dt AS date)"],
                   {"df": date_from, "dt": date_to})
+    # Hợp đồng giao-1-lần thì chính nó là "hợp đồng mẹ"; đợt giao lấy mã của mẹ ở vòng dưới.
+    for r in rows:
+        r["parent_code"] = r["code"]
     parent_ids = sorted({r["parent_id"] for r in rows if r["parent_id"] is not None})
     if parent_ids:
-        owner = {p["id"]: (p["customer_id"], p["contract_type"])
+        owner = {p["id"]: (p["customer_id"], p["contract_type"], p["code"])
                  for p in _fetch(None, ["id = ANY(:ps)"], {"ps": parent_ids})}
         for r in rows:
             if r["parent_id"] is not None:
-                r["customer_id"], r["contract_type"] = owner.get(r["parent_id"], (None, None))
+                r["customer_id"], r["contract_type"], r["parent_code"] = owner.get(
+                    r["parent_id"], (None, None, None))
     if customer_ids:
         keep = set(customer_ids)
         rows = [r for r in rows if r.get("customer_id") in keep]

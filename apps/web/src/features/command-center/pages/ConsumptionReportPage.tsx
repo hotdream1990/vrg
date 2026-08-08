@@ -13,6 +13,7 @@ import CustomerPicker from "../sections/CustomerPicker";
 import { MultiSelect } from "./analytics/AnalyticsFilters";
 import DateInput from "../sections/DateInput";
 import ConsumptionByCustomer from "./components/ConsumptionByCustomer";
+import ConsumptionDeliveryHistory from "./components/ConsumptionDeliveryHistory";
 import "../../bulletin/bulletin.css";
 
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
@@ -167,6 +168,9 @@ export default function ConsumptionReportPage() {
       </div>
 
       {rep && <ConsumptionByCustomer rep={rep} />}
+
+      <ConsumptionDeliveryHistory from={from} to={to} company={company || undefined}
+        customerIds={customerIds} grades={grades} />
 
       <div className="form-note" style={{ fontSize: 11.5, marginTop: 10 }}>
         Doanh thu hiện “—” khi có lần giao bán bằng ngoại tệ mà chưa nhập tỷ giá — hệ thống không tự

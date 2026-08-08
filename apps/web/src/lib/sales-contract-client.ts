@@ -255,6 +255,41 @@ export const fetchConsumption = (dateFrom: string, dateTo: string, company?: str
   apiFetch<ConsumptionReport>(
     `/api/sales-contracts/consumption?${consumptionQuery(dateFrom, dateTo, company, customerIds, grades)}`);
 
+/** Một lần giao trong bảng "Lịch sử đợt giao" — nhãn loại HĐ/hình thức đã dịch sẵn ở server. */
+export type DeliveryHistoryRow = {
+  id: number;
+  delivered_at: string | null;
+  company: string;
+  contract_code: string | null;
+  batch_code: string | null;      // null = hợp đồng giao trọn 1 lần, không phải đợt
+  customer_name: string | null;
+  contract_type: string | null;
+  channel: string | null;
+  grades: string;
+  qty: number;
+  qty_dry: number;
+  revenue: number | null;         // null = thiếu tỷ giá, KHÔNG phải bằng 0
+  invoice_no: string | null;
+};
+
+export type DeliveryHistory = {
+  rows: DeliveryHistoryRow[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+/** Lịch sử từng lần giao — phân trang ở SERVER (prod đã hơn 3.000 lần giao). */
+export const fetchConsumptionDeliveries = (
+  dateFrom: string, dateTo: string, company: string | undefined,
+  customerIds: number[] | undefined, grades: string[] | undefined,
+  page: number, pageSize: number,
+) => {
+  const qs = consumptionQuery(dateFrom, dateTo, company, customerIds, grades);
+  return apiFetch<DeliveryHistory>(
+    `/api/sales-contracts/consumption/deliveries?${qs}&page=${page}&page_size=${pageSize}`);
+};
+
 /** Tải Excel Báo cáo tiêu thụ (fetch kèm token → blob, endpoint đòi Bearer). */
 export async function downloadConsumptionXlsx(dateFrom: string, dateTo: string, company?: string,
                                               customerIds?: number[], grades?: string[]): Promise<void> {

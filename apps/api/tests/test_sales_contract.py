@@ -248,6 +248,79 @@ def test_consumption_and_block3_computed_from_contracts(env, cus) -> None:
     assert und_y["qty"] == pytest.approx(100.0)
 
 
+def test_delivery_history_lists_each_delivery_with_parent_code(env, cus) -> None:
+    """Lịch sử đợt giao: mỗi lần giao một dòng, kèm MÃ HỢP ĐỒNG MẸ và tổng khớp bảng tổng hợp."""
+    h = env
+    parent = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-LS", "delivery_type": "multi", "contract_type": "long_term",
+        "customer_id": cus, "sign_date": YESTERDAY,
+        "lines": [_line(qty=100.0)]}, headers=h).json()["contract"]
+    for code, qty in (("1", 30.0), ("2", 20.0)):
+        client.put("/api/sales-contracts", json={
+            "company": UNIT, "parent_id": parent["id"], "code": code, "start_date": YESTERDAY,
+            "delivered_at": TODAY, "channel": "export",
+            "lines": [_line(qty=qty)]}, headers=h)
+
+    url = (f"/api/sales-contracts/consumption/deliveries?date_from={TODAY}&date_to={TODAY}"
+           f"&company={UNIT}")
+    got = client.get(url, headers=h).json()
+    assert got["total"] == 2
+    # Mã đợt ("1"/"2") vô nghĩa nếu đứng một mình → dòng nào cũng phải mang mã hợp đồng mẹ.
+    assert {r["contract_code"] for r in got["rows"]} == {"HD-LS"}
+    assert {r["batch_code"] for r in got["rows"]} == {"1", "2"}
+    assert got["rows"][0]["customer_name"] and got["rows"][0]["channel"] == "Xuất khẩu / UTXK"
+
+    # Tổng của lịch sử phải khớp ĐÚNG bảng tổng hợp — lệch là một trong hai nơi lọc sai.
+    cons = client.get(f"/api/sales-contracts/consumption?date_from={TODAY}&date_to={TODAY}"
+                      f"&company={UNIT}", headers=h).json()["by_company"][UNIT]
+    assert sum(r["qty"] for r in got["rows"]) == pytest.approx(cons["qty"])
+    assert cons["deliveries"] == got["total"]
+
+    # Phân trang ở server: trang 1 chỉ 1 dòng, `total` vẫn là tổng cả kỳ.
+    p1 = client.get(f"{url}&page=1&page_size=1", headers=h).json()
+    p2 = client.get(f"{url}&page=2&page_size=1", headers=h).json()
+    assert len(p1["rows"]) == 1 and len(p2["rows"]) == 1 and p1["total"] == 2
+    assert p1["rows"][0]["id"] != p2["rows"][0]["id"]
+
+    # Hợp đồng giao TRỌN 1 LẦN: không có đợt → cột Đợt trống, mã hợp đồng là mã của chính nó.
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-DON", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY, "delivered": True, "delivered_at": TODAY,
+        "channel": "domestic", "lines": [_line(qty=7.0)]}, headers=h)
+    rows = client.get(url, headers=h).json()["rows"]
+    don = [r for r in rows if r["contract_code"] == "HD-DON"]
+    assert len(don) == 1 and don[0]["batch_code"] is None
+
+    # Lọc chủng loại áp cho CẢ lịch sử, không thì bảng dưới cãi nhau với bảng trên.
+    only = client.get(f"{url}&grade=__khong_ton_tai__", headers=h).json()
+    assert only["total"] == 0
+
+
+def test_delivery_history_hides_other_companies_from_a_member(env, cus) -> None:
+    """Đơn vị thành viên chỉ thấy lần giao CỦA MÌNH — lịch sử không được rò đơn vị khác."""
+    h = env
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-RIENG", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY, "delivered": True, "delivered_at": TODAY,
+        "channel": "domestic", "lines": [_line(qty=9.0)]}, headers=h)
+    client.delete("/api/users/_zz_sc_mem", headers=h)
+    client.post("/api/users", json={"username": "_zz_sc_mem", "password": "pass123",
+                                    "role": "member", "member_units": [UNIT2]}, headers=h)
+    tok = client.post("/api/auth/login",
+                      json={"username": "_zz_sc_mem", "password": "pass123"}).json()["access_token"]
+    mh = {"Authorization": f"Bearer {tok}"}
+    try:
+        mine = client.get(f"/api/sales-contracts/consumption/deliveries?date_from={TODAY}"
+                          f"&date_to={TODAY}", headers=mh)
+        assert mine.status_code == 200 and mine.json()["total"] == 0
+        # Cố tình gọi sang đơn vị khác → chặn, không phải trả về rỗng cho êm chuyện.
+        other = client.get(f"/api/sales-contracts/consumption/deliveries?date_from={TODAY}"
+                           f"&date_to={TODAY}&company={UNIT}", headers=mh)
+        assert other.status_code == 403
+    finally:
+        client.delete("/api/users/_zz_sc_mem", headers=h)
+
+
 def test_revenue_unknown_when_fx_missing_is_not_zero(env, cus) -> None:
     """Thiếu tỷ giá → doanh thu là KHÔNG BIẾT (None), tuyệt đối không quy về 0."""
     h = env
