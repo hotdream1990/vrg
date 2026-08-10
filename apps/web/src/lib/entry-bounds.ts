@@ -58,13 +58,19 @@ export const PRICE_PER_KG: Bound = { lo: 1_000, hi: 100_000, unit: "đồng/kg" 
 /** Doanh thu một ngày của một đơn vị. Thực tế prod (bản ghi đúng): ≤ 12 tỷ đồng. */
 export const REVENUE_TY: Bound = { lo: 0, hi: 500, unit: "tỷ đồng" };
 
-/** Lời cảnh báo cho một ô, hoặc null nếu số nằm trong khoảng. Không có số / không có biên → null. */
+/** Lời cảnh báo cho một ô, hoặc null nếu số nằm trong khoảng. Không có số / không có biên → null.
+ *
+ *  Số 0 KHÔNG bị coi là "thấp hơn biên": mua 0 đồng là nghiệp vụ thật (nhận hàng bù chênh lệch
+ *  thu mua), và biên dưới sinh ra để bắt NHẦM ĐƠN VỊ TÍNH — mà nhầm đơn vị luôn cho ra số lệch
+ *  theo bội của 10 (0,0552 · 55.200.000), không bao giờ cho ra đúng 0. Cảnh báo ở đây là kêu oan,
+ *  mà kêu oan mỗi ngày thì tới lúc sai thật người nhập cũng bỏ qua nốt.
+ */
 export function boundWarning(v: number | null | undefined, b?: Bound | null): string | null {
   if (v == null || b == null || Number.isNaN(v)) return null;
   if (b.hi != null && v > b.hi) {
     return `Vượt ${formatViNumber(b.hi)} ${b.unit} — kiểm tra lại đơn vị tính (ô này nhập theo ${b.unit}).`;
   }
-  if (b.lo != null && v < b.lo) {
+  if (b.lo != null && v !== 0 && v < b.lo) {
     return `Thấp hơn ${formatViNumber(b.lo)} ${b.unit} — kiểm tra lại đơn vị tính (ô này nhập theo ${b.unit}).`;
   }
   return null;
