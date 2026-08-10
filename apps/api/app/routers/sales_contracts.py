@@ -120,7 +120,10 @@ def list_contracts(scope: Scope, company: str | None = Query(None),
         r["customer_id"] for r in rows if r.get("customer_id")}))
     for r in rows:
         r["customer_name"] = names.get(r.get("customer_id") or 0)
-    return {"contracts": rows, "total": res["total"], "page": page, "page_size": page_size}
+    # `totals` cộng TOÀN BỘ hợp đồng khớp lọc, không phải trang đang xem — bảng có phân trang nên
+    # cộng ở web sẽ ra tổng của 25 dòng và bị đọc nhầm là tổng của cả bộ lọc.
+    return {"contracts": rows, "total": res["total"], "totals": res["totals"],
+            "page": page, "page_size": page_size}
 
 
 def _consumption(scope_companies: list[str] | None, date_from: str, date_to: str,

@@ -6,6 +6,7 @@ import {
   type ContractFilters,
   type ContractMeta,
   type ContractRow,
+  type ContractTotals,
   deleteContract,
   fetchContractMeta,
   listContracts,
@@ -27,6 +28,13 @@ const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 }
 const money = (n: number | null) => (n == null ? "—" : t3(n / 1_000_000));
 /** Đã giao đủ sản lượng hợp đồng (chưa chốt hoàn thành) — cùng luật với bộ lọc "Đã giao đủ". */
 const fullyDelivered = (r: ContractRow) => !r.completed_at && r.remaining_qty <= 1e-9;
+/** Số hợp đồng CHƯA vào được tổng tiền (thiếu đơn giá / tỷ giá). Phải nói ra: tổng thiếu mà im
+ *  lặng thì bị đọc là tổng đủ. */
+const missingNote = (n: number) => (n === 0 ? null : (
+  <div style={{ fontSize: 11, fontWeight: 400, color: "var(--warn, #d48806)" }}>
+    chưa gồm {n.toLocaleString("vi-VN")} HĐ thiếu giá
+  </div>
+));
 /** Quá thời hạn hợp đồng mà vẫn còn hàng chưa giao (hợp đồng đã chốt hoàn thành thì thôi). */
 const overdue = (r: ContractRow) =>
   r.remaining_qty > 0 && !r.completed_at && !!r.expiry_date
@@ -47,6 +55,9 @@ export default function SalesContractPage() {
   // mỗi ngày). `total` là tổng số hợp đồng khớp bộ lọc, không phải số dòng đang hiện.
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  // Dòng Tổng cộng do SERVER cộng trên TOÀN BỘ hợp đồng khớp lọc — cộng `rows` ở đây chỉ ra tổng
+  // của 25 dòng đang hiện, người đọc sẽ tưởng là tổng của cả bộ lọc.
+  const [totals, setTotals] = useState<ContractTotals | null>(null);
   const [f, setF] = useState<ContractFilters>({ status: "all" });
   const [openId, setOpenId] = useState<number | null>(null);
   const [form, setForm] = useState<{ initial: Contract | null } | null>(null);
@@ -56,7 +67,7 @@ export default function SalesContractPage() {
   const load = useCallback(() => {
     setLoading(true);
     listContracts({ ...f, page, page_size: PAGE_SIZE })
-      .then((r) => { setRows(r.contracts); setTotal(r.total); })
+      .then((r) => { setRows(r.contracts); setTotal(r.total); setTotals(r.totals); })
       .catch((e) => setErr(e.message))
       .finally(() => setLoading(false));
   }, [f, page]);
@@ -252,6 +263,31 @@ export default function SalesContractPage() {
               </td></tr>
             )}
           </tbody>
+          {/* TỔNG CỘNG của CẢ BỘ LỌC (server cộng), không phải của trang đang xem — nói rõ trên
+              nhãn vì bảng có phân trang, người đọc rất dễ hiểu là tổng của 25 dòng đang thấy. */}
+          {totals && rows.length > 0 && (
+            <tfoot>
+              <tr style={{ fontWeight: 600 }}>
+                <td colSpan={6}>
+                  Tổng cộng
+                  <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: 12 }}>
+                    {" "}· {total.toLocaleString("vi-VN")} hợp đồng khớp bộ lọc
+                    {total > PAGE_SIZE && " (không chỉ trang này)"}
+                  </span>
+                </td>
+                <td className="r">{t3(totals.qty)}</td>
+                <td className="r">{money(totals.revenue)}{missingNote(totals.revenue_missing)}</td>
+                <td className="r">
+                  {money(totals.delivered_revenue)}
+                  {missingNote(totals.delivered_revenue_missing)}
+                </td>
+                <td className="r">{t3(totals.delivered_qty)}</td>
+                <td className="r">{t3(totals.remaining_qty)}</td>
+                <td className="r">{totals.children.toLocaleString("vi-VN")}</td>
+                <td colSpan={2} />
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 

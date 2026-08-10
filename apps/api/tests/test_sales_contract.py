@@ -1174,3 +1174,59 @@ def test_delivered_amount_is_counted_from_the_deliveries_not_the_contract(env, c
     rows = {c["code"]: c for c in
             client.get(f"/api/sales-contracts?company={UNIT}", headers=h).json()["contracts"]}
     assert rows["TT-M"]["delivered_revenue"] is None
+
+
+def test_contract_totals_match_the_rows(env, cus) -> None:
+    """Dòng TỔNG CỘNG cộng ở SQL, số từng dòng tính ở Python — hai đường phải ra CÙNG một số.
+
+    Tổng buộc phải tính ở SQL (bảng phân trang 25 dòng, không thể gom ở web), nên tồn tại hai bản
+    của cùng công thức thành tiền. Test này là thứ giữ chúng không trôi khỏi nhau; đổi một bên mà
+    quên bên kia là tổng lệch với chính các dòng người dùng đang nhìn.
+    """
+    h = env
+    # 1 HĐ giao 1 lần ĐÃ giao · 1 HĐ nhiều lần (1 đợt đã giao, 1 đợt chưa) · 1 HĐ bán USD.
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "TONG-S", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY, "delivered_at": TODAY, "channel": "domestic",
+        "lines": [_line(qty=10.0, price=50.0)]}, headers=h)
+    m = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "TONG-M", "delivery_type": "multi", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY, "lines": [_line(qty=100.0, price=40.0)]},
+        headers=h).json()["contract"]
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": m["id"], "code": "Đợt 01", "delivered_at": TODAY,
+        "channel": "domestic", "lines": [_line(qty=60.0, price=42.0)]}, headers=h)
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": m["id"], "code": "Đợt 02",
+        "channel": "domestic", "lines": [_line(qty=30.0, price=41.0)]}, headers=h)
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "TONG-USD", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY, "delivered_at": TODAY, "channel": "export",
+        "lines": [_line(qty=5.0, ccy="USD", price=1800.0, fx=26000.0)]}, headers=h)
+
+    r = client.get(f"/api/sales-contracts?company={UNIT}&page_size=200", headers=h).json()
+    rows, tot = r["contracts"], r["totals"]
+    assert tot["revenue"] == pytest.approx(sum(c["revenue"] for c in rows))
+    assert tot["delivered_revenue"] == pytest.approx(sum(c["delivered_revenue"] for c in rows))
+    assert tot["qty"] == pytest.approx(sum(c["qty"] for c in rows))
+    assert tot["delivered_qty"] == pytest.approx(sum(c["delivered_qty"] for c in rows))
+    assert tot["remaining_qty"] == pytest.approx(sum(c["remaining_qty"] for c in rows))
+    assert tot["children"] == sum(c["children"] for c in rows)
+    assert tot["revenue_missing"] == 0 and tot["delivered_revenue_missing"] == 0
+
+    # Thiếu tỷ giá → hợp đồng đó KHÔNG quy đổi được: tổng vẫn cộng phần còn lại nhưng phải ĐẾM ra
+    # số hợp đồng bị bỏ, nếu không người đọc tưởng tổng đã đủ.
+    usd = next(c for c in rows if c["code"] == "TONG-USD")
+    with session_scope() as db:
+        db.execute(text("UPDATE sales_contract SET lines = jsonb_set(lines, '{0,fx}', 'null') "
+                        "WHERE id = :i"), {"i": usd["id"]})
+    after = client.get(f"/api/sales-contracts?company={UNIT}&page_size=200", headers=h).json()
+    t2 = after["totals"]
+    assert t2["revenue_missing"] == 1 and t2["delivered_revenue_missing"] == 1
+    assert t2["revenue"] == pytest.approx(tot["revenue"] - usd["revenue"])
+    assert t2["delivered_revenue"] == pytest.approx(tot["delivered_revenue"] - usd["revenue"])
+
+    # Tổng đi theo BỘ LỌC, không theo trang: lọc 1 hợp đồng thì tổng chỉ còn hợp đồng đó.
+    one = client.get(f"/api/sales-contracts?company={UNIT}&q=TONG-M", headers=h).json()
+    assert one["totals"]["qty"] == pytest.approx(100.0)
+    assert one["totals"]["children"] == 2

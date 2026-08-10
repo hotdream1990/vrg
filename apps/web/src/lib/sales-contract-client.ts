@@ -136,8 +136,24 @@ export type ContractFilters = {
   page_size?: number;
 };
 
+/** Dòng TỔNG CỘNG — cộng TOÀN BỘ hợp đồng khớp bộ lọc, KHÔNG phải trang đang xem.
+ *  `*_missing` = số hợp đồng không quy đổi được tiền (thiếu đơn giá / tỷ giá) nên chưa vào tổng. */
+export type ContractTotals = {
+  qty: number;
+  delivered_qty: number;
+  pending_qty: number;
+  remaining_qty: number;
+  over_qty: number;
+  children: number;
+  revenue: number;
+  revenue_missing: number;
+  delivered_revenue: number;
+  delivered_revenue_missing: number;
+};
+
 export type ContractPage = {
-  contracts: ContractRow[]; total: number; page: number; page_size: number;
+  contracts: ContractRow[]; total: number; totals: ContractTotals;
+  page: number; page_size: number;
 };
 
 /** Tổng hợp tiêu thụ theo đơn vị trong kỳ — TÍNH TỪ các lần giao, không còn ô nhập tay. */

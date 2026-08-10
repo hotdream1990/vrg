@@ -122,6 +122,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;padding:10px 8px;color:var(--muted);font-weight:500;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
 td{padding:10px 8px;border-bottom:1px solid var(--line)}
 tr:hover td{background:#f3f7f4}
+/* Dòng TỔNG CỘNG: nền đậm hơn + viền trên dày để tách hẳn khỏi các dòng dữ liệu.
+   KHÔNG dùng `position:sticky` — thẻ bọc bảng đã có `overflow:auto` nên nó thành khung cuộn của
+   sticky, mà khung này không giới hạn chiều cao → dòng vẫn nằm im dưới đáy bảng, chỉ tốn CSS.
+   `tr:hover` cũng không được đổi màu dòng này: nó không phải một bản ghi để trỏ vào. */
+tfoot td{background:var(--panel-2);border-top:2px solid var(--line);border-bottom:none}
+tfoot tr:hover td{background:var(--panel-2)}
 /* Bảng nhập theo dòng của biểu đơn vị (tiêu thụ · tồn kho).
    `fixed` để cột đúng bề rộng đã khai báo ở <th> — để `auto` thì trình duyệt chia theo nội dung,
    cột số bị bóp còn nửa bề rộng trong khi cột chọn phình ra. */

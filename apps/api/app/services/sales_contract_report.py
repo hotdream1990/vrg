@@ -26,6 +26,18 @@ _SELECT = f"SELECT {', '.join(_COLS)} FROM sales_contract"
 _QTY_SQL = ("COALESCE((SELECT sum(COALESCE(NULLIF(e->>'qty', '')::numeric, 0)) "
             "FROM jsonb_array_elements(%s) e), 0)")
 
+#: Thành tiền (ĐỒNG) của một cột `lines` jsonb — phải cho ra đúng số như `calc.total_revenue_vnd`:
+#: VND tính theo TRIỆU đồng/tấn, ngoại tệ nhân tỷ giá, và **NULL khi có bất kỳ dòng nào thiếu đơn
+#: giá/tỷ giá** (thiếu là KHÔNG BIẾT, không được cộng phần còn lại rồi coi như đủ).
+#: Chỉ dùng cho DÒNG TỔNG CỘNG — tổng phải tính trên toàn bộ hợp đồng khớp lọc, không thể gom ở
+#: Python vì trang chỉ tải 25 dòng. `test_contract_totals_match_the_rows` khoá 2 công thức bằng nhau.
+_REV_SQL = ("(SELECT CASE WHEN count(*) FILTER (WHERE v IS NULL) > 0 THEN NULL "
+            "            ELSE COALESCE(sum(v), 0) END "
+            "   FROM (SELECT NULLIF(e->>'qty', '')::numeric * NULLIF(e->>'price', '')::numeric "
+            "                * CASE WHEN COALESCE(NULLIF(e->>'ccy', ''), 'VND') = 'VND' "
+            "                       THEN 1000000 ELSE NULLIF(e->>'fx', '')::numeric END AS v "
+            "           FROM jsonb_array_elements(%s) e) t)")
+
 
 def _fetch(companies: list[str] | None, extra: list[str] | None = None,
            params: dict | None = None) -> list[dict[str, Any]]:
@@ -361,7 +373,8 @@ def parents_with_progress(companies: list[str] | None = None, *,
         keep += " AND (" + " OR ".join(cond) + ")"
     sql = f"""
         WITH parent AS (
-            SELECT {', '.join(_COLS)}, {_QTY_SQL % 'lines'} AS pqty
+            SELECT {', '.join(_COLS)}, {_QTY_SQL % 'lines'} AS pqty,
+                   {_REV_SQL % 'lines'} AS prev
             FROM sales_contract WHERE {' AND '.join(where)}
         ), kid AS (
             SELECT k.parent_id, count(*) AS n,
@@ -369,12 +382,23 @@ def parents_with_progress(companies: list[str] | None = None, *,
                             FILTER (WHERE k.delivered_at IS NOT NULL), 0) AS done,
                    COALESCE(sum({_QTY_SQL % 'k.lines'})
                             FILTER (WHERE k.delivered_at IS NULL), 0) AS pending,
+                   COALESCE(sum({_REV_SQL % 'k.lines'})
+                            FILTER (WHERE k.delivered_at IS NOT NULL), 0) AS done_rev,
+                   -- Đếm riêng số đợt KHÔNG quy đổi được: `sum()` bỏ qua NULL nên không đếm thì
+                   -- một đợt thiếu tỷ giá sẽ lặng lẽ biến mất khỏi tổng tiền đã giao.
+                   count(*) FILTER (WHERE k.delivered_at IS NOT NULL
+                                      AND {_REV_SQL % 'k.lines'} IS NULL) AS done_rev_missing,
                    COALESCE(array_agg(DISTINCT k.channel)
                             FILTER (WHERE k.channel IS NOT NULL), '{{}}') AS kid_channels
             FROM sales_contract k
             WHERE k.parent_id IN (SELECT id FROM parent) GROUP BY 1
         ), progress AS (
             SELECT p.*, COALESCE(kid.n, 0) AS children,
+                   -- Tiền của hàng đã giao — cùng luật với `delivered_revenue()` ở Python.
+                   CASE WHEN p.delivery_type = 'multi'
+                        THEN CASE WHEN COALESCE(kid.done_rev_missing, 0) > 0 THEN NULL
+                                  ELSE COALESCE(kid.done_rev, 0) END
+                        WHEN p.delivered_at IS NOT NULL THEN p.prev ELSE 0 END AS delivered_rev,
                    -- Hình thức của hợp đồng = của chính nó (giao 1 lần) + của mọi đợt giao.
                    COALESCE(kid.kid_channels, '{{}}')
                      || CASE WHEN p.channel IS NULL THEN '{{}}'::text[]
@@ -391,17 +415,37 @@ def parents_with_progress(companies: list[str] | None = None, *,
                    GREATEST(g.delivered_qty - g.pqty, 0) AS over_qty
             FROM progress g
         )
-        SELECT *, count(*) OVER () AS total FROM scored WHERE {keep}
+    """
+    # Hai câu dùng CHUNG phần lọc ở trên: một câu lấy đúng trang đang xem, một câu cộng TOÀN BỘ
+    # hợp đồng khớp lọc (dòng "Tổng cộng"). Không cộng ở Python được — trang chỉ có 25 dòng, mà
+    # cộng cả nghìn dòng ở máy người dùng thì phải tải hết dữ liệu về, đúng thứ phân trang tránh.
+    page_sql = f"""{sql}
+        SELECT * FROM scored WHERE {keep}
         ORDER BY sign_date DESC NULLS LAST, company DESC, id DESC
         LIMIT :lim OFFSET :off
     """
+    sum_sql = f"""{sql}
+        SELECT count(*) AS n,
+               COALESCE(sum(pqty), 0) AS qty,
+               COALESCE(sum(delivered_qty), 0) AS delivered_qty,
+               COALESCE(sum(pending_qty), 0) AS pending_qty,
+               COALESCE(sum(remaining_qty), 0) AS remaining_qty,
+               COALESCE(sum(over_qty), 0) AS over_qty,
+               COALESCE(sum(children), 0) AS children,
+               COALESCE(sum(prev), 0) AS revenue,
+               count(*) FILTER (WHERE prev IS NULL) AS revenue_missing,
+               COALESCE(sum(delivered_rev), 0) AS delivered_revenue,
+               count(*) FILTER (WHERE delivered_rev IS NULL) AS delivered_revenue_missing
+        FROM scored WHERE {keep}
+    """
     ensure_schema()
     with session_scope() as db:
-        rows = db.execute(text(sql), params).mappings().all()
+        rows = db.execute(text(page_sql), params).mappings().all()
+        agg = db.execute(text(sum_sql), params).mappings().first()
     out = []
     for r in rows:
         item = _row(r)
-        for k in ("pqty", "total"):
+        for k in ("pqty", "prev", "delivered_rev"):
             item.pop(k, None)
         item["children"] = int(item["children"])
         item["channels"] = sorted(set(item.get("channels") or []))
@@ -411,4 +455,20 @@ def parents_with_progress(companies: list[str] | None = None, *,
             item[k] = float(item[k] or 0)
         out.append(item)
     _attach_delivered_revenue(out)
-    return {"rows": out, "total": int(rows[0]["total"]) if rows else 0}
+    return {"rows": out, "total": int(agg["n"]), "totals": _totals(agg)}
+
+
+def _totals(agg) -> dict[str, Any]:
+    """Dòng TỔNG CỘNG của toàn bộ hợp đồng khớp lọc (không phải của trang đang xem).
+
+    Tiền: cộng phần quy đổi được và báo riêng `*_missing` = số hợp đồng KHÔNG quy đổi được (thiếu
+    đơn giá / thiếu tỷ giá). Bỏ cả tổng thành "—" chỉ vì vài hợp đồng thiếu tỷ giá là làm mất một
+    con số hữu ích; im lặng cộng thiếu lại càng tệ — nên vừa cộng vừa nói rõ còn thiếu bao nhiêu.
+    """
+    out = {k: float(agg[k] or 0) for k in
+           ("qty", "delivered_qty", "pending_qty", "remaining_qty", "over_qty",
+            "revenue", "delivered_revenue")}
+    out["children"] = int(agg["children"] or 0)
+    out["revenue_missing"] = int(agg["revenue_missing"] or 0)
+    out["delivered_revenue_missing"] = int(agg["delivered_revenue_missing"] or 0)
+    return out
