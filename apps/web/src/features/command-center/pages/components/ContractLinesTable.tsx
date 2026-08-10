@@ -1,5 +1,9 @@
-import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { DeleteOutlined, PlusOutlined, WarningOutlined } from "@ant-design/icons";
+import { Tooltip } from "antd";
 
+import {
+  FX_USD_VND, TONNES_CONTRACT, boundWarning, fxWarning, priceBound,
+} from "../../../../lib/entry-bounds";
 import type { ContractLine, ContractMeta } from "../../../../lib/sales-contract-client";
 import NumInput from "../../sections/NumInput";
 
@@ -24,6 +28,24 @@ type Props = {
   readOnly?: boolean;
   onChange: (lines: ContractLine[]) => void;
 };
+
+/** Cảnh báo NHẦM ĐƠN VỊ TÍNH của một dòng — chìa khoá là ô đơn giá.
+ *
+ *  Vì sao phải có ở đây: rà production ngày 10/08/2026 thấy 47 dòng nhập đơn giá theo ĐỒNG/tấn
+ *  (61.600.000) hoặc NGHÌN ĐỒNG/tấn (49.850) trong khi ô tính bằng TRIỆU ĐỒNG/tấn → doanh thu
+ *  tiêu thụ bị thổi tới 8.748.352 tỷ đồng (số đúng ~1.065 tỷ). Bộ biên `entry-bounds` được dựng
+ *  đúng cho lỗi này từ 07/2026 nhưng chỉ gắn ở biểu nhập ngày; khi tiêu thụ chuyển sang nhập ở
+ *  hợp đồng (30/07/2026) thì màn mới KHÔNG có cảnh báo nào — lỗi cũ lặp lại y nguyên.
+ *  CHỈ CẢNH BÁO, không chặn lưu: giá thị trường có thể vượt biên thật, chặn cứng là chặn nghiệp vụ.
+ */
+function lineWarnings(ln: ContractLine, needDry: boolean) {
+  return {
+    qty: boundWarning(ln.qty, TONNES_CONTRACT),
+    qty_dry: needDry && !ln.qty_dry ? "Bắt buộc nhập quy khô mới lưu được." : null,
+    price: boundWarning(ln.price, priceBound(ln.ccy)),
+    fx: fxWarning(ln) ?? boundWarning(ln.fx, FX_USD_VND),
+  };
+}
 
 /** Một ô có nhãn trong dòng chi tiết. `w` = bề rộng mong muốn, ô vẫn co lại được khi khung hẹp. */
 function Field({ label, w, children }: { label: string; w: number; children: React.ReactNode }) {
@@ -50,12 +72,24 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
   const set = (i: number, patch: Partial<ContractLine>) =>
     onChange(lines.map((ln, k) => (k === i ? { ...ln, ...patch } : ln)));
 
+  /** Ô số + viền cảnh báo. `warn` = lời nhắc (null = bình thường) → hiện tooltip nói rõ đơn vị tính. */
   const num = (value: number | null, onValue: (v: number | null) => void,
-               warn = false, placeholder = "") => (
-    <NumInput value={value} onChange={onValue} readOnly={readOnly} placeholder={placeholder}
-              className={`blt-date-input r${warn ? " num-warn" : ""}`} />
-  );
+               warn: string | null = null, placeholder = "") => {
+    const el = (
+      <NumInput value={value} onChange={onValue} readOnly={readOnly} placeholder={placeholder}
+                className={`blt-date-input r${warn ? " num-warn" : ""}`} />
+    );
+    return warn ? <Tooltip title={warn}>{el}</Tooltip> : el;
+  };
   const amount = (i: number) => lineAmount(lines[i]);
+  // Gom cảnh báo của MỌI dòng: ô lệch rất dễ nằm ngoài tầm nhìn khi khối tự xuống hàng, chỉ tô
+  // viền thôi thì người nhập vẫn bấm Lưu mà không thấy gì (bài học của banner biểu nhập ngày).
+  const alerts = lines.flatMap((ln, i) => {
+    const w = lineWarnings(ln, requireDry && dry.has(ln.grade));
+    return ([["Sản lượng", w.qty], ["Đơn giá", w.price], ["Tỷ giá", w.fx]] as const)
+      .filter(([, m]) => m)
+      .map(([field, m]) => `Dòng ${i + 1} · ${field}: ${m}`);
+  });
 
   return (
     <div>
@@ -64,6 +98,7 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
           const hasDry = dry.has(ln.grade);
           const needDry = requireDry && hasDry;
           const needFx = ln.ccy !== "VND";
+          const w = lineWarnings(ln, needDry);
           return (
             <div className="ct-line" key={i}>
               <Field label="Chủng loại" w={230}>
@@ -81,16 +116,16 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
               {/* Latex + 2 loại mủ nguyên liệu bán theo MỦ NƯỚC — ghi thẳng vào nhãn, vì tiền
                   tính trên số này còn sản lượng tiêu thụ trên báo cáo lại lấy ô Quy khô. */}
               <Field label={hasDry ? "SL nước (tấn)" : "SL (tấn)"} w={110}>
-                {num(ln.qty, (v) => set(i, { qty: v }))}
+                {num(ln.qty, (v) => set(i, { qty: v }), w.qty)}
               </Field>
               {hasDry && (
                 <Field label="Quy khô (tấn)" w={110}>
-                  {num(ln.qty_dry, (v) => set(i, { qty_dry: v }), needDry && !ln.qty_dry,
+                  {num(ln.qty_dry, (v) => set(i, { qty_dry: v }), w.qty_dry,
                        needDry ? "bắt buộc" : "")}
                 </Field>
               )}
               <Field label={`Đơn giá (${ln.ccy === "VND" ? "tr.đ/tấn" : `${ln.ccy}/tấn`})`} w={130}>
-                {num(ln.price, (v) => set(i, { price: v }))}
+                {num(ln.price, (v) => set(i, { price: v }), w.price)}
               </Field>
               <Field label="Loại tiền" w={92}>
                 <select className="blt-date-input" value={ln.ccy} disabled={readOnly}
@@ -100,7 +135,7 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
               </Field>
               {needFx && (
                 <Field label="Tỷ giá → VNĐ" w={120}>
-                  {num(ln.fx, (v) => set(i, { fx: v }), !ln.fx, "bắt buộc")}
+                  {num(ln.fx, (v) => set(i, { fx: v }), w.fx, "bắt buộc")}
                 </Field>
               )}
               {/* Thành tiền = SL × đơn giá, hiện theo ĐÚNG loại tiền của dòng. Ô CHỈ ĐỌC — sửa
@@ -126,6 +161,14 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
           <button className="btn" onClick={() => onChange([...lines, { ...EMPTY_LINE }])}>
             <PlusOutlined /> Thêm dòng
           </button>
+        </div>
+      )}
+      {alerts.length > 0 && (
+        <div className="blt-error" style={{ marginTop: 8, fontSize: 12.5 }}>
+          <b><WarningOutlined /> {alerts.length} ô cần kiểm tra lại</b>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 20 }}>
+            {alerts.map((a) => <li key={a}>{a}</li>)}
+          </ul>
         </div>
       )}
       <div className="form-note" style={{ fontSize: 11.5, marginTop: 6 }}>

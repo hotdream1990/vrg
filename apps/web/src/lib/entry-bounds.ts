@@ -18,8 +18,13 @@ export type Bound = { lo?: number; hi?: number; unit: string };
 // ── Sản lượng (tấn) ──────────────────────────────────────────────────────────────────────
 /** Số phát sinh trong MỘT NGÀY của MỘT đơn vị. Thực tế prod: 0–227 tấn (một ngoại lệ 5.719). */
 export const TONNES_DAILY: Bound = { lo: 0, hi: 1_000, unit: "tấn" };
-/** Tồn kho là số TẠI THỜI ĐIỂM (tích luỹ) nên cao hơn sản lượng ngày. Thực tế prod: 0–1.020 tấn. */
-export const TONNES_STOCK: Bound = { lo: 0, hi: 5_000, unit: "tấn" };
+/** Tồn kho là số TẠI THỜI ĐIỂM (tích luỹ) nên cao hơn sản lượng ngày.
+ *  Đo lại 10/08/2026: bản ghi ĐÚNG lớn nhất là 9.340 tấn (C.R.C.K.2) — mức 5.000 cũ kêu oan đơn vị
+ *  này gần như MỖI NGÀY, và cảnh báo kêu mỗi ngày thì lần sai thật (7.701.258 tấn) cũng bị bỏ qua. */
+export const TONNES_STOCK: Bound = { lo: 0, hi: 20_000, unit: "tấn" };
+/** Sản lượng một DÒNG hợp đồng/đợt giao — là cam kết cả lô nên lớn hơn số phát sinh một ngày.
+ *  Thực tế prod: 0,04–3.024 tấn (p99 = 630). */
+export const TONNES_CONTRACT: Bound = { lo: 0, hi: 10_000, unit: "tấn" };
 /** Chỉ tiêu CẢ NĂM — to thật, không được áp ngưỡng ngày. Thực tế prod: 10–14.500 tấn. */
 export const TONNES_YEAR: Bound = { lo: 0, hi: 50_000, unit: "tấn" };
 /** Sản lượng chuyển từ năm trước sang. Thực tế prod: 0–1.814 tấn. */
