@@ -23,12 +23,35 @@ export type StatsFilters = {
   page?: number;
 };
 
+/** Màn TỒN KHO đi theo trục "ngày chốt" (số thời điểm) chứ không theo khoảng kỳ như các màn khác. */
+export type StockFilters = {
+  asOf: string;
+  /** Số ngày được phép lùi khi đơn vị chưa nhập đúng ngày chốt (0 = chỉ lấy số nhập đúng ngày). */
+  maxAgeDays: number;
+  companies: string[]; regions: string[]; grades: string[];
+  groupBy: string;
+};
+
 export type StatsRow = { key: string; label: string; region: string | null; [k: string]: unknown };
 export type StatsReport = {
-  date_from: string; date_to: string; group_by: string; detail?: boolean;
+  date_from?: string; date_to?: string; group_by: string; detail?: boolean;
   rows: StatsRow[]; totals: StatsRow; warnings: string[];
   /** Chỉ có ở chế độ chi tiết: tổng số dòng khớp lọc (rows chỉ là trang đang xem). */
   total?: number;
+  /** Chỉ có ở màn tồn kho: ngày chốt + độ phủ số liệu. */
+  as_of?: string;
+  max_age_days?: number;
+  coverage?: StockCoverage;
+};
+
+/** Độ phủ ảnh chụp tồn kho: bao nhiêu đơn vị có số, đơn vị nào số cũ, đơn vị nào chưa nhập. */
+export type StockCoverage = {
+  units_expected: number;
+  units_counted: number;
+  stale: { company: string; as_of: string; age_days: number }[];
+  /** Đã nộp nhưng khai "không phát sinh tồn kho" → không có số để cộng (khác với chưa nhập). */
+  no_stock: { company: string; as_of: string }[];
+  missing: { company: string; has_factory: boolean }[];
 };
 
 /** Số dòng mỗi trang ở chế độ chi tiết — khớp mặc định của server. */
@@ -71,8 +94,20 @@ export const fetchPurchaseStats = (f: StatsFilters) =>
 export const fetchConsumptionStats = (f: StatsFilters) =>
   apiFetch<StatsReport>(`${BASE}/consumption?${statsQuery(f)}`);
 
-export const fetchStockStats = (f: StatsFilters) =>
-  apiFetch<StatsReport>(`${BASE}/stock?${statsQuery(f)}`);
+/** Bộ lọc tồn kho → query string (trục ngày chốt, không có date_from/date_to). */
+export function stockQuery(f: StockFilters): string {
+  const p = new URLSearchParams({
+    as_of: f.asOf, max_age_days: String(f.maxAgeDays), group_by: f.groupBy,
+  });
+  const put = (k: string, v: string[]) => { if (v.length) p.set(k, v.join(",")); };
+  put("companies", f.companies);
+  put("regions", f.regions);
+  put("grades", f.grades);
+  return p.toString();
+}
+
+export const fetchStockStats = (f: StockFilters) =>
+  apiFetch<StatsReport>(`${BASE}/stock?${stockQuery(f)}`);
 
 export const fetchSubmissionStatus = (kind: string, f: StatsFilters) => {
   const p = new URLSearchParams({ kind, date_from: f.from, date_to: f.to });
@@ -82,16 +117,21 @@ export const fetchSubmissionStatus = (kind: string, f: StatsFilters) => {
 };
 
 /** Tải Excel của bảng đang xem (đúng bộ lọc hiện tại) — fetch kèm token rồi lưu file. */
-export async function downloadStatsXlsx(kind: "purchase" | "consumption" | "stock",
-                                        f: StatsFilters): Promise<void> {
-  const res = await fetch(`${API}${BASE}/${kind}.xlsx?${statsQuery(f)}`, { headers: authHeaders() });
+async function saveXlsx(url: string, filename: string): Promise<void> {
+  const res = await fetch(`${API}${BASE}/${url}`, { headers: authHeaders() });
   if (!res.ok) throw new Error("Không tải được file Excel.");
   const href = URL.createObjectURL(await res.blob());
   const a = document.createElement("a");
   a.href = href;
-  a.download = `thong-ke-${kind}-${f.from}-den-${f.to}.xlsx`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(href), 60_000);
 }
+
+export const downloadStatsXlsx = (kind: "purchase" | "consumption", f: StatsFilters) =>
+  saveXlsx(`${kind}.xlsx?${statsQuery(f)}`, `thong-ke-${kind}-${f.from}-den-${f.to}.xlsx`);
+
+export const downloadStockXlsx = (f: StockFilters) =>
+  saveXlsx(`stock.xlsx?${stockQuery(f)}`, `thong-ke-ton-kho-ngay-${f.asOf}.xlsx`);

@@ -56,6 +56,7 @@ CONSUMPTION_DETAIL_COLS: list[Col] = [
 
 STOCK_COLS: list[Col] = [
     ("as_of", "Ngày lấy số", ""),
+    ("age_days", "Số cũ so với ngày chốt", "ngày"),
     ("not_warehoused", "Tồn thành phẩm chưa nhập kho", "tấn"),
     ("warehoused", "Tồn thành phẩm đã nhập kho", "tấn"),
     ("total", "Tổng tồn kho thành phẩm", "tấn"),
@@ -76,7 +77,8 @@ def _head(ws, row: int, col: int, value: Any, *, bold: bool = True, size: int = 
 
 
 def build_xlsx(*, title: str, period: str, note: str, group_by: str, columns: list[Col],
-               rows: list[dict], totals: dict | None, label_key: str = "label") -> bytes:
+               rows: list[dict], totals: dict | None, label_key: str = "label",
+               period_label: str = "Kỳ báo cáo") -> bytes:
     """Dựng .xlsx: tiêu đề + kỳ + ghi chú bộ lọc, bảng dữ liệu, dòng Tổng cộng (nếu có)."""
     wb = Workbook()
     ws = wb.active
@@ -89,7 +91,7 @@ def build_xlsx(*, title: str, period: str, note: str, group_by: str, columns: li
     cols = lead + columns
 
     ws.cell(row=1, column=1, value=title).font = Font(bold=True, size=14)
-    ws.cell(row=2, column=1, value=f"Kỳ báo cáo: {period}").font = Font(bold=True)
+    ws.cell(row=2, column=1, value=f"{period_label}: {period}").font = Font(bold=True)
     ws.cell(row=3, column=1, value=note).font = Font(italic=True, size=9, color="666666")
     for r in (1, 2, 3):
         ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=max(2, min(len(cols), 8)))

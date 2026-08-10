@@ -1,28 +1,35 @@
-"""Thống kê Tồn kho (số THỜI ĐIỂM) + Tình trạng nộp báo cáo của các đơn vị.
+"""Thống kê Tồn kho — ảnh chụp tại một NGÀY CHỐT (số THỜI ĐIỂM, không cộng dồn).
 
-Tồn kho KHÔNG cộng dồn theo ngày: mỗi đơn vị lấy số của ngày CUỐI CÙNG có nhập tồn trong kỳ,
-và **luôn trả kèm ngày đã lấy** để người xem biết số thuộc ngày nào (không mượn số ngày khác).
+Mỗi đơn vị lấy bản ghi tồn MỚI NHẤT có ngày ≤ ngày chốt và cũ không quá `max_age_days` ngày;
+**luôn trả kèm ngày đã lấy + số ngày đã cũ** để người xem biết số thuộc ngày nào (không nơi nào
+được hiểu số cũ là số của đúng ngày chốt). Đơn vị không có số trong cửa sổ thì báo thiếu, KHÔNG
+lấy số ngày khác đắp vào.
 """
 
 from __future__ import annotations
 
-from datetime import date, timedelta
 from typing import Any
 
-from app.services import member_unit_repo, unit_daily_fields as fields, unit_daily_repo, unit_report_rows
+from app.services import member_unit_repo, unit_report_rows
 from app.services.unit_report_query import dmy, filter_scope, sort_groups, split_csv
 
 _BLOCK_KEY = {"stock_not_warehoused": "not_warehoused", "stock_warehoused": "warehoused"}
 
+#: Số cũ từ ngần này ngày trở lên thì nhắc người xem (số vẫn tính vào tổng, nhưng phải biết là cũ).
+STALE_AFTER_DAYS = 3
+#: Số tên đơn vị liệt kê thẳng trong câu cảnh báo (dài hơn thì gộp phần đuôi lại cho đọc được).
+_MAX_NAMES = 12
+
 
 def _new_group(key: str, region: str | None) -> dict[str, Any]:
     return {"key": key, "label": key, "region": region, "not_warehoused": 0.0,
-            "warehoused": 0.0, "material": 0.0, "by_grade": {}, "_dates": set()}
+            "warehoused": 0.0, "material": 0.0, "by_grade": {}, "_dates": set(), "_ages": set()}
 
 
 def _feed(g: dict, r: dict, with_grade: bool) -> None:
     qty = r["qty"] or 0.0
     g["_dates"].add(r["as_of"])
+    g["_ages"].add(r["age_days"])
     if r["block"] == "stock_material":
         g["material"] += qty
         return
@@ -36,6 +43,9 @@ def _close(g: dict) -> dict[str, Any]:
     g["dates"] = dates                 # ĐÚNG các ngày đã lấy số (để đối chiếu, không suy diễn)
     # Nhóm gồm nhiều ngày (vd theo khu vực) → KHÔNG hiện 1 ngày duy nhất, dễ hiểu sai là số cùng ngày.
     g["as_of"] = dates[-1] if len(dates) == 1 else None
+    # Số ngày cũ NHẤT trong nhóm: luôn đúng dù nhóm gồm mấy ngày, và là con số người xem cần
+    # (nhóm có số cũ 8 ngày thì cả nhóm đáng ngờ, không phải chỉ dòng đó).
+    g["age_days"] = max(g.pop("_ages"), default=None)
     g["total"] = (g["not_warehoused"] + g["warehoused"]) or None
     for k in ("not_warehoused", "warehoused", "material"):
         g[k] = g[k] or None
@@ -43,17 +53,92 @@ def _close(g: dict) -> dict[str, Any]:
     return g
 
 
-def stock_report(date_from: str, date_to: str, *, companies: str | None = None,
+def _latest_per_company(rows: list[dict]) -> list[dict]:
+    """Ảnh chụp tại ngày chốt: giữ các dòng của ngày MỚI NHẤT mà từng đơn vị có số."""
+    last: dict[str, str] = {}
+    for r in rows:
+        if r["as_of"] > last.get(r["company"], ""):
+            last[r["company"]] = r["as_of"]
+    return [r for r in rows if r["as_of"] == last[r["company"]]]
+
+
+def _coverage(snap: list[dict], no_stock: dict[str, str], comps: list[str] | None,
+              regs: list[str] | None) -> dict[str, Any]:
+    """Độ phủ của ảnh chụp: bao nhiêu đơn vị có số, đơn vị nào số cũ, đơn vị nào chưa có số.
+
+    Thiếu đơn vị là chuyện PHẢI hiện ra: tổng tồn kho toàn Tập đoàn thiếu vài đơn vị mà không báo
+    thì người xem tưởng đó là số đầy đủ. Đơn vị khai "không phát sinh tồn kho" tách thành nhóm
+    RIÊNG — đã nộp nên không phải "chưa nhập", nhưng cũng không có số nào để cộng vào tổng.
+    """
+    units = member_unit_repo.list_units(include_inactive=False)
+    if comps:
+        keep = set(comps)
+        units = [u for u in units if u["name"] in keep]
+    if regs:
+        keep = set(regs)
+        units = [u for u in units if (u.get("region") or "") in keep]
+
+    got: dict[str, dict[str, Any]] = {}
+    for r in snap:
+        got.setdefault(r["company"], {"as_of": r["as_of"], "age_days": r["age_days"]})
+    rest = [u for u in units if u["name"] not in got]
+    empty = [{"company": u["name"], "as_of": no_stock[u["name"]]}
+             for u in rest if u["name"] in no_stock]
+    missing = [{"company": u["name"], "has_factory": bool(u.get("has_factory", True))}
+               for u in rest if u["name"] not in no_stock]
+    stale = sorted(({"company": c, **v} for c, v in got.items()
+                    if v["age_days"] >= STALE_AFTER_DAYS),
+                   key=lambda x: (-x["age_days"], x["company"]))
+    return {"units_expected": len(units), "units_counted": len(got),
+            "stale": stale, "no_stock": empty, "missing": missing}
+
+
+def _names(items: list[dict], key: str = "company") -> str:
+    head = ", ".join(str(i[key]) for i in items[:_MAX_NAMES])
+    more = len(items) - _MAX_NAMES
+    return f"{head} …và {more} đơn vị khác" if more > 0 else head
+
+
+def _warnings(cov: dict, as_of: str, max_age_days: int, group_by: str) -> list[str]:
+    w: list[str] = []
+    if cov["missing"]:
+        window = (f"ngày {dmy(as_of)}" if max_age_days <= 0
+                  else f"{max_age_days} ngày tính đến {dmy(as_of)}")
+        w.append(f"{len(cov['missing'])} đơn vị chưa có số tồn kho trong {window} → KHÔNG tính vào "
+                 f"tổng: {_names(cov['missing'])}.")
+    if cov["no_stock"]:
+        w.append(f"{len(cov['no_stock'])} đơn vị khai \"không phát sinh tồn kho để khai\" → đã nộp "
+                 f"nhưng KHÔNG có số để cộng vào tổng: {_names(cov['no_stock'])}.")
+    if cov["stale"]:
+        detail = ", ".join(f"{s['company']} ({dmy(s['as_of'])}, cũ {s['age_days']} ngày)"
+                           for s in cov["stale"][:_MAX_NAMES])
+        more = len(cov["stale"]) - _MAX_NAMES
+        w.append(f"{len(cov['stale'])} đơn vị đang lấy số cũ từ {STALE_AFTER_DAYS} ngày trở lên: "
+                 f"{detail}" + (f" …và {more} đơn vị khác." if more > 0 else "."))
+    if group_by == "day":
+        w.append(f"Mỗi dòng là tồn của riêng ngày đó (không cộng dồn); dòng Tổng cộng là ảnh chụp "
+                 f"tại ngày chốt {dmy(as_of)} — mỗi đơn vị lấy số mới nhất của mình.")
+    return w
+
+
+def stock_report(as_of: str, max_age_days: int = 7, *, companies: str | None = None,
                  regions: str | None = None, grades: str | None = None,
                  group_by: str = "company") -> dict[str, Any]:
-    """Tồn kho tại mốc cuối kỳ theo bộ lọc (đơn vị · khu vực · chủng loại · kỳ)."""
+    """Tồn kho tại NGÀY CHỐT theo bộ lọc (đơn vị · khu vực · chủng loại)."""
     comps, regs, grds = split_csv(companies), split_csv(regions), split_csv(grades)
-    # Nhóm theo NGÀY = xem diễn biến tồn → giữ mọi ngày có số liệu; các cách nhóm khác chỉ lấy mốc cuối.
-    raw = unit_report_rows.stock_rows(date_from, date_to, comps, all_days=group_by == "day")
-    rows = filter_scope(raw, comps, regs)
+    # Nhóm theo NGÀY = xem diễn biến tồn → giữ mọi ngày trong cửa sổ; các cách nhóm khác chỉ lấy
+    # ảnh chụp tại ngày chốt (mỗi đơn vị 1 dòng số mới nhất của mình).
+    raw = unit_report_rows.stock_rows(as_of, max_age_days, comps, all_days=group_by == "day")
+    rows = filter_scope(raw["rows"], comps, regs)
+    snap = _latest_per_company(rows) if group_by == "day" else rows
+    # Độ phủ tính TRƯỚC khi lọc chủng loại: đơn vị có tồn nhưng không có chủng loại đang lọc thì
+    # vẫn là đơn vị "đã nhập", không được đếm thành thiếu số liệu.
+    cov = _coverage(snap, raw["no_stock"], comps, regs)
     if grds:   # lọc chủng loại: chỉ áp cho 2 khối thành phẩm, tồn nguyên liệu không có chủng loại
         keep = set(grds)
-        rows = [r for r in rows if r["block"] == "stock_material" or r["grade"] in keep]
+        def _keep(lst: list[dict]) -> list[dict]:
+            return [r for r in lst if r["block"] == "stock_material" or r["grade"] in keep]
+        rows, snap = _keep(rows), _keep(snap)
 
     key_of = {"company": lambda r: r["company"],
               "region": lambda r: r.get("region") or "(Chưa gán khu vực)",
@@ -67,77 +152,12 @@ def stock_report(date_from: str, date_to: str, *, companies: str | None = None,
         g = groups.get(k) or groups.setdefault(k, _new_group(k, r.get("region") if group_by == "company" else None))
         _feed(g, r, with_grade=group_by != "grade")
 
-    # Dòng Tổng cộng: tồn kho là số THỜI ĐIỂM nên khi nhóm theo NGÀY, cộng các ngày lại là tính
-    # trùng chính lô hàng đó → lấy ảnh chụp của NGÀY CUỐI thay vì cộng dồn.
+    # Dòng Tổng cộng LUÔN là ảnh chụp tại ngày chốt (kể cả khi nhóm theo ngày): tồn kho là số thời
+    # điểm nên cộng nhiều ngày là tính trùng chính lô hàng đó.
     total = _new_group("Tổng cộng", None)
-    last_day = max((r["as_of"] for r in rows), default=None)
-    for r in rows:
-        if group_by == "day" and r["as_of"] != last_day:
-            continue
+    for r in snap:
         _feed(total, r, with_grade=True)
-    # Đơn vị được chọn nhưng không có bản ghi tồn kho nào trong kỳ → báo rõ, KHÔNG lấy số ngày khác.
-    warn = []
-    if comps and (no_data := sorted(set(comps) - {r["company"] for r in rows})):
-        warn.append("Chưa nhập tồn kho trong kỳ: " + ", ".join(no_data))
-    if group_by == "day" and last_day:
-        warn.append(f"Mỗi dòng là tồn của riêng ngày đó; dòng Tổng cộng lấy ngày cuối ({dmy(last_day)}), "
-                    "không cộng dồn các ngày.")
-    return {"date_from": date_from, "date_to": date_to, "group_by": group_by,
+    return {"as_of": as_of, "max_age_days": max_age_days, "group_by": group_by,
             "rows": [_close(g) for g in sort_groups(groups, group_by)],
-            "totals": _close(total), "warnings": warn}
-
-
-# ── Tình trạng nộp báo cáo (đơn vị × ngày) ────────────────────────────────────
-def _date_list(date_from: str, date_to: str) -> list[str]:
-    a, b = date.fromisoformat(date_from), date.fromisoformat(date_to)
-    return [(a + timedelta(days=i)).isoformat() for i in range((b - a).days + 1)]
-
-
-def status_report(kind: str, date_from: str, date_to: str, *, companies: str | None = None,
-                  regions: str | None = None) -> dict[str, Any]:
-    """Ma trận đơn vị × ngày: `ok` đã nhập · `no_purchase` không tổ chức thu mua · `none` chưa nhập.
-
-    Biểu Thu mua chỉ tính các đơn vị ĐƯỢC GIAO kế hoạch thu mua (đơn vị khác không phải nộp) —
-    lấy ĐÚNG danh sách bật màn Thu mua cho người dùng, xem `companies_with_purchase_plan`.
-    Đơn vị chỉ tính là ĐÃ NỘP khi bản ghi có số liệu thật của biểu đó (`fields.has_data`).
-    """
-    comps, regs = split_csv(companies), split_csv(regions)
-    units = member_unit_repo.list_units(include_inactive=False)
-    if kind == "purchase":
-        # KHÔNG dùng cờ `member_unit.has_purchase_plan`: cờ đó bỏ từ 03/08/2026, số ở màn Kế hoạch
-        # năm mới là công tắc. Dùng cờ cũ thì bảng đòi nộp cả những đơn vị KHÔNG có màn Thu mua.
-        planned = unit_daily_repo.companies_with_purchase_plan(
-            date.fromisoformat(date_to).year)
-        units = [u for u in units if u["name"] in planned]
-    if comps:
-        keep = set(comps)
-        units = [u for u in units if u["name"] in keep]
-    if regs:
-        keep = set(regs)
-        units = [u for u in units if (u.get("region") or "") in keep]
-
-    entries = unit_daily_repo.in_range(kind, date_from, date_to, [u["name"] for u in units])
-    state: dict[tuple[str, str], str] = {}
-    for e in entries:
-        # Bản ghi rỗng KHÔNG tính là đã nộp — biểu Tồn kho đang mang hàng trăm bản ghi cũ của biểu
-        # Tiêu thụ (chỉ có mảng `sales` + cờ `sales_migrated`), tính vào là báo cáo tỷ lệ nộp ảo.
-        if not fields.has_data(kind, e["fields"]):
-            continue
-        no_buy = kind == "purchase" and e["fields"].get("no_purchase") is True
-        state[(e["company"], e["as_of"])] = "no_purchase" if no_buy else "ok"
-
-    dates = _date_list(date_from, date_to)
-    rows, filled, no_purchase = [], 0, 0
-    for u in units:
-        cells = {d: state.get((u["name"], d), "none") for d in dates}
-        ok = sum(1 for v in cells.values() if v == "ok")
-        skip = sum(1 for v in cells.values() if v == "no_purchase")
-        filled += ok
-        no_purchase += skip
-        rows.append({"company": u["name"], "region": u.get("region"), "cells": cells,
-                     "filled": ok, "no_purchase": skip, "missing": len(dates) - ok - skip,
-                     "last_day": max((d for d, v in cells.items() if v != "none"), default=None)})
-    expected = len(dates) * len(units)
-    return {"kind": kind, "date_from": date_from, "date_to": date_to, "dates": dates, "rows": rows,
-            "totals": {"expected": expected, "filled": filled, "no_purchase": no_purchase,
-                       "missing": expected - filled - no_purchase}}
+            "totals": _close(total), "coverage": cov,
+            "warnings": _warnings(cov, as_of, max_age_days, group_by)}

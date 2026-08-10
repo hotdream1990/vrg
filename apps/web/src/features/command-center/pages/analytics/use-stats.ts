@@ -22,13 +22,17 @@ export function useFilterCatalog(): FilterCatalog | null {
   return catalog;
 }
 
-/** Gọi API báo cáo mỗi khi bộ lọc đổi. `load` phải là hàm ỔN ĐỊNH (khai báo ngoài component). */
-export function useStatsReport<T>(load: (f: StatsFilters) => Promise<T>, filters: StatsFilters) {
+/** Gọi API báo cáo mỗi khi bộ lọc đổi. `load` phải là hàm ỔN ĐỊNH (khai báo ngoài component).
+ *  Dùng chung cho cả bộ lọc theo KỲ (thu mua · tiêu thụ) lẫn theo NGÀY CHỐT (tồn kho). */
+export function useStatsReport<T, F extends object = StatsFilters>(
+  load: (f: F) => Promise<T>, filters: F,
+) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
 
   const reload = useCallback(() => {
-    if (filters.from > filters.to) {
+    const range = filters as { from?: string; to?: string };
+    if (range.from && range.to && range.from > range.to) {
       message.warning("Khoảng ngày không hợp lệ: từ ngày sau đến ngày.");
       return;
     }

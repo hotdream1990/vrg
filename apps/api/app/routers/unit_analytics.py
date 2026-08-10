@@ -16,7 +16,7 @@ from app.core.security import require_cap
 from app.services import (
     member_region_repo, member_unit_repo, unit_analytics_excel as xls,
     unit_report_consumption as con, unit_report_purchase as pur, unit_report_query as q,
-    unit_report_stock as st,
+    unit_report_status as sta, unit_report_stock as st,
 )
 
 router = APIRouter(prefix="/api/unit-daily/analytics", tags=["unit-analytics"])
@@ -151,35 +151,54 @@ def consumption_xlsx(date_from: str = Query(...), date_to: str = Query(...),
     return _xlsx(data, f"thong-ke-tieu-thu-{date_from}-den-{date_to}.xlsx")
 
 
-# ── 3. Tồn kho (số thời điểm) ─────────────────────────────────────────────────
-def _stock(date_from: str, date_to: str, companies: str | None, regions: str | None,
+# ── 3. Tồn kho (ảnh chụp tại NGÀY CHỐT) ───────────────────────────────────────
+#: Trục của màn tồn kho là 1 NGÀY CHỐT + số ngày được phép lùi (khác các màn kia dùng khoảng kỳ):
+#: tồn kho là số thời điểm nên "tổng của một kỳ" không có nghĩa.
+_STOCK_GROUPS = "^(company|region|grade|day)$"
+MAX_STOCK_AGE_DAYS = 90
+
+
+def _stock(as_of: str, max_age_days: int, companies: str | None, regions: str | None,
            grades: str | None, group_by: str) -> dict:
-    assert_range(date_from, date_to)
-    return st.stock_report(date_from, date_to, companies=companies, regions=regions,
+    try:
+        date.fromisoformat(as_of)
+    except ValueError as exc:
+        raise HTTPException(400, "Ngày chốt không hợp lệ (YYYY-MM-DD).") from exc
+    return st.stock_report(as_of, max_age_days, companies=companies, regions=regions,
                            grades=grades, group_by=group_by)
 
 
+def _stock_period(rep: dict) -> str:
+    """Dòng "kỳ" của file Excel — nói rõ đây là ảnh chụp, không phải tổng của một khoảng ngày."""
+    age = rep["max_age_days"]
+    lui = "chỉ lấy số nhập đúng ngày" if age <= 0 else f"lấy số cũ tối đa {age} ngày"
+    return f"Ngày chốt {q.dmy(rep['as_of'])} ({lui})"
+
+
 @router.get("/stock")
-def stock(date_from: str = Query(...), date_to: str = Query(...),
+def stock(as_of: str = Query(..., description="Ngày chốt (YYYY-MM-DD)"),
+          max_age_days: int = Query(7, ge=0, le=MAX_STOCK_AGE_DAYS,
+                                    description="Số ngày được phép lùi khi đơn vị chưa nhập"),
           companies: str | None = Query(None), regions: str | None = Query(None),
           grades: str | None = Query(None),
-          group_by: str = Query("company", pattern="^(company|region|grade|day)$"),
+          group_by: str = Query("company", pattern=_STOCK_GROUPS),
           username: str = Depends(_require)) -> dict:
-    """Tồn kho tại MỐC cuối kỳ của từng đơn vị (kèm ngày đã lấy số — không cộng dồn)."""
-    return _stock(date_from, date_to, companies, regions, grades, group_by)
+    """Tồn kho tại NGÀY CHỐT: mỗi đơn vị lấy số mới nhất ≤ ngày chốt (kèm ngày thật + độ phủ)."""
+    return _stock(as_of, max_age_days, companies, regions, grades, group_by)
 
 
 @router.get("/stock.xlsx")
-def stock_xlsx(date_from: str = Query(...), date_to: str = Query(...),
+def stock_xlsx(as_of: str = Query(...),
+               max_age_days: int = Query(7, ge=0, le=MAX_STOCK_AGE_DAYS),
                companies: str | None = Query(None), regions: str | None = Query(None),
                grades: str | None = Query(None),
-               group_by: str = Query("company", pattern="^(company|region|grade|day)$"),
+               group_by: str = Query("company", pattern=_STOCK_GROUPS),
                username: str = Depends(_require)):
-    rep = _stock(date_from, date_to, companies, regions, grades, group_by)
-    data = xls.build_xlsx(title="THỐNG KÊ TỒN KHO", period=f"{date_from} → {date_to}",
-                          note=_note(rep), group_by=group_by, columns=xls.STOCK_COLS,
-                          rows=rep["rows"], totals=rep["totals"])
-    return _xlsx(data, f"thong-ke-ton-kho-{date_from}-den-{date_to}.xlsx")
+    rep = _stock(as_of, max_age_days, companies, regions, grades, group_by)
+    data = xls.build_xlsx(title="THỐNG KÊ TỒN KHO", period=_stock_period(rep),
+                          period_label="Ảnh chụp", note=_note(rep), group_by=group_by,
+                          columns=xls.STOCK_COLS, rows=rep["rows"], totals=rep["totals"])
+    return _xlsx(data, f"thong-ke-ton-kho-ngay-{as_of}.xlsx")
 
 
 # ── 4. Tình trạng nộp báo cáo (dashboard kiểm tra) ────────────────────────────
@@ -192,4 +211,4 @@ def status(kind: str = Query(..., pattern="^(purchase|consumption)$"),
     assert_range(date_from, date_to)
     if (date.fromisoformat(date_to) - date.fromisoformat(date_from)).days + 1 > MAX_STATUS_DAYS:
         raise HTTPException(400, f"Khoảng ngày tối đa {MAX_STATUS_DAYS} ngày cho bảng tình trạng nộp.")
-    return st.status_report(kind, date_from, date_to, companies=companies, regions=regions)
+    return sta.status_report(kind, date_from, date_to, companies=companies, regions=regions)

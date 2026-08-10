@@ -7,12 +7,13 @@ loại HĐ / hình thức HĐ. Module này giữ nguyên chi tiết từng dòng
                        từng chủng loại thành phẩm). Đơn giá mủ nước/chén lấy từ kho giá
                        (đồng/độ), đơn vị nước ngoài quy từ nội tệ qua `fx_purchase`.
 - `consumption_rows` → mỗi dòng bán (gồm cả nguồn mủ: thu mua `sales` / khai thác `sales_own`).
-- `stock_rows`       → tồn kho là số THỜI ĐIỂM: lấy ngày CUỐI CÙNG có số liệu tồn của TỪNG
-                       đơn vị trong kỳ (không cộng dồn, không mượn số ngày khác).
+- `stock_rows`       → tồn kho là số THỜI ĐIỂM tại NGÀY CHỐT: mỗi đơn vị lấy bản ghi mới nhất
+                       ≤ ngày chốt (không cộng dồn), kèm ngày thật + số ngày đã cũ.
 """
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import Any
 
 from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC
@@ -187,24 +188,38 @@ def has_stock(fields: dict) -> bool:
                 or fields.get("stock_material") is not None)
 
 
-def stock_rows(date_from: str, date_to: str, companies: list[str] | None = None,
-               all_days: bool = False) -> list[dict[str, Any]]:
-    """Tồn kho tại MỐC: ngày cuối cùng CÓ số liệu tồn của từng đơn vị trong kỳ.
+def stock_rows(as_of: str, max_age_days: int, companies: list[str] | None = None,
+               all_days: bool = False) -> dict[str, Any]:
+    """Tồn kho tại NGÀY CHỐT `as_of`: mỗi đơn vị lấy bản ghi tồn MỚI NHẤT có ngày ≤ ngày chốt.
 
-    Mỗi dòng = 1 chủng loại trong 1 khối (chưa nhập kho / đã nhập kho) + 1 dòng tồn nguyên liệu.
-    `all_days=True` → giữ TẤT CẢ các ngày có số liệu (xem diễn biến tồn theo ngày), mỗi ngày vẫn
-    là một ảnh chụp độc lập — KHÔNG cộng dồn giữa các ngày.
+    `max_age_days` = số ngày được phép lùi: bản ghi cũ hơn thế coi như KHÔNG có số (thà thiếu còn
+    hơn lấy số quá cũ đắp cho ngày chốt). Mỗi dòng mang `age_days` = số ngày đã cũ để người xem
+    biết số thuộc ngày nào — không nơi nào được hiểu đây là số nhập đúng ngày chốt.
+
+    Trả về:
+    - `rows`     → mỗi dòng = 1 chủng loại trong 1 khối (chưa nhập kho / đã nhập kho) + 1 dòng tồn
+                   nguyên liệu. `all_days=True` giữ TẤT CẢ các ngày trong cửa sổ (xem diễn biến
+                   tồn), mỗi ngày vẫn là ảnh chụp độc lập — KHÔNG cộng dồn giữa các ngày.
+    - `no_stock` → {đơn vị: ngày mới nhất} đã khai "không phát sinh tồn kho để khai". Đơn vị này
+                   ĐÃ NỘP nhưng KHÔNG có số để cộng: không được đếm là thiếu báo cáo, cũng không
+                   được tự suy thành tồn = 0 (cờ chỉ nói "không có gì để khai", không nói hết hàng).
     """
+    day = date.fromisoformat(as_of)
+    start = (day - timedelta(days=max(max_age_days, 0))).isoformat()
     meta = unit_meta()
-    entries = unit_daily_repo.in_range("consumption", date_from, date_to, companies)
+    entries = unit_daily_repo.in_range("consumption", start, as_of, companies)
     kept: dict[Any, dict[str, Any]] = {}
+    no_stock: dict[str, str] = {}
     for e in entries:                      # in_range trả theo ngày TĂNG dần → ghi đè = ngày cuối
         if has_stock(e["fields"]):
             kept[(e["company"], e["as_of"]) if all_days else e["company"]] = e
+        elif e["fields"].get("no_stock") is True:
+            no_stock[e["company"]] = e["as_of"]
 
     rows: list[dict[str, Any]] = []
     for e in kept.values():
         base = _base(e, meta)
+        base["age_days"] = (day - date.fromisoformat(e["as_of"])).days
         f = e["fields"]
         for block in STOCK_BLOCKS:
             for ln in f.get(block) or []:
@@ -215,4 +230,4 @@ def stock_rows(date_from: str, date_to: str, companies: list[str] | None = None,
                              "grade": str(ln.get("grade") or "").strip() or "—", "qty": qty})
         rows.append({**base, "block": "stock_material", "grade": "Nguyên liệu chưa sản xuất",
                      "qty": _num(f.get("stock_material"))})
-    return rows
+    return {"rows": rows, "no_stock": no_stock}

@@ -1,7 +1,8 @@
-/* Thống kê TỒN KHO (để riêng) — dashboard drill-down:
-   Toàn Tập đoàn → Khu vực → Đơn vị → Ngày → Chủng loại.
-   Tồn kho là số THỜI ĐIỂM: mỗi đơn vị lấy ngày CUỐI có nhập tồn (cột "Ngày lấy số"); khi nhóm theo
-   ngày thì mỗi dòng là ảnh chụp của riêng ngày đó và dòng Tổng cộng lấy ngày cuối — không cộng dồn.
+/* Thống kê TỒN KHO (để riêng) — trục NGÀY CHỐT, drill-down: Toàn Tập đoàn → Khu vực → Đơn vị →
+   Ngày → Chủng loại.
+   Tồn kho là số THỜI ĐIỂM nên không có khái niệm "tổng của một kỳ": chọn 1 ngày chốt, mỗi đơn vị
+   lấy số MỚI NHẤT ≤ ngày đó (cũ tối đa N ngày) — luôn hiện ngày thật ở cột "Ngày lấy số" + "Số cũ",
+   và luôn báo rõ đơn vị nào chưa có số (không lấy số ngày khác đắp vào).
    Hợp đồng đã ký chưa giao nằm ở màn riêng (Thống kê hợp đồng). */
 
 import { InboxOutlined } from "@ant-design/icons";
@@ -9,17 +10,19 @@ import { message } from "antd";
 import { useMemo, useState } from "react";
 
 import {
-  type StatsFilters, type StatsReport, downloadStatsXlsx, fetchStockStats,
+  type StatsReport, type StockFilters as Filters, downloadStockXlsx, fetchStockStats,
 } from "../../../../lib/unit-analytics-client";
-import AnalyticsFilters from "./AnalyticsFilters";
 import DrillHeader, { type Kpi } from "./DrillHeader";
 import StatsTable, { type StatsCol } from "./StatsTable";
-import { initialFilters, useFilterCatalog, useStatsReport } from "./use-stats";
-import { CHAINS, DIM_LABEL, type DrillDim, applyDrill, useDrill } from "./use-drill";
+import StockCoverageBar from "./StockCoverageBar";
+import StockFilters, { initialStockFilters } from "./StockFilters";
+import { useFilterCatalog, useStatsReport } from "./use-stats";
+import { CHAINS, DIM_LABEL, type DrillDim, applyStockDrill, useDrill } from "./use-drill";
 import "../../../bulletin/bulletin.css";
 
 const COLS: StatsCol[] = [
   { key: "as_of", label: "Ngày lấy số", date: true, note: "— nếu nhóm gồm nhiều ngày" },
+  { key: "age_days", label: "Số cũ", unit: "ngày", note: "cũ nhất trong nhóm" },
   { key: "not_warehoused", label: "Tồn chưa nhập kho", unit: "tấn", note: "thời điểm" },
   { key: "warehoused", label: "Tồn đã nhập kho", unit: "tấn", note: "thời điểm" },
   { key: "total", label: "Tổng tồn thành phẩm", unit: "tấn", note: "= 2 khối trên" },
@@ -38,26 +41,26 @@ const GROUPS = (["region", "company", "day", "grade"] as const)
 
 export default function StockStatsPage() {
   const catalog = useFilterCatalog();
-  const [base, setBase] = useState<StatsFilters>(initialFilters("region"));
+  const [base, setBase] = useState<Filters>(initialStockFilters);
   const [groupOverride, setGroupOverride] = useState<DrillDim | null>(null);
   const [saving, setSaving] = useState(false);
   const drill = useDrill(CHAINS.stock);
 
   const dim: DrillDim = groupOverride ?? drill.currentDim;
   const filters = useMemo(() => {
-    const f = applyDrill(base, CHAINS.stock, drill.steps, catalog);
+    const f = applyStockDrill(base, drill.steps, catalog);
     return { ...f, groupBy: dim };
   }, [base, drill.steps, catalog, dim]);
-  const { data, loading, reload } = useStatsReport<StatsReport>(fetchStockStats, filters);
+  const { data, loading, reload } = useStatsReport<StatsReport, Filters>(fetchStockStats, filters);
 
   const canDrill = drill.canDrill;
   const goDeeper = (value: string) => { setGroupOverride(null); drill.down(value, dim); };
-  const change = (f: StatsFilters) => { drill.reset(); setBase(f); };
+  const change = (f: Filters) => { drill.reset(); setBase(f); };
 
   const exportXlsx = async () => {
     setSaving(true);
     try {
-      await downloadStatsXlsx("stock", filters);
+      await downloadStockXlsx(filters);
       message.success("Đã tải file Excel.");
     } catch (e) { message.error((e as Error).message); } finally { setSaving(false); }
   };
@@ -68,18 +71,24 @@ export default function StockStatsPage() {
         <div>
           <h2><InboxOutlined style={{ marginRight: 8 }} />Thống kê tồn kho</h2>
           <p>
-            Toàn Tập đoàn → <b>khu vực</b> → <b>công ty</b> → <b>ngày</b> → <b>chủng loại</b>.
-            Tồn kho là số <b>thời điểm</b> (xem cột <b>Ngày lấy số</b>) — không cộng dồn các ngày.
+            Ảnh chụp tại <b>một ngày chốt</b> — tồn kho là số <b>thời điểm</b>, không cộng dồn các
+            ngày. Đơn vị chưa nhập đúng ngày chốt thì lấy số mới nhất trước đó trong giới hạn
+            <b> số cũ tối đa</b>, và <b>hiện rõ ngày thật</b> của số đó; quá hạn coi như chưa có số.
             Hợp đồng đã ký chưa giao xem ở mục <b>Thống kê hợp đồng</b>.
           </p>
         </div>
       </div>
 
-      <AnalyticsFilters
+      <StockFilters
         catalog={catalog} value={base} onChange={change} groupOptions={GROUPS}
-        groupValue={dim} onGroupChange={(v) => setGroupOverride(v as DrillDim)} showGrades
+        groupValue={dim} onGroupChange={(v) => setGroupOverride(v as DrillDim)}
         onReload={reload} onExport={exportXlsx} loading={loading} exporting={saving}
       />
+
+      {data?.coverage && (
+        <StockCoverageBar asOf={filters.asOf} maxAgeDays={filters.maxAgeDays}
+                          coverage={data.coverage} />
+      )}
 
       <DrillHeader
         steps={drill.steps} onUpTo={drill.upTo} currentDim={dim} canDrill={canDrill}
@@ -89,11 +98,11 @@ export default function StockStatsPage() {
 
       <StatsTable
         groupLabel={DIM_LABEL[dim]} groupIsDate={dim === "day"}
-        // Nhóm theo ngày thì cột nhóm ĐÃ là ngày → bỏ cột "Ngày lấy số" cho khỏi lặp.
-        cols={dim === "day" ? COLS.slice(1) : COLS} rows={data?.rows ?? []}
+        // Nhóm theo ngày thì cột nhóm ĐÃ là ngày → bỏ 2 cột mốc thời gian cho khỏi lặp.
+        cols={dim === "day" ? COLS.slice(2) : COLS} rows={data?.rows ?? []}
         totals={data?.totals ?? null} showRegion={dim === "company"} loading={loading}
         warnings={data?.warnings} onRowClick={canDrill ? (r) => goDeeper(r.key) : undefined}
-        empty="Kỳ này chưa đơn vị nào nhập tồn kho khớp bộ lọc."
+        empty="Chưa đơn vị nào có số tồn kho tại ngày chốt (theo bộ lọc hiện tại)."
       />
     </div>
   );

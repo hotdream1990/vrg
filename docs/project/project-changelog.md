@@ -31,6 +31,23 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
   dòng thiếu chủng loại/số lượng thì **bỏ qua cả ngày** và in ra để rà tay — không suy diễn số liệu.
 
 ### Changed
+- **Thống kê tồn kho đổi trục từ "kỳ báo cáo" sang "NGÀY CHỐT"** — tồn kho là số **thời điểm** nên
+  "tổng của một khoảng ngày" vốn không có nghĩa; trục cũ làm số hiển thị sai lệch nặng (đo trên
+  prod 10/08/2026: kỳ mặc định *Tuần này* rơi đúng Thứ 2 → chỉ 4/52 đơn vị đã nhập → **250,8 tấn**
+  thay vì ~**100.000 tấn**):
+  - Chọn **1 ngày chốt** + **số cũ tối đa N ngày** (mặc định 7): mỗi đơn vị lấy bản ghi tồn **mới
+    nhất ≤ ngày chốt**; cũ quá hạn thì coi như **chưa có số**, không lấy đại số cũ đắp vào.
+  - Mỗi dòng luôn kèm **Ngày lấy số** + **Số cũ (ngày)** — không nơi nào được hiểu số cũ là số của
+    đúng ngày chốt.
+  - **Dải độ phủ** đầu bảng + cảnh báo: *x/y đơn vị có số · đơn vị nào số cũ · đơn vị nào chưa nhập*
+    (trước đây chỉ cảnh báo khi người dùng tự chọn đơn vị ở bộ lọc → xem toàn Tập đoàn là thiếu đơn
+    vị mà không hề biết). Đơn vị khai *"không phát sinh tồn kho"* tách thành nhóm riêng: **đã nộp**
+    nhưng không có số để cộng — không đếm thành thiếu, cũng không tự suy thành tồn = 0.
+  - **Dòng Tổng cộng khi nhóm theo NGÀY** nay là ảnh chụp tại ngày chốt (mỗi đơn vị lấy số mới nhất
+    của mình) thay vì chỉ gom các đơn vị nhập đúng **ngày cuối cùng có dữ liệu** — bẫy cũ làm rơi
+    khỏi tổng mọi đơn vị nhập sớm hơn, kể cả khi thẻ KPI đầu màn đọc chính con số đó.
+  - API đổi tham số: `GET /api/unit-daily/analytics/stock[.xlsx]?as_of=&max_age_days=` (bỏ
+    `date_from`/`date_to`). Các màn Thu mua · Tiêu thụ · Theo dõi nộp báo cáo giữ nguyên trục kỳ.
 - **Tách kho "Giá mủ nguyên liệu" làm 2 lớp theo người nhập** — trước đây chuyên viên và đơn vị
   thành viên ghi chung một ô nên đơn vị lưu biểu Thu mua là **đè mất số chuyên viên đã chốt**
   (chuyên viên thấy "giá nhảy loạn xạ", có ngày lên 53.500 do đơn vị nhập sai đơn vị tính):

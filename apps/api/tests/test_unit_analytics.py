@@ -130,6 +130,15 @@ def _get(path: str, h: dict, **params) -> dict:
     return res.json()
 
 
+def _stock(h: dict, **params) -> dict:
+    """Màn tồn kho đi theo NGÀY CHỐT (mặc định: hôm nay, cho lùi tối đa 7 ngày)."""
+    params.setdefault("as_of", date.today().isoformat())
+    params.setdefault("max_age_days", 7)
+    res = client.get(f"{API}/stock", headers=h, params=params)
+    assert res.status_code == 200, res.text
+    return res.json()
+
+
 def _row(rep: dict, key: str) -> dict:
     return next(r for r in rep["rows"] if r["key"] == key)
 
@@ -225,25 +234,69 @@ def test_contract_without_type_goes_to_its_own_bucket(seeded) -> None:
     assert a["qty"] == 35 and a["qty_spot"] is None and a["qty_unknown_type"] == 20
 
 
-def test_stock_is_snapshot_not_sum(seeded) -> None:
-    rep = _get("stock", seeded, companies=UNIT_A)
+def test_stock_is_snapshot_at_the_reference_day(seeded) -> None:
+    """Ảnh chụp tại ngày chốt: lấy số MỚI NHẤT ≤ ngày chốt, kèm ngày thật + số ngày đã cũ."""
+    rep = _stock(seeded, companies=UNIT_A)
     a = _row(rep, UNIT_A)
-    # Ngày cuối kỳ có số liệu là D1: 800 tấn chưa nhập kho, khối đã nhập kho trống.
-    assert a["as_of"] == D1 and a["not_warehoused"] == 800
+    # Bản ghi tồn mới nhất là D1 (cách hôm nay 2 ngày): 800 tấn chưa nhập kho, khối đã nhập kho trống.
+    assert a["as_of"] == D1 and a["age_days"] == 2 and a["not_warehoused"] == 800
     assert a["warehoused"] is None and a["total"] == 800      # KHÔNG cộng dồn 1000 + 800
     assert a["material"] == 60
-    by_grade = _get("stock", seeded, group_by="grade", companies=UNIT_A)
+    assert rep["as_of"] == date.today().isoformat() and rep["max_age_days"] == 7
+    by_grade = _stock(seeded, group_by="grade", companies=UNIT_A)
     assert [r["key"] for r in by_grade["rows"]] == ["SVR 3L"]   # ngày cuối chỉ còn 1 chủng loại
 
 
-def test_stock_by_day_keeps_each_day_separate(seeded) -> None:
-    """Drill xuống NGÀY: mỗi ngày là ảnh chụp riêng; Tổng cộng lấy ngày cuối, KHÔNG cộng dồn."""
-    rep = _get("stock", seeded, companies=UNIT_A, group_by="day")
+def test_stock_drops_numbers_older_than_the_allowed_window(seeded) -> None:
+    """Số quá cũ KHÔNG được đắp cho ngày chốt: quá hạn thì báo thiếu, không lấy đại số cũ."""
+    rep = _stock(seeded, companies=UNIT_A, max_age_days=1)
+    assert rep["rows"] == [] and rep["totals"]["total"] is None
+    assert [m["company"] for m in rep["coverage"]["missing"]] == [UNIT_A]
+    assert any("chưa có số tồn kho" in w for w in rep["warnings"])
+    # Nới cửa sổ đủ rộng thì số cũ được dùng lại — nhưng số cũ quá ngưỡng phải bị điểm mặt.
+    client.put("/api/unit-daily/report", headers=seeded, json={
+        "kind": "consumption", "company": UNIT_B, "as_of": D0,
+        "fields": {"stock_warehoused": [{"grade": "SVR 10", "qty": 200}]}})
+    ok = _stock(seeded, companies=f"{UNIT_A},{UNIT_B}", max_age_days=7)
+    assert _row(ok, UNIT_A)["total"] == 800 and _row(ok, UNIT_B)["age_days"] == 3
+    assert [s["company"] for s in ok["coverage"]["stale"]] == [UNIT_B]   # A mới 2 ngày → chưa cũ
+    assert any("số cũ từ 3 ngày trở lên" in w for w in ok["warnings"])
+
+
+def test_stock_by_day_totals_are_the_reference_day_snapshot(seeded) -> None:
+    """Drill xuống NGÀY: mỗi ngày là ảnh chụp riêng; Tổng cộng = ảnh chụp tại ngày chốt.
+
+    Bẫy cũ: Tổng cộng chỉ lấy các đơn vị nhập đúng NGÀY CUỐI có dữ liệu → đơn vị nhập sớm hơn bị
+    rơi khỏi tổng (đo trên prod 10/08/2026: 250,8 tấn thay vì ~100.000 tấn).
+    """
+    h = seeded
+    client.put("/api/unit-daily/report", headers=h, json={
+        "kind": "consumption", "company": UNIT_B, "as_of": D0,
+        "fields": {"stock_warehoused": [{"grade": "SVR 10", "qty": 200}]}})
+    rep = _stock(h, companies=f"{UNIT_A},{UNIT_B}", group_by="day")
     assert [r["key"] for r in rep["rows"]] == [D0, D1]
-    assert _row(rep, D0)["total"] == 1500      # 1000 chưa nhập kho + 500 đã nhập kho
+    assert _row(rep, D0)["total"] == 1700      # A: 1000 + 500, B: 200
     assert _row(rep, D1)["total"] == 800
-    assert rep["totals"]["total"] == 800       # ngày cuối, không phải 2300
+    # A lấy số D1 (800) + B lấy số D0 (200) — KHÔNG cộng dồn 2 ngày, cũng không bỏ rơi B.
+    assert rep["totals"]["total"] == 1000
+    assert rep["coverage"]["units_counted"] == 2
     assert any("không cộng dồn" in w for w in rep["warnings"])
+
+
+def test_stock_coverage_separates_missing_from_declared_empty(seeded) -> None:
+    """Đơn vị khai "không phát sinh tồn kho" là ĐÃ NỘP — không đếm thành thiếu, cũng không hoá 0."""
+    h = seeded
+    miss = _stock(h, companies=f"{UNIT_A},{UNIT_B}")
+    assert miss["coverage"]["units_expected"] == 2 and miss["coverage"]["units_counted"] == 1
+    assert [m["company"] for m in miss["coverage"]["missing"]] == [UNIT_B]
+
+    client.put("/api/unit-daily/report", headers=h, json={
+        "kind": "consumption", "company": UNIT_B, "as_of": D1, "fields": {"no_stock": True}})
+    rep = _stock(h, companies=f"{UNIT_A},{UNIT_B}")
+    assert rep["coverage"]["missing"] == []
+    assert [e["company"] for e in rep["coverage"]["no_stock"]] == [UNIT_B]
+    assert rep["totals"]["total"] == 800        # B không có số nào để cộng vào tổng
+    assert any("không phát sinh tồn kho" in w for w in rep["warnings"])
 
 
 def test_drill_region_then_company(seeded) -> None:
@@ -315,6 +368,12 @@ def test_range_validation_and_xlsx(seeded) -> None:
     xlsx = client.get(f"{API}/purchase.xlsx", headers=seeded,
                       params={"date_from": D0, "date_to": D1})
     assert xlsx.status_code == 200 and xlsx.content[:2] == b"PK"
+    # Màn tồn kho: ngày chốt sai định dạng bị chặn, số ngày lùi vượt trần cũng vậy.
+    assert client.get(f"{API}/stock", headers=seeded, params={"as_of": "10-08-2026"}).status_code == 400
+    assert client.get(f"{API}/stock", headers=seeded,
+                      params={"as_of": D1, "max_age_days": 400}).status_code == 422
+    stock_xlsx = client.get(f"{API}/stock.xlsx", headers=seeded, params={"as_of": D1})
+    assert stock_xlsx.status_code == 200 and stock_xlsx.content[:2] == b"PK"
 
 
 def test_requires_unit_daily_cap(seeded) -> None:
