@@ -20,10 +20,15 @@ import "../../../bulletin/bulletin.css";
 const COLS: StatsCol[] = [
   { key: "qty_latex", label: "SL mủ nước", unit: "tấn", note: "cộng dồn" },
   { key: "qty_cup", label: "SL mủ chén", unit: "tấn", note: "cộng dồn" },
+  // 2 loại nguyên liệu bổ sung (30/07/2026) — đơn giá theo ĐỒNG/KG, không phải đồng/độ.
+  { key: "qty_cup_raw", label: "SL mủ NL chưa cán vắt", unit: "tấn", note: "cộng dồn" },
+  { key: "qty_rss_pressed", label: "SL mủ NL đã cán vắt", unit: "tấn", note: "cộng dồn" },
   { key: "qty_finished", label: "SL thành phẩm", unit: "tấn", note: "cộng dồn" },
   { key: "qty_total", label: "Tổng sản lượng", unit: "tấn", note: "theo bộ lọc" },
   { key: "price_latex_avg", label: "Đơn giá BQ mủ nước", unit: "đồng/độ", note: "BQ gia quyền" },
   { key: "price_cup_avg", label: "Đơn giá BQ mủ chén", unit: "đồng/độ", note: "BQ gia quyền" },
+  { key: "price_cup_raw_avg", label: "Đơn giá BQ mủ NL chưa cán vắt", unit: "đồng/kg", note: "BQ gia quyền" },
+  { key: "price_rss_pressed_avg", label: "Đơn giá BQ mủ NL đã cán vắt", unit: "đồng/kg", note: "BQ gia quyền" },
   { key: "price_finished_avg", label: "Đơn giá BQ thành phẩm", unit: "triệu đ/tấn", note: "BQ gia quyền" },
   { key: "days", label: "Số ngày có số liệu", unit: "ngày", note: "đếm" },
   { key: "no_purchase_days", label: "Ngày không thu mua", unit: "ngày", note: "đếm" },

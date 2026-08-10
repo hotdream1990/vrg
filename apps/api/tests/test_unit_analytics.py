@@ -405,3 +405,32 @@ def test_consumption_detail_rows_are_paged(seeded) -> None:
     assert page2["totals"]["qty"] == pytest.approx(35.0)
     keys = {(r["as_of"], r["code"]) for r in page1["rows"]}
     assert not (keys & {(r["as_of"], r["code"]) for r in page2["rows"]})
+
+
+def test_purchase_counts_the_two_extra_raw_materials(seeded) -> None:
+    """2 loại mủ nguyên liệu bổ sung (30/07/2026) phải có ô đếm riêng — thiếu là VỠ CẢ BẢNG.
+
+    Lỗi thật trên prod 10/08/2026: bảng chỉ tạo rổ cho mủ nước/chén/thành phẩm nên gặp ngày có
+    `cup_raw` là `KeyError` → toàn bộ màn Thống kê thu mua trả 500. Chọn kỳ "Năm nay" chạm đúng
+    một ngày như vậy hồi tháng 1 nên cả năm không xem được, trong khi xem theo tháng vẫn bình thường.
+    ⚠ Sản lượng bằng 0 vẫn tạo dòng (khác None) — chính bản ghi 0 tấn đã làm sập màn hình.
+    """
+    h = seeded
+    client.put("/api/unit-daily/report", headers=h, json={
+        "kind": "purchase", "company": UNIT_A, "as_of": D1,
+        "fields": {"latex_wet": 300, "cup_raw": 0, "cup_raw_price": 0,
+                   "rss_pressed": 4, "rss_pressed_price": 12000,
+                   "finished": [{"grade": "SVR 10", "qty": 5, "price": 2000,
+                                 "ccy": "USD", "fx": None}]}})
+
+    rep = _get("purchase", h, companies=UNIT_A)
+    a = _row(rep, UNIT_A)
+    assert a["qty_rss_pressed"] == 4
+    assert a["qty_cup_raw"] is None                   # khai 0 tấn → hiện "—", không phải số 0
+    assert a["price_rss_pressed_avg"] == pytest.approx(12000)   # đồng/kg, BQ gia quyền
+    # Tổng phải CỘNG CẢ 2 loại mới: 400 mủ nước + 10 mủ chén + 4 đã cán vắt + 10 thành phẩm.
+    assert a["qty_total"] == 424 and rep["totals"]["qty_total"] == 424
+
+    # Nhóm theo loại mủ: 2 loại mới đứng thành dòng riêng, không dồn vào loại cũ.
+    by_material = _get("purchase", h, companies=UNIT_A, group_by="material")
+    assert "Mủ NL đã cán vắt (RSS)" in [r["key"] for r in by_material["rows"]]

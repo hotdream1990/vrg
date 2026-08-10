@@ -15,10 +15,17 @@ from app.services.unit_report_query import (
 from app.services.unit_report_rows import TRIEU
 
 
+#: Loại mủ nhập theo SẢN LƯỢNG + đơn giá riêng (mọi loại trừ thành phẩm — thành phẩm tính theo
+#: doanh thu/tấn nên có rổ `_fin` riêng). Lấy thẳng từ `rows_mod.MATERIALS` để thêm loại mủ mới là
+#: bảng thống kê tự có ô đếm: thiếu một ô là `_feed_purchase` ném KeyError và cả bảng trả lỗi 500
+#: (đã xảy ra 10/08/2026 — 2 loại nguyên liệu thêm ngày 30/07 làm vỡ mọi kỳ chạm tháng 01/2026).
+_QTY_MATERIALS: tuple[str, ...] = tuple(m for m in rows_mod.MATERIALS if m != "finished")
+
+
 def _new_purchase(key: str, region: str | None) -> dict[str, Any]:
     return {"key": key, "label": key, "region": region,
-            "qty_latex": 0.0, "qty_cup": 0.0, "qty_finished": 0.0,
-            "_w": {"latex": [0.0, 0.0], "cup": [0.0, 0.0]}, "_fin": [0.0, 0.0],
+            **{f"qty_{m}": 0.0 for m in rows_mod.MATERIALS},
+            "_w": {m: [0.0, 0.0] for m in _QTY_MATERIALS}, "_fin": [0.0, 0.0],
             "_days": set(), "no_purchase_days": 0}
 
 
@@ -26,13 +33,16 @@ def _close_purchase(g: dict) -> dict[str, Any]:
     w, fin = g.pop("_w"), g.pop("_fin")
     days = g.pop("_days")
     g["days"] = len(days)
-    g["qty_total"] = g["qty_latex"] + g["qty_cup"] + g["qty_finished"]
-    g["price_latex_avg"] = avg(*w["latex"])         # đồng/độ
-    g["price_cup_avg"] = avg(*w["cup"])             # đồng/độ
+    g["qty_total"] = sum(g[f"qty_{m}"] for m in rows_mod.MATERIALS)
+    # Đơn giá BQ tách theo ĐƠN VỊ TÍNH, không gộp: mủ nước/chén là đồng/độ, 2 loại nguyên liệu bổ
+    # sung là đồng/kg, thành phẩm là triệu đ/tấn — cộng chung là ra một con số vô nghĩa.
+    for m in _QTY_MATERIALS:
+        g[f"price_{m}_avg"] = avg(*w[m])
     fin_avg = avg(*fin)
     g["price_finished_avg"] = (fin_avg / TRIEU) if fin_avg is not None else None  # triệu đ/tấn
-    for k in ("qty_latex", "qty_cup", "qty_finished", "qty_total"):
-        g[k] = g[k] or None
+    for m in rows_mod.MATERIALS:
+        g[f"qty_{m}"] = g[f"qty_{m}"] or None
+    g["qty_total"] = g["qty_total"] or None
     g["no_purchase_days"] = g["no_purchase_days"] or None
     return g
 
