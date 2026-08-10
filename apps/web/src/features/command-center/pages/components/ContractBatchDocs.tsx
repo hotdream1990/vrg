@@ -1,5 +1,6 @@
 import type { Contract, ContractDoc } from "../../../../lib/sales-contract-client";
 import DateInput from "../../sections/DateInput";
+import NumInput from "../../sections/NumInput";
 import ContractAttach from "./ContractAttach";
 
 type Props = {
@@ -40,8 +41,10 @@ export default function ContractBatchDocs({ c, set }: Props) {
           <DateInput value={c.payment_date ?? ""} onChange={(v) => set({ payment_date: v || null })} />
         </label>
         <label className="form-field">Sản lượng thanh toán (tấn)
-          <input className="blt-date-input r" inputMode="decimal" value={c.payment_qty ?? ""}
-            onChange={(e) => set({ payment_qty: e.target.value === "" ? null : Number(e.target.value) })} />
+          {/* Dùng NumInput như mọi ô số khác: gõ "4,62" kiểu Việt vẫn ra 4.62 (parse thẳng bằng
+              `Number` thì dấu phẩy thành NaN và ô kẹt luôn ở "NaN"). */}
+          <NumInput value={c.payment_qty ?? null} onChange={(v) => set({ payment_qty: v })}
+            className="blt-date-input r" placeholder="" />
         </label>
         <div style={{ gridColumn: "span 2", minWidth: 0 }}>
           <ContractAttach label="Chứng từ thanh toán" docs={c.payment_docs}
