@@ -106,6 +106,10 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                 </div></div>
               <div className="kpi"><div className="label">Sản lượng HĐ (tấn)</div><div className="value">{t3(c.qty)}</div></div>
               <div className="kpi"><div className="label">Thành tiền (tr.đ)</div><div className="value">{money(c.revenue)}</div></div>
+              {/* Tiền của HÀNG THỰC GIAO: đơn giá/sản lượng chốt ở từng đợt nên lệch với tiền hợp
+                  đồng đã ký là bình thường — phải hiện cả hai mới đối chiếu được. */}
+              <div className="kpi"><div className="label">TT đã giao (tr.đ)</div>
+                <div className="value">{money(d.delivered_revenue)}</div></div>
               <div className="kpi"><div className="label">Đã giao (tấn)</div><div className="value">{t3(d.delivered_qty)}</div></div>
               {/* Còn phải giao = sản lượng hợp đồng − đã giao (tính trên HỢP ĐỒNG, không theo đợt). */}
               <div className="kpi"><div className="label">Còn phải giao (tấn)</div>
@@ -114,8 +118,13 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                 <div className="kpi"><div className="label">Giao vượt (tấn)</div>
                   <div className="value" style={{ color: "var(--warn, #d48806)" }}>{t3(d.over_qty)}</div></div>
               )}
+              {/* 3 trạng thái — giao đủ hàng rồi mà vẫn ghi "đang thực hiện" thì bị đọc nhầm là
+                  còn nợ hàng; nhưng cũng chưa phải "hoàn thành" vì đơn vị chưa chốt. */}
               <div className="kpi"><div className="label">Trạng thái</div>
-                <div className="value">{done ? `Hoàn thành ${dmy(c.completed_at)}` : "Đang thực hiện"}</div></div>
+                <div className="value">
+                  {done ? `Hoàn thành ${dmy(c.completed_at)}`
+                    : d.remaining_qty <= 1e-9 ? "Đã giao đủ" : "Đang thực hiện"}
+                </div></div>
               <div className="kpi"><div className="label">Ngày ký</div><div className="value">{dmy(c.sign_date) || "—"}</div></div>
               <div className="kpi"><div className="label">Thời hạn</div><div className="value">{dmy(c.expiry_date) || "—"}</div></div>
             </div>

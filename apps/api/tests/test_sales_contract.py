@@ -1119,3 +1119,58 @@ def test_contract_list_is_paged_on_server(env, cus) -> None:
                            headers=h).json()
     assert len(open_page["contracts"]) == 2 and open_page["total"] >= 7
     assert all(c["pending_qty"] + c["remaining_qty"] > 0 for c in open_page["contracts"])
+
+
+def test_delivered_amount_is_counted_from_the_deliveries_not_the_contract(env, cus) -> None:
+    """TT ĐÃ GIAO = tiền của HÀNG THỰC GIAO, tách hẳn khỏi tiền ghi trên hợp đồng (10/08/2026).
+
+    Đơn giá và sản lượng chốt lại ở từng đợt giao nên hai số này lệch nhau là bình thường — báo
+    cáo phải hiện cả hai, lấy tiền hợp đồng làm tiền đã giao là báo doanh thu chưa có.
+    """
+    h = env
+    # Hợp đồng ký 100 tấn × 40 tr.đ = 4.000 tr.đ.
+    parent = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "TT-M", "delivery_type": "multi", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY, "lines": [_line(qty=100.0)]},
+        headers=h).json()["contract"]
+    # Đã giao: 60 tấn × 42 = 2.520 tr.đ.
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": parent["id"], "code": "Đợt 01", "delivered_at": TODAY,
+        "channel": "domestic", "lines": [_line(qty=60.0, price=42.0)]}, headers=h)
+    # Đợt đã lập nhưng CHƯA có ngày giao → chưa giao thì chưa có tiền đã giao.
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": parent["id"], "code": "Đợt 02",
+        "channel": "domestic", "lines": [_line(qty=30.0, price=41.0)]}, headers=h)
+
+    # Giao 1 lần: giao rồi thì tiền đã giao chính là tiền hợp đồng.
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "TT-S1", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY, "delivered_at": TODAY, "channel": "domestic",
+        "lines": [_line(qty=10.0)]}, headers=h)
+    # Giao 1 lần CHƯA giao → 0 đồng.
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "TT-S0", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY, "lines": [_line(qty=10.0)]}, headers=h)
+
+    rows = {c["code"]: c for c in
+            client.get(f"/api/sales-contracts?company={UNIT}", headers=h).json()["contracts"]}
+    assert rows["TT-M"]["revenue"] == pytest.approx(4_000e6)
+    assert rows["TT-M"]["delivered_revenue"] == pytest.approx(2_520e6)
+    assert rows["TT-S1"]["delivered_revenue"] == pytest.approx(rows["TT-S1"]["revenue"])
+    assert rows["TT-S0"]["delivered_revenue"] == 0
+
+    # Màn chi tiết phải ra ĐÚNG con số của danh sách (hai đường tính khác nhau, dễ lệch).
+    detail = client.get(f"/api/sales-contracts/{parent['id']}", headers=h).json()
+    assert detail["delivered_revenue"] == pytest.approx(2_520e6)
+
+    # Một đợt thiếu tỷ giá → tổng là KHÔNG BIẾT (None), không cộng phần còn lại rồi coi là đủ.
+    usd = client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": parent["id"], "code": "Đợt 03", "delivered_at": TODAY,
+        "channel": "export", "lines": [_line(qty=5.0, ccy="USD", price=1800.0, fx=26000.0)]},
+        headers=h).json()["contract"]
+    with session_scope() as db:
+        db.execute(text("UPDATE sales_contract SET lines = jsonb_set(lines, '{0,fx}', 'null') "
+                        "WHERE id = :i"), {"i": usd["id"]})
+    rows = {c["code"]: c for c in
+            client.get(f"/api/sales-contracts?company={UNIT}", headers=h).json()["contracts"]}
+    assert rows["TT-M"]["delivered_revenue"] is None

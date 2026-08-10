@@ -269,6 +269,9 @@ def get_contract(contract_id: int, scope: Scope) -> dict:
     names = customer_repo.names_by_id([c["company"]],
                                       [c["customer_id"]] if c.get("customer_id") else [])
     return {"contract": c, "children": kids, "delivered_qty": done, "pending_qty": pending,
+            # Tiền của HÀNG ĐÃ GIAO — khác tiền ghi trên hợp đồng vì đơn giá/sản lượng chốt ở đợt giao.
+            "delivered_revenue": sales_contract_report.delivered_revenue(
+                c, [k["revenue"] for k in kids if k["delivered_at"]]),
             "remaining_qty": max(0.0, c["qty"] - done),
             "over_qty": max(0.0, done - c["qty"]),
             "max_qty": c["qty"] * sales_contract_repo.MAX_OVER_RATIO,

@@ -80,6 +80,9 @@ export type ContractRow = Contract & {
   remaining_qty: number;
   /** Phần giao VƯỢT sản lượng hợp đồng (thực giao được lệch, trần 110%). */
   over_qty: number;
+  /** Thành tiền của HÀNG ĐÃ GIAO, quy về ĐỒNG — khác `revenue` (tiền ghi trên hợp đồng) vì sản
+   *  lượng/đơn giá chốt lại ở từng đợt giao. null = có đợt thiếu tỷ giá (KHÔNG phải 0). */
+  delivered_revenue: number | null;
   /** Các HÌNH THỨC TIÊU THỤ có trong hợp đồng (của chính nó + các đợt giao); rỗng = chưa khai. */
   channels: string[];
   children: number;
@@ -111,6 +114,8 @@ export type ContractDetail = {
   pending_qty: number;
   remaining_qty: number;
   over_qty: number;
+  /** Thành tiền của HÀNG ĐÃ GIAO (đồng) — xem `ContractRow.delivered_revenue`. */
+  delivered_revenue: number | null;
   /** Trần sản lượng được phép giao (110% sản lượng hợp đồng). */
   max_qty: number;
   customer_name: string | null;

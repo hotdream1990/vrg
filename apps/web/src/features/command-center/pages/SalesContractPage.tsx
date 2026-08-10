@@ -22,6 +22,11 @@ import "../../bulletin/bulletin.css";
 
 const PAGE_SIZE = 25;
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
+/** Tiền quy VNĐ, hiện theo TRIỆU ĐỒNG. null = có dòng ngoại tệ thiếu tỷ giá → "—", KHÔNG hiện 0
+ *  (0 sẽ bị đọc là bán không thu tiền). */
+const money = (n: number | null) => (n == null ? "—" : t3(n / 1_000_000));
+/** Đã giao đủ sản lượng hợp đồng (chưa chốt hoàn thành) — cùng luật với bộ lọc "Đã giao đủ". */
+const fullyDelivered = (r: ContractRow) => !r.completed_at && r.remaining_qty <= 1e-9;
 /** Quá thời hạn hợp đồng mà vẫn còn hàng chưa giao (hợp đồng đã chốt hoàn thành thì thôi). */
 const overdue = (r: ContractRow) =>
   r.remaining_qty > 0 && !r.completed_at && !!r.expiry_date
@@ -151,6 +156,7 @@ export default function SalesContractPage() {
             <th>Đơn vị</th><th>Số hợp đồng</th><th>Khách hàng</th><th>Loại giao</th>
             <th>Hình thức</th>
             <th>Ngày ký</th><th className="r">SL hợp đồng (tấn)</th><th className="r">Thành tiền (tr.đ)</th>
+            <th className="r">TT đã giao (tr.đ)</th>
             <th className="r">Đã giao</th>
             <th className="r">Còn phải giao</th><th className="r">Đợt giao</th><th>Trạng thái</th>
             <th className="r" style={{ width: 160 }}>Thao tác</th>
@@ -177,9 +183,20 @@ export default function SalesContractPage() {
                 </td>
                 <td>{dmy(r.sign_date) || "—"}</td>
                 <td className="r">{t3(r.qty)}</td>
-                {/* Thành tiền = tổng dòng chi tiết, quy VNĐ. "—" khi có dòng ngoại tệ thiếu tỷ giá
-                    (KHÔNG hiện 0 — 0 sẽ bị đọc là bán không thu tiền). */}
+                {/* Thành tiền = tổng dòng chi tiết CỦA HỢP ĐỒNG (tiền đã ký). */}
                 <td className="r">{r.revenue == null ? "—" : t3(r.revenue / 1_000_000)}</td>
+                {/* TT đã giao = tiền của HÀNG THỰC GIAO. Đơn giá/sản lượng chốt lại ở từng đợt nên
+                    lệch với tiền hợp đồng là bình thường — nêu rõ phần chênh để khỏi phải tự trừ. */}
+                <td className="r">
+                  {money(r.delivered_revenue)}
+                  {r.revenue != null && r.delivered_revenue != null
+                    && Math.abs(r.delivered_revenue - r.revenue) > 1000 && (
+                    <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                      {r.delivered_revenue > r.revenue ? "+" : "−"}
+                      {money(Math.abs(r.delivered_revenue - r.revenue))} so với HĐ
+                    </div>
+                  )}
+                </td>
                 <td className="r">
                   {t3(r.delivered_qty)}
                   {/* Thực giao được phép lệch so với hợp đồng — nêu rõ phần vượt để khỏi tưởng nhầm
@@ -202,9 +219,16 @@ export default function SalesContractPage() {
                 </td>
                 <td className="r">{r.delivery_type === "multi" ? r.children : "—"}</td>
                 <td style={{ whiteSpace: "nowrap", fontSize: 12.5 }}>
+                  {/* Giao hết hàng rồi mà vẫn ghi "đang thực hiện" thì người đọc tưởng còn nợ hàng.
+                      Hợp đồng vẫn CHƯA chốt hoàn thành (chốt là khoá sửa) nên tách thành 3 trạng
+                      thái, đúng bằng 3 lựa chọn ở bộ lọc phía trên. */}
                   {r.completed_at
                     ? <span className="chip">Hoàn thành {dmy(r.completed_at)}</span>
-                    : <span style={{ color: "var(--muted)" }}>Đang thực hiện</span>}
+                    : fullyDelivered(r)
+                      ? <span className="chip info" title={"Đã giao đủ sản lượng hợp đồng"
+                          + (r.delivered_at ? ` (ngày ${dmy(r.delivered_at)})` : "")
+                          + " — mở hợp đồng bấm “Hoàn thành hợp đồng” để chốt."}>Đã giao đủ</span>
+                      : <span style={{ color: "var(--muted)" }}>Đang thực hiện</span>}
                 </td>
                 <td className="r" style={{ whiteSpace: "nowrap" }}>
                   <button className="btn" onClick={() => setOpenId(r.id as number)}>Xem</button>{" "}
@@ -223,7 +247,7 @@ export default function SalesContractPage() {
               </tr>
             ))}
             {rows.length === 0 && !loading && (
-              <tr><td colSpan={13} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
+              <tr><td colSpan={14} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                 Chưa có hợp đồng nào khớp bộ lọc.
               </td></tr>
             )}

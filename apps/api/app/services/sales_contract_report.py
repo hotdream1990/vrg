@@ -262,6 +262,41 @@ def undelivered_on(as_of: str, companies: list[str] | None = None,
     return out
 
 
+def delivered_revenue(contract: dict[str, Any], kid_revenues: list[float | None]) -> float | None:
+    """TIỀN CỦA HÀNG THỰC GIAO (đồng) — KHÁC `revenue` là tiền ghi trên hợp đồng đã ký.
+
+    Sản lượng và đơn giá của từng đợt được chốt lúc giao, nên tổng tiền đã giao lệch với tiền hợp
+    đồng là chuyện bình thường (chốt 10/08/2026 — khách cần cả hai số để đối chiếu). Hợp đồng giao
+    1 lần: giao rồi thì tiền đã giao chính là tiền hợp đồng, chưa giao thì bằng 0.
+
+    None = có dòng ngoại tệ thiếu tỷ giá → màn hình hiện “—”, KHÔNG hiện 0 (0 bị đọc là bán không
+    thu tiền). Một đợt thiếu tỷ giá là cả tổng không biết, không cộng phần còn lại rồi coi là đủ.
+    """
+    if contract["delivery_type"] == "multi":
+        return None if any(v is None for v in kid_revenues) else float(sum(kid_revenues))
+    return contract["revenue"] if contract["delivered_at"] else 0.0
+
+
+def _attach_delivered_revenue(rows: list[dict[str, Any]]) -> None:
+    """Gắn `delivered_revenue` cho MỘT TRANG hợp đồng — một truy vấn cho cả trang.
+
+    Đọc dòng chi tiết của các đợt ĐÃ GIAO rồi quy đổi bằng chính `calc` mà hợp đồng dùng, thay vì
+    viết lại công thức quy đổi bằng SQL: hai bản sao của một công thức sẽ lệch nhau lúc nào không hay.
+    """
+    ids = [r["id"] for r in rows if r["delivery_type"] == "multi"]
+    kids: dict[int, list[float | None]] = {}
+    if ids:
+        ensure_schema()
+        with session_scope() as db:
+            got = db.execute(text("SELECT parent_id, lines FROM sales_contract "
+                                  "WHERE parent_id = ANY(:ps) AND delivered_at IS NOT NULL"),
+                             {"ps": ids}).mappings().all()
+        for k in got:
+            kids.setdefault(k["parent_id"], []).append(calc.total_revenue_vnd(k["lines"] or []))
+    for r in rows:
+        r["delivered_revenue"] = delivered_revenue(r, kids.get(r["id"], []))
+
+
 def parents_with_progress(companies: list[str] | None = None, *,
                           customer_ids: list[int] | None = None,
                           status: str | None = None, q: str | None = None,
@@ -278,6 +313,8 @@ def parents_with_progress(companies: list[str] | None = None, *,
       - `delivered_qty` đã giao · `remaining_qty` = **sản lượng hợp đồng − đã giao** (còn phải giao)
       - `pending_qty` phần đã LẬP ĐỢT nhưng chưa điền ngày giao (nằm trong `remaining_qty`)
       - `over_qty` phần giao VƯỢT hợp đồng (thực giao được lệch, xem `repo.MAX_OVER_RATIO`)
+      - `delivered_revenue` TIỀN của hàng đã giao — lệch với `revenue` (tiền hợp đồng) là bình
+        thường, xem `delivered_revenue()`
 
     `channels` lọc theo HÌNH THỨC TIÊU THỤ (xuất khẩu / trong nước / nội bộ) — dùng `[""]` để tìm
     các hợp đồng CHƯA KHAI hình thức. Hình thức nằm ở LẦN GIAO chứ không ở hợp đồng, nên hợp đồng
@@ -373,4 +410,5 @@ def parents_with_progress(companies: list[str] | None = None, *,
         for k in ("delivered_qty", "pending_qty", "remaining_qty", "over_qty"):
             item[k] = float(item[k] or 0)
         out.append(item)
+    _attach_delivered_revenue(out)
     return {"rows": out, "total": int(rows[0]["total"]) if rows else 0}
