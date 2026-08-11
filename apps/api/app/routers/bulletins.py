@@ -122,7 +122,11 @@ def api_generate_pdf(
 ):
     """Xuất PDF từ draft (HTML → Chromium: trang đầu/cuối + header/footer + nhảy trang)."""
     rdate = _parse_date(report_date)
-    path = generate_pdf_from_draft(rdate)
+    try:
+        path = generate_pdf_from_draft(rdate)
+    except Exception as exc:  # noqa: BLE001 - Chromium chết → nói rõ để người dùng bấm lại
+        logger.error("Xuất PDF bản tin thất bại", exc_info=exc)
+        raise HTTPException(502, "Không xuất được PDF — trình duyệt render bị lỗi. Bấm lại sau ít giây.") from exc
     if not path:
         raise HTTPException(404, "Không thể tạo PDF. Kiểm tra draft và cấu hình render.")
     return FileResponse(str(path), media_type="application/pdf", filename=path.name)

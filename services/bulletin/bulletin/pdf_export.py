@@ -88,19 +88,47 @@ def _pack(groups: list[list], measures: list[dict]) -> list[list[str]]:
 
 def generate_pdf(data: BulletinData, assets: dict[str, str], output_path: str | Path) -> Path:
     """Tạo PDF bản tin. assets: {slot -> đường dẫn ảnh} (cover-front/back, header/footer-banner)."""
-    from playwright.sync_api import sync_playwright
     from pypdf import PdfReader, PdfWriter
 
     uris = {k: v for k, v in ((k, _data_uri(v)) for k, v in assets.items()) if v}
+
+    out = Path(output_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+
+    # Chromium thỉnh thoảng chết ngay lúc khởi động trong container (signal 11) → cả lần xuất hỏng.
+    # Lần chạy lại luôn qua, nên thử lại thay vì bắt người dùng bấm lại và thấy "lỗi hệ thống".
+    last_exc: Exception | None = None
+    for attempt in range(_RENDER_TRIES):
+        try:
+            parts = _render_parts(data, uris)
+            break
+        except Exception as exc:  # noqa: BLE001 - Chromium chết giữa chừng: thử lại rồi mới bó tay
+            last_exc = exc
+            print(f"[bulletin] Render PDF lỗi (lần {attempt + 1}/{_RENDER_TRIES}): {exc}")
+    else:
+        raise RuntimeError(f"Chromium không render được PDF sau {_RENDER_TRIES} lần") from last_exc
+
+    writer = PdfWriter()
+    for blob in parts:
+        for pg in PdfReader(io.BytesIO(blob)).pages:
+            writer.add_page(pg)
+    with out.open("wb") as f:
+        writer.write(f)
+    return out
+
+
+_RENDER_TRIES = 2
+
+
+def _render_parts(data: BulletinData, uris: dict[str, str]) -> tuple[bytes, bytes, bytes]:
+    """Render (cover, ruột, back) qua Chromium — 1 phiên trình duyệt cho cả 3 phần."""
+    from playwright.sync_api import sync_playwright
 
     groups = T.content_groups(data)
     flat = [b for g in groups for b in g]
 
     cover = T.cover_html(data, uris)
     back = T.back_html(data, uris)
-
-    out = Path(output_path)
-    out.parent.mkdir(parents=True, exist_ok=True)
     zero = {"top": "0", "bottom": "0", "left": "0", "right": "0"}
 
     with sync_playwright() as pw:
@@ -135,15 +163,6 @@ def generate_pdf(data: BulletinData, assets: dict[str, str], output_path: str | 
 
         content = T.pages_html(pages, data, uris)
 
-        cover_pdf = render(cover)
-        content_pdf = render(content)
-        back_pdf = render(back)
+        parts = (render(cover), render(content), render(back))
         browser.close()
-
-    writer = PdfWriter()
-    for blob in (cover_pdf, content_pdf, back_pdf):
-        for pg in PdfReader(io.BytesIO(blob)).pages:
-            writer.add_page(pg)
-    with out.open("wb") as f:
-        writer.write(f)
-    return out
+    return parts
