@@ -61,12 +61,17 @@ export default function UnitDailyEditModal(
   }, [canEdit, isAdmin, day, today, data]);
 
   // Đơn giá mủ nước/mủ chén → ghi thẳng kho "Giá mủ nguyên liệu" (đúng đơn vị + ngày), chỉ khi đổi.
+  //
+  // ĐƠN GIÁ 0 = "ngày đó không có giá": xoá ô giá, KHÔNG lưu số 0 (quy ước dùng chung — xem
+  // `app/core/market_meta.py`). Lưu số 0 thì bản tin in ra khoảng "0-550 đồng/độ" cho cả khu vực
+  // và giá bình quân gia quyền bị kéo tụt. Server chặn lần hai nên hai tầng luôn khớp.
   const savePrices = async (prices: PriceDraft) => {
     const orig = data?.prices?.[company];
     const jobs: Promise<unknown>[] = [];
     // Mủ chén có thể tính theo độ TSC hoặc độ DRC — nhãn đơn vị lưu kèm giá phải khớp lựa chọn.
     const cupBasis = prices.cupBasis ?? "tsc";
-    const each = (nv: number | null, ov: number | null, pt: MemberPriceType) => {
+    const each = (raw: number | null, ov: number | null, pt: MemberPriceType) => {
+      const nv = raw === 0 ? null : raw;   // 0 = không có giá → coi như bỏ trống
       if ((nv ?? null) === (ov ?? null)) return;
       const unit = pt === "purchase_cup" && cupBasis === "drc" ? "đồng/độ DRC" : "đồng/độ TSC";
       if (role === "member") {

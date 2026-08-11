@@ -6,12 +6,25 @@ import { authHeaders, onUnauthorized } from "./auth-token";
 
 export const API = import.meta.env.VITE_API_URL ?? "http://localhost:8390";
 
+/** Lỗi 422 của FastAPI: `detail` là MẢNG {loc, msg} → gộp thành câu đọc được.
+ *  Không dịch được thì vẫn hơn hẳn "HTTP 422" trơ trọi — người dùng biết ô nào sai. */
+function validationMessage(detail: unknown): string | null {
+  if (!Array.isArray(detail) || detail.length === 0) return null;
+  const parts = detail.slice(0, 3).map((d) => {
+    const item = d as { loc?: unknown[]; msg?: string };
+    const field = Array.isArray(item.loc) ? String(item.loc[item.loc.length - 1] ?? "") : "";
+    return field ? `${field}: ${item.msg ?? ""}`.trim() : (item.msg ?? "");
+  }).filter(Boolean);
+  return parts.length ? `Số liệu gửi lên không hợp lệ — ${parts.join("; ")}` : null;
+}
+
 /** Lấy `detail` (message tiếng Việt từ FastAPI) trong body lỗi; fallback `HTTP <status>`. */
 async function errorMessage(res: Response, fallback?: string): Promise<string> {
   const base = fallback ?? `HTTP ${res.status}`;
   try {
     const body = await res.json();
     if (body && typeof body.detail === "string") return body.detail;
+    return validationMessage(body?.detail) ?? base;
   } catch {
     /* body không phải JSON — dùng fallback */
   }

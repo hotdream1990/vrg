@@ -13,7 +13,12 @@ from typing import Any
 from sqlalchemy import bindparam, text
 
 from app.core.db import ensure_schema, session_scope
-from app.core.market_meta import PURCHASE_SOURCE_HQ, PURCHASE_SOURCE_UNIT, PURCHASE_SOURCES
+from app.core.market_meta import (
+    PURCHASE_PRICE_TYPES,
+    PURCHASE_SOURCE_HQ,
+    PURCHASE_SOURCE_UNIT,
+    PURCHASE_SOURCES,
+)
 from app.core.paths import bulletin_dir
 from app.services import audit_repo
 
@@ -56,7 +61,7 @@ def _fx_rounded(rec: dict[str, Any]) -> Any:
 # ── Nhật ký hoạt động ──
 def _audit_entity(source: str, price_type: str) -> str:
     """Bản ghi giá thuộc nhóm số liệu nào (khớp quyền + đúng màn hình nhập liệu)."""
-    if price_type in ("purchase", "purchase_cup"):
+    if price_type in PURCHASE_PRICE_TYPES:
         return "raw_material"
     if price_type == "physical":
         return "physical"
@@ -70,7 +75,7 @@ def _audit_key(as_of: str, source: str, grade: str, price_type: str) -> str:
 def _audit_company(source: str, grade: str, price_type: str) -> str | None:
     """Giá mủ nguyên liệu của VRG: `grade` chính là TÊN ĐƠN VỊ → điền vào cột đơn vị để lọc.
     Áp cho CẢ hai lớp: chuyên viên (`vrg`) và đơn vị thành viên tự khai (`vrg_unit`)."""
-    return (grade if source in PURCHASE_SOURCES and price_type in ("purchase", "purchase_cup")
+    return (grade if source in PURCHASE_SOURCES and price_type in PURCHASE_PRICE_TYPES
             else None)
 
 
@@ -256,15 +261,31 @@ def list_records(source: str | None = None, grade: str | None = None,
         return {"records": [dict(m) for m in rows], "total": int(total)}
 
 
+def is_purchase_zero(rec: dict[str, Any]) -> bool:
+    """Bản ghi này là ĐƠN GIÁ THU MUA bằng 0 → coi như "không có giá" (xem market_meta).
+
+    Chỉ áp cho mủ nước/mủ chén. Giá sàn 0 là phiên No Trading — dữ liệu thật, phải giữ.
+    """
+    price = rec.get("price")
+    return rec.get("price_type") in PURCHASE_PRICE_TYPES and price is not None and float(price) == 0
+
+
 def upsert_record(rec: dict[str, Any], note: str | None = None) -> None:
     """Thêm/sửa 1 bản ghi giá thủ công. Khóa: (as_of, source, grade, price_type).
 
     Ghi Nhật ký hoạt động kèm giá trị trước/sau. `note` để nơi gọi ghi rõ nguồn thao tác
     (vd 'nhập từ text Reuters', 'từ Báo giá mủ — Mục 5').
+
+    **Đơn giá thu mua = 0 → XOÁ bản ghi thay vì lưu số 0** (0 = "không có giá", xem
+    `market_meta`). Đặt chặn ở đây vì mọi đường ghi giá đều đi qua hàm này — biểu Thu mua,
+    lưới Giá mủ nguyên liệu, Báo giá mủ Mục 5, nhập Excel, link công khai.
     """
     ensure_schema()
     as_of, source = rec["as_of"], rec["source"]
     grade, price_type = rec["grade"], rec["price_type"]
+    if is_purchase_zero(rec):
+        delete_record(as_of, source, grade, rec.get("contract") or "", price_type)
+        return
     with session_scope() as db:
         before = _snapshot(db, as_of, source, grade, price_type)
         db.execute(
@@ -561,6 +582,10 @@ def purchase_by_company_on_date(as_of: str, price_type: str = "purchase",
     CHỈ lấy bản ghi as_of = ngày báo cáo (không carry giá cũ) — công ty không nhập giá đúng
     ngày đó sẽ không xuất hiện. Nếu 1 công ty có nhiều bản ghi cùng ngày (sửa lại) → lấy bản
     nhập sau cùng. Phục vụ mục 'Giá mủ nguyên liệu' của bản tin.
+
+    Bỏ qua giá 0: đơn giá thu mua 0 = "không có giá" (xem `market_meta`). Tầng ghi đã chặn,
+    nhưng script import lịch sử ghi thẳng SQL nên vẫn lọc ở đây — lọt một số 0 là bản tin in
+    ra khoảng "0-550 đồng/độ" cho cả khu vực.
     """
     ensure_schema()
     with session_scope() as db:
@@ -569,7 +594,7 @@ def purchase_by_company_on_date(as_of: str, price_type: str = "purchase",
                 SELECT DISTINCT ON (grade) grade, price
                 FROM fact_price
                 WHERE source = :src AND price_type = :pt
-                  AND as_of = CAST(:d AS date)
+                  AND as_of = CAST(:d AS date) AND price <> 0
                 ORDER BY grade, ingested_at DESC
             """),
             {"d": as_of, "pt": price_type, "src": source},
@@ -582,6 +607,7 @@ def purchase_prices_in_range(date_from: str, date_to: str,
     """Đơn giá thu mua trong khoảng → {(công ty, ngày): {latex, cup}}.
 
     Dùng tính GIÁ BÌNH QUÂN GIA QUYỀN theo sản lượng cho báo cáo kỳ (1 query cho cả khoảng).
+    Bỏ giá 0 ("không có giá") — tính vào bình quân là kéo tụt giá của cả kỳ.
     """
     ensure_schema()
     with session_scope() as db:
@@ -590,7 +616,7 @@ def purchase_prices_in_range(date_from: str, date_to: str,
                 SELECT DISTINCT ON (as_of, grade, price_type) as_of, grade, price_type, price
                 FROM fact_price
                 WHERE source = :src AND price_type IN ('purchase', 'purchase_cup')
-                  AND as_of BETWEEN CAST(:a AS date) AND CAST(:b AS date)
+                  AND as_of BETWEEN CAST(:a AS date) AND CAST(:b AS date) AND price <> 0
                 ORDER BY as_of, grade, price_type, ingested_at DESC
             """),
             {"a": date_from, "b": date_to, "src": source},

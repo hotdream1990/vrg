@@ -206,6 +206,12 @@ export default function PurchaseForm({
           field("Đơn giá thu mua", `đồng/${cupUnit}`, numInput(num(draft.price_cup_vnd), (v) => set("price_cup_vnd", v), readOnly, undefined, PRICE_CUP))
         )}
 
+        <div className="form-note" style={{ gridColumn: "1 / -1", fontSize: 11.5 }}>
+          Đơn giá <b>để trống</b> hoặc <b>bằng 0</b> = ngày đó <b>không có giá thu mua</b>: hệ thống
+          không lưu mức giá 0 (mở lại ô sẽ trống), và ngày đó không được tính vào giá bình quân
+          hay khoảng giá khu vực trong bản tin. Sản lượng vẫn lưu bình thường.
+        </div>
+
         {head("Mủ nguyên liệu nước chưa cán vắt (chén)", false, HINT_DAILY_EVENT)}
         {field("Sản lượng thu mua", "tấn", numInput(num(draft.cup_raw), (v) => set("cup_raw", v), readOnly, undefined, TONNES_DAILY))}
         {field("Đơn giá thu mua", "đồng/kg", numInput(num(draft.cup_raw_price), (v) => set("cup_raw_price", v), readOnly, undefined, PRICE_PER_KG))}

@@ -85,8 +85,10 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
         # tính RIÊNG từng loại (Q2) nên không gộp vào wsum của mủ nước/mủ chén.
         for key in ("cup_raw", "rss_pressed"):
             _add(acc, key, f.get(key))
+            # `px` phải KHÁC 0: đơn giá 0 = "không có giá" (xem core/market_meta), tính vào
+            # bình quân gia quyền là kéo tụt giá của cả kỳ bằng một mức giá không có thật.
             px, qty = _num(f.get(f"{key}_price")), _num(f.get(key))
-            if px is not None and qty:
+            if px and qty:
                 wsum[key] = wsum.get(key, 0.0) + px * qty
                 wqty[key] = wqty.get(key, 0.0) + qty
         # Thu mua thành phẩm nhập theo CHỦNG LOẠI (bảng nhiều dòng) → cộng số lượng các dòng.
@@ -98,7 +100,7 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
         day_px = prices.get((e["company"], e["as_of"]), {})
         for slot, qty_key in (("latex", "latex_wet"), ("cup", "coagulum")):
             px, qty = _num(day_px.get(slot)), _num(f.get(qty_key))
-            if px is not None and qty:
+            if px and qty:
                 wsum[slot] += px * qty
                 wqty[slot] += qty
 

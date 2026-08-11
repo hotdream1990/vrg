@@ -75,8 +75,11 @@ def _load() -> tuple:
         ir = db.execute(text("SELECT as_of, source, grade, price FROM fact_price "
                              "WHERE price_type IN ('settlement','physical') AND price <> 0 "
                              "ORDER BY as_of")).all()
+        # price <> 0 (giống rổ chỉ số trên): đơn giá thu mua 0 = "không có giá", không phải một
+        # mức giá — để lọt vào là bình quân ngày tụt hẳn và hồi quy học theo cú rơi không có thật.
         mr = db.execute(text("SELECT as_of, avg(price) FROM fact_price WHERE source='vrg' "
-                             "AND price_type='purchase' GROUP BY as_of ORDER BY as_of")).all()
+                             "AND price_type='purchase' AND price <> 0 "
+                             "GROUP BY as_of ORDER BY as_of")).all()
         iv = db.execute(text("SELECT as_of, ton_kho, ton_kho_hd FROM fact_inventory "
                              "WHERE ton_kho IS NOT NULL ORDER BY as_of")).all()
     # fmap = trị hồi quy theo grade (FOB cho grade thường, VNĐ cho grade chỉ-nội-địa như SkimBlock).

@@ -171,6 +171,15 @@ MARKET_QUOTE_PACKAGING = ["Hàng rời", "Pallet"]
 PURCHASE_SOURCE_HQ = "vrg"
 PURCHASE_SOURCE_UNIT = "vrg_unit"
 PURCHASE_SOURCES = (PURCHASE_SOURCE_HQ, PURCHASE_SOURCE_UNIT)
+#: 2 loại giá của kho "Giá mủ nguyên liệu" (mủ nước · mủ chén).
+PURCHASE_PRICE_TYPES = ("purchase", "purchase_cup")
+
+# ⚠ ĐƠN GIÁ THU MUA = 0 NGHĨA LÀ "KHÔNG CÓ GIÁ", KHÔNG PHẢI MỘT MỨC GIÁ (chốt 11/08/2026).
+# Người nhập được phép gõ 0 (ngày đó đơn vị không công bố giá / không mua), nhưng số 0 KHÔNG
+# được lưu thành một mức giá: để lọt vào kho là bản tin in ra "0-550 đồng/độ" cho cả khu vực,
+# gợi ý giá sàn hồi quy trên một cú rơi về 0 không có thật, và giá bình quân gia quyền bị kéo tụt.
+# Chặn ngay ở `price_repo.upsert_record` (0 → XOÁ bản ghi) để mọi đường ghi đều tuân thủ.
+# Khác hẳn giá SÀN: ở đó 0 = phiên No Trading, vẫn là dữ liệu thật (xem bulletin/convert.py).
 
 # Khu vực (nhóm đơn vị thành viên) — seed ban đầu; admin thêm/bớt ở tab Khu vực.
 VRG_REGIONS = ["Bình Dương", "Bình Phước", "Bình Thuận", "Tây Ninh"]

@@ -44,6 +44,16 @@ def _num(v: Any) -> float | None:
         return None
 
 
+def _price(v: Any) -> float | None:
+    """Đơn giá thu mua — **0 = "không có giá"**, trả None (xem `core/market_meta`).
+
+    Nhờ vậy dòng đó rơi vào cảnh báo "có sản lượng nhưng chưa có đơn giá" thay vì lặng lẽ
+    kéo tụt giá bình quân gia quyền của cả nhóm.
+    """
+    n = _num(v)
+    return None if n == 0 else n
+
+
 def line_revenue_vnd(qty: Any, price: Any, ccy: str | None, fx: Any) -> float | None:
     """Doanh thu 1 dòng quy về BASE = đồng. GIỮ ĐÚNG quy tắc của form nhập
     (`lib/unit-daily-consumption.ts::lineRevenueVnd`): USD thiếu tỷ giá → None, KHÔNG đoán."""
@@ -98,8 +108,8 @@ def purchase_rows(date_from: str, date_to: str,
             if qty is None:
                 continue
             # Đơn vị nước ngoài nhập giá nội tệ → quy về VND; còn lại lấy kho "Giá mủ nguyên liệu".
-            local = _num(f.get(local_key))
-            price = (local * fx_local) if (local is not None and fx_local) else _num(day_px.get(px_key))
+            local = _price(f.get(local_key))
+            price = (local * fx_local) if (local is not None and fx_local) else _price(day_px.get(px_key))
             rows.append({**base, "material": material, "grade": MATERIAL_LABELS[material],
                          "qty": qty, "price": price, "price_unit": "dong_do",
                          "cup_basis": cup_basis if material == "cup" else None,
@@ -111,16 +121,17 @@ def purchase_rows(date_from: str, date_to: str,
             if qty is None:
                 continue
             rows.append({**base, "material": material, "grade": MATERIAL_LABELS[material],
-                         "qty": qty, "price": _num(f.get(f"{material}_price")),
+                         "qty": qty, "price": _price(f.get(f"{material}_price")),
                          "price_unit": "dong_kg", "cup_basis": None,
                          "ccy": "VND", "fx": None, "revenue_vnd": None, "missing_fx": False})
         for ln in f.get("finished") or []:
             qty = _num(ln.get("qty"))
             if qty is None:
                 continue
-            rev = line_revenue_vnd(qty, ln.get("price"), ln.get("ccy"), ln.get("fx"))
+            price = _price(ln.get("price"))   # đơn giá 0 = chưa có giá → không tính doanh thu
+            rev = line_revenue_vnd(qty, price, ln.get("ccy"), ln.get("fx"))
             rows.append({**base, "material": "finished", "grade": str(ln.get("grade") or "").strip() or "—",
-                         "qty": qty, "price": _num(ln.get("price")), "price_unit": "per_tonne",
+                         "qty": qty, "price": price, "price_unit": "per_tonne",
                          "cup_basis": None, "ccy": ln.get("ccy") or "VND", "fx": _num(ln.get("fx")),
                          "revenue_vnd": rev,
                          "missing_fx": (ln.get("ccy") == "USD" and _num(ln.get("fx")) is None)})

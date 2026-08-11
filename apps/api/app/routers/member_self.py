@@ -66,7 +66,10 @@ def my_prices(days: int = Query(30, ge=1, le=180),
 @router.put("/prices")
 def upsert_my_price(body: MemberPriceEdit,
                     member: dict = Depends(get_current_member)) -> dict:
-    """Nhập/sửa 1 ô giá (mủ nước hoặc mủ chén) cho 1 đơn vị được gán, trong cửa sổ cho phép."""
+    """Nhập/sửa 1 ô giá (mủ nước hoặc mủ chén) cho 1 đơn vị được gán, trong cửa sổ cho phép.
+
+    Giá 0 = "ngày đó không có giá" → `price_repo` xoá ô giá thay vì lưu số 0 (xem `market_meta`).
+    """
     _assert_company(member, body.company)
     edit_window.assert_editable(body.as_of, edit_window.member_window())
     # Giá đơn vị TỰ KHAI nằm ở lớp riêng — không đè lên giá chuyên viên đã chốt (xem market_meta).
@@ -75,7 +78,7 @@ def upsert_my_price(body: MemberPriceEdit,
         "price_type": body.price_type, "price": float(body.price),
         "currency": "VND", "unit": _price_unit(body.price_type, body.basis),
     })
-    return {"ok": True}
+    return {"ok": True, "cleared": body.price == 0}
 
 
 @router.delete("/prices")
