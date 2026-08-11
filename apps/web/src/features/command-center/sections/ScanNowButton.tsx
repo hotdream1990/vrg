@@ -20,7 +20,7 @@ const isNetErr = (note?: string | null) =>
   !!note && /route to host|EHOSTUNREACH|Errno 113|timed out|timeout|connection|getaddrinfo|resolve/i.test(note);
 
 type Chip = { key: string; label: string; ok: boolean; title: string };
-type Result = { tone: "ok" | "warn" | "err"; summary: string; chips: Chip[] };
+type Result = { tone: "ok" | "warn" | "err"; summary: string; chips: Chip[]; notes: string[] };
 
 const build = (r: ScanResult): Result => {
   const errs = r.sources.filter((s) => s.status === "error");
@@ -31,13 +31,16 @@ const build = (r: ScanResult): Result => {
       ? `${friendly(s.source)} · ${isNetErr(s.note) ? "lỗi mạng" : "lỗi"}`
       : `${friendly(s.source)} · ${s.count}`,
     ok: s.status !== "error",
-    title: s.status === "error" ? (s.note || "Lỗi không xác định") : `${s.count} bản ghi`,
+    title: s.status === "error" ? (s.note || "Lỗi không xác định") : (s.note || `${s.count} bản ghi`),
   }));
+  // Nguồn quét OK nhưng CÓ ghi chú (sàn nghỉ, No Trading, phải lấy phiên cũ hơn vì báo cáo
+  // hôm nay chưa đăng) — phải hiện thành chữ, đừng để chuyên viên tự đoán vì sao số không đổi.
+  const notes = oks.filter((s) => s.note).map((s) => `${friendly(s.source)}: ${s.note}`);
   if (errs.length === 0)
-    return { tone: "ok", summary: `Đã ghi ${r.persisted} bản ghi · ${oks.length}/${r.sources.length} nguồn OK`, chips };
+    return { tone: "ok", summary: `Đã ghi ${r.persisted} bản ghi · ${oks.length}/${r.sources.length} nguồn OK`, chips, notes };
   if (oks.length > 0)
-    return { tone: "warn", summary: `Đã ghi ${r.persisted} bản ghi · ${oks.length}/${r.sources.length} nguồn OK, ${errs.length} lỗi`, chips };
-  return { tone: "err", summary: "Không quét được nguồn nào", chips };
+    return { tone: "warn", summary: `Đã ghi ${r.persisted} bản ghi · ${oks.length}/${r.sources.length} nguồn OK, ${errs.length} lỗi`, chips, notes };
+  return { tone: "err", summary: "Không quét được nguồn nào", chips, notes };
 };
 
 /** Nút "Quét ngay" theo nguồn — báo rõ nguồn nào OK / nguồn nào lỗi (không đánh đồng lỗi cả cụm). */
@@ -53,7 +56,7 @@ export default function ScanNowButton({ source, label, onDone }: Props) {
       setResult(build(r));
       if (r.persisted > 0) onDone?.();  // có bản ghi mới → nạp lại lưới, dù 1 nguồn lỗi
     } catch (e) {
-      setResult({ tone: "err", summary: String(e).slice(0, 90), chips: [] });
+      setResult({ tone: "err", summary: String(e).slice(0, 90), chips: [], notes: [] });
     } finally {
       setBusy(false);
     }
@@ -71,6 +74,9 @@ export default function ScanNowButton({ source, label, onDone }: Props) {
             <span key={c.key} className={`src-chip ${c.ok ? "ok" : "bad"}`} title={c.title}>
               {c.ok ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />} {c.label}
             </span>
+          ))}
+          {result.notes.map((n) => (
+            <span key={n} style={{ width: "100%", color: "var(--muted)", fontSize: 12 }}>{n}</span>
           ))}
         </>
       )}
