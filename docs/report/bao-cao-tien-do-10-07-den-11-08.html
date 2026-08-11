@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VRG — Báo cáo tiến độ 10/07 → 11/08/2026</title>
+<style>
+  :root{
+    --type-mega: 168px;
+    --type-title: 62px;
+    --type-subtitle: 40px;
+    --type-body: 30px;
+    --type-small: 24px;
+    --type-eyebrow: 24px;
+    --pad-x: 112px;
+    --pad-top: 88px;
+    --pad-bottom: 84px;
+
+    --ink: #0E1B2C;
+    --ink-2: #46596E;
+    --ink-3: #7A8DA0;
+    --green: #15B86A;
+    --green-d: #0A7C44;
+    --green-ink: #0B5A33;
+    --amber: #B4780A;
+    --amber-bg: rgba(245,158,11,.15);
+    --red: #B42318;
+    --red-bg: rgba(220,80,60,.13);
+    --line: rgba(255,255,255,.7);
+    --bg-dark: radial-gradient(60% 55% at 18% 8%, rgba(46,210,128,.34), transparent 60%), radial-gradient(52% 52% at 88% 92%, rgba(28,180,120,.26), transparent 62%), linear-gradient(150deg,#063221 0%,#0a4a31 52%,#06281b 100%);
+    --font: "Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--font);background:#0a120d;color:var(--ink);-webkit-font-smoothing:antialiased}
+  deck-stage:not(:defined){visibility:hidden}
+
+  section{
+    background:
+      radial-gradient(58% 48% at 10% 6%, rgba(54,214,140,.24), transparent 60%),
+      radial-gradient(52% 54% at 92% 10%, rgba(38,196,150,.22), transparent 60%),
+      radial-gradient(70% 60% at 82% 102%, rgba(74,222,150,.20), transparent 60%),
+      radial-gradient(48% 42% at 26% 98%, rgba(120,232,182,.18), transparent 60%),
+      linear-gradient(158deg, #eef7f1 0%, #f5faf6 46%, #e8f3ed 100%);
+    color:var(--ink);
+    overflow:hidden;
+    font-size:var(--type-body);
+  }
+  .pad{position:absolute;inset:0;padding:var(--pad-top) var(--pad-x) var(--pad-bottom);display:flex;flex-direction:column}
+
+  /* ---------- shared atoms ---------- */
+  .eyebrow{font-size:var(--type-eyebrow);font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--green-d);display:flex;align-items:center;gap:16px}
+  .eyebrow::before{content:"";width:46px;height:3px;background:var(--green);border-radius:2px;display:inline-block}
+  .s-title{font-size:var(--type-title);font-weight:800;line-height:1.05;letter-spacing:-.015em;margin:0;color:var(--ink);text-wrap:balance}
+  .s-sub{font-size:var(--type-subtitle);font-weight:400;line-height:1.28;color:var(--ink-2);margin:0}
+  .body{font-size:var(--type-body);line-height:1.42;color:var(--ink-2)}
+  .accent{color:var(--green-d)}
+  strong{font-weight:700;color:var(--ink)}
+
+  .panel{position:relative;background:linear-gradient(135deg, rgba(255,255,255,.60) 0%, rgba(255,255,255,.32) 100%);border:1px solid rgba(255,255,255,.75);border-radius:28px;box-shadow:0 32px 66px -30px rgba(10,60,38,.42), 0 6px 18px -8px rgba(10,60,38,.14), inset 0 1px 0 rgba(255,255,255,.9), inset 0 -26px 50px -34px rgba(10,60,38,.16);backdrop-filter:blur(26px) saturate(160%);-webkit-backdrop-filter:blur(26px) saturate(160%);overflow:hidden}
+  .panel::before{content:"";position:absolute;left:0;right:0;top:0;height:46%;border-radius:28px 28px 60% 60%/28px 28px 22% 22%;background:linear-gradient(180deg, rgba(255,255,255,.5) 0%, rgba(255,255,255,0) 100%);pointer-events:none;z-index:0}
+  .panel>*{position:relative;z-index:1}
+  .panel.warn{border-color:rgba(245,158,11,.5);box-shadow:0 32px 66px -30px rgba(120,80,10,.32), inset 0 1px 0 rgba(255,255,255,.9)}
+
+  .footer{position:absolute;left:var(--pad-x);right:var(--pad-x);bottom:42px;display:flex;align-items:center;justify-content:space-between;font-size:23px;color:var(--ink-3)}
+  .footer .tag{font-weight:600;color:var(--green-d)}
+  .footer span{white-space:nowrap}
+  .glow{position:absolute;border-radius:50%;filter:blur(80px);background:radial-gradient(circle,rgba(30,210,124,.55),rgba(30,210,124,0) 70%);pointer-events:none}
+
+  .chip{width:56px;height:56px;border-radius:16px;background:linear-gradient(150deg,#1ec678 0%,#0a7c44 100%);color:#fff;font-weight:800;font-size:28px;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid rgba(255,255,255,.28);box-shadow:0 12px 26px -10px rgba(18,164,92,.62), inset 0 1px 0 rgba(255,255,255,.55), inset 0 -9px 16px -10px rgba(0,40,20,.45)}
+  .chip.lite{width:92px;height:92px;border-radius:26px;font-size:42px;background:linear-gradient(150deg, rgba(255,255,255,.66) 0%, rgba(214,243,228,.42) 100%);color:var(--green-d);border:1px solid rgba(255,255,255,.85);box-shadow:0 18px 36px -18px rgba(10,80,50,.45), inset 0 1px 0 rgba(255,255,255,.95);backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%)}
+
+  .feat{display:flex;gap:20px;align-items:flex-start}
+  .feat .ic{width:50px;height:50px;border-radius:14px;background:linear-gradient(150deg, rgba(255,255,255,.66), rgba(214,243,228,.42));border:1px solid rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;flex:none;color:var(--green-d);font-size:25px;box-shadow:0 10px 22px -12px rgba(10,80,50,.4), inset 0 1px 0 rgba(255,255,255,.9)}
+  .feat h4{margin:0 0 5px;font-size:29px;font-weight:700;color:var(--ink)}
+  .feat p{margin:0;font-size:25px;line-height:1.34;color:var(--ink-2)}
+
+  table.cl{width:100%;border-collapse:separate;border-spacing:0;font-size:23px}
+  table.cl th{font-size:21px;text-transform:uppercase;letter-spacing:.06em;color:var(--green-d);text-align:left;padding:14px 16px 15px;border-bottom:2px solid var(--line);font-weight:700}
+  table.cl td{padding:15px 16px;border-bottom:1px solid var(--line);color:var(--ink-2);vertical-align:top;line-height:1.28}
+  table.cl td.d{color:var(--ink);font-weight:700}
+  table.cl tr:last-child td{border-bottom:none}
+  .num{font-family:var(--mono);font-weight:700;color:var(--ink);text-align:right;white-space:nowrap}
+  table.cl.tight th{padding:10px 12px 11px;font-size:19px}
+  table.cl.tight td{padding:9px 12px;line-height:1.26}
+
+  .pill{display:inline-block;padding:4px 13px;border-radius:999px;font-size:20px;font-weight:700;letter-spacing:.02em;white-space:nowrap}
+  .pill.ok{background:linear-gradient(150deg,#1ec678,#0c8a4d);color:#fff;box-shadow:0 8px 16px -7px rgba(18,164,92,.6), inset 0 1px 0 rgba(255,255,255,.5)}
+  .pill.mid{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(245,158,11,.42)}
+  .pill.no{background:var(--red-bg);color:var(--red);border:1px solid rgba(220,80,60,.35)}
+  .pill.extra{background:rgba(88,110,240,.14);color:#3B4BA8;border:1px solid rgba(88,110,240,.34)}
+
+  /* progress bar */
+  .bar{height:16px;border-radius:999px;background:rgba(10,60,38,.10);overflow:hidden;position:relative}
+  .bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#1ec678,#0a7c44)}
+  .bar i.mid{background:linear-gradient(90deg,#F5B23C,#C98209)}
+  .bar i.no{background:linear-gradient(90deg,#E0776A,#B42318)}
+
+  /* KPI */
+  .kpi{display:flex;flex-direction:column;gap:6px;padding:26px 28px}
+  .kpi .v{font-size:62px;font-weight:800;line-height:1;letter-spacing:-.02em;color:var(--green-d);font-family:var(--mono)}
+  .kpi .k{font-size:23px;color:var(--ink-2);line-height:1.28}
+
+  /* stacked share bar */
+  .share{display:flex;height:74px;border-radius:20px;overflow:hidden;border:1px solid rgba(255,255,255,.8);box-shadow:0 18px 40px -22px rgba(10,60,38,.5)}
+  .share div{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:27px;color:#fff}
+
+  .divider{background:var(--bg-dark);color:#EAF6EF}
+  .divider .s-title{color:#fff}.divider .eyebrow{color:#7DEBAE}.divider .eyebrow::before{background:#28C876}.divider .s-sub{color:#A9CFBC}
+  .part-num{font-size:var(--type-mega);font-weight:800;line-height:.82;letter-spacing:-.04em;background:linear-gradient(180deg,#39E08A 0%,#0F8B4E 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  @media (prefers-reduced-motion:no-preference){
+    [data-deck-active] .anim{animation:rise .6s cubic-bezier(.2,.7,.2,1) both}
+    [data-deck-active] .anim:nth-child(2){animation-delay:.06s}
+    [data-deck-active] .anim:nth-child(3){animation-delay:.12s}
+    [data-deck-active] .anim:nth-child(4){animation-delay:.18s}
+    @keyframes rise{from{transform:translateY(24px)}to{transform:none}}
+  }
+</style>
+</head>
+<body>
+<deck-stage width="1920" height="1080">
+
+<!-- ============ 01 BÌA ============ -->
+<section data-label="Bìa">
+  <div class="glow" style="width:700px;height:700px;left:-170px;top:-230px"></div>
+  <div class="glow" style="width:420px;height:420px;right:-120px;bottom:-160px;opacity:.55"></div>
+  <div class="pad">
+    <div class="anim" style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:24px">
+      <div style="display:flex;align-items:center;gap:22px;background:#15212F;border-radius:18px;padding:16px 28px;box-shadow:0 14px 34px -16px rgba(10,30,50,.45)">
+        <img src="assets/thaihung_trim.png" alt="Thái Hưng Infotech" style="height:58px;width:auto;display:block"/>
+        <span style="width:1px;height:46px;background:rgba(255,255,255,.22)"></span>
+        <img src="assets/bizino.png" alt="Bizino" style="height:32px;width:auto;display:block;filter:brightness(0) invert(1)"/>
+      </div>
+      <div style="display:flex;align-items:center;gap:20px">
+        <span style="font-size:23px;color:var(--ink-3);font-weight:600">Báo cáo cùng</span>
+        <span style="background:#fff;border-radius:50%;display:inline-flex;padding:5px;box-shadow:0 12px 30px -14px rgba(10,40,25,.35)"><img src="assets/vrg.png" alt="VRG" style="height:110px;width:auto;display:block"/></span>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;max-width:1520px">
+      <div class="eyebrow anim">Đề án A · Giai đoạn PoC · Kỳ báo cáo 10/07 → 11/08/2026</div>
+      <h1 class="s-title anim" style="margin-top:26px;font-size:78px">Triển khai nhập liệu cho đơn vị thành viên<br/>&amp; các tính năng đã hoàn thiện</h1>
+      <p class="s-sub anim" style="margin-top:28px;max-width:1320px">Từ một hệ thống chỉ dành cho Ban Thị trường — Kinh doanh, hệ thống đã mở tới <strong>67 đơn vị thành viên</strong> và trở thành kênh thu thập số liệu vận hành hằng ngày của Tập đoàn.</p>
+      <div class="anim" style="margin-top:44px;display:flex;gap:18px;flex-wrap:wrap">
+        <span class="pill ok" style="font-size:24px;padding:10px 22px">62 tài khoản đơn vị đang dùng</span>
+        <span class="pill ok" style="font-size:24px;padding:10px 22px">65/67 đơn vị đã nộp số liệu</span>
+        <span class="pill ok" style="font-size:24px;padding:10px 22px">60 đơn vị nộp trong 7 ngày gần nhất</span>
+      </div>
+    </div>
+    <div class="footer"><span>AI Dự báo Giá Cao su · Đề án A · Giai đoạn PoC</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 02 TÓM TẮT ============ -->
+<section data-label="Tóm tắt">
+  <div class="pad">
+    <div class="eyebrow anim">Tóm tắt kỳ báo cáo</div>
+    <h2 class="s-title anim" style="margin-top:18px">Một tháng — hệ thống đổi vai</h2>
+    <div class="anim" style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:34px">
+      <div class="panel kpi"><div class="v">67</div><div class="k">đơn vị thành viên<br/>trong danh mục</div></div>
+      <div class="panel kpi"><div class="v">62</div><div class="k">tài khoản đơn vị<br/>đã cấp và đang dùng</div></div>
+      <div class="panel kpi"><div class="v">65<span style="font-size:36px">/67</span></div><div class="k">đơn vị thành viên<br/>đã nộp số liệu</div></div>
+      <div class="panel kpi"><div class="v">18.702</div><div class="k">dòng nhật ký<br/>ghi vết thay đổi</div></div>
+    </div>
+    <div class="anim" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:30px;flex:1">
+      <div class="panel" style="padding:32px 34px">
+        <div style="display:flex;gap:18px;align-items:center"><span class="chip">1</span><h3 style="margin:0;font-size:32px;font-weight:800">Mở hệ thống cho đơn vị</h3></div>
+        <p class="body" style="margin:18px 0 0;font-size:26px">Vai trò người dùng thứ 4, biểu mẫu nhập theo ngày bám đúng biểu Excel của Ban TTKD, kế hoạch năm, đính kèm chứng từ. Đơn vị tự khai — không còn tổng hợp thủ công qua email.</p>
+      </div>
+      <div class="panel" style="padding:32px 34px">
+        <div style="display:flex;gap:18px;align-items:center"><span class="chip">2</span><h3 style="margin:0;font-size:32px;font-weight:800">Chuyển trục sang hợp đồng</h3></div>
+        <p class="body" style="margin:18px 0 0;font-size:26px">Theo yêu cầu buổi làm việc 30/07 &amp; 03/08: hợp đồng hai cấp, khách hàng riêng từng đơn vị, vòng đời từng đợt giao. Số tiêu thụ nay tính ra từ hợp đồng thay vì khai tay.</p>
+      </div>
+      <div class="panel" style="padding:32px 34px">
+        <div style="display:flex;gap:18px;align-items:center"><span class="chip">3</span><h3 style="margin:0;font-size:32px;font-weight:800">Siết chất lượng số liệu</h3></div>
+        <p class="body" style="margin:18px 0 0;font-size:26px">Cửa sổ thời gian được sửa, cảnh báo nhập lệch &amp; sai đơn vị tính, bảng nhắc đơn vị còn thiếu, nhật ký ghi vết mọi thay đổi — điều kiện để số liệu dùng được cho phân tích.</p>
+      </div>
+    </div>
+    <div class="footer"><span>Kỳ 10/07 → 11/08/2026 · số liệu đo trên hệ thống thật ngày 11/08</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 03 DÒNG THỜI GIAN ============ -->
+<section data-label="Dòng thời gian">
+  <div class="pad">
+    <div class="eyebrow anim">Diễn tiến</div>
+    <h2 class="s-title anim" style="margin-top:18px">Năm chặng trong kỳ báo cáo</h2>
+    <div class="panel anim" style="margin-top:30px;padding:16px 30px 22px;flex:1">
+      <table class="cl">
+        <thead><tr><th style="width:150px">Thời gian</th><th style="width:400px">Trọng tâm</th><th>Hạng mục chính đã hoàn thành</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="d">10 → 13/07</td>
+            <td class="d">Báo cáo tuần</td>
+            <td><strong>Báo cáo phân tích thị trường tuần</strong> theo mẫu Ban TTKD: sáu phần, bảng số tự tính theo bình quân tuần, xuất PDF đúng bố cục mẫu · bản tin biến động · nhập nhanh giá giao ngay từ bản tin Reuters · cảnh báo nhập lệch trên mọi màn nhập tay</td>
+          </tr>
+          <tr>
+            <td class="d">14 → 18/07</td>
+            <td class="d">Mở tài khoản đơn vị</td>
+            <td>Vai trò <strong>Đơn vị thành viên</strong> + cửa sổ thời gian được sửa · phân quyền chuyên viên theo từng nhóm dữ liệu · <strong>Trợ lý AI</strong> hỏi đáp số liệu · nhu cầu thị trường</td>
+          </tr>
+          <tr>
+            <td class="d">19 → 24/07</td>
+            <td class="d">Bộ biểu mẫu nhập liệu</td>
+            <td>Thu mua · Tiêu thụ · Tồn kho theo ngày (đa tiền tệ, quy khô TSC/DRC) · kế hoạch năm · báo cáo tổng hợp kỳ · nhập bằng Excel · đính kèm chứng từ · <strong>nhật ký hoạt động</strong> · 3 bộ tài liệu hướng dẫn</td>
+          </tr>
+          <tr>
+            <td class="d">26/07 → 05/08</td>
+            <td class="d">Thống kê &amp; hợp đồng</td>
+            <td>4 màn thống kê có bộ lọc + xem sâu 5 lớp · tách kho giá mủ 2 lớp · <strong>quản lý hợp đồng hai cấp</strong>, khách hàng riêng từng đơn vị, vòng đời đợt giao · phân trang phía máy chủ</td>
+          </tr>
+          <tr>
+            <td class="d">06 → 11/08</td>
+            <td class="d">Vận hành &amp; hoàn thiện</td>
+            <td>Bảng nhắc đơn vị còn thiếu số liệu · danh mục chủng loại dùng chung · lịch sử giao hàng · thống kê tồn kho theo ngày chọn · cảnh báo sai đơn vị tính khi lập hợp đồng · quy ước phiên không giao dịch</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="footer"><span>Nguồn: lịch sử cập nhật hệ thống 10/07 → 11/08/2026</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 04 DIVIDER 01 ============ -->
+<section data-label="Phần 01" class="divider">
+  <div class="glow" style="width:820px;height:820px;left:-220px;bottom:-320px;opacity:.5"></div>
+  <div class="pad" style="justify-content:center">
+    <div class="part-num anim">01</div>
+    <div class="eyebrow anim" style="margin-top:28px">Trọng tâm kỳ này</div>
+    <h2 class="s-title anim" style="margin-top:18px;font-size:76px;max-width:1420px">Triển khai công tác nhập liệu<br/>cho đơn vị thành viên</h2>
+    <p class="s-sub anim" style="margin-top:26px;max-width:1260px">Tài khoản · biểu mẫu theo ngày · lối vào dữ liệu · chốt chặn chất lượng · công cụ đốc thúc và tài liệu hướng dẫn.</p>
+    <div class="footer"><span style="color:#A9CFBC">Báo cáo tiến độ 10/07 → 11/08/2026</span><span style="color:#7DEBAE;font-weight:700">BIZINO</span></div>
+  </div>
+</section>
+
+<!-- ============ 05 BÀI TOÁN ============ -->
+<section data-label="Bài toán">
+  <div class="pad">
+    <div class="eyebrow anim">Bối cảnh</div>
+    <h2 class="s-title anim" style="margin-top:18px">Từ một Ban nghiệp vụ → toàn bộ đơn vị thành viên</h2>
+    <div class="anim" style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:34px;flex:1">
+      <div class="panel warn" style="padding:36px 38px">
+        <div class="eyebrow" style="color:var(--amber)"><span style="display:none"></span>Trước 15/07</div>
+        <h3 style="margin:20px 0 0;font-size:38px;font-weight:800">Số liệu đơn vị nằm ngoài hệ thống</h3>
+        <div style="margin-top:24px">
+          <div class="feat" style="margin-bottom:20px"><div class="ic">✕</div><div><h4>Gửi rời rạc qua email &amp; Zalo</h4><p>Mỗi đơn vị một kiểu file, chuyên viên phải gom và gõ lại vào Excel tổng hợp.</p></div></div>
+          <div class="feat" style="margin-bottom:20px"><div class="ic">✕</div><div><h4>Không biết ai đã nộp, ai chưa</h4><p>Việc đốc thúc phụ thuộc trí nhớ và các cuộc gọi riêng lẻ.</p></div></div>
+          <div class="feat"><div class="ic">✕</div><div><h4>Không có vết sửa số liệu</h4><p>Số thay đổi thì không truy được ai sửa, sửa lúc nào, từ giá trị nào.</p></div></div>
+        </div>
+      </div>
+      <div class="panel" style="padding:36px 38px">
+        <div class="eyebrow">Sau 11/08</div>
+        <h3 style="margin:20px 0 0;font-size:38px;font-weight:800">Đơn vị tự khai trực tiếp trên hệ thống</h3>
+        <div style="margin-top:24px">
+          <div class="feat" style="margin-bottom:20px"><div class="ic">✓</div><div><h4>62 tài khoản · 67 đơn vị</h4><p>Một tài khoản có thể phụ trách nhiều đơn vị; menu rút gọn đúng phần việc của đơn vị.</p></div></div>
+          <div class="feat" style="margin-bottom:20px"><div class="ic">✓</div><div><h4>Biểu mẫu chuẩn hoá theo ngày</h4><p>Thu mua · Tiêu thụ · Tồn kho, bám đúng biểu mẫu Excel mà Ban TTKD đang dùng.</p></div></div>
+          <div class="feat"><div class="ic">✓</div><div><h4>Số liệu vào thẳng kho dữ liệu chung</h4><p>Dùng ngay cho thống kê, bản tin và các màn phân tích — không qua bước gõ lại.</p></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="footer"><span>Phần 01 · Triển khai nhập liệu cho đơn vị thành viên</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 06 TÀI KHOẢN ============ -->
+<section data-label="Tài khoản &amp; quyền">
+  <div class="pad">
+    <div class="eyebrow anim">Nền tảng · Hạng mục 1</div>
+    <h2 class="s-title anim" style="margin-top:18px">Tài khoản và phân quyền cho đơn vị</h2>
+    <div class="anim" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:34px;flex:1">
+      <div class="panel" style="padding:32px 32px">
+        <span class="chip lite">A</span>
+        <h3 style="margin:22px 0 0;font-size:31px;font-weight:800">Vai trò người dùng thứ 4</h3>
+        <p class="body" style="margin:14px 0 0;font-size:25px">Ngoài Quản trị · Chuyên viên sửa · Chuyên viên xem, hệ thống có thêm vai trò <strong>Đơn vị thành viên</strong> với menu riêng, chỉ thấy phần việc của mình.</p>
+        <p class="body" style="margin:16px 0 0;font-size:25px">Một tài khoản có thể được gán <strong>nhiều đơn vị</strong> — đúng thực tế nhiều cán bộ phụ trách 2–4 công ty.</p>
+      </div>
+      <div class="panel" style="padding:32px 32px">
+        <span class="chip lite">B</span>
+        <h3 style="margin:22px 0 0;font-size:31px;font-weight:800">Cửa sổ thời gian được sửa</h3>
+        <p class="body" style="margin:14px 0 0;font-size:25px">Đơn vị chỉ sửa được số liệu trong <strong>N ngày gần nhất</strong>; cũ hơn chuyển sang chế độ chỉ xem. Quản trị đặt riêng hai thông số cho đơn vị và cho chuyên viên.</p>
+        <p class="body" style="margin:16px 0 0;font-size:25px">Mục đích: khoá sổ mềm, tránh số liệu quá khứ bị sửa sau khi đã lên báo cáo.</p>
+      </div>
+      <div class="panel" style="padding:32px 32px">
+        <span class="chip lite">C</span>
+        <h3 style="margin:22px 0 0;font-size:31px;font-weight:800">Hỗ trợ &amp; kiểm soát</h3>
+        <p class="body" style="margin:14px 0 0;font-size:25px"><strong>Đăng nhập thay đơn vị</strong>: quản trị vào đúng màn hình đơn vị đang gặp vướng để hướng dẫn, có băng cảnh báo hiển thị suốt phiên.</p>
+        <p class="body" style="margin:16px 0 0;font-size:25px">Phân quyền chuyên viên tách <strong>hai mức Xem / Sửa</strong> theo từng nhóm dữ liệu.</p>
+      </div>
+    </div>
+    <div class="panel anim" style="margin-top:24px;padding:24px 34px">
+      <p class="body" style="margin:0;font-size:26px">Danh mục đơn vị được chuẩn hoá theo danh sách Ban TTKD cung cấp: <strong>67 đơn vị</strong> (Việt Nam · Campuchia · Lào), đổi sang tên đầy đủ, có cờ đánh dấu đơn vị <strong>có nhà máy chế biến</strong> và đơn vị <strong>được giao kế hoạch thu mua</strong> — hai cờ này quyết định đơn vị nhìn thấy biểu mẫu nào.</p>
+    </div>
+    <div class="footer"><span>Phần 01 · Tài khoản và phân quyền</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 07 BIỂU MẪU ============ -->
+<section data-label="Biểu mẫu nhập">
+  <div class="pad">
+    <div class="eyebrow anim">Nội dung nhập · Hạng mục 2</div>
+    <h2 class="s-title anim" style="margin-top:18px">Bộ biểu mẫu đơn vị khai hằng ngày</h2>
+    <div class="panel anim" style="margin-top:28px;padding:16px 30px 22px;flex:1">
+      <table class="cl tight">
+        <thead><tr><th style="width:240px">Biểu mẫu</th><th>Nội dung khai báo</th><th style="width:330px">Điểm nghiệp vụ đã xử lý</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="d">Thu mua<br/><span style="font-weight:400;font-size:20px">(đơn vị có kế hoạch thu mua)</span></td>
+            <td>Mủ nước · mủ chén theo từng ngày; mua mủ thành phẩm theo chủng loại; sản lượng và đơn giá từng dòng; ghi nhận <em>ngày không phát sinh thu mua</em>.</td>
+            <td>Đa tiền tệ theo từng dòng (VND · USD · LAK · KHR); quy khô theo TSC/DRC; đơn giá bỏ trống hiểu là không có giá, không ghi số 0 giả.</td>
+          </tr>
+          <tr>
+            <td class="d">Tiêu thụ</td>
+            <td>Bán mủ thành phẩm và mủ khai thác; số hợp đồng / phụ lục; ngày hoá đơn; khách hàng; đính kèm hợp đồng, hoá đơn.</td>
+            <td>Từ 30/07 chuyển sang <strong>tính ra từ hợp đồng</strong> — đơn vị khai một lần ở hợp đồng, báo cáo tiêu thụ tự tổng hợp.</td>
+          </tr>
+          <tr>
+            <td class="d">Tồn kho</td>
+            <td>Bốn khối theo cách chia của Ban TTKD: nguyên liệu chưa chế biến · thành phẩm · hàng đã ký chưa giao · quy đổi.</td>
+            <td>Tách theo đúng các chủng loại của bảng giá sàn; đơn vị tấn, ba chữ số thập phân; cảnh báo khi khai vượt 1.000 tấn/ngày.</td>
+          </tr>
+          <tr>
+            <td class="d">Kế hoạch năm</td>
+            <td>Chỉ tiêu năm của đơn vị — làm mẫu số cho mọi tỷ lệ % hoàn thành kế hoạch trên các màn thống kê.</td>
+            <td>Mở cho mọi đơn vị (kể cả đơn vị chưa khai số nào), vì chính con số này bật màn Thu mua.</td>
+          </tr>
+          <tr>
+            <td class="d">Nhu cầu thị trường</td>
+            <td>Ghi nhận thông tin thị trường tại địa bàn đơn vị, dạng nội dung tự do theo ngày.</td>
+            <td>Đơn vị tự khai phần của mình; chuyên viên được cấp quyền xem và sửa của mọi đơn vị.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="footer"><span>Phần 01 · Biểu mẫu nhập liệu theo ngày</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 08 LỐI VÀO DỮ LIỆU ============ -->
+<section data-label="Lối vào dữ liệu">
+  <div class="pad">
+    <div class="eyebrow anim">Cách nhập · Hạng mục 3</div>
+    <h2 class="s-title anim" style="margin-top:18px">Bốn lối vào cho cùng một kho dữ liệu</h2>
+    <div class="anim" style="display:grid;grid-template-columns:repeat(2,1fr);gap:24px;margin-top:32px;flex:1">
+      <div class="panel" style="padding:30px 34px">
+        <div class="feat"><div class="ic">1</div><div><h4 style="font-size:31px">Nhập trực tiếp trên màn hình</h4><p style="font-size:25px">Lối chính. Nhập theo ngày, tự lưu, mở lại đúng số đã khai; chuyển một báo cáo sang ngày khác khi đơn vị chọn nhầm ngày.</p></div></div>
+      </div>
+      <div class="panel" style="padding:30px 34px">
+        <div class="feat"><div class="ic">2</div><div><h4 style="font-size:31px">Nhập từ tệp Excel <span class="pill mid" style="margin-left:8px">đang tạm dừng</span></h4><p style="font-size:25px">Tải biểu mẫu — xem trước — nạp vào hệ thống. Đã tạm dừng theo thống nhất với Ban TTKD để tránh sai lệch khi đơn vị sửa cấu trúc file.</p></div></div>
+      </div>
+      <div class="panel" style="padding:30px 34px">
+        <div class="feat"><div class="ic">3</div><div><h4 style="font-size:31px">Trang khai báo công khai <span class="pill mid" style="margin-left:8px">đang tạm dừng</span></h4><p style="font-size:25px">Đơn vị khai giá mủ nguyên liệu trong ngày qua đường dẫn có mật khẩu, không cần tài khoản. Đã tạm dừng khi các đơn vị đều được cấp tài khoản riêng.</p></div></div>
+      </div>
+      <div class="panel" style="padding:30px 34px">
+        <div class="feat"><div class="ic">4</div><div><h4 style="font-size:31px">Đính kèm chứng từ</h4><p style="font-size:25px">Gắn nhiều tệp cho mỗi dòng số liệu (hợp đồng, hoá đơn), nhận cả định dạng văn phòng lẫn tệp quét. Tệp được giữ nguyên qua các lần nâng cấp hệ thống.</p></div></div>
+      </div>
+    </div>
+    <div class="panel anim" style="margin-top:24px;padding:22px 34px">
+      <p class="body" style="margin:0;font-size:25px">Hiện <strong>đang mở lối 1 và lối 4</strong>; hai lối còn lại tạm dừng nhưng giữ nguyên để mở lại khi cần. Kho giá mủ nguyên liệu được <strong>tách hai lớp</strong>: lớp do chuyên viên Ban TTKD chốt (dùng cho bản tin, tờ trình) và lớp do đơn vị tự khai (dùng cho biểu thu mua, thống kê) — hai lớp không ghi đè nhau.</p>
+    </div>
+    <div class="footer"><span>Phần 01 · Các lối vào dữ liệu</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 09 CHẤT LƯỢNG ============ -->
+<section data-label="Chốt chặn chất lượng">
+  <div class="pad">
+    <div class="eyebrow anim">Chất lượng số liệu · Hạng mục 4</div>
+    <h2 class="s-title anim" style="margin-top:18px">Sáu chốt chặn khi đơn vị nhập sai</h2>
+    <div class="anim" style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:32px;flex:1">
+      <div class="panel" style="padding:28px 30px"><div class="feat"><div class="ic">⚠</div><div><h4>Lệch bất thường so với kỳ trước</h4><p>Ô nhập viền vàng kèm cảnh báo khi giá trị lệch từ 10% trở lên so với lần khai gần nhất — áp cho mọi màn nhập tay.</p></div></div></div>
+      <div class="panel" style="padding:28px 30px"><div class="feat"><div class="ic">⚠</div><div><h4>Sai đơn vị tính</h4><p>Cảnh báo khi số khai lệch hàng nghìn lần (đồng/độ, triệu đồng/tấn, tấn/kg) — nguyên nhân sai phổ biến nhất khi mới triển khai.</p></div></div></div>
+      <div class="panel" style="padding:28px 30px"><div class="feat"><div class="ic">⚠</div><div><h4>Ngưỡng khối lượng</h4><p>Nhắc khi khai vượt 1.000 tấn trong một ngày, và khi hàng đã ký chưa giao vượt tồn kho thành phẩm thực có.</p></div></div></div>
+      <div class="panel" style="padding:28px 30px"><div class="feat"><div class="ic">◷</div><div><h4>Cửa sổ được sửa</h4><p>Quá hạn thì bản ghi chuyển sang chỉ xem; muốn sửa phải qua chuyên viên — số liệu đã lên báo cáo không tự thay đổi.</p></div></div></div>
+      <div class="panel" style="padding:28px 30px"><div class="feat"><div class="ic">☑</div><div><h4>Bảng nhắc còn thiếu</h4><p>Ngay đầu mọi màn của tài khoản đơn vị: liệt kê chính xác những ngày và biểu mẫu đơn vị còn nợ; quản trị đặt được số ngày rà lại.</p></div></div></div>
+      <div class="panel" style="padding:28px 30px"><div class="feat"><div class="ic">⌸</div><div><h4>Nhật ký hoạt động</h4><p>Mọi thay đổi số liệu đều ghi vết: ai · lúc nào · giá trị trước → sau, ở tất cả các lối vào kể cả tác vụ tự chạy.</p></div></div></div>
+    </div>
+    <div class="footer"><span>Phần 01 · Cơ chế bảo đảm chất lượng số liệu</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 10 KẾT QUẢ ============ -->
+<section data-label="Kết quả triển khai">
+  <div class="pad">
+    <div class="eyebrow anim">Kết quả · đo trên hệ thống thật</div>
+    <h2 class="s-title anim" style="margin-top:18px">Ba tuần để phủ gần hết đơn vị</h2>
+    <div class="anim" style="display:grid;grid-template-columns:1.15fr 1fr;gap:28px;margin-top:32px;flex:1">
+      <div class="panel" style="padding:18px 30px 24px">
+        <table class="cl">
+          <thead><tr><th>Tuần</th><th style="text-align:right">Số đơn vị có nộp số liệu</th></tr></thead>
+          <tbody>
+            <tr><td class="d">20 → 26/07</td><td class="num">27</td></tr>
+            <tr><td class="d">27/07 → 02/08</td><td class="num">55</td></tr>
+            <tr><td class="d">03 → 09/08</td><td class="num">59</td></tr>
+            <tr><td class="d">10 → 11/08 <span style="font-weight:400;font-size:20px">(2 ngày)</span></td><td class="num">52</td></tr>
+          </tbody>
+        </table>
+        <p class="body" style="margin:18px 0 0;font-size:23px">Tuần đầu là giai đoạn tập huấn và cấp tài khoản; từ tuần thứ hai số đơn vị hoạt động đã ổn định ở mức trên 50.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <div class="panel" style="padding:26px 30px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:27px;font-weight:700">Đơn vị đã nộp số liệu</span><span style="font-family:var(--mono);font-size:38px;font-weight:800;color:var(--green-d)">65/67</span></div>
+          <div class="bar" style="margin-top:14px"><i style="width:97%"></i></div>
+        </div>
+        <div class="panel" style="padding:26px 30px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:27px;font-weight:700">Đơn vị nộp trong 7 ngày gần nhất</span><span style="font-family:var(--mono);font-size:38px;font-weight:800;color:var(--green-d)">60/67</span></div>
+          <div class="bar" style="margin-top:14px"><i style="width:90%"></i></div>
+        </div>
+        <div class="panel" style="padding:26px 30px;flex:1">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px 18px">
+            <div><div style="font-family:var(--mono);font-size:40px;font-weight:800;color:var(--green-d)">67</div><div style="font-size:23px;color:var(--ink-2);margin-top:4px">đơn vị trong danh mục</div></div>
+            <div><div style="font-family:var(--mono);font-size:40px;font-weight:800;color:var(--green-d)">63</div><div style="font-size:23px;color:var(--ink-2);margin-top:4px">kế hoạch năm đã khai</div></div>
+            <div><div style="font-family:var(--mono);font-size:40px;font-weight:800;color:var(--green-d)">4.814</div><div style="font-size:23px;color:var(--ink-2);margin-top:4px">hợp đồng trên hệ thống</div></div>
+            <div><div style="font-family:var(--mono);font-size:40px;font-weight:800;color:var(--green-d)">470</div><div style="font-size:23px;color:var(--ink-2);margin-top:4px">khách hàng đã lập</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer"><span>Số liệu truy xuất trực tiếp trên hệ thống thật ngày 11/08/2026</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 11 CÔNG CỤ VẬN HÀNH ============ -->
+<section data-label="Công cụ vận hành">
+  <div class="pad">
+    <div class="eyebrow anim">Đi kèm triển khai · Hạng mục 5</div>
+    <h2 class="s-title anim" style="margin-top:18px">Công cụ đốc thúc và tài liệu hướng dẫn</h2>
+    <div class="anim" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:34px;flex:1">
+      <div class="panel" style="padding:32px 32px">
+        <span class="chip lite">☑</span>
+        <h3 style="margin:22px 0 0;font-size:31px;font-weight:800">Màn theo dõi nộp báo cáo</h3>
+        <p class="body" style="margin:14px 0 0;font-size:25px">Bảng tình trạng nộp của toàn bộ đơn vị theo ngày; chỉ tính là đã nộp khi biểu mẫu thực sự có số liệu. Bấm thẳng từ bảng để đăng nhập thay đơn vị và kiểm tra.</p>
+      </div>
+      <div class="panel" style="padding:32px 32px">
+        <span class="chip lite">✉</span>
+        <h3 style="margin:22px 0 0;font-size:31px;font-weight:800">Báo cáo đốc thúc dạng ảnh</h3>
+        <p class="body" style="margin:14px 0 0;font-size:25px">Xuất bảng thống kê gửi qua Zalo/email: đơn vị chưa nộp · nộp thiếu một phần · khai sai đơn vị tính, kèm danh sách ngày còn thiếu của từng đơn vị.</p>
+      </div>
+      <div class="panel" style="padding:32px 32px">
+        <span class="chip lite">▤</span>
+        <h3 style="margin:22px 0 0;font-size:31px;font-weight:800">Ba bộ tài liệu hướng dẫn</h3>
+        <p class="body" style="margin:14px 0 0;font-size:25px">Hướng dẫn nhập liệu cho <strong>đơn vị thành viên</strong>, hướng dẫn <strong>nhập bằng Excel</strong>, hướng dẫn <strong>quản trị hệ thống</strong> — bản Word có ảnh chụp màn hình đánh số từng bước, cập nhật theo phiên bản.</p>
+      </div>
+    </div>
+    <div class="panel anim" style="margin-top:24px;padding:24px 34px">
+      <p class="body" style="margin:0;font-size:26px">Trong kỳ đã có <strong>34 lượt cập nhật tài liệu hướng dẫn</strong> — chụp lại ảnh màn hình sau mỗi lần đổi giao diện, để tài liệu gửi đơn vị luôn khớp với hệ thống đang chạy.</p>
+    </div>
+    <div class="footer"><span>Phần 01 · Công cụ vận hành &amp; tài liệu</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 12 DIVIDER 02 ============ -->
+<section data-label="Phần 02" class="divider">
+  <div class="glow" style="width:820px;height:820px;right:-240px;top:-280px;opacity:.5"></div>
+  <div class="pad" style="justify-content:center">
+    <div class="part-num anim">02</div>
+    <div class="eyebrow anim" style="margin-top:28px">Ngoài phần nhập liệu</div>
+    <h2 class="s-title anim" style="margin-top:18px;font-size:76px;max-width:1420px">Các tính năng đã chỉnh sửa<br/>và triển khai trong kỳ</h2>
+    <p class="s-sub anim" style="margin-top:26px;max-width:1260px">Bốn nhóm: quản lý hợp đồng · thống kê &amp; báo cáo · phân tích và ấn phẩm nghiệp vụ · chất lượng dữ liệu và nền tảng.</p>
+    <div class="footer"><span style="color:#A9CFBC">Báo cáo tiến độ 10/07 → 11/08/2026</span><span style="color:#7DEBAE;font-weight:700">BIZINO</span></div>
+  </div>
+</section>
+
+<!-- ============ 13 NHÓM 1 HỢP ĐỒNG ============ -->
+<section data-label="Nhóm 1 · Hợp đồng">
+  <div class="pad">
+    <div class="eyebrow anim">Nhóm 1 · theo yêu cầu buổi làm việc 30/07 &amp; 03/08</div>
+    <h2 class="s-title anim" style="margin-top:18px">Quản lý hợp đồng &amp; khách hàng</h2>
+    <div class="anim" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:32px;flex:1">
+      <div class="panel" style="padding:30px 34px">
+        <h3 style="margin:0;font-size:32px;font-weight:800">Cấu trúc hai cấp</h3>
+        <div style="margin-top:20px">
+          <div class="feat" style="margin-bottom:16px"><div class="ic">✓</div><div><h4>Hợp đồng &amp; đợt giao</h4><p>Hợp đồng gốc và các đợt giao hàng bên dưới; mỗi đợt có ngày bắt đầu và vòng đời riêng (bắt đầu → đã giao).</p></div></div>
+          <div class="feat" style="margin-bottom:16px"><div class="ic">✓</div><div><h4>Khách hàng riêng từng đơn vị</h4><p>Mỗi đơn vị quản danh mục khách hàng của mình; tìm kiếm không dấu, lọc nhiều khách cùng lúc.</p></div></div>
+          <div class="feat"><div class="ic">✓</div><div><h4>Hình thức bán</h4><p>Xuất khẩu · trong nước · nội bộ trong Tập đoàn, có bộ lọc riêng trên danh sách hợp đồng.</p></div></div>
+        </div>
+      </div>
+      <div class="panel" style="padding:30px 34px">
+        <h3 style="margin:0;font-size:32px;font-weight:800">Hoàn thiện trong kỳ</h3>
+        <div style="margin-top:20px">
+          <div class="feat" style="margin-bottom:16px"><div class="ic">✓</div><div><h4>Tiêu thụ tính từ hợp đồng</h4><p>Không khai tay số tiêu thụ nữa; báo cáo tiêu thụ và lịch sử giao hàng lấy thẳng từ các đợt giao.</p></div></div>
+          <div class="feat" style="margin-bottom:16px"><div class="ic">✓</div><div><h4>Theo dõi giao hàng</h4><p>Hiển thị khối lượng đã giao và trạng thái <em>đã giao đủ</em>; dòng tổng cộng ở cuối danh sách hợp đồng.</p></div></div>
+          <div class="feat"><div class="ic">✓</div><div><h4>Quy ước mủ nước</h4><p>Tiêu thụ quy về tấn khô, thanh toán theo khối lượng ướt — đúng cách hạch toán của đơn vị.</p></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel anim" style="margin-top:22px;padding:22px 34px">
+      <p class="body" style="margin:0;font-size:25px">Dữ liệu hợp đồng cũ (trước 30/07) được chuyển đổi có kiểm chứng và giữ nguyên ở một màn tra cứu riêng, không trộn vào cấu trúc mới. Hiện <strong>59 đơn vị</strong> đã có hợp đồng trên hệ thống.</p>
+    </div>
+    <div class="footer"><span>Phần 02 · Nhóm 1 — Quản lý hợp đồng</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 14 NHÓM 2 THỐNG KÊ ============ -->
+<section data-label="Nhóm 2 · Thống kê">
+  <div class="pad">
+    <div class="eyebrow anim">Nhóm 2 · phục vụ Ban TTKD</div>
+    <h2 class="s-title anim" style="margin-top:18px">Thống kê &amp; báo cáo trên số liệu đơn vị</h2>
+    <div class="panel anim" style="margin-top:28px;padding:16px 30px 22px;flex:1">
+      <table class="cl tight">
+        <thead><tr><th style="width:330px">Màn hình</th><th>Nội dung</th><th style="width:250px">Trạng thái</th></tr></thead>
+        <tbody>
+          <tr><td class="d">Thống kê thu mua</td><td>Sản lượng và giá bình quân theo chủng loại, lọc theo đơn vị · khu vực · khoảng ngày; đối chiếu với chỉ tiêu năm.</td><td><span class="pill ok">Đang chạy</span></td></tr>
+          <tr><td class="d">Thống kê tiêu thụ</td><td>Khối lượng và doanh thu theo chủng loại, khách hàng, hình thức bán — lấy từ hợp đồng.</td><td><span class="pill ok">Đang chạy</span></td></tr>
+          <tr><td class="d">Thống kê tồn kho</td><td>Tồn kho tại <strong>một ngày được chọn</strong> (không phải bình quân kỳ), tách bốn khối theo cách chia của Ban TTKD.</td><td><span class="pill ok">Đang chạy</span></td></tr>
+          <tr><td class="d">Theo dõi nộp báo cáo</td><td>Đơn vị nào đã nộp, thiếu ngày nào, thiếu biểu mẫu nào; mở rộng phạm vi theo dõi theo cấu hình.</td><td><span class="pill ok">Đang chạy</span></td></tr>
+          <tr><td class="d">Báo cáo tổng hợp kỳ</td><td>Tổng hợp toàn Tập đoàn theo khoảng thời gian, xuất Excel đúng bộ lọc đang xem.</td><td><span class="pill ok">Đang chạy</span></td></tr>
+          <tr><td class="d">Xem sâu 5 lớp</td><td>Tập đoàn → Khu vực → Công ty → Ngày → chi tiết từng dòng; áp cho cả ba màn thống kê.</td><td><span class="pill ok">Đang chạy</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="panel anim" style="margin-top:22px;padding:22px 34px">
+      <p class="body" style="margin:0;font-size:25px">Các màn danh sách dài đã chuyển sang <strong>phân trang phía máy chủ</strong> — tránh tải toàn bộ dữ liệu về trình duyệt khi số bản ghi tăng nhanh.</p>
+    </div>
+    <div class="footer"><span>Phần 02 · Nhóm 2 — Thống kê &amp; báo cáo</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 15 NHÓM 3 PHÂN TÍCH ============ -->
+<section data-label="Nhóm 3 · Phân tích">
+  <div class="pad">
+    <div class="eyebrow anim">Nhóm 3 · bản tin &amp; báo cáo</div>
+    <h2 class="s-title anim" style="margin-top:18px">Bản tin, báo cáo tuần và Trợ lý AI</h2>
+    <div class="anim" style="display:grid;grid-template-columns:repeat(2,1fr);gap:24px;margin-top:32px;flex:1">
+      <div class="panel" style="padding:30px 34px">
+        <div class="feat"><div class="ic">▤</div><div><h4 style="font-size:31px">Báo cáo phân tích thị trường tuần <span class="pill extra" style="margin-left:6px">mới</span></h4><p style="font-size:25px">Sáu phần bám đúng mẫu Ban TTKD, bảng số tự tính theo bình quân tuần, phần nhận định soạn trực tiếp trên màn hình, xuất PDF đúng bố cục mẫu. <em>Tài liệu hướng dẫn nội dung viết bản tin tuần của Ban TTKD chưa được đưa vào — sẽ cập nhật ở bước sau.</em></p></div></div>
+      </div>
+      <div class="panel" style="padding:30px 34px">
+        <div class="feat"><div class="ic">◱</div><div><h4 style="font-size:31px">Bản tin biến động <span class="pill extra" style="margin-left:6px">mới</span></h4><p style="font-size:25px">Màn theo dõi biến động: mỗi nhóm số liệu một biểu đồ/bảng, kèm ô nhận định AI bấm-tạo theo từng nhóm và nhận định tổng thể.</p></div></div>
+      </div>
+      <div class="panel" style="padding:30px 34px">
+        <div class="feat"><div class="ic">◎</div><div><h4 style="font-size:31px">Trợ lý AI <span class="pill extra" style="margin-left:6px">mới</span></h4><p style="font-size:25px">Hỏi đáp tiếng Việt trên dữ liệu thật: giá sàn, giá quốc tế, giá giao ngay, tồn kho, báo giá; trả về biểu đồ và bảng, có dẫn nguồn số liệu; tư vấn nâng/giữ/hạ giá sàn.</p></div></div>
+      </div>
+      <div class="panel" style="padding:30px 34px">
+        <div class="feat"><div class="ic">✎</div><div><h4 style="font-size:31px">Bản tin ngày &amp; tờ trình</h4><p style="font-size:25px">Bản tin ngày bổ sung phần nhận định AI theo tin thị trường, cho sửa tay mục IV, gom giá mủ theo khu vực; bản ghi giá sàn có thêm số tờ trình và tóm tắt.</p></div></div>
+      </div>
+    </div>
+    <div class="footer"><span>Phần 02 · Nhóm 3 — Phân tích &amp; ấn phẩm nghiệp vụ</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 16 NHÓM 4 NỀN TẢNG ============ -->
+<section data-label="Nhóm 4 · Nền tảng">
+  <div class="pad">
+    <div class="eyebrow anim">Nhóm 4 · chất lượng dữ liệu &amp; nền tảng</div>
+    <h2 class="s-title anim" style="margin-top:18px">Sửa tận gốc các sai lệch số liệu</h2>
+    <div class="panel anim" style="margin-top:28px;padding:16px 30px 22px;flex:1">
+      <table class="cl tight">
+        <thead><tr><th style="width:400px">Vấn đề đã phát hiện</th><th>Cách xử lý</th></tr></thead>
+        <tbody>
+          <tr><td class="d">Phiên không giao dịch bị hiểu là giá 0</td><td>Thống nhất quy ước: giá 0 = <strong>không giao dịch</strong>, loại khỏi mọi phép tính và hiển thị rõ trên báo cáo; ghi chú lý do từng nguồn khi quét (nghỉ lễ, chưa có phiên, dùng phiên trước).</td></tr>
+          <tr><td class="d">Tỷ giá quy đổi lấy nhầm ngày</td><td>Mỗi sàn quy đổi bằng tỷ giá <strong>đúng phiên của sàn đó</strong>; bỏ hoàn toàn cơ chế lấy tạm số liệu ngày khác.</td></tr>
+          <tr><td class="d">Số liệu ngày này bị lấp bằng ngày khác</td><td>Áp nguyên tắc cứng cho toàn hệ thống: thiếu thì báo thiếu, không tự dựng số. Bản tin và tờ trình chỉ lấy đúng ngày báo cáo.</td></tr>
+          <tr><td class="d">Đơn giá 0 lưu thành giá thật</td><td>Đơn giá 0 hiểu là “không có giá” — không lưu bản ghi, không kéo tụt giá bình quân.</td></tr>
+          <tr><td class="d">Làm tròn tiền làm lệch giá quy đổi</td><td>Thống nhất làm tròn nửa lên cho toàn bộ báo cáo tuần và công cụ gợi ý giá sàn.</td></tr>
+          <tr><td class="d">Sai đơn vị tính trong dữ liệu đã nhập</td><td>Rà soát toàn bộ dữ liệu đơn vị đã khai, phát hiện và sửa các trường hợp lệch hàng nghìn lần; bổ sung cảnh báo tại chỗ để không tái diễn.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="panel anim" style="margin-top:22px;padding:22px 34px">
+      <p class="body" style="margin:0;font-size:25px">Nền tảng: <strong>nhật ký hoạt động</strong> toàn hệ thống · phân quyền hai mức Xem/Sửa theo nhóm dữ liệu · giữ tệp đính kèm qua các lần nâng cấp · thêm hai lượt quét giữa ngày (12:00 và 14:30) để có giá châu Á ngay trong ngày.</p>
+    </div>
+    <div class="footer"><span>Phần 02 · Nhóm 4 — Chất lượng dữ liệu &amp; nền tảng</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 17 BẢNG TỔNG HỢP ============ -->
+<section data-label="Tổng hợp đầu mục">
+  <div class="pad">
+    <div class="eyebrow anim">Tổng hợp</div>
+    <h2 class="s-title anim" style="margin-top:18px">Trong kế hoạch · còn thiếu · ngoài dự kiến</h2>
+    <div class="anim" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:32px;flex:1">
+      <div class="panel" style="padding:30px 32px">
+        <span class="pill ok" style="font-size:23px;padding:8px 18px">Trong kế hoạch — đã làm</span>
+        <ul class="body" style="margin:22px 0 0;padding-left:26px;font-size:25px;line-height:1.5">
+          <li>Dashboard giám sát đa sàn &amp; tỷ giá</li>
+          <li>Nền quản lý dữ liệu và lịch sử giá</li>
+          <li>Công cụ gợi ý điều chỉnh giá sàn</li>
+          <li>Kiểm định &amp; ma trận kịch bản</li>
+          <li>Trợ lý hỏi đáp tiếng Việt</li>
+          <li>Đăng nhập, phân quyền, vận hành thật</li>
+        </ul>
+      </div>
+      <div class="panel warn" style="padding:30px 32px">
+        <span class="pill mid" style="font-size:23px;padding:8px 18px">Trong kế hoạch — còn thiếu</span>
+        <ul class="body" style="margin:22px 0 0;padding-left:26px;font-size:25px;line-height:1.5">
+          <li>Mô hình dự báo 7 / 30 ngày và số đo MAPE</li>
+          <li>Chỉ số vĩ mô (dầu · butadiene · USD Index · PMI)</li>
+          <li>Tri thức nội bộ có trích dẫn văn bản</li>
+          <li>Cảnh báo qua Email / Zalo / Telegram</li>
+          <li>Tự phát báo cáo theo giờ cố định</li>
+          <li>Hồ sơ bảo mật &amp; nghiệm thu</li>
+        </ul>
+      </div>
+      <div class="panel" style="padding:30px 32px">
+        <span class="pill extra" style="font-size:23px;padding:8px 18px">Ngoài dự kiến — đã làm</span>
+        <ul class="body" style="margin:22px 0 0;padding-left:26px;font-size:25px;line-height:1.5">
+          <li><strong>Nhập liệu đơn vị thành viên</strong></li>
+          <li>Tài khoản &amp; phân quyền đơn vị</li>
+          <li>Quản lý hợp đồng &amp; khách hàng</li>
+          <li>Thống kê số liệu đơn vị + xem sâu</li>
+          <li>Bản tin &amp; báo cáo theo mẫu</li>
+          <li>Nhật ký hoạt động · kênh nhập mở rộng</li>
+        </ul>
+      </div>
+    </div>
+    <div class="panel anim" style="margin-top:24px;padding:22px 34px">
+      <p class="body" style="margin:0;font-size:25px">Danh mục đầy đủ từng đầu mục của ba nhóm trên: xem <strong>Phụ lục 02 — Danh mục tính năng</strong> kèm theo báo cáo này.</p>
+    </div>
+    <div class="footer"><span>Tổng hợp đầu mục · chi tiết tại Phụ lục 02</span><span class="tag">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+<!-- ============ 18 KẾT LUẬN ============ -->
+<section data-label="Kết luận" class="divider">
+  <div class="glow" style="width:640px;height:640px;left:46%;top:-190px;background:radial-gradient(circle,rgba(40,200,118,.55),transparent 70%)"></div>
+  <div class="pad" style="align-items:center;text-align:center;justify-content:center">
+    <div class="eyebrow anim" style="justify-content:center">Kết luận kỳ 10/07 → 11/08</div>
+    <h2 class="s-title anim" style="margin-top:20px;font-size:70px;max-width:1460px">Hệ thống đã có nguồn số liệu vận hành hằng ngày<br/>từ gần như toàn bộ đơn vị thành viên</h2>
+    <p class="s-sub anim" style="margin-top:26px;max-width:1240px;font-size:32px">Việc tiếp theo: <strong style="color:#fff">giữ nhịp nộp số liệu</strong> · <strong style="color:#fff">đưa số liệu đơn vị vào mô hình dự báo</strong> · <strong style="color:#fff">chốt danh mục phạm vi ngoài dự kiến</strong>.</p>
+    <div class="anim" style="margin-top:46px;display:flex;gap:44px;align-items:center;justify-content:center">
+      <div style="text-align:center"><div style="font-size:60px;font-weight:800;color:#7DEBAE;font-family:var(--mono)">65/67</div><div style="font-size:23px;color:#A9CFBC;margin-top:6px">đơn vị đã nộp số liệu</div></div>
+      <span style="width:1px;height:70px;background:rgba(255,255,255,.2)"></span>
+      <div style="text-align:center"><div style="font-size:60px;font-weight:800;color:#7DEBAE;font-family:var(--mono)">281</div><div style="font-size:23px;color:#A9CFBC;margin-top:6px">lượt cập nhật trong kỳ</div></div>
+      <span style="width:1px;height:70px;background:rgba(255,255,255,.2)"></span>
+      <div style="text-align:center"><div style="font-size:60px;font-weight:800;color:#7DEBAE;font-family:var(--mono)">62</div><div style="font-size:23px;color:#A9CFBC;margin-top:6px">tài khoản đơn vị đang dùng</div></div>
+    </div>
+    <div class="footer"><span style="color:#A9CFBC">AI Dự báo Giá Cao su · Đề án A · Giai đoạn PoC</span><span style="color:#7DEBAE;font-weight:700">BIZINO × THÁI HƯNG</span></div>
+  </div>
+</section>
+
+</deck-stage>
+<script src="deck-stage.js"></script>
+</body>
+</html>

@@ -14,6 +14,13 @@
       "runtimeArgs": ["-c", "cd apps/web && exec node_modules/.bin/vite --port 5390 --host"],
       "port": 5390,
       "autoPort": true
+    },
+    {
+      "name": "vrg-docs-static",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd docs/report && exec python3 -m http.server 8898 --bind 127.0.0.1"],
+      "port": 8898,
+      "autoPort": true
     }
   ]
 }

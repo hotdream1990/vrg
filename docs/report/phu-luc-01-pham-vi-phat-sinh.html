@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Phụ lục 01 — Phạm vi phát sinh ngoài hợp đồng (VRG · Đề án A)</title>
+<style>
+  :root{
+    --ink:#0E1B2C; --ink-2:#3E5065; --ink-3:#7A8DA0;
+    --green:#15B86A; --green-d:#0A7C44; --green-bg:#EAF6EF;
+    --blue:#3B4BA8; --blue-bg:#EEF0FB;
+    --amber:#B4780A; --amber-bg:#FDF4E3;
+    --line:#D8E2DC; --line-2:#EDF2EF;
+    --font:"Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--font);background:#5b6b62;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:13px;line-height:1.45}
+
+  .page{
+    width:297mm;min-height:210mm;margin:14mm auto;background:#fff;
+    padding:14mm 15mm 12mm;position:relative;
+    box-shadow:0 18px 50px -18px rgba(0,0,0,.5);
+  }
+
+  /* ---------- header ---------- */
+  .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;border-bottom:2.5px solid var(--green-d);padding-bottom:10px}
+  .hd .logos{display:flex;align-items:center;gap:14px;background:#15212F;border-radius:9px;padding:8px 15px}
+  .hd .logos img.th{height:30px;width:auto;display:block}
+  .hd .logos img.bz{height:17px;width:auto;display:block;filter:brightness(0) invert(1)}
+  .hd .logos span.sep{width:1px;height:26px;background:rgba(255,255,255,.24)}
+  .hd .vrg{display:flex;align-items:center;gap:10px}
+  .hd .vrg img{height:52px;width:auto;display:block}
+  .hd .vrg em{font-style:normal;font-size:11px;color:var(--ink-3);font-weight:600;text-align:right;line-height:1.35}
+
+  h1{font-size:22px;font-weight:800;letter-spacing:-.01em;margin:14px 0 3px;color:var(--ink)}
+  .sub{font-size:13px;color:var(--ink-2);margin:0}
+  .meta{display:flex;flex-wrap:wrap;gap:6px 26px;margin-top:9px;font-size:11.5px;color:var(--ink-2)}
+  .meta b{color:var(--ink);font-weight:700}
+
+  h2.sec{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--green-d);margin:16px 0 7px;display:flex;align-items:center;gap:9px}
+  h2.sec::before{content:"";width:22px;height:2.5px;background:var(--green);border-radius:2px;flex:none}
+
+  .basis{background:var(--green-bg);border:1px solid #CDE8DA;border-radius:8px;padding:10px 14px;font-size:11.5px;color:var(--ink-2)}
+  .basis ol{margin:0;padding-left:17px}
+  .basis li{margin:2.5px 0}
+  .basis b{color:var(--ink)}
+
+  /* ---------- rate control ---------- */
+  .rate{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--amber-bg);border:1px solid #F0DDB4;border-radius:8px;padding:9px 14px;margin-top:10px;font-size:12px}
+  .rate label{font-weight:700;color:var(--ink)}
+  .rate input{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--ink);border:1px solid #D9C48D;border-radius:6px;padding:5px 9px;width:135px;text-align:right;background:#fff}
+  .rate .hint{color:var(--ink-2);font-size:11px;flex:1;min-width:260px;line-height:1.4}
+
+  /* ---------- table ---------- */
+  table.q{width:100%;border-collapse:collapse;margin-top:9px;font-size:11.5px}
+  table.q th{background:var(--green-d);color:#fff;font-weight:700;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:8px 8px;text-align:left;border:1px solid var(--green-d);vertical-align:middle}
+  table.q td{border:1px solid var(--line);padding:7px 8px;vertical-align:top;color:var(--ink-2);line-height:1.38}
+  table.q tr:nth-child(even) td{background:#FAFCFB}
+  table.q td.c{text-align:center;color:var(--ink);font-weight:700}
+  table.q td.nm{color:var(--ink);font-weight:700;font-size:12px}
+  table.q td.ev{font-size:10.5px;color:var(--ink-3);line-height:1.35}
+  table.q td.money{text-align:right;font-family:var(--mono);font-weight:700;color:var(--ink);white-space:nowrap;font-size:12px}
+  table.q input.md{font-family:var(--mono);font-size:13px;font-weight:800;color:var(--blue);border:1px solid #C9D3E8;border-radius:5px;padding:4px 5px;width:52px;text-align:center;background:#fff}
+  table.q tfoot td{background:var(--green-bg);border:1px solid #BEDCCB;font-weight:800;color:var(--ink);font-size:12.5px;padding:9px 8px}
+  table.q tfoot td.money{font-size:15px;color:var(--green-d)}
+  table.q tfoot tr.cmp td{background:var(--blue-bg);border-color:#CBD2EF;font-size:11.5px;font-weight:600;color:var(--blue)}
+
+  .note{font-size:10.5px;color:var(--ink-3);margin-top:7px;line-height:1.45}
+  .note b{color:var(--ink-2)}
+
+  /* ---------- terms + signature ---------- */
+  .cols2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:12px}
+  .box{border:1px solid var(--line);border-radius:8px;padding:10px 13px;font-size:11.5px;color:var(--ink-2)}
+  .box h3{margin:0 0 6px;font-size:12px;color:var(--ink);font-weight:800}
+  .box ul{margin:0;padding-left:16px}
+  .box li{margin:3px 0;line-height:1.42}
+
+  .sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:16px;text-align:center;font-size:12px}
+  .sign .who{font-weight:800;color:var(--ink);text-transform:uppercase;letter-spacing:.04em;font-size:12px}
+  .sign .role{color:var(--ink-3);font-size:11px;margin-top:2px}
+  .sign .line{height:52px;border-bottom:1px dotted #A9B8B0;margin:6px 20px 5px}
+  .sign .nm{color:var(--ink-3);font-size:11px}
+
+  .pgft{position:absolute;left:15mm;right:15mm;bottom:7mm;display:flex;justify-content:space-between;font-size:10px;color:var(--ink-3);border-top:1px solid var(--line-2);padding-top:5px}
+  .pgft b{color:var(--green-d)}
+
+  /* page 2 detail */
+  table.d2{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}
+  table.d2 th{background:#F1F6F3;color:var(--green-d);font-weight:800;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;padding:7px 8px;border:1px solid var(--line);text-align:left}
+  table.d2 td{border:1px solid var(--line);padding:7px 9px;vertical-align:top;color:var(--ink-2);line-height:1.42}
+  table.d2 td.g{color:var(--ink);font-weight:800;font-size:11.5px;width:22%}
+  table.d2 ul{margin:0;padding-left:15px}
+  table.d2 li{margin:1.5px 0}
+
+  .tag{display:inline-block;padding:1.5px 7px;border-radius:99px;font-size:9.5px;font-weight:800;letter-spacing:.03em;white-space:nowrap;vertical-align:middle}
+  .tag.live{background:var(--green-bg);color:var(--green-d);border:1px solid #BEDCCB}
+  .tag.dev{background:var(--amber-bg);color:var(--amber);border:1px solid #F0DDB4}
+
+  @media print{
+    @page{size:A4 landscape;margin:9mm 10mm}
+    body{background:#fff;font-size:11px}
+    .page{margin:0;box-shadow:none;width:auto;min-height:0;padding:0}
+    .page + .page{page-break-before:always}
+    /* footer flows at the end of its section instead of floating on a tall sheet */
+    .pgft{position:static;left:auto;right:auto;bottom:auto;margin-top:10px}
+    /* never split a row, a term box or the signature block across sheets */
+    table.q tr, table.d2 tr{page-break-inside:avoid}
+    thead{display:table-header-group}
+    /* Chromium repeats <tfoot> on every sheet — pin the total row to the end only */
+    tfoot{display:table-row-group}
+    .basis,.rate,.cols2,.box,.sign,.hd{page-break-inside:avoid}
+    .sign{page-break-before:auto}
+    input{border-color:transparent !important;background:transparent !important}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== TRANG 1 ==================== -->
+<div class="page">
+  <div class="hd">
+    <div>
+      <div class="logos">
+        <img class="th" src="assets/thaihung_trim.png" alt="Thái Hưng Infotech"/>
+        <span class="sep"></span>
+        <img class="bz" src="assets/bizino.png" alt="Bizino"/>
+      </div>
+    </div>
+    <div class="vrg">
+      <em>Kính gửi<br/>Tập đoàn Công nghiệp<br/>Cao su Việt Nam</em>
+      <img src="assets/vrg.png" alt="VRG"/>
+    </div>
+  </div>
+
+  <h1>PHỤ LỤC 01 — PHẠM VI PHÁT SINH NGOÀI HỢP ĐỒNG</h1>
+  <p class="sub">Dự án: <b>AI Agent Phân tích &amp; Dự báo Giá Cao su — Đề án A (Giai đoạn PoC)</b></p>
+  <div class="meta">
+    <span>Bên thực hiện: <b>Bizino AI × Thái Hưng Infotech</b></span>
+    <span>Kỳ ghi nhận: <b>15/06/2026 → 11/08/2026</b></span>
+    <span>Phiên bản hệ thống: <b>v0.4.13</b></span>
+    <span>Ngày lập: <b>11/08/2026</b></span>
+  </div>
+
+  <h2 class="sec">Căn cứ lập phụ lục</h2>
+  <div class="basis">
+    <ol>
+      <li>Hợp đồng gốc Đề án A xác định <b>03 đầu ra</b>: Dashboard giám sát đa sàn · Hệ thống dự báo giá SVR 10 · Executive Command Center (RAG) kèm cảnh báo đa kênh. Các hạng mục nêu dưới đây <b>không thuộc 03 đầu ra này</b>.</li>
+      <li>Phát sinh chủ yếu từ <b>buổi làm việc với VRG ngày 30/07/2026 và 03/08/2026</b>, cùng các yêu cầu trực tiếp của chuyên viên Ban TTKD trong quá trình vận hành thử.</li>
+      <li>Toàn bộ khối lượng nêu dưới đây <b>đã được thực hiện và bàn giao</b> (trừ Gói 02 đang hoàn thiện), hiện chưa được ghi nhận thương mại trong hợp đồng gốc.</li>
+    </ol>
+  </div>
+
+  <div class="rate">
+    <label for="rate">Đơn giá quy chiếu (VNĐ / man-day):</label>
+    <input id="rate" type="text" value="4.500.000" inputmode="numeric"/>
+    <span class="hint">Mặc định suy từ chính hợp đồng gốc (250.000.000 đ cho khối lượng xây dựng phạm vi gốc ≈ 55 man-day). <b>Anh/chị có thể sửa trực tiếp ô này và cột man-day — bảng tự tính lại.</b></span>
+  </div>
+
+  <table class="q">
+    <thead>
+      <tr>
+        <th style="width:3%">#</th>
+        <th style="width:17%">Gói công việc phát sinh</th>
+        <th style="width:33%">Nội dung đã thực hiện</th>
+        <th style="width:19%">Minh chứng khối lượng</th>
+        <th style="width:8%">Ước tính công<br/>(man-day)</th>
+        <th style="width:11%">Thành tiền (VNĐ)</th>
+        <th style="width:9%">Trạng thái</th>
+      </tr>
+    </thead>
+    <tbody id="rows">
+      <tr>
+        <td class="c">1</td>
+        <td class="nm">Phân hệ số liệu đơn vị thành viên</td>
+        <td>Biểu mẫu báo cáo <b>theo ngày</b> cho hơn 50 đơn vị: Thu mua · Tiêu thụ · Tồn kho. Bám đúng biểu mẫu Excel hiện hành; nhập tay và nhập từ file; đính kèm chứng từ nhiều tệp; kế hoạch năm; đa tiền tệ VND/USD/LAK/KHR; quy khô TSC/DRC; báo cáo tổng hợp theo kỳ kèm xuất Excel.</td>
+        <td class="ev">~4.400 dòng mã · 23 tệp<br/>44 lượt cập nhật hệ thống<br/>Tuần 6 → Tuần 7</td>
+        <td class="c"><input class="md" value="14"/></td>
+        <td class="money">—</td>
+        <td class="c"><span class="tag live">Đã bàn giao</span></td>
+      </tr>
+      <tr>
+        <td class="c">2</td>
+        <td class="nm">Quản lý hợp đồng bán hàng 2 cấp &amp; khách hàng</td>
+        <td>Hợp đồng mẹ – phụ lục (đợt giao); danh mục khách hàng <b>riêng từng đơn vị</b>; vòng đời từng đợt giao (bắt đầu → đã giao); tiêu thụ tự tính từ hợp đồng thay vì khai tay; hình thức xuất khẩu / trong nước / nội bộ; cây công ty mẹ – con; chuyển đổi dữ liệu cũ sang cấu trúc mới không phá dữ liệu gốc.</td>
+        <td class="ev">~5.300 dòng mã · 33 tệp<br/>53 lượt cập nhật hệ thống<br/>Tuần 9 → Tuần 10</td>
+        <td class="c"><input class="md" value="12"/></td>
+        <td class="money">—</td>
+        <td class="c"><span class="tag dev">Đang hoàn thiện</span></td>
+      </tr>
+      <tr>
+        <td class="c">3</td>
+        <td class="nm">Tài khoản &amp; phân quyền đơn vị thành viên</td>
+        <td>Vai trò người dùng thứ 4; một tài khoản quản nhiều đơn vị; cửa sổ thời gian được phép sửa (cấu hình riêng cho đơn vị và chuyên viên); đăng nhập-thay để hỗ trợ; bảng nhắc “đơn vị còn thiếu số liệu gì”; cảnh báo nhập sai đơn vị tính trên mọi màn nhập.</td>
+        <td class="ev">~1.200 dòng mã · 10 tệp<br/>26 lượt cập nhật hệ thống<br/>Tuần 6 → Tuần 8</td>
+        <td class="c"><input class="md" value="5"/></td>
+        <td class="money">—</td>
+        <td class="c"><span class="tag live">Đã bàn giao</span></td>
+      </tr>
+      <tr>
+        <td class="c">4</td>
+        <td class="nm">Thống kê &amp; phân tích số liệu đơn vị</td>
+        <td>04 màn thống kê có bộ lọc: Thu mua · Tiêu thụ · Tồn kho · Theo dõi nộp báo cáo. Drill-down 5 lớp <i>Tập đoàn → Khu vực → Công ty → Ngày → chi tiết</i>; thẻ tổng hợp và biểu đồ mỗi lớp; xuất Excel đúng bộ lọc đang xem; thống kê tồn kho theo ngày chốt kèm dải độ phủ dữ liệu.</td>
+        <td class="ev">~1.600 dòng mã · 15 tệp<br/>Tuần 8 &amp; Tuần 10</td>
+        <td class="c"><input class="md" value="5"/></td>
+        <td class="money">—</td>
+        <td class="c"><span class="tag live">Đã bàn giao</span></td>
+      </tr>
+      <tr>
+        <td class="c">5</td>
+        <td class="nm">Ấn phẩm nghiệp vụ tự sinh</td>
+        <td><b>Bản tin ngày</b> (PDF đúng mẫu Ban TTKD) · <b>Bản tin phân tích tuần</b> · <b>Bản tin biến động</b> · <b>Tờ trình điều chỉnh giá sàn</b> · <b>Báo giá mủ thị trường</b>. Hợp đồng gốc chỉ nêu “báo cáo tự động 07:30 &amp; 17:00”, không bao gồm 05 ấn phẩm theo mẫu riêng.</td>
+        <td class="ev">~2.700 dòng mã · 18 tệp<br/>44 lượt cập nhật hệ thống<br/>Tuần 4 → Tuần 5</td>
+        <td class="c"><input class="md" value="7"/></td>
+        <td class="money">—</td>
+        <td class="c"><span class="tag live">Đã bàn giao</span></td>
+      </tr>
+      <tr>
+        <td class="c">6</td>
+        <td class="nm">Nhật ký hoạt động toàn hệ thống</td>
+        <td>Ghi vết mọi thay đổi số liệu: ai · thời điểm · bản ghi · giá trị trước → sau. Bao phủ mọi lối vào (màn chuyên viên, màn đơn vị, nhập từ file, link công khai, tác vụ tự chạy). Không lưu mật khẩu; xoá bản ghi vẫn giữ nguyên vết cũ.</td>
+        <td class="ev">~800 dòng mã · 8 tệp<br/>Tuần 8</td>
+        <td class="c"><input class="md" value="2"/></td>
+        <td class="money">—</td>
+        <td class="c"><span class="tag live">Đã bàn giao</span></td>
+      </tr>
+      <tr>
+        <td class="c">7</td>
+        <td class="nm">Kỹ thuật dữ liệu — bóc tách hồ sơ gốc</td>
+        <td>Bóc tách và nạp lịch sử từ Excel/PDF của Ban TTKD: <b>79 lần ban hành giá sàn</b>, <b>71 tuần tồn kho</b>, giá các sàn · tỷ giá · giá mủ nước · giá giao ngay từ 2024. Kèm chuyển đổi cấu trúc và rà soát – xử lý dữ liệu sai đơn vị tính trên hệ thống thật.</td>
+        <td class="ev">~1.500 dòng mã · 12 kịch bản<br/>Hợp đồng ghi “VRG cung cấp dữ liệu”</td>
+        <td class="c"><input class="md" value="5"/></td>
+        <td class="money">—</td>
+        <td class="c"><span class="tag live">Đã bàn giao</span></td>
+      </tr>
+      <tr>
+        <td class="c">8</td>
+        <td class="nm">Kênh nhập liệu mở rộng</td>
+        <td>Trang công khai có mật khẩu để đơn vị khai giá mủ không cần tài khoản; tách kho giá mủ nguyên liệu thành 2 lớp (chuyên viên chốt / đơn vị tự khai) kèm chuyển đổi dữ liệu đã bị ghi đè; danh mục Khu vực; màn Nhu cầu thị trường.</td>
+        <td class="ev">~900 dòng mã · 10 tệp<br/>Tuần 5 &amp; Tuần 9</td>
+        <td class="c"><input class="md" value="2"/></td>
+        <td class="money">—</td>
+        <td class="c"><span class="tag live">Đã bàn giao</span></td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" style="text-align:right">TỔNG CỘNG PHẠM VI PHÁT SINH</td>
+        <td class="c" id="mdTotal">52</td>
+        <td class="money" id="grand">—</td>
+        <td></td>
+      </tr>
+      <tr class="cmp">
+        <td colspan="4" style="text-align:right">Đối chiếu: giá trị hợp đồng gốc Đề án A = 250.000.000 đ · tỷ lệ phạm vi phát sinh so với hợp đồng gốc</td>
+        <td class="c" id="pctCell">—</td>
+        <td class="money" id="pct" style="color:var(--blue)">—</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <p class="note">
+    <b>Cơ sở ước tính công:</b> căn cứ khối lượng đo trực tiếp trên hệ thống ngày 11/08/2026 — dung lượng mã nguồn, số lượt cập nhật và thời gian chiếm dụng theo tuần. Tổng mã nguồn ứng dụng ~37.600 dòng, trong đó ~16.600 dòng (≈ <b>44%</b>) thuộc 08 gói nêu trên. Con số man-day là <b>ước tính công quy đổi</b>, chưa bao gồm thuế GTGT, chi phí hạ tầng, token AI và bản quyền dữ liệu sàn.
+  </p>
+
+  <div class="cols2">
+    <div class="box">
+      <h3>Đề xuất phương án ghi nhận</h3>
+      <ul>
+        <li><b>Tách bạch hai hồ sơ:</b> nghiệm thu phạm vi gốc và ghi nhận phạm vi phát sinh là hai văn bản độc lập — để phần phát sinh không bị hiểu là “làm bù cho phần chậm tiến độ”.</li>
+        <li><b>Thanh toán:</b> đề xuất ghi nhận một lần khi VRG xác nhận phụ lục, hoặc quy đổi thành gói bảo trì – vận hành cho giai đoạn tiếp theo.</li>
+        <li><b>Phạm vi tiếp theo:</b> mọi yêu cầu mới ngoài 03 đầu ra đã ký sẽ được báo khối lượng &amp; chi phí <b>trước khi thực hiện</b>.</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Ảnh hưởng tới tiến độ phạm vi gốc</h3>
+      <ul>
+        <li>Từ <b>Tuần 5</b> trở đi, phần lớn thời gian dành cho khối lượng phát sinh nêu trên — đây là nguyên nhân trực tiếp khiến hạng mục <b>mô hình dự báo chuỗi thời gian 7/30 ngày</b> chưa hoàn thành.</li>
+        <li>Hồ sơ gốc ghi <b>cả “12 tuần / 3 Sprint” lẫn “Tuần 1–6”</b>; Bizino đã nêu từ 15/06/2026 và đề nghị VRG chốt bằng văn bản.</li>
+        <li>Đề nghị gia hạn tương ứng với khối lượng phát sinh đã ghi nhận tại phụ lục này.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sign">
+    <div>
+      <div class="who">Đại diện Bên thực hiện</div>
+      <div class="role">Bizino AI × Thái Hưng Infotech</div>
+      <div class="line"></div>
+      <div class="nm">(Ký, ghi rõ họ tên)</div>
+    </div>
+    <div>
+      <div class="who">Đại diện Bên sử dụng</div>
+      <div class="role">Tập đoàn Công nghiệp Cao su Việt Nam</div>
+      <div class="line"></div>
+      <div class="nm">(Ký, ghi rõ họ tên)</div>
+    </div>
+  </div>
+
+  <div class="pgft"><span>Phụ lục 01 — Phạm vi phát sinh ngoài hợp đồng · Đề án A (PoC)</span><span><b>BIZINO × THÁI HƯNG</b> · 11/08/2026</span></div>
+</div>
+
+<!-- ==================== TRANG 2 ==================== -->
+<div class="page">
+  <div class="hd">
+    <div class="logos">
+      <img class="th" src="assets/thaihung_trim.png" alt="Thái Hưng Infotech"/>
+      <span class="sep"></span>
+      <img class="bz" src="assets/bizino.png" alt="Bizino"/>
+    </div>
+    <div class="vrg"><em>Phụ lục 01 · Trang 2<br/>Chi tiết hạng mục</em></div>
+  </div>
+
+  <h1 style="font-size:19px">PHỤ LỤC 01-A — CHI TIẾT HẠNG MỤC TỪNG GÓI</h1>
+  <p class="sub">Liệt kê chi tiết để đối chiếu khi nghiệm thu. Toàn bộ hạng mục đang vận hành trên hệ thống thật, trừ phần ghi rõ “đang hoàn thiện”.</p>
+
+  <table class="d2">
+    <thead><tr><th style="width:3%">#</th><th style="width:20%">Gói</th><th>Hạng mục chi tiết</th></tr></thead>
+    <tbody>
+      <tr><td style="text-align:center;font-weight:800">1</td><td class="g">Phân hệ số liệu đơn vị thành viên</td><td><ul>
+        <li>Biểu <b>Báo cáo thu mua</b> theo ngày: mủ nước · mủ chén · mủ chưa cán vắt · mủ đã cán vắt · thành phẩm mua ngoài; đơn giá tách riêng theo từng loại và từng đơn vị tính.</li>
+        <li>Biểu <b>Tiêu thụ</b>: từng dòng bán kèm chủng loại, số lượng, đơn giá, loại tiền theo dòng, ngày hoá đơn, tệp hợp đồng đính kèm; tách nguồn mủ thu mua / mủ khai thác; bán mủ khai thác ghi riêng.</li>
+        <li>Biểu <b>Tồn kho</b> 4 khối theo phân rã nghiệp vụ, tách theo đúng chủng loại giá sàn, đơn vị tấn 3 số lẻ.</li>
+        <li>Quy khô TSC/DRC bắt buộc với LATEX và mủ nguyên liệu; loại tiền VND · USD · LAK · KHR kèm tỷ giá.</li>
+        <li><b>Kế hoạch năm</b> theo đơn vị và tính % hoàn thành kế hoạch; cờ “không tổ chức thu mua” để không bị đếm thiếu.</li>
+        <li><b>Báo cáo tổng hợp theo kỳ</b> toàn Tập đoàn kèm xuất Excel; chuyển báo cáo sang ngày khác khi nhập nhầm.</li>
+        <li>Nhập bằng <b>file Excel</b>: tải mẫu → xem trước → nạp (hiện tạm dừng theo yêu cầu kiểm soát chất lượng số liệu).</li>
+      </ul></td></tr>
+
+      <tr><td style="text-align:center;font-weight:800">2</td><td class="g">Quản lý hợp đồng bán hàng 2 cấp <span class="tag dev">Đang hoàn thiện</span></td><td><ul>
+        <li><b>Danh mục khách hàng riêng từng đơn vị</b> — không dùng chung cấp Tập đoàn; khách đã gắn hợp đồng chỉ ẩn được, không xoá; tìm kiếm không dấu, lọc nhiều khách cùng lúc.</li>
+        <li><b>Hợp đồng mẹ</b> có loại giao <i>Giao 1 lần</i> / <i>Giao nhiều lần</i>; loại nhiều lần nhập <b>đợt giao</b> đến khi hết sản lượng cam kết; hệ thống chặn vượt sản lượng còn lại.</li>
+        <li><b>Vòng đời đợt giao</b>: ngày bắt đầu → đã giao → thanh toán; hiển thị đã giao / còn lại / trạng thái “đã giao đủ”.</li>
+        <li><b>Tiêu thụ và “đã ký chưa giao” tự tính từ hợp đồng</b> — bỏ khỏi nhập liệu tay, tránh đếm hai lần.</li>
+        <li>Hình thức tiêu thụ: Xuất khẩu/UTXK · Trong nước · <b>Nội bộ</b> (ghi rõ đơn vị nhận); loại hợp đồng dài hạn / chuyến; lọc theo kênh bán, chủng loại, khu vực.</li>
+        <li><b>Cây công ty mẹ – con</b> và ô chi phí tổng cấp công ty mẹ.</li>
+        <li>Kịch bản <b>chuyển đổi dữ liệu cũ</b> sang cấu trúc mới: chạy thử trước, không xoá/sửa dữ liệu gốc, ngày nào thiếu dữ liệu thì bỏ qua và in ra rà tay.</li>
+      </ul></td></tr>
+
+      <tr><td style="text-align:center;font-weight:800">3</td><td class="g">Tài khoản &amp; phân quyền đơn vị thành viên</td><td><ul>
+        <li>Vai trò <b>“Đơn vị thành viên”</b>; một tài khoản quản nhiều đơn vị, chọn đơn vị ngay trên màn hình.</li>
+        <li><b>Cửa sổ nhập liệu</b>: chỉ sửa N ngày gần nhất, cũ hơn chuyển chỉ-xem; hai tham số cấu hình độc lập cho đơn vị và chuyên viên.</li>
+        <li>Quyền dữ liệu tách <b>2 mức Xem / Sửa</b> cho từng nhóm số liệu.</li>
+        <li><b>Đăng nhập-thay</b> để quản trị hỗ trợ đơn vị từ xa.</li>
+        <li><b>Bảng nhắc số liệu còn thiếu</b> hiển thị đầu mọi màn của tài khoản đơn vị; số ngày truy hồi do quản trị đặt.</li>
+        <li><b>Cảnh báo nhập bất thường</b> (lệch quá xa kỳ trước / nghi sai đơn vị tính) trên mọi màn nhập — chỉ cảnh báo, không chặn lưu.</li>
+      </ul></td></tr>
+
+      <tr><td style="text-align:center;font-weight:800">4</td><td class="g">Thống kê &amp; phân tích số liệu đơn vị</td><td><ul>
+        <li>04 màn: <b>Thống kê thu mua</b> (đơn giá bình quân gia quyền tách theo đơn vị tính) · <b>Thống kê tiêu thụ</b> (lọc loại hợp đồng, hình thức, nguồn mủ, xem chi tiết từng dòng) · <b>Thống kê tồn kho</b> · <b>Theo dõi nộp báo cáo</b> (ma trận đơn vị × ngày).</li>
+        <li><b>Drill-down 5 lớp</b>: Tập đoàn → Khu vực → Công ty → Ngày → chi tiết, có đường dẫn quay lại từng lớp, thẻ tổng và biểu đồ mỗi lớp.</li>
+        <li>Tồn kho theo <b>ngày chốt</b> kèm cột “ngày lấy số”, dải độ phủ dữ liệu và cảnh báo đơn vị chưa nộp / số quá cũ.</li>
+        <li>Xuất Excel đúng bộ lọc đang xem cho từng màn.</li>
+      </ul></td></tr>
+
+      <tr><td style="text-align:center;font-weight:800">5</td><td class="g">Ấn phẩm nghiệp vụ tự sinh</td><td><ul>
+        <li><b>Bản tin ngày</b>: soạn – sửa – lưu nháp – xuất bản – xuất PDF đúng mẫu; giá lấy đúng ngày báo cáo; gom giá mủ nguyên liệu theo Khu vực; đoạn nhận định thị trường do AI viết từ nguồn tin trong nước, cho phép sửa tay.</li>
+        <li><b>Bản tin phân tích tuần</b> theo mẫu 6 phần, số liệu bình quân tuần quy USD/tấn.</li>
+        <li><b>Bản tin biến động</b>: 6 nhóm số liệu dạng biểu đồ/bảng kèm ô nhận định AI bấm-tạo.</li>
+        <li><b>Tờ trình điều chỉnh giá sàn</b> đúng mẫu Ban TTKD → Tổng Giám đốc, xem trước và xuất PDF.</li>
+        <li><b>Báo giá mủ thị trường</b> hằng ngày: các mục giá SVR, bao bì – vận chuyển, đề xuất khách hàng, giá mủ nước – mủ chén đồng bộ về kho giá nguyên liệu.</li>
+      </ul></td></tr>
+
+      <tr><td style="text-align:center;font-weight:800">6</td><td class="g">Nhật ký hoạt động</td><td><ul>
+        <li>Bảng nhật ký độc lập, không ghi đè; lưu người thực hiện · thời điểm · bản ghi · giá trị trước → sau.</li>
+        <li>Bao phủ mọi lối vào: màn chuyên viên, màn đơn vị, nhập từ file, link công khai, tác vụ tự chạy.</li>
+        <li>Màn <b>Quản trị → Nhật ký hoạt động</b> chỉ đọc, có quyền riêng; che dữ liệu nhạy cảm; xoá bản ghi vẫn giữ nguyên giá trị cũ trong nhật ký.</li>
+      </ul></td></tr>
+
+      <tr><td style="text-align:center;font-weight:800">7</td><td class="g">Kỹ thuật dữ liệu — bóc tách hồ sơ gốc</td><td><ul>
+        <li>Bóc tách từ Excel Ban TTKD: giá các sàn quốc tế · tỷ giá · giá mủ nước · giá giao ngay, từ năm 2024 đến nay.</li>
+        <li><b>79 lần ban hành giá sàn VRG</b> nạp vào hệ thống, có tên gọi và số công văn.</li>
+        <li><b>71 tuần tồn kho</b> bóc tách tự động từ báo cáo tuần dạng PDF.</li>
+        <li>Nhập nhanh giá giao ngay từ văn bản Reuters: dán – phân tích – xem trước – nạp, quy đổi USD/tấn theo tỷ giá đúng ngày.</li>
+        <li>Rà soát và xử lý dữ liệu sai đơn vị tính trên hệ thống thật; bộ truy vấn dò tìm dùng lại được.</li>
+      </ul></td></tr>
+
+      <tr><td style="text-align:center;font-weight:800">8</td><td class="g">Kênh nhập liệu mở rộng</td><td><ul>
+        <li>Trang công khai có mật khẩu để đơn vị khai giá mủ trong ngày mà không cần tài khoản; mật khẩu do quản trị đặt.</li>
+        <li>Tách kho giá mủ nguyên liệu thành <b>2 lớp</b>: giá chuyên viên chốt (dùng cho bản tin, báo cáo, gợi ý giá sàn) và giá đơn vị tự khai (dùng cho biểu thu mua, thống kê) — kèm chuyển đổi và khôi phục các ô đã bị ghi đè.</li>
+        <li>Danh mục <b>Khu vực</b> nhóm đơn vị thành viên, dùng cho bản tin và thống kê.</li>
+        <li>Màn <b>Nhu cầu thị trường</b> để đơn vị ghi nhận thông tin thị trường theo ngày.</li>
+      </ul></td></tr>
+    </tbody>
+  </table>
+
+  <p class="note" style="margin-top:10px"><b>Ghi chú:</b> số liệu khối lượng (dòng mã, số tệp, số lượt cập nhật) được trích xuất trực tiếp từ hệ thống quản lý mã nguồn ngày 11/08/2026 và có thể đối chiếu lại bất kỳ lúc nào. Chi tiết đối chiếu phạm vi gốc xem tài liệu <b>“Báo cáo Đối chiếu Kế hoạch vs Thực tế — Tuần 10”</b> kèm theo.</p>
+
+  <div class="pgft"><span>Phụ lục 01-A — Chi tiết hạng mục từng gói</span><span><b>BIZINO × THÁI HƯNG</b> · 11/08/2026</span></div>
+</div>
+
+<script>
+(function(){
+  var CONTRACT = 250000000;
+  var fmt = function(n){ return new Intl.NumberFormat('vi-VN').format(Math.round(n)); };
+  var parse = function(s){ return Number(String(s).replace(/[^\d]/g,'')) || 0; };
+
+  var rateEl = document.getElementById('rate');
+  var rows   = Array.prototype.slice.call(document.querySelectorAll('#rows tr'));
+
+  function recalc(){
+    var rate = parse(rateEl.value), totalMd = 0, totalMoney = 0;
+    rows.forEach(function(tr){
+      var md = parse(tr.querySelector('input.md').value);
+      var money = md * rate;
+      totalMd += md; totalMoney += money;
+      tr.querySelector('td.money').textContent = money ? fmt(money) : '—';
+    });
+    document.getElementById('mdTotal').textContent = totalMd;
+    document.getElementById('grand').textContent = totalMoney ? fmt(totalMoney) : '—';
+    var pct = CONTRACT ? (totalMoney / CONTRACT * 100) : 0;
+    document.getElementById('pctCell').textContent = totalMd + ' md';
+    document.getElementById('pct').textContent = totalMoney ? (pct.toFixed(1).replace('.', ',') + '%') : '—';
+  }
+
+  rateEl.addEventListener('input', recalc);
+  rateEl.addEventListener('blur', function(){ var v = parse(rateEl.value); rateEl.value = v ? fmt(v) : ''; recalc(); });
+  rows.forEach(function(tr){ tr.querySelector('input.md').addEventListener('input', recalc); });
+  recalc();
+})();
+</script>
+</body>
+</html>
