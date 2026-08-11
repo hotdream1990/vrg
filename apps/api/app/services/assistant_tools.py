@@ -6,12 +6,20 @@ LLM gọi tool qua OpenAI function-calling; xem `assistant_service`.
 """
 from __future__ import annotations
 
+import sys
 from typing import Any, Callable
 
 from app.core import edit_window
+from app.core.paths import bulletin_dir
 from app.services import (
     floor_repo, floor_suggest, inventory_repo, market_quote_repo, price_repo,
 )
+
+_BULLETIN = bulletin_dir()
+if str(_BULLETIN) not in sys.path:
+    sys.path.insert(0, str(_BULLETIN))
+
+from bulletin.convert import NO_TRADING, is_no_trading  # noqa: E402 - quy ước giá 0 dùng chung
 
 # ── Helpers dựng artifact ──
 def _table(title: str, columns: list[dict], rows: list[dict]) -> dict:
@@ -40,8 +48,12 @@ EXCH = {"ose": "OSE (Nhật)", "shfe": "SHFE (Thượng Hải)", "sgx": "SGX (Si
 def _exchange_prices(_: dict) -> dict:
     rows = [r for r in price_repo.latest() if r["source"] in EXCH]
     rows.sort(key=lambda r: (r["source"], r["grade"]))
+    # Giá 0 = phiên đó sàn không giao dịch → nói rõ "No Trading", đừng đưa số 0 cho LLM đọc
+    # thành "giá 0" rồi kết luận thị trường sụp.
     out = [{"san": EXCH.get(r["source"], r["source"]), "grade": r["grade"],
-            "gia": r["price"], "don_vi": r["unit"], "ngay": _dm(r["as_of"])} for r in rows]
+            "gia": NO_TRADING if is_no_trading(r["price"]) else r["price"],
+            "don_vi": "" if is_no_trading(r["price"]) else r["unit"],
+            "ngay": _dm(r["as_of"])} for r in rows]
     art = _table("Giá các sàn quốc tế (mới nhất)", [
         {"key": "san", "label": "Sàn"}, {"key": "grade", "label": "Chủng loại"},
         {"key": "gia", "label": "Giá"}, {"key": "don_vi", "label": "Đơn vị"},

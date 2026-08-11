@@ -70,8 +70,11 @@ def _load() -> tuple:
     with session_scope() as db:
         fr = db.execute(text("SELECT as_of, grade, fob_usd, domestic_vnd, lan FROM vrg_floor_price "
                              "ORDER BY as_of")).all()
+        # price <> 0: phiên No Trading (sàn nghỉ/không ra settlement) không phải một mức giá —
+        # để lọt vào rổ chỉ số là hồi quy trên một cú rơi về 0 không có thật.
         ir = db.execute(text("SELECT as_of, source, grade, price FROM fact_price "
-                             "WHERE price_type IN ('settlement','physical') ORDER BY as_of")).all()
+                             "WHERE price_type IN ('settlement','physical') AND price <> 0 "
+                             "ORDER BY as_of")).all()
         mr = db.execute(text("SELECT as_of, avg(price) FROM fact_price WHERE source='vrg' "
                              "AND price_type='purchase' GROUP BY as_of ORDER BY as_of")).all()
         iv = db.execute(text("SELECT as_of, ton_kho, ton_kho_hd FROM fact_inventory "

@@ -36,7 +36,11 @@ for sub in ["bulletin"]:
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from bulletin.convert import r0  # noqa: E402 - 1 nguồn làm tròn nửa-lên dùng chung
+from bulletin.convert import (  # noqa: E402 - 1 nguồn làm tròn nửa-lên + quy ước No Trading
+    NO_TRADING,
+    is_no_trading,
+    r0,
+)
 
 # Map sàn/grade, tên sàn, cấu trúc canon: import từ app.core.market_meta (DRY).
 
@@ -157,17 +161,23 @@ def _build_market_text(world_prices, physical_prices) -> tuple[list[str], str]:
         single = len(rows) == 1
         parts: list[str] = []
         for r in rows:
+            prefix = "" if single else f"{_GRADE_DISP.get(r.grade, r.grade)} "
+            if is_no_trading(r.price_curr):
+                # Sàn nghỉ / không ra settlement → nói thẳng, không viết "giao dịch ở mức 0".
+                parts.append(f"{prefix}không giao dịch ({NO_TRADING})")
+                continue
             chg = ""
             if r.change_abs not in (None, 0) and r.change_pct is not None:
                 d = "tăng" if r.change_abs > 0 else "giảm"
                 pct = f"{abs(r.change_pct):.1f}".replace(".", ",")
                 chg = f" {d} {abs(int(r.change_abs)):02d} usd/tấn ({pct}%)"
-            prefix = "" if single else f"{_GRADE_DISP.get(r.grade, r.grade)} "
             parts.append(f"{prefix}giao dịch ở mức {_vn_num(r.price_curr)} usd/tấn{chg}")
         ex_lines.append(f"{_EXCHANGE_NAMES[code]}: {'; '.join(parts)};")
 
     pp = [p for p in physical_prices if p.price_curr is not None]
     physical = "; ".join(
+        f"{_GRADE_DISP.get(p.grade, p.grade)} không giao dịch ({NO_TRADING})"
+        if is_no_trading(p.price_curr) else
         f"{_GRADE_DISP.get(p.grade, p.grade)} giao dịch ở mức {_vn_num(p.price_curr)} usd/tấn"
         for p in pp
     )
@@ -250,6 +260,8 @@ def create_draft(report_date: date, use_crawlers: bool = True) -> BulletinDraft:
                     (`r0`), không dùng round() vì round() làm tròn về số chẵn nên giá kết thúc
                     bằng ,5 luôn bị hạ xuống.
                     """
+                    if is_no_trading(price):
+                        return 0  # No Trading — không cần tỷ giá để quy đổi số 0
                     if unit == "US$/kg":
                         return r0(usd_kg_to_usd_tonne(price))
                     if unit == "US cents/kg":

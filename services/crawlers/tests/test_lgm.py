@@ -16,11 +16,9 @@ def test_parse_units_per_grade() -> None:
     # SMR yết US cents/kg (field sellersUs)
     assert recs["SMRCV"].price == 335.1 and recs["SMRCV"].unit == "US cents/kg"
     assert recs["SMR20"].price == 235.95
-    # Latex: API trả sellersUs CHƯA quy đổi (=sellers) → tự quy đổi sang US cents/kg
-    # bằng tỷ giá MYR/USD nội tại suy từ SMR (1330/335.1). Giữ Sen/kg gốc ở extra.
-    rate = 1330 / 335.1
-    assert recs["LATEX"].unit == "US cents/kg"
-    assert recs["LATEX"].price == round(786 / rate, 2)
-    assert recs["LATEX"].extra["local_sen_kg"] == 786
+    # Latex: API trả sellersUs CHƯA quy đổi (= sellers) → LƯU GỐC Sen/kg, quy đổi USD/T về sau
+    # bằng tỷ giá USD/MYR của đúng ngày (Sen ÷ USD/MYR × 10) — xem lgm._parse.
+    assert recs["LATEX"].unit == "Sen/kg" and recs["LATEX"].currency == "MYR"
+    assert recs["LATEX"].price == 786
     assert recs["SMRCV"].as_of == date(2026, 6, 15)
     assert recs["SMRCV"].source.value == "lgm"

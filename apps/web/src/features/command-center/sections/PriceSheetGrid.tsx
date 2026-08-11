@@ -8,9 +8,16 @@ import {
 } from "../../../lib/api-client";
 import { dmy } from "../../../lib/date";
 import { formatViNumber, parseViNumber } from "../../../lib/number-format";
+import { NO_TRADING_LABEL, NO_TRADING_SHORT, isNoTrading } from "../../../lib/no-trading";
 
 const fmt = (v: number | null | undefined, d = 0) =>
   v == null ? "" : v.toLocaleString("vi-VN", { maximumFractionDigits: d });
+
+/** Nội dung 1 ô số: giá 0 = phiên không giao dịch → "NT" thay vì số 0 (dễ tưởng là giá 0 USD). */
+const cellText = (v: number | null | undefined, d: number) =>
+  isNoTrading(v)
+    ? <span title={NO_TRADING_LABEL} style={{ color: "var(--muted)" }}>{NO_TRADING_SHORT}</span>
+    : <>{fmt(v, d)}</>;
 
 const colSpan = (c: SheetCol) => (c.show_native ? 1 : 0) + (c.show_fx ? 1 : 0) + 1;
 const LINE = "1px solid var(--line, #1e293b)";
@@ -62,7 +69,7 @@ export default function PriceSheetGrid({
   // readOnly (viewer): chỉ hiển thị số, không cho sửa.
   const cell = (id: string, raw: number | null | undefined, dec: number, save: (n: number) => void) =>
     readOnly ? (
-      raw != null ? <>{fmt(raw, dec)}</> : <span style={{ color: "var(--muted)" }}>—</span>
+      raw != null ? cellText(raw, dec) : <span style={{ color: "var(--muted)" }}>—</span>
     ) : editing === id ? (
       <input
         className="blt-cell-input" autoFocus disabled={busy} value={val}
@@ -81,7 +88,7 @@ export default function PriceSheetGrid({
     ) : (
       <span onClick={() => { setEditing(id); setVal(formatViNumber(raw)); }}
         style={{ cursor: "pointer", display: "block", minWidth: 44 }}>
-        {raw != null ? fmt(raw, dec) : <span style={{ color: "var(--muted)" }}>—</span>}
+        {raw != null ? cellText(raw, dec) : <span style={{ color: "var(--muted)" }}>—</span>}
       </span>
     );
 

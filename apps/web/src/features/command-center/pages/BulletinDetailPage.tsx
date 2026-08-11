@@ -6,6 +6,7 @@ import {
   getPublishedDetail,
   type BulletinDraft,
 } from "../../../lib/bulletin-client";
+import { fmtPrice } from "../../../lib/no-trading";
 import "../../bulletin/bulletin.css";
 
 /* ── Icons ── */
@@ -16,7 +17,7 @@ const IconDownload = () => (
 );
 
 /* ── Helpers ── */
-const fmt = (v: number | null) => (v != null ? v.toLocaleString() : "—");
+const fmt = fmtPrice;  // giá 0 = No Trading (quy ước chung, xem lib/no-trading)
 const fmtPct = (v: number | null) => (v != null ? `${v > 0 ? "+" : ""}${v.toFixed(1)}%` : "");
 const fmtChg = (v: number | null) => (v != null ? `${v > 0 ? "+" : ""}${v}` : "");
 const cls = (v: number | null) => (v == null ? "" : v > 0 ? "up" : v < 0 ? "down" : "flat");

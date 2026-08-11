@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { type PriceBoard, fetchBoard } from "../../../lib/api-client";
 import { dmy } from "../../../lib/date";
+import { NO_TRADING_LABEL, isNoTrading } from "../../../lib/no-trading";
 
 const EX_LABEL: Record<string, string> = {
   OSE: "OSE (TOCOM)",
@@ -61,13 +62,20 @@ export default function ExchangeBoard({ reloadKey = 0 }: { reloadKey?: number })
               <tr key={i}>
                 <td>{EX_LABEL[e.exchange] ?? e.exchange}</td>
                 <td style={{ fontWeight: 500 }}>{e.grade}</td>
-                <td style={{ textAlign: "right" }}>{fmt(e.native_price, 3)}</td>
-                <td>{e.native_unit}</td>
-                <td style={{ textAlign: "right" }}>
-                  {e.fx_rate != null ? `${fmt(e.fx_rate, 4)}` : "—"}
-                  {e.fx_pair && <span style={{ color: "var(--muted)", fontSize: 11 }}> ({e.fx_pair})</span>}
-                </td>
-                <td style={{ textAlign: "right", fontWeight: 600 }}>{fmt(e.usd_tonne)}</td>
+                {/* Giá 0 = phiên đó sàn không giao dịch → nói rõ, đừng để bảng đọc thành "giá 0". */}
+                {isNoTrading(e.native_price) ? (
+                  <td colSpan={4} style={{ color: "var(--muted)" }}>{NO_TRADING_LABEL}</td>
+                ) : (
+                  <>
+                    <td style={{ textAlign: "right" }}>{fmt(e.native_price, 3)}</td>
+                    <td>{e.native_unit}</td>
+                    <td style={{ textAlign: "right" }}>
+                      {e.fx_rate != null ? `${fmt(e.fx_rate, 4)}` : "—"}
+                      {e.fx_pair && <span style={{ color: "var(--muted)", fontSize: 11 }}> ({e.fx_pair})</span>}
+                    </td>
+                    <td style={{ textAlign: "right", fontWeight: 600 }}>{fmt(e.usd_tonne)}</td>
+                  </>
+                )}
                 <td>{dmy(e.as_of)}</td>
               </tr>
             ))}

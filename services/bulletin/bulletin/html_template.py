@@ -14,6 +14,7 @@ from __future__ import annotations
 import base64
 from pathlib import Path
 
+from .convert import NO_TRADING, is_no_trading
 from .models import BulletinData
 
 PAGE_W, PAGE_H = "7.5in", "10.83in"
@@ -53,7 +54,10 @@ USABLE_PX = 808
 # ── Format số ──
 # Bảng (I/II/III) dùng dấu phẩy nghìn + phần trăm dấu chấm, cột thay đổi KHÔNG dấu '+' (theo mẫu).
 def _fmt(v: int | None) -> str:
-    return f"{v:,}" if v is not None else "N/A"
+    """Ô giá: chưa có số → N/A; giá 0 → 'No Trading' (phiên đó sàn không giao dịch)."""
+    if v is None:
+        return "N/A"
+    return NO_TRADING if is_no_trading(v) else f"{v:,}"
 
 
 def _chg(v: int | None) -> str:

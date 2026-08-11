@@ -79,11 +79,15 @@ def _parse_rubber(pdf_bytes: bytes) -> dict[str, list[dict]]:
 
 
 def _pick(rows: list[dict]) -> dict | None:
-    """Kỳ hạn có Trading Value lớn nhất; nếu không có giao dịch → kỳ hạn đầu (front)."""
+    """Kỳ hạn có Trading Value lớn nhất.
+
+    KHÔNG kỳ hạn nào giao dịch → None = phiên đó grade này KHÔNG GIAO DỊCH (No Trading).
+    Trước 0.4.13 hàm này trả kỳ hạn đầu (front): settlement lý thuyết của kỳ hạn không giao
+    dịch bị JPX giữ nguyên nhiều phiên liền → hệ thống lưu lại một con số đứng im như thể là
+    giá thật (vd OSE TSR20 = 350 JPY/kg suốt 03–07/08/2026).
+    """
     traded = [r for r in rows if r["trading_value"] > 0]
-    if traded:
-        return max(traded, key=lambda r: r["trading_value"])
-    return rows[0] if rows else None
+    return max(traded, key=lambda r: r["trading_value"]) if traded else None
 
 
 def _pdf_for(day: date) -> bytes | None:
@@ -103,22 +107,26 @@ def _pdf_for(day: date) -> bytes | None:
 def _records_for(pdf_bytes: bytes, day: date, keep_curve: bool = True) -> list[PriceRecord]:
     records: list[PriceRecord] = []
     for grade, rows in _parse_rubber(pdf_bytes).items():
-        best = _pick(rows)
-        if not best:
+        if not rows:
             continue
-        extra = {"exchange": "OSE/TOCOM", "selection": "max_trading_value", "trading_value": best["trading_value"]}
+        # Không kỳ hạn nào giao dịch → giá 0 = No Trading (quy ước chung), KHÔNG lấy settlement
+        # lý thuyết của kỳ hạn front đắp vào.
+        best = _pick(rows)
+        extra = {"exchange": "OSE/TOCOM", "selection": "max_trading_value",
+                 "trading_value": best["trading_value"] if best else 0,
+                 "no_trading": best is None}
         if keep_curve:
             extra["curve"] = rows
         records.append(
             PriceRecord(
                 source=Source.TOCOM,
                 grade=grade,
-                price=best["settle"],
+                price=best["settle"] if best else 0.0,
                 currency="JPY",
                 unit="JPY/kg",
                 price_type="settlement",
                 as_of=day,
-                contract=best["contract"],
+                contract=best["contract"] if best else "",
                 extra=extra,
             )
         )
@@ -126,11 +134,22 @@ def _records_for(pdf_bytes: bytes, day: date, keep_curve: bool = True) -> list[P
 
 
 def crawl(as_of: date | None = None) -> CrawlResult:
+    """Lấy settlement phiên OSE mới nhất có báo cáo (báo cáo hôm nay đăng vào buổi tối JST).
+
+    `as_of` của bản ghi LUÔN là ngày của báo cáo — ngày OSE nghỉ thì không sinh bản ghi cho ngày
+    đó. Lùi ngày là để chờ báo cáo được đăng, KHÔNG phải đắp giá cũ sang ngày mới; khi có lùi thì
+    ghi rõ trong `note` để trang Quét đa sàn thấy phiên nào đang được lấy.
+    """
     try:
-        for d in _recent_days(as_of or date.today()):
+        want = as_of or date.today()
+        for d in _recent_days(want):
             pdf = _pdf_for(d)
             if pdf and (records := _records_for(pdf, d)):
-                return CrawlResult(source=Source.TOCOM, status=Status.OK, records=records)
+                note = (None if d == want else
+                        f"OSE chưa có báo cáo ngày {want:%d/%m/%Y} — lấy phiên {d:%d/%m/%Y}.")
+                if all(r.price == 0 for r in records):
+                    note = f"Phiên {d:%d/%m/%Y}: OSE không có giao dịch cao su (No Trading)."
+                return CrawlResult(source=Source.TOCOM, status=Status.OK, records=records, note=note)
         return CrawlResult(source=Source.TOCOM, status=Status.EMPTY, note="Không tải được OSE Daily Report ZIP")
     except Exception as exc:  # noqa: BLE001
         return CrawlResult(source=Source.TOCOM, status=Status.ERROR, note=str(exc))

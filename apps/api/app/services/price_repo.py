@@ -180,7 +180,11 @@ def latest() -> list[dict[str, Any]]:
 
 
 def history(source: str, grade: str, days: int = 30) -> list[dict[str, Any]]:
-    """Chuỗi giá theo ngày cho 1 (source, grade) — phục vụ biểu đồ lịch sử."""
+    """Chuỗi giá theo ngày cho 1 (source, grade) — phục vụ biểu đồ + trung bình tuần.
+
+    BỎ các phiên giá 0 (No Trading — sàn nghỉ/không ra settlement): đó không phải mức giá,
+    đưa vào chuỗi sẽ thành cú rơi thẳng đứng trên biểu đồ và kéo tụt trung bình tuần.
+    """
     ensure_schema()
     with session_scope() as db:
         result = db.execute(
@@ -188,6 +192,7 @@ def history(source: str, grade: str, days: int = 30) -> list[dict[str, Any]]:
                 SELECT as_of, price
                 FROM fact_price
                 WHERE source = :source AND grade = :grade
+                  AND price <> 0
                   AND as_of >= current_date - CAST(:days AS integer)
                 ORDER BY as_of
             """),

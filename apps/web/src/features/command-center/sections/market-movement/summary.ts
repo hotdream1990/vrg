@@ -13,6 +13,7 @@ import { getFloor, listFloors } from "../../../../lib/floor-client";
 import { fetchInventory } from "../../../../lib/inventory-client";
 import type { GroupMeta } from "../../../../lib/market-movement-client";
 import { type MarketQuote, getQuote, listQuotes } from "../../../../lib/market-quote-client";
+import { isNoTrading } from "../../../../lib/no-trading";
 
 const vnum = (n: number, d = 0) => n.toLocaleString("vi-VN", { maximumFractionDigits: d });
 
@@ -32,12 +33,15 @@ const hasData = (summary: string) => !summary.startsWith("Chưa đủ dữ liệ
 const pct = (cur: number, prev: number | null | undefined) =>
   prev == null || !prev ? "" : ` (${(cur - prev) / prev >= 0 ? "+" : ""}${(((cur - prev) / prev) * 100).toFixed(2)}%)`;
 
+/** Chuỗi USD/T của 1 sàn·mặt hàng. BỎ phiên giá 0 (No Trading — sàn nghỉ/không ra settlement):
+ *  không phải một mức giá, để lọt vào sẽ báo cho AI là "0 USD/T (-100%)". */
 function usdSeries(sheet: PriceSheet, ex: string, grade: string): number[] {
   const col = sheet.groups.find((g) => g.exchange.toUpperCase() === ex.toUpperCase())
     ?.cols.find((c) => c.grade.toUpperCase() === grade.toUpperCase());
   if (!col) return [];
   return [...sheet.rows].sort((a, b) => a.as_of.localeCompare(b.as_of))
-    .map((r) => r.cells[col!.key]?.usd).filter((v): v is number => v != null);
+    .map((r) => r.cells[col!.key]?.usd)
+    .filter((v): v is number => v != null && !isNoTrading(v));
 }
 function fxSeries(sheet: PriceSheet, pair: string): number[] {
   return [...sheet.rows].sort((a, b) => a.as_of.localeCompare(b.as_of))
@@ -73,7 +77,7 @@ function physicalLines(ph: { grades: string[]; dates: string[]; values: Record<s
   const [cur, prev] = [ph.dates[0], ph.dates[1]];
   const out = ph.grades.map((g) => {
     const c = ph.values[g]?.[cur];
-    if (c == null) return null;
+    if (c == null || isNoTrading(c)) return null;   // phiên No Trading không phải một mức giá
     return `${g}: ${vnum(c)} USD/T${pct(c, prev ? ph.values[g]?.[prev] : null)}`;
   }).filter(Boolean);
   return out.length ? `Phiên ${dm(cur)} — ${out.join("; ")}` : "Chưa đủ dữ liệu.";

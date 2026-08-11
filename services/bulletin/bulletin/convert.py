@@ -13,6 +13,18 @@ from __future__ import annotations
 from decimal import Decimal, ROUND_HALF_UP
 
 
+# ── Quy ước dùng chung: GIÁ 0 = KHÔNG GIAO DỊCH (No Trading) ──
+# Sàn đóng cửa / không ra settlement thì giá 0, KHÔNG phải "giá bằng 0 USD" và cũng KHÔNG được
+# lấy giá phiên trước đắp vào. Số 0 vào kho giá từ 2 đường: (1) file chính thức của sàn — SGX
+# SETTLE=0, OSE không kỳ hạn nào có giao dịch; (2) chuyên viên tự sửa về 0 ở Quản lý số liệu.
+NO_TRADING = "No Trading"
+
+
+def is_no_trading(price: float | int | None) -> bool:
+    """Giá này có nghĩa là 'phiên đó không giao dịch' hay không (giá 0)."""
+    return price is not None and float(price) == 0
+
+
 def r1(x: float) -> float:
     """Làm tròn 1 SỐ LẺ, nửa LÊN.
 
@@ -66,7 +78,10 @@ def to_usd_tonne_detail(
     usd_tonne giữ 1 số lẻ (xem `r1`) — nơi nào cần số nguyên thì tự làm tròn bằng `r0`.
     fx_pair/fx_rate = None khi đơn vị đã ở hệ USD (US$/kg, US cents/kg).
     Thiếu tỷ giá → usd_tonne None nhưng vẫn trả fx_pair để UI báo rõ.
+    Giá 0 (No Trading) → 0 luôn, không cần tỷ giá (0 quy đổi kiểu gì cũng là 0).
     """
+    if is_no_trading(price):
+        return 0.0, None, None
     if unit in ("USD/tonne", "USD/T"):
         return r1(price), None, None
     if unit == "US$/kg":

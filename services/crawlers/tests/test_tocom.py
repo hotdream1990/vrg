@@ -37,6 +37,10 @@ def test_pick_max_trading_value() -> None:
     assert tocom._pick(rows)["contract"] == "202611"
 
 
-def test_pick_fallback_front_when_untraded() -> None:
-    rows = [{"contract": "202607", "settle": 360.0, "trading_value": 0}]
-    assert tocom._pick(rows)["contract"] == "202607"
+def test_pick_none_when_nothing_traded() -> None:
+    """Không kỳ hạn nào giao dịch → None (No Trading), KHÔNG lấy settlement lý thuyết front."""
+    rows = [
+        {"contract": "202607", "settle": 360.0, "trading_value": 0},
+        {"contract": "202608", "settle": 350.0, "trading_value": 0},
+    ]
+    assert tocom._pick(rows) is None
