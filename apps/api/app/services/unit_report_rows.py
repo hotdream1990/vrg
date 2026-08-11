@@ -33,8 +33,11 @@ MATERIAL_LABELS = {
 # Từ 30/07/2026 tiêu thụ đến từ LẦN GIAO của hợp đồng, không còn tách 2 nguồn mủ. Hai nhãn cũ giữ
 # lại để bản ghi lịch sử (nếu có nơi nào còn đọc) không hiện ra chuỗi thô.
 SOURCE_LABELS = {"sales": "Mủ thu mua", "sales_own": "Mủ khai thác", "contract": "Theo hợp đồng"}
-#: 2 khối tồn kho nhập tay (khối "đã ký HĐ" có màn riêng, khối nguyên liệu là ô đơn).
+#: 2 khối tồn kho nhập tay (khối nguyên liệu là ô đơn, không có chủng loại).
 STOCK_BLOCKS = ("stock_not_warehoused", "stock_warehoused")
+#: Khối TỰ TÍNH từ hợp đồng bán hàng: đã ký chưa giao = sản lượng hợp đồng − đã giao.
+#: Nằm TRONG tồn kho thành phẩm (không cộng thêm) → dùng để suy ra phần còn bán được.
+CONTRACT_BLOCK = "contract_undelivered"
 
 
 def _num(v: Any) -> float | None:
@@ -208,9 +211,10 @@ def stock_rows(as_of: str, max_age_days: int, companies: list[str] | None = None
     biết số thuộc ngày nào — không nơi nào được hiểu đây là số nhập đúng ngày chốt.
 
     Trả về:
-    - `rows`     → mỗi dòng = 1 chủng loại trong 1 khối (chưa nhập kho / đã nhập kho) + 1 dòng tồn
-                   nguyên liệu. `all_days=True` giữ TẤT CẢ các ngày trong cửa sổ (xem diễn biến
-                   tồn), mỗi ngày vẫn là ảnh chụp độc lập — KHÔNG cộng dồn giữa các ngày.
+    - `rows`     → mỗi dòng = 1 chủng loại trong 1 khối (chưa nhập kho / đã nhập kho / đã ký HĐ
+                   chưa giao) + 1 dòng tồn nguyên liệu. `all_days=True` giữ TẤT CẢ các ngày trong
+                   cửa sổ (xem diễn biến tồn), mỗi ngày vẫn là ảnh chụp độc lập — KHÔNG cộng dồn
+                   giữa các ngày.
     - `no_stock` → {đơn vị: ngày mới nhất} đã khai "không phát sinh tồn kho để khai". Đơn vị này
                    ĐÃ NỘP nhưng KHÔNG có số để cộng: không được đếm là thiếu báo cáo, cũng không
                    được tự suy thành tồn = 0 (cờ chỉ nói "không có gì để khai", không nói hết hàng).
@@ -227,6 +231,7 @@ def stock_rows(as_of: str, max_age_days: int, companies: list[str] | None = None
         elif e["fields"].get("no_stock") is True:
             no_stock[e["company"]] = e["as_of"]
 
+    undelivered = _undelivered_by_snapshot(kept.values())
     rows: list[dict[str, Any]] = []
     for e in kept.values():
         base = _base(e, meta)
@@ -241,4 +246,24 @@ def stock_rows(as_of: str, max_age_days: int, companies: list[str] | None = None
                              "grade": str(ln.get("grade") or "").strip() or "—", "qty": qty})
         rows.append({**base, "block": "stock_material", "grade": "Nguyên liệu chưa sản xuất",
                      "qty": _num(f.get("stock_material"))})
+        for grade, qty in (undelivered.get((e["as_of"], e["company"])) or {}).items():
+            rows.append({**base, "block": CONTRACT_BLOCK,
+                         "grade": str(grade or "").strip() or "—", "qty": _num(qty)})
     return {"rows": rows, "no_stock": no_stock}
+
+
+def _undelivered_by_snapshot(entries) -> dict[tuple[str, str], dict[str, float]]:
+    """{(ngày, đơn vị): {chủng loại: đã ký chưa giao}} — tính tại ĐÚNG ngày của số tồn kho.
+
+    Cùng ngày với số tồn thì phép trừ "tồn thành phẩm − đã ký chưa giao" mới có nghĩa: lấy hợp đồng
+    của ngày chốt trừ tồn kho của ngày khác là ghép số hai thời điểm. Đơn vị nào KHÔNG có số tồn
+    trong cửa sổ thì cũng không lấy hợp đồng của họ — nếu không, nhóm chỉ có phần trừ.
+    """
+    by_date: dict[str, list[str]] = {}
+    for e in entries:
+        by_date.setdefault(e["as_of"], []).append(e["company"])
+    out: dict[tuple[str, str], dict[str, float]] = {}
+    for d, comps in by_date.items():
+        for company, data in unit_daily_repo.contracts_on(d, comps).items():
+            out[(d, company)] = data.get("by_grade") or {}
+    return out

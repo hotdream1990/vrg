@@ -3,7 +3,8 @@
    Tồn kho là số THỜI ĐIỂM nên không có khái niệm "tổng của một kỳ": chọn 1 ngày chốt, mỗi đơn vị
    lấy số MỚI NHẤT ≤ ngày đó (cũ tối đa N ngày) — luôn hiện ngày thật ở cột "Ngày lấy số" + "Số cũ",
    và luôn báo rõ đơn vị nào chưa có số (không lấy số ngày khác đắp vào).
-   Hợp đồng đã ký chưa giao nằm ở màn riêng (Thống kê hợp đồng). */
+   "Đã ký HĐ chưa giao" + "Tồn có thể giao dịch" là số SUY RA từ hợp đồng (server tính tại đúng
+   ngày của số tồn); chi tiết từng hợp đồng vẫn ở màn riêng (Thống kê hợp đồng). */
 
 import { InboxOutlined } from "@ant-design/icons";
 import { message } from "antd";
@@ -26,6 +27,8 @@ const COLS: StatsCol[] = [
   { key: "not_warehoused", label: "Tồn chưa nhập kho", unit: "tấn", note: "thời điểm" },
   { key: "warehoused", label: "Tồn đã nhập kho", unit: "tấn", note: "thời điểm" },
   { key: "total", label: "Tổng tồn thành phẩm", unit: "tấn", note: "= 2 khối trên" },
+  { key: "signed_undelivered", label: "Đã ký HĐ chưa giao", unit: "tấn", note: "nằm trong tồn TP" },
+  { key: "tradable", label: "Tồn có thể giao dịch", unit: "tấn", note: "= tổng − chưa giao" },
   { key: "material", label: "Tồn nguyên liệu", unit: "tấn", note: "quy khô" },
 ];
 
@@ -33,6 +36,8 @@ const KPIS: Kpi[] = [
   { key: "total", label: "Tổng tồn thành phẩm", unit: "tấn" },
   { key: "not_warehoused", label: "Chưa nhập kho", unit: "tấn" },
   { key: "warehoused", label: "Đã nhập kho", unit: "tấn" },
+  { key: "signed_undelivered", label: "Đã ký HĐ chưa giao", unit: "tấn" },
+  { key: "tradable", label: "Tồn có thể giao dịch", unit: "tấn" },
   { key: "material", label: "Tồn nguyên liệu", unit: "tấn" },
 ];
 
@@ -74,7 +79,11 @@ export default function StockStatsPage() {
             Ảnh chụp tại <b>một ngày chốt</b> — tồn kho là số <b>thời điểm</b>, không cộng dồn các
             ngày. Đơn vị chưa nhập đúng ngày chốt thì lấy số mới nhất trước đó trong giới hạn
             <b> số cũ tối đa</b>, và <b>hiện rõ ngày thật</b> của số đó; quá hạn coi như chưa có số.
-            Hợp đồng đã ký chưa giao xem ở mục <b>Thống kê hợp đồng</b>.
+            <b> Đã ký HĐ chưa giao</b> là số hệ thống tự tính từ hợp đồng (sản lượng hợp đồng −
+            đã giao) tại đúng ngày của số tồn, <b>nằm trong</b> tồn thành phẩm; phần còn bán được
+            là <b>tồn có thể giao dịch = tổng tồn − đã ký chưa giao</b> (âm nghĩa là đã ký nhiều
+            hơn lượng đang có trong kho). Chi tiết từng hợp đồng xem ở mục
+            <b> Thống kê hợp đồng</b>.
           </p>
         </div>
       </div>

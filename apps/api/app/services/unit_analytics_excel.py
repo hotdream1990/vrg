@@ -64,6 +64,8 @@ STOCK_COLS: list[Col] = [
     ("not_warehoused", "Tồn thành phẩm chưa nhập kho", "tấn"),
     ("warehoused", "Tồn thành phẩm đã nhập kho", "tấn"),
     ("total", "Tổng tồn kho thành phẩm", "tấn"),
+    ("signed_undelivered", "Đã ký HĐ chưa giao", "tấn"),
+    ("tradable", "Tồn có thể giao dịch", "tấn"),
     ("material", "Tồn kho nguyên liệu (quy khô)", "tấn"),
 ]
 

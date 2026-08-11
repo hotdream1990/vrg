@@ -247,6 +247,38 @@ def test_stock_is_snapshot_at_the_reference_day(seeded) -> None:
     assert [r["key"] for r in by_grade["rows"]] == ["SVR 3L"]   # ngày cuối chỉ còn 1 chủng loại
 
 
+def _sign(h: dict, code: str, day: str, qty: float, grade: str = "SVR 3L") -> None:
+    """1 hợp đồng ĐÃ KÝ ngày `day` nhưng CHƯA GIAO (không có `delivered_at`) — nguồn của khối 3."""
+    r = client.put("/api/sales-contracts", json={
+        "company": UNIT_A, "code": code, "customer_id": _customer(h, UNIT_A),
+        "delivery_type": "single", "contract_type": "long_term", "channel": "export",
+        "sign_date": day, "start_date": day,
+        "lines": [{"grade": grade, "qty": qty, "price": 30, "ccy": "VND"}]}, headers=h)
+    assert r.status_code == 200, r.text
+
+
+def test_stock_subtracts_contracts_signed_but_not_delivered(seeded) -> None:
+    """Tồn có thể giao dịch = tồn thành phẩm − đã ký HĐ chưa giao, HĐ lấy tại ĐÚNG ngày của số tồn.
+
+    Số tồn của UNIT_A là của ngày D1 (cũ 2 ngày) → phần "đã ký chưa giao" cũng phải tính tại D1.
+    Lấy hợp đồng của ngày chốt trừ tồn kho ngày D1 là ghép số hai thời điểm khác nhau.
+    """
+    h = seeded
+    _sign(h, "HD-A9", D1, 300)                          # ký D1, chưa giao → nằm trong ảnh chụp
+    _sign(h, "HD-A8", date.today().isoformat(), 500)    # ký SAU ngày của số tồn → chưa được trừ
+    a = _row(_stock(h, companies=UNIT_A), UNIT_A)
+    assert a["total"] == 800 and a["signed_undelivered"] == 300 and a["tradable"] == 500
+    # HĐ của seed đã giao xong ngay trong ngày ký → không còn nợ giao, không đội khối 3 lên.
+    assert _row(_stock(h, companies=UNIT_A, group_by="grade"), "SVR 3L")["signed_undelivered"] == 300
+
+
+def test_tradable_stock_stays_negative_when_signed_more_than_on_hand(seeded) -> None:
+    """Đã ký nhiều hơn hàng đang có thì tồn giao dịch được ÂM — cắt về 0 là giấu mất phần thiếu."""
+    _sign(seeded, "HD-A9", D1, 1000)
+    a = _row(_stock(seeded, companies=UNIT_A), UNIT_A)
+    assert a["signed_undelivered"] == 1000 and a["tradable"] == -200
+
+
 def test_stock_drops_numbers_older_than_the_allowed_window(seeded) -> None:
     """Số quá cũ KHÔNG được đắp cho ngày chốt: quá hạn thì báo thiếu, không lấy đại số cũ."""
     rep = _stock(seeded, companies=UNIT_A, max_age_days=1)

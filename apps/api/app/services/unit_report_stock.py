@@ -4,6 +4,11 @@ Mỗi đơn vị lấy bản ghi tồn MỚI NHẤT có ngày ≤ ngày chốt v
 **luôn trả kèm ngày đã lấy + số ngày đã cũ** để người xem biết số thuộc ngày nào (không nơi nào
 được hiểu số cũ là số của đúng ngày chốt). Đơn vị không có số trong cửa sổ thì báo thiếu, KHÔNG
 lấy số ngày khác đắp vào.
+
+Ngoài 3 khối đơn vị nhập tay (chưa nhập kho · đã nhập kho · nguyên liệu), báo cáo còn 2 chỉ tiêu
+SUY RA từ hợp đồng bán hàng, lấy tại ĐÚNG ngày của số tồn:
+- `signed_undelivered` — đã ký HĐ chưa giao (sản lượng hợp đồng − đã giao), NẰM TRONG tồn thành phẩm
+- `tradable`           — tồn có thể giao dịch = `total` − `signed_undelivered` (có thể âm)
 """
 
 from __future__ import annotations
@@ -14,6 +19,9 @@ from app.services import member_unit_repo, unit_report_rows
 from app.services.unit_report_query import dmy, filter_scope, sort_groups, split_csv
 
 _BLOCK_KEY = {"stock_not_warehoused": "not_warehoused", "stock_warehoused": "warehoused"}
+#: Khối tự tính từ hợp đồng: phần ĐÃ KÝ CHƯA GIAO — NẰM TRONG tồn thành phẩm nên chỉ trừ ra để
+#: biết còn bao nhiêu bán được, KHÔNG cộng vào tổng tồn (cộng nữa là tính trùng chính lô hàng đó).
+_CONTRACT = unit_report_rows.CONTRACT_BLOCK
 
 #: Số cũ từ ngần này ngày trở lên thì nhắc người xem (số vẫn tính vào tổng, nhưng phải biết là cũ).
 STALE_AFTER_DAYS = 3
@@ -23,7 +31,8 @@ _MAX_NAMES = 12
 
 def _new_group(key: str, region: str | None) -> dict[str, Any]:
     return {"key": key, "label": key, "region": region, "not_warehoused": 0.0,
-            "warehoused": 0.0, "material": 0.0, "by_grade": {}, "_dates": set(), "_ages": set()}
+            "warehoused": 0.0, "material": 0.0, "signed_undelivered": 0.0,
+            "by_grade": {}, "_dates": set(), "_ages": set()}
 
 
 def _feed(g: dict, r: dict, with_grade: bool) -> None:
@@ -33,6 +42,9 @@ def _feed(g: dict, r: dict, with_grade: bool) -> None:
     if r["block"] == "stock_material":
         g["material"] += qty
         return
+    if r["block"] == _CONTRACT:
+        g["signed_undelivered"] += qty
+        return                       # `by_grade` là TỒN theo chủng loại — không trộn số hợp đồng
     g[_BLOCK_KEY[r["block"]]] += qty
     if with_grade:
         g["by_grade"][r["grade"]] = (g["by_grade"].get(r["grade"]) or 0.0) + qty
@@ -47,7 +59,11 @@ def _close(g: dict) -> dict[str, Any]:
     # (nhóm có số cũ 8 ngày thì cả nhóm đáng ngờ, không phải chỉ dòng đó).
     g["age_days"] = max(g.pop("_ages"), default=None)
     g["total"] = (g["not_warehoused"] + g["warehoused"]) or None
-    for k in ("not_warehoused", "warehoused", "material"):
+    # Tồn CÓ THỂ GIAO DỊCH = tồn thành phẩm − đã ký HĐ chưa giao. Có thể ÂM (đã ký nhiều hơn lượng
+    # đang có trong kho) — giữ nguyên dấu âm, cắt về 0 là giấu mất phần đang thiếu hàng để giao.
+    signed = g["signed_undelivered"]
+    g["tradable"] = ((g["total"] or 0.0) - signed) if (g["total"] is not None or signed) else None
+    for k in ("not_warehoused", "warehoused", "material", "signed_undelivered"):
         g[k] = g[k] or None
     g["by_grade"] = {k: v for k, v in sorted(g["by_grade"].items()) if v}
     return g
@@ -105,7 +121,7 @@ def _warnings(cov: dict, as_of: str, max_age_days: int, group_by: str) -> list[s
         window = (f"ngày {dmy(as_of)}" if max_age_days <= 0
                   else f"{max_age_days} ngày tính đến {dmy(as_of)}")
         w.append(f"{len(cov['missing'])} đơn vị chưa có số tồn kho trong {window} → KHÔNG tính vào "
-                 f"tổng: {_names(cov['missing'])}.")
+                 f"tổng (kể cả phần đã ký HĐ chưa giao của họ): {_names(cov['missing'])}.")
     if cov["no_stock"]:
         w.append(f"{len(cov['no_stock'])} đơn vị khai \"không phát sinh tồn kho để khai\" → đã nộp "
                  f"nhưng KHÔNG có số để cộng vào tổng: {_names(cov['no_stock'])}.")
