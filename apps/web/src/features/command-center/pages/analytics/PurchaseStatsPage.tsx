@@ -18,12 +18,14 @@ import { CHAINS, DIM_LABEL, type DrillDim, applyDrill, useDrill } from "./use-dr
 import "../../../bulletin/bulletin.css";
 
 const COLS: StatsCol[] = [
-  { key: "qty_latex", label: "SL mủ nước", unit: "tấn", note: "cộng dồn" },
-  { key: "qty_cup", label: "SL mủ chén", unit: "tấn", note: "cộng dồn" },
+  // Mủ nguyên liệu khai theo QUY KHÔ, thành phẩm khai theo số thực mua → nói rõ ở từng cột, vì
+  // "Tổng sản lượng" cộng cả hai loại số này lại với nhau.
+  { key: "qty_latex", label: "SL mủ nước", unit: "tấn", note: "cộng dồn · quy khô" },
+  { key: "qty_cup", label: "SL mủ chén", unit: "tấn", note: "cộng dồn · quy khô" },
   // 2 loại nguyên liệu bổ sung (30/07/2026) — đơn giá theo ĐỒNG/KG, không phải đồng/độ.
-  { key: "qty_cup_raw", label: "SL mủ NL chưa cán vắt", unit: "tấn", note: "cộng dồn" },
-  { key: "qty_rss_pressed", label: "SL mủ NL đã cán vắt", unit: "tấn", note: "cộng dồn" },
-  { key: "qty_finished", label: "SL thành phẩm", unit: "tấn", note: "cộng dồn" },
+  { key: "qty_cup_raw", label: "SL mủ NL chưa cán vắt", unit: "tấn", note: "cộng dồn · quy khô" },
+  { key: "qty_rss_pressed", label: "SL mủ NL đã cán vắt", unit: "tấn", note: "cộng dồn · quy khô" },
+  { key: "qty_finished", label: "SL thành phẩm", unit: "tấn", note: "cộng dồn · số thực mua" },
   { key: "qty_total", label: "Tổng sản lượng", unit: "tấn", note: "theo bộ lọc" },
   { key: "price_latex_avg", label: "Đơn giá BQ mủ nước", unit: "đồng/độ", note: "BQ gia quyền" },
   { key: "price_cup_avg", label: "Đơn giá BQ mủ chén", unit: "đồng/độ", note: "BQ gia quyền" },

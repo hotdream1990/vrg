@@ -56,15 +56,17 @@ const finishedVnd = (v: Values): number =>
   }, 0);
 
 const PURCHASE: Column[] = [
-  { key: "latex_wet", label: "Sản lượng thu mua", unit: "tấn", group: _MU_NUOC },
+  // Mủ nguyên liệu khai theo QUY KHÔ (thành phẩm thì không) — ghi thẳng vào đơn vị tính để người
+  // đọc bảng tổng hợp không phải đoán, giống nhãn ở phiếu nhập.
+  { key: "latex_wet", label: "Sản lượng thu mua", unit: "tấn quy khô", group: _MU_NUOC },
   { key: "price_latex", label: "Đơn giá thu mua", unit: "đồng/độ TSC", group: _MU_NUOC, linked: "latex" },
-  { key: "coagulum", label: "Sản lượng thu mua", unit: "tấn", group: _MU_CHEN },
+  { key: "coagulum", label: "Sản lượng thu mua", unit: "tấn quy khô", group: _MU_CHEN },
   // Mủ chén tính theo độ TSC hoặc độ DRC — đơn vị tự chọn ở form (`cup_basis`), nên nhãn cột để chung.
   { key: "price_cup", label: "Đơn giá thu mua", unit: "đồng/độ", group: _MU_CHEN, linked: "cup",
     hint: "theo độ TSC hoặc DRC — đơn vị tự chọn" },
-  { key: "cup_raw", label: "Sản lượng thu mua", unit: "tấn", group: _NL_CHEN },
+  { key: "cup_raw", label: "Sản lượng thu mua", unit: "tấn quy khô", group: _NL_CHEN },
   { key: "cup_raw_price", label: "Đơn giá thu mua", unit: "đồng/kg", group: _NL_CHEN },
-  { key: "rss_pressed", label: "Sản lượng thu mua", unit: "tấn", group: _NL_RSS },
+  { key: "rss_pressed", label: "Sản lượng thu mua", unit: "tấn quy khô", group: _NL_RSS },
   { key: "rss_pressed_price", label: "Đơn giá thu mua", unit: "đồng/kg", group: _NL_RSS },
   // Thu mua thành phẩm nhập theo CHỦNG LOẠI (bảng nhiều dòng) → bảng tổng hợp chỉ hiện số cộng lại.
   { key: "finished_qty", label: "Sản lượng thu mua", unit: "tấn", group: _TP,

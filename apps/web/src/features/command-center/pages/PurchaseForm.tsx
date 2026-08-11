@@ -179,8 +179,13 @@ export default function PurchaseForm({
       </div>
 
       <div style={{ ...gridStyle, opacity: noPurchase ? 0.5 : 1 }}>
+        <div className="form-note" style={{ gridColumn: "1 / -1", fontSize: 11.5 }}>
+          Sản lượng của <b>cả 4 loại mủ nguyên liệu</b> dưới đây nhập theo <b>tấn quy khô</b>,
+          không phải khối lượng mủ tươi cân được. Riêng <b>Thu mua thành phẩm</b> là số lượng
+          thực mua (hàng đã chế biến, không quy đổi).
+        </div>
         {head("Mủ nước", true, HINT_DAILY_EVENT)}
-        {field("Sản lượng thu mua", "tấn", numInput(num(draft.latex_wet), (v) => set("latex_wet", v), readOnly, undefined, TONNES_DAILY))}
+        {field("Sản lượng thu mua", "tấn quy khô", numInput(num(draft.latex_wet), (v) => set("latex_wet", v), readOnly, undefined, TONNES_DAILY))}
         {foreign ? (
           <>
             {field("Đơn giá thu mua", `${currency}/độ TSC`, numInput(num(draft.price_latex_local), (v) => set("price_latex_local", v), readOnly))}
@@ -191,7 +196,7 @@ export default function PurchaseForm({
         )}
 
         {head("Mủ chén", false, HINT_DAILY_EVENT)}
-        {field("Sản lượng thu mua", "tấn", numInput(num(draft.coagulum), (v) => set("coagulum", v), readOnly, undefined, TONNES_DAILY))}
+        {field("Sản lượng thu mua", "tấn quy khô", numInput(num(draft.coagulum), (v) => set("coagulum", v), readOnly, undefined, TONNES_DAILY))}
         {/* Mủ chén tính theo độ TSC hoặc độ DRC — đơn vị tự chọn, đổi luôn nhãn các ô đơn giá bên dưới. */}
         {field("Đơn giá tính theo", undefined, (
           <Select size="small" style={{ width: "100%" }} value={cupBasis} disabled={readOnly}
@@ -213,11 +218,11 @@ export default function PurchaseForm({
         </div>
 
         {head("Mủ nguyên liệu nước chưa cán vắt (chén)", false, HINT_DAILY_EVENT)}
-        {field("Sản lượng thu mua", "tấn", numInput(num(draft.cup_raw), (v) => set("cup_raw", v), readOnly, undefined, TONNES_DAILY))}
+        {field("Sản lượng thu mua", "tấn quy khô", numInput(num(draft.cup_raw), (v) => set("cup_raw", v), readOnly, undefined, TONNES_DAILY))}
         {field("Đơn giá thu mua", "đồng/kg", numInput(num(draft.cup_raw_price), (v) => set("cup_raw_price", v), readOnly, undefined, PRICE_PER_KG))}
 
         {head("Mủ nguyên liệu đã cán vắt (RSS)", false, HINT_DAILY_EVENT)}
-        {field("Sản lượng thu mua", "tấn", numInput(num(draft.rss_pressed), (v) => set("rss_pressed", v), readOnly, undefined, TONNES_DAILY))}
+        {field("Sản lượng thu mua", "tấn quy khô", numInput(num(draft.rss_pressed), (v) => set("rss_pressed", v), readOnly, undefined, TONNES_DAILY))}
         {field("Đơn giá thu mua", "đồng/kg", numInput(num(draft.rss_pressed_price), (v) => set("rss_pressed_price", v), readOnly, undefined, PRICE_PER_KG))}
 
         <div className="form-note" style={{ gridColumn: "1 / -1", fontSize: 11.5 }}>

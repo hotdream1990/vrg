@@ -22,10 +22,12 @@ _NUM = "#,##0.00"
 Col = tuple[str, str, str]        # (khoá dữ liệu, tiêu đề, đơn vị tính)
 
 PURCHASE_COLS: list[Col] = [
-    ("qty_latex", "Sản lượng mủ nước", "tấn"),
-    ("qty_cup", "Sản lượng mủ chén", "tấn"),
-    ("qty_cup_raw", "Sản lượng mủ NL chưa cán vắt", "tấn"),
-    ("qty_rss_pressed", "Sản lượng mủ NL đã cán vắt", "tấn"),
+    # Mủ nguyên liệu khai theo QUY KHÔ, thành phẩm theo số thực mua — ghi vào đơn vị tính để file
+    # rời khỏi hệ thống vẫn tự nói được nó là số gì.
+    ("qty_latex", "Sản lượng mủ nước", "tấn quy khô"),
+    ("qty_cup", "Sản lượng mủ chén", "tấn quy khô"),
+    ("qty_cup_raw", "Sản lượng mủ NL chưa cán vắt", "tấn quy khô"),
+    ("qty_rss_pressed", "Sản lượng mủ NL đã cán vắt", "tấn quy khô"),
     ("qty_finished", "Sản lượng thành phẩm", "tấn"),
     ("qty_total", "Tổng sản lượng (theo bộ lọc)", "tấn"),
     ("price_latex_avg", "Đơn giá BQ mủ nước", "đồng/độ"),
