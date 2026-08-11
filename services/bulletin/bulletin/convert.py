@@ -17,7 +17,10 @@ from decimal import Decimal, ROUND_HALF_UP
 # Sàn đóng cửa / không ra settlement thì giá 0, KHÔNG phải "giá bằng 0 USD" và cũng KHÔNG được
 # lấy giá phiên trước đắp vào. Số 0 vào kho giá từ 2 đường: (1) file chính thức của sàn — SGX
 # SETTLE=0, OSE không kỳ hạn nào có giao dịch; (2) chuyên viên tự sửa về 0 ở Quản lý số liệu.
+# Ô SỐ LIỆU (bảng Mục I/II/III) ghi nguyên văn "No Trading"; DIỄN GIẢI (Mục IV) viết bằng
+# tiếng Việt "không thực hiện giao dịch" cho đúng văn phong bản tin.
 NO_TRADING = "No Trading"
+NO_TRADING_TEXT = "không thực hiện giao dịch"
 
 
 def is_no_trading(price: float | int | None) -> bool:

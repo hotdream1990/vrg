@@ -37,7 +37,7 @@ for sub in ["bulletin"]:
         sys.path.insert(0, p)
 
 from bulletin.convert import (  # noqa: E402 - 1 nguồn làm tròn nửa-lên + quy ước No Trading
-    NO_TRADING,
+    NO_TRADING_TEXT,
     is_no_trading,
     r0,
 )
@@ -164,7 +164,7 @@ def _build_market_text(world_prices, physical_prices) -> tuple[list[str], str]:
             prefix = "" if single else f"{_GRADE_DISP.get(r.grade, r.grade)} "
             if is_no_trading(r.price_curr):
                 # Sàn nghỉ / không ra settlement → nói thẳng, không viết "giao dịch ở mức 0".
-                parts.append(f"{prefix}không giao dịch ({NO_TRADING})")
+                parts.append(f"{prefix}{NO_TRADING_TEXT}")
                 continue
             chg = ""
             if r.change_abs not in (None, 0) and r.change_pct is not None:
@@ -176,7 +176,7 @@ def _build_market_text(world_prices, physical_prices) -> tuple[list[str], str]:
 
     pp = [p for p in physical_prices if p.price_curr is not None]
     physical = "; ".join(
-        f"{_GRADE_DISP.get(p.grade, p.grade)} không giao dịch ({NO_TRADING})"
+        f"{_GRADE_DISP.get(p.grade, p.grade)} {NO_TRADING_TEXT}"
         if is_no_trading(p.price_curr) else
         f"{_GRADE_DISP.get(p.grade, p.grade)} giao dịch ở mức {_vn_num(p.price_curr)} usd/tấn"
         for p in pp

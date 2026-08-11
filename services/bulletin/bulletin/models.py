@@ -9,6 +9,19 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
+from .convert import is_no_trading
+
+
+def _delta(prev: int | None, curr: int | None) -> tuple[int | None, float | None]:
+    """(thay đổi tuyệt đối, %) giữa 2 phiên — bỏ trống nếu một trong hai là No Trading.
+
+    Phiên không giao dịch KHÔNG phải mức giá 0, nên không được so với phiên có giá
+    (nếu không cột thay đổi in ra '-2,739 / -100%' vô nghĩa).
+    """
+    if prev is None or curr is None or is_no_trading(prev) or is_no_trading(curr):
+        return None, None
+    return curr - prev, round((curr - prev) / prev * 100, 1)
+
 
 @dataclass
 class WorldPriceRow:
@@ -22,15 +35,11 @@ class WorldPriceRow:
 
     @property
     def change_abs(self) -> int | None:
-        if self.price_prev is None or self.price_curr is None:
-            return None
-        return self.price_curr - self.price_prev
+        return _delta(self.price_prev, self.price_curr)[0]
 
     @property
     def change_pct(self) -> float | None:
-        if self.price_prev is None or self.price_curr is None or self.price_prev == 0:
-            return None
-        return round((self.price_curr - self.price_prev) / self.price_prev * 100, 1)
+        return _delta(self.price_prev, self.price_curr)[1]
 
 
 @dataclass
@@ -43,15 +52,11 @@ class PhysicalPriceRow:
 
     @property
     def change_abs(self) -> int | None:
-        if self.price_prev is None or self.price_curr is None:
-            return None
-        return self.price_curr - self.price_prev
+        return _delta(self.price_prev, self.price_curr)[0]
 
     @property
     def change_pct(self) -> float | None:
-        if self.price_prev is None or self.price_curr is None or self.price_prev == 0:
-            return None
-        return round((self.price_curr - self.price_prev) / self.price_prev * 100, 1)
+        return _delta(self.price_prev, self.price_curr)[1]
 
 
 @dataclass

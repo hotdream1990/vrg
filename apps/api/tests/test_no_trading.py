@@ -43,8 +43,22 @@ def test_bang_muc_i_in_no_trading() -> None:
     assert "No Trading" in html and ">0<" not in html
 
 
+def test_khong_tinh_thay_doi_tren_phien_no_trading() -> None:
+    """Phiên không giao dịch không phải mức giá → cột thay đổi để trống, không in -2739/-100%."""
+    row = WorldPriceRow(exchange="SGX", grade="RSS3", unit="USD/T", price_prev=2739, price_curr=0)
+    assert row.change_abs is None and row.change_pct is None
+    back = WorldPriceRow(exchange="SGX", grade="RSS3", unit="USD/T", price_prev=0, price_curr=2739)
+    assert back.change_abs is None and back.change_pct is None      # phiên trước nghỉ cũng vậy
+    ok = WorldPriceRow(exchange="SGX", grade="RSS3", unit="USD/T", price_prev=2000, price_curr=2100)
+    assert (ok.change_abs, ok.change_pct) == (100, 5.0)             # phiên bình thường vẫn tính
+
+
 def test_muc_iv_noi_thang_la_khong_giao_dich() -> None:
-    """Mục IV không được viết 'giao dịch ở mức 0 usd/tấn'."""
+    """Mục IV không được viết 'giao dịch ở mức 0 usd/tấn'.
+
+    Ô số liệu (Mục I/II) ghi 'No Trading'; DIỄN GIẢI (Mục IV) viết tiếng Việt
+    'không thực hiện giao dịch' — không lẫn tiếng Anh vào câu văn.
+    """
     world = [
         WorldPriceItem(exchange="OSE", grade="RSS3", price_prev=2666, price_curr=0),
         WorldPriceItem(exchange="SGX", grade="RSS3", price_prev=2739, price_curr=0),
@@ -54,7 +68,8 @@ def test_muc_iv_noi_thang_la_khong_giao_dich() -> None:
     phys = [PhysicalPriceItem(grade="RSS3", price_prev=2824, price_curr=0)]
     ex_lines, physical = _build_market_text(world, phys)
     ose, sgx = ex_lines[0], ex_lines[2]
-    assert "không giao dịch (No Trading)" in ose and "0 usd/tấn" not in ose
-    assert "RSS3 không giao dịch (No Trading)" in sgx      # sàn nhiều mặt hàng → có tiền tố
+    assert "không thực hiện giao dịch" in ose and "0 usd/tấn" not in ose
+    assert "No Trading" not in ose                         # diễn giải: thuần tiếng Việt
+    assert "RSS3 không thực hiện giao dịch" in sgx         # sàn nhiều mặt hàng → có tiền tố
     assert "TSR20 giao dịch ở mức 2.200 usd/tấn" in sgx    # mặt hàng còn lại vẫn báo giá
-    assert physical == "RSS3 không giao dịch (No Trading);"
+    assert physical == "RSS3 không thực hiện giao dịch;"
