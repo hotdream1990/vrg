@@ -14,9 +14,12 @@ type Props = {
   placeholder?: string;
   className?: string;
   prevValue?: number | null;
+  /** Lời nhắc hiện khi rê chuột lên ô (vd cảnh báo sai đơn vị tính). Đi bằng thuộc tính `title`
+   *  thay vì bọc <Tooltip> ở nơi gọi: bọc/gỡ theo trạng thái là đổi cây phần tử → remount, mất focus. */
+  title?: string;
 };
 
-export default function NumInput({ value, onChange, readOnly, placeholder = "—", className, prevValue }: Props) {
+export default function NumInput({ value, onChange, readOnly, placeholder = "—", className, prevValue, title }: Props) {
   const warn = isBigChange(value, prevValue);
   // Đang gõ thì giữ NGUYÊN chuỗi thô (`draft`): nếu format lại sau mỗi phím thì vừa gõ "2238,"
   // đã bị nắn thành "2.238" → ký tự thập phân tiếp theo dính sai chỗ. Rời ô mới format lại.
@@ -29,6 +32,7 @@ export default function NumInput({ value, onChange, readOnly, placeholder = "—
         type="text"
         inputMode="decimal"
         className={`${className ?? "blt-cell-input"}${warn ? " num-warn" : ""}`}
+        title={title}
         value={draft ?? formatViNumber(value)}
         readOnly={readOnly}
         placeholder={placeholder}

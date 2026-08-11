@@ -1,5 +1,4 @@
 import { DeleteOutlined, PlusOutlined, WarningOutlined } from "@ant-design/icons";
-import { Tooltip } from "antd";
 
 import {
   FX_USD_VND, TONNES_CONTRACT, boundWarning, fxWarning, priceBound,
@@ -72,15 +71,18 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
   const set = (i: number, patch: Partial<ContractLine>) =>
     onChange(lines.map((ln, k) => (k === i ? { ...ln, ...patch } : ln)));
 
-  /** Ô số + viền cảnh báo. `warn` = lời nhắc (null = bình thường) → hiện tooltip nói rõ đơn vị tính. */
+  /** Ô số + viền cảnh báo. `warn` = lời nhắc (null = bình thường) → rê chuột lên ô thấy đơn vị tính.
+   *
+   *  KHÔNG bọc/gỡ <Tooltip> theo `warn`: đổi kiểu phần tử gốc giữa lúc gõ làm React remount thẻ
+   *  input → vừa gõ ký tự đầu (đơn giá "1" đã dưới biên 10 triệu đ/tấn) là cảnh báo bật, con trỏ
+   *  văng khỏi ô và chuỗi đang gõ dở bị nắn lại. Lời nhắc đi bằng `title` để cây phần tử giữ
+   *  NGUYÊN ở cả hai trạng thái — đúng cách `NumInput` đã xử lý cho icon cảnh báo bên trong nó. */
   const num = (value: number | null, onValue: (v: number | null) => void,
-               warn: string | null = null, placeholder = "") => {
-    const el = (
-      <NumInput value={value} onChange={onValue} readOnly={readOnly} placeholder={placeholder}
-                className={`blt-date-input r${warn ? " num-warn" : ""}`} />
-    );
-    return warn ? <Tooltip title={warn}>{el}</Tooltip> : el;
-  };
+               warn: string | null = null, placeholder = "") => (
+    <NumInput value={value} onChange={onValue} readOnly={readOnly} placeholder={placeholder}
+              title={warn ?? undefined}
+              className={`blt-date-input r${warn ? " num-warn" : ""}`} />
+  );
   const amount = (i: number) => lineAmount(lines[i]);
   // Gom cảnh báo của MỌI dòng: ô lệch rất dễ nằm ngoài tầm nhìn khi khối tự xuống hàng, chỉ tô
   // viền thôi thì người nhập vẫn bấm Lưu mà không thấy gì (bài học của banner biểu nhập ngày).
