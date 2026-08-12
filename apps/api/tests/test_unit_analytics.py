@@ -547,3 +547,53 @@ def test_mark_no_purchase_is_admin_only(seeded) -> None:
                       json={"date_from": D0, "date_to": D1, "apply": True})
     assert res.status_code == 403
     client.delete("/api/users/an_editor_mark", headers=h)
+
+
+def test_mark_no_purchase_only_fills_days_the_unit_left_blank(seeded) -> None:
+    """Chỉ điền ngày đơn vị KHÔNG nhập gì — mọi kiểu "đã nhập" đều phải sống sót nguyên vẹn.
+
+    Các ca dễ sai, liệt kê hết ở đây vì đây là thao tác GHI HỘ đơn vị:
+      · ngày có sản lượng               → giữ nguyên
+      · ngày khai sản lượng 0 kèm giá   → ĐÃ nhập (tổ chức mua nhưng không mua được) → giữ nguyên
+      · ngày chỉ có ô chữ `cup_basis`   → coi như chưa nhập → gắn cờ NHƯNG không mất ô chữ
+      · ngày đã tích "không tổ chức"    → không đụng lại
+      · ngày chỉ nhập biểu Tồn kho      → biểu Thu mua vẫn trống → có điền
+      · ngày SAU hôm nay                → không bao giờ điền
+    """
+    h = seeded
+    day = lambda n: (date.today() - timedelta(days=n)).isoformat()  # noqa: E731
+    put = lambda body: client.put("/api/unit-daily/report", json=body, headers=h)  # noqa: E731
+    d6, d5, d4, d1, d0 = day(6), day(5), day(4), day(1), day(0)
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+
+    put({"kind": "purchase", "company": UNIT_B, "as_of": d5, "fields": {"latex_wet": 50}})
+    put({"kind": "purchase", "company": UNIT_B, "as_of": d4,
+         "fields": {"latex_wet": 0, "coagulum": 0}})          # mua 0 tấn — vẫn là ĐÃ nhập
+    put({"kind": "purchase", "company": UNIT_B, "as_of": D0, "fields": {"cup_basis": "drc"}})
+    put({"kind": "consumption", "company": UNIT_B, "as_of": d6,
+         "fields": {"stock_material": 12}})                   # chỉ nộp biểu Tồn kho
+    # D1 đã có cờ "không tổ chức thu mua" từ fixture; d1/d0/d6 (thu mua) và tomorrow bỏ trống.
+
+    def payloads() -> dict[str, dict]:
+        with session_scope() as db:
+            rows = db.execute(text("SELECT as_of, payload FROM unit_daily_report "
+                                   "WHERE kind = 'purchase' AND company = :c"),
+                              {"c": UNIT_B}).mappings().all()
+        return {str(r["as_of"]): dict(r["payload"]) for r in rows}
+
+    before = payloads()
+    done = _mark(h, companies=UNIT_B, date_from=d6, date_to=tomorrow, apply=True)
+    after = payloads()
+
+    # Đúng 4 ngày trống được điền: d6 · D0 (chỉ có ô chữ) · d1 · d0. Ngày mai KHÔNG tính.
+    assert done["marked"] == 4
+    assert sorted(set(after) - set(before)) == sorted([d6, d1, d0])
+    assert tomorrow not in after
+    for d in (d5, d4, D1):
+        assert after[d] == before[d], f"ngày {d} đã nhập mà bị sửa"
+    assert after[d5] == {"latex_wet": 50}
+    assert after[d4] == {"latex_wet": 0, "coagulum": 0}       # 0 vẫn là số liệu, không bị ghi đè
+    assert after[D1] == {"no_purchase": True}                 # đã tích sẵn → không đụng lại
+    assert after[D0] == {"cup_basis": "drc", "no_purchase": True}   # gộp cờ, giữ ô chữ
+    for d in (d6, d1, d0):
+        assert after[d] == {"no_purchase": True}
