@@ -1,9 +1,11 @@
-/* Dải ĐỘ PHỦ của ảnh chụp tồn kho: người xem phải biết tổng đang gồm bao nhiêu đơn vị, đơn vị nào
-   đang lấy số cũ, đơn vị nào chưa có số — nếu không sẽ tưởng con số tổng là đầy đủ. */
+/* Dải ĐỘ PHỦ của ảnh chụp tồn kho: người xem phải biết tổng đang gồm bao nhiêu đơn vị và đơn vị nào
+   chưa có số — nếu không sẽ tưởng con số tổng là đầy đủ. Ngày lấy số của từng dòng đã có sẵn trong
+   bảng nên không điểm mặt riêng đơn vị "số cũ".
 
-import {
-  CheckCircleOutlined, ClockCircleOutlined, MinusCircleOutlined, WarningOutlined,
-} from "@ant-design/icons";
+   Đơn vị khai "không phát sinh tồn kho để khai" KHÔNG hiện ra (đã nộp, chẳng có gì để nhắc) → phải
+   TRỪ khỏi mẫu số, nếu không "45/57 có số" + "9 chưa có số" hụt mất mấy đơn vị, đọc như đếm sai. */
+
+import { CheckCircleOutlined, WarningOutlined } from "@ant-design/icons";
 import { Tooltip } from "antd";
 
 import { dmy } from "../../../../lib/date";
@@ -21,9 +23,9 @@ const item = (color: string, icon: React.ReactNode, text: string, tip?: string) 
 );
 
 export default function StockCoverageBar({ asOf, maxAgeDays, coverage }: Props) {
-  const { units_expected: expected, units_counted: counted, stale, missing } = coverage;
-  const empty = coverage.no_stock ?? [];
-  const full = counted >= expected && !stale.length;
+  const { units_counted: counted, missing } = coverage;
+  const expected = coverage.units_expected - (coverage.no_stock ?? []).length;
+  const full = counted >= expected;
 
   return (
     <div className="card" style={{ display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap",
@@ -36,12 +38,6 @@ export default function StockCoverageBar({ asOf, maxAgeDays, coverage }: Props) 
       </span>
       {item(full ? "var(--accent)" : "inherit", <CheckCircleOutlined />,
             `${counted}/${expected} đơn vị có số`)}
-      {!!stale.length && item("var(--warn)", <ClockCircleOutlined />,
-        `${stale.length} đơn vị số cũ`,
-        stale.map((s) => `${s.company}: ${dmy(s.as_of)} (cũ ${s.age_days} ngày)`).join("\n"))}
-      {!!empty.length && item("var(--muted)", <MinusCircleOutlined />,
-        `${empty.length} đơn vị khai không phát sinh`,
-        empty.map((e) => `${e.company}: ${dmy(e.as_of)}`).join("\n"))}
       {!!missing.length && item("var(--danger)", <WarningOutlined />,
         `${missing.length} đơn vị chưa có số`,
         missing.map((m) => m.company + (m.has_factory ? "" : " (không có nhà máy)")).join("\n"))}

@@ -23,8 +23,6 @@ _BLOCK_KEY = {"stock_not_warehoused": "not_warehoused", "stock_warehoused": "war
 #: biết còn bao nhiêu bán được, KHÔNG cộng vào tổng tồn (cộng nữa là tính trùng chính lô hàng đó).
 _CONTRACT = unit_report_rows.CONTRACT_BLOCK
 
-#: Số cũ từ ngần này ngày trở lên thì nhắc người xem (số vẫn tính vào tổng, nhưng phải biết là cũ).
-STALE_AFTER_DAYS = 3
 #: Số tên đơn vị liệt kê thẳng trong câu cảnh báo (dài hơn thì gộp phần đuôi lại cho đọc được).
 _MAX_NAMES = 12
 
@@ -80,11 +78,14 @@ def _latest_per_company(rows: list[dict]) -> list[dict]:
 
 def _coverage(snap: list[dict], no_stock: dict[str, str], comps: list[str] | None,
               regs: list[str] | None) -> dict[str, Any]:
-    """Độ phủ của ảnh chụp: bao nhiêu đơn vị có số, đơn vị nào số cũ, đơn vị nào chưa có số.
+    """Độ phủ của ảnh chụp: bao nhiêu đơn vị có số, đơn vị nào chưa có số.
 
     Thiếu đơn vị là chuyện PHẢI hiện ra: tổng tồn kho toàn Tập đoàn thiếu vài đơn vị mà không báo
     thì người xem tưởng đó là số đầy đủ. Đơn vị khai "không phát sinh tồn kho" tách thành nhóm
     RIÊNG — đã nộp nên không phải "chưa nhập", nhưng cũng không có số nào để cộng vào tổng.
+
+    Số cũ (lấy lùi ngày trong cửa sổ `max_age_days`) KHÔNG bị điểm mặt riêng: mỗi dòng đã mang sẵn
+    ngày lấy số + số ngày đã cũ, người xem tự thấy — thêm cảnh báo ngưỡng nữa chỉ gây nhiễu.
     """
     units = member_unit_repo.list_units(include_inactive=False)
     if comps:
@@ -102,11 +103,8 @@ def _coverage(snap: list[dict], no_stock: dict[str, str], comps: list[str] | Non
              for u in rest if u["name"] in no_stock]
     missing = [{"company": u["name"], "has_factory": bool(u.get("has_factory", True))}
                for u in rest if u["name"] not in no_stock]
-    stale = sorted(({"company": c, **v} for c, v in got.items()
-                    if v["age_days"] >= STALE_AFTER_DAYS),
-                   key=lambda x: (-x["age_days"], x["company"]))
     return {"units_expected": len(units), "units_counted": len(got),
-            "stale": stale, "no_stock": empty, "missing": missing}
+            "no_stock": empty, "missing": missing}
 
 
 def _names(items: list[dict], key: str = "company") -> str:
@@ -122,15 +120,8 @@ def _warnings(cov: dict, as_of: str, max_age_days: int, group_by: str) -> list[s
                   else f"{max_age_days} ngày tính đến {dmy(as_of)}")
         w.append(f"{len(cov['missing'])} đơn vị chưa có số tồn kho trong {window} → KHÔNG tính vào "
                  f"tổng (kể cả phần đã ký HĐ chưa giao của họ): {_names(cov['missing'])}.")
-    if cov["no_stock"]:
-        w.append(f"{len(cov['no_stock'])} đơn vị khai \"không phát sinh tồn kho để khai\" → đã nộp "
-                 f"nhưng KHÔNG có số để cộng vào tổng: {_names(cov['no_stock'])}.")
-    if cov["stale"]:
-        detail = ", ".join(f"{s['company']} ({dmy(s['as_of'])}, cũ {s['age_days']} ngày)"
-                           for s in cov["stale"][:_MAX_NAMES])
-        more = len(cov["stale"]) - _MAX_NAMES
-        w.append(f"{len(cov['stale'])} đơn vị đang lấy số cũ từ {STALE_AFTER_DAYS} ngày trở lên: "
-                 f"{detail}" + (f" …và {more} đơn vị khác." if more > 0 else "."))
+    # Đơn vị khai "không phát sinh tồn kho" KHÔNG lên cảnh báo: họ đã nộp đúng hạn, không có gì
+    # sai để nhắc. Vẫn giữ trong `coverage` để dải độ phủ cộng đủ (có số + khai trống + chưa có số).
     if group_by == "day":
         w.append(f"Mỗi dòng là tồn của riêng ngày đó (không cộng dồn); dòng Tổng cộng là ảnh chụp "
                  f"tại ngày chốt {dmy(as_of)} — mỗi đơn vị lấy số mới nhất của mình.")

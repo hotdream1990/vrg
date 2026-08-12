@@ -44,11 +44,10 @@ export type StatsReport = {
   coverage?: StockCoverage;
 };
 
-/** Độ phủ ảnh chụp tồn kho: bao nhiêu đơn vị có số, đơn vị nào số cũ, đơn vị nào chưa nhập. */
+/** Độ phủ ảnh chụp tồn kho: bao nhiêu đơn vị có số, đơn vị nào chưa nhập. */
 export type StockCoverage = {
   units_expected: number;
   units_counted: number;
-  stale: { company: string; as_of: string; age_days: number }[];
   /** Đã nộp nhưng khai "không phát sinh tồn kho" → không có số để cộng (khác với chưa nhập). */
   no_stock: { company: string; as_of: string }[];
   missing: { company: string; has_factory: boolean }[];
