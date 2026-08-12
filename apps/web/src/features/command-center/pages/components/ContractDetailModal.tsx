@@ -38,6 +38,25 @@ const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 }
 const money = (n: number | null) =>
   (n == null ? "—" : (n / 1_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
 
+/** Lũy kế bảng dòng chi tiết hợp đồng — CHỈ cộng sản lượng: thành tiền của mỗi dòng theo nguyên tệ
+ *  của chính nó, cộng chung nhiều loại tiền lại thành một số là số vô nghĩa. Một dòng thì khỏi cộng. */
+function LinesTotal({ lines }: { lines: Contract["lines"] }) {
+  if (lines.length < 2) return null;
+  const qty = lines.reduce((s, ln) => s + (ln.qty ?? 0), 0);
+  const dry = lines.reduce((s, ln) => s + (ln.qty_dry ?? 0), 0);
+  return (
+    <tfoot>
+      <tr style={{ fontWeight: 600 }}>
+        <td>Lũy kế {lines.length} dòng</td>
+        <td className="r">{t3(qty)}</td>
+        {/* Chủng loại không có quy khô → "—" như từng dòng, hiện 0 sẽ bị đọc là khai thiếu. */}
+        <td className="r">{dry > 0 ? t3(dry) : "—"}</td>
+        <td colSpan={3} />
+      </tr>
+    </tfoot>
+  );
+}
+
 /** Chi tiết HỢP ĐỒNG + danh sách ĐỢT GIAO (mỗi đợt = 1 lần giao). */
 export default function ContractDetailModal({ contractId, meta, canEdit, onClose, onChanged }: Props) {
   const [d, setD] = useState<ContractDetail | null>(null);
@@ -226,6 +245,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                               </tr>
                             ))}
                           </tbody>
+                          <LinesTotal lines={c.lines} />
                         </table>
                       </div>
                     </>

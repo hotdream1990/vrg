@@ -208,8 +208,14 @@ def recent(kind: str, date_from: str, companies: list[str] | None = None,
 
 
 def in_range(kind: str, date_from: str, date_to: str,
-             companies: list[str] | None = None) -> list[dict[str, Any]]:
-    """Các bản ghi CÓ số liệu trong khoảng [date_from, date_to] (ngày tăng dần) — cho báo cáo kỳ."""
+             companies: list[str] | None = None,
+             attach_contracts: bool = True) -> list[dict[str, Any]]:
+    """Các bản ghi CÓ số liệu trong khoảng [date_from, date_to] (ngày tăng dần) — cho báo cáo kỳ.
+
+    `attach_contracts=False` khi người gọi KHÔNG cần khối "đã ký HĐ chưa giao" của TỪNG ngày:
+    khối đó phải hỏi hợp đồng một lần cho MỖI ngày trong khoảng (90 ngày = 90 truy vấn), quá đắt
+    cho những chỗ chỉ cần cộng vài con số.
+    """
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(
@@ -221,7 +227,8 @@ def in_range(kind: str, date_from: str, date_to: str,
     keep = set(companies) if companies is not None else None
     out = [{"as_of": str(r["as_of"]), "company": r["company"], "fields": dict(r["payload"] or {})}
            for r in rows if keep is None or r["company"] in keep]
-    _attach_contracts_to_list(out, kind)
+    if attach_contracts:
+        _attach_contracts_to_list(out, kind)
     return out
 
 

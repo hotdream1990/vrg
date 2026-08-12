@@ -48,6 +48,17 @@ function DocCell({ no, docs }: { no: string | null; docs: ContractDoc[] }) {
 /** Bảng ĐỢT GIAO của một hợp đồng — mỗi dòng là một lần giao (hoá đơn · ngày giao · chi tiết
  *  hàng). Đợt chưa điền ngày giao là đang chờ giao, chưa tính vào tiêu thụ. */
 export default function ContractBatchTable({ rows, meta, canEdit, locked, onEdit, onDelete }: Props) {
+  // Thành tiền để null khi CÓ đợt thiếu tỷ giá — cộng tiếp là ra một tổng thiếu mà trông như đủ.
+  const sum = rows.reduce(
+    (a, k) => ({
+      qty: a.qty + k.qty,
+      qty_dry: a.qty_dry + k.qty_dry,
+      revenue: a.revenue == null || k.revenue == null ? null : a.revenue + k.revenue,
+    }),
+    { qty: 0, qty_dry: 0, revenue: 0 as number | null },
+  );
+  const pending = rows.filter((k) => !k.delivered_at).length;
+
   return (
     <div className="card" style={{ padding: 0, overflow: "auto" }}>
       <table>
@@ -104,6 +115,26 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, onEdit
             </td></tr>
           )}
         </tbody>
+        {/* Lũy kế các đợt: đối chiếu ngay với sản lượng hợp đồng mà không phải cộng tay từng đợt.
+            Gồm CẢ đợt đang chờ giao — đó là số đã cam kết trên chứng từ của hợp đồng này. */}
+        {rows.length > 0 && (
+          <tfoot>
+            <tr style={{ fontWeight: 600 }}>
+              <td colSpan={5}>
+                Lũy kế {rows.length} đợt
+                {pending > 0 && (
+                  <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: 12 }}>
+                    {" "}· trong đó {pending} đợt đang chờ giao
+                  </span>
+                )}
+              </td>
+              <td className="r">{t3(sum.qty)}</td>
+              <td className="r">{sum.qty_dry > 0 ? t3(sum.qty_dry) : "—"}</td>
+              <td className="r">{money(sum.revenue)}</td>
+              <td colSpan={canEdit ? 3 : 2} />
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );

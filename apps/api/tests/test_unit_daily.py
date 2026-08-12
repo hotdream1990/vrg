@@ -677,6 +677,49 @@ def test_consumption_timeline_is_paged_but_purchase_is_not() -> None:
     client.delete(f"/api/member-units/{unit}", headers=h)
 
 
+def test_consumption_timeline_totals_add_up_flows_but_snapshot_the_stock() -> None:
+    """Lũy kế biểu Tồn kho: tiêu thụ CỘNG DỒN, tồn kho lấy ẢNH CHỤP MỚI NHẤT — và không đổi theo trang.
+
+    Cộng tồn kho qua các ngày là đếm đi đếm lại cùng một lô hàng. Bảng lại cắt trang ở server nên
+    tổng phải do server cộng trên cả khoảng; tổng của trang 2 mà khác trang 1 là báo sai.
+    """
+    h = _admin()
+    unit = "_zz_ud_totals"
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    days = [(date.today() - timedelta(days=i)).isoformat() for i in range(3)]
+    # Ngày mới nhất mang tồn 100 tấn; ngày cũ hơn 80 tấn (KHÔNG được cộng thành 180).
+    payloads = [
+        {"revenue": 3_000_000_000.0, "stock_warehoused": [{"grade": "SVR 3L Mix", "qty": 100.0}],
+         "sales": [{"qty": 5.0, "channel": "export"}]},
+        {"revenue": 2_000_000_000.0, "stock_warehoused": [{"grade": "SVR 3L Mix", "qty": 80.0}],
+         "sales": [{"qty": 7.0, "channel": "domestic"}]},
+        {"revenue": 1_000_000_000.0, "sales_own": [{"qty": 2.0, "channel": "export"}]},
+    ]
+    for d, fields in zip(days, payloads, strict=True):
+        assert client.put("/api/unit-daily/report", headers=h,
+                          json={"kind": "consumption", "company": unit, "as_of": d,
+                                "fields": fields}).status_code == 200
+
+    url = "/api/unit-daily/timeline?kind=consumption&days=10"
+    t = client.get(f"{url}&page=1&page_size=2", headers=h).json()["totals"]
+    assert t["total_consumption"] == pytest.approx(14.0)          # 5 + 7 + 2, cộng dồn
+    assert t["qty_export"] == pytest.approx(7.0)                  # cả `sales` lẫn `sales_own`
+    assert t["qty_domestic"] == pytest.approx(7.0)
+    assert t["revenue"] == pytest.approx(6.0)                     # 6 tỷ đồng
+    # Tồn kho = ảnh chụp ngày mới nhất CÓ tồn, không phải 100 + 80.
+    assert t["stock_warehoused_t"] == pytest.approx(100.0)
+    assert t["stock_finished_t"] == pytest.approx(100.0)
+    assert t["stock_as_of"] == days[0]
+
+    page2 = client.get(f"{url}&page=2&page_size=2", headers=h).json()
+    assert len(page2["entries"]) == 1                             # trang 2 chỉ còn 1 dòng…
+    assert page2["totals"] == t                                   # …nhưng tổng vẫn của cả khoảng
+
+    with session_scope() as db:
+        db.execute(text("DELETE FROM unit_daily_report WHERE company = :c"), {"c": unit})
+    client.delete(f"/api/member-units/{unit}", headers=h)
+
+
 def test_grade_catalog_is_one_list_shared_by_every_entry_screen() -> None:
     """Thu mua · tồn kho · tiêu thụ phải CÙNG một danh mục chủng loại, và web không được lệch.
 

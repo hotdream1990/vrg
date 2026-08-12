@@ -21,7 +21,7 @@ from app.schemas.unit_daily import (
 )
 from app.services import (
     contract_files, member_region_repo, member_unit_repo, unit_daily_excel_io, unit_daily_repo,
-    unit_period_excel, unit_period_report, unit_stock_contract_repo,
+    unit_daily_timeline_totals, unit_period_excel, unit_period_report, unit_stock_contract_repo,
 )
 from app.services.unit_report_query import split_csv
 
@@ -58,14 +58,17 @@ def timeline_page(kind: str, d_from: str, d_to: str | None, companies: list[str]
     Biểu **Thu mua** cố ý lấy TRỌN khoảng: mỗi bản ghi chỉ là mấy con số (cả lịch sử chưa tới
     130 KB) và bảng có dòng "Lũy kế (khoảng đang xem)" — cắt trang sẽ làm lũy kế chỉ còn đúng cho
     trang đang xem, tức là báo sai. Biểu **Tiêu thụ – Tồn kho** nặng gấp ~14 lần (mảng dòng bán +
-    danh sách file) và KHÔNG có dòng lũy kế nên cắt trang bình thường.
+    danh sách file) nên vẫn cắt trang, bù lại lũy kế của nó do SERVER cộng trên cả khoảng
+    (`totals`) — web không có đủ dữ liệu để tự cộng.
     """
     if kind == "purchase":
         res = unit_daily_repo.recent(kind, d_from, companies=companies, date_to=d_to)
         return {"entries": res["entries"], "total": res["total"], "paged": False}
     res = unit_daily_repo.recent(kind, d_from, companies=companies, date_to=d_to,
                                  limit=page_size, offset=(page - 1) * page_size)
-    return {"entries": res["entries"], "total": res["total"], "paged": True}
+    d_close = d_to or edit_window.today().isoformat()
+    return {"entries": res["entries"], "total": res["total"], "paged": True,
+            "totals": unit_daily_timeline_totals.consumption_totals(d_from, d_close, companies)}
 
 
 def _year_of(as_of: str) -> int:

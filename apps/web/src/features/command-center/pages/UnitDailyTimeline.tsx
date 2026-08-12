@@ -12,9 +12,9 @@ import { dataColumns } from "../../../lib/unit-daily-columns";
 import {
   type Timeline, type TimelineRange, type TimelineRow, fetchMyDailyTimeline, fetchDailyTimeline,
 } from "../../../lib/unit-daily-client";
-import { COLUMNS, type Kind, displayDigits, fmtNum } from "../../../lib/unit-daily-fields";
-import { timelineTotals } from "../../../lib/unit-daily-totals";
+import type { Kind } from "../../../lib/unit-daily-fields";
 import UnitDailyMoveDateModal from "./UnitDailyMoveDateModal";
+import UnitDailyTimelineSummary from "./UnitDailyTimelineSummary";
 
 const DAY_RANGES = [30, 60, 90, 180];
 const CUSTOM = "custom";   // giá trị select cho "khoảng tự chọn"
@@ -110,38 +110,11 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
       } }] : []),
   ];
 
-  // Footer LŨY KẾ (chỉ biểu Thu mua) — cộng SL/doanh thu + bình quân gia quyền đơn giá, để đối chiếu.
-  const renderSummary = useCallback(() => {
-    if (kind !== "purchase" || rows.length === 0) return null;
-    const totals = timelineTotals(kind, rows);
-    const cols = COLUMNS[kind];
-    return (
-      <Table.Summary fixed>
-        <Table.Summary.Row style={{ background: "rgba(10,158,72,.08)" }}>
-          <Table.Summary.Cell index={0} colSpan={2}>
-            <b style={{ color: "#0a9e48" }}>Lũy kế (khoảng đang xem)</b>
-          </Table.Summary.Cell>
-          {cols.map((c, i) => {
-            const t = totals[c.key];
-            return (
-              <Table.Summary.Cell key={c.key} index={2 + i} align="right">
-                {t.mode === "none" ? null : (
-                  <b>
-                    {fmtNum(t.display, displayDigits(c.unit))}
-                    {t.mode === "avg" && t.display != null && (
-                      <span style={{ fontWeight: 400, opacity: 0.55, fontSize: 11 }}> BQ</span>
-                    )}
-                  </b>
-                )}
-              </Table.Summary.Cell>
-            );
-          })}
-          <Table.Summary.Cell index={2 + cols.length} />
-          {canEdit && <Table.Summary.Cell index={3 + cols.length} />}
-        </Table.Summary.Row>
-      </Table.Summary>
-    );
-  }, [kind, rows, canEdit]);
+  // Dòng lũy kế cuối bảng (cột "Cập nhật" + cột thao tác để trống — `extraCols`).
+  const renderSummary = useCallback(() => (
+    <UnitDailyTimelineSummary kind={kind} rows={rows} totals={data?.totals}
+                              extraCols={canEdit ? 2 : 1} />
+  ), [kind, rows, data?.totals, canEdit]);
 
   return (
     <div>

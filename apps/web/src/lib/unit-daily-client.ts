@@ -51,6 +51,9 @@ export type TimelineRow = {
   as_of: string; company: string; fields: Values; updated_at: string; updated_by: string | null;
   prices?: UnitPurchasePrice;   // đơn giá mủ nước/mủ chén đúng ngày (link, chỉ đọc — chỉ kind=purchase)
 };
+/** Lũy kế cả khoảng do SERVER cộng (biểu Tiêu thụ – Tồn kho, vì bảng cắt trang nên web không đủ
+ *  dữ liệu để tự cộng). Khoá = khoá cột của bảng; `stock_as_of` = ngày ảnh chụp tồn mới nhất. */
+export type TimelineTotals = Record<string, number | null> & { stock_as_of?: string | null };
 export type Timeline = {
   today: string; edit_window_days: number; units: string[];
   plans: Record<string, number>; entries: TimelineRow[];
@@ -58,6 +61,8 @@ export type Timeline = {
   total: number;
   /** false = biểu Thu mua, server trả trọn khoảng để dòng "Lũy kế" đúng (dữ liệu nhẹ). */
   paged: boolean;
+  /** Chỉ có ở biểu Tiêu thụ – Tồn kho (biểu Thu mua web tự cộng từ trọn khoảng). */
+  totals?: TimelineTotals;
   page: number; page_size: number;
 };
 /** Số liệu NĂM của 1 đơn vị (nhập 1 lần, cập nhật khi có thay đổi). */
