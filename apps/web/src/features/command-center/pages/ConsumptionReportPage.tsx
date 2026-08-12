@@ -58,11 +58,17 @@ export default function ConsumptionReportPage() {
     [rows, undelivered]);
 
   const totals = useMemo(() => {
-    const acc = { qty: 0, qty_dry: 0, revenue: 0 as number | null, deliveries: 0, remaining: 0 };
+    const acc = {
+      qty: 0, qty_dry: 0, revenue: 0 as number | null, deliveries: 0, remaining: 0,
+      // Hình thức tiêu thụ chỉ có ở dòng từng đơn vị — không cộng thì cả bảng thiếu tổng XK /
+      // trong nước / nội bộ, đúng 3 con số hay bị hỏi nhất.
+      channels: { export: 0, domestic: 0, internal: 0 } as Record<string, number>,
+    };
     for (const c of companies) {
       const r = rows[c];
       if (r) {
         acc.qty += r.qty; acc.qty_dry += r.qty_dry; acc.deliveries += r.deliveries;
+        for (const k of Object.keys(acc.channels)) acc.channels[k] += r.by_channel?.[k] ?? 0;
         if (r.revenue == null) acc.revenue = null;
         else if (acc.revenue != null) acc.revenue += r.revenue;
       }
@@ -159,11 +165,31 @@ export default function ConsumptionReportPage() {
               </tr>
             ))}
             {companies.length === 0 && !loading && (
-              <tr><td colSpan={10} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
+              <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                 Chưa có lần giao nào trong kỳ — nới rộng khoảng ngày hoặc bỏ bớt bộ lọc.
               </td></tr>
             )}
           </tbody>
+          {companies.length > 0 && (
+            <tfoot>
+              <tr style={{ fontWeight: 600 }}>
+                <td>
+                  Lũy kế cả kỳ
+                  <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: 12 }}>
+                    {" "}· {companies.length} đơn vị
+                  </span>
+                </td>
+                <td className="r">{totals.deliveries.toLocaleString("vi-VN")}</td>
+                <td className="r">{t3(totals.qty)}</td>
+                <td className="r">{t3(totals.qty_dry)}</td>
+                <td className="r">{t3(totals.channels.export)}</td>
+                <td className="r">{t3(totals.channels.domestic)}</td>
+                <td className="r">{t3(totals.channels.internal)}</td>
+                <td className="r">{ty(totals.revenue)}</td>
+                <td className="r">{t3(totals.remaining)}</td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 

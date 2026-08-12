@@ -296,6 +296,8 @@ export type DeliveryHistoryRow = {
 export type DeliveryHistory = {
   rows: DeliveryHistoryRow[];
   total: number;
+  /** Lũy kế CẢ KỲ (mọi trang) — server cộng, không phải tổng của trang đang xem. */
+  totals: { qty: number; qty_dry: number; revenue: number | null };
   page: number;
   page_size: number;
 };

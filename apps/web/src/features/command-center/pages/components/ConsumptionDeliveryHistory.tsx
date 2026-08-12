@@ -102,6 +102,25 @@ export default function ConsumptionDeliveryHistory(p: Props) {
               </td></tr>
             )}
           </tbody>
+          {/* Lũy kế do SERVER cộng trên MỌI trang của kỳ — nói rõ trên nhãn, vì bảng có phân trang
+              nên người đọc rất dễ hiểu nhầm là tổng của 50 dòng đang thấy. */}
+          {data && data.rows.length > 0 && (
+            <tfoot>
+              <tr style={{ fontWeight: 600 }}>
+                <td colSpan={8}>
+                  Lũy kế cả kỳ
+                  <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: 12 }}>
+                    {" "}· {total.toLocaleString("vi-VN")} lần giao
+                    {pages > 1 && " (không chỉ trang này)"}
+                  </span>
+                </td>
+                <td className="r">{t3(data.totals.qty)}</td>
+                <td className="r">{t3(data.totals.qty_dry)}</td>
+                <td className="r">{ty(data.totals.revenue)}</td>
+                <td />
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </>

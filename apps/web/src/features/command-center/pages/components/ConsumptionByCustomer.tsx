@@ -22,6 +22,11 @@ export default function ConsumptionByCustomer({ rep }: { rep: ConsumptionReport 
   rows.sort((a, b) => b.qty - a.qty);
   if (!rows.length) return null;
 
+  // Lũy kế của cả khối — để đối chiếu ngay với bảng theo đơn vị phía trên (hai bảng cùng một kỳ,
+  // cùng bộ lọc nên tổng phải bằng nhau; lệch là dấu hiệu có lần giao chưa gán khách).
+  const sumQty = rows.reduce((a, r) => a + r.qty, 0);
+  const sumRevenue = rows.reduce((a, r) => a + r.revenue, 0);
+
   return (
     <>
       <div className="blt-toolbar" style={{ marginTop: 14 }}>
@@ -44,6 +49,13 @@ export default function ConsumptionByCustomer({ rep }: { rep: ConsumptionReport 
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr style={{ fontWeight: 600 }}>
+              <td colSpan={2}>Lũy kế cả kỳ</td>
+              <td className="r">{t3(sumQty)}</td>
+              <td className="r">{ty(sumRevenue)}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </>

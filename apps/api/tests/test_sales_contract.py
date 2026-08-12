@@ -276,11 +276,18 @@ def test_delivery_history_lists_each_delivery_with_parent_code(env, cus) -> None
     assert sum(r["qty"] for r in got["rows"]) == pytest.approx(cons["qty"])
     assert cons["deliveries"] == got["total"]
 
+    # Lũy kế cả kỳ đi kèm mỗi trang — bảng chỉ hiện một trang nên tổng phải do server cộng.
+    assert got["totals"]["qty"] == pytest.approx(cons["qty"])
+    assert got["totals"]["qty_dry"] == pytest.approx(cons["qty_dry"])
+
     # Phân trang ở server: trang 1 chỉ 1 dòng, `total` vẫn là tổng cả kỳ.
     p1 = client.get(f"{url}&page=1&page_size=1", headers=h).json()
     p2 = client.get(f"{url}&page=2&page_size=1", headers=h).json()
     assert len(p1["rows"]) == 1 and len(p2["rows"]) == 1 and p1["total"] == 2
     assert p1["rows"][0]["id"] != p2["rows"][0]["id"]
+    # …và lũy kế KHÔNG đổi theo trang: trang 1 chỉ có 1 trong 2 lần giao.
+    assert p1["totals"]["qty"] == pytest.approx(got["totals"]["qty"])
+    assert p1["totals"]["qty"] > p1["rows"][0]["qty"]
 
     # Hợp đồng giao TRỌN 1 LẦN: không có đợt → cột Đợt trống, mã hợp đồng là mã của chính nó.
     client.put("/api/sales-contracts", json={

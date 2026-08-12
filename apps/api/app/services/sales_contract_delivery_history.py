@@ -51,6 +51,20 @@ def _shape(r: dict[str, Any], names: dict[int, str]) -> dict[str, Any]:
     }
 
 
+def _totals(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Lũy kế CẢ KỲ (mọi trang) — bảng chỉ hiện một trang nên người đọc không tự cộng ra được.
+
+    Doanh thu để `None` khi có lần giao thiếu tỷ giá, giống bảng tổng hợp: hiện "—" chứ không
+    hiện một con số thiếu mà trông như đủ.
+    """
+    missing_fx = any(r.get("revenue") is None for r in rows)
+    return {
+        "qty": sum(r["qty"] for r in rows),
+        "qty_dry": sum(r["qty_dry"] for r in rows),
+        "revenue": None if missing_fx else sum(r["revenue"] for r in rows),
+    }
+
+
 def history(date_from: str, date_to: str, companies: list[str] | None = None,
             customer_ids: list[int] | None = None, grades: list[str] | None = None,
             page: int = 1, page_size: int = 50) -> dict[str, Any]:
@@ -69,4 +83,4 @@ def history(date_from: str, date_to: str, companies: list[str] | None = None,
     names = customer_repo.names_by_id(companies, sorted({
         r["customer_id"] for r in page_rows if r.get("customer_id")}))
     return {"rows": [_shape(r, names) for r in page_rows], "total": len(rows),
-            "page": page, "page_size": page_size}
+            "totals": _totals(rows), "page": page, "page_size": page_size}
