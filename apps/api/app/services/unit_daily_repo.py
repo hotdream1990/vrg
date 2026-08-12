@@ -53,6 +53,42 @@ def upsert(kind: str, as_of: str, company: str, fields: dict, updated_by: str | 
                    note=note or f"Biểu {_KIND_LABEL.get(kind, kind)}")
 
 
+_BULK_NO_PURCHASE = text("""
+    INSERT INTO unit_daily_report (as_of, company, kind, payload, updated_by, updated_at)
+    VALUES (CAST(:as_of AS date), :company, 'purchase',
+            '{"no_purchase": true}'::jsonb, :updated_by, now())
+    ON CONFLICT (as_of, company, kind) DO UPDATE
+        SET payload = unit_daily_report.payload || '{"no_purchase": true}'::jsonb,
+            updated_by = EXCLUDED.updated_by, updated_at = now()
+""")
+
+
+def bulk_mark_no_purchase(cells: list[dict[str, str]], updated_by: str | None,
+                          note: str | None = None) -> int:
+    """Đánh dấu "không tổ chức thu mua" cho HÀNG LOẠT ô còn trống (admin dọn ngày đơn vị bỏ nộp).
+
+    Router chỉ đưa vào đây các ô ĐANG TRỐNG (`unit_report_status.missing_cells`). Ô đã có bản ghi
+    rỗng thì GỘP cờ vào payload cũ (`||`) chứ không ghi đè — bản ghi có thể đang giữ ô chữ như
+    `cup_basis`, ghi đè là mất. Một giao dịch + MỘT dòng nhật ký tóm tắt (ghi từng ô thì một lần
+    bấm sinh hàng nghìn dòng, nhật ký không còn đọc được).
+    """
+    if not cells:
+        return 0
+    ensure_schema()
+    with session_scope() as db:
+        db.execute(_BULK_NO_PURCHASE, [{"as_of": c["as_of"], "company": c["company"],
+                                        "updated_by": updated_by} for c in cells])
+    days = sorted({c["as_of"] for c in cells})
+    by_company: dict[str, int] = {}
+    for c in cells:
+        by_company[c["company"]] = by_company.get(c["company"], 0) + 1
+    audit_repo.log("unit_daily", "bulk_no_purchase", f"{days[0]}→{days[-1]}",
+                   after={"count": len(cells), "date_from": days[0], "date_to": days[-1],
+                          "by_company": by_company},
+                   note=note or "Đánh dấu hàng loạt: không tổ chức thu mua")
+    return len(cells)
+
+
 def move_day(kind: str, company: str, as_of: str, to_date: str, updated_by: str | None) -> dict:
     """Đổi NGÀY của 1 bản ghi (nhập nhầm ngày) — giữ nguyên nội dung, không nhập lại.
 

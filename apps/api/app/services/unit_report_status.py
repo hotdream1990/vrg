@@ -66,3 +66,17 @@ def status_report(kind: str, date_from: str, date_to: str, *, companies: str | N
     return {"kind": kind, "date_from": date_from, "date_to": date_to, "dates": dates, "rows": rows,
             "totals": {"expected": expected, "filled": filled, "no_purchase": no_purchase,
                        "missing": expected - filled - no_purchase}}
+
+
+def missing_cells(kind: str, date_from: str, date_to: str, *, companies: str | None = None,
+                  regions: str | None = None) -> list[dict[str, str]]:
+    """Các ô (đơn vị × ngày) CÒN TRỐNG trong khoảng — đầu vào cho thao tác đánh dấu hàng loạt.
+
+    Dùng lại đúng `status_report` để "trống" ở đây luôn khớp ô đỏ người dùng thấy trên ma trận
+    (cùng danh sách đơn vị phải nộp, cùng luật `has_data`). Ngày SAU hôm nay bị loại: chưa xảy ra
+    thì không thể kết luận đơn vị không tổ chức thu mua.
+    """
+    rep = status_report(kind, date_from, date_to, companies=companies, regions=regions)
+    today = date.today().isoformat()
+    return [{"company": r["company"], "as_of": d}
+            for r in rep["rows"] for d, v in r["cells"].items() if v == "none" and d <= today]

@@ -15,6 +15,7 @@ import {
 import DateInput from "../../sections/DateInput";
 import UnitLoginButton from "../components/UnitLoginButton";
 import { MultiSelect } from "./AnalyticsFilters";
+import MarkNoPurchaseButton from "./MarkNoPurchaseButton";
 import { initialFilters, useFilterCatalog } from "./use-stats";
 import "../../../bulletin/bulletin.css";
 
@@ -69,6 +70,13 @@ export default function SubmissionStatusPage() {
   useEffect(() => { reload(); }, [reload]);
 
   const pickSpan = (n: number) => { setSpan(n); setFilters({ ...filters, ...lastDays(n) }); };
+  const unitOptions = (catalog?.units ?? [])
+    .filter((u) => !filters.regions.length || filters.regions.includes(u.region ?? ""))
+    .map((u) => u.name);
+  /* Đơn vị chọn được cho thao tác đánh dấu = ĐÚNG các dòng đang có trên ma trận (đơn vị được giao
+     kế hoạch thu mua), không phải toàn bộ danh mục — chọn đơn vị không phải nộp thì không có ô nào
+     để đánh dấu, chỉ gây hiểu nhầm. */
+  const markUnits = (data?.rows ?? []).map((r) => r.company);
   const t = data?.totals;
   const pct = t?.expected ? Math.round((t.filled + t.no_purchase) / t.expected * 100) : 0;
 
@@ -99,12 +107,14 @@ export default function SubmissionStatusPage() {
         <DateInput value={filters.to} onChange={(v) => { setSpan(null); setFilters({ ...filters, to: v }); }} style={{ width: 160 }} />
         <MultiSelect placeholder="Tất cả khu vực" options={catalog?.regions ?? []} width={190}
                      value={filters.regions} onChange={(v) => setFilters({ ...filters, regions: v })} />
-        <MultiSelect placeholder="Tất cả đơn vị" width={230}
-                     options={(catalog?.units ?? [])
-                       .filter((u) => !filters.regions.length || filters.regions.includes(u.region ?? ""))
-                       .map((u) => u.name)}
+        <MultiSelect placeholder="Tất cả đơn vị" width={230} options={unitOptions}
                      value={filters.companies} onChange={(v) => setFilters({ ...filters, companies: v })} />
         <Button icon={<ReloadOutlined />} onClick={reload} loading={loading}>Làm mới</Button>
+        {/* Dọn ô trống hàng loạt — chỉ biểu Thu mua mới có cờ này, và chỉ admin thấy nút.
+            Đơn vị + khoảng ngày chọn LẠI trong hộp thoại; bộ lọc ở đây chỉ là mặc định. */}
+        {kind === "purchase" && (
+          <MarkNoPurchaseButton filters={filters} unitOptions={markUnits} onDone={reload} />
+        )}
       </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>

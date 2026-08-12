@@ -19,7 +19,7 @@ import DateInput from "../sections/DateInput";
 import "../../bulletin/bulletin.css";
 
 const ACTION_COLOR: Record<string, string> = {
-  create: "green", update: "blue", delete: "red", scan: "default",
+  create: "green", update: "blue", delete: "red", scan: "default", bulk_no_purchase: "orange",
 };
 
 const PAGE_SIZE = 50;

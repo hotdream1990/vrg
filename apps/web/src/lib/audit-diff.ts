@@ -28,6 +28,8 @@ const LABELS: Record<string, string> = {
   permissions: "Quyền", member_units: "Đơn vị được gán", value: "Giá trị",
   hour: "Giờ chạy", minute: "Phút chạy", enabled: "Bật", order: "Thứ tự",
   rows: "Số bản ghi", sources: "Nguồn dữ liệu", dates: "Ngày",
+  // Đánh dấu hàng loạt "không tổ chức thu mua" (màn Theo dõi nộp báo cáo).
+  count: "Số ô đã đánh dấu", date_from: "Từ ngày", date_to: "Đến ngày",
   ...UNIT_DAILY_LABELS,
 };
 

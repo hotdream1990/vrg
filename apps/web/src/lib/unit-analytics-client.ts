@@ -115,6 +115,25 @@ export const fetchSubmissionStatus = (kind: string, f: StatsFilters) => {
   return apiFetch<StatusReport>(`${BASE}/status?${p.toString()}`);
 };
 
+/** Kết quả đánh dấu hàng loạt "không tổ chức thu mua" (`applied=false` = mới chỉ xem trước). */
+export type MarkNoPurchaseResult = {
+  applied: boolean; count: number; marked: number;
+  units: { company: string; days: number; first: string; last: string }[];
+};
+
+/** Đánh dấu "không tổ chức thu mua" cho mọi ô còn trống trong khoảng đang xem (chỉ admin).
+ *  `apply=false` → server chỉ đếm và liệt kê, KHÔNG ghi gì. */
+export const markNoPurchase = (f: StatsFilters, apply: boolean) =>
+  apiFetch<MarkNoPurchaseResult>(`${BASE}/mark-no-purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      date_from: f.from, date_to: f.to, apply,
+      companies: f.companies.length ? f.companies.join(",") : undefined,
+      regions: f.regions.length ? f.regions.join(",") : undefined,
+    }),
+  });
+
 /** Tải Excel của bảng đang xem (đúng bộ lọc hiện tại) — fetch kèm token rồi lưu file. */
 async function saveXlsx(url: string, filename: string): Promise<void> {
   const res = await fetch(`${API}${BASE}/${url}`, { headers: authHeaders() });

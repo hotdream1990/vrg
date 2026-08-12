@@ -78,3 +78,17 @@ class ExcelImportCommit(BaseModel):
 
     kind: str = Field(pattern="^(purchase|sales|stock|plan)$")
     rows: list[dict[str, Any]] = Field(default_factory=list, max_length=5000)
+
+
+class MarkNoPurchase(BaseModel):
+    """Đánh dấu hàng loạt "không tổ chức thu mua" cho các ô CÒN TRỐNG (màn Theo dõi nộp báo cáo).
+
+    Bộ lọc lấy nguyên của ma trận đang xem (khoảng ngày + đơn vị + khu vực, CSV như endpoint
+    `/status`). `apply=False` = chỉ xem trước, server KHÔNG ghi gì.
+    """
+
+    date_from: str                          # 'YYYY-MM-DD'
+    date_to: str                            # 'YYYY-MM-DD'
+    companies: str | None = None            # CSV tên đơn vị (trống = mọi đơn vị phải nộp)
+    regions: str | None = None              # CSV khu vực
+    apply: bool = False

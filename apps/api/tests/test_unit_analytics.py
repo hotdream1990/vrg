@@ -491,3 +491,59 @@ def test_purchase_counts_the_two_extra_raw_materials(seeded) -> None:
     # Nhóm theo loại mủ: 2 loại mới đứng thành dòng riêng, không dồn vào loại cũ.
     by_material = _get("purchase", h, companies=UNIT_A, group_by="material")
     assert "Mủ NL đã cán vắt (RSS)" in [r["key"] for r in by_material["rows"]]
+
+
+def _mark(h: dict, **body) -> dict:
+    body.setdefault("date_from", D0)
+    body.setdefault("date_to", D1)
+    res = client.post(f"{API}/mark-no-purchase", headers=h, json=body)
+    assert res.status_code == 200, res.text
+    return res.json()
+
+
+def test_mark_no_purchase_preview_does_not_write(seeded) -> None:
+    """Nhịp XEM TRƯỚC chỉ đếm ô trống — bảng theo dõi phải y nguyên sau khi gọi."""
+    prev = _mark(seeded, companies=f"{UNIT_A},{UNIT_B}")
+    assert prev["applied"] is False and prev["marked"] == 0
+    # Chỉ 1 ô trống trong bộ dữ liệu mẫu: UNIT_B ngày D0 (D1 đã bật cờ, UNIT_A nhập đủ 2 ngày).
+    assert prev["count"] == 1
+    assert prev["units"] == [{"company": UNIT_B, "days": 1, "first": D0, "last": D0}]
+    rep = _get("status", seeded, kind="purchase", companies=f"{UNIT_A},{UNIT_B}")
+    assert next(r for r in rep["rows"] if r["company"] == UNIT_B)["cells"][D0] == "none"
+
+
+def test_mark_no_purchase_fills_blanks_and_keeps_real_data(seeded) -> None:
+    """Đánh dấu hàng loạt chỉ đụng ô TRỐNG; ngày đã có số liệu không được động vào."""
+    h = seeded
+    before = client.get("/api/unit-daily/day", headers=h,
+                        params={"kind": "purchase", "as_of": D0}).json()["entries"][UNIT_A]
+
+    done = _mark(h, companies=f"{UNIT_A},{UNIT_B}", apply=True)
+    assert done["applied"] is True and done["marked"] == 1
+
+    rep = _get("status", h, kind="purchase", companies=f"{UNIT_A},{UNIT_B}")
+    b = next(r for r in rep["rows"] if r["company"] == UNIT_B)
+    assert b["cells"][D0] == "no_purchase" and b["missing"] == 0
+    a = next(r for r in rep["rows"] if r["company"] == UNIT_A)
+    assert a["filled"] == 2 and a["cells"][D0] == "ok"       # số liệu thật KHÔNG bị ghi đè
+    after = client.get("/api/unit-daily/day", headers=h,
+                       params={"kind": "purchase", "as_of": D0}).json()["entries"][UNIT_A]
+    assert after["fields"] == before["fields"]
+
+    # Chạy lại: không còn ô trống nào để đánh dấu (thao tác lặp lại vô hại).
+    assert _mark(h, companies=f"{UNIT_A},{UNIT_B}", apply=True)["marked"] == 0
+
+
+def test_mark_no_purchase_is_admin_only(seeded) -> None:
+    """Chuyên viên (kể cả có quyền `unit_daily`) không được dọn hàng loạt — chỉ admin."""
+    h = seeded
+    client.delete("/api/users/an_editor_mark", headers=h)
+    client.post("/api/users", json={"username": "an_editor_mark", "password": "pass123",
+                                    "role": "editor", "caps": ["unit_daily"]}, headers=h)
+    tok = client.post("/api/auth/login",
+                      json={"username": "an_editor_mark", "password": "pass123"}).json()
+    nh = {"Authorization": f"Bearer {tok['access_token']}"}
+    res = client.post(f"{API}/mark-no-purchase", headers=nh,
+                      json={"date_from": D0, "date_to": D1, "apply": True})
+    assert res.status_code == 403
+    client.delete("/api/users/an_editor_mark", headers=h)

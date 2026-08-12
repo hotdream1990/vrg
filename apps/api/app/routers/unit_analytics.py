@@ -12,9 +12,10 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from app.core.market_meta import UNIT_GRADES
-from app.core.security import require_cap
+from app.core.security import require_admin, require_cap
+from app.schemas.unit_daily import MarkNoPurchase
 from app.services import (
-    member_region_repo, member_unit_repo, unit_analytics_excel as xls,
+    member_region_repo, member_unit_repo, unit_analytics_excel as xls, unit_daily_repo,
     unit_report_consumption as con, unit_report_purchase as pur, unit_report_query as q,
     unit_report_status as sta, unit_report_stock as st,
 )
@@ -25,6 +26,10 @@ _require = require_cap("unit_daily")
 # Một năm đủ để Ban TTKD rà soát theo kỳ/năm, đồng thời vẫn giữ kích thước phản hồi an toàn.
 # Ma trận được cuộn ngang ở web nên không cần bó hẹp ở 3 tháng như phiên bản đầu.
 MAX_STATUS_DAYS = 366
+
+# Trần số ô cho một lần đánh dấu hàng loạt "không tổ chức thu mua". 70 đơn vị × 366 ngày ≈ 25.000 ô
+# — chặn ở đây để một lần bấm nhầm không viết đè lịch sử cả năm của toàn Tập đoàn.
+MAX_MARK_CELLS = 5000
 
 
 def assert_range(date_from: str, date_to: str) -> None:
@@ -212,3 +217,31 @@ def status(kind: str = Query(..., pattern="^(purchase|consumption)$"),
     if (date.fromisoformat(date_to) - date.fromisoformat(date_from)).days + 1 > MAX_STATUS_DAYS:
         raise HTTPException(400, f"Khoảng ngày tối đa {MAX_STATUS_DAYS} ngày cho bảng tình trạng nộp.")
     return sta.status_report(kind, date_from, date_to, companies=companies, regions=regions)
+
+
+@router.post("/mark-no-purchase")
+def mark_no_purchase(body: MarkNoPurchase, username: str = Depends(require_admin)) -> dict:
+    """Đánh dấu "không tổ chức thu mua" cho MỌI ô còn trống trong khoảng (chỉ admin).
+
+    Có đơn vị chỉ nhập những ngày thật sự có thu mua, ngày không mua thì bỏ trắng thay vì tích ô —
+    nhìn vào bảng theo dõi không phân biệt được "không tổ chức mua" với "quên nộp". Đây là chỗ dọn
+    lại hàng loạt theo đúng bộ lọc đang xem.
+
+    Luôn gọi 2 nhịp: `apply=False` để XEM TRƯỚC (đếm ô, liệt kê theo đơn vị, KHÔNG ghi gì) rồi mới
+    `apply=True`. Chỉ đụng ô ĐANG TRỐNG — số liệu đã nhập không bao giờ bị ghi đè.
+    """
+    assert_range(body.date_from, body.date_to)
+    if (date.fromisoformat(body.date_to) - date.fromisoformat(body.date_from)).days + 1 > MAX_STATUS_DAYS:
+        raise HTTPException(400, f"Khoảng ngày tối đa {MAX_STATUS_DAYS} ngày.")
+    cells = sta.missing_cells("purchase", body.date_from, body.date_to,
+                              companies=body.companies, regions=body.regions)
+    if len(cells) > MAX_MARK_CELLS:
+        raise HTTPException(400, f"Có {len(cells):,} ô trống — vượt mức {MAX_MARK_CELLS:,} ô mỗi lần. "
+                                 "Hãy thu hẹp khoảng ngày hoặc lọc bớt đơn vị.".replace(",", "."))
+    by_company: dict[str, list[str]] = {}
+    for c in cells:
+        by_company.setdefault(c["company"], []).append(c["as_of"])
+    marked = unit_daily_repo.bulk_mark_no_purchase(cells, username) if body.apply else 0
+    return {"applied": body.apply, "count": len(cells), "marked": marked,
+            "units": [{"company": name, "days": len(days), "first": days[0], "last": days[-1]}
+                      for name, days in by_company.items()]}
