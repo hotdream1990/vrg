@@ -148,13 +148,16 @@ export function segments(kind: Kind): { group?: string; cols: Column[] }[] {
 export const fmtNum = (v: number | null | undefined, digits = 2): string =>
   v == null || Number.isNaN(v) ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: digits });
 
-/** Số chữ số thập phân HIỂN THỊ theo đơn vị cột: **tấn = 3** (đơn vị lớn → cần chính xác tới kg,
-    nếu chỉ 1-2 số lẻ thì 1,004 tấn bị hiện thành "1"), % = 1, còn lại (tiền quy đổi…) = 2. */
-export const displayDigits = (unit: string): number => (unit === "tấn" ? 3 : unit === "%" ? 1 : 2);
+/** Số chữ số thập phân HIỂN THỊ theo đơn vị cột: **tấn (kể cả "tấn quy khô") = 3** (đơn vị lớn →
+    cần chính xác tới kg, nếu chỉ 1-2 số lẻ thì 1,004 tấn bị hiện thành "1"), % = 1,
+    còn lại (tiền quy đổi…) = 2. */
+export const displayDigits = (unit: string): number =>
+  unit.startsWith("tấn") ? 3 : unit === "%" ? 1 : 2;
 
-/** Cột gộp Tổng cộng = đơn vị dòng chảy (tấn / tỷ đồng / triệu đồng); giá và % không gộp. */
+/** Cột gộp Tổng cộng = đơn vị dòng chảy (tấn / tấn quy khô / tỷ đồng / triệu đồng); giá và % không gộp.
+    "tấn quy khô" là đơn vị của 4 cột sản lượng mủ nguyên liệu — vẫn là dòng chảy nên cộng dồn được. */
 export const isSummable = (unit: string): boolean =>
-  unit === "tấn" || unit === "tỷ đồng" || unit === "triệu đồng";
+  unit === "tấn" || unit === "tấn quy khô" || unit === "tỷ đồng" || unit === "triệu đồng";
 
 /** Giá trị 1 cột ở BASE (suy ra → tính; nhập tay → lấy thẳng). Tiền = đồng. */
 export const colValue = (kind: Kind, key: string, v: Values, plan?: number | null): number | null => {
