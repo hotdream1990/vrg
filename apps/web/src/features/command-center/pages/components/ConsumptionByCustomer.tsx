@@ -33,7 +33,7 @@ export default function ConsumptionByCustomer({ rep }: { rep: ConsumptionReport 
         <b>Theo khách hàng</b>
         <span style={{ color: "var(--muted)", fontSize: 13 }}>{rows.length} dòng</span>
       </div>
-      <div className="card" style={{ padding: 0, overflow: "auto" }}>
+      <div className="card table-scroll" style={{ padding: 0 }}>
         <table>
           <thead><tr>
             <th>Khách hàng</th><th>Đơn vị</th>

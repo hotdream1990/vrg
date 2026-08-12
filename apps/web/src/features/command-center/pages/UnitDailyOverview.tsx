@@ -54,7 +54,7 @@ export default function UnitDailyOverview(
       columns={columns}
       dataSource={rows}
       pagination={false}
-      scroll={{ x: "max-content", y: 560 }}
+      scroll={{ x: "max-content", y: "56vh" }}
       bordered
       summary={() => (
         <Table.Summary fixed>

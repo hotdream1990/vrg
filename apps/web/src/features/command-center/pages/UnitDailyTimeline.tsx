@@ -160,7 +160,7 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
                 showTotal: (t) => `${t.toLocaleString("vi-VN")} dòng`,
               }
             : false}
-          scroll={{ x: "max-content", y: 560 }}
+          scroll={{ x: "max-content", y: "56vh" }}
           summary={renderSummary}
           locale={{ emptyText: <Empty description="Chưa có số liệu ngày nào trong khoảng này." /> }}
         />

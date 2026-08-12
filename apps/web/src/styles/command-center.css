@@ -123,11 +123,31 @@ th{text-align:left;padding:10px 8px;color:var(--muted);font-weight:500;border-bo
 td{padding:10px 8px;border-bottom:1px solid var(--line)}
 tr:hover td{background:#f3f7f4}
 /* Dòng TỔNG CỘNG: nền đậm hơn + viền trên dày để tách hẳn khỏi các dòng dữ liệu.
-   KHÔNG dùng `position:sticky` — thẻ bọc bảng đã có `overflow:auto` nên nó thành khung cuộn của
-   sticky, mà khung này không giới hạn chiều cao → dòng vẫn nằm im dưới đáy bảng, chỉ tốn CSS.
-   `tr:hover` cũng không được đổi màu dòng này: nó không phải một bản ghi để trỏ vào. */
+   `tr:hover` không được đổi màu dòng này: nó không phải một bản ghi để trỏ vào. */
 tfoot td{background:var(--panel-2);border-top:2px solid var(--line);border-bottom:none}
 tfoot tr:hover td{background:var(--panel-2)}
+
+/* Bảng DÀI (mấy chục dòng): giới hạn chiều cao khung để dòng tổng GHIM ĐÁY, luôn nhìn thấy.
+   `position:sticky` chỉ ăn khi khung bọc thật sự là khung cuộn CÓ giới hạn chiều cao — thẻ bọc
+   `overflow:auto` mà cao bao nhiêu cũng được thì sticky vô nghĩa (dòng tổng vẫn nằm dưới đáy
+   bảng, phải kéo hết mọi dòng mới thấy). Nền phải ĐỤC, không thì các dòng chạy xuyên qua. */
+/* Chiều cao theo MÀN HÌNH (không phải px cố định): máy 13" thì khung tự thấp lại, dòng tổng ghim
+   đáy vẫn nằm trong tầm nhìn thay vì bị đẩy xuống dưới mép màn hình. */
+.table-scroll{max-height:60vh;overflow:auto}
+.table-scroll tfoot td{position:sticky;bottom:0;z-index:2;background:var(--panel-2)}
+/* Khung đã cuộn trong lòng nó thì tiêu đề cột cũng phải ghim, không thì cuộn tới dòng thứ 30 là
+   không còn biết cột nào ra cột nào. Nền đục vì dòng dữ liệu chạy ngay dưới. */
+.table-scroll thead th{position:sticky;top:0;z-index:2;background:var(--panel)}
+
+/* Bảng AntD (biểu theo ngày): dòng lũy kế nằm TRONG vùng cuộn dọc của bảng (`scroll.y`) nên cũng
+   phải ghim đáy — thuộc tính `fixed` của <Table.Summary> chỉ giữ ô đứng yên khi cuộn NGANG.
+   Ô cột khoá trái/phải cần z-index cao hơn để ô thường trượt XUỐNG DƯỚI nó khi cuộn ngang. */
+/* `!important` cho MỖI `position`: AntD tự chèn style lúc chạy với selector đặc hiệu hơn
+   (`.ant-table-wrapper .ant-table-summary>tr>td{position:relative}`) nên không đè được bằng
+   cách thường; các thuộc tính còn lại thì rule này thắng bình thường. */
+.ant-table-summary>tr>td{position:sticky!important;bottom:0;z-index:3;background:var(--panel-2)}
+.ant-table-summary>tr>td.ant-table-cell-fix-start,
+.ant-table-summary>tr>td.ant-table-cell-fix-end{z-index:4}
 /* Bảng nhập theo dòng của biểu đơn vị (tiêu thụ · tồn kho).
    `fixed` để cột đúng bề rộng đã khai báo ở <th> — để `auto` thì trình duyệt chia theo nội dung,
    cột số bị bóp còn nửa bề rộng trong khi cột chọn phình ra. */

@@ -161,7 +161,7 @@ export default function SalesContractPage() {
 
       {err && <div className="blt-error">{err}</div>}
 
-      <div className="card" style={{ padding: 0, overflow: "auto" }}>
+      <div className="card table-scroll" style={{ padding: 0 }}>
         <table>
           <thead><tr>
             <th>Đơn vị</th><th>Số hợp đồng</th><th>Khách hàng</th><th>Loại giao</th>

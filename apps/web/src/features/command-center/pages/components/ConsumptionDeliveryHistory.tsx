@@ -70,7 +70,7 @@ export default function ConsumptionDeliveryHistory(p: Props) {
 
       {err && <div className="blt-error">{err}</div>}
 
-      <div className="card" style={{ padding: 0, overflow: "auto" }}>
+      <div className="card table-scroll" style={{ padding: 0 }}>
         <table>
           <thead><tr>
             <th>Ngày giao</th><th>Đơn vị</th><th>Số hợp đồng</th><th>Đợt</th>

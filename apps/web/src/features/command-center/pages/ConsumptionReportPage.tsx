@@ -139,7 +139,7 @@ export default function ConsumptionReportPage() {
         <div className="kpi"><div className="label">Đã ký chưa giao (tấn)</div><div className="value">{t3(totals.remaining)}</div></div>
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: "auto" }}>
+      <div className="card table-scroll" style={{ padding: 0 }}>
         <table>
           <thead><tr>
             <th>Đơn vị</th><th className="r">Lần giao</th><th className="r">SL (tấn)</th>

@@ -24,7 +24,9 @@ export default function UnitDailyTimelineSummary({ kind, rows, totals, extraCols
 
   return (
     <Table.Summary fixed>
-      <Table.Summary.Row style={{ background: "rgba(10,158,72,.08)" }}>
+      {/* Nền của dòng nằm ở CSS (`.ant-table-summary > tr > td`) chứ không đặt inline: ô phải có
+          nền ĐỤC mới ghim đáy được, nền trong suốt thì các dòng chạy xuyên qua. */}
+      <Table.Summary.Row>
         <Table.Summary.Cell index={0} colSpan={2}>
           <b style={{ color: GREEN }}>Lũy kế (khoảng đang xem)</b>
           {!own && (
