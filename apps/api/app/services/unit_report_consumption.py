@@ -3,13 +3,16 @@
 Nguồn số: các LẦN GIAO của hợp đồng (chốt 02/08/2026). Dòng nhập USD thiếu tỷ giá không được tính
 vào doanh thu/giá BQ (không đoán số) và được cảnh báo; kỳ còn dữ liệu cũ chưa chuyển đổi cũng được
 cảnh báo để không ai đọc nhầm số 0.
+
+Kèm % THỰC HIỆN so với kế hoạch tiêu thụ (chỉ tiêu NĂM ở màn "Kế hoạch năm") — xem `_spot_plan`.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from app.services import legacy_data_notice, unit_report_rows as rows_mod
+from app.services import legacy_data_notice, member_unit_repo, unit_daily_repo
+from app.services import unit_report_rows as rows_mod
 from app.services.unit_report_query import (
     CHANNEL_LABELS, CONTRACT_LABELS, GROUPERS, avg, filter_scope, label_of, sort_groups, split_csv,
 )
@@ -56,6 +59,44 @@ def _close_consumption(g: dict) -> dict[str, Any]:
     return g
 
 
+#: Kế hoạch tiêu thụ CHỈ đặt cho HĐ CHUYẾN → % thực hiện so với sản lượng HĐ chuyến, KHÔNG so với
+#: tổng tiêu thụ (so tổng thì đơn vị nào cũng "vượt kế hoạch" giả tạo vì HĐ dài hạn được cộng vào
+#: tử số mà không có trong mẫu số). Cùng quy ước với "Báo cáo tổng hợp" — xem `unit_period_report`.
+_PLAN_DIMS = ("company", "region")
+
+
+def _spot_plan(group_by: str, comps: list[str] | None, regs: list[str] | None,
+               year: int) -> tuple[dict[str, float], float]:
+    """Chỉ tiêu tiêu thụ HĐ chuyến NĂM `year` → ({khoá nhóm: tấn}, tổng của mọi đơn vị trong lọc).
+
+    Mẫu số lấy theo DANH SÁCH ĐƠN VỊ khớp bộ lọc, không phải theo đơn vị có phát sinh bán: đơn vị
+    được giao kế hoạch mà kỳ này chưa bán tấn nào vẫn phải nằm trong mẫu số — bỏ ra là % tự đẹp lên.
+    """
+    units = member_unit_repo.list_units(include_inactive=False)
+    if comps:
+        units = [u for u in units if u["name"] in set(comps)]
+    if regs:
+        units = [u for u in units if (u.get("region") or "") in set(regs)]
+    plans = unit_daily_repo.year_plan(year)
+    by_key: dict[str, float] = {}
+    total = 0.0
+    for u in units:
+        n = (plans.get(u["name"]) or {}).get("plan_sales_spot_tonnes") or 0.0
+        if not n:
+            continue
+        total += n
+        if group_by in _PLAN_DIMS:
+            k = u["name"] if group_by == "company" else (u.get("region") or "(Chưa gán khu vực)")
+            by_key[k] = by_key.get(k, 0.0) + n
+    return by_key, total
+
+
+def _attach_plan(g: dict, plan: float | None) -> None:
+    """Gắn chỉ tiêu + % thực hiện vào 1 dòng. Chưa giao kế hoạch thì để TRỐNG, không ghi 0%."""
+    g["plan_sales_spot_tonnes"] = plan or None
+    g["pct_plan_sales_spot"] = ((g["qty_spot"] or 0.0) / plan * 100) if plan else None
+
+
 def consumption_report(date_from: str, date_to: str, *, companies: str | None = None,
                        regions: str | None = None, grades: str | None = None,
                        contract: str | None = None, channel: str | None = None,
@@ -81,8 +122,18 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
     if (n := sum(1 for r in rows if r.get("missing_fx"))):
         warnings.append(f"{n} dòng bán bằng USD nhưng thiếu tỷ giá — chưa tính vào doanh thu & giá bán BQ.")
 
+    # Kế hoạch là chỉ tiêu NĂM → lấy theo năm của ngày CUỐI kỳ. Kỳ vắt qua 2 năm thì tử số có cả
+    # sản lượng năm trước trong khi mẫu số chỉ là kế hoạch 1 năm → phải nói rõ, đừng để đọc nhầm.
+    year = int(date_to[:4])
+    plan_by_key, plan_total = _spot_plan(group_by, comps, regs, year)
+    totals = _close_consumption(total)
+    _attach_plan(totals, plan_total)
+    if plan_total and date_from[:4] != date_to[:4]:
+        warnings.append(f"% kế hoạch tiêu thụ đang so với chỉ tiêu NĂM {year}, trong khi kỳ xem bắt "
+                        f"đầu từ năm {date_from[:4]} — chỉ để tham khảo.")
+
     base = {"kind": "consumption", "date_from": date_from, "date_to": date_to, "group_by": group_by,
-            "totals": _close_consumption(total), "warnings": warnings}
+            "totals": totals, "warnings": warnings}
     if group_by == "none":
         rows.sort(key=lambda r: (r["as_of"], r["company"]))
         # Chế độ CHI TIẾT trả từng lần bán nên số dòng tăng theo ngày (đã hơn 3.000) → cắt trang.
@@ -103,5 +154,9 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
             continue
         g = groups.get(k) or groups.setdefault(k, _new_consumption(k, r.get("region") if group_by == "company" else None))
         _feed_consumption(g, r)
-    return {**base, "detail": False,
-            "rows": [_close_consumption(g) for g in sort_groups(groups, group_by)]}
+    out: list[dict[str, Any]] = []
+    for g in sort_groups(groups, group_by):
+        row = _close_consumption(g)
+        _attach_plan(row, plan_by_key.get(row["key"]))     # nhóm khác đơn vị/khu vực → để trống
+        out.append(row)
+    return {**base, "detail": False, "rows": out}

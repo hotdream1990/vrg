@@ -29,6 +29,19 @@ const SUMMARY_COLS: StatsCol[] = [
   { key: "lines", label: "Số dòng bán", unit: "dòng", note: "đếm" },
 ];
 
+/* Kế hoạch tiêu thụ là chỉ tiêu NĂM của TỪNG ĐƠN VỊ và chỉ đặt cho HĐ CHUYẾN → chỉ hiện khi nhóm
+   theo đơn vị/khu vực (nhóm theo ngày/chủng loại thì cả cột rỗng), và % so với riêng HĐ chuyến. */
+const PLAN_DIMS = new Set(["company", "region"]);
+const PLAN_COLS: StatsCol[] = [
+  { key: "plan_sales_spot_tonnes", label: "KH tiêu thụ HĐ chuyến", unit: "tấn", note: "chỉ tiêu năm" },
+  { key: "pct_plan_sales_spot", label: "% thực hiện KH", unit: "%", note: "= HĐ chuyến / KH" },
+];
+
+const withPlanCols = (cols: StatsCol[]): StatsCol[] => {
+  const i = cols.findIndex((c) => c.key === "qty_spot") + 1;   // chèn ngay cạnh cột HĐ chuyến
+  return [...cols.slice(0, i), ...PLAN_COLS, ...cols.slice(i)];
+};
+
 const DETAIL_COLS: StatsCol[] = [
   { key: "as_of", date: true, label: "Ngày" },
   { key: "company", label: "Đơn vị", text: true },
@@ -49,6 +62,9 @@ const KPIS: Kpi[] = [
   { key: "qty", label: "Tổng sản lượng tiêu thụ", unit: "tấn" },
   { key: "revenue_ty", label: "Doanh thu", unit: "tỷ đồng" },
   { key: "avg_price_trieu", label: "Giá bán bình quân", unit: "triệu đ/tấn" },
+  // Mẫu số là kế hoạch của MỌI đơn vị khớp bộ lọc (kể cả đơn vị kỳ này chưa bán) → luôn hiện được,
+  // không phụ thuộc đang nhóm theo gì.
+  { key: "pct_plan_sales_spot", label: "% KH tiêu thụ (HĐ chuyến)", unit: "%" },
   { key: "lines", label: "Số dòng bán", unit: "dòng" },
 ];
 
@@ -82,6 +98,9 @@ export default function ConsumptionStatsPage() {
   const { data, loading, reload } = useStatsReport<StatsReport>(fetchConsumptionStats, filters);
 
   const detail = dim === "none";
+  const cols = useMemo(
+    () => (detail ? DETAIL_COLS : PLAN_DIMS.has(dim) ? withPlanCols(SUMMARY_COLS) : SUMMARY_COLS),
+    [detail, dim]);
   const canDrill = drill.canDrill && !OFF_CHAIN.has(dim);
   const goDeeper = (value: string) => {
     setPage(1); setGroupOverride(null); drill.down(value, dim as DrillDim);
@@ -106,6 +125,8 @@ export default function ConsumptionStatsPage() {
             Toàn Tập đoàn → <b>khu vực</b> → <b>công ty</b> → <b>ngày</b> → <b>từng dòng bán</b>.
             Lọc thêm theo chủng loại · loại HĐ · hình thức HĐ.
             Dòng bán bằng USD thiếu tỷ giá không được tính vào doanh thu.
+            <b> % thực hiện kế hoạch</b> so sản lượng <b>HĐ chuyến</b> với chỉ tiêu năm ở màn
+            {" "}<b>Kế hoạch năm</b> (kế hoạch tiêu thụ chỉ đặt cho HĐ chuyến).
           </p>
         </div>
       </div>
@@ -132,7 +153,7 @@ export default function ConsumptionStatsPage() {
 
       <StatsTable
         groupLabel={detail ? "" : DIM_LABEL[dim as DrillDim]} groupIsDate={dim === "day"}
-        cols={detail ? DETAIL_COLS : SUMMARY_COLS}
+        cols={cols}
         rows={data?.rows ?? []} totals={detail ? null : (data?.totals ?? null)}
         showRegion={dim === "company"} loading={loading} warnings={data?.warnings}
         onRowClick={canDrill ? (r) => goDeeper(r.key) : undefined}

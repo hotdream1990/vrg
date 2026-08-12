@@ -144,7 +144,7 @@ def consumption_xlsx(date_from: str = Query(...), date_to: str = Query(...),
                      username: str = Depends(_require)):
     rep = _consumption(date_from, date_to, companies, regions, grades, contract, channel,
                        source, group_by)
-    cols = xls.CONSUMPTION_DETAIL_COLS if rep["detail"] else xls.CONSUMPTION_COLS
+    cols = xls.CONSUMPTION_DETAIL_COLS if rep["detail"] else xls.consumption_cols(group_by)
     data = xls.build_xlsx(title="THỐNG KÊ TIÊU THỤ", period=f"{date_from} → {date_to}",
                           note=_note(rep), group_by=group_by, columns=cols,
                           rows=rep["rows"], totals=rep["totals"])

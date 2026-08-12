@@ -187,6 +187,30 @@ def test_consumption_filters_and_avg_price(seeded) -> None:
     assert {r["contract_label"] for r in detail["rows"]} == {"HĐ dài hạn", "HĐ chuyến"}
 
 
+def test_consumption_percent_of_spot_sales_plan(seeded) -> None:
+    """% kế hoạch tiêu thụ: tử số CHỈ là HĐ chuyến, mẫu số gồm cả đơn vị kỳ này chưa bán tấn nào."""
+    h = seeded
+    year = date.today().year
+    for n, plan in ((UNIT_A, 50.0), (UNIT_B, 30.0)):
+        assert client.put("/api/unit-daily/plan", headers=h, json={
+            "year": year, "company": n, "plan_tonnes": 1000,
+            "plan_sales_spot_tonnes": plan}).status_code == 200
+
+    rep = _get("consumption", h, companies=f"{UNIT_A},{UNIT_B}")
+    a = _row(rep, UNIT_A)                                  # A bán 20 tấn HĐ chuyến / KH 50 tấn
+    assert a["plan_sales_spot_tonnes"] == 50 and a["pct_plan_sales_spot"] == pytest.approx(40)
+    # Tổng: mẫu số 50 + 30 dù B chưa bán tấn nào — bỏ B ra khỏi mẫu số là % tự đẹp lên.
+    # Tử số vẫn là 20 (HĐ dài hạn 15 tấn KHÔNG được cộng vào, kế hoạch không đặt cho loại đó).
+    t = rep["totals"]
+    assert t["qty"] == 35 and t["qty_spot"] == 20
+    assert t["plan_sales_spot_tonnes"] == 80 and t["pct_plan_sales_spot"] == pytest.approx(25)
+
+    # Nhóm theo NGÀY: kế hoạch là chỉ tiêu năm của đơn vị → để trống, không chia đại cho từng ngày.
+    by_day = _get("consumption", h, companies=UNIT_A, group_by="day")
+    assert by_day["rows"] and all(r["pct_plan_sales_spot"] is None for r in by_day["rows"])
+    assert by_day["totals"]["pct_plan_sales_spot"] == pytest.approx(40)   # tổng vẫn tính được
+
+
 def test_delivery_missing_fx_is_excluded_and_warned(seeded) -> None:
     """Lần giao ngoại tệ THIẾU tỷ giá (bản ghi chuyển từ cơ chế cũ) → không tính doanh thu + cảnh báo.
 
@@ -285,14 +309,14 @@ def test_stock_drops_numbers_older_than_the_allowed_window(seeded) -> None:
     assert rep["rows"] == [] and rep["totals"]["total"] is None
     assert [m["company"] for m in rep["coverage"]["missing"]] == [UNIT_A]
     assert any("chưa có số tồn kho" in w for w in rep["warnings"])
-    # Nới cửa sổ đủ rộng thì số cũ được dùng lại — nhưng số cũ quá ngưỡng phải bị điểm mặt.
+    # Nới cửa sổ đủ rộng thì số cũ được dùng lại — mỗi dòng phải nói rõ số đã cũ mấy ngày.
     client.put("/api/unit-daily/report", headers=seeded, json={
         "kind": "consumption", "company": UNIT_B, "as_of": D0,
         "fields": {"stock_warehoused": [{"grade": "SVR 10", "qty": 200}]}})
     ok = _stock(seeded, companies=f"{UNIT_A},{UNIT_B}", max_age_days=7)
     assert _row(ok, UNIT_A)["total"] == 800 and _row(ok, UNIT_B)["age_days"] == 3
-    assert [s["company"] for s in ok["coverage"]["stale"]] == [UNIT_B]   # A mới 2 ngày → chưa cũ
-    assert any("số cũ từ 3 ngày trở lên" in w for w in ok["warnings"])
+    assert not ok["coverage"]["missing"]        # có số trong cửa sổ = đủ, không cảnh báo "số cũ"
+    assert not any("số cũ" in w for w in ok["warnings"])
 
 
 def test_stock_by_day_totals_are_the_reference_day_snapshot(seeded) -> None:
@@ -328,7 +352,8 @@ def test_stock_coverage_separates_missing_from_declared_empty(seeded) -> None:
     assert rep["coverage"]["missing"] == []
     assert [e["company"] for e in rep["coverage"]["no_stock"]] == [UNIT_B]
     assert rep["totals"]["total"] == 800        # B không có số nào để cộng vào tổng
-    assert any("không phát sinh tồn kho" in w for w in rep["warnings"])
+    # Đã nộp đúng hạn thì không cảnh báo — chỉ hiện ở dải độ phủ để tổng số đơn vị cộng cho đủ.
+    assert not any("không phát sinh tồn kho" in w for w in rep["warnings"])
 
 
 def test_drill_region_then_company(seeded) -> None:

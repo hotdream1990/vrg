@@ -52,6 +52,22 @@ CONSUMPTION_COLS: list[Col] = [
     ("lines", "Số dòng bán", "dòng"),
 ]
 
+#: Kế hoạch tiêu thụ là chỉ tiêu NĂM của TỪNG ĐƠN VỊ → chỉ chèn khi nhóm theo đơn vị/khu vực;
+#: nhóm theo ngày/chủng loại/loại HĐ thì mọi ô đều trống, thà bỏ cột còn hơn để cột rỗng.
+_PLAN_COLS: list[Col] = [
+    ("plan_sales_spot_tonnes", "KH tiêu thụ HĐ chuyến", "tấn (chỉ tiêu năm)"),
+    ("pct_plan_sales_spot", "% thực hiện KH tiêu thụ", "% (= HĐ chuyến / KH)"),
+]
+
+
+def consumption_cols(group_by: str) -> list[Col]:
+    """Cột bảng Tiêu thụ — chèn 2 cột kế hoạch ngay sau "HĐ chuyến" cho đúng chỗ người đọc cần."""
+    if group_by not in ("company", "region"):
+        return CONSUMPTION_COLS
+    i = [c[0] for c in CONSUMPTION_COLS].index("qty_spot") + 1
+    return [*CONSUMPTION_COLS[:i], *_PLAN_COLS, *CONSUMPTION_COLS[i:]]
+
+
 CONSUMPTION_DETAIL_COLS: list[Col] = [
     ("as_of", "Ngày", ""), ("company", "Đơn vị", ""), ("source_label", "Nguồn mủ", ""),
     ("code", "Số HĐ/PL", ""), ("contract_label", "Loại HĐ", ""), ("channel_label", "Hình thức", ""),
