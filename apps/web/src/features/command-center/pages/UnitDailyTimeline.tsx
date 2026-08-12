@@ -13,6 +13,7 @@ import {
   type Timeline, type TimelineRange, type TimelineRow, fetchMyDailyTimeline, fetchDailyTimeline,
 } from "../../../lib/unit-daily-client";
 import type { Kind } from "../../../lib/unit-daily-fields";
+import DateInput from "../sections/DateInput";
 import UnitDailyMoveDateModal from "./UnitDailyMoveDateModal";
 import UnitDailyTimelineSummary from "./UnitDailyTimelineSummary";
 
@@ -129,11 +130,9 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
         </label>
         {custom && (
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <input type="date" className="blt-date-input" value={from} max={to || todayISO()}
-                   onChange={(e) => setFrom(e.target.value)} />
+            <DateInput value={from} onChange={setFrom} maxDate={to || todayISO()} style={{ width: 150 }} />
             <span style={{ color: "var(--muted)" }}>→</span>
-            <input type="date" className="blt-date-input" value={to} min={from} max={todayISO()}
-                   onChange={(e) => setTo(e.target.value)} />
+            <DateInput value={to} onChange={setTo} minDate={from} maxDate={todayISO()} style={{ width: 150 }} />
             <button className="btn btn-primary" onClick={applyCustom}>Xem</button>
           </div>
         )}
