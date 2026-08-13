@@ -1,7 +1,7 @@
 import { DatePicker } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import { useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 
 dayjs.extend(customParseFormat);   // cần cho dayjs(text, format, strict) khi tự đọc chuỗi gõ tay
 
@@ -34,6 +34,14 @@ const DISPLAY = FORMATS[0];
 const parseTyped = (text: string): Dayjs | null =>
   FORMATS.map((f) => dayjs(text, f, true)).find((d) => d.isValid()) ?? null;
 
+/** Máy tính bảng / điện thoại (con trỏ chính là ngón tay). Ở đó CHẠM vào ô sẽ bật bàn phím ảo,
+ *  bàn phím che mất lịch và đẩy khung trượt đi → người dùng thấy "bấm mà không chọn được ngày".
+ *  Nên trên thiết bị chạm khoá gõ tay, chạm = mở lịch (đúng như trước khi mở gõ tay); máy tính
+ *  con trỏ chuột vẫn gõ được bình thường. Tính 1 lần lúc nạp trang — loại thiết bị không đổi. */
+const TOUCH_DEVICE = typeof window !== "undefined"
+  && typeof window.matchMedia === "function"
+  && window.matchMedia("(pointer: coarse)").matches;
+
 /** Ô nhập ngày hiển thị CỐ ĐỊNH DD/MM/YYYY (thay <input type=date> vốn hiện theo locale trình
  *  duyệt), VỪA gõ tay được vừa chọn trên lịch. Giữ giao diện value/onChange dạng chuỗi YYYY-MM-DD
  *  như native input để dễ thay thế. */
@@ -41,7 +49,8 @@ export default function DateInput({
   value, onChange, readOnly, allowClear = false, noFuture = false,
   minDate, maxDate, placeholder = "dd/mm/yyyy", className, style,
 }: Props) {
-  const [seq, setSeq] = useState(0);   // đổi key = gắn lại ô, xoá chữ gõ dở/gõ sai còn nằm lại
+  const [seq, setSeq] = useState(0);   // đổi key = gắn lại ô, xoá chữ gõ sai còn nằm lại
+  const typed = useRef(false);         // người dùng CÓ gõ phím trong ô lần này không?
   const display = value ? dayjs(value).format(DISPLAY) : "";
 
   const blocked = (d: Dayjs) =>
@@ -50,17 +59,24 @@ export default function DateInput({
     (!!maxDate && d.isAfter(dayjs(maxDate), "day"));
 
   /** Rời ô mà chưa bấm Enter: antd chỉ chốt giá trị khi Enter hoặc chọn trên lịch, chữ vừa gõ sẽ
-   *  nằm lại mà số liệu bên dưới vẫn của ngày cũ. Tự chốt ở đây cho khớp điều người dùng thấy. */
+   *  nằm lại mà số liệu bên dưới vẫn của ngày cũ. Tự chốt ở đây cho khớp điều người dùng thấy.
+   *
+   *  ⚠ CHỈ chạy khi người dùng THẬT SỰ gõ phím, và chỉ gắn lại ô khi phải xoá chữ sai. Chọn ngày
+   *  trên lịch cũng làm ô mất tiêu điểm → nếu đụng vào đây thì ô bị gắn lại ngay giữa cú bấm,
+   *  lịch đóng trước khi cú bấm kịp ăn và người dùng thấy "bấm chọn ngày không được". */
   const commitTyped = (text: string) => {
-    const typed = text.trim();
-    if (typed === display) return;
-    const parsed = typed ? parseTyped(typed) : null;
-    const rejected = typed ? !parsed || blocked(parsed) : !allowClear;
+    if (!typed.current) return;
+    typed.current = false;
+    const input = text.trim();
+    if (input === display) return;
+    const parsed = input ? parseTyped(input) : null;
+    const rejected = input ? !parsed || blocked(parsed) : !allowClear;
     if (!rejected) {
       const iso = parsed ? parsed.format("YYYY-MM-DD") : "";
       if (iso !== value) onChange?.(iso);
+      return;                 // chốt được rồi: ô tự hiện lại theo `value`, KHÔNG gắn lại
     }
-    setSeq((n) => n + 1);   // gắn lại ô: hiển thị đúng chuẩn DD/MM/YYYY (hoặc trả về giá trị cũ)
+    setSeq((n) => n + 1);     // gõ sai / ngoài khoảng cho phép → gắn lại ô, trả về giá trị cũ
   };
 
   return (
@@ -68,9 +84,12 @@ export default function DateInput({
       key={seq}
       format={FORMATS}
       value={value ? dayjs(value) : null}
-      onChange={(d) => onChange?.(d ? d.format("YYYY-MM-DD") : "")}
+      onChange={(d) => { typed.current = false; onChange?.(d ? d.format("YYYY-MM-DD") : ""); }}
+      onKeyDown={(e) => { if (e.key !== "Tab" && e.key !== "Escape") typed.current = true; }}
+      onFocus={() => { typed.current = false; }}
       onBlur={(e) => commitTyped((e.target as HTMLInputElement).value ?? "")}
       disabled={readOnly}
+      inputReadOnly={TOUCH_DEVICE}
       allowClear={allowClear}
       disabledDate={noFuture ? (d) => d.isAfter(dayjs(), "day") : undefined}
       minDate={minDate ? dayjs(minDate) : undefined}
