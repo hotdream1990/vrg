@@ -26,9 +26,11 @@ PURCHASE_COLS: list[Col] = [
     # rời khỏi hệ thống vẫn tự nói được nó là số gì.
     ("qty_latex", "Sản lượng mủ nước", "tấn quy khô"),
     ("qty_cup", "Sản lượng mủ chén", "tấn quy khô"),
+    # Tổng mủ nguyên liệu + kế hoạch đứng liền nhau, RỒI mới tới thành phẩm mua ngoài — giữ đúng
+    # thứ tự của màn Thống kê để người đối chiếu file với màn hình không phải dò cột.
+    ("qty_material", "Tổng mủ nguyên liệu (mủ nước + chén)", "tấn"),
     ("qty_finished", "Sản lượng thành phẩm", "tấn"),
-    ("qty_total", "Tổng sản lượng (theo bộ lọc)", "tấn"),
-    ("qty_material", "Sản lượng mủ nguyên liệu (mủ nước + chén)", "tấn"),
+    ("qty_total", "Tổng sản lượng (mủ NL + thành phẩm)", "tấn"),
     ("price_latex_avg", "Đơn giá BQ mủ nước", "đồng/độ"),
     ("price_cup_avg", "Đơn giá BQ mủ chén", "đồng/độ"),
     ("price_finished_avg", "Đơn giá BQ thành phẩm", "triệu đ/tấn"),

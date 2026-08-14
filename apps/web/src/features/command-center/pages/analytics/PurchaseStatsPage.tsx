@@ -17,19 +17,22 @@ import { initialFilters, useFilterCatalog, useStatsReport } from "./use-stats";
 import { CHAINS, DIM_LABEL, type DrillDim, applyDrill, useDrill } from "./use-drill";
 import "../../../bulletin/bulletin.css";
 
+// THỨ TỰ CỘT kể một mạch: mủ nước + mủ chén → tổng mủ nguyên liệu → kế hoạch & % thực hiện, RỒI
+// MỚI tới thành phẩm mua ngoài (chốt 14/08/2026). Thành phẩm là hàng ĐÃ CHẾ BIẾN mua lại, không
+// nằm trong kế hoạch thu mua, nên xen nó vào giữa là người đọc tưởng nó thuộc mẫu số của %.
 const COLS: StatsCol[] = [
   // Mủ nguyên liệu khai theo QUY KHÔ, thành phẩm khai theo số thực mua → nói rõ ở từng cột, vì
   // "Tổng sản lượng" cộng cả hai loại số này lại với nhau.
   { key: "qty_latex", label: "SL mủ nước", unit: "tấn", note: "cộng dồn · quy khô" },
   { key: "qty_cup", label: "SL mủ chén", unit: "tấn", note: "cộng dồn · quy khô" },
-  { key: "qty_finished", label: "SL thành phẩm", unit: "tấn", note: "cộng dồn · số thực mua" },
-  { key: "qty_total", label: "Tổng sản lượng", unit: "tấn", note: "theo bộ lọc" },
   // % kế hoạch so TỬ SỐ = mủ nước + mủ chén (không gồm thành phẩm mua ngoài) với chỉ tiêu NĂM —
   // đúng mẫu gốc Ban TTKD và khớp Báo cáo tổng hợp. Hiện luôn tử số để người đọc tự đối chiếu được,
   // và nói rõ "kỳ này / KH năm" vì kỳ mặc định là TUẦN → % nhỏ, dễ bị hiểu nhầm là luỹ kế cả năm.
-  { key: "qty_material", label: "SL mủ nguyên liệu", unit: "tấn", note: "= mủ nước + chén" },
+  { key: "qty_material", label: "Tổng mủ nguyên liệu", unit: "tấn", note: "= mủ nước + chén" },
   { key: "plan_tonnes", label: "KH thu mua năm", unit: "tấn", note: "chỉ tiêu năm" },
   { key: "pct_plan", label: "% KH năm", unit: "%", note: "= mủ NL kỳ này / KH năm" },
+  { key: "qty_finished", label: "SL thành phẩm", unit: "tấn", note: "cộng dồn · số thực mua" },
+  { key: "qty_total", label: "Tổng sản lượng", unit: "tấn", note: "= mủ NL + thành phẩm" },
   { key: "price_latex_avg", label: "Đơn giá BQ mủ nước", unit: "đồng/độ", note: "BQ gia quyền" },
   { key: "price_cup_avg", label: "Đơn giá BQ mủ chén", unit: "đồng/độ", note: "BQ gia quyền" },
   { key: "price_finished_avg", label: "Đơn giá BQ thành phẩm", unit: "triệu đ/tấn", note: "BQ gia quyền" },
@@ -37,14 +40,17 @@ const COLS: StatsCol[] = [
   { key: "no_purchase_days", label: "Ngày không thu mua", unit: "ngày", note: "đếm" },
 ];
 
+// Dải KPI + biểu đồ CHỈ nói về MỦ NGUYÊN LIỆU và kế hoạch của nó (chốt 14/08/2026): tổng ở đây là
+// mủ nước + mủ chén, đúng bằng tử số của % kế hoạch — để 3 con số trên cùng một dải luôn khớp nhau.
+// Thành phẩm mua ngoài xuống bảng bên dưới, KHÔNG có thẻ riêng ở dải này.
 const KPIS: Kpi[] = [
-  { key: "qty_total", label: "Tổng sản lượng thu mua", unit: "tấn" },
+  { key: "qty_material", label: "Tổng thu mua mủ nguyên liệu", unit: "tấn" },
   { key: "qty_latex", label: "Mủ nước", unit: "tấn" },
   { key: "qty_cup", label: "Mủ chén", unit: "tấn" },
-  { key: "qty_finished", label: "Thành phẩm", unit: "tấn" },
+  { key: "plan_tonnes", label: "KH thu mua năm", unit: "tấn" },
   // Mẫu số là kế hoạch của MỌI đơn vị khớp bộ lọc (kể cả đơn vị kỳ này chưa mua) → luôn hiện được,
   // không phụ thuộc đang nhóm theo gì.
-  { key: "pct_plan", label: "% KH thu mua (kỳ đã chọn)", unit: "%" },
+  { key: "pct_plan", label: "% thực hiện KH (kỳ đã chọn)", unit: "%" },
 ];
 
 const GROUPS = (["region", "company", "day", "material", "grade"] as const)
@@ -108,7 +114,7 @@ export default function PurchaseStatsPage() {
       <DrillHeader
         steps={drill.steps} onUpTo={drill.upTo} currentDim={dim} canDrill={canDrill}
         rows={data?.rows ?? []} totals={data?.totals ?? null} kpis={KPIS}
-        chartKey="qty_total" chartLabel="Sản lượng thu mua" onPick={goDeeper}
+        chartKey="qty_material" chartLabel="Sản lượng thu mua mủ nguyên liệu" onPick={goDeeper}
       />
 
       <StatsTable
