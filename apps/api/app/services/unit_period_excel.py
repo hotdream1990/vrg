@@ -26,10 +26,6 @@ _NUM = "#,##0.00"
 _PURCHASE_COLS: list[tuple[str, str, str, str]] = [
     ("latex_wet", "Sản lượng thu mua mủ nước", "cộng dồn", "tấn"),
     ("coagulum", "Sản lượng thu mua mủ chén", "cộng dồn", "tấn"),
-    ("cup_raw", "Sản lượng mủ NL nước chưa cán vắt (chén)", "cộng dồn", "tấn"),
-    ("price_cup_raw_avg", "Đơn giá BQ mủ NL chưa cán vắt", "bình quân gia quyền", "đồng/kg"),
-    ("rss_pressed", "Sản lượng mủ NL đã cán vắt (RSS)", "cộng dồn", "tấn"),
-    ("price_rss_pressed_avg", "Đơn giá BQ mủ NL đã cán vắt", "bình quân gia quyền", "đồng/kg"),
     ("finished_qty", "Sản lượng thu mua thành phẩm", "cộng dồn các chủng loại", "tấn"),
     ("total_purchase", "Tổng sản lượng thu mua", "= mủ nước + mủ chén", "tấn"),
     ("price_latex_avg", "Giá thu mua mủ nước BQ", "bình quân gia quyền", "đồng/độ TSC"),
@@ -80,8 +76,7 @@ _TITLE = {
     "consumption": ("BÁO CÁO TIÊU THỤ - TỒN KHO", "Về công tác Tiêu thụ - Tồn kho mủ cao su"),
 }
 # Chỉ tiêu KHÔNG được cộng ở dòng Tổng cộng (giá / tỷ lệ → tính lại hoặc bỏ trống).
-_NO_SUM = {"price_latex_avg", "price_cup_avg", "price_cup_raw_avg",
-           "price_rss_pressed_avg", "pct_plan", "avg_sell_price"}
+_NO_SUM = {"price_latex_avg", "price_cup_avg", "pct_plan", "avg_sell_price"}
 
 
 def _columns(kind: str, grades: list[str]) -> tuple[list[tuple[str, str, str, str]], list[str]]:

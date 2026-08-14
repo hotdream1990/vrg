@@ -100,7 +100,7 @@ def purchase_xlsx(date_from: str = Query(...), date_to: str = Query(...),
                   username: str = Depends(_require)):
     rep = _purchase(date_from, date_to, companies, regions, materials, grades, group_by)
     data = xls.build_xlsx(title="THỐNG KÊ THU MUA", period=f"{date_from} → {date_to}",
-                          note=_note(rep), group_by=group_by, columns=xls.PURCHASE_COLS,
+                          note=_note(rep), group_by=group_by, columns=xls.purchase_cols(group_by),
                           rows=rep["rows"], totals=rep["totals"])
     return _xlsx(data, f"thong-ke-thu-mua-{date_from}-den-{date_to}.xlsx")
 

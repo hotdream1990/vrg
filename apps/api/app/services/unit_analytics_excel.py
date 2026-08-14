@@ -26,14 +26,11 @@ PURCHASE_COLS: list[Col] = [
     # rời khỏi hệ thống vẫn tự nói được nó là số gì.
     ("qty_latex", "Sản lượng mủ nước", "tấn quy khô"),
     ("qty_cup", "Sản lượng mủ chén", "tấn quy khô"),
-    ("qty_cup_raw", "Sản lượng mủ NL chưa cán vắt", "tấn quy khô"),
-    ("qty_rss_pressed", "Sản lượng mủ NL đã cán vắt", "tấn quy khô"),
     ("qty_finished", "Sản lượng thành phẩm", "tấn"),
     ("qty_total", "Tổng sản lượng (theo bộ lọc)", "tấn"),
+    ("qty_material", "Sản lượng mủ nguyên liệu (mủ nước + chén)", "tấn"),
     ("price_latex_avg", "Đơn giá BQ mủ nước", "đồng/độ"),
     ("price_cup_avg", "Đơn giá BQ mủ chén", "đồng/độ"),
-    ("price_cup_raw_avg", "Đơn giá BQ mủ NL chưa cán vắt", "đồng/kg"),
-    ("price_rss_pressed_avg", "Đơn giá BQ mủ NL đã cán vắt", "đồng/kg"),
     ("price_finished_avg", "Đơn giá BQ thành phẩm", "triệu đ/tấn"),
     ("days", "Số ngày có số liệu", "ngày"),
     ("no_purchase_days", "Số ngày không tổ chức thu mua", "ngày"),
@@ -52,20 +49,36 @@ CONSUMPTION_COLS: list[Col] = [
     ("lines", "Số dòng bán", "dòng"),
 ]
 
-#: Kế hoạch tiêu thụ là chỉ tiêu NĂM của TỪNG ĐƠN VỊ → chỉ chèn khi nhóm theo đơn vị/khu vực;
+#: Kế hoạch là chỉ tiêu NĂM của TỪNG ĐƠN VỊ → chỉ chèn khi nhóm theo đơn vị/khu vực;
 #: nhóm theo ngày/chủng loại/loại HĐ thì mọi ô đều trống, thà bỏ cột còn hơn để cột rỗng.
 _PLAN_COLS: list[Col] = [
     ("plan_sales_spot_tonnes", "KH tiêu thụ HĐ chuyến", "tấn (chỉ tiêu năm)"),
     ("pct_plan_sales_spot", "% thực hiện KH tiêu thụ", "% (= HĐ chuyến / KH)"),
 ]
+#: % KH thu mua so sản lượng mủ NGUYÊN LIỆU của kỳ đang xem với chỉ tiêu CẢ NĂM — nói rõ trong nhãn
+#: để không ai đọc nhầm thành luỹ kế từ đầu năm (kỳ mặc định của màn Thống kê là TUẦN).
+_PURCHASE_PLAN_COLS: list[Col] = [
+    ("plan_tonnes", "KH thu mua năm", "tấn (chỉ tiêu năm)"),
+    ("pct_plan", "% KH năm", "% (= mủ NL kỳ này / KH năm)"),
+]
+
+
+def _with_plan(cols: list[Col], after: str, plan_cols: list[Col], group_by: str) -> list[Col]:
+    """Chèn cột kế hoạch ngay sau cột `after` — đúng chỗ người đọc cần, và chỉ khi có số để điền."""
+    if group_by not in ("company", "region"):
+        return cols
+    i = [c[0] for c in cols].index(after) + 1
+    return [*cols[:i], *plan_cols, *cols[i:]]
 
 
 def consumption_cols(group_by: str) -> list[Col]:
-    """Cột bảng Tiêu thụ — chèn 2 cột kế hoạch ngay sau "HĐ chuyến" cho đúng chỗ người đọc cần."""
-    if group_by not in ("company", "region"):
-        return CONSUMPTION_COLS
-    i = [c[0] for c in CONSUMPTION_COLS].index("qty_spot") + 1
-    return [*CONSUMPTION_COLS[:i], *_PLAN_COLS, *CONSUMPTION_COLS[i:]]
+    """Cột bảng Tiêu thụ — kế hoạch đứng ngay sau "HĐ chuyến" (tử số của % nằm cạnh mẫu số)."""
+    return _with_plan(CONSUMPTION_COLS, "qty_spot", _PLAN_COLS, group_by)
+
+
+def purchase_cols(group_by: str) -> list[Col]:
+    """Cột bảng Thu mua — kế hoạch đứng ngay sau "Sản lượng mủ nguyên liệu" (chính là tử số)."""
+    return _with_plan(PURCHASE_COLS, "qty_material", _PURCHASE_PLAN_COLS, group_by)
 
 
 CONSUMPTION_DETAIL_COLS: list[Col] = [

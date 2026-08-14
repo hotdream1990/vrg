@@ -11,10 +11,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services import legacy_data_notice, member_unit_repo, unit_daily_repo
+from app.services import legacy_data_notice
 from app.services import unit_report_rows as rows_mod
 from app.services.unit_report_query import (
     CHANNEL_LABELS, CONTRACT_LABELS, GROUPERS, avg, filter_scope, label_of, sort_groups, split_csv,
+    year_plan_by_group,
 )
 from app.services.unit_report_rows import SOURCE_LABELS, TRIEU
 
@@ -62,33 +63,7 @@ def _close_consumption(g: dict) -> dict[str, Any]:
 #: Kế hoạch tiêu thụ CHỈ đặt cho HĐ CHUYẾN → % thực hiện so với sản lượng HĐ chuyến, KHÔNG so với
 #: tổng tiêu thụ (so tổng thì đơn vị nào cũng "vượt kế hoạch" giả tạo vì HĐ dài hạn được cộng vào
 #: tử số mà không có trong mẫu số). Cùng quy ước với "Báo cáo tổng hợp" — xem `unit_period_report`.
-_PLAN_DIMS = ("company", "region")
-
-
-def _spot_plan(group_by: str, comps: list[str] | None, regs: list[str] | None,
-               year: int) -> tuple[dict[str, float], float]:
-    """Chỉ tiêu tiêu thụ HĐ chuyến NĂM `year` → ({khoá nhóm: tấn}, tổng của mọi đơn vị trong lọc).
-
-    Mẫu số lấy theo DANH SÁCH ĐƠN VỊ khớp bộ lọc, không phải theo đơn vị có phát sinh bán: đơn vị
-    được giao kế hoạch mà kỳ này chưa bán tấn nào vẫn phải nằm trong mẫu số — bỏ ra là % tự đẹp lên.
-    """
-    units = member_unit_repo.list_units(include_inactive=False)
-    if comps:
-        units = [u for u in units if u["name"] in set(comps)]
-    if regs:
-        units = [u for u in units if (u.get("region") or "") in set(regs)]
-    plans = unit_daily_repo.year_plan(year)
-    by_key: dict[str, float] = {}
-    total = 0.0
-    for u in units:
-        n = (plans.get(u["name"]) or {}).get("plan_sales_spot_tonnes") or 0.0
-        if not n:
-            continue
-        total += n
-        if group_by in _PLAN_DIMS:
-            k = u["name"] if group_by == "company" else (u.get("region") or "(Chưa gán khu vực)")
-            by_key[k] = by_key.get(k, 0.0) + n
-    return by_key, total
+_PLAN_KEY = "plan_sales_spot_tonnes"
 
 
 def _attach_plan(g: dict, plan: float | None) -> None:
@@ -125,7 +100,7 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
     # Kế hoạch là chỉ tiêu NĂM → lấy theo năm của ngày CUỐI kỳ. Kỳ vắt qua 2 năm thì tử số có cả
     # sản lượng năm trước trong khi mẫu số chỉ là kế hoạch 1 năm → phải nói rõ, đừng để đọc nhầm.
     year = int(date_to[:4])
-    plan_by_key, plan_total = _spot_plan(group_by, comps, regs, year)
+    plan_by_key, plan_total = year_plan_by_group(_PLAN_KEY, group_by, comps, regs, year)
     totals = _close_consumption(total)
     _attach_plan(totals, plan_total)
     if plan_total and date_from[:4] != date_to[:4]:

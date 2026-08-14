@@ -75,22 +75,12 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
     acc: dict[str, float] = {}
     no_days = 0        # số ngày đơn vị KHÔNG tổ chức thu mua (khác ngày có mua nhưng được 0 tấn)
     # bình quân gia quyền: Σ(giá ngày × sản lượng ngày) ÷ Σ(sản lượng ngày)
-    wsum = {"latex": 0.0, "cup": 0.0, "cup_raw": 0.0, "rss_pressed": 0.0}
-    wqty = {"latex": 0.0, "cup": 0.0, "cup_raw": 0.0, "rss_pressed": 0.0}
+    wsum = {"latex": 0.0, "cup": 0.0}
+    wqty = {"latex": 0.0, "cup": 0.0}
     for e in entries:
         f = e["fields"]
         _add(acc, "latex_wet", f.get("latex_wet"))
         _add(acc, "coagulum", f.get("coagulum"))
-        # 2 loại nguyên liệu bổ sung (chốt 30/07/2026) — đơn giá theo đồng/kg, bình quân gia quyền
-        # tính RIÊNG từng loại (Q2) nên không gộp vào wsum của mủ nước/mủ chén.
-        for key in ("cup_raw", "rss_pressed"):
-            _add(acc, key, f.get(key))
-            # `px` phải KHÁC 0: đơn giá 0 = "không có giá" (xem core/market_meta), tính vào
-            # bình quân gia quyền là kéo tụt giá của cả kỳ bằng một mức giá không có thật.
-            px, qty = _num(f.get(f"{key}_price")), _num(f.get(key))
-            if px and qty:
-                wsum[key] = wsum.get(key, 0.0) + px * qty
-                wqty[key] = wqty.get(key, 0.0) + qty
         # Thu mua thành phẩm nhập theo CHỦNG LOẠI (bảng nhiều dòng) → cộng số lượng các dòng.
         for ln in f.get("finished") or []:
             _add(acc, "finished_qty", ln.get("qty"))
@@ -111,18 +101,13 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
         _add(acc, "revenue", f.get("purchased_sold_revenue"))
         _add(acc, "finished_sold_qty", f.get("finished_sold_qty"))
 
-    total = (acc.get("latex_wet", 0.0) + acc.get("coagulum", 0.0)
-             + acc.get("cup_raw", 0.0) + acc.get("rss_pressed", 0.0))
+    total = acc.get("latex_wet", 0.0) + acc.get("coagulum", 0.0)
     revenue = acc.get("revenue")
     consumption = acc.get("consumption")
     plan_tonnes = _num(plan.get("plan_tonnes"))
     return {
         "latex_wet": acc.get("latex_wet"),
         "coagulum": acc.get("coagulum"),
-        "cup_raw": acc.get("cup_raw"),
-        "rss_pressed": acc.get("rss_pressed"),
-        "price_cup_raw_avg": _ratio(wsum["cup_raw"], wqty["cup_raw"]),      # đồng/kg
-        "price_rss_pressed_avg": _ratio(wsum["rss_pressed"], wqty["rss_pressed"]),
         # Thu mua thành phẩm (biểu Thu mua) và tiêu thụ thành phẩm (biểu Tiêu thụ) là HAI chỉ tiêu
         # khác nhau — trước đây cột "thu mua thành phẩm" lấy nhầm số tiêu thụ và không được trả về.
         "finished_qty": acc.get("finished_qty"),

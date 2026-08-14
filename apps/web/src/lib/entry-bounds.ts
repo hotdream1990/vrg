@@ -53,8 +53,6 @@ export const FX_USD_VND: Bound = { lo: 15_000, hi: 40_000, unit: "VND" };
 export const PRICE_LATEX: Bound = { lo: 100, hi: 1_500, unit: "đồng/độ TSC" };
 /** Đơn giá mủ chén (tính theo độ TSC hoặc DRC). Thực tế prod: 82–345. */
 export const PRICE_CUP: Bound = { lo: 50, hi: 1_500, unit: "đồng/độ" };
-/** Đơn giá 2 loại mủ nguyên liệu bổ sung (chén chưa cán vắt · RSS đã cán vắt) — nhập theo đồng/kg. */
-export const PRICE_PER_KG: Bound = { lo: 1_000, hi: 100_000, unit: "đồng/kg" };
 /** Doanh thu một ngày của một đơn vị. Thực tế prod (bản ghi đúng): ≤ 12 tỷ đồng. */
 export const REVENUE_TY: Bound = { lo: 0, hi: 500, unit: "tỷ đồng" };
 

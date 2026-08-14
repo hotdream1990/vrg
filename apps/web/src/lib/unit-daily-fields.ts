@@ -35,10 +35,6 @@ const n = (x: number | null | undefined): number | null => (x == null || Number.
 // (đơn vị nước ngoài nhập đơn giá nội tệ + USD + 2 tỷ giá, tự quy về VND). Tiền lưu BASE = đồng.
 const _MU_NUOC = "Mủ nước";
 const _MU_CHEN = "Mủ chén";
-// 2 loại mủ nguyên liệu bổ sung (chốt 30/07/2026) — đơn giá tính RIÊNG từng loại, nhập theo đồng/kg
-// và lưu thẳng trong payload (không đẩy vào kho "Giá mủ nguyên liệu" như mủ nước/mủ chén).
-const _NL_CHEN = "Mủ NL nước chưa cán vắt (chén)";
-const _NL_RSS = "Mủ NL đã cán vắt (RSS)";
 const _TP = "Thu mua thành phẩm";
 const _TT_TM = "Tiêu thụ mủ thu mua";
 /** Bảng thu mua thành phẩm (nhiều dòng, mỗi dòng 1 chủng loại) → tổng SL + giá trị (đồng). */
@@ -64,10 +60,6 @@ const PURCHASE: Column[] = [
   // Mủ chén tính theo độ TSC hoặc độ DRC — đơn vị tự chọn ở form (`cup_basis`), nên nhãn cột để chung.
   { key: "price_cup", label: "Đơn giá thu mua", unit: "đồng/độ", group: _MU_CHEN, linked: "cup",
     hint: "theo độ TSC hoặc DRC — đơn vị tự chọn" },
-  { key: "cup_raw", label: "Sản lượng thu mua", unit: "tấn quy khô", group: _NL_CHEN },
-  { key: "cup_raw_price", label: "Đơn giá thu mua", unit: "đồng/kg", group: _NL_CHEN },
-  { key: "rss_pressed", label: "Sản lượng thu mua", unit: "tấn quy khô", group: _NL_RSS },
-  { key: "rss_pressed_price", label: "Đơn giá thu mua", unit: "đồng/kg", group: _NL_RSS },
   // Thu mua thành phẩm nhập theo CHỦNG LOẠI (bảng nhiều dòng) → bảng tổng hợp chỉ hiện số cộng lại.
   { key: "finished_qty", label: "Sản lượng thu mua", unit: "tấn", group: _TP,
     compute: (v) => finishedQty(v) || null },

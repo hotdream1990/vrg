@@ -121,15 +121,23 @@ def test_bulletin_range_skips_a_zero_written_straight_to_db(seeded) -> None:
 
 
 def test_stats_treat_zero_unit_price_as_missing(seeded) -> None:
-    """Thống kê Thu mua: đơn giá 0 trong payload không kéo tụt bình quân, mà bị đếm là THIẾU giá."""
+    """Thống kê Thu mua: đơn giá 0 không kéo tụt bình quân, mà bị đếm là THIẾU giá.
+
+    Mủ nước có sản lượng nhưng giá khai 0 → không có mức giá nào để bình quân (`None`, hiện "—")
+    và dòng đó phải rơi vào cảnh báo, thay vì lặng lẽ kéo giá bình quân của kỳ về gần 0.
+    """
     h, mh = seeded
+    client.put("/api/member/prices", headers=mh,
+               json={"company": UNIT, "as_of": DAY, "price_type": "purchase", "price": 0})
     client.put("/api/member/daily-report", headers=mh, json={
         "kind": "purchase", "company": UNIT, "as_of": DAY,
-        "fields": {"cup_raw": 10, "cup_raw_price": 0, "rss_pressed": 5, "rss_pressed_price": 12_000},
+        "fields": {"latex_wet": 10, "coagulum": 5},
     })
+    client.put("/api/member/prices", headers=mh,
+               json={"company": UNIT, "as_of": DAY, "price_type": "purchase_cup", "price": 300})
     rep = client.get("/api/unit-daily/analytics/purchase", headers=h,
                      params={"date_from": DAY, "date_to": DAY, "companies": UNIT}).json()
     row = next(r for r in rep["rows"] if r["key"] == UNIT)
-    assert row["price_cup_raw_avg"] is None                       # 0 KHÔNG phải một mức giá
-    assert row["price_rss_pressed_avg"] == pytest.approx(12_000)  # loại kia vẫn tính bình thường
+    assert row["price_latex_avg"] is None                  # 0 KHÔNG phải một mức giá
+    assert row["price_cup_avg"] == pytest.approx(300)      # loại kia vẫn tính bình thường
     assert any("chưa có đơn giá" in w for w in rep["warnings"])

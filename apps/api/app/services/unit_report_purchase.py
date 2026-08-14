@@ -10,7 +10,7 @@ from typing import Any
 
 from app.services import unit_report_rows as rows_mod
 from app.services.unit_report_query import (
-    GROUPERS, avg, filter_scope, sort_groups, split_csv,
+    GROUPERS, avg, filter_scope, sort_groups, split_csv, year_plan_by_group,
 )
 from app.services.unit_report_rows import TRIEU
 
@@ -20,6 +20,13 @@ from app.services.unit_report_rows import TRIEU
 #: bảng thống kê tự có ô đếm: thiếu một ô là `_feed_purchase` ném KeyError và cả bảng trả lỗi 500
 #: (đã xảy ra 10/08/2026 — 2 loại nguyên liệu thêm ngày 30/07 làm vỡ mọi kỳ chạm tháng 01/2026).
 _QTY_MATERIALS: tuple[str, ...] = tuple(m for m in rows_mod.MATERIALS if m != "finished")
+
+#: Chỉ tiêu kế hoạch thu mua NĂM ở màn "Kế hoạch năm" (cũng là công tắc bật màn Thu mua).
+_PLAN_KEY = "plan_tonnes"
+#: Tử số của % kế hoạch = **sản lượng mủ NGUYÊN LIỆU** (mủ nước + mủ chén), KHÔNG gồm thành phẩm
+#: mua ngoài. Đúng mẫu gốc Ban TTKD ("% Kế hoạch thực hiện thu mua" tính trên sản lượng mủ thu mua)
+#: và khớp cột `total_purchase` của Báo cáo tổng hợp — hai màn phải ra cùng một con số.
+_PLAN_MATERIALS: tuple[str, ...] = ("latex", "cup")
 
 
 def _new_purchase(key: str, region: str | None) -> dict[str, Any]:
@@ -34,6 +41,8 @@ def _close_purchase(g: dict) -> dict[str, Any]:
     days = g.pop("_days")
     g["days"] = len(days)
     g["qty_total"] = sum(g[f"qty_{m}"] for m in rows_mod.MATERIALS)
+    # Tách riêng phần đem so kế hoạch, để người đọc bảng thấy luôn tử số thay vì phải tự cộng.
+    g["qty_material"] = sum(g[f"qty_{m}"] for m in _PLAN_MATERIALS) or None
     # Đơn giá BQ tách theo ĐƠN VỊ TÍNH, không gộp: mủ nước/chén là đồng/độ, 2 loại nguyên liệu bổ
     # sung là đồng/kg, thành phẩm là triệu đ/tấn — cộng chung là ra một con số vô nghĩa.
     for m in _QTY_MATERIALS:
@@ -45,6 +54,12 @@ def _close_purchase(g: dict) -> dict[str, Any]:
     g["qty_total"] = g["qty_total"] or None
     g["no_purchase_days"] = g["no_purchase_days"] or None
     return g
+
+
+def _attach_plan(g: dict, plan: float | None) -> None:
+    """Gắn chỉ tiêu năm + % thực hiện vào 1 dòng. Chưa giao kế hoạch thì để TRỐNG, không ghi 0%."""
+    g["plan_tonnes"] = plan or None
+    g["pct_plan"] = ((g["qty_material"] or 0.0) / plan * 100) if plan else None
 
 
 def _feed_purchase(g: dict, r: dict) -> None:
@@ -100,9 +115,27 @@ def purchase_report(date_from: str, date_to: str, *, companies: str | None = Non
         _feed_purchase(total, r)
     total["no_purchase_days"] = sum(g["no_purchase_days"] for g in groups.values())
     out_rows = [_close_purchase(g) for g in sort_groups(groups, group_by)]
+    totals = _close_purchase(total)
+
+    warnings = _purchase_warnings(rows)
+    # Kế hoạch là chỉ tiêu NĂM → lấy theo năm của ngày CUỐI kỳ. Lọc theo loại mủ/chủng loại thì tử
+    # số chỉ còn một phần sản lượng trong khi mẫu số vẫn là kế hoạch cả năm → KHÔNG tính %, để trống.
+    year = int(date_to[:4])
+    filtered = bool(mats or grds)
+    plan_by_key, plan_total = (({}, 0.0) if filtered
+                               else year_plan_by_group(_PLAN_KEY, group_by, comps, regs, year))
+    _attach_plan(totals, plan_total)
+    for row in out_rows:
+        _attach_plan(row, plan_by_key.get(row["key"]))   # nhóm khác đơn vị/khu vực → để trống
+    if filtered:
+        warnings.append("Đang lọc theo loại mủ/chủng loại nên không tính % kế hoạch thu mua — "
+                        "kế hoạch là chỉ tiêu cho toàn bộ sản lượng thu mua của đơn vị.")
+    elif plan_total and date_from[:4] != date_to[:4]:
+        warnings.append(f"% kế hoạch thu mua đang so với chỉ tiêu NĂM {year}, trong khi kỳ xem "
+                        f"bắt đầu từ năm {date_from[:4]} — chỉ để tham khảo.")
+
     return {"kind": "purchase", "date_from": date_from, "date_to": date_to, "group_by": group_by,
-            "rows": out_rows, "totals": _close_purchase(total),
-            "warnings": _purchase_warnings(rows)}
+            "rows": out_rows, "totals": totals, "warnings": warnings}
 
 
 def _purchase_warnings(rows: list[dict]) -> list[str]:

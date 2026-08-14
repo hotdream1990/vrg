@@ -372,8 +372,7 @@ def main() -> int:
         shot(f"{WEB}/bao-cao-thu-mua", LIST_SCREEN, "02-thu-mua-danh-sach.png",
              wait_for=".ant-table")
         shot(f"{WEB}/bao-cao-thu-mua",
-             block_targets("Hôm nay đơn vị KHÔNG", "Mủ nước", "Mủ chén",
-                           "Mủ nguyên liệu nước chưa cán vắt", "Thu mua thành phẩm"),
+             block_targets("Hôm nay đơn vị KHÔNG", "Mủ nước", "Mủ chén", "Thu mua thành phẩm"),
              "03-thu-mua-form.png", wait_for=".ant-table",
              setup=lambda pg: open_modal(pg, "Thêm số liệu"))
         shot(f"{WEB}/bao-cao-ton-kho",

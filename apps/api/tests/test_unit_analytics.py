@@ -211,6 +211,33 @@ def test_consumption_percent_of_spot_sales_plan(seeded) -> None:
     assert by_day["totals"]["pct_plan_sales_spot"] == pytest.approx(40)   # tổng vẫn tính được
 
 
+def test_purchase_percent_of_year_plan(seeded) -> None:
+    """% kế hoạch thu mua: tử số CHỈ là mủ nguyên liệu (nước + chén), mẫu số gồm cả đơn vị chưa mua.
+
+    Thành phẩm mua ngoài KHÔNG vào tử số — mẫu gốc Ban TTKD tính % trên sản lượng mủ thu mua, và
+    cột `total_purchase` của Báo cáo tổng hợp cũng vậy; cộng thêm thành phẩm là hai màn lệch nhau.
+    """
+    h = seeded
+    rep = _get("purchase", h, companies=f"{UNIT_A},{UNIT_B}")
+    a = _row(rep, UNIT_A)                       # 400 mủ nước + 10 mủ chén + 10 thành phẩm · KH 1.000
+    assert a["qty_total"] == 420 and a["qty_material"] == 410
+    assert a["plan_tonnes"] == 1000 and a["pct_plan"] == pytest.approx(41)
+    # Tổng: mẫu số 1.000 + 1.000 dù B chưa mua tấn nào — bỏ B ra khỏi mẫu số là % tự đẹp lên.
+    t = rep["totals"]
+    assert t["plan_tonnes"] == 2000 and t["pct_plan"] == pytest.approx(20.5)
+
+    # Nhóm theo NGÀY: kế hoạch là chỉ tiêu năm của đơn vị → để trống, không chia đại cho từng ngày.
+    by_day = _get("purchase", h, companies=UNIT_A, group_by="day")
+    assert by_day["rows"] and all(r["pct_plan"] is None for r in by_day["rows"])
+    assert by_day["totals"]["pct_plan"] == pytest.approx(41)   # tổng vẫn tính được
+
+    # Lọc theo loại mủ → tử số chỉ còn một phần sản lượng: KHÔNG tính %, và nói rõ vì sao.
+    only_latex = _get("purchase", h, companies=UNIT_A, materials="latex")
+    assert _row(only_latex, UNIT_A)["pct_plan"] is None
+    assert only_latex["totals"]["pct_plan"] is None
+    assert any("% kế hoạch thu mua" in w for w in only_latex["warnings"])
+
+
 def test_delivery_missing_fx_is_excluded_and_warned(seeded) -> None:
     """Lần giao ngoại tệ THIẾU tỷ giá (bản ghi chuyển từ cơ chế cũ) → không tính doanh thu + cảnh báo.
 
@@ -464,33 +491,33 @@ def test_consumption_detail_rows_are_paged(seeded) -> None:
     assert not (keys & {(r["as_of"], r["code"]) for r in page2["rows"]})
 
 
-def test_purchase_counts_the_two_extra_raw_materials(seeded) -> None:
-    """2 loại mủ nguyên liệu bổ sung (30/07/2026) phải có ô đếm riêng — thiếu là VỠ CẢ BẢNG.
+def test_purchase_ignores_the_two_removed_raw_materials(seeded) -> None:
+    """2 loại mủ nguyên liệu (thêm 30/07/2026, BỎ 14/08/2026) không còn là chỉ tiêu thu mua.
 
-    Lỗi thật trên prod 10/08/2026: bảng chỉ tạo rổ cho mủ nước/chén/thành phẩm nên gặp ngày có
-    `cup_raw` là `KeyError` → toàn bộ màn Thống kê thu mua trả 500. Chọn kỳ "Năm nay" chạm đúng
-    một ngày như vậy hồi tháng 1 nên cả năm không xem được, trong khi xem theo tháng vẫn bình thường.
-    ⚠ Sản lượng bằng 0 vẫn tạo dòng (khác None) — chính bản ghi 0 tấn đã làm sập màn hình.
+    Khách xác nhận đơn vị KHÔNG thu mua "Mủ NL nước chưa cán vắt (chén)" và "Mủ NL đã cán vắt
+    (RSS)" → bỏ khỏi biểu nhập lẫn mọi báo cáo/thống kê thu mua. Bản ghi CŨ (prod có 1 bản, toàn
+    số 0) vẫn còn khoá trong payload, nên bảng phải BỎ QUA êm chứ không được `KeyError` → 500
+    (đúng kiểu sự cố 10/08/2026 khi thiếu rổ đếm cho loại mới).
     """
     h = seeded
     client.put("/api/unit-daily/report", headers=h, json={
         "kind": "purchase", "company": UNIT_A, "as_of": D1,
-        "fields": {"latex_wet": 300, "cup_raw": 0, "cup_raw_price": 0,
+        "fields": {"latex_wet": 300, "cup_raw": 7, "cup_raw_price": 11000,
                    "rss_pressed": 4, "rss_pressed_price": 12000,
                    "finished": [{"grade": "SVR 10", "qty": 5, "price": 2000,
                                  "ccy": "USD", "fx": None}]}})
 
     rep = _get("purchase", h, companies=UNIT_A)
     a = _row(rep, UNIT_A)
-    assert a["qty_rss_pressed"] == 4
-    assert a["qty_cup_raw"] is None                   # khai 0 tấn → hiện "—", không phải số 0
-    assert a["price_rss_pressed_avg"] == pytest.approx(12000)   # đồng/kg, BQ gia quyền
-    # Tổng phải CỘNG CẢ 2 loại mới: 400 mủ nước + 10 mủ chén + 4 đã cán vắt + 10 thành phẩm.
-    assert a["qty_total"] == 424 and rep["totals"]["qty_total"] == 424
+    assert "qty_cup_raw" not in a and "qty_rss_pressed" not in a
+    assert "price_cup_raw_avg" not in a and "price_rss_pressed_avg" not in a
+    # Tổng chỉ còn: 400 mủ nước + 10 mủ chén + 10 thành phẩm — KHÔNG cộng 2 loại đã bỏ.
+    assert a["qty_total"] == 420 and rep["totals"]["qty_total"] == 420
 
-    # Nhóm theo loại mủ: 2 loại mới đứng thành dòng riêng, không dồn vào loại cũ.
+    # Nhóm theo loại mủ: 2 loại đã bỏ không còn là một dòng.
     by_material = _get("purchase", h, companies=UNIT_A, group_by="material")
-    assert "Mủ NL đã cán vắt (RSS)" in [r["key"] for r in by_material["rows"]]
+    keys = [r["key"] for r in by_material["rows"]]
+    assert "Mủ NL đã cán vắt (RSS)" not in keys and "Mủ NL nước chưa cán vắt (chén)" not in keys
 
 
 def _mark(h: dict, **body) -> dict:

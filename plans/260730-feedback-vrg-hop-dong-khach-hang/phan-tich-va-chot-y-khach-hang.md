@@ -80,6 +80,11 @@ tự sửa** tồn kho; chỉ cảnh báo khi lệch.
   - Mủ nguyên liệu nước chưa cán vắt (chén)
   - Mủ nguyên liệu đã cán vắt (RSS)
 - **Đơn giá tính riêng theo từng loại** (như các loại hiện có).
+
+> ⛔ **ĐÃ HUỶ 14/08/2026** — khách báo đơn vị **không thu mua** 2 loại này, yêu cầu bỏ hẳn khỏi biểu
+> Thu mua và mọi báo cáo thu mua. Prod khi đó chỉ có **1 bản ghi** chạm 2 ô này, giá trị 0 → không
+> mất số liệu. **Chỉ huỷ phần THU MUA**: 2 loại vẫn là **chủng loại BÁN** trong danh mục dùng chung
+> (39 hợp đồng đang dùng) và quy khô bắt buộc khi bán vẫn giữ nguyên (2 gạch đầu dòng bên dưới).
 - **Quy khô nhập tay.** Bán **latex và 2 loại mới**: **bắt buộc nhập quy khô mới cho lưu**.
 - Chỉ áp cho bản ghi mới; không suy diễn quy khô cho dữ liệu cũ.
 

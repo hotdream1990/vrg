@@ -22,15 +22,16 @@ const COLS: StatsCol[] = [
   // "Tổng sản lượng" cộng cả hai loại số này lại với nhau.
   { key: "qty_latex", label: "SL mủ nước", unit: "tấn", note: "cộng dồn · quy khô" },
   { key: "qty_cup", label: "SL mủ chén", unit: "tấn", note: "cộng dồn · quy khô" },
-  // 2 loại nguyên liệu bổ sung (30/07/2026) — đơn giá theo ĐỒNG/KG, không phải đồng/độ.
-  { key: "qty_cup_raw", label: "SL mủ NL chưa cán vắt", unit: "tấn", note: "cộng dồn · quy khô" },
-  { key: "qty_rss_pressed", label: "SL mủ NL đã cán vắt", unit: "tấn", note: "cộng dồn · quy khô" },
   { key: "qty_finished", label: "SL thành phẩm", unit: "tấn", note: "cộng dồn · số thực mua" },
   { key: "qty_total", label: "Tổng sản lượng", unit: "tấn", note: "theo bộ lọc" },
+  // % kế hoạch so TỬ SỐ = mủ nước + mủ chén (không gồm thành phẩm mua ngoài) với chỉ tiêu NĂM —
+  // đúng mẫu gốc Ban TTKD và khớp Báo cáo tổng hợp. Hiện luôn tử số để người đọc tự đối chiếu được,
+  // và nói rõ "kỳ này / KH năm" vì kỳ mặc định là TUẦN → % nhỏ, dễ bị hiểu nhầm là luỹ kế cả năm.
+  { key: "qty_material", label: "SL mủ nguyên liệu", unit: "tấn", note: "= mủ nước + chén" },
+  { key: "plan_tonnes", label: "KH thu mua năm", unit: "tấn", note: "chỉ tiêu năm" },
+  { key: "pct_plan", label: "% KH năm", unit: "%", note: "= mủ NL kỳ này / KH năm" },
   { key: "price_latex_avg", label: "Đơn giá BQ mủ nước", unit: "đồng/độ", note: "BQ gia quyền" },
   { key: "price_cup_avg", label: "Đơn giá BQ mủ chén", unit: "đồng/độ", note: "BQ gia quyền" },
-  { key: "price_cup_raw_avg", label: "Đơn giá BQ mủ NL chưa cán vắt", unit: "đồng/kg", note: "BQ gia quyền" },
-  { key: "price_rss_pressed_avg", label: "Đơn giá BQ mủ NL đã cán vắt", unit: "đồng/kg", note: "BQ gia quyền" },
   { key: "price_finished_avg", label: "Đơn giá BQ thành phẩm", unit: "triệu đ/tấn", note: "BQ gia quyền" },
   { key: "days", label: "Số ngày có số liệu", unit: "ngày", note: "đếm" },
   { key: "no_purchase_days", label: "Ngày không thu mua", unit: "ngày", note: "đếm" },
@@ -41,6 +42,9 @@ const KPIS: Kpi[] = [
   { key: "qty_latex", label: "Mủ nước", unit: "tấn" },
   { key: "qty_cup", label: "Mủ chén", unit: "tấn" },
   { key: "qty_finished", label: "Thành phẩm", unit: "tấn" },
+  // Mẫu số là kế hoạch của MỌI đơn vị khớp bộ lọc (kể cả đơn vị kỳ này chưa mua) → luôn hiện được,
+  // không phụ thuộc đang nhóm theo gì.
+  { key: "pct_plan", label: "% KH thu mua (kỳ đã chọn)", unit: "%" },
 ];
 
 const GROUPS = (["region", "company", "day", "material", "grade"] as const)

@@ -74,7 +74,8 @@ Từ 30/07 tiêu thụ đã tính từ lần giao và **không tách 2 nguồn**
 → Cần chốt **bỏ hẳn hay giữ để tra dữ liệu cũ** (mục E3).
 
 > **Đã xác nhận với khách 03/08:** “không phân nguồn mủ” **chỉ nói về TIÊU THỤ**. Phân hệ **THU MUA
-> không liên quan** và **giữ nguyên** (mủ nước · mủ chén · mủ NL chưa cán vắt · RSS đã cán vắt ·
+> không liên quan** và **giữ nguyên** (mủ nước · mủ chén · ~~mủ NL chưa cán vắt · RSS đã cán vắt~~
+> [bỏ 14/08/2026 — khách báo đơn vị không thu mua 2 loại này] ·
 > thành phẩm thu mua · giá BQ · kế hoạch thu mua) — các loại đó là **loại hàng mua vào**, không phải
 > “nguồn của lô hàng bán ra”. Bản đang chạy **đã không tách** tiêu thụ theo nguồn, nên phần này chỉ
 > còn là **dọn tàn dư**, không phải sửa nghiệp vụ.

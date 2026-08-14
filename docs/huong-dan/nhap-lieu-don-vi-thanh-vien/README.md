@@ -88,8 +88,7 @@ Phiếu chia theo loại mủ, mỗi loại nhập sản lượng và đơn giá
 1. **Hôm nay đơn vị KHÔNG tổ chức thu mua** — chỉ tích khi thật sự không tổ chức mua. Có công bố giá và có tổ chức mua nhưng không mua được thì **đừng tích**: nhập sản lượng 0 kèm đúng mức giá đã công bố. Hai trường hợp này khác nhau khi tổng hợp báo cáo.
 2. **Mủ nước** — sản lượng (tấn, quy khô) và đơn giá (đồng/độ TSC).
 3. **Mủ chén** — sản lượng, chọn **Đơn giá tính theo** “Độ TSC” hay “Độ DRC”; nhãn ô đơn giá đổi theo lựa chọn này.
-4. **Mủ nguyên liệu nước chưa cán vắt (chén)** và **Mủ nguyên liệu đã cán vắt (RSS)** — hai loại này nhập **đơn giá theo đồng/kg**, tính riêng từng loại.
-5. **Thu mua thành phẩm** — bảng nhập, **mỗi chủng loại mua trong ngày là một dòng riêng**: Chủng loại · SL · Đơn giá · Loại tiền · Tỷ giá (chỉ hiện khi dòng chọn ngoại tệ). Cột Thành tiền tự tính.
+4. **Thu mua thành phẩm** — bảng nhập, **mỗi chủng loại mua trong ngày là một dòng riêng**: Chủng loại · SL · Đơn giá · Loại tiền · Tỷ giá (chỉ hiện khi dòng chọn ngoại tệ). Cột Thành tiền tự tính.
 
 > - Ngày nào không phát sinh loại nào thì để trống loại đó, không nhập số 0.
 > - Nút **Lấy tỷ giá VCB cho các dòng USD** điền tỷ giá Vietcombank cho mọi dòng đang chọn USD.

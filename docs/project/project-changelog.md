@@ -18,9 +18,7 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     thuật ngữ này, không dùng "nội tiêu"); dòng nội bộ ghi rõ đơn vị nhận.
   - **Cây công ty mẹ – con** (`Đơn vị thành viên` thêm cột *Công ty mẹ*) + ô **chi phí tổng cấp công
     ty mẹ** ở biểu Tồn kho. Cố ý **không đối soát** với tổng chi phí dòng con — mẹ tự tính, tự chịu.
-  - **2 loại mủ nguyên liệu mới** ở biểu Thu mua: *Mủ nguyên liệu nước chưa cán vắt (chén)* và
-    *Mủ nguyên liệu đã cán vắt (RSS)*, **đơn giá tính riêng từng loại** (đồng/kg).
-  - **Quy khô bắt buộc** khi bán LATEX và 2 loại nguyên liệu mới; **chi phí trên từng dòng bán**;
+  - **Quy khô bắt buộc** khi bán LATEX và 2 loại mủ nguyên liệu; **chi phí trên từng dòng bán**;
     **loại tiền mở rộng** VND · USD · **LAK · KHR** (nội tệ đơn vị Lào/Campuchia, buộc có tỷ giá).
   - **Tái cấu trúc menu** theo trục mới: *Số liệu thị trường (tự động/thủ công)* · *Số liệu đơn vị
     thành viên* · *Quản lý hợp đồng* · *Báo cáo & Thống kê* · *Phân tích & Bản tin*.
@@ -29,6 +27,17 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
   ghi). **Không xoá, không sửa dữ liệu cũ**: hợp đồng tồn kho cũ và từng dòng tiêu thụ đã khai được
   sao sang cấu trúc mới, bản gốc giữ nguyên và được đánh dấu để **không bị đếm hai lần**. Ngày nào có
   dòng thiếu chủng loại/số lượng thì **bỏ qua cả ngày** và in ra để rà tay — không suy diễn số liệu.
+
+### Removed
+- **Bỏ 2 chỉ tiêu thu mua mủ nguyên liệu** *Mủ NL nước chưa cán vắt (chén)* và *Mủ NL đã cán vắt
+  (RSS)* (khách chốt 14/08/2026 — đơn vị **không thu mua** 2 loại này; chúng được thêm ngày
+  30/07/2026 rồi bỏ). Gỡ khỏi **cả** biểu nhập Thu mua, bảng tổng hợp, báo cáo kỳ, Excel báo cáo
+  kỳ, màn Thống kê thu mua và Excel thống kê.
+  - **Không mất số liệu**: đo trên prod trước khi bỏ — 5.828 bản ghi thu mua, đúng **1** bản ghi
+    từng chạm 2 khoá này và giá trị đều là **0** (ngày không phát sinh), không có đơn giá nào.
+  - ⚠ **Hai tên đó VẪN là chủng loại BÁN hợp lệ** (`market_meta.RAW_MATERIAL_GRADES`: danh mục chủng
+    loại dùng chung + quy khô bắt buộc) — prod đang có **39 hợp đồng** bán 2 loại này. Chỉ bỏ ô
+    THU MUA, tuyệt đối không gỡ khỏi danh mục chủng loại.
 
 ### Changed
 - **Thống kê tồn kho đổi trục từ "kỳ báo cáo" sang "NGÀY CHỐT"** — tồn kho là số **thời điểm** nên

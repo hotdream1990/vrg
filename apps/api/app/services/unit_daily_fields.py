@@ -21,13 +21,10 @@ _CCY = frozenset(SALE_CURRENCIES)
 PURCHASE_FIELDS: frozenset[str] = frozenset({
     "latex_wet",         # sản lượng thu mua mủ nước trong ngày (tấn)
     "coagulum",          # sản lượng thu mua mủ chén trong ngày (tấn)
-    # ── 2 loại nguyên liệu bổ sung (chốt 30/07/2026) — ĐƠN GIÁ TÍNH RIÊNG TỪNG LOẠI ──
-    # Đơn giá 2 loại này lưu THẲNG trong payload (không đẩy vào kho "Giá mủ nguyên liệu" như
-    # mủ nước/mủ chén) vì kho đó đang phục vụ bản tin & gợi ý giá sàn — thêm loại vào sẽ lệch số.
-    "cup_raw",           # SL mủ nguyên liệu nước CHƯA cán vắt (chén) trong ngày (tấn)
-    "cup_raw_price",     # đơn giá loại trên (đồng/kg)
-    "rss_pressed",       # SL mủ nguyên liệu ĐÃ cán vắt (RSS) trong ngày (tấn)
-    "rss_pressed_price",  # đơn giá loại trên (đồng/kg)
+    # ⚠ 2 loại "Mủ NL nước chưa cán vắt (chén)" và "Mủ NL đã cán vắt (RSS)" từng có ô riêng ở đây
+    # (chốt 30/07/2026, bỏ 14/08/2026 theo yêu cầu khách: đơn vị KHÔNG thu mua 2 loại này). Hai tên
+    # đó VẪN là chủng loại BÁN hợp lệ (`market_meta.RAW_MATERIAL_GRADES`, 39 hợp đồng đang dùng) —
+    # đừng nhầm mà xoá luôn bên hợp đồng.
     # ── Chỉ đơn vị nước ngoài ──
     "price_latex_local",  # đơn giá mủ nước theo nội tệ (vd LAK/độ TSC)
     "price_cup_local",    # đơn giá mủ chén theo nội tệ

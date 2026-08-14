@@ -22,11 +22,9 @@ from app.services import member_unit_repo, price_repo, unit_daily_repo
 TRIEU = 1_000_000       # 1 triệu đồng
 
 #: Loại mủ thu mua — 3 nhóm; nhóm `finished` còn tách tiếp theo chủng loại.
-MATERIALS: tuple[str, ...] = ("latex", "cup", "cup_raw", "rss_pressed", "finished")
+MATERIALS: tuple[str, ...] = ("latex", "cup", "finished")
 MATERIAL_LABELS = {
     "latex": "Mủ nước", "cup": "Mủ chén",
-    # 2 loại bổ sung chốt 30/07/2026 — đơn giá nhập theo ĐỒNG/KG (khác đồng/độ của 2 loại trên).
-    "cup_raw": "Mủ NL nước chưa cán vắt (chén)", "rss_pressed": "Mủ NL đã cán vắt (RSS)",
     "finished": "Thành phẩm",
 }
 #: Nguồn mủ tiêu thụ (2 bảng nhập tách riêng ở biểu Tiêu thụ).
@@ -118,15 +116,6 @@ def purchase_rows(date_from: str, date_to: str,
                          "cup_basis": cup_basis if material == "cup" else None,
                          "ccy": "VND", "fx": None, "revenue_vnd": None,
                          "missing_fx": local is not None and not fx_local})
-        # 2 loại nguyên liệu bổ sung — đơn giá lưu THẲNG trong payload (đồng/kg), không qua kho giá.
-        for material in ("cup_raw", "rss_pressed"):
-            qty = _num(f.get(material))
-            if qty is None:
-                continue
-            rows.append({**base, "material": material, "grade": MATERIAL_LABELS[material],
-                         "qty": qty, "price": _price(f.get(f"{material}_price")),
-                         "price_unit": "dong_kg", "cup_basis": None,
-                         "ccy": "VND", "fx": None, "revenue_vnd": None, "missing_fx": False})
         for ln in f.get("finished") or []:
             qty = _num(ln.get("qty"))
             if qty is None:
