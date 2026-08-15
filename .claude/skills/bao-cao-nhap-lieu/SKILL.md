@@ -1,6 +1,6 @@
 ---
 name: bao-cao-nhap-lieu
-description: Chụp ảnh bảng (kiểu Excel) thống kê tình trạng nhập liệu của đơn vị thành viên VRG — ai chưa nhập gì, ai nhập thiếu một phần, ai nhập sai đơn vị tính (giá mủ nguyên liệu đ/độ, giá bán triệu đ/tấn). Dùng khi cần nhắc/đốc thúc các đơn vị nhập liệu, gửi ảnh qua Zalo/email, hoặc rà soát chất lượng số liệu trước khi ra bản tin/báo cáo.
+description: Xuất ảnh PNG + file Excel thống kê tình trạng nhập liệu của đơn vị thành viên VRG — ai chưa nhập gì, ai nhập thiếu một phần, ai nhập sai đơn vị tính (giá mủ nguyên liệu đ/độ, giá bán triệu đ/tấn), kế hoạch năm khai thiếu. Dùng khi cần nhắc/đốc thúc các đơn vị nhập liệu, gửi ảnh qua Zalo/email, hoặc rà soát chất lượng số liệu trước khi ra bản tin/báo cáo.
 ---
 
 # Báo cáo tình trạng nhập liệu của đơn vị
@@ -15,11 +15,37 @@ Ra **5 ảnh PNG** gửi thẳng cho các đơn vị (không cần mở hệ th�
 | `D-don-vi-chua-nhap-thu-mua.png` | RIÊNG biểu **Thu mua** cho kỳ DÀI: gom theo **tháng** (T1…T12) thay vì liệt kê ngày — kỳ 200 ngày mà kể từng ngày thì không ai đọc (`--only purchase`) |
 | `E-ke-hoach-nam-khai-thieu.png` | **Kế hoạch năm**: đơn vị bỏ trống chỉ tiêu nào trong **5 ô** của màn đó (`--only plan`) |
 
+Kèm **1 file Excel** `tinh-trang-nhap-lieu-DD-MM-YYYY.xlsx` — 6 sheet đúng nội dung 5 ảnh (A ·
+A2 thiếu đơn giá · B · C · D · E), nhưng **liệt kê ĐỦ MỌI ĐƠN VỊ** (kể cả đơn vị nộp đủ) và có cột
+`Nhóm` · `Tỷ lệ nộp` để Ban TTKD tự lọc. Ảnh để gửi Zalo, Excel để làm việc.
+
+## Kỳ CHUẨN (chốt với anh Trung 15/08/2026 — cứ thế mà chạy, không hỏi lại)
+
+| Nội dung | Kỳ | Vì sao |
+|---|---|---|
+| Ảnh A · C (tình trạng nộp, tồn kho) | **từ 24/07** đến ngày chốt | Tài khoản đơn vị cấp giữa tháng 7, bản ghi sớm nhất 24–27/07 → kỳ này mới so được giữa các đơn vị |
+| Ảnh D (thu mua) | **từ 01/01** đến ngày chốt | Xem cả năm, gom theo tháng |
+| Ảnh B (sai đơn vị tính) | không giới hạn kỳ | Lỗi còn tồn là còn phải sửa |
+| Ảnh E (kế hoạch năm) | theo năm của ngày chốt | — |
+
+Ngày chốt do người yêu cầu nêu (vd 10/08) — truyền vào `--until`, KHÔNG mặc định hôm qua.
+
 ## Chạy
 
+Bộ 3 lệnh cho một lần báo cáo đầy đủ (thay `10-08` bằng ngày chốt; 18 = số ngày từ 24/07 tới ngày
+chốt, 222 = số ngày từ 01/01 tới ngày chốt — đếm cả 2 đầu):
+
 ```bash
-uv run --directory apps/api python .claude/skills/bao-cao-nhap-lieu/scripts/make-report.py
+R=.claude/skills/bao-cao-nhap-lieu/scripts; O="$PWD/plans/visuals/2026-08-10"
+uv run --directory apps/api python "$PWD/$R/make-report.py" --days 18 --until 2026-08-10 --out "$O"
+uv run --directory apps/api python "$PWD/$R/make-report.py" --only purchase --days 222 --until 2026-08-10 --out "$O"
+uv run --directory apps/api --with openpyxl python "$PWD/$R/make-xlsx.py" --days 18 --purchase-days 222 --until 2026-08-10 --out "$O"
 ```
+
+⚠ Truyền **đường dẫn tuyệt đối** cho cả script lẫn `--out`: `uv run --directory apps/api` đổi thư
+mục làm việc sang `apps/api`, đường dẫn tương đối sẽ trỏ sai chỗ.
+
+Lệnh 2 chạy sau lệnh 1 để **ghi đè ảnh D** bằng bản kỳ dài (lệnh 1 dựng D theo kỳ ngắn).
 
 | Tuỳ chọn | Mặc định | Ý nghĩa |
 |---|---|---|
@@ -28,6 +54,9 @@ uv run --directory apps/api python .claude/skills/bao-cao-nhap-lieu/scripts/make
 | `--out DIR` | `plans/visuals` | Thư mục lưu ảnh (có plan đang mở thì trỏ vào `{plan_dir}/visuals/`) |
 | `--local` | tắt | Lấy số liệu ở DB local thay vì prod (để thử) |
 | `--only` | `all` | `stock` · `purchase` · `plan` = chỉ dựng ảnh của riêng biểu đó |
+
+`make-xlsx.py` dùng chung `--days` · `--until` · `--out` · `--local`, thêm `--purchase-days N` cho
+sheet Thu mua khi kỳ thu mua khác kỳ chung (script tự hỏi lại DB đúng kỳ đó). Cần `--with openpyxl`.
 
 Số liệu lấy từ **DB prod** qua SSH (dùng chung `.claude/skills/deploy/dokploy-target.local.env`) — DB
 không mở ra ngoài. Ảnh chụp bằng Playwright trong venv `apps/api`.
@@ -86,6 +115,8 @@ thu mua mà ô đơn giá còn trống. Ngày `no_purchase = true` được lo�
   `page_stock_missing`, `page_purchase_months`, `page_year_plan`, `CSS`). Bảng nhiều cột thì truyền bề ngang ở tham số thứ 3 của
   mỗi trang trong `shoot()`, không thì tên đơn vị vắt dòng và ảnh cao gấp mấy lần.
 - Đổi ngưỡng phát hiện thì sửa **cả** `collect.sql` lẫn tiêu đề mục trong `page_wrong` cho khớp.
+- Bản Excel: `scripts/make-xlsx.py` — **nạp lại `collect()` của make-report.py**, không tự truy vấn,
+  nên ảnh và Excel không bao giờ lệch số. Thêm/bớt cột thì sửa hàm `build()` trong file này.
 
 ## Sau khi có ảnh
 
