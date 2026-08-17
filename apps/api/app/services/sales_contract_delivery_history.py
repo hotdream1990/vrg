@@ -46,6 +46,7 @@ def _shape(r: dict[str, Any], names: dict[int, str]) -> dict[str, Any]:
         "grades": _grades(r.get("lines")),
         "qty": r["qty"],
         "qty_dry": r["qty_dry"],
+        "qty_wet": r["qty_wet"],
         "revenue": r["revenue"],
         "invoice_no": r.get("invoice_no") or None,
     }
@@ -61,6 +62,7 @@ def _totals(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "qty": sum(r["qty"] for r in rows),
         "qty_dry": sum(r["qty_dry"] for r in rows),
+        "qty_wet": sum(r["qty_wet"] for r in rows),
         "revenue": None if missing_fx else sum(r["revenue"] for r in rows),
     }
 

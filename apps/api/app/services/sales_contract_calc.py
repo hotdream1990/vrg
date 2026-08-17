@@ -132,6 +132,16 @@ def total_qty_dry(lines) -> float:
     return _sum(lines, "qty_dry")
 
 
+def total_wet_qty(lines) -> float:
+    """Tổng SL **MỦ NƯỚC** (tấn) — CHỈ cộng dòng có khai quy khô.
+
+    Sản lượng báo cáo đã lấy quy khô (xem `sale_qty`) nên số cân thực tế của latex/mủ nguyên liệu
+    sẽ biến mất khỏi báo cáo; cột này giữ nó lại. Dòng thành phẩm KHÔNG cộng vào: số nước của
+    chúng chính là số khô, cộng vào thì cột này chỉ chép lại cột sản lượng.
+    """
+    return sum(_num(ln.get("qty")) or 0.0 for ln in lines or [] if _num(ln.get("qty_dry")))
+
+
 def total_revenue_vnd(lines) -> float | None:
     """Tổng doanh thu (đồng). None nếu CÓ dòng không quy đổi được — để báo cáo biết là thiếu."""
     total, missing = 0.0, False

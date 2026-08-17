@@ -158,8 +158,11 @@ export type ContractPage = {
 
 /** Tổng hợp tiêu thụ theo đơn vị trong kỳ — TÍNH TỪ các lần giao, không còn ô nhập tay. */
 export type ConsumptionSummary = {
+  /** Sản lượng tiêu thụ — đã là QUY KHÔ với latex/mủ nguyên liệu (PA1). */
   qty: number;
   qty_dry: number;
+  /** SL mủ nước của riêng các dòng CÓ quy khô — số cân thực tế, không lặp lại `qty`. */
+  qty_wet: number;
   revenue: number | null;
   deliveries: number;
   by_channel: Record<string, number>;
@@ -287,8 +290,9 @@ export type DeliveryHistoryRow = {
   contract_type: string | null;
   channel: string | null;
   grades: string;
-  qty: number;
+  qty: number;                    // đã là QUY KHÔ với latex/mủ nguyên liệu (PA1)
   qty_dry: number;
+  qty_wet: number;                // SL mủ nước của riêng các dòng có quy khô
   revenue: number | null;         // null = thiếu tỷ giá, KHÔNG phải bằng 0
   invoice_no: string | null;
 };
@@ -297,7 +301,7 @@ export type DeliveryHistory = {
   rows: DeliveryHistoryRow[];
   total: number;
   /** Lũy kế CẢ KỲ (mọi trang) — server cộng, không phải tổng của trang đang xem. */
-  totals: { qty: number; qty_dry: number; revenue: number | null };
+  totals: { qty: number; qty_dry: number; qty_wet: number; revenue: number | null };
   page: number;
   page_size: number;
 };

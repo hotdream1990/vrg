@@ -27,7 +27,7 @@ const COLS: StatsCol[] = [
   { key: "not_warehoused", label: "Tồn chưa nhập kho", unit: "tấn", note: "thời điểm" },
   { key: "warehoused", label: "Tồn đã nhập kho", unit: "tấn", note: "thời điểm" },
   { key: "total", label: "Tổng tồn thành phẩm", unit: "tấn", note: "= 2 khối trên" },
-  { key: "signed_undelivered", label: "Đã ký HĐ chưa giao", unit: "tấn", note: "nằm trong tồn TP" },
+  { key: "signed_undelivered", label: "Đã ký HĐ chưa giao", unit: "tấn quy khô", note: "nằm trong tồn TP" },
   { key: "tradable", label: "Tồn có thể giao dịch", unit: "tấn", note: "= tổng − chưa giao" },
   { key: "material", label: "Tồn nguyên liệu", unit: "tấn", note: "quy khô" },
 ];
@@ -36,7 +36,7 @@ const KPIS: Kpi[] = [
   { key: "total", label: "Tổng tồn thành phẩm", unit: "tấn" },
   { key: "not_warehoused", label: "Chưa nhập kho", unit: "tấn" },
   { key: "warehoused", label: "Đã nhập kho", unit: "tấn" },
-  { key: "signed_undelivered", label: "Đã ký HĐ chưa giao", unit: "tấn" },
+  { key: "signed_undelivered", label: "Đã ký HĐ chưa giao", unit: "tấn quy khô" },
   { key: "tradable", label: "Tồn có thể giao dịch", unit: "tấn" },
   { key: "material", label: "Tồn nguyên liệu", unit: "tấn" },
 ];

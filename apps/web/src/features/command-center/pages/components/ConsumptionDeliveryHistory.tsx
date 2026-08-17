@@ -9,6 +9,8 @@ import {
 const PAGE_SIZE = 50;
 
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
+/** Mủ nước: 0 = chủng loại hàng khô, hiện "—" chứ không hiện "0" (xem `ConsumptionReportPage`). */
+const wet = (n: number) => (n ? t3(n) : "—");
 const ty = (n: number | null) =>
   (n == null ? "—" : (n / 1_000_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
 
@@ -75,7 +77,7 @@ export default function ConsumptionDeliveryHistory(p: Props) {
           <thead><tr>
             <th>Ngày giao</th><th>Đơn vị</th><th>Số hợp đồng</th><th>Đợt</th>
             <th>Khách hàng</th><th>Loại HĐ</th><th>Hình thức</th><th>Chủng loại</th>
-            <th className="r">SL (tấn)</th><th className="r">Quy khô</th>
+            <th className="r">SL (tấn quy khô)</th><th className="r">SL mủ nước</th>
             <th className="r">Doanh thu (tỷ đ)</th><th>Số hoá đơn</th>
           </tr></thead>
           <tbody>
@@ -91,7 +93,7 @@ export default function ConsumptionDeliveryHistory(p: Props) {
                 <td>{r.channel ?? "—"}</td>
                 <td>{r.grades || "—"}</td>
                 <td className="r">{t3(r.qty)}</td>
-                <td className="r">{t3(r.qty_dry)}</td>
+                <td className="r">{wet(r.qty_wet)}</td>
                 <td className="r">{ty(r.revenue)}</td>
                 <td>{r.invoice_no ?? "—"}</td>
               </tr>
@@ -115,7 +117,7 @@ export default function ConsumptionDeliveryHistory(p: Props) {
                   </span>
                 </td>
                 <td className="r">{t3(data.totals.qty)}</td>
-                <td className="r">{t3(data.totals.qty_dry)}</td>
+                <td className="r">{wet(data.totals.qty_wet)}</td>
                 <td className="r">{ty(data.totals.revenue)}</td>
                 <td />
               </tr>

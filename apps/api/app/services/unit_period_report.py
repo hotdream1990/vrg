@@ -224,7 +224,8 @@ def period_report(kind: str, date_from: str, date_to: str,
     # + unit_stock_contract cũ — xem unit_daily_repo.contracts_on).
     signed_at_close = (unit_daily_repo.contracts_on(date_to, companies)
                        if kind == "consumption" else {})
-    # Tiêu thụ từ HỢP ĐỒNG (nguồn mới) — cộng thêm lên mảng sales/sales_own cũ trong _consumption_rows.
+    # Tiêu thụ từ HỢP ĐỒNG — nguồn DUY NHẤT của biểu Tiêu thụ (chốt 02/08/2026). Hai mảng
+    # `sales`/`sales_own` cũ KHÔNG được cộng thêm vào, xem `_consumption_rows`.
     contract_consumption = (sales_contract_report.consumption(date_from, date_to, companies)
                             if kind == "consumption" else {})
 

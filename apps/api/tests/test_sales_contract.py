@@ -1047,6 +1047,49 @@ def test_latex_reports_dry_tonnes_but_bills_wet(env, cus) -> None:
                        f"&company={UNIT}", headers=h).json()["by_company"][UNIT]
     assert cons2["qty"] == pytest.approx(17.0)                   # 10 (quy khô latex) + 7
 
+    # Cột "SL mủ nước" trả lại số cân thực tế của latex; hàng khô KHÔNG cộng vào (cộng vào thì cột
+    # này chỉ chép lại cột sản lượng, không nói thêm được gì).
+    assert cons2["qty_wet"] == pytest.approx(30.0)
+
+
+def test_block3_is_reported_in_dry_tonnes_like_the_consumption_column(env, cus) -> None:
+    """Khối 3 quy sang KHÔ theo tỷ lệ của chính hợp đồng (chốt 17/08/2026).
+
+    Cột "chưa giao" đứng ngay cạnh cột sản lượng tiêu thụ — vốn đã là quy khô — nên để nguyên mủ
+    nước là hai cột khác đơn vị tính. Phép trừ vẫn chạy trên mủ nước (cùng gốc với tiến độ giao),
+    chỉ phần dư cuối cùng mới quy đổi.
+    """
+    h = env
+    parent = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-LTX-B3", "delivery_type": "multi", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY,
+        "lines": [_line(grade="LATEX", qty=30.0, qty_dry=10.0)]}, headers=h).json()["contract"]
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": parent["id"], "code": "1", "start_date": YESTERDAY,
+        "delivered_at": TODAY, "channel": "domestic",
+        "lines": [_line(grade="LATEX", qty=12.0, qty_dry=4.0)]}, headers=h)
+
+    # Cam kết 30 nước − đã giao 12 nước = 18 nước, tỷ lệ khô của hợp đồng 10/30 → 6 tấn quy khô.
+    und = client.get(f"/api/sales-contracts/undelivered?as_of={TODAY}&company={UNIT}",
+                     headers=h).json()["by_company"][UNIT]
+    assert und["qty"] == pytest.approx(6.0)
+    assert und["by_grade"]["LATEX"] == pytest.approx(6.0)
+
+    # …và cột tiêu thụ bên cạnh là quy khô của lần giao, mủ nước tách sang cột riêng.
+    cons = client.get(f"/api/sales-contracts/consumption?date_from={TODAY}&date_to={TODAY}"
+                      f"&company={UNIT}", headers=h).json()
+    assert cons["by_company"][UNIT]["qty"] == pytest.approx(4.0)
+    assert cons["by_company"][UNIT]["qty_wet"] == pytest.approx(12.0)
+    assert cons["undelivered"][UNIT]["qty"] == pytest.approx(6.0)
+
+    # Hợp đồng KHÔNG khai quy khô thì giữ nguyên số đang có — không tự bịa tỷ lệ khô.
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-SVR-B3", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY, "lines": [_line(qty=50.0)]}, headers=h)
+    und2 = client.get(f"/api/sales-contracts/undelivered?as_of={TODAY}&company={UNIT}",
+                      headers=h).json()["by_company"][UNIT]
+    assert und2["qty"] == pytest.approx(56.0)                    # 6 (latex quy khô) + 50
+
 
 def test_contract_list_filters_by_sale_channel(env, cus) -> None:
     """Lọc HÌNH THỨC TIÊU THỤ ở danh sách hợp đồng (yêu cầu 05/08/2026).

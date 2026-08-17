@@ -185,13 +185,15 @@ def consumption_deliveries(scope: Scope, date_from: str = Query(...), date_to: s
 
 _XLSX_COLS: list[tuple[str, str, str]] = [
     ("deliveries", "Số lần giao", "lần"),
-    ("qty", "Sản lượng tiêu thụ", "tấn"),
-    ("qty_dry", "Quy khô", "tấn"),
+    # Sản lượng tiêu thụ đã là QUY KHÔ (xem `sales_contract_calc.sale_qty`) → nói rõ ngay ở tiêu đề,
+    # và cột kế bên trả lại số cân mủ nước của latex/mủ nguyên liệu thay vì lặp lại số khô.
+    ("qty", "Sản lượng tiêu thụ", "tấn quy khô"),
+    ("qty_wet", "Trong đó: SL mủ nước", "tấn"),
     ("qty_export", SALE_CHANNELS["export"], "tấn"),
     ("qty_domestic", SALE_CHANNELS["domestic"], "tấn"),
     ("qty_internal", SALE_CHANNELS["internal"], "tấn"),
     ("revenue_ty", "Doanh thu", "tỷ đồng"),
-    ("remaining", "Đã ký HĐ chưa giao (cuối kỳ)", "tấn"),
+    ("remaining", "Đã ký HĐ chưa giao (cuối kỳ)", "tấn quy khô"),
 ]
 
 
@@ -212,7 +214,7 @@ def consumption_xlsx(scope: Scope, date_from: str = Query(...), date_to: str = Q
         missing_fx = missing_fx or (name in rep["by_company"] and rev is None)
         row = {
             "label": name, "deliveries": c.get("deliveries", 0),
-            "qty": c.get("qty", 0.0), "qty_dry": c.get("qty_dry", 0.0),
+            "qty": c.get("qty", 0.0), "qty_wet": c.get("qty_wet", 0.0),
             "qty_export": ch.get("export", 0.0), "qty_domestic": ch.get("domestic", 0.0),
             "qty_internal": ch.get("internal", 0.0),
             # Doanh thu để TRỐNG khi thiếu tỷ giá — không quy về 0 để khỏi đọc nhầm là "bán không thu tiền".

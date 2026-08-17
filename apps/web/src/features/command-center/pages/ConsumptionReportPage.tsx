@@ -17,6 +17,9 @@ import ConsumptionDeliveryHistory from "./components/ConsumptionDeliveryHistory"
 import "../../bulletin/bulletin.css";
 
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
+/** Cột "SL mủ nước": chỉ latex/mủ nguyên liệu mới có: 0 = hàng khô, hiện "—" chứ không hiện "0"
+    (số 0 bị đọc thành "bán 0 tấn", trong khi thật ra chủng loại đó không có khái niệm mủ nước). */
+const wet = (n: number) => (n ? t3(n) : "—");
 const ty = (n: number | null) =>
   (n == null ? "—" : (n / 1_000_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
 
@@ -59,7 +62,7 @@ export default function ConsumptionReportPage() {
 
   const totals = useMemo(() => {
     const acc = {
-      qty: 0, qty_dry: 0, revenue: 0 as number | null, deliveries: 0, remaining: 0,
+      qty: 0, qty_wet: 0, revenue: 0 as number | null, deliveries: 0, remaining: 0,
       // Hình thức tiêu thụ chỉ có ở dòng từng đơn vị — không cộng thì cả bảng thiếu tổng XK /
       // trong nước / nội bộ, đúng 3 con số hay bị hỏi nhất.
       channels: { export: 0, domestic: 0, internal: 0 } as Record<string, number>,
@@ -67,7 +70,7 @@ export default function ConsumptionReportPage() {
     for (const c of companies) {
       const r = rows[c];
       if (r) {
-        acc.qty += r.qty; acc.qty_dry += r.qty_dry; acc.deliveries += r.deliveries;
+        acc.qty += r.qty; acc.qty_wet += r.qty_wet; acc.deliveries += r.deliveries;
         for (const k of Object.keys(acc.channels)) acc.channels[k] += r.by_channel?.[k] ?? 0;
         if (r.revenue == null) acc.revenue = null;
         else if (acc.revenue != null) acc.revenue += r.revenue;
@@ -93,7 +96,9 @@ export default function ConsumptionReportPage() {
           <h2><ExportOutlined style={{ marginRight: 8 }} />Báo cáo tiêu thụ</h2>
           <p>
             Tổng hợp từ <b>các lần giao</b> ghi trên hợp đồng &amp; đợt giao — đơn vị không nhập tay
-            số tiêu thụ nữa. Cột <b>Chưa giao</b> lấy tại ngày cuối kỳ.
+            số tiêu thụ nữa. Sản lượng tính theo <b>quy khô</b>: latex và mủ nguyên liệu lấy số quy
+            khô, chủng loại chưa khai quy khô thì giữ nguyên số đang có. Cột <b>Chưa giao</b> lấy
+            tại ngày cuối kỳ.
           </p>
         </div>
         <div className="actions">
@@ -132,23 +137,24 @@ export default function ConsumptionReportPage() {
       {err && <div className="blt-error">{err}</div>}
 
       <div className="kpi-row">
-        <div className="kpi"><div className="label">Sản lượng tiêu thụ (tấn)</div><div className="value">{t3(totals.qty)}</div></div>
-        <div className="kpi"><div className="label">Quy khô (tấn)</div><div className="value">{t3(totals.qty_dry)}</div></div>
+        <div className="kpi"><div className="label">Sản lượng tiêu thụ (tấn quy khô)</div><div className="value">{t3(totals.qty)}</div></div>
+        <div className="kpi"><div className="label">Trong đó: SL mủ nước (tấn)</div><div className="value">{wet(totals.qty_wet)}</div></div>
         <div className="kpi"><div className="label">Doanh thu (tỷ đồng)</div><div className="value">{ty(totals.revenue)}</div></div>
         <div className="kpi"><div className="label">Số lần giao</div><div className="value">{totals.deliveries}</div></div>
-        <div className="kpi"><div className="label">Đã ký chưa giao (tấn)</div><div className="value">{t3(totals.remaining)}</div></div>
+        <div className="kpi"><div className="label">Đã ký chưa giao (tấn quy khô)</div><div className="value">{t3(totals.remaining)}</div></div>
       </div>
 
       <div className="card table-scroll" style={{ padding: 0 }}>
         <table>
           <thead><tr>
-            <th>Đơn vị</th><th className="r">Lần giao</th><th className="r">SL (tấn)</th>
-            <th className="r">Quy khô</th>
+            <th>Đơn vị</th><th className="r">Lần giao</th><th className="r">SL (tấn quy khô)</th>
+            {/* Mủ nước để đối chiếu số cân thực tế — chỉ latex/mủ nguyên liệu mới có số ở đây. */}
+            <th className="r">SL mủ nước</th>
             <th className="r">{meta?.channels.export ?? "Xuất khẩu"}</th>
             <th className="r">{meta?.channels.domestic ?? "Trong nước"}</th>
             <th className="r">{meta?.channels.internal ?? "Nội bộ"}</th>
             <th className="r">Doanh thu (tỷ đ)</th>
-            <th className="r">Chưa giao (tấn)</th>
+            <th className="r">Chưa giao (tấn quy khô)</th>
           </tr></thead>
           <tbody>
             {companies.map((c) => (
@@ -156,7 +162,7 @@ export default function ConsumptionReportPage() {
                 <td style={{ fontWeight: 500 }}>{c}</td>
                 <td className="r">{rows[c]?.deliveries ?? 0}</td>
                 <td className="r">{t3(rows[c]?.qty ?? 0)}</td>
-                <td className="r">{t3(rows[c]?.qty_dry ?? 0)}</td>
+                <td className="r">{wet(rows[c]?.qty_wet ?? 0)}</td>
                 <td className="r">{t3(ch(c, "export"))}</td>
                 <td className="r">{t3(ch(c, "domestic"))}</td>
                 <td className="r">{t3(ch(c, "internal"))}</td>
@@ -181,7 +187,7 @@ export default function ConsumptionReportPage() {
                 </td>
                 <td className="r">{totals.deliveries.toLocaleString("vi-VN")}</td>
                 <td className="r">{t3(totals.qty)}</td>
-                <td className="r">{t3(totals.qty_dry)}</td>
+                <td className="r">{wet(totals.qty_wet)}</td>
                 <td className="r">{t3(totals.channels.export)}</td>
                 <td className="r">{t3(totals.channels.domestic)}</td>
                 <td className="r">{t3(totals.channels.internal)}</td>
