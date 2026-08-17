@@ -16,6 +16,7 @@ import { PRESETS, type Preset, rangeOf } from "../../../lib/date-presets";
 import { type Kind, displayDigits, fmtNum } from "../../../lib/unit-daily-fields";
 import DateInput from "../sections/DateInput";
 import "../../bulletin/bulletin.css";
+import { CUP_PRICE_UNIT, LATEX_PRICE_UNIT } from "../../../lib/purchase-price-unit";
 
 type Col = { key: string; label: string; unit: string; note: string; date?: boolean };
 
@@ -25,8 +26,8 @@ const PURCHASE_COLS: Col[] = [
   { key: "coagulum", label: "SL thu mua mủ chén", unit: "tấn", note: "cộng dồn" },
   { key: "finished_qty", label: "SL thu mua thành phẩm", unit: "tấn", note: "cộng dồn chủng loại" },
   { key: "total_purchase", label: "Tổng SL thu mua", unit: "tấn", note: "= nước + chén" },
-  { key: "price_latex_avg", label: "Giá mủ nước BQ", unit: "đồng/độ TSC", note: "BQ gia quyền" },
-  { key: "price_cup_avg", label: "Giá mủ chén BQ", unit: "đồng/độ TSC", note: "BQ gia quyền" },
+  { key: "price_latex_avg", label: "Giá mủ nước BQ", unit: LATEX_PRICE_UNIT, note: "BQ gia quyền" },
+  { key: "price_cup_avg", label: "Giá mủ chén BQ", unit: CUP_PRICE_UNIT, note: "BQ gia quyền" },
   { key: "plan_tonnes", label: "Kế hoạch thu mua", unit: "tấn", note: "số liệu năm" },
   { key: "pct_plan", label: "% thực hiện KH", unit: "%", note: "= TH / KH" },
   { key: "consumption", label: "SL tiêu thụ mủ thu mua", unit: "tấn", note: "cộng dồn" },
@@ -51,7 +52,7 @@ const CONSUMPTION_COLS: Col[] = [
   { key: "stock_as_of", label: "Ngày lấy số tồn", unit: "", note: "thời điểm", date: true },
   { key: "stock_finished", label: "Tồn kho thành phẩm", unit: "tấn", note: "thời điểm" },
   // Khối 3 là CAM KẾT giao hàng, KHÔNG nằm trong tồn kho thành phẩm → báo riêng, không "trong đó".
-  { key: "stock_finished_hd", label: "Đã ký HĐ chưa giao", unit: "tấn", note: "nằm trong tồn kho" },
+  { key: "stock_finished_hd", label: "Đã ký HĐ chưa giao", unit: "tấn quy khô", note: "nằm trong tồn kho" },
 ];
 const TAIL_COLS: Col[] = [
   { key: "stock_material", label: "Tồn kho nguyên liệu", unit: "tấn", note: "thời điểm" },

@@ -68,8 +68,8 @@ def bulk_mark_no_purchase(cells: list[dict[str, str]], updated_by: str | None,
     """Đánh dấu "không tổ chức thu mua" cho HÀNG LOẠT ô còn trống (admin dọn ngày đơn vị bỏ nộp).
 
     Router chỉ đưa vào đây các ô ĐANG TRỐNG (`unit_report_status.missing_cells`). Ô đã có bản ghi
-    rỗng thì GỘP cờ vào payload cũ (`||`) chứ không ghi đè — bản ghi có thể đang giữ ô chữ như
-    `cup_basis`, ghi đè là mất. Một giao dịch + MỘT dòng nhật ký tóm tắt (ghi từng ô thì một lần
+    rỗng thì GỘP cờ vào payload cũ (`||`) chứ không ghi đè — bản ghi có thể đang giữ dữ liệu khác,
+    ghi đè là mất. Một giao dịch + MỘT dòng nhật ký tóm tắt (ghi từng ô thì một lần
     bấm sinh hàng nghìn dòng, nhật ký không còn đọc được).
     """
     if not cells:

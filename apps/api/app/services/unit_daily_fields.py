@@ -35,8 +35,9 @@ PURCHASE_FIELDS: frozenset[str] = frozenset({
 # mua nhiều CHỦNG LOẠI với đơn giá khác nhau. Mỗi dòng: chủng loại · tấn · đơn giá · loại tiền · tỷ giá.
 FINISHED_TABLE = "finished"
 
-# Ô CHỮ của biểu Thu mua: mủ chén tính theo độ TSC hay độ DRC (đổi nhãn đơn giá + đơn vị lưu kho giá).
-PURCHASE_TEXT: dict[str, frozenset[str]] = {"cup_basis": frozenset({"tsc", "drc"})}
+# Biểu Thu mua KHÔNG còn ô chữ nào: `cup_basis` (mủ chén tính theo độ TSC hay DRC) đã bỏ ngày
+# 17/08/2026 — mủ chén LUÔN theo độ DRC, xem `market_meta.PURCHASE_PRICE_UNIT`. Payload cũ còn giữ
+# khoá này thì để nguyên (không cần migration), mọi nơi ĐỌC đều lấy hằng số chứ không đọc payload.
 
 # Cờ đánh dấu ngày KHÔNG tổ chức thu mua. Phân biệt rõ 2 tình huống khác nhau về nghiệp vụ:
 #   - có công bố giá, có tổ chức mua, nhưng KHÔNG mua được → nhập sản lượng 0 kèm ĐÚNG giá đã công bố
@@ -257,7 +258,6 @@ def clean_fields(kind: str, fields: dict) -> dict:
     if kind == "purchase":
         if FINISHED_TABLE in fields:
             out[FINISHED_TABLE] = _clean_finished(fields.get(FINISHED_TABLE))
-        _pick_text(fields, PURCHASE_TEXT, out)
         for k in PURCHASE_FLAGS:
             if fields.get(k) is True:
                 out[k] = True

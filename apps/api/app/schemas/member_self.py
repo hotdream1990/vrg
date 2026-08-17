@@ -15,5 +15,7 @@ class MemberPriceEdit(BaseModel):
     # (xem `market_meta`). Trước đây chặn `gt=0`: đơn vị gõ 0 là nhận lỗi 422 khó hiểu trong khi
     # sản lượng đã lưu xong — nhìn như hệ thống hỏng. Số âm vẫn chặn.
     price: float = Field(ge=0)
-    # Mủ chén tính theo độ TSC hay độ DRC — chỉ đổi NHÃN đơn vị lưu kèm giá (mặc định TSC).
+    # ĐÃ BỎ (17/08/2026): mủ chén luôn tính theo độ DRC, mủ nước theo độ TSC — nhãn đơn vị lấy từ
+    # `market_meta.PURCHASE_PRICE_UNIT`. Vẫn NHẬN trường này để trình duyệt chưa nạp lại bản mới
+    # không bị 422, nhưng server BỎ QUA giá trị gửi lên.
     basis: Literal["tsc", "drc"] | None = None

@@ -42,7 +42,7 @@ class MarketQuote(BaseModel):
     domestic_vrg: Section = Field(default_factory=Section)  # Mục 4 (VNĐ/tấn)
     customer_proposal: ProposalSection = Field(default_factory=ProposalSection)  # Mục 5 — đề xuất KH hàng VRG
     regions: dict[str, float | None] = Field(default_factory=dict)  # Mục 5 — mủ nước (đồng/độ TSC)
-    regions_cup: dict[str, float | None] = Field(default_factory=dict)  # Mục 5 — mủ chén (đồng/độ TSC)
+    regions_cup: dict[str, float | None] = Field(default_factory=dict)  # Mục 5 — mủ chén (đồng/độ DRC)
     footer: str = ""
 
 

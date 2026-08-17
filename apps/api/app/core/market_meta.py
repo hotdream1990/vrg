@@ -174,6 +174,20 @@ PURCHASE_SOURCES = (PURCHASE_SOURCE_HQ, PURCHASE_SOURCE_UNIT)
 #: 2 loại giá của kho "Giá mủ nguyên liệu" (mủ nước · mủ chén).
 PURCHASE_PRICE_TYPES = ("purchase", "purchase_cup")
 
+# CƠ SỞ TÍNH ĐỘ — chốt 17/08/2026, KHÔNG cho chọn nữa (trước đây mủ chén có ô chọn TSC/DRC và
+# mặc định TSC → 3.437 bản ghi bị gán nhầm nhãn). Quy ước của khách:
+#   - đơn giá thu mua MỦ NƯỚC  → đồng/độ **TSC**
+#   - đơn giá thu mua MỦ CHÉN  → đồng/độ **DRC**
+#   - MỌI số "quy khô" trong hệ thống (sản lượng thu mua, tồn kho nguyên liệu, quy khô của hợp
+#     đồng bán) đều là **DRC**.
+# Mọi đường ghi giá phải lấy nhãn từ đây, không tự viết chuỗi — hai nơi viết tay sẽ lệch nhau.
+PURCHASE_PRICE_UNIT: dict[str, str] = {
+    "purchase": "đồng/độ TSC",
+    "purchase_cup": "đồng/độ DRC",
+}
+#: Nhãn ngắn dùng trong câu tóm tắt/nhận định.
+DRY_BASIS = "DRC"
+
 # ⚠ ĐƠN GIÁ THU MUA = 0 NGHĨA LÀ "KHÔNG CÓ GIÁ", KHÔNG PHẢI MỘT MỨC GIÁ (chốt 11/08/2026).
 # Người nhập được phép gõ 0 (ngày đó đơn vị không công bố giá / không mua), nhưng số 0 KHÔNG
 # được lưu thành một mức giá: để lọt vào kho là bản tin in ra "0-550 đồng/độ" cho cả khu vực,

@@ -582,7 +582,7 @@ def test_mark_no_purchase_only_fills_days_the_unit_left_blank(seeded) -> None:
     Các ca dễ sai, liệt kê hết ở đây vì đây là thao tác GHI HỘ đơn vị:
       · ngày có sản lượng               → giữ nguyên
       · ngày khai sản lượng 0 kèm giá   → ĐÃ nhập (tổ chức mua nhưng không mua được) → giữ nguyên
-      · ngày chỉ có ô chữ `cup_basis`   → coi như chưa nhập → gắn cờ NHƯNG không mất ô chữ
+      · ngày có bản ghi RỖNG            → coi như chưa nhập → gắn cờ vào chính bản ghi đó
       · ngày đã tích "không tổ chức"    → không đụng lại
       · ngày chỉ nhập biểu Tồn kho      → biểu Thu mua vẫn trống → có điền
       · ngày SAU hôm nay                → không bao giờ điền
@@ -596,7 +596,7 @@ def test_mark_no_purchase_only_fills_days_the_unit_left_blank(seeded) -> None:
     put({"kind": "purchase", "company": UNIT_B, "as_of": d5, "fields": {"latex_wet": 50}})
     put({"kind": "purchase", "company": UNIT_B, "as_of": d4,
          "fields": {"latex_wet": 0, "coagulum": 0}})          # mua 0 tấn — vẫn là ĐÃ nhập
-    put({"kind": "purchase", "company": UNIT_B, "as_of": D0, "fields": {"cup_basis": "drc"}})
+    put({"kind": "purchase", "company": UNIT_B, "as_of": D0, "fields": {}})   # mở form rồi lưu trống
     put({"kind": "consumption", "company": UNIT_B, "as_of": d6,
          "fields": {"stock_material": 12}})                   # chỉ nộp biểu Tồn kho
     # D1 đã có cờ "không tổ chức thu mua" từ fixture; d1/d0/d6 (thu mua) và tomorrow bỏ trống.
@@ -612,7 +612,7 @@ def test_mark_no_purchase_only_fills_days_the_unit_left_blank(seeded) -> None:
     done = _mark(h, companies=UNIT_B, date_from=d6, date_to=tomorrow, apply=True)
     after = payloads()
 
-    # Đúng 4 ngày trống được điền: d6 · D0 (chỉ có ô chữ) · d1 · d0. Ngày mai KHÔNG tính.
+    # Đúng 4 ngày trống được điền: d6 · D0 (bản ghi rỗng) · d1 · d0. Ngày mai KHÔNG tính.
     assert done["marked"] == 4
     assert sorted(set(after) - set(before)) == sorted([d6, d1, d0])
     assert tomorrow not in after
@@ -621,6 +621,6 @@ def test_mark_no_purchase_only_fills_days_the_unit_left_blank(seeded) -> None:
     assert after[d5] == {"latex_wet": 50}
     assert after[d4] == {"latex_wet": 0, "coagulum": 0}       # 0 vẫn là số liệu, không bị ghi đè
     assert after[D1] == {"no_purchase": True}                 # đã tích sẵn → không đụng lại
-    assert after[D0] == {"cup_basis": "drc", "no_purchase": True}   # gộp cờ, giữ ô chữ
+    assert after[D0] == {"no_purchase": True}   # gộp cờ vào bản ghi rỗng sẵn có (không insert mới)
     for d in (d6, d1, d0):
         assert after[d] == {"no_purchase": True}

@@ -15,7 +15,7 @@ from sqlalchemy import text
 
 from app.core import request_ctx
 from app.core.db import ensure_schema, session_scope
-from app.core.market_meta import MARKET_QUOTE_GRADES
+from app.core.market_meta import MARKET_QUOTE_GRADES, PURCHASE_PRICE_UNIT
 from app.services import audit_repo, member_unit_repo, price_repo
 
 _MARKET = "market"
@@ -26,8 +26,10 @@ _SECTION_MODES = {
     "export_vrg": ("market_export_vrg", "USD", "USD/tấn"),
     "domestic_vrg": ("market_domestic_vrg", "VND", "đồng/tấn"),
 }
-_PURCHASE = {"source": "vrg", "price_type": "purchase", "currency": "VND", "unit": "đồng/độ TSC"}
-_PURCHASE_CUP = {"source": "vrg", "price_type": "purchase_cup", "currency": "VND", "unit": "đồng/độ TSC"}
+_PURCHASE = {"source": "vrg", "price_type": "purchase", "currency": "VND",
+             "unit": PURCHASE_PRICE_UNIT["purchase"]}
+_PURCHASE_CUP = {"source": "vrg", "price_type": "purchase_cup", "currency": "VND",
+                 "unit": PURCHASE_PRICE_UNIT["purchase_cup"]}
 
 
 def meta() -> dict[str, Any]:

@@ -1,7 +1,8 @@
-/* Mục 6 — Giá mủ khu vực theo đơn vị: mủ nước + mủ chén (đồng/độ TSC).
+/* Mục 6 — Giá mủ khu vực theo đơn vị: mủ nước (đồng/độ TSC) + mủ chén (đồng/độ DRC).
    Đồng bộ kho "Giá mủ nguyên liệu" (mủ nước → purchase, mủ chén → purchase_cup). */
 
 import NumInput from "../../sections/NumInput";
+import { CUP_PRICE_UNIT, LATEX_PRICE_UNIT } from "../../../../lib/purchase-price-unit";
 
 type Props = {
   units: string[];
@@ -22,15 +23,15 @@ export default function RegionLatexTable({
       <div className="blt-section-header">
         <h3>6. Giá mủ khu vực</h3>
         <span style={{ color: "var(--muted)", fontSize: 12 }}>
-          mủ nước · mủ chén (đồng/độ TSC) · đồng bộ với trang "Giá mủ nguyên liệu"
+          mủ nước ({LATEX_PRICE_UNIT}) · mủ chén ({CUP_PRICE_UNIT}) · đồng bộ với trang "Giá mủ nguyên liệu"
         </span>
       </div>
       <table>
         <thead>
           <tr>
             <th>Đơn vị / khu vực</th>
-            <th className="r">Giá mủ nước (đồng/độ TSC)</th>
-            <th className="r">Giá mủ chén (đồng/độ TSC)</th>
+            <th className="r">Giá mủ nước ({LATEX_PRICE_UNIT})</th>
+            <th className="r">Giá mủ chén ({CUP_PRICE_UNIT})</th>
           </tr>
         </thead>
         <tbody>

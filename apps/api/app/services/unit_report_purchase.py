@@ -144,7 +144,4 @@ def _purchase_warnings(rows: list[dict]) -> list[str]:
         out.append(f"{n} dòng nhập ngoại tệ nhưng thiếu tỷ giá — không tính vào giá bình quân.")
     if (n := sum(1 for r in rows if r["material"] != "finished" and r["price"] is None and r["qty"])):
         out.append(f"{n} ngày có sản lượng thu mua nhưng chưa có đơn giá — không tính vào giá bình quân.")
-    bases = {r["cup_basis"] for r in rows if r["material"] == "cup" and r["cup_basis"]}
-    if len(bases) > 1:
-        out.append("Giá mủ chén đang lẫn cơ sở tính TSC và DRC — chỉ nên so sánh trong cùng cơ sở.")
     return out

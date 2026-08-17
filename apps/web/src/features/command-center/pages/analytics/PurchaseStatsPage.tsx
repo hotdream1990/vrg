@@ -16,6 +16,7 @@ import StatsTable, { type StatsCol } from "./StatsTable";
 import { initialFilters, useFilterCatalog, useStatsReport } from "./use-stats";
 import { CHAINS, DIM_LABEL, type DrillDim, applyDrill, useDrill } from "./use-drill";
 import "../../../bulletin/bulletin.css";
+import { CUP_PRICE_UNIT } from "../../../../lib/purchase-price-unit";
 
 // THỨ TỰ CỘT kể một mạch: mủ nước + mủ chén → tổng mủ nguyên liệu → kế hoạch & % thực hiện, RỒI
 // MỚI tới thành phẩm mua ngoài (chốt 14/08/2026). Thành phẩm là hàng ĐÃ CHẾ BIẾN mua lại, không
@@ -34,7 +35,7 @@ const COLS: StatsCol[] = [
   { key: "qty_finished", label: "SL thành phẩm", unit: "tấn", note: "cộng dồn · số thực mua" },
   { key: "qty_total", label: "Tổng sản lượng", unit: "tấn", note: "= mủ NL + thành phẩm" },
   { key: "price_latex_avg", label: "Đơn giá BQ mủ nước", unit: "đồng/độ", note: "BQ gia quyền" },
-  { key: "price_cup_avg", label: "Đơn giá BQ mủ chén", unit: "đồng/độ", note: "BQ gia quyền" },
+  { key: "price_cup_avg", label: "Đơn giá BQ mủ chén", unit: CUP_PRICE_UNIT, note: "BQ gia quyền" },
   { key: "price_finished_avg", label: "Đơn giá BQ thành phẩm", unit: "triệu đ/tấn", note: "BQ gia quyền" },
   { key: "days", label: "Số ngày có số liệu", unit: "ngày", note: "đếm" },
   { key: "no_purchase_days", label: "Ngày không thu mua", unit: "ngày", note: "đếm" },
@@ -78,6 +79,14 @@ export default function PurchaseStatsPage() {
   const canDrill = drill.canDrill && dim !== "none";
   const goDeeper = (value: string) => { setGroupOverride(null); drill.down(value, dim); };
 
+  // Biểu đồ vẽ MỦ NGUYÊN LIỆU cho mọi lớp (khu vực · đơn vị · ngày) — cùng câu chuyện với dải KPI.
+  // RIÊNG lớp "loại mủ" phải vẽ `qty_total`: ở lớp đó mỗi dòng LÀ một loại mủ, nên dòng "Thành phẩm"
+  // có `qty_material` rỗng và sẽ BIẾN MẤT khỏi biểu đồ (không phải hiện 0) — người xem tưởng kỳ này
+  // không mua thành phẩm. Mỗi dòng ở lớp này chỉ có đúng một loại nên `qty_total` = sản lượng của nó.
+  const chart = dim === "material"
+    ? { key: "qty_total", label: "Sản lượng thu mua" }
+    : { key: "qty_material", label: "Sản lượng thu mua mủ nguyên liệu" };
+
   const exportXlsx = async () => {
     setSaving(true);
     try {
@@ -114,7 +123,7 @@ export default function PurchaseStatsPage() {
       <DrillHeader
         steps={drill.steps} onUpTo={drill.upTo} currentDim={dim} canDrill={canDrill}
         rows={data?.rows ?? []} totals={data?.totals ?? null} kpis={KPIS}
-        chartKey="qty_material" chartLabel="Sản lượng thu mua mủ nguyên liệu" onPick={goDeeper}
+        chartKey={chart.key} chartLabel={chart.label} onPick={goDeeper}
       />
 
       <StatsTable

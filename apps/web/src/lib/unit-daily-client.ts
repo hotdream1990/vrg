@@ -32,10 +32,10 @@ export type Role = "member" | "hq";
 export type DailyEntry = { fields: Values; updated_at: string; updated_by: string | null };
 /** Đơn giá thu mua ĐÚNG NGÀY (đồng/độ), link từ "Giá mủ nguyên liệu". */
 export type UnitPurchasePrice = { latex: number | null; cup: number | null };
-/** Mủ chén tính theo độ TSC hay độ DRC (đổi nhãn đơn vị lưu kèm giá). */
-export type CupBasis = "tsc" | "drc";
-/** Đơn giá VND (mủ nước/mủ chén) do form Thu mua ghi về kho "Giá mủ nguyên liệu". */
-export type PriceDraft = UnitPurchasePrice & { cupBasis?: CupBasis };
+/** Đơn giá VND (mủ nước/mủ chén) do form Thu mua ghi về kho "Giá mủ nguyên liệu".
+ *  Cơ sở tính độ KHÔNG còn là lựa chọn: mủ nước = độ TSC, mủ chén = độ DRC
+ *  (xem `lib/purchase-price-unit.ts`). */
+export type PriceDraft = UnitPurchasePrice;
 export type DayData = {
   as_of: string;
   today: string;

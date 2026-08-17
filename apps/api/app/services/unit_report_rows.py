@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC
+from app.core.market_meta import PURCHASE_PRICE_UNIT, PURCHASE_SOURCE_UNIT as UNIT_SRC
 from app.services import member_unit_repo, price_repo, unit_daily_repo
 
 TRIEU = 1_000_000       # 1 triệu đồng
@@ -84,7 +84,8 @@ def purchase_rows(date_from: str, date_to: str,
                   companies: list[str] | None = None) -> dict[str, Any]:
     """Dòng chi tiết thu mua + danh sách (đơn vị, ngày) KHÔNG tổ chức thu mua.
 
-    Dòng mủ nước/mủ chén có `price` theo **đồng/độ** (TSC hoặc DRC — xem `cup_basis`);
+    Dòng mủ nước có `price` theo **đồng/độ TSC**, mủ chén theo **đồng/độ DRC**
+    (`market_meta.PURCHASE_PRICE_UNIT` — cố định từ 17/08/2026, không còn cho chọn);
     dòng thành phẩm có `price` theo loại tiền của dòng + `revenue_vnd` đã quy đổi.
     """
     meta = unit_meta()
@@ -100,7 +101,6 @@ def purchase_rows(date_from: str, date_to: str,
             no_purchase.append({"company": base["company"], "as_of": base["as_of"]})
         day_px = px.get((base["company"], base["as_of"])) or {}
         fx_local = _num(f.get("fx_purchase"))
-        cup_basis = f.get("cup_basis") or "tsc"
         for material, qty_key, local_key, px_key in (
             ("latex", "latex_wet", "price_latex_local", "latex"),
             ("cup", "coagulum", "price_cup_local", "cup"),
@@ -113,7 +113,8 @@ def purchase_rows(date_from: str, date_to: str,
             price = (local * fx_local) if (local is not None and fx_local) else _price(day_px.get(px_key))
             rows.append({**base, "material": material, "grade": MATERIAL_LABELS[material],
                          "qty": qty, "price": price, "price_unit": "dong_do",
-                         "cup_basis": cup_basis if material == "cup" else None,
+                         "price_unit_label": PURCHASE_PRICE_UNIT[
+                             "purchase_cup" if material == "cup" else "purchase"],
                          "ccy": "VND", "fx": None, "revenue_vnd": None,
                          "missing_fx": local is not None and not fx_local})
         for ln in f.get("finished") or []:
@@ -124,7 +125,7 @@ def purchase_rows(date_from: str, date_to: str,
             rev = line_revenue_vnd(qty, price, ln.get("ccy"), ln.get("fx"))
             rows.append({**base, "material": "finished", "grade": str(ln.get("grade") or "").strip() or "—",
                          "qty": qty, "price": price, "price_unit": "per_tonne",
-                         "cup_basis": None, "ccy": ln.get("ccy") or "VND", "fx": _num(ln.get("fx")),
+                         "price_unit_label": None, "ccy": ln.get("ccy") or "VND", "fx": _num(ln.get("fx")),
                          "revenue_vnd": rev,
                          "missing_fx": (ln.get("ccy") == "USD" and _num(ln.get("fx")) is None)})
     return {"rows": rows, "no_purchase": no_purchase}

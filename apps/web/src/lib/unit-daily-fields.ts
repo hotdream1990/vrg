@@ -3,6 +3,7 @@
    Bộ key input PHẢI khớp backend `app/services/unit_daily_fields.py`. */
 
 import type { SaleLine } from "./unit-daily-consumption";
+import { CUP_PRICE_UNIT, LATEX_PRICE_UNIT } from "./purchase-price-unit";
 
 export type Kind = "purchase" | "consumption";
 export type Values = Record<string, number | null | undefined>;
@@ -52,14 +53,12 @@ const finishedVnd = (v: Values): number =>
   }, 0);
 
 const PURCHASE: Column[] = [
-  // Mủ nguyên liệu khai theo QUY KHÔ (thành phẩm thì không) — ghi thẳng vào đơn vị tính để người
-  // đọc bảng tổng hợp không phải đoán, giống nhãn ở phiếu nhập.
+  // Mủ nguyên liệu khai theo QUY KHÔ **theo DRC** (thành phẩm thì không) — ghi thẳng vào đơn vị
+  // tính để người đọc bảng tổng hợp không phải đoán, giống nhãn ở phiếu nhập.
   { key: "latex_wet", label: "Sản lượng thu mua", unit: "tấn quy khô", group: _MU_NUOC },
-  { key: "price_latex", label: "Đơn giá thu mua", unit: "đồng/độ TSC", group: _MU_NUOC, linked: "latex" },
+  { key: "price_latex", label: "Đơn giá thu mua", unit: LATEX_PRICE_UNIT, group: _MU_NUOC, linked: "latex" },
   { key: "coagulum", label: "Sản lượng thu mua", unit: "tấn quy khô", group: _MU_CHEN },
-  // Mủ chén tính theo độ TSC hoặc độ DRC — đơn vị tự chọn ở form (`cup_basis`), nên nhãn cột để chung.
-  { key: "price_cup", label: "Đơn giá thu mua", unit: "đồng/độ", group: _MU_CHEN, linked: "cup",
-    hint: "theo độ TSC hoặc DRC — đơn vị tự chọn" },
+  { key: "price_cup", label: "Đơn giá thu mua", unit: CUP_PRICE_UNIT, group: _MU_CHEN, linked: "cup" },
   // Thu mua thành phẩm nhập theo CHỦNG LOẠI (bảng nhiều dòng) → bảng tổng hợp chỉ hiện số cộng lại.
   { key: "finished_qty", label: "Sản lượng thu mua", unit: "tấn", group: _TP,
     compute: (v) => finishedQty(v) || null },
@@ -108,7 +107,7 @@ const CONSUMPTION: Column[] = [
     compute: (v) => (stockTonnes(v, "stock_not_warehoused") + stockTonnes(v, "stock_warehoused")) || null },
   // Cam kết giao hàng — HỆ THỐNG TỰ TÍNH từ hợp đồng (`{qty, by_grade, items}`), báo RIÊNG:
   // không cộng vào "Tồn kho thành phẩm" và cũng không trừ ra.
-  { key: "stock_signed_t", label: "Đã ký HĐ chưa giao", unit: "tấn", group: _TK,
+  { key: "stock_signed_t", label: "Đã ký HĐ chưa giao", unit: "tấn quy khô", group: _TK,
     compute: (v) => n((v as Record<string, unknown>).stock_signed_undelivered
       ? ((v as Record<string, { qty?: number }>).stock_signed_undelivered.qty ?? null) : null) || null },
   { key: "stock_material", label: "Tồn kho nguyên liệu chưa sản xuất (quy khô)", unit: "tấn", group: _TK },

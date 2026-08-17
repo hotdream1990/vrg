@@ -29,7 +29,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from app.core import request_ctx
-from app.core.market_meta import UNIT_GRADES
+from app.core.market_meta import PURCHASE_PRICE_UNIT, UNIT_GRADES
 from app.core.paths import bulletin_dir
 from app.core.market_meta import PURCHASE_SOURCE_UNIT
 from app.services import member_unit_repo, price_repo, unit_daily_repo
@@ -49,7 +49,6 @@ CHANNELS = {"XK / UTXK": "export", "Tiêu thụ trong nước": "domestic", "N�
 # File cũ không có cột này: dòng trống mặc định là mủ thu mua (giữ nguyên cách hiểu trước đây).
 SALE_SOURCES = {"Mủ thu mua": "sales", "Mủ khai thác": "sales_own"}
 # 3 khối tồn kho nhập theo dòng (khối 4 "nguyên liệu chưa sản xuất" là 1 ô riêng, không theo dòng).
-CUP_BASES = {"Độ TSC": "tsc", "Độ DRC": "drc"}
 CCYS = {"VND": "VND", "USD": "USD"}
 # Chốt 02/08/2026: nhóm "Đã ký HĐ" ĐÃ RỜI khỏi biểu tồn kho — hợp đồng nhập ở màn Quản lý hợp đồng,
 # khối 3 là số hệ thống tự tính. Giữ tên nhóm trong `_RETIRED_STOCK_GROUPS` để file cũ nhập lại
@@ -89,7 +88,7 @@ SPECS: dict[str, Spec] = {
     "purchase": Spec(
         "BIỂU NHẬP — THU MUA", "Thu mua",
         "Mủ nước / mủ chén: mỗi đơn vị 1 dòng / 1 ngày. Đơn giá ghi vào kho 'Giá mủ nguyên liệu'. "
-        "Mủ nước luôn theo độ TSC; mủ chén theo cột 'Đơn giá mủ chén tính theo'. "
+        "Đơn giá mủ nước theo độ TSC, mủ chén theo độ DRC (cố định, không còn cột chọn). "
         "THU MUA THÀNH PHẨM tính theo CHỦNG LOẠI: mua mấy chủng loại thì thêm bấy nhiêu dòng cho "
         "cùng (đơn vị, ngày) — các cột mủ nước/mủ chén chỉ điền ở dòng đầu, dòng sau để trống. "
         "File có dòng thành phẩm sẽ GHI ĐÈ toàn bộ phần thành phẩm của ngày đó; không có dòng nào "
@@ -97,10 +96,8 @@ SPECS: dict[str, Spec] = {
         [_UNIT_COL, _DATE_COL,
          Col("latex_wet", "SL thu mua mủ nước", "tấn"),
          Col("coagulum", "SL thu mua mủ chén", "tấn"),
-         Col("price_latex", "Đơn giá mủ nước", "đồng/độ TSC", width=18),
-         Col("price_cup", "Đơn giá mủ chén", "đồng/độ", width=18),
-         Col("cup_basis", "Đơn giá mủ chén tính theo", "mặc định Độ TSC", type="enum",
-             choices=CUP_BASES, width=22),
+         Col("price_latex", "Đơn giá mủ nước", PURCHASE_PRICE_UNIT["purchase"], width=18),
+         Col("price_cup", "Đơn giá mủ chén", PURCHASE_PRICE_UNIT["purchase_cup"], width=18),
          Col("finished_grade", "Chủng loại thành phẩm", "chỉ dòng thu mua thành phẩm",
              type="enum", choices={g: g for g in GRADES}, width=22),
          Col("finished_qty", "SL thu mua thành phẩm", "tấn", width=20),
@@ -463,10 +460,6 @@ def _commit_rows(kind: str, rows: list[dict], username: str | None,
             fields = dict(cur.get("fields") or {})
             fields.update({k: v for k, v in it.items()
                            if v is not None and k in ("latex_wet", "coagulum")})
-            # Cách tính độ của mủ chén phải gán TRƯỚC khi ghi, không thì không được lưu.
-            basis = first("cup_basis") or fields.get("cup_basis")
-            if basis:
-                fields["cup_basis"] = basis
             # Thành phẩm: tỷ giá không có trong file → lấy lại tỷ giá đã nhập trên web (nếu có).
             old_fx = next((r.get("fx") for r in (fields.get(FINISHED_TABLE) or [])
                            if isinstance(r, dict) and r.get("fx")), None)
@@ -488,9 +481,7 @@ def _commit_rows(kind: str, rows: list[dict], username: str | None,
                     price_repo.upsert_record({
                         "as_of": as_of, "source": PURCHASE_SOURCE_UNIT, "grade": company, "contract": "",
                         "price_type": ptype, "price": float(it[key]),
-                        "currency": "VND",
-                        "unit": ("đồng/độ DRC" if ptype == "purchase_cup" and basis == "drc"
-                                 else "đồng/độ TSC")})
+                        "currency": "VND", "unit": PURCHASE_PRICE_UNIT[ptype]})
         else:
             # MERGE: giữ nguyên phần còn lại của bản ghi ngày đó.
             cur = unit_daily_repo.entries_on("consumption", as_of).get(company) or {}

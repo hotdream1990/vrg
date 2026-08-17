@@ -14,6 +14,7 @@ import { fetchInventory } from "../../../../lib/inventory-client";
 import type { GroupMeta } from "../../../../lib/market-movement-client";
 import { type MarketQuote, getQuote, listQuotes } from "../../../../lib/market-quote-client";
 import { isNoTrading } from "../../../../lib/no-trading";
+import { CUP_PRICE_UNIT_SHORT } from "../../../../lib/purchase-price-unit";
 
 const vnum = (n: number, d = 0) => n.toLocaleString("vi-VN", { maximumFractionDigits: d });
 
@@ -171,7 +172,7 @@ export async function buildSummaries(): Promise<GroupMeta[]> {
   const cup = Object.entries(mq?.c?.regions_cup ?? {}).filter(([, v]) => v != null) as [string, number][];
   if (cup.length) {
     const cv = cup.map((e) => e[1]);
-    rawLine += ` Mủ chén: ${vnum(Math.min(...cv))}–${vnum(Math.max(...cv))} đ/độ TSC (${cup.length} đơn vị).`;
+    rawLine += ` Mủ chén: ${vnum(Math.min(...cv))}–${vnum(Math.max(...cv))} ${CUP_PRICE_UNIT_SHORT} (${cup.length} đơn vị).`;
   }
 
   // Ngày dữ liệu thực đã nạp cho từng nhóm (để hiển thị "nạp gì · khoảng ngày nào").

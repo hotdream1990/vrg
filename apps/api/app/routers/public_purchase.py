@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core import request_ctx
-from app.core.market_meta import PURCHASE_SOURCE_UNIT
+from app.core.market_meta import PURCHASE_PRICE_UNIT, PURCHASE_SOURCE_UNIT
 from app.core.security import create_public_token, require_public
 from app.schemas.public_purchase import PublicAuthReq, PublicRecentReq, PublicSubmitReq
 from app.services import config_repo, member_unit_repo, price_repo
@@ -50,7 +50,7 @@ def submit(body: PublicSubmitReq) -> dict:
     with request_ctx.use_actor(f"{request_ctx.PUBLIC_PREFIX}{body.company}"):
         price_repo.upsert_record({"as_of": today, "source": PURCHASE_SOURCE_UNIT, "grade": body.company,
                                   "contract": "", "price_type": "purchase", "price": float(body.price),
-                                  "currency": "VND", "unit": "đồng/độ TSC"},
+                                  "currency": "VND", "unit": PURCHASE_PRICE_UNIT["purchase"]},
                                  note="Nhập từ link công khai")
     return {"ok": True, "as_of": today}
 

@@ -46,7 +46,7 @@ def _admin() -> dict[str, str]:
 
 # Tiêu đề cột đúng như file mẫu (bộ đọc dò cột THEO TIÊU ĐỀ nên bắt buộc phải có dòng này).
 _PURCHASE_HEAD = ["Đơn vị", "Ngày", "SL thu mua mủ nước", "SL thu mua mủ chén",
-                  "Đơn giá mủ nước", "Đơn giá mủ chén", "Đơn giá mủ chén tính theo",
+                  "Đơn giá mủ nước", "Đơn giá mủ chén",
                   "Chủng loại thành phẩm", "SL thu mua thành phẩm", "Đơn giá thành phẩm",
                   "Đơn giá thành phẩm bằng"]
 
@@ -89,7 +89,7 @@ def test_excel_import_single_unit_and_permission() -> None:
 
     # 2) Nhập file không có cột 'Đơn vị' → server tự gán đơn vị của tài khoản.
     data = _rows_to_xlsx("Thu mua", _PURCHASE_HEAD[1:],   # mẫu 1 đơn vị: bỏ cột "Đơn vị"
-                          [(today, 12.5, 4.5, 500, 450, None, "SVR CV 50", 9, 40.5, "VND")])
+                          [(today, 12.5, 4.5, 500, 450, "SVR CV 50", 9, 40.5, "VND")])
     prev = client.post("/api/member/import/preview?kind=purchase", headers=mh,
                        files={"file": ("f.xlsx", data)}).json()
     assert prev["summary"] == {"total": 1, "ok": 1, "error": 0}
@@ -128,8 +128,8 @@ def test_excel_import_single_unit_and_permission() -> None:
 def test_template_download_then_import_roundtrip() -> None:
     """Tải mẫu → điền vào ĐÚNG file mẫu → xem trước → ghi → đọc lại: số phải khớp.
 
-    Khoá lại 2 lỗi từng gặp: (1) thêm cột vào mẫu nhưng bộ ghi bỏ qua (cup_basis từng bị gán
-    SAU lệnh upsert nên không lưu); (2) mẫu và bộ đọc lệch cột.
+    Khoá lại 2 lỗi từng gặp: (1) thêm cột vào mẫu nhưng bộ ghi bỏ qua (đơn giá mủ chén từng bị
+    gán SAU lệnh upsert nên không lưu); (2) mẫu và bộ đọc lệch cột.
     """
     from datetime import timedelta
     h = _admin()
@@ -142,8 +142,9 @@ def test_template_download_then_import_roundtrip() -> None:
     cases = {
         # Thu mua thành phẩm theo CHỦNG LOẠI: 2 dòng cho cùng (đơn vị, ngày) — số mủ nước/mủ chén
         # chỉ điền ở dòng đầu, dòng sau để trống (đúng cách hướng dẫn trong file mẫu).
-        "purchase": [(unit, dmy, 120.0, 50.0, 540, 510, "Độ DRC", "SVR CV 50", 30, 41.2, "VND"),
-                     (unit, dmy, None, None, None, None, None, "SVR 3L", 20, 1800, "USD")],
+        # Không còn cột "Đơn giá mủ chén tính theo": mủ chén LUÔN theo độ DRC (chốt 17/08/2026).
+        "purchase": [(unit, dmy, 120.0, 50.0, 540, 510, "SVR CV 50", 30, 41.2, "VND"),
+                     (unit, dmy, None, None, None, None, "SVR 3L", 20, 1800, "USD")],
         # Cột "Nguồn mủ" tách mủ thu mua / mủ khai thác thành 2 bảng lưu riêng.
         # Cột "Số HĐ/PL" = số hợp đồng / phụ lục của dòng bán (và của dòng tồn kho đã ký HĐ).
         "sales": [(unit, dmy, "HĐ-01/2026", "Mủ thu mua", "Dài hạn", "XK / UTXK", "SVR CV 50",
@@ -176,7 +177,7 @@ def test_template_download_then_import_roundtrip() -> None:
 
     pur = client.get(f"/api/unit-daily/day?kind=purchase&as_of={iso}",
                      headers=h).json()["entries"][unit]["fields"]
-    assert pur["cup_basis"] == "drc" and pur["latex_wet"] == 120.0
+    assert pur["latex_wet"] == 120.0 and pur["coagulum"] == 50.0
     # Nhiều dòng thành phẩm của cùng 1 ngày phải gom vào MẢNG, không đè lẫn nhau.
     assert [(r["grade"], r["qty"], r["ccy"]) for r in pur["finished"]] == [
         ("SVR CV 50", 30, "VND"), ("SVR 3L", 20, "USD")]

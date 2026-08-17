@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse
 
 from app.core import edit_window
 from app.core.feature_flags import require_excel_import
-from app.core.market_meta import PURCHASE_SOURCE_UNIT, UNIT_GRADES
+from app.core.market_meta import PURCHASE_PRICE_UNIT, PURCHASE_SOURCE_UNIT, UNIT_GRADES
 from app.core.security import get_current_member
 from app.routers.unit_daily import resolve_timeline_range, timeline_page
 from app.schemas.market_demand import MarketDemandEdit
@@ -31,14 +31,13 @@ from app.services.unit_report_query import split_csv
 router = APIRouter(prefix="/api/member", tags=["member-self"])
 _excel = [Depends(require_excel_import)]  # nhập Excel đang tạm tắt (app/core/feature_flags.py)
 
-_UNIT = {"purchase": "đồng/độ TSC", "purchase_cup": "đồng/độ TSC"}
 
+def _price_unit(price_type: str, basis: str | None = None) -> str:
+    """Nhãn đơn vị lưu kèm giá: mủ nước = độ TSC, mủ chén = độ DRC (chốt 17/08/2026).
 
-def _price_unit(price_type: str, basis: str | None) -> str:
-    """Nhãn đơn vị lưu kèm giá — mủ chén có thể tính theo độ TSC hoặc độ DRC."""
-    if price_type == "purchase_cup" and basis == "drc":
-        return "đồng/độ DRC"
-    return _UNIT[price_type]
+    `basis` client cũ gửi lên bị BỎ QUA — cơ sở tính độ không còn là lựa chọn của người nhập.
+    """
+    return PURCHASE_PRICE_UNIT[price_type]
 
 
 def _assert_company(member: dict, company: str) -> None:
@@ -90,7 +89,7 @@ def clear_my_price(
 ) -> dict:
     """Xoá 1 ô giá của 1 đơn vị được gán (trong cửa sổ cho phép)."""
     _assert_company(member, company)
-    if price_type not in _UNIT:
+    if price_type not in PURCHASE_PRICE_UNIT:
         raise HTTPException(400, "Loại giá không hợp lệ.")
     edit_window.assert_editable(as_of, edit_window.member_window())
     price_repo.delete_record(as_of, PURCHASE_SOURCE_UNIT, company, "", price_type)

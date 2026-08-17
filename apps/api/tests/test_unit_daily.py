@@ -228,8 +228,8 @@ def test_unit_daily_edit_window_blocks_old_day() -> None:
     _cleanup(h, ["ud_win"], [unit])
 
 
-def test_cup_basis_and_prev_stock() -> None:
-    """Mủ chén tính theo độ TSC/DRC + nút 'Lấy tồn ngày trước' (tồn kho là số thời điểm)."""
+def test_price_basis_is_fixed_and_prev_stock() -> None:
+    """Cơ sở tính độ CỐ ĐỊNH (mủ nước TSC · mủ chén DRC) + nút 'Lấy tồn ngày trước'."""
     h = _admin()
     unit = "_zz_ud_basis"
     today = date.today()
@@ -240,22 +240,26 @@ def test_cup_basis_and_prev_stock() -> None:
                                     "role": "member", "member_units": [unit]}, headers=h)
     mh = _bearer("ud_basis", "pass123")
 
-    # 1) Thu mua: chọn độ DRC → lưu kèm payload, và giá ghi vào kho mang nhãn "đồng/độ DRC".
+    # 1) Cơ sở tính độ KHÔNG còn là lựa chọn của người nhập (chốt 17/08/2026): mủ nước luôn
+    #    đồng/độ TSC, mủ chén luôn đồng/độ DRC. Client cũ gửi `basis` lên thì server BỎ QUA —
+    #    nếu nhận theo thì nhãn kho giá lại lệch đúng như lỗi cũ.
     assert client.put("/api/member/daily-report", headers=mh, json={
         "kind": "purchase", "company": unit, "as_of": t_day,
         "fields": {"coagulum": 8, "cup_basis": "drc"}}).status_code == 200
-    assert client.put("/api/member/prices", headers=mh, json={
-        "company": unit, "as_of": t_day, "price_type": "purchase_cup",
-        "price": 480, "basis": "drc"}).status_code == 200
     day = client.get(f"/api/member/daily-report?kind=purchase&as_of={t_day}", headers=mh).json()
-    assert day["entries"][unit]["fields"]["cup_basis"] == "drc"
+    assert "cup_basis" not in day["entries"][unit]["fields"]   # ô chọn đã bỏ, không lưu nữa
 
-    # Giá trị lạ ngoài {tsc, drc} phải bị loại, không ghi vào payload.
-    client.put("/api/member/daily-report", headers=mh, json={
-        "kind": "purchase", "company": unit, "as_of": t_day,
-        "fields": {"coagulum": 8, "cup_basis": "xyz"}})
-    day = client.get(f"/api/member/daily-report?kind=purchase&as_of={t_day}", headers=mh).json()
-    assert "cup_basis" not in day["entries"][unit]["fields"]
+    for ptype, sent_basis, want in (("purchase_cup", "tsc", "đồng/độ DRC"),
+                                    ("purchase", "drc", "đồng/độ TSC")):
+        assert client.put("/api/member/prices", headers=mh, json={
+            "company": unit, "as_of": t_day, "price_type": ptype,
+            "price": 480, "basis": sent_basis}).status_code == 200
+        with session_scope() as db:
+            unit_label = db.execute(text(
+                "SELECT unit FROM fact_price WHERE grade = :g AND price_type = :p "
+                "AND as_of = CAST(:d AS date) ORDER BY ingested_at DESC LIMIT 1"),
+                {"g": unit, "p": ptype, "d": t_day}).scalar()
+        assert unit_label == want, f"{ptype} phải mang nhãn {want}, đang là {unit_label}"
 
     # 2) Tồn kho hôm qua → "Lấy tồn ngày trước" của HÔM NAY phải trả đúng số đó (đơn vị tấn).
     assert client.put("/api/member/daily-report", headers=mh, json={
