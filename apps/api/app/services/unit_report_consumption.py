@@ -1,8 +1,7 @@
 """Bảng thống kê TIÊU THỤ — gộp dòng bán theo bộ lọc, hoặc trả CHI TIẾT từng dòng.
 
 Nguồn số: các LẦN GIAO của hợp đồng (chốt 02/08/2026). Dòng nhập USD thiếu tỷ giá không được tính
-vào doanh thu/giá BQ (không đoán số) và được cảnh báo; kỳ còn dữ liệu cũ chưa chuyển đổi cũng được
-cảnh báo để không ai đọc nhầm số 0.
+vào doanh thu/giá BQ (không đoán số) và được cảnh báo.
 
 Kèm % THỰC HIỆN so với kế hoạch tiêu thụ (chỉ tiêu NĂM ở màn "Kế hoạch năm") — xem `_spot_plan`.
 """
@@ -11,7 +10,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services import legacy_data_notice
 from app.services import unit_report_rows as rows_mod
 from app.services.unit_report_query import (
     CHANNEL_LABELS, CONTRACT_LABELS, GROUPERS, avg, filter_scope, label_of, sort_groups, split_csv,
@@ -84,8 +82,7 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
     comps, regs = split_csv(companies), split_csv(regions)
     data = rows_mod.consumption_rows(date_from, date_to, comps)
     rows = filter_scope(data["rows"], comps, regs)
-    # Kỳ còn dữ liệu cũ chưa chuyển đổi → nói rõ, nếu không người đọc hiểu 0 tấn là "không bán gì".
-    warnings = legacy_data_notice.warnings(date_from, date_to, comps)
+    warnings: list[str] = []
     for field, val in (("grade", grades), ("contract", contract), ("channel", channel), ("source", source)):
         if vals := split_csv(val):
             keep = set(vals)

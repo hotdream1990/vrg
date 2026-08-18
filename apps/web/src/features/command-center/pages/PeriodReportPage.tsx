@@ -5,7 +5,7 @@
    Mỗi đơn vị 1 dòng + dòng Tổng cộng; xuất Excel đúng mẫu. */
 
 import { DownloadOutlined, FileDoneOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Alert, Button, Segmented, Spin, message } from "antd";
+import { Button, Segmented, Spin, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -162,11 +162,6 @@ export default function PeriodReportPage() {
         <Button type="primary" icon={<DownloadOutlined />} onClick={exportXlsx}
                 loading={saving} disabled={!hasData}>Xuất Excel</Button>
       </div>
-
-      {/* Kỳ còn dữ liệu nhập theo cách cũ chưa chuyển đổi → nói rõ, tránh đọc số 0 thành "không bán". */}
-      {(data?.warnings ?? []).map((w) => (
-        <Alert key={w} type="warning" showIcon message={w} style={{ marginBottom: 10 }} />
-      ))}
 
       <Spin spinning={loading}>
         <div className="card" style={{ padding: 0, overflow: "auto" }}>

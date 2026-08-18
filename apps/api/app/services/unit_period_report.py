@@ -18,8 +18,7 @@ from typing import Any
 
 from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC, UNIT_GRADES
 from app.services import (
-    legacy_data_notice, member_unit_repo, price_repo, sales_contract_report, unit_daily_repo,
-    unit_report_rows,
+    member_unit_repo, price_repo, sales_contract_report, unit_daily_repo, unit_report_rows,
 )
 
 TY = 1_000_000_000      # 1 tỷ đồng
@@ -243,9 +242,5 @@ def period_report(kind: str, date_from: str, date_to: str,
             "days": len(ent), "last_day": max((e["as_of"] for e in ent), default=None),
             **data,
         })
-    # Biểu tiêu thụ chỉ đọc hợp đồng → kỳ nào còn dữ liệu cũ chưa chuyển đổi phải nói rõ, nếu không
-    # bảng hiện 0 tấn và người đọc hiểu là đơn vị không bán gì.
-    warnings = (legacy_data_notice.warnings(date_from, date_to, companies)
-                if kind == "consumption" else [])
     return {"kind": kind, "date_from": date_from, "date_to": date_to,
-            "grades": GRADES, "rows": rows, "warnings": warnings}
+            "grades": GRADES, "rows": rows}

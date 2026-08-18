@@ -437,10 +437,11 @@ def test_delete_parent_blocked_while_children_exist(env, cus) -> None:
     assert client.delete(f"/api/sales-contracts/{parent['id']}", headers=h).status_code == 200
 
 
-def test_legacy_sales_never_counted_but_flagged(env) -> None:
+def test_legacy_sales_never_counted(env) -> None:
     """Chốt 02/08/2026: mảng `sales` cũ KHÔNG vào báo cáo dù đã chuyển đổi hay chưa.
 
-    Chưa chuyển đổi thì phải CẢNH BÁO — nếu không người đọc thấy 0 tấn lại tưởng đơn vị không bán.
+    Cảnh báo "dữ liệu cũ chưa chuyển đổi" đã gỡ ngày 18/08/2026 (không còn đơn vị nào dùng lối
+    nhập cũ) — báo cáo chỉ đọc hợp đồng, không cần nhắc nữa.
     """
     from app.services import unit_daily_repo, unit_period_report
 
@@ -449,14 +450,13 @@ def test_legacy_sales_never_counted_but_flagged(env) -> None:
     unit_daily_repo.upsert("consumption", TODAY, UNIT, {"sales": [line], "revenue": 40 * 45e6}, "admin")
     rep = unit_period_report.period_report("consumption", TODAY, TODAY, [UNIT])
     assert rep["rows"][0]["total_consumption"] in (0, 0.0, None)
-    assert any("CHƯA được chuyển" in w for w in rep["warnings"]), rep["warnings"]
+    assert "warnings" not in rep
 
-    # Đã bật cờ chuyển đổi → vẫn không cộng, và hết cảnh báo (số đã nằm ở hợp đồng).
+    # Đã bật cờ chuyển đổi → vẫn không cộng (số đã nằm ở hợp đồng).
     unit_daily_repo.upsert("consumption", TODAY, UNIT,
                            {"sales": [line], "revenue": 40 * 45e6, "sales_migrated": True}, "admin")
     after = unit_period_report.period_report("consumption", TODAY, TODAY, [UNIT])
     assert after["rows"][0]["total_consumption"] in (0, 0.0, None)
-    assert not any("ngày có số tiêu thụ" in w for w in after["warnings"]), after["warnings"]
 
     with session_scope() as db:
         db.execute(text("DELETE FROM unit_daily_report WHERE company = :c AND as_of = :d"),

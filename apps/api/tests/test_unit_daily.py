@@ -185,10 +185,9 @@ def test_unit_daily_member_and_editor_flow() -> None:
                     headers=eh)
     assert pr.status_code == 200
     row = next(r for r in pr.json()["rows"] if r["company"] == unit)
-    # Tiêu thụ chỉ đến từ LẦN GIAO của hợp đồng — dòng bán kiểu cũ không còn được cộng, và kỳ có
-    # dữ liệu cũ chưa chuyển đổi thì phải cảnh báo (chốt 02/08/2026).
+    # Tiêu thụ chỉ đến từ LẦN GIAO của hợp đồng — dòng bán kiểu cũ không còn được cộng
+    # (chốt 02/08/2026).
     assert row["total_consumption"] is None and row["lt_export"] is None
-    assert any("CHƯA được chuyển" in w for w in pr.json()["warnings"])
     # Tồn kho thành phẩm = khối 1 + khối 2 = 24; khối 3 (đã ký HĐ chưa giao) báo RIÊNG, và đơn vị
     # này chưa có hợp đồng ở cơ chế mới nên bằng 0 (KHÔNG lấy hợp đồng bảng cũ).
     assert row["stock_finished"] == 24.0
@@ -547,7 +546,6 @@ def test_period_report_keeps_last_real_stock() -> None:
     # Tồn kho giữ ảnh chụp hôm qua và nói rõ ngày đã lấy. Dòng bán kiểu cũ KHÔNG vào tiêu thụ nữa
     # (chốt 02/08/2026) — nhưng bản ghi chỉ có dòng bán vẫn KHÔNG được kéo tồn kho về 0.
     assert row["total_consumption"] is None
-    assert any("CHƯA được chuyển" in w for w in pr.json()["warnings"])
     assert row["stock_finished"] == 24.0 and row["stock_material"] == 3.5
     assert row["stock_as_of"] == yesterday and row["last_day"] == today
     assert row["stock_by_grade"]["RSS 3"] == 24.0
