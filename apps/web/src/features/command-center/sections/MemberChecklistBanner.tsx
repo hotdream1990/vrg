@@ -1,7 +1,9 @@
 /* Bảng nhắc "ĐƠN VỊ CÒN THIẾU GÌ" — hiện trên MỌI màn của tài khoản đơn vị thành viên.
    Đặt ở khung layout chứ không ở từng trang: đơn vị vào bất kỳ màn nào cũng thấy ngay mình còn
    nợ số liệu ngày nào, thay vì phải tự đi soi từng biểu. Chỉ nhắc phần CÒN SỬA ĐƯỢC (server lọc
-   theo cửa sổ nhập liệu) — nhắc ngày đã khoá thì người dùng bỏ qua cả bảng. */
+   theo cửa sổ nhập liệu) — nhắc ngày đã khoá thì người dùng bỏ qua cả bảng. Riêng nhóm THIẾU TỶ
+   GIÁ rà cả năm và hiện cả lần giao đã khoá (chữ xám): đó là doanh thu bị hụt, đơn vị phải biết
+   để nhờ Ban TTKD điền hộ. */
 
 import { CheckCircleFilled, DownOutlined, UpOutlined, WarningFilled } from "@ant-design/icons";
 import { useCallback, useEffect, useState } from "react";
@@ -9,7 +11,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { dmy } from "../../../lib/date";
 import { DATA_SAVED_EVENT } from "../../../lib/http";
-import { type MemberChecklist, type UnitChecklist, fetchMyChecklist } from "../../../lib/member-client";
+import { type MemberChecklist, type MissingFxDelivery, type UnitChecklist, fetchMyChecklist } from "../../../lib/member-client";
 
 const COLLAPSE_KEY = "vrg_checklist_collapsed";
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
@@ -37,6 +39,26 @@ function DayChips({ days, today, editableFrom, onPick }: {
         </span>
       )))}
     </>
+  );
+}
+
+/** Một lần giao thiếu tỷ giá. Cam = còn trong cửa sổ sửa, bấm vào mở màn hợp đồng; xám = đã khoá. */
+function FxChip({ d, onPick }: { d: MissingFxDelivery; onPick: () => void }) {
+  const label = `${d.contract_code}${d.code && d.code !== d.contract_code ? ` · ${d.code}` : ""} — ${t3(d.qty)} t ${d.ccy}, giao ${dmy(d.delivered_at)}`;
+  if (!d.editable) {
+    return (
+      <span className="chip" style={{ background: "var(--panel-2, #eef1ef)", color: "var(--muted)", marginRight: 6 }}
+        title="Quá hạn sửa — báo Ban TTKD điền tỷ giá hộ">
+        {label}
+      </span>
+    );
+  }
+  return (
+    <button className="chip warn" onClick={onPick}
+      style={{ border: 0, cursor: "pointer", marginRight: 6 }}
+      title="Bấm để mở màn Hợp đồng & đợt giao và điền tỷ giá">
+      {label}
+    </button>
   );
 }
 
@@ -80,6 +102,25 @@ function UnitRow({ u, today, editableFrom, go }: {
         {u.pending_batches.length > 3 ? " …" : ""}) — sản lượng này <b>chưa vào tiêu thụ</b>.{" "}
         <button className="chip info" style={{ border: 0, cursor: "pointer" }}
           onClick={() => go("/hop-dong")}>Mở hợp đồng</button>
+      </div>,
+    );
+  }
+  if (u.missing_fx.length) {
+    // Tiền, không phải số liệu nhập thiếu → nói rõ hệ quả (doanh thu chưa tính) và rà cả năm.
+    const fixable = u.missing_fx.filter((d) => d.editable).length;
+    items.push(
+      <div key="fx" style={{ marginBottom: 4 }}>
+        <b>{u.missing_fx.length} lần giao bán ngoại tệ thiếu tỷ giá</b> (rà từ đầu năm {u.year}) —
+        doanh thu & giá bán bình quân <b>chưa tính phần này</b>:{" "}
+        {u.missing_fx.slice(0, 3).map((d) => (
+          <FxChip key={d.id} d={d} onPick={() => go("/hop-dong")} />
+        ))}
+        {u.missing_fx.length > 3 ? <span style={{ color: "var(--muted)" }}>…</span> : null}
+        {fixable < u.missing_fx.length ? (
+          <div style={{ color: "var(--muted)", marginTop: 2 }}>
+            {u.missing_fx.length - fixable} lần giao đã quá hạn sửa (chữ xám) — báo Ban TTKD điền hộ.
+          </div>
+        ) : null}
       </div>,
     );
   }
@@ -143,9 +184,9 @@ export default function MemberChecklistBanner() {
       <button className="dsn-head" onClick={toggle}>
         <span className="dsn-badge"><WarningFilled /> Còn thiếu {data.total_missing} việc</span>
         <span className="dsn-tagline">
-          Đơn vị chưa nhập đủ số liệu trong {data.alert_days} ngày gần nhất. Ngày để{" "}
-          <b>màu cam</b> bấm vào là nhập được ngay; ngày <b>xám</b> đã quá hạn sửa — báo Ban TTKD
-          nhập hộ.
+          Đơn vị chưa nhập đủ số liệu trong {data.alert_days} ngày gần nhất (riêng phần thiếu tỷ
+          giá rà cả năm). Ô <b>màu cam</b> bấm vào là nhập được ngay; ô <b>xám</b> đã quá hạn sửa —
+          báo Ban TTKD nhập hộ.
         </span>
         <span className="dsn-toggle">{open ? <>Thu gọn <UpOutlined /></> : <>Xem chi tiết <DownOutlined /></>}</span>
       </button>

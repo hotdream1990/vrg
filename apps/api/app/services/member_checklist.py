@@ -1,7 +1,8 @@
 """Bảng "đơn vị còn thiếu gì" — hiện ngay khi tài khoản đơn vị thành viên vào hệ thống.
 
-Chỉ nhắc những thứ đơn vị CÒN SỬA ĐƯỢC (nằm trong cửa sổ nhập liệu). Ngày đã khoá chỉ-xem thì
-nhắc cũng vô ích, chỉ làm người dùng bỏ qua cả bảng cảnh báo.
+Nhắc số liệu còn thiếu trong cửa sổ nhập liệu — ngày đã khoá chỉ-xem thì nhắc cũng vô ích, chỉ
+làm người dùng bỏ qua cả bảng. Ngoại lệ là nhóm THIẾU TỶ GIÁ: rà cả năm và vẫn hiện cả lần giao
+đã quá hạn sửa, nhưng đánh dấu `editable=False` để giao diện nói rõ phải nhờ Ban TTKD điền hộ.
 
 Luật "ngày nào coi là đã nộp" dùng CHUNG với màn *Theo dõi nộp báo cáo* của Ban TTKD
 (`unit_daily_fields.has_data` + `companies_with_purchase_plan`) — hai bên lệch nhau thì đơn vị
@@ -35,6 +36,42 @@ _PENDING_SQL = text("""
        AND k.company = ANY(:units) AND k.updated_at::date <= :before
      ORDER BY k.updated_at
 """)
+
+
+#: Lần giao ngoại tệ bỏ trống tỷ giá → doanh thu của lần đó KHÔNG được tính (hệ thống không đoán
+#: tỷ giá thay đơn vị). Rà từ ĐẦU NĂM chứ không theo `alert_days`: đây là tiền, sót một lần giao là
+#: doanh thu cả năm hụt, mà đơn vị lại chẳng có màn nào khác nhắc chuyện này.
+_MISSING_FX_SQL = text("""
+    SELECT k.id, k.company, k.code, COALESCE(p.code, k.code) AS contract_code, k.delivered_at,
+           sum(COALESCE(NULLIF(e->>'qty', '')::numeric, 0)) AS qty,
+           min(e->>'ccy') AS ccy
+      FROM sales_contract k
+      LEFT JOIN sales_contract p ON p.id = k.parent_id
+      CROSS JOIN LATERAL jsonb_array_elements(k.lines) e
+     WHERE k.company = ANY(:units) AND k.delivered
+       AND k.delivered_at BETWEEN CAST(:a AS date) AND CAST(:b AS date)
+       AND COALESCE(e->>'ccy', 'VND') <> 'VND' AND (e->>'fx') IS NULL
+     GROUP BY k.id, k.company, k.code, contract_code, k.delivered_at
+     ORDER BY k.delivered_at
+""")
+
+
+def _missing_fx(units: list[str], today: date, editable_from: str) -> dict[str, list[dict[str, Any]]]:
+    """Lần giao thiếu tỷ giá từ 01/01 năm nay → doanh thu & giá bán BQ đang thiếu phần này."""
+    with session_scope() as db:
+        rows = db.execute(_MISSING_FX_SQL, {
+            "units": list(units), "a": date(today.year, 1, 1).isoformat(), "b": today.isoformat(),
+        }).mappings().all()
+    out: dict[str, list[dict[str, Any]]] = {u: [] for u in units}
+    for r in rows:
+        day = str(r["delivered_at"])
+        out.setdefault(r["company"], []).append({
+            "id": r["id"], "code": r["code"], "contract_code": r["contract_code"],
+            "delivered_at": day, "qty": float(r["qty"] or 0), "ccy": r["ccy"],
+            # Ngoài cửa sổ sửa thì đơn vị KHÔNG tự điền được — phải nói thẳng để họ báo Ban TTKD.
+            "editable": day >= editable_from,
+        })
+    return out
 
 
 def _days(alert: int, today: date) -> list[str]:
@@ -84,7 +121,8 @@ def checklist(units: list[str]) -> dict[str, Any]:
     """Việc còn thiếu của TỪNG đơn vị được gán cho tài khoản.
 
     Ba nhóm: (1) ngày chưa nhập biểu Thu mua · (2) ngày chưa nhập biểu Tồn kho ·
-    (3) nhắc khác — chưa khai Kế hoạch năm, đợt giao quên điền ngày giao.
+    (3) nhắc khác — chưa khai Kế hoạch năm, đợt giao quên điền ngày giao, lần giao ngoại tệ thiếu
+    tỷ giá (nhóm này rà từ ĐẦU NĂM, không giới hạn trong `alert_days`).
 
     Phạm vi rà = `MEMBER_ALERT_DAYS` (admin cấu hình, mặc định 14 ngày, **0 = tắt cảnh báo**).
     Rà có thể XA HƠN cửa sổ sửa → trả kèm `editable_from` để giao diện phân biệt ngày còn tự sửa
@@ -104,6 +142,7 @@ def checklist(units: list[str]) -> dict[str, Any]:
     plan_now = unit_daily_repo.year_plan(today.year, units)
     done = {k: _submitted(k, units, days) for k in ("purchase", "consumption")}
     pending = _pending_batches(units, today)
+    no_fx = _missing_fx(units, today, editable_from)
 
     rows, total = [], 0
     for u in units:
@@ -115,9 +154,11 @@ def checklist(units: list[str]) -> dict[str, Any]:
         plan_missing = (plan_now.get(u) or {}).get("plan_tonnes") is None
         # Kế hoạch năm PHẢI cộng vào tổng: tổng = 0 thì banner chuyển sang dòng xanh "Đã nhập đủ"
         # và KHÔNG hiện phần chi tiết nữa → việc còn thiếu biến mất khỏi màn hình.
-        total += len(miss_p) + len(miss_s) + len(pending.get(u, [])) + (1 if plan_missing else 0)
+        total += (len(miss_p) + len(miss_s) + len(pending.get(u, []))
+                  + len(no_fx.get(u, [])) + (1 if plan_missing else 0))
         rows.append({"company": u, "needs_purchase": needs_purchase,
                      "purchase_missing": miss_p, "stock_missing": miss_s,
                      "year_plan_missing": plan_missing, "year": today.year,
-                     "pending_batches": pending.get(u, [])})
+                     "pending_batches": pending.get(u, []),
+                     "missing_fx": no_fx.get(u, [])})
     return {**base, "days": days, "units": rows, "total_missing": total}

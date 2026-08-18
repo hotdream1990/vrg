@@ -48,6 +48,17 @@ export type PendingBatch = {
   days: number;             // đã treo bao nhiêu ngày
 };
 
+/** Lần giao bán ngoại tệ mà bỏ trống tỷ giá — doanh thu lần đó chưa được tính vào báo cáo. */
+export type MissingFxDelivery = {
+  id: number;
+  code: string;             // số đợt giao
+  contract_code: string;    // số hợp đồng cha
+  delivered_at: string;     // ngày giao
+  qty: number;              // sản lượng của các dòng thiếu tỷ giá (tấn)
+  ccy: string;              // loại tiền đang khai (USD…)
+  editable: boolean;        // ngoài cửa sổ sửa thì đơn vị không tự điền được
+};
+
 export type UnitChecklist = {
   company: string;
   needs_purchase: boolean;      // đơn vị có kế hoạch thu mua → mới phải nộp biểu Thu mua
@@ -56,6 +67,7 @@ export type UnitChecklist = {
   year_plan_missing: boolean;
   year: number;
   pending_batches: PendingBatch[];
+  missing_fx: MissingFxDelivery[];  // rà từ 01/01 năm nay, KHÔNG giới hạn trong alert_days
 };
 
 export type MemberChecklist = {

@@ -8,6 +8,7 @@ Ba điều dễ vỡ, khoá lại bằng test:
 
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 
 import pytest
@@ -96,6 +97,56 @@ def test_checklist_lists_only_fixable_days_and_respects_purchase_plan() -> None:
         u = client.get("/api/member/checklist", headers=mh).json()["units"][0]
         assert d1 not in u["purchase_missing"]
     finally:
+        _cleanup(h)
+
+
+def test_missing_fx_deliveries_are_flagged_for_the_whole_year() -> None:
+    """Lần giao ngoại tệ bỏ trống tỷ giá = doanh thu bị hụt → nhắc, và nhắc CẢ NĂM.
+
+    Cửa sổ `alert_days` không áp cho nhóm này: lần giao từ tháng 1 vẫn phải hiện, chỉ đánh dấu
+    `editable=False` để giao diện không mời bấm sửa một thứ server sẽ chặn.
+    """
+    h = _admin()
+    _cleanup(h)
+    member_unit_repo.add_unit(UNIT)
+    assert client.post("/api/users", json={"username": USER, "password": "pass123",
+                                           "role": "member", "member_units": [UNIT]},
+                       headers=h).status_code == 200
+    mh = _member()
+    today = date.today()
+    long_ago = date(today.year, 1, 15).isoformat()
+    usd = {"grade": "SVR 3L", "qty": 20.0, "price": 1800.0, "ccy": "USD", "fx": None}
+    try:
+        with session_scope() as db:
+            db.execute(text(
+                "INSERT INTO sales_contract (company, code, delivered, delivered_at, lines) "
+                "VALUES (:c, 'ZZ-USD', true, CAST(:d AS date), CAST(:l AS jsonb)), "
+                "       (:c, 'ZZ-USD-OK', true, CAST(:d AS date), CAST(:ok AS jsonb)), "
+                "       (:c, 'ZZ-VND', true, CAST(:d AS date), CAST(:v AS jsonb))"),
+                {"c": UNIT, "d": long_ago,
+                 "l": json.dumps([usd]),
+                 "ok": json.dumps([{**usd, "fx": 26000.0}]),
+                 "v": json.dumps([{"grade": "SVR 3L", "qty": 5.0, "price": 45.0, "ccy": "VND"}])})
+
+        r = client.get("/api/member/checklist", headers=mh).json()
+        u = r["units"][0]
+        # Chỉ dòng USD bỏ trống tỷ giá bị nhắc — dòng đã có tỷ giá và dòng VNĐ thì không.
+        assert [d["code"] for d in u["missing_fx"]] == ["ZZ-USD"]
+        row = u["missing_fx"][0]
+        assert row["qty"] == 20.0 and row["ccy"] == "USD"
+        assert row["delivered_at"] == long_ago and row["editable"] is False
+        # Phải cộng vào tổng, nếu không banner báo "Đã nhập đủ" và mục này biến mất khỏi màn hình.
+        assert r["total_missing"] >= 1
+
+        # Điền tỷ giá → hết nhắc.
+        with session_scope() as db:
+            db.execute(text("UPDATE sales_contract SET lines = CAST(:l AS jsonb) "
+                            " WHERE company = :c AND code = 'ZZ-USD'"),
+                       {"c": UNIT, "l": json.dumps([{**usd, "fx": 26000.0}])})
+        assert client.get("/api/member/checklist", headers=mh).json()["units"][0]["missing_fx"] == []
+    finally:
+        with session_scope() as db:
+            db.execute(text("DELETE FROM sales_contract WHERE company = :c"), {"c": UNIT})
         _cleanup(h)
 
 
