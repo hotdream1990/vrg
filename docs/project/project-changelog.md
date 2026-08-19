@@ -40,6 +40,29 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     THU MUA, tuyệt đối không gỡ khỏi danh mục chủng loại.
 
 ### Changed
+- **Cảnh báo "ô cần kiểm tra" ra thẳng bảng việc đầu màn của đơn vị** (19/08/2026) — trước đây bộ
+  cảnh báo nhầm-đơn-vị-tính chỉ chạy **trong form lúc đang nhập**: lưu xong đóng form là không ai
+  thấy nữa, còn con số sai vẫn nằm im và chảy vào báo cáo tổng hợp. Nay server rà lại **số đã lưu**
+  (`member_data_check`, rà từ đầu năm) và đưa lên bảng nhắc việc: biểu Thu mua · Tồn kho · đơn giá
+  mủ nguyên liệu · đơn giá trên hợp đồng. Mỗi ô nói rõ **ngày · bảng · dòng · cột + lý do**, bấm vào
+  mở đúng phiếu; ô ngoài cửa sổ sửa để **chữ xám** kèm nhắc báo Ban TTKD. Bộ biên dùng **chung một
+  bộ số** với form (`app/core/entry_bounds.py` ↔ `entry-bounds.ts`, test khoá 2 bên không lệch).
+  Hai tinh chỉnh kèm theo để cảnh báo không kêu oan: **chủng loại "gom"** (*Chủng loại khác*, *Mủ
+  ngoại lệ*) không áp biên đơn giá (mủ tạp bán 0,7–2,8 triệu đ/tấn là thật), và biểu Tồn kho **thôi
+  soát 2 mảng tiêu thụ cũ** `sales`/`sales_own` — form đã không hiện chúng từ 30/07/2026, nhắc ô
+  người dùng không nhìn thấy là bắt họ đi tìm một ô không tồn tại (một phiếu cũ đang báo tới 9 ô).
+- **Quy khô thành ô BẮT BUỘC ở mọi lần lưu hợp đồng** (siết lại đúng chốt Q4 — 19/08/2026) — trước
+  đây chỉ ép khi bản ghi **đã giao**, nên phần cam kết của hợp đồng giao-nhiều-lần vào sổ bằng số
+  **mủ nước** còn phần đã giao bằng số **khô**: khối *"đã ký HĐ chưa giao"* thành hiệu của hai đơn
+  vị tính khác nhau. Nay bán **LATEX** và 2 loại mủ nguyên liệu là phải khai quy khô mới lưu được —
+  tạo mới lẫn sửa, hợp đồng lẫn đợt giao, đã giao hay chưa. Bản ghi cũ thiếu quy khô (211 dòng /
+  204 bản ghi ở 6 đơn vị, phần lớn do script chuyển dữ liệu cũ tạo ra) **bị chặn khi mở ra sửa** cho
+  tới khi bổ sung — hệ thống không tự suy ra hộ một con số đơn vị chưa khai.
+- **Báo cáo tiêu thụ · Xuất Excel nay ra 2 sheet**: tổng hợp theo đơn vị (như cũ) + **Chi tiết lần
+  giao** — mỗi **dòng bán** một dòng, 20 cột (ngày giao · đơn vị · số HĐ · đợt · khách hàng · loại HĐ
+  · hình thức · chủng loại · mủ nước / quy khô / SL tính tiêu thụ · đơn giá · loại tiền · tỷ giá ·
+  thành tiền · doanh thu · hoá đơn · ngày thanh toán · mã bản ghi), **bật sẵn bộ lọc của Excel**.
+  Cộng cột *SL tính tiêu thụ* luôn khớp sản lượng của sheet tổng hợp (cùng nguồn, cùng bộ lọc).
 - **Thống kê tồn kho đổi trục từ "kỳ báo cáo" sang "NGÀY CHỐT"** — tồn kho là số **thời điểm** nên
   "tổng của một khoảng ngày" vốn không có nghĩa; trục cũ làm số hiển thị sai lệch nặng (đo trên
   prod 10/08/2026: kỳ mặc định *Tuần này* rơi đúng Thứ 2 → chỉ 4/52 đơn vị đã nhập → **250,8 tấn**

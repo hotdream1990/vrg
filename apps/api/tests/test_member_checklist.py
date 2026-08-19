@@ -150,6 +150,69 @@ def test_missing_fx_deliveries_are_flagged_for_the_whole_year() -> None:
         _cleanup(h)
 
 
+def test_data_checks_flag_saved_numbers_that_look_like_a_unit_mixup() -> None:
+    """Ô ĐÃ LƯU nhưng nhiều khả năng nhầm đơn vị tính phải nổi lên bảng việc.
+
+    Cảnh báo này vốn chỉ chạy trong form lúc đang nhập: lưu xong đóng form là không ai thấy nữa,
+    còn con số sai thì nằm im trong báo cáo tổng hợp. Rà CẢ NĂM (không giới hạn `alert_days`) và
+    đánh dấu `editable` để giao diện không mời bấm sửa một thứ server sẽ chặn.
+    """
+    h = _admin()
+    _cleanup(h)
+    member_unit_repo.add_unit(UNIT)
+    assert client.post("/api/users", json={"username": USER, "password": "pass123",
+                                           "role": "member", "member_units": [UNIT]},
+                       headers=h).status_code == 200
+    mh = _member()
+    today = date.today()
+    long_ago = date(today.year, 1, 15).isoformat()
+    try:
+        with session_scope() as db:
+            db.execute(text(
+                "INSERT INTO sales_contract (company, code, delivered, delivered_at, lines) "
+                "VALUES (:c, 'ZZ-DONG', true, CAST(:d AS date), CAST(:bad AS jsonb)), "
+                "       (:c, 'ZZ-OK', true, CAST(:d AS date), CAST(:ok AS jsonb)), "
+                "       (:c, 'ZZ-KHAC', true, CAST(:d AS date), CAST(:other AS jsonb))"),
+                {"c": UNIT, "d": long_ago,
+                 # 50.750.000 đồng/tấn gõ vào ô tính bằng TRIỆU đồng/tấn — lỗi thật trên prod.
+                 "bad": json.dumps([{"grade": "SVR 10 / CSR 10", "qty": 10.0,
+                                     "price": 50_750_000.0, "ccy": "VND"}]),
+                 "ok": json.dumps([{"grade": "SVR 10 / CSR 10", "qty": 10.0,
+                                    "price": 45.0, "ccy": "VND"}]),
+                 # "Chủng loại khác" không có mặt bằng giá cố định → KHÔNG được kêu oan.
+                 "other": json.dumps([{"grade": "Chủng loại khác", "qty": 3.0,
+                                       "price": 1.4, "ccy": "VND"}])})
+        # Tồn kho hôm nay gõ nhầm sang kg: 7.701.258 tấn (cũng là lỗi thật trên prod).
+        unit_daily_repo.upsert("consumption", today.isoformat(), UNIT,
+                               {"stock_material": 7_701_258.0}, "admin")
+
+        u = client.get("/api/member/checklist", headers=mh).json()["units"][0]
+        found = {(c["kind"], c["where"]): c for c in u["data_checks"]}
+        assert len(found) == 2, found                      # đúng 2 ô, không kêu oan 2 dòng kia
+        con = found[("contract", "Hợp đồng ZZ-DONG · dòng 1 · Đơn giá")]
+        assert "Vượt 150 triệu đ/tấn" in con["message"]
+        assert con["as_of"] == long_ago and con["editable"] is False   # quá hạn → báo Ban TTKD
+        stock = found[("stock", "Tồn kho · nguyên liệu chưa sản xuất")]
+        assert "Vượt 20.000 tấn" in stock["message"] and stock["editable"] is True
+
+        # Phải cộng vào tổng, nếu không banner báo "Đã nhập đủ" và mục này biến mất khỏi màn hình.
+        assert client.get("/api/member/checklist", headers=mh).json()["total_missing"] >= 2
+
+        # Sửa lại cho đúng → hết nhắc.
+        unit_daily_repo.upsert("consumption", today.isoformat(), UNIT,
+                               {"stock_material": 770.0}, "admin")
+        with session_scope() as db:
+            db.execute(text("UPDATE sales_contract SET lines = CAST(:l AS jsonb) "
+                            " WHERE company = :c AND code = 'ZZ-DONG'"),
+                       {"c": UNIT, "l": json.dumps([{"grade": "SVR 10 / CSR 10", "qty": 10.0,
+                                                     "price": 50.75, "ccy": "VND"}])})
+        assert client.get("/api/member/checklist", headers=mh).json()["units"][0]["data_checks"] == []
+    finally:
+        with session_scope() as db:
+            db.execute(text("DELETE FROM sales_contract WHERE company = :c"), {"c": UNIT})
+        _cleanup(h)
+
+
 def test_year_plan_counts_toward_total() -> None:
     """`total_missing` = 0 làm banner chuyển sang "Đã nhập đủ" VÀ ẩn phần chi tiết → mọi việc còn
     thiếu đều phải được cộng vào tổng, nếu không nó biến mất khỏi màn hình."""

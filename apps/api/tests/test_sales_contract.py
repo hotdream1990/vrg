@@ -128,24 +128,32 @@ def test_batches_may_exceed_the_contract_up_to_the_cap(env, cus) -> None:
     assert detail["over_qty"] == pytest.approx(5.0)
 
 
-def test_dry_weight_required_on_delivery_only(env, cus) -> None:
-    h = env
-    # Hợp đồng mẹ giao-nhiều-lần chỉ là cam kết → KHÔNG ép quy khô.
-    parent = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-L", "delivery_type": "multi", "contract_type": "long_term", "customer_id": cus, "sign_date": YESTERDAY,
-        "lines": [_line(grade="LATEX", qty=50.0)]}, headers=h)
-    assert parent.status_code == 200, parent.text
+def test_dry_weight_required_from_the_first_save(env, cus) -> None:
+    """Bán mủ nước là BẮT BUỘC khai quy khô ngay từ lúc tạo — kể cả hợp đồng mới chỉ là cam kết.
 
-    # Phụ lục = lần giao thật → bán LATEX bắt buộc quy khô.
-    bad = client.put("/api/sales-contracts", json={
-        "company": UNIT, "parent_id": parent.json()["contract"]["id"], "code": "PL-L1", "start_date": YESTERDAY,
-        "delivered_at": TODAY, "channel": "export",
-        "lines": [_line(grade="LATEX", qty=10.0)]}, headers=h)
+    Trước đây chỉ ép khi đã giao, nên cam kết của hợp đồng vào sổ bằng số MỦ NƯỚC còn phần đã giao
+    bằng số KHÔ: khối "đã ký chưa giao" thành hiệu của hai đơn vị tính khác nhau.
+    """
+    h = env
+    base = {"company": UNIT, "code": "HD-L", "delivery_type": "multi", "contract_type": "long_term",
+            "customer_id": cus, "sign_date": YESTERDAY}
+    bad = client.put("/api/sales-contracts",
+                     json={**base, "lines": [_line(grade="LATEX", qty=50.0)]}, headers=h)
     assert bad.status_code == 400 and "quy khô" in bad.json()["detail"]
 
+    parent = client.put("/api/sales-contracts",
+                        json={**base, "lines": [_line(grade="LATEX", qty=50.0, qty_dry=30.0)]},
+                        headers=h)
+    assert parent.status_code == 200, parent.text
+
+    # Đợt giao cũng vậy — kể cả đợt mới lập, CHƯA có ngày giao.
+    kid = {"company": UNIT, "parent_id": parent.json()["contract"]["id"], "code": "PL-L1"}
+    waiting = client.put("/api/sales-contracts",
+                         json={**kid, "lines": [_line(grade="LATEX", qty=10.0)]}, headers=h)
+    assert waiting.status_code == 400 and "quy khô" in waiting.json()["detail"]
+
     good = client.put("/api/sales-contracts", json={
-        "company": UNIT, "parent_id": parent.json()["contract"]["id"], "code": "PL-L1", "start_date": YESTERDAY,
-        "delivered_at": TODAY, "channel": "export",
+        **kid, "delivered_at": TODAY, "channel": "export",
         "lines": [_line(grade="LATEX", qty=10.0, qty_dry=3.5)]}, headers=h)
     assert good.status_code == 200, good.text
 
@@ -157,9 +165,9 @@ def test_dry_weight_required_for_all_three_grades(env, cus) -> None:
     h = env
     assert len(DRY_REQUIRED_GRADES) == 3
     for i, grade in enumerate(sorted(DRY_REQUIRED_GRADES)):
-        body = {"company": UNIT, "code": f"HD-DRY{i}", "delivery_type": "single", "contract_type": "long_term",
-                "customer_id": cus, "sign_date": YESTERDAY, "delivered": True,
-                "delivered_at": TODAY, "channel": "export"}
+        # KHÔNG đánh dấu đã giao: luật ép quy khô không phụ thuộc trạng thái giao.
+        body = {"company": UNIT, "code": f"HD-DRY{i}", "delivery_type": "single",
+                "contract_type": "long_term", "customer_id": cus, "sign_date": YESTERDAY}
         bad = client.put("/api/sales-contracts",
                          json={**body, "lines": [_line(grade=grade, qty=8.0)]}, headers=h)
         assert bad.status_code == 400 and "quy khô" in bad.json()["detail"], grade
@@ -194,18 +202,37 @@ def test_dry_weight_rejected_for_finished_grades(env, cus) -> None:
     assert ok.status_code == 200, ok.text
 
 
-def test_dry_weight_enforced_when_contract_flips_to_delivered(env, cus) -> None:
-    """HĐ giao-1-lần lúc tạo CHƯA giao (không ép quy khô) — khi đánh dấu đã giao thì phải ép."""
-    h = env
-    body = {"company": UNIT, "code": "HD-FLIP", "delivery_type": "single", "contract_type": "long_term", "customer_id": cus,
-            "sign_date": YESTERDAY, "lines": [_line(grade="LATEX", qty=20.0)]}
-    created = client.put("/api/sales-contracts", json=body, headers=h)
-    assert created.status_code == 200, created.text     # chưa giao → chưa cần quy khô
+def test_dry_weight_enforced_on_update_of_an_old_record(env, cus) -> None:
+    """SỬA cũng bị chặn như TẠO: bản ghi cũ thiếu quy khô phải bổ sung mới lưu lại được.
 
+    Prod còn 211 dòng mủ nước chưa khai quy khô (phần lớn do script chuyển dữ liệu cũ tạo ra, không
+    đi qua đường kiểm này). Chặn ở lượt sửa là cách duy nhất để chúng được dọn dần mà không phải
+    đoán hộ đơn vị một con số họ chưa khai.
+    """
+    h = env
+    body = {"company": UNIT, "code": "HD-FLIP", "delivery_type": "single",
+            "contract_type": "long_term", "customer_id": cus, "sign_date": YESTERDAY,
+            "lines": [_line(grade="LATEX", qty=20.0, qty_dry=12.0)]}
+    created = client.put("/api/sales-contracts", json=body, headers=h)
+    assert created.status_code == 200, created.text
     cid = created.json()["contract"]["id"]
-    flip = client.put("/api/sales-contracts", json={
-        **body, "id": cid, "delivered": True, "delivered_at": TODAY, "channel": "export"}, headers=h)
-    assert flip.status_code == 400 and "quy khô" in flip.json()["detail"]
+
+    # Giả lập bản ghi CŨ: ghi thẳng vào bảng một dòng latex không có quy khô (như script migrate).
+    with session_scope() as db:
+        db.execute(text("UPDATE sales_contract SET lines = CAST(:l AS jsonb) WHERE id = :i"),
+                   {"l": '[{"grade": "LATEX", "qty": 20, "price": 40, "ccy": "VND"}]', "i": cid})
+    old = client.get(f"/api/sales-contracts/{cid}", headers=h).json()["contract"]
+    assert old["qty_dry"] == 0
+
+    # Sửa một ô KHÔNG liên quan (ghi chú) vẫn bị chặn — quy khô là điều kiện để bản ghi được lưu.
+    keep = client.put("/api/sales-contracts",
+                      json={**old, "note": "sửa ghi chú"}, headers=h)
+    assert keep.status_code == 400 and "quy khô" in keep.json()["detail"]
+
+    fixed = client.put("/api/sales-contracts", json={
+        **old, "note": "sửa ghi chú",
+        "lines": [_line(grade="LATEX", qty=20.0, qty_dry=12.0)]}, headers=h)
+    assert fixed.status_code == 200, fixed.text
 
 
 def test_foreign_currency_needs_fx(env, cus) -> None:
@@ -658,6 +685,56 @@ def test_consumption_filter_by_customer_and_xlsx(env, cus) -> None:
     assert zipfile.is_zipfile(__import__("io").BytesIO(xls.content))   # .xlsx là file zip hợp lệ
 
 
+def test_consumption_xlsx_has_detail_sheet(env, cus) -> None:
+    """File Excel kèm sheet CHI TIẾT tới từng DÒNG BÁN — bảng tổng hợp không soát số được.
+
+    Khoá 3 điều: cộng cột "SL tính tiêu thụ" ra đúng sản lượng của sheet tổng hợp; latex lấy số
+    QUY KHÔ còn mủ nước để riêng một cột (nhầm hai cột này là báo cáo sai đơn vị tính); và sheet
+    chi tiết phải bật sẵn bộ lọc — đây chính là việc người dùng mở file ra để làm.
+    """
+    import io
+
+    from openpyxl import load_workbook
+
+    h = env
+    parent = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-XL", "delivery_type": "multi", "contract_type": "long_term",
+        "customer_id": cus, "sign_date": YESTERDAY,
+        "lines": [_line(grade="LATEX", qty=100.0, qty_dry=60.0)]}, headers=h).json()["contract"]
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": parent["id"], "code": "PL-XL", "delivered_at": TODAY,
+        "channel": "export", "invoice_no": "HD0001",
+        "lines": [_line(grade="LATEX", qty=30.0, qty_dry=10.0, price=20.0),
+                  _line(qty=7.0, price=40.0)]}, headers=h)      # dòng 2: SVR 10 — hàng khô
+
+    xls = client.get(f"/api/sales-contracts/consumption.xlsx?date_from={TODAY}&date_to={TODAY}"
+                     f"&company={UNIT}", headers=h)
+    assert xls.status_code == 200
+    wb = load_workbook(io.BytesIO(xls.content))
+    assert wb.sheetnames == ["Đơn vị", "Chi tiết lần giao"]
+
+    ws = wb["Chi tiết lần giao"]
+    head = [c.value for c in ws[5]]
+    rows = [dict(zip(head, [c.value for c in r], strict=True)) for r in ws.iter_rows(min_row=6)]
+    assert len(rows) == 2                                   # một dòng bán = một dòng file
+    latex = next(r for r in rows if r["Chủng loại"] == "LATEX")
+    assert (latex["SL mủ nước (tấn)"], latex["Quy khô (tấn)"]) == (30.0, 10.0)
+    assert latex["SL tính tiêu thụ (tấn quy khô)"] == pytest.approx(10.0)
+    assert latex["Số hợp đồng"] == "HD-XL" and latex["Đợt giao"] == "PL-XL"
+    assert latex["Số hoá đơn"] == "HD0001"
+    # Thành phẩm không có khái niệm mủ nước → ô trống, KHÔNG lặp lại số lượng ở cột đó.
+    finished = next(r for r in rows if r["Chủng loại"] != "LATEX")
+    assert finished["SL mủ nước (tấn)"] is None and finished["Quy khô (tấn)"] is None
+    assert finished["SL tính tiêu thụ (tấn quy khô)"] == pytest.approx(7.0)
+
+    # Tổng chi tiết = số của sheet tổng hợp (và của bảng trên web) — hai sheet không được lệch.
+    rep = client.get(f"/api/sales-contracts/consumption?date_from={TODAY}&date_to={TODAY}"
+                     f"&company={UNIT}", headers=h).json()
+    assert sum(r["SL tính tiêu thụ (tấn quy khô)"] for r in rows) == pytest.approx(
+        rep["by_company"][UNIT]["qty"])
+    assert ws.auto_filter.ref, "sheet chi tiết phải bật sẵn bộ lọc của Excel"
+
+
 def test_meta_reports_currency_per_unit(env) -> None:
     """Form chỉ cho chọn nội tệ CỦA ĐƠN VỊ đó — meta phải trả loại tiền từng đơn vị (chốt Q10)."""
     m = client.get("/api/sales-contracts/meta", headers=env).json()
@@ -1053,11 +1130,10 @@ def test_latex_reports_dry_tonnes_but_bills_wet(env, cus) -> None:
 
 
 def test_block3_is_reported_in_dry_tonnes_like_the_consumption_column(env, cus) -> None:
-    """Khối 3 quy sang KHÔ theo tỷ lệ của chính hợp đồng (chốt 17/08/2026).
+    """Khối 3 báo bằng TẤN QUY KHÔ, cùng đơn vị tính với cột sản lượng tiêu thụ đứng bên cạnh.
 
-    Cột "chưa giao" đứng ngay cạnh cột sản lượng tiêu thụ — vốn đã là quy khô — nên để nguyên mủ
-    nước là hai cột khác đơn vị tính. Phép trừ vẫn chạy trên mủ nước (cùng gốc với tiến độ giao),
-    chỉ phần dư cuối cùng mới quy đổi.
+    Số quy khô lấy thẳng từ ô "Quy khô" của hợp đồng và của đợt giao rồi trừ nhau — xem
+    `test_block3_subtracts_declared_dry_weight_without_any_ratio` cho lý do không quy đổi.
     """
     h = env
     parent = client.put("/api/sales-contracts", json={
@@ -1069,7 +1145,7 @@ def test_block3_is_reported_in_dry_tonnes_like_the_consumption_column(env, cus) 
         "delivered_at": TODAY, "channel": "domestic",
         "lines": [_line(grade="LATEX", qty=12.0, qty_dry=4.0)]}, headers=h)
 
-    # Cam kết 30 nước − đã giao 12 nước = 18 nước, tỷ lệ khô của hợp đồng 10/30 → 6 tấn quy khô.
+    # Cam kết 10 khô − đã giao 4 khô = 6 tấn quy khô.
     und = client.get(f"/api/sales-contracts/undelivered?as_of={TODAY}&company={UNIT}",
                      headers=h).json()["by_company"][UNIT]
     assert und["qty"] == pytest.approx(6.0)
@@ -1082,13 +1158,58 @@ def test_block3_is_reported_in_dry_tonnes_like_the_consumption_column(env, cus) 
     assert cons["by_company"][UNIT]["qty_wet"] == pytest.approx(12.0)
     assert cons["undelivered"][UNIT]["qty"] == pytest.approx(6.0)
 
-    # Hợp đồng KHÔNG khai quy khô thì giữ nguyên số đang có — không tự bịa tỷ lệ khô.
+    # Hợp đồng KHÔNG khai quy khô (thành phẩm) thì chính số lượng đã là số khô.
     client.put("/api/sales-contracts", json={
         "company": UNIT, "code": "HD-SVR-B3", "delivery_type": "single", "contract_type": "spot",
         "customer_id": cus, "sign_date": YESTERDAY, "lines": [_line(qty=50.0)]}, headers=h)
     und2 = client.get(f"/api/sales-contracts/undelivered?as_of={TODAY}&company={UNIT}",
                       headers=h).json()["by_company"][UNIT]
     assert und2["qty"] == pytest.approx(56.0)                    # 6 (latex quy khô) + 50
+
+
+def test_block3_subtracts_declared_dry_weight_without_any_ratio(env, cus) -> None:
+    """Khối 3 TRỪ THẲNG trên số quy khô đã khai, không suy ra tỷ lệ khô rồi quy đổi (18/08/2026).
+
+    Ca thật của Tây Ninh (HĐ 2333NT+1404): một tờ hợp đồng bán cả latex lẫn thành phẩm. Tỷ lệ khô
+    của dòng latex không được đụng tới dòng thành phẩm — hàng đã khô sẵn, số lượng chính là số khô.
+    Cách cũ nhân tỷ lệ khô của CẢ hợp đồng (60/200,8) vào toàn bộ phần dư, làm 100,8 tấn SVR chưa
+    giao tụt xuống 30,12.
+    """
+    h = env
+    parent = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-MIX-B3", "delivery_type": "multi", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY,
+        "lines": [_line(grade="LATEX", qty=100.0, qty_dry=60.0),
+                  _line(grade="SVR 3L", qty=100.8)]}, headers=h).json()["contract"]
+    # Giao trọn phần latex, chưa giao tí SVR 3L nào.
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": parent["id"], "code": "1", "start_date": YESTERDAY,
+        "delivered_at": TODAY, "channel": "domestic",
+        "lines": [_line(grade="LATEX", qty=100.0, qty_dry=60.0)]}, headers=h)
+
+    und = client.get(f"/api/sales-contracts/undelivered?as_of={TODAY}&company={UNIT}",
+                     headers=h).json()["by_company"][UNIT]
+    assert und["qty"] == pytest.approx(100.8)
+    assert und["by_grade"]["SVR 3L"] == pytest.approx(100.8)
+    assert "LATEX" not in und["by_grade"]            # latex đã giao đủ → rời khối 3
+
+
+def test_block3_uses_the_dry_weight_of_each_delivery_not_the_contract_ratio(env, cus) -> None:
+    """Đợt giao cân ra độ khô khác với dự kiến trên hợp đồng thì lấy SỐ THỰC CỦA ĐỢT GIAO."""
+    h = env
+    parent = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-DRC-B3", "delivery_type": "multi", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY,
+        "lines": [_line(grade="LATEX", qty=30.0, qty_dry=10.0)]}, headers=h).json()["contract"]
+    # Hợp đồng dự kiến 1/3 khô, đợt giao thực tế cân được nhiều hơn: 5 khô trên 12 nước.
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": parent["id"], "code": "1", "start_date": YESTERDAY,
+        "delivered_at": TODAY, "channel": "domestic",
+        "lines": [_line(grade="LATEX", qty=12.0, qty_dry=5.0)]}, headers=h)
+
+    und = client.get(f"/api/sales-contracts/undelivered?as_of={TODAY}&company={UNIT}",
+                     headers=h).json()["by_company"][UNIT]
+    assert und["qty"] == pytest.approx(5.0)         # 10 khô cam kết − 5 khô đã giao
 
 
 def test_contract_list_filters_by_sale_channel(env, cus) -> None:
