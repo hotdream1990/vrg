@@ -169,10 +169,14 @@ def consumption(date_from: str, date_to: str, companies: list[str] | None = None
 
 
 #: Sản lượng theo CHỦNG LOẠI của một cột `lines` jsonb, mỗi dòng chi tiết một bản ghi.
-#: Kèm quy khô để suy ra TỶ LỆ KHÔ của hợp đồng (xem `_remaining_by_grade`).
+#: Lấy CẢ HAI gốc số: `qty` = mủ nước ghi trên giấy, `qty_sale` = quy khô đã khai (thành phẩm không
+#: có quy khô thì chính số lượng đã là số khô — quy ước của `calc.sale_qty`). `_remaining_by_grade`
+#: chọn gốc theo từng dòng: dòng nào cam kết có khai quy khô thì trừ trên khô, không thì trừ trên nước.
 _GRADE_SQL = ("COALESCE(NULLIF(e->>'grade', ''), '(chưa khai)') AS grade, "
               "COALESCE(NULLIF(e->>'qty', '')::numeric, 0) AS qty, "
-              "COALESCE(NULLIF(e->>'qty_dry', '')::numeric, 0) AS qty_dry")
+              "COALESCE(NULLIF(e->>'qty_dry', '')::numeric, 0) AS qty_dry, "
+              "COALESCE(NULLIF(NULLIF(e->>'qty_dry', '')::numeric, 0), "
+              "NULLIF(e->>'qty', '')::numeric, 0) AS qty_sale")
 
 #: Khối 3 tại ngày :d = cam kết của HỢP ĐỒNG − đã giao tính tới hết ngày đó, tách theo chủng loại.
 #: Gom ở SQL chứ không kéo cả bảng về Python: lưới nhập liệu gọi hàm này MỘT LẦN CHO MỖI NGÀY,
@@ -196,11 +200,14 @@ WITH parent AS (
      WHERE k.parent_id IN (SELECT id FROM parent)
        AND k.delivered_at IS NOT NULL AND k.delivered_at <= CAST(:d AS date)
 ), c AS (SELECT id, grade, sum(qty) AS qty, sum(qty_dry) AS qty_dry FROM commit_g GROUP BY 1, 2
-), d AS (SELECT id, grade, sum(qty) AS qty FROM done_g GROUP BY 1, 2
-), dtot AS (SELECT id, sum(qty) AS qty FROM done_g GROUP BY 1)
+), d AS (SELECT id, grade, sum(qty) AS qty, sum(qty_sale) AS qty_sale, sum(qty_dry) AS qty_dry,
+                count(*) FILTER (WHERE qty_dry = 0) AS no_dry FROM done_g GROUP BY 1, 2
+), dtot AS (SELECT id, sum(qty_sale) AS qty_sale FROM done_g GROUP BY 1)
 SELECT p.id, p.company, p.code, p.customer_id, p.sign_date, p.expiry_date,
-       c.grade, c.qty AS commit_qty, c.qty_dry AS commit_dry, COALESCE(dtot.qty, 0) AS done_total,
-       COALESCE(d.qty, 0) AS done_qty
+       c.grade, c.qty AS commit_wet, c.qty_dry AS commit_dry,
+       COALESCE(dtot.qty_sale, 0) AS done_sale_total,
+       COALESCE(d.qty, 0) AS done_wet, COALESCE(d.qty_sale, 0) AS done_sale,
+       COALESCE(d.qty_dry, 0) AS done_dry, COALESCE(d.no_dry, 0) AS done_no_dry
   FROM parent p
   JOIN c ON c.id = p.id
   LEFT JOIN d ON d.id = p.id AND d.grade = c.grade
@@ -209,38 +216,42 @@ SELECT p.id, p.company, p.code, p.customer_id, p.sign_date, p.expiry_date,
 """
 
 
-def _dry_ratio(dry: Any, wet: Any) -> float:
-    """Tỷ lệ QUY KHÔ / mủ nước ghi trên hợp đồng. Không khai quy khô → 1 (giữ nguyên số đang có).
-
-    Dùng chính tỷ lệ của hợp đồng, KHÔNG lấy tỷ lệ của các đợt đã giao: cam kết và phần đã giao
-    phải trừ nhau trên cùng một gốc số (mủ nước), quy đổi chỉ làm ở phần dư cuối cùng — trộn giữa
-    chừng sẽ để lại một phần dư ảo ở hợp đồng thực ra đã giao xong.
-    """
-    w, d = float(wet or 0), float(dry or 0)
-    return d / w if w > 0 and d > 0 else 1.0
-
-
 def _remaining_by_grade(rows: list[dict[str, Any]]) -> tuple[float, dict[str, float]]:
-    """Phần CHƯA GIAO của một hợp đồng, QUY KHÔ: tổng và tách theo chủng loại.
+    """Phần CHƯA GIAO của một hợp đồng: tổng và tách theo chủng loại.
+
+    Trừ THẲNG trên số đã khai, KHÔNG suy ra tỷ lệ khô rồi quy đổi (chốt 18/08/2026) — đơn vị chỉ
+    khai hai con số nước/khô chứ không khai tỷ lệ nào, tự suy ra tỷ lệ là bịa thêm dữ kiện.
+
+    Gốc số chọn theo TỪNG DÒNG cam kết, vì cam kết và đã giao phải trừ nhau trên cùng một gốc:
+      · CẢ cam kết LẪN mọi đợt giao của chủng loại đó đều có số khô → trừ trên KHÔ;
+      · còn lại → trừ trên MỦ NƯỚC. Thành phẩm thì nước = khô nên không khác gì; latex mà một bên
+        bỏ trống ô quy khô thì bên đó KHÔNG BIẾT khô bao nhiêu — ghép số khô của bên này với số
+        nước của bên kia sẽ đẻ ra phần dư ảo, hoặc trừ vống lên thành đã giao hết.
+    Chọn theo dòng chứ không theo cả hợp đồng: một tờ hợp đồng bán cả latex lẫn thành phẩm thì dòng
+    thành phẩm — vốn đã là hàng khô — không được ăn theo gốc số của dòng latex.
 
     Tổng luôn là `cam kết − đã giao` (không âm). Phần theo chủng loại lấy hiệu của từng chủng loại,
     rồi HẠ ĐỀU cho khớp tổng: giao vượt ở chủng loại này / giao chủng loại khác với hợp đồng sẽ làm
     tổng hai bên lệch nhau, khi đó cột tổng và bảng chi tiết phải kể cùng một câu chuyện.
-
-    Phần dư quy sang KHÔ bằng tỷ lệ khô của chính hợp đồng (chốt 17/08/2026): cột "chưa giao" đứng
-    ngay cạnh cột sản lượng tiêu thụ — vốn đã là quy khô — nên để nguyên mủ nước là hai cột khác
-    đơn vị tính, cộng/trừ ngang là ra số sai.
     """
-    commit_total = sum(float(r["commit_qty"] or 0) for r in rows)
-    dry_total = sum(float(r["commit_dry"] or 0) for r in rows)
-    done_total = float(rows[0]["done_total"] or 0) if rows else 0.0
-    total = max(0.0, commit_total - done_total) * _dry_ratio(dry_total, commit_total)
-    by_grade = {}
+    commit_total = done_total = 0.0
+    by_grade: dict[str, float] = {}
     for r in rows:
-        left = float(r["commit_qty"] or 0) - float(r["done_qty"] or 0)
+        # Chỉ trừ trên KHÔ khi CẢ HAI bên đều có số khô. Đợt giao bỏ trống ô quy khô là KHÔNG BIẾT
+        # nó khô bao nhiêu — mượn tạm số mủ nước của nó để trừ vào cam kết khô sẽ trừ vống lên,
+        # hợp đồng còn hàng mà báo đã giao hết.
+        on_dry = float(r["commit_dry"] or 0) > 0 and not int(r["done_no_dry"] or 0)
+        commit = float((r["commit_dry"] if on_dry else r["commit_wet"]) or 0)
+        done = float((r["done_dry"] if on_dry else r["done_wet"]) or 0)
+        commit_total += commit
+        done_total += done
+        left = commit - done
         if left > 1e-9:
-            left *= _dry_ratio(r["commit_dry"], r["commit_qty"])
             by_grade[r["grade"]] = by_grade.get(r["grade"], 0.0) + left
+    # Hàng đã giao của chủng loại KHÔNG có trên hợp đồng vẫn phải trừ vào tổng — nếu không, giao
+    # nhầm chủng loại sẽ để lại một phần dư không bao giờ hết. Phần này tính theo quy khô.
+    spill = float(rows[0]["done_sale_total"] or 0) - sum(float(r["done_sale"] or 0) for r in rows)
+    total = max(0.0, commit_total - done_total - max(0.0, spill))
     spread = sum(by_grade.values())
     if spread > total + 1e-9 and spread > 0:
         by_grade = {g: q * total / spread for g, q in by_grade.items()}
@@ -256,9 +267,9 @@ def undelivered_on(as_of: str, companies: list[str] | None = None,
     **hoàn thành** (thực giao lệch với hợp đồng là chuyện thường — chốt hoàn thành để phần chênh
     rời khỏi khối này).
 
-    Phép trừ chạy trên số GHI TRÊN HỢP ĐỒNG (mủ nước với latex), cùng gốc với tiến độ giao; phần
-    dư cuối cùng mới QUY SANG KHÔ theo tỷ lệ của chính hợp đồng để khớp đơn vị tính với cột sản
-    lượng tiêu thụ — xem `_remaining_by_grade`. Hợp đồng không khai quy khô thì giữ nguyên số đang có.
+    Phép trừ chạy trên SỐ QUY KHÔ đã khai của từng dòng (latex/mủ nguyên liệu lấy ô "Quy khô",
+    thành phẩm thì chính số lượng đã là số khô) — cùng đơn vị tính với cột sản lượng tiêu thụ đứng
+    ngay bên cạnh, và KHÔNG quy đổi theo tỷ lệ nào cả — xem `_remaining_by_grade`.
     """
     ensure_schema()
     scope, params = "", {"d": as_of}
@@ -292,7 +303,7 @@ def undelivered_on(as_of: str, companies: list[str] | None = None,
             "customer_id": head["customer_id"],
             "sign_date": str(head["sign_date"]) if head["sign_date"] else None,
             "expiry_date": str(head["expiry_date"]) if head["expiry_date"] else None,
-            "qty": sum(float(r["commit_qty"] or 0) for r in lines),
+            "qty": sum(float(r["commit_wet"] or 0) for r in lines),
             "remaining": total, "by_grade": by_grade,
         })
     return out
