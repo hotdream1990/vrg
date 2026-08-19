@@ -20,8 +20,6 @@ export const lineAmount = (ln: ContractLine): number | null =>
 type Props = {
   lines: ContractLine[];
   meta: ContractMeta;
-  /** true khi dòng thuộc MỘT LẦN GIAO thật (đợt giao / HĐ giao-1-lần đã giao) → ép quy khô. */
-  requireDry: boolean;
   /** Loại tiền được phép của ĐƠN VỊ đang chọn (đã lọc ở form) — không dùng thẳng meta.currencies. */
   currencies: string[];
   readOnly?: boolean;
@@ -66,7 +64,7 @@ function Field({ label, w, children }: { label: string; w: number; children: Rea
  *   - Quy khô: chỉ latex và mủ nguyên liệu (thành phẩm bán ra vốn đã là hàng khô).
  *   - Tỷ giá: chỉ dòng bán bằng ngoại tệ.
  */
-export default function ContractLinesTable({ lines, meta, requireDry, currencies, readOnly, onChange }: Props) {
+export default function ContractLinesTable({ lines, meta, currencies, readOnly, onChange }: Props) {
   const dry = new Set(meta.dry_required);
   const set = (i: number, patch: Partial<ContractLine>) =>
     onChange(lines.map((ln, k) => (k === i ? { ...ln, ...patch } : ln)));
@@ -87,8 +85,9 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
   // Gom cảnh báo của MỌI dòng: ô lệch rất dễ nằm ngoài tầm nhìn khi khối tự xuống hàng, chỉ tô
   // viền thôi thì người nhập vẫn bấm Lưu mà không thấy gì (bài học của banner biểu nhập ngày).
   const alerts = lines.flatMap((ln, i) => {
-    const w = lineWarnings(ln, requireDry && dry.has(ln.grade));
-    return ([["Sản lượng", w.qty], ["Đơn giá", w.price], ["Tỷ giá", w.fx]] as const)
+    const w = lineWarnings(ln, dry.has(ln.grade));
+    return ([["Sản lượng", w.qty], ["Quy khô", w.qty_dry], ["Đơn giá", w.price],
+             ["Tỷ giá", w.fx]] as const)
       .filter(([, m]) => m)
       .map(([field, m]) => `Dòng ${i + 1} · ${field}: ${m}`);
   });
@@ -98,9 +97,8 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
       <div className="card" style={{ padding: "0 12px" }}>
         {lines.map((ln, i) => {
           const hasDry = dry.has(ln.grade);
-          const needDry = requireDry && hasDry;
           const needFx = ln.ccy !== "VND";
-          const w = lineWarnings(ln, needDry);
+          const w = lineWarnings(ln, hasDry);
           return (
             <div className="ct-line" key={i}>
               <Field label="Chủng loại" w={230}>
@@ -121,9 +119,8 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
                 {num(ln.qty, (v) => set(i, { qty: v }), w.qty)}
               </Field>
               {hasDry && (
-                <Field label="Quy khô (tấn)" w={110}>
-                  {num(ln.qty_dry, (v) => set(i, { qty_dry: v }), w.qty_dry,
-                       needDry ? "bắt buộc" : "")}
+                <Field label="Quy khô (tấn) *" w={110}>
+                  {num(ln.qty_dry, (v) => set(i, { qty_dry: v }), w.qty_dry, "bắt buộc")}
                 </Field>
               )}
               <Field label={`Đơn giá (${ln.ccy === "VND" ? "tr.đ/tấn" : `${ln.ccy}/tấn`})`} w={130}>
@@ -176,7 +173,8 @@ export default function ContractLinesTable({ lines, meta, requireDry, currencies
       <div className="form-note" style={{ fontSize: 11.5, marginTop: 6 }}>
         Đơn giá: bán bằng <b>VNĐ</b> nhập theo <b>triệu đồng/tấn</b>; bán bằng ngoại tệ nhập theo
         <b> ngoại tệ/tấn</b> và phải có tỷ giá quy ra VNĐ. Bán <b>LATEX</b> và 2 loại mủ nguyên liệu
-        mới thì <b>bắt buộc nhập quy khô</b> mới lưu được.
+        mới thì <b>bắt buộc nhập quy khô</b> mới lưu được — cả lúc tạo lẫn lúc sửa, kể cả hợp đồng
+        chưa giao.
         <br />
         Với 3 chủng loại đó: <b>SL nước</b> là số để tính <b>thành tiền</b> (đơn giá là giá theo tấn
         mủ nước), còn <b>sản lượng tiêu thụ trên báo cáo lấy theo số quy khô</b>.

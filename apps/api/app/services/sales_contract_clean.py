@@ -164,8 +164,8 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         "sign_date": sign.isoformat() if sign else None,
         "expiry_date": expiry.isoformat() if expiry else None,
         "start_date": start.isoformat() if start else None,
-        # Quy khô + hình thức tiêu thụ chỉ ép khi ĐÃ GIAO — lúc lập đợt chưa bán nên chưa biết.
-        "lines": calc.clean_lines(row.get("lines"), require_dry=delivered),
+        # Quy khô ép ở MỌI trạng thái (kể cả hợp đồng chưa giao) — xem `calc.clean_lines`.
+        "lines": calc.clean_lines(row.get("lines")),
         "delivered": delivered,
         "delivered_at": delivered_at.isoformat() if delivered_at else None,
         "channel": channel,

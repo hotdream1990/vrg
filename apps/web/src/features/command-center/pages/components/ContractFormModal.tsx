@@ -77,7 +77,8 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
 
   const set = (patch: Partial<Contract>) => setC((prev) => ({ ...prev, ...patch }));
   // Đợt CHỈ tính là đã giao khi có NGÀY GIAO. Chưa có = đang chờ giao (vẫn nằm trong phần chưa
-  // giao của hợp đồng), lúc đó chưa ép quy khô / hình thức tiêu thụ vì hàng chưa bán ra.
+  // giao của hợp đồng), lúc đó chưa ép hình thức tiêu thụ vì hàng chưa bán ra. Quy khô thì ép ở
+  // MỌI trạng thái — nó là cách khai sản lượng, không phải dữ kiện của lần bán.
   const isDelivery = !!c.delivered_at;
   // Bản ghi này có phải MỘT LẦN GIAO không: đợt giao, hoặc hợp đồng giao trọn 1 lần.
   const isBatch = isChild || c.delivery_type === "single";
@@ -117,7 +118,9 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
       const at = `Dòng ${i + 1}`;
       if (!l.grade) p.push(`${at}: chọn chủng loại.`);
       if (l.qty == null || l.qty <= 0) p.push(`${at}: số lượng phải lớn hơn 0.`);
-      if (isDelivery && meta.dry_required.includes(l.grade) && !l.qty_dry) {
+      // Quy khô ép ở MỌI trạng thái: cam kết của hợp đồng và số đã giao phải cùng một gốc số
+      // (khô), nếu không thì "đã ký chưa giao" là hiệu của hai đơn vị tính khác nhau.
+      if (meta.dry_required.includes(l.grade) && !l.qty_dry) {
         p.push(`${at} (${l.grade}): nhập quy khô.`);
       }
       if (l.ccy !== "VND" && !l.fx) p.push(`${at}: bán bằng ${l.ccy} thì phải nhập tỷ giá.`);
@@ -245,7 +248,7 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
       )}
 
       <h4 style={{ margin: "14px 0 6px" }}>Chi tiết {isChild ? "đợt giao" : "hợp đồng"}</h4>
-      <ContractLinesTable lines={c.lines} meta={meta} requireDry={isDelivery}
+      <ContractLinesTable lines={c.lines} meta={meta}
         currencies={currencies} onChange={(lines) => set({ lines })} />
 
       {/* Tổng của cả hợp đồng/đợt giao — quy về VNĐ để cộng được các dòng khác loại tiền.

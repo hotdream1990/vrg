@@ -30,12 +30,13 @@ def _num(v) -> float | None:
     return None if f is not None and not math.isfinite(f) else f
 
 
-def clean_lines(lines, *, require_dry: bool) -> list[dict[str, Any]]:
+def clean_lines(lines) -> list[dict[str, Any]]:
     """Lọc/kiểm tra danh sách dòng chi tiết. Raise ValueError với thông báo tiếng Việt.
 
-    `require_dry=True` khi dòng là MỘT LẦN GIAO thực tế (đợt giao, hoặc hợp đồng giao-1-lần đã giao):
-    bán LATEX và 2 loại mủ nguyên liệu mới thì BẮT BUỘC nhập quy khô mới cho lưu (chốt Q4).
-    Hợp đồng loại giao-nhiều-lần chỉ là cam kết nên không ép quy khô.
+    Bán LATEX và 2 loại mủ nguyên liệu mới thì BẮT BUỘC nhập quy khô mới cho lưu — đúng chốt Q4
+    (30/07/2026), áp cho MỌI lần ghi: tạo mới lẫn sửa, hợp đồng lẫn đợt giao, đã giao hay chưa.
+    Trước đây chỉ ép khi đã giao, nên phần cam kết của hợp đồng giao-nhiều-lần vào sổ bằng số mủ
+    nước còn phần đã giao bằng số khô: hai vế của phép trừ "đã ký chưa giao" khác đơn vị tính nhau.
     """
     out: list[dict[str, Any]] = []
     for i, ln in enumerate(lines if isinstance(lines, list) else [], start=1):
@@ -58,7 +59,7 @@ def clean_lines(lines, *, require_dry: bool) -> list[dict[str, Any]]:
         if grade not in DRY_REQUIRED_GRADES and qty_dry is not None:
             raise ValueError(f"Dòng {i} ({grade}): chủng loại này không có quy khô — số lượng bán "
                              "đã là khối lượng khô. Chỉ latex và mủ nguyên liệu mới khai quy khô.")
-        if require_dry and grade in DRY_REQUIRED_GRADES and (qty_dry is None or qty_dry <= 0):
+        if grade in DRY_REQUIRED_GRADES and (qty_dry is None or qty_dry <= 0):
             raise ValueError(f"Dòng {i} ({grade}): bắt buộc nhập quy khô mới lưu được.")
         if qty_dry is not None and qty_dry > qty + 1e-9:
             raise ValueError(f"Dòng {i} ({grade}): quy khô ({qty_dry:g} tấn) không thể lớn hơn "
