@@ -30,11 +30,11 @@ from app.services import (
     contract_files,
     customer_repo,
     member_unit_repo,
+    sales_contract_consumption_excel,
     sales_contract_delivery_history,
     sales_contract_lifecycle,
     sales_contract_repo,
     sales_contract_report,
-    unit_analytics_excel,
 )
 
 router = APIRouter(prefix="/api/sales-contracts", tags=["sales-contracts"])
@@ -183,57 +183,22 @@ def consumption_deliveries(scope: Scope, date_from: str = Query(...), date_to: s
         date_from, date_to, companies, customer_id, grade, page=page, page_size=page_size)
 
 
-_XLSX_COLS: list[tuple[str, str, str]] = [
-    ("deliveries", "Số lần giao", "lần"),
-    # Sản lượng tiêu thụ đã là QUY KHÔ (xem `sales_contract_calc.sale_qty`) → nói rõ ngay ở tiêu đề,
-    # và cột kế bên trả lại số cân mủ nước của latex/mủ nguyên liệu thay vì lặp lại số khô.
-    ("qty", "Sản lượng tiêu thụ", "tấn quy khô"),
-    ("qty_wet", "Trong đó: SL mủ nước", "tấn"),
-    ("qty_export", SALE_CHANNELS["export"], "tấn"),
-    ("qty_domestic", SALE_CHANNELS["domestic"], "tấn"),
-    ("qty_internal", SALE_CHANNELS["internal"], "tấn"),
-    ("revenue_ty", "Doanh thu", "tỷ đồng"),
-    ("remaining", "Đã ký HĐ chưa giao (cuối kỳ)", "tấn quy khô"),
-]
-
-
 @router.get("/consumption.xlsx")
 def consumption_xlsx(scope: Scope, date_from: str = Query(...), date_to: str = Query(...),
                      company: str | None = Query(None),
                      customer_id: list[int] | None = Query(None),
                      grade: list[str] | None = Query(None)):
-    """Xuất Excel bảng Báo cáo tiêu thụ — dùng CHUNG số liệu với bảng trên web."""
+    """Xuất Excel Báo cáo tiêu thụ — sheet tổng hợp + sheet CHI TIẾT từng dòng bán.
+
+    Dùng CHUNG số liệu với bảng trên web (`_consumption`) nên file và màn hình không thể lệch.
+    """
     _, companies = scope
-    rep = _consumption(companies, date_from, date_to, company, customer_id, grade)
-    rows, totals = [], {k: 0.0 for k, _, _ in _XLSX_COLS}
-    missing_fx = False
-    for name in sorted(set(rep["by_company"]) | set(rep["undelivered"])):
-        c = rep["by_company"].get(name) or {}
-        ch = c.get("by_channel") or {}
-        rev = c.get("revenue")
-        missing_fx = missing_fx or (name in rep["by_company"] and rev is None)
-        row = {
-            "label": name, "deliveries": c.get("deliveries", 0),
-            "qty": c.get("qty", 0.0), "qty_wet": c.get("qty_wet", 0.0),
-            "qty_export": ch.get("export", 0.0), "qty_domestic": ch.get("domestic", 0.0),
-            "qty_internal": ch.get("internal", 0.0),
-            # Doanh thu để TRỐNG khi thiếu tỷ giá — không quy về 0 để khỏi đọc nhầm là "bán không thu tiền".
-            "revenue_ty": None if rev is None else rev / 1_000_000_000,
-            "remaining": (rep["undelivered"].get(name) or {}).get("qty", 0.0),
-        }
-        rows.append(row)
-        for k, _, _ in _XLSX_COLS:
-            v = row.get(k)
-            if isinstance(v, (int, float)):
-                totals[k] += v
-    note = "Nguồn: các lần giao ghi trên hợp đồng & đợt giao."
-    if grade:
-        note += f" Chỉ tính chủng loại: {', '.join(grade)}."
-    if missing_fx:
-        note += " ⚠ Có lần giao thiếu tỷ giá → doanh thu để trống, KHÔNG tính là 0."
-    data = unit_analytics_excel.build_xlsx(
-        title="BÁO CÁO TIÊU THỤ", period=f"{date_from} → {date_to}", note=note,
-        group_by="company", columns=_XLSX_COLS, rows=rows, totals=totals)
+    if company:
+        _assert_company(companies, company)
+        companies = [company]
+    rep = _consumption(companies, date_from, date_to, None, customer_id, grade)
+    data = sales_contract_consumption_excel.build(date_from, date_to, rep, companies,
+                                                 customer_id, grade)
     return Response(
         content=data,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

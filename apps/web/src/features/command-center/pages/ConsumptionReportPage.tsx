@@ -98,11 +98,13 @@ export default function ConsumptionReportPage() {
             Tổng hợp từ <b>các lần giao</b> ghi trên hợp đồng &amp; đợt giao — đơn vị không nhập tay
             số tiêu thụ nữa. Sản lượng tính theo <b>quy khô</b>: latex và mủ nguyên liệu lấy số quy
             khô, chủng loại chưa khai quy khô thì giữ nguyên số đang có. Cột <b>Chưa giao</b> lấy
-            tại ngày cuối kỳ.
+            tại ngày cuối kỳ. Nút <b>Xuất Excel</b> cho ra 2 sheet: tổng hợp theo đơn vị và{" "}
+            <b>chi tiết từng dòng bán</b> (đã bật sẵn bộ lọc để soát/pivot trong Excel).
           </p>
         </div>
         <div className="actions">
-          <button className="btn btn-primary" onClick={exportXlsx} disabled={busy || loading}>
+          <button className="btn btn-primary" onClick={exportXlsx} disabled={busy || loading}
+            title="2 sheet: Tổng hợp theo đơn vị · Chi tiết từng dòng bán của mỗi lần giao">
             <DownloadOutlined /> {busy ? "Đang xuất…" : "Xuất Excel"}
           </button>
         </div>

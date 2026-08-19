@@ -115,32 +115,33 @@ def _head(ws, row: int, col: int, value: Any, *, bold: bool = True, size: int = 
     c.border = _BORDER
 
 
-def build_xlsx(*, title: str, period: str, note: str, group_by: str, columns: list[Col],
-               rows: list[dict], totals: dict | None, label_key: str = "label",
-               period_label: str = "Kỳ báo cáo") -> bytes:
-    """Dựng .xlsx: tiêu đề + kỳ + ghi chú bộ lọc, bảng dữ liệu, dòng Tổng cộng (nếu có)."""
-    wb = Workbook()
-    ws = wb.active
-    ws.title = GROUP_LABELS.get(group_by, "Thống kê")[:31]
-    detail = group_by == "none"
-    # Nhóm theo đơn vị thì kèm cột Khu vực (giống bảng trên web) để lọc/pivot lại trong Excel.
-    lead: list[Col] = [] if detail else [(label_key, GROUP_LABELS.get(group_by, "Nhóm"), "")]
-    if group_by == "company":
-        lead = [("region", "Khu vực", ""), *lead]
-    cols = lead + columns
+#: Sheet PHỤ đi kèm file (bảng phẳng): {name, title, note, columns, rows}. Không có dòng Tổng cộng —
+#: dòng tổng nằm dưới vùng dữ liệu sẽ lọt vào bộ lọc/pivot của người đọc.
+Sheet = dict[str, Any]
 
+
+def _table(ws, *, title: str, period_label: str, period: str, note: str, cols: list[Col],
+           rows: list[dict], totals: dict | None, label_col: int, flat: bool = False) -> None:
+    """Đổ tiêu đề + bảng vào MỘT sheet.
+
+    `label_col` = số cột đầu làm nhãn nhóm (0 = bảng phẳng, không có dòng Tổng cộng).
+    `flat=True` (sheet chi tiết): gộp đơn vị tính vào ngay tiêu đề để header chỉ còn MỘT dòng —
+    có vậy `auto_filter` mới đúng, chứ để 2 dòng thì dòng đơn vị tính bị Excel coi là dữ liệu.
+    """
     ws.cell(row=1, column=1, value=title).font = Font(bold=True, size=14)
     ws.cell(row=2, column=1, value=f"{period_label}: {period}").font = Font(bold=True)
     ws.cell(row=3, column=1, value=note).font = Font(italic=True, size=9, color="666666")
     for r in (1, 2, 3):
         ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=max(2, min(len(cols), 8)))
 
-    head, unit_row = 5, 6
+    head = 5
     for i, (_, label, unit) in enumerate(cols, start=1):
-        _head(ws, head, i, label)
-        _head(ws, unit_row, i, unit, bold=False, size=8)
+        _head(ws, head, i, f"{label} ({unit})" if flat and unit else label)
+        if not flat:
+            _head(ws, head + 1, i, unit, bold=False, size=8)
+    first = head + (1 if flat else 2)
 
-    r = unit_row + 1
+    r = first
     for row in rows:
         for i, (key, *_rest) in enumerate(cols, start=1):
             c = ws.cell(row=r, column=i, value=row.get(key))
@@ -149,9 +150,8 @@ def build_xlsx(*, title: str, period: str, note: str, group_by: str, columns: li
             c.border = _BORDER
         r += 1
 
-    if totals is not None and not detail:
+    if totals is not None and label_col:
         # Nhãn "Tổng cộng" đặt ở cột NHÓM (sau cột Khu vực nếu có) cho khớp bảng trên web.
-        label_col = len(lead)
         for i in range(1, label_col + 1):
             c = ws.cell(row=r, column=i, value="Tổng cộng" if i == label_col else None)
             c.font = Font(bold=True)
@@ -164,10 +164,36 @@ def build_xlsx(*, title: str, period: str, note: str, group_by: str, columns: li
             c.fill = _TOTAL_FILL
             c.border = _BORDER
 
-    ws.freeze_panes = ws.cell(row=unit_row + 1, column=2)
+    if flat and rows:
+        ws.auto_filter.ref = f"A{head}:{get_column_letter(len(cols))}{first + len(rows) - 1}"
+    ws.freeze_panes = ws.cell(row=first, column=2)
     ws.column_dimensions["A"].width = 26
     for i in range(2, len(cols) + 1):
         ws.column_dimensions[get_column_letter(i)].width = 16
+
+
+def build_xlsx(*, title: str, period: str, note: str, group_by: str, columns: list[Col],
+               rows: list[dict], totals: dict | None, label_key: str = "label",
+               period_label: str = "Kỳ báo cáo", sheets: list[Sheet] | None = None) -> bytes:
+    """Dựng .xlsx: tiêu đề + kỳ + ghi chú bộ lọc, bảng dữ liệu, dòng Tổng cộng (nếu có).
+
+    `sheets` = các sheet CHI TIẾT đi kèm (mỗi dòng một bản ghi, có sẵn bộ lọc của Excel) — bảng
+    tổng hợp trả lời "bao nhiêu", sheet chi tiết trả lời "gồm những gì" mà không phải tải lại số.
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = GROUP_LABELS.get(group_by, "Thống kê")[:31]
+    detail = group_by == "none"
+    # Nhóm theo đơn vị thì kèm cột Khu vực (giống bảng trên web) để lọc/pivot lại trong Excel.
+    lead: list[Col] = [] if detail else [(label_key, GROUP_LABELS.get(group_by, "Nhóm"), "")]
+    if group_by == "company":
+        lead = [("region", "Khu vực", ""), *lead]
+    _table(ws, title=title, period_label=period_label, period=period, note=note,
+           cols=lead + columns, rows=rows, totals=None if detail else totals, label_col=len(lead))
+    for s in sheets or []:
+        _table(wb.create_sheet(str(s["name"])[:31]), title=s["title"], period_label=period_label,
+               period=period, note=s["note"], cols=s["columns"], rows=s["rows"],
+               totals=None, label_col=0, flat=True)
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
