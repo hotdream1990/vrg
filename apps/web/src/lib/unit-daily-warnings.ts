@@ -11,7 +11,7 @@ import {
   PRICE_LATEX, TONNES_DAILY, TONNES_STOCK, TONNES_YEAR,
   boundWarning, fxWarning, priceBound,
 } from "./entry-bounds";
-import type { ConsumptionData, SaleLine, StockQtyLine } from "./unit-daily-consumption";
+import type { ConsumptionData, StockQtyLine } from "./unit-daily-consumption";
 
 /** Một cảnh báo: `where` = chỉ đường tới ô (bảng · dòng · cột), `message` = lý do. */
 export type EntryWarning = { where: string; message: string };
@@ -20,30 +20,21 @@ type Raw = { where: string; message: string | null };
 const keep = (items: Raw[]): EntryWarning[] =>
   items.filter((w): w is EntryWarning => w.message != null);
 
-/** Cảnh báo của một bảng bán (mủ khai thác / mủ thu mua). */
-function salesWarnings(rows: SaleLine[] | undefined, table: string): EntryWarning[] {
-  return (rows ?? []).flatMap((ln, i) => {
-    const at = `${table} · dòng ${i + 1}`;
-    return keep([
-      { where: `${at} · Số lượng`, message: boundWarning(ln.qty, TONNES_DAILY) },
-      { where: `${at} · Giá bán`, message: boundWarning(ln.price, priceBound(ln.ccy)) },
-      // Thiếu tỷ giá quan trọng hơn tỷ giá ngoài biên → báo trước.
-      { where: `${at} · Tỷ giá`, message: fxWarning(ln) ?? boundWarning(ln.fx, FX_USD_VND) },
-    ]);
-  });
-}
-
 /** Cảnh báo của một bảng tồn kho chỉ có số lượng (khối 1 & 2). */
 function stockQtyWarnings(rows: StockQtyLine[] | undefined, table: string): EntryWarning[] {
   return (rows ?? []).flatMap((r, i) =>
     keep([{ where: `${table} · dòng ${i + 1} · Số lượng`, message: boundWarning(r.qty, TONNES_STOCK) }]));
 }
 
-/** Toàn bộ cảnh báo của biểu TIÊU THỤ – TỒN KHO. */
+/** Toàn bộ cảnh báo của biểu TỒN KHO.
+ *
+ *  CỐ Ý không rà 2 mảng tiêu thụ cũ `sales` / `sales_own`: từ 30/07/2026 tiêu thụ tính từ hợp đồng
+ *  nên form KHÔNG hiện chúng nữa, chỉ chuyển tiếp khi lưu. Rà tiếp thì phiếu cũ mở ra là báo
+ *  "N ô cần kiểm tra" về những dòng người dùng không nhìn thấy và không sửa được ở đâu cả — bắt
+ *  người ta đi tìm một ô không tồn tại. Số bán nay soát ở màn Hợp đồng (`ContractLinesTable`).
+ */
 export function consumptionWarnings(d: ConsumptionData): EntryWarning[] {
   return [
-    ...salesWarnings(d.sales_own, "Tiêu thụ mủ khai thác"),
-    ...salesWarnings(d.sales, "Tiêu thụ mủ thu mua"),
     ...stockQtyWarnings(d.stock_not_warehoused, "Tồn kho 1 · chưa nhập kho"),
     ...stockQtyWarnings(d.stock_warehoused, "Tồn kho 2 · đã nhập kho"),
     ...keep([{
@@ -67,7 +58,8 @@ export type PurchaseValues = {
   coagulum?: number | null;
   price_latex_vnd?: number | null;
   price_cup_vnd?: number | null;
-  finished?: { qty?: number | null; price?: number | null; ccy?: string; fx?: number | null }[];
+  finished?: { grade?: string; qty?: number | null; price?: number | null;
+               ccy?: string; fx?: number | null }[];
 };
 
 /** Toàn bộ cảnh báo của biểu THU MUA. */
@@ -76,7 +68,7 @@ export function purchaseWarnings(d: PurchaseValues): EntryWarning[] {
     const at = `Thu mua thành phẩm · dòng ${i + 1}`;
     return keep([
       { where: `${at} · Sản lượng`, message: boundWarning(ln.qty, TONNES_DAILY) },
-      { where: `${at} · Đơn giá`, message: boundWarning(ln.price, priceBound(ln.ccy)) },
+      { where: `${at} · Đơn giá`, message: boundWarning(ln.price, priceBound(ln.ccy, ln.grade)) },
       { where: `${at} · Tỷ giá`, message: fxWarning(ln) ?? boundWarning(ln.fx, FX_USD_VND) },
     ]);
   });

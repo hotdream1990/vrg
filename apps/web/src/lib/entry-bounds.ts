@@ -37,10 +37,16 @@ export const TONNES_CARRY: Bound = { lo: 0, hi: 20_000, unit: "tấn" };
 export const PRICE_VND: Bound = { lo: 10, hi: 150, unit: "triệu đ/tấn" };
 /** Thực tế prod: ~1.880 USD/tấn (kho giá physical 1.267–3.253). */
 export const PRICE_USD: Bound = { lo: 500, hi: 8_000, unit: "USD/tấn" };
-/** Biên đơn giá theo loại tiền của DÒNG đang nhập.
+/** Chủng loại "gom" KHÔNG có mặt bằng giá cố định (mủ tạp, hàng lẻ, lô đặc biệt) — prod có dòng
+    bán thật ở 0,7–2,8 triệu đ/tấn. Áp biên vào đây là kêu oan đều đặn, mà cảnh báo kêu oan thì tới
+    lúc sai thật người nhập cũng bỏ qua nốt. */
+export const NO_PRICE_BOUND_GRADES = ["Chủng loại khác", "Mủ ngoại lệ"];
+
+/** Biên đơn giá theo loại tiền của DÒNG đang nhập (và chủng loại, nếu ô đó có chọn chủng loại).
     Nội tệ đơn vị nước ngoài (LAK/KHR) có mặt bằng số hoàn toàn khác (1 USD ≈ 21.000 LAK) và chưa
     đủ dữ liệu thật để chốt biên → trả biên RỖNG: thà không cảnh báo còn hơn kêu oan mọi dòng. */
-export const priceBound = (ccy: string | undefined): Bound => {
+export const priceBound = (ccy: string | undefined, grade?: string | null): Bound => {
+  if (grade != null && NO_PRICE_BOUND_GRADES.includes(grade)) return { unit: "triệu đ/tấn" };
   if (ccy === "USD") return PRICE_USD;
   if (ccy === "LAK" || ccy === "KHR") return { unit: `${ccy}/tấn` };
   return PRICE_VND;

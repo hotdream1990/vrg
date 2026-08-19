@@ -2,8 +2,11 @@
    Đặt ở khung layout chứ không ở từng trang: đơn vị vào bất kỳ màn nào cũng thấy ngay mình còn
    nợ số liệu ngày nào, thay vì phải tự đi soi từng biểu. Chỉ nhắc phần CÒN SỬA ĐƯỢC (server lọc
    theo cửa sổ nhập liệu) — nhắc ngày đã khoá thì người dùng bỏ qua cả bảng. Riêng nhóm THIẾU TỶ
-   GIÁ rà cả năm và hiện cả lần giao đã khoá (chữ xám): đó là doanh thu bị hụt, đơn vị phải biết
-   để nhờ Ban TTKD điền hộ. */
+   GIÁ và nhóm Ô CẦN KIỂM TRA rà cả năm và hiện cả bản ghi đã khoá (chữ xám): đó là doanh thu bị
+   hụt / số nhầm đơn vị tính, đơn vị phải biết để nhờ Ban TTKD sửa hộ.
+
+   Nhóm "ô cần kiểm tra" là cảnh báo vốn CHỈ chạy trong form lúc đang nhập — lưu xong đóng form là
+   không ai thấy nữa. Server rà lại số đã lưu (`member_data_check`) rồi đưa lên đây. */
 
 import { CheckCircleFilled, DownOutlined, UpOutlined, WarningFilled } from "@ant-design/icons";
 import { useCallback, useEffect, useState } from "react";
@@ -11,7 +14,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { dmy } from "../../../lib/date";
 import { DATA_SAVED_EVENT } from "../../../lib/http";
-import { type MemberChecklist, type MissingFxDelivery, type UnitChecklist, fetchMyChecklist } from "../../../lib/member-client";
+import { type DataCheck, type MemberChecklist, type MissingFxDelivery, type UnitChecklist, fetchMyChecklist } from "../../../lib/member-client";
 
 const COLLAPSE_KEY = "vrg_checklist_collapsed";
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
@@ -59,6 +62,37 @@ function FxChip({ d, onPick }: { d: MissingFxDelivery; onPick: () => void }) {
       title="Bấm để mở màn Hợp đồng & đợt giao và điền tỷ giá">
       {label}
     </button>
+  );
+}
+
+/** Màn để sửa ô đang bị soát — cùng đường dẫn với các nhóm nhắc khác của bảng việc. */
+const CHECK_PATH: Record<DataCheck["kind"], string> = {
+  purchase: "/bao-cao-thu-mua",
+  stock: "/bao-cao-ton-kho",
+  contract: "/hop-dong",
+};
+
+/** Một ô cần soát lại: chỉ đường tới ô (ngày · bảng · dòng · cột) + lý do, y hệt câu trong form.
+ *  Hiện CẢ LÝ DO chứ không chỉ tên ô: "kiểm tra lại đơn vị tính" mới là phần khiến người ta mở ra
+ *  xem, còn tên ô đứng một mình thì không ai biết nó sai chỗ nào. */
+function CheckRow({ c, onPick }: { c: DataCheck; onPick: () => void }) {
+  const label = `${dmy(c.as_of)} · ${c.where}`;
+  return (
+    <li style={{ marginBottom: 2 }}>
+      {c.editable ? (
+        <button className="chip warn" onClick={onPick}
+          style={{ border: 0, cursor: "pointer", marginRight: 6 }}
+          title="Bấm để mở đúng phiếu và sửa ô này">
+          {label}
+        </button>
+      ) : (
+        <span className="chip" style={{ background: "var(--panel-2, #eef1ef)", color: "var(--muted)", marginRight: 6 }}
+          title="Quá hạn sửa — báo Ban TTKD sửa hộ">
+          {label}
+        </span>
+      )}
+      <span style={{ color: "var(--muted)" }}>{c.message}</span>
+    </li>
   );
 }
 
@@ -124,6 +158,31 @@ function UnitRow({ u, today, editableFrom, go }: {
       </div>,
     );
   }
+  if (u.data_checks.length) {
+    // Số ĐÃ NHẬP nhưng đáng ngờ — khác hẳn các nhóm trên (số còn thiếu), nên nói rõ hệ quả: sai
+    // đơn vị tính là báo cáo tổng hợp sai theo, mà nhìn con số tổng thì không thấy sai từ đâu.
+    const fixable = u.data_checks.filter((c) => c.editable).length;
+    items.push(
+      <div key="chk" style={{ marginBottom: 4 }}>
+        <b>{u.data_checks.length} ô số liệu cần kiểm tra lại</b> (rà từ đầu năm {u.year}) — số đã
+        nhập nhiều khả năng <b>nhầm đơn vị tính</b>, để nguyên thì báo cáo tổng hợp sai theo:
+        <ul style={{ margin: "2px 0 0", paddingLeft: 18 }}>
+          {u.data_checks.slice(0, 5).map((c, i) => (
+            <CheckRow key={`${c.as_of}-${c.where}-${i}`} c={c}
+              onPick={() => go(CHECK_PATH[c.kind], c.kind === "contract" ? undefined : c.as_of, u.company)} />
+          ))}
+        </ul>
+        {u.data_checks.length > 5 ? (
+          <div style={{ color: "var(--muted)" }}>…và {u.data_checks.length - 5} ô nữa.</div>
+        ) : null}
+        {fixable < u.data_checks.length ? (
+          <div style={{ color: "var(--muted)", marginTop: 2 }}>
+            {u.data_checks.length - fixable} ô đã quá hạn sửa (chữ xám) — báo Ban TTKD sửa hộ.
+          </div>
+        ) : null}
+      </div>,
+    );
+  }
   if (!items.length) return null;
   return (
     <div style={{ padding: "8px 16px", borderTop: "1px solid var(--line)", fontSize: 13 }}>
@@ -184,9 +243,10 @@ export default function MemberChecklistBanner() {
       <button className="dsn-head" onClick={toggle}>
         <span className="dsn-badge"><WarningFilled /> Còn thiếu {data.total_missing} việc</span>
         <span className="dsn-tagline">
-          Đơn vị chưa nhập đủ số liệu trong {data.alert_days} ngày gần nhất (riêng phần thiếu tỷ
-          giá rà cả năm). Ô <b>màu cam</b> bấm vào là nhập được ngay; ô <b>xám</b> đã quá hạn sửa —
-          báo Ban TTKD nhập hộ.
+          Đơn vị chưa nhập đủ số liệu trong {data.alert_days} ngày gần nhất, hoặc có ô đã nhập
+          cần kiểm tra lại (phần <b>thiếu tỷ giá</b> và <b>ô cần kiểm tra</b> rà cả năm). Ô{" "}
+          <b>màu cam</b> bấm vào là sửa được ngay; ô <b>xám</b> đã quá hạn sửa — báo Ban TTKD
+          nhập hộ.
         </span>
         <span className="dsn-toggle">{open ? <>Thu gọn <UpOutlined /></> : <>Xem chi tiết <DownOutlined /></>}</span>
       </button>

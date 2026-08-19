@@ -59,6 +59,17 @@ export type MissingFxDelivery = {
   editable: boolean;        // ngoài cửa sổ sửa thì đơn vị không tự điền được
 };
 
+/** Một ô số liệu ĐÃ LƯU nhưng nhiều khả năng nhầm đơn vị tính / thiếu tỷ giá (server rà lại bằng
+ *  đúng bộ biên của form — xem `entry-bounds.ts` ↔ `app/core/entry_bounds.py`). */
+export type DataCheck = {
+  as_of: string;                    // ngày của phiếu / lần giao
+  kind: "purchase" | "stock" | "contract";   // mở màn nào để sửa
+  where: string;                    // chỉ đường tới ô: bảng · dòng · cột
+  message: string;                  // lý do, y hệt câu hiện trong form
+  code: string | null;              // số hợp đồng/đợt giao (chỉ với kind = contract)
+  editable: boolean;                // ngoài cửa sổ sửa thì đơn vị không tự sửa được
+};
+
 export type UnitChecklist = {
   company: string;
   needs_purchase: boolean;      // đơn vị có kế hoạch thu mua → mới phải nộp biểu Thu mua
@@ -68,6 +79,7 @@ export type UnitChecklist = {
   year: number;
   pending_batches: PendingBatch[];
   missing_fx: MissingFxDelivery[];  // rà từ 01/01 năm nay, KHÔNG giới hạn trong alert_days
+  data_checks: DataCheck[];         // ô cần soát lại — cũng rà từ 01/01 năm nay
 };
 
 export type MemberChecklist = {
