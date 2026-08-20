@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.core.security import assert_editor_window, require_cap, require_cap_edit
-from app.services import inventory_auto, inventory_repo
+from app.services import inventory_auto, inventory_repo, unit_series, unit_series_stock
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
@@ -28,6 +28,22 @@ class InventoryAutoEdit(BaseModel):
 def list_weeks(limit: int | None = None) -> list[dict]:
     """Danh sách tuần tồn kho (mới nhất trước)."""
     return inventory_repo.series(limit)
+
+
+@router.get("/series")
+def stock_series(
+    date_from: str | None = Query(None, description="từ ngày (YYYY-MM-DD)"),
+    date_to: str | None = Query(None, description="đến ngày (YYYY-MM-DD)"),
+    group_by: str = Query("structure", pattern="^(structure|grade|region)$"),
+) -> dict:
+    """Chuỗi tồn kho THEO NGÀY cộng từ biểu Tồn kho của đơn vị thành viên.
+
+    Khác `GET ""` (chuỗi TUẦN của Tập đoàn, số chuyên viên chốt): ở đây là diễn biến hằng ngày,
+    xem được theo cơ cấu hợp đồng · chủng loại · khu vực. Chuỗi bắt đầu từ `unit_series_stock.STOCK_START`
+    — trước mốc đó chưa đủ đơn vị nhập để cộng thành số của Tập đoàn.
+    """
+    a, b = unit_series.window(date_from, date_to, start_floor=unit_series_stock.STOCK_START)
+    return unit_series_stock.stock_series(a, b, group_by)
 
 
 @router.post("")

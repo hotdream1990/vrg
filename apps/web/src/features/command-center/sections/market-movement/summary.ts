@@ -3,18 +3,20 @@
 
 import {
   type PriceSheet,
+  type PurchaseSeries,
   fetchPhysicalSheet,
-  fetchPurchaseSheet,
+  fetchPurchaseSeries,
   fetchSheet,
 } from "../../../../lib/api-client";
 import { dm, dmy } from "../../../../lib/date";
 import { compareFloorVsMarket } from "../../../../lib/floor-vs-market";
 import { getFloor, listFloors } from "../../../../lib/floor-client";
-import { fetchInventory } from "../../../../lib/inventory-client";
+import { type StockSeries, fetchStockSeries } from "../../../../lib/inventory-client";
 import type { GroupMeta } from "../../../../lib/market-movement-client";
 import { type MarketQuote, getQuote, listQuotes } from "../../../../lib/market-quote-client";
 import { isNoTrading } from "../../../../lib/no-trading";
-import { CUP_PRICE_UNIT_SHORT } from "../../../../lib/purchase-price-unit";
+import { readAt, thinNote } from "../../../../lib/purchase-series";
+import { CUP_PRICE_UNIT_SHORT, LATEX_PRICE_UNIT_SHORT } from "../../../../lib/purchase-price-unit";
 
 const vnum = (n: number, d = 0) => n.toLocaleString("vi-VN", { maximumFractionDigits: d });
 
@@ -83,18 +85,37 @@ function physicalLines(ph: { grades: string[]; dates: string[]; values: Record<s
   }).filter(Boolean);
   return out.length ? `Phiên ${dm(cur)} — ${out.join("; ")}` : "Chưa đủ dữ liệu.";
 }
-function rawLines(p: { companies: string[]; dates: string[]; values: Record<string, Record<string, number>> }): string {
-  if (!p.dates.length || !p.companies.length) return "Chưa đủ dữ liệu.";
-  const avg = (day: string) => {
-    const a = p.companies.map((c) => p.values[c]?.[day]).filter((v): v is number => v != null);
-    return a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
-  };
-  const cur = p.dates[0];
-  const vals = p.companies.map((c) => p.values[c]?.[cur]).filter((v): v is number => v != null);
-  if (!vals.length) return "Chưa đủ dữ liệu.";
-  const a = avg(cur)!;
-  return `Mủ nước ngày ${dm(cur)}: ${vnum(Math.min(...vals))}–${vnum(Math.max(...vals))} đ/độ TSC, `
-    + `TB ${vnum(a)}${pct(a, p.dates[1] ? avg(p.dates[1]) : null)}, ${vals.length} đơn vị.`;
+/** Mủ nước & mủ chén: dải giá + sản lượng tại MỐC GẦN NHẤT ĐỦ ĐƠN VỊ khai (so mốc đủ trước đó).
+ *  Ngày cuối chuỗi thường mới có vài đơn vị nhập — lấy nó làm mốc là báo cho AI một cú "giảm sâu" ảo. */
+function rawLines(series: PurchaseSeries): string {
+  const parts = ([
+    ["latex", "Mủ nước", LATEX_PRICE_UNIT_SHORT],
+    ["cup", "Mủ chén", CUP_PRICE_UNIT_SHORT],
+  ] as const).map(([key, label, unit]) => {
+    const { settled, prev, thin } = readAt(series.rows, key);
+    if (!settled) return null;
+    const s = settled[key];
+    const p = prev?.[key];
+    const price = s.units
+      ? `${vnum(s.min!)}–${vnum(s.max!)} ${unit}, TB ${vnum(s.avg!)}${pct(s.avg!, p?.avg)}, ${s.units} đơn vị`
+      : "chưa có đơn giá";
+    const qty = s.qty != null
+      ? `; sản lượng ${vnum(s.qty, 1)} tấn${pct(s.qty, p?.qty)} (${s.qty_units} đơn vị)` : "";
+    return `${label} ngày ${dm(settled.as_of)}: ${price}${qty}.${thinNote(thin, key, dm)}`;
+  }).filter(Boolean);
+  return parts.length ? parts.join(" ") : "Chưa đủ dữ liệu.";
+}
+
+/** Ngày mới nhất có số của một chuỗi tồn kho (chuỗi trả theo ngày TĂNG dần). */
+const lastStock = (s: StockSeries | null) =>
+  s ? [...s.rows].reverse().find((r) => r.total != null) ?? null : null;
+
+/** Top nhóm lớn nhất của một cách chia tồn kho (chủng loại / khu vực). */
+function stockTop(s: StockSeries | null, take = 3): string {
+  const last = lastStock(s);
+  if (!last) return "";
+  return Object.entries(last.values).sort((a, b) => b[1] - a[1]).slice(0, take)
+    .map(([k, v]) => `${k} ${vnum(v)}`).join(", ");
 }
 
 function mqLines(c: MarketQuote, p: MarketQuote | null, date: string): string {
@@ -114,11 +135,13 @@ function mqLines(c: MarketQuote, p: MarketQuote | null, date: string): string {
 
 /** Gom tóm tắt các nhóm (song song, chịu lỗi từng nhóm). */
 export async function buildSummaries(): Promise<GroupMeta[]> {
-  const [sheet, physical, purchase, inv, floorSch, mq] = await Promise.all([
+  const [sheet, physical, purchase, invStruct, invGrade, invRegion, floorSch, mq] = await Promise.all([
     fetchSheet({ days: 30 }).catch(() => null),
     fetchPhysicalSheet().catch(() => null),
-    fetchPurchaseSheet().catch(() => null),
-    fetchInventory().catch(() => null),
+    fetchPurchaseSeries().catch(() => null),
+    fetchStockSeries("structure").catch(() => null),
+    fetchStockSeries("grade").catch(() => null),
+    fetchStockSeries("region").catch(() => null),
     (async () => {
       const list = await listFloors().catch(() => []);
       return list.length ? await getFloor(list[0].lan) : null;
@@ -155,32 +178,37 @@ export async function buildSummaries(): Promise<GroupMeta[]> {
     };
   })();
 
+  /* Tồn kho: số THEO NGÀY cộng từ biểu Tồn kho của đơn vị thành viên — đúng nguồn biểu đồ đang
+     hiển thị, kèm cơ cấu hợp đồng + chủng loại + khu vực để nhận định nói được "tồn ở đâu, loại gì". */
   const invLine = (() => {
-    const c = inv?.[0];
-    if (!c || c.ton_kho == null) return "Chưa đủ dữ liệu.";
-    const tk = c.ton_kho;
-    const prevTk = inv?.[1]?.ton_kho ?? null;
-    const free = c.ton_kho_hd != null ? tk - c.ton_kho_hd : null;
-    const dK = prevTk != null ? tk - prevTk : null;
-    return `Tuần ${c.as_of}: tổng tồn kho ${vnum(tk)} tấn`
-      + (dK != null ? ` (${dK >= 0 ? "+" : ""}${vnum(dK)} so tuần trước)` : "")
-      + (c.ton_kho_hd != null ? `; đã có HĐ ${vnum(c.ton_kho_hd)}` : "")
-      + (free != null ? `; tự do ${vnum(free)} tấn` : "") + ".";
+    const cur = lastStock(invStruct);
+    if (!cur || cur.total == null) return "Chưa đủ dữ liệu.";
+    const prev = invStruct!.rows.filter((r) => r.total != null && r.as_of < cur.as_of).at(-1);
+    const d = prev?.total != null ? cur.total - prev.total : null;
+    const grades = stockTop(invGrade);
+    const regions = stockTop(invRegion);
+    return `Ngày ${dmy(cur.as_of)}: tổng tồn kho ${vnum(cur.total)} tấn`
+      + (d != null ? ` (${d >= 0 ? "+" : ""}${vnum(d)} so ngày ${dm(prev!.as_of)})` : "")
+      + `; đã ký HĐ ${vnum(cur.values.signed ?? 0)}; tự do ${vnum(cur.values.free ?? 0)} tấn`
+      + ` (${cur.units_counted}/${cur.units_expected} đơn vị có số).`
+      + (grades ? ` Chủng loại lớn nhất: ${grades} tấn.` : "")
+      + (regions ? ` Khu vực lớn nhất: ${regions} tấn.` : "");
   })();
 
-  let rawLine = purchase ? rawLines(purchase) : "Chưa đủ dữ liệu.";
-  const cup = Object.entries(mq?.c?.regions_cup ?? {}).filter(([, v]) => v != null) as [string, number][];
-  if (cup.length) {
-    const cv = cup.map((e) => e[1]);
-    rawLine += ` Mủ chén: ${vnum(Math.min(...cv))}–${vnum(Math.max(...cv))} ${CUP_PRICE_UNIT_SHORT} (${cup.length} đơn vị).`;
-  }
+  const rawLine = purchase ? rawLines(purchase) : "Chưa đủ dữ liệu.";
 
   // Ngày dữ liệu thực đã nạp cho từng nhóm (để hiển thị "nạp gì · khoảng ngày nào").
   const exDates = sheet ? sheet.rows.map((r) => r.as_of) : [];
   const fxDates = sheet
     ? sheet.rows.filter((r) => r.fx && Object.values(r.fx).some((v) => v != null)).map((r) => r.as_of)
     : [];
-  const invDates = (inv ?? []).map((w) => w.as_of);
+  const invDates = (invStruct?.rows ?? []).filter((r) => r.total != null).map((r) => r.as_of);
+  const rawDates = purchase
+    ? (["latex", "cup"] as const).flatMap((k) => {
+        const { settled, prev } = readAt(purchase.rows, k);
+        return [prev?.as_of, settled?.as_of];
+      })
+    : [];
 
   const exSum = sheet ? exchangeLines(sheet) : "Chưa đủ dữ liệu.";
   const phSum = physical ? physicalLines(physical) : "Chưa đủ dữ liệu.";
@@ -206,13 +234,13 @@ export async function buildSummaries(): Promise<GroupMeta[]> {
       "Tỷ giá USD/VND · MYR · JPY · CNY (VCB · BNM · exchangerates)",
       usedRange(fxDates), latestOf(fxDates)),
     mk("inventory", "Tồn kho Tập đoàn", invLine,
-      "Tồn kho Tập đoàn theo tuần — /api/inventory",
-      usedRange(invDates, "tuần"), latestOf(invDates)),
+      "Tồn kho theo ngày cộng từ biểu Tồn kho của đơn vị thành viên (cơ cấu HĐ · chủng loại · khu vực) — /api/inventory/series",
+      usedRange(invDates, "ngày"), latestOf(invDates)),
     mk("floor", "Giá sàn Tập đoàn vs Thị trường", floorData.line,
       "Giá sàn công bố mới nhất vs giá thị trường phiên gần nhất — /api/floor + /api/prices/sheet",
       floorData.range, floorData.asOf),
-    mk("raw", "Giá mủ nước & mủ chén nội địa", rawLine,
-      "Giá mủ nước & mủ chén nội địa (đơn vị thành viên) — /api/prices/purchase-sheet",
-      usedRange(purchase?.dates ?? []), latestOf(purchase?.dates ?? [])),
+    mk("raw", "Giá & sản lượng mủ nước, mủ chén nội địa", rawLine,
+      "Đơn giá + sản lượng thu mua do đơn vị thành viên tự khai — /api/prices/purchase-series",
+      usedRange(rawDates, "ngày"), latestOf(rawDates)),
   ];
 }

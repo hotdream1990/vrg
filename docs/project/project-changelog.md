@@ -4,6 +4,22 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Tồn kho · giá & sản lượng mủ nguyên liệu lấy thẳng từ số đơn vị nhập** (phản hồi 20/08/2026) —
+  ba biểu đồ ở *Command Center* và *Bản tin biến động* đổi sang nguồn đơn vị thành viên tự khai:
+  - **Tồn kho VRG theo ngày** (thay biểu đồ theo tuần): cộng khối *"Đã nhập kho"* của các đơn vị,
+    **3 cách xem** — *Cơ cấu hợp đồng* (đã ký HĐ / tồn tự do) · **Chủng loại** · **Khu vực**. Chuỗi
+    bắt đầu **24/07/2026** (ngày đầu tiên đủ đơn vị nhập; trước đó ≤ 12 đơn vị nên không cộng thành
+    số Tập đoàn được). Mỗi ngày là **ảnh chụp** (không cộng dồn), đơn vị chưa nhập đúng ngày thì lấy
+    số gần nhất trong 7 ngày, và luôn hiện **độ phủ** *n/N đơn vị có số*.
+  - **Giá & sản lượng mủ nước · mủ chén**: một khung gồm **cột sản lượng thu mua trong ngày** (trục
+    phải) + **dải giá thấp nhất–cao nhất giữa các đơn vị** và đường trung bình. Mủ chén **chuyển
+    nguồn** từ phiếu *Báo giá mủ thị trường* sang **số đơn vị tự khai** (phiếu báo giá hay bỏ trống
+    mục này) nên nay có cả sản lượng như mủ nước.
+  - Mốc đọc số là **ngày gần nhất ĐỦ đơn vị khai**, ngày mới hơn còn thiếu đơn vị được nhắc riêng —
+    trước đây lấy thẳng ngày cuối chuỗi thì "sản lượng giảm mạnh" chỉ là chưa ai nhập.
+  - **Nhận định AI** của Bản tin biến động dùng đúng nguồn này: nhóm Tồn kho nói thêm **chủng loại**
+    và **khu vực** lớn nhất, nhóm mủ nguyên liệu có thêm **sản lượng**.
+  - API mới (chỉ đọc, chỉ cần đăng nhập): `GET /api/inventory/series` · `GET /api/prices/purchase-series`.
 - **Tự động lấy giá mủ nguyên liệu từ đơn vị thành viên** (chốt 20/08/2026) — chuyên viên không phải
   gõ lại con số đơn vị vừa nộp:
   - Nút **"Tự động lấy số từ đơn vị"** ngay trên màn *Giá mủ nguyên liệu*: **công tắc tổng** +

@@ -100,6 +100,31 @@ export const fetchPurchaseSheet = (dateFrom?: string, dateTo?: string) => {
   return req<PurchaseSheet>(`/api/prices/purchase-sheet?${p}`);
 };
 
+/* ── Thu mua theo ngày (đơn vị thành viên tự khai): sản lượng + dải đơn giá ── */
+
+export type PurchaseDayStat = {
+  min: number | null;
+  max: number | null;
+  avg: number | null;
+  units: number;          // số đơn vị có GIÁ trong ngày
+  qty: number | null;     // sản lượng thu mua trong ngày (tấn)
+  qty_units: number;      // số đơn vị đã khai SẢN LƯỢNG
+};
+
+export type PurchaseSeries = {
+  date_from: string;
+  date_to: string;
+  rows: { as_of: string; latex: PurchaseDayStat; cup: PurchaseDayStat }[];   // ngày TĂNG dần
+};
+
+/** Mủ nước & mủ chén theo ngày — sản lượng + dải giá, cùng gốc "đơn vị thành viên tự khai". */
+export const fetchPurchaseSeries = (dateFrom?: string, dateTo?: string) => {
+  const p = new URLSearchParams();
+  if (dateFrom) p.set("date_from", dateFrom);
+  if (dateTo) p.set("date_to", dateTo);
+  return req<PurchaseSeries>(`/api/prices/purchase-series?${p}`);
+};
+
 /** Xoá toàn bộ giá thu mua mủ nước của 1 ngày. */
 export const deletePurchaseDate = (as_of: string) =>
   req<{ deleted: number }>(`/api/prices/purchase?as_of=${as_of}`, { method: "DELETE" });

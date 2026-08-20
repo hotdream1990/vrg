@@ -5,12 +5,11 @@ import HeatmapAndVrg from "../sections/HeatmapAndVrg";
 import InventoryBalanceSection from "../sections/InventoryBalanceSection";
 import KpiRow from "../sections/KpiRow";
 import AssessmentBox from "../sections/market-movement/AssessmentBox";
-import CupLatexBlock from "../sections/market-movement/CupLatexBlock";
 import FxTrendBlock from "../sections/market-movement/FxTrendBlock";
 import MarketHistoryBlock from "../sections/market-movement/MarketHistoryBlock";
 import ModelVsActualBlock from "../sections/market-movement/ModelVsActualBlock";
 import PhysicalBlock from "../sections/market-movement/PhysicalBlock";
-import RawLatexBlock from "../sections/market-movement/RawLatexBlock";
+import RawMaterialBlock from "../sections/market-movement/RawMaterialBlock";
 import "../../bulletin/bulletin.css";
 
 /** Bản tin biến động — dashboard tổng hợp mọi nhóm số liệu (chart/table) + box nhận định AI.
@@ -41,10 +40,7 @@ export default function MarketMovementPage() {
         <PhysicalBlock />
       </div>
 
-      <div className="grid-2">
-        <RawLatexBlock />
-        <CupLatexBlock />
-      </div>
+      <RawMaterialBlock />
 
       <ModelVsActualBlock />
       <InventoryBalanceSection />

@@ -27,7 +27,9 @@ from app.schemas.price import (
     ReutersParseResult,
     ScanResponse,
 )
-from app.services import price_board, price_repo, reuters_physical_parse, scan_service
+from app.services import (
+    price_board, price_repo, reuters_physical_parse, scan_service, unit_series,
+)
 
 logger = logging.getLogger("vrg.api")
 
@@ -123,6 +125,20 @@ def purchase_sheet(
 ) -> dict:
     """Lưới Giá mủ nguyên liệu (giá thu mua mủ nước): công ty × ngày (đồng/độ TSC)."""
     return price_repo.purchase_sheet(date_from, date_to)
+
+
+@router.get("/purchase-series")
+def purchase_series(
+    date_from: str | None = Query(None, description="từ ngày YYYY-MM-DD"),
+    date_to: str | None = Query(None, description="đến ngày YYYY-MM-DD"),
+) -> dict:
+    """Mủ nước & mủ chén theo ngày: SẢN LƯỢNG thu mua (tấn) + dải đơn giá của các đơn vị.
+
+    Nguồn DUY NHẤT là số đơn vị thành viên tự khai (`vrg_unit` + biểu Thu mua) nên sản lượng và
+    đơn giá luôn cùng một gốc; khác `purchase-sheet` (lưới giá lớp chuyên viên chốt, không có sản lượng).
+    """
+    a, b = unit_series.window(date_from, date_to)
+    return unit_series.purchase_series(a, b)
 
 
 @router.delete("/purchase")
