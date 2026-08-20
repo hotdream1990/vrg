@@ -270,6 +270,20 @@ def is_purchase_zero(rec: dict[str, Any]) -> bool:
     return rec.get("price_type") in PURCHASE_PRICE_TYPES and price is not None and float(price) == 0
 
 
+def _mirror_to_hq(rec: dict[str, Any]) -> None:
+    """Đơn vị vừa ghi giá mủ nguyên liệu → đẩy sang lớp chuyên viên nếu đơn vị đó bật tự động.
+
+    Móc đặt ở ĐÂY vì mọi đường ghi đều đi qua `upsert_record`/`delete_record` (màn của đơn vị,
+    link công khai, biểu Thu mua, nhập Excel, đổi ngày báo cáo) — gắn ở từng router là kiểu gì
+    cũng sót một đường. Bản ghi lớp chuyên viên (`vrg`) KHÔNG kích hoạt gì → không có vòng lặp.
+    """
+    if rec.get("source") != PURCHASE_SOURCE_UNIT:
+        return
+    from app.services import purchase_price_sync  # import trong hàm: tránh vòng import
+
+    purchase_price_sync.mirror_upsert(rec)
+
+
 def upsert_record(rec: dict[str, Any], note: str | None = None) -> None:
     """Thêm/sửa 1 bản ghi giá thủ công. Khóa: (as_of, source, grade, price_type).
 
@@ -311,6 +325,7 @@ def upsert_record(rec: dict[str, Any], note: str | None = None) -> None:
         before=before, after=after, as_of=as_of,
         company=_audit_company(source, grade, price_type), note=note,
     )
+    _mirror_to_hq(rec)
 
 
 def delete_record(as_of: str, source: str, grade: str, contract: str, price_type: str) -> bool:
@@ -334,6 +349,12 @@ def delete_record(as_of: str, source: str, grade: str, contract: str, price_type
             _audit_key(as_of, source, grade, price_type),
             before=before, as_of=as_of, company=_audit_company(source, grade, price_type),
         )
+    # Chỉ khi ĐÚNG LÀ có xoá: đơn vị bấm xoá một ô vốn đã trống thì không được phép kéo theo
+    # việc xoá ô của chuyên viên bên lớp `vrg`.
+    if deleted and source == PURCHASE_SOURCE_UNIT:
+        from app.services import purchase_price_sync  # import trong hàm: tránh vòng import
+
+        purchase_price_sync.mirror_delete(as_of, grade, contract, price_type)
     return deleted
 
 

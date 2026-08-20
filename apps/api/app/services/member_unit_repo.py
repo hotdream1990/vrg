@@ -16,7 +16,7 @@ from app.core.market_meta import PURCHASE_SOURCES, VRG_COMPANIES
 from app.services import audit_repo
 
 _COLS = ("name, sort_order, is_active, region, country, currency, has_factory, "
-         "parent_company")
+         "parent_company, auto_price_sync")
 
 
 def _snapshot(name: str) -> dict[str, Any] | None:
@@ -54,8 +54,7 @@ def list_units(include_inactive: bool = True) -> list[dict[str, Any]]:
         _seed_if_empty(db)
         clause = "" if include_inactive else "WHERE is_active"
         rows = db.execute(text(
-            "SELECT name, sort_order, is_active, region, country, currency, has_factory, "
-            f"parent_company FROM member_unit {clause} "
+            f"SELECT {_COLS} FROM member_unit {clause} "
             "ORDER BY sort_order, name")).mappings().all()
         return [dict(r) for r in rows]
 
@@ -168,6 +167,22 @@ def set_factory(name: str, has_factory: bool) -> None:
 def factory_by_name(include_inactive: bool = True) -> dict[str, bool]:
     """Map tên đơn vị → có nhà máy? — form Tiêu thụ dùng để ẩn/hiện ô tồn kho nguyên liệu."""
     return {u["name"]: bool(u.get("has_factory", True)) for u in list_units(include_inactive)}
+
+
+def set_auto_price_sync(name: str, on: bool) -> None:
+    """Bật/tắt "tự động lấy giá mủ nguyên liệu từ đơn vị này" (xem `purchase_price_sync`)."""
+    _update(name, "UPDATE member_unit SET auto_price_sync = :a WHERE name = :n",
+            {"a": on, "n": name})
+
+
+def auto_price_sync_names() -> list[str]:
+    """Tên các đơn vị ĐANG bật tự động đẩy giá tự khai sang lớp chuyên viên (kể cả đơn vị đã ẩn:
+    ẩn khỏi lưới không có nghĩa là ngừng đồng bộ — tắt phải là thao tác cố ý)."""
+    ensure_schema()
+    with session_scope() as db:
+        return list(db.execute(
+            text("SELECT name FROM member_unit WHERE auto_price_sync ORDER BY sort_order, name")
+        ).scalars().all())
 
 
 def set_parent(name: str, parent: str | None) -> None:

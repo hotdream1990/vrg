@@ -287,6 +287,10 @@ ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS currency text NOT NULL DEFAULT 
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS has_factory boolean NOT NULL DEFAULT true;
 -- Đơn vị có được giao KẾ HOẠCH thu mua năm không — chỉ đơn vị bật cờ này mới hiện ở "Kế hoạch năm".
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS has_purchase_plan boolean NOT NULL DEFAULT true;
+-- TỰ ĐỘNG LẤY GIÁ MỦ NGUYÊN LIỆU TỪ ĐƠN VỊ (chốt 20/08/2026): đơn vị này được chuyên viên
+-- chọn cho phép số tự khai (`fact_price` lớp `vrg_unit`) chảy thẳng sang lớp chuyên viên (`vrg`)
+-- mỗi khi đơn vị thêm/sửa/xoá giá. Mặc định FALSE — bật từng đơn vị, không bật cả loạt.
+ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS auto_price_sync boolean NOT NULL DEFAULT false;
 -- Cây công ty MẸ – CON (chốt 30/07/2026): tên đơn vị mẹ của đơn vị này (rỗng = không thuộc cây nào).
 -- Đơn vị con vẫn được chuyển TIÊU THỤ NỘI BỘ cho BẤT KỲ đơn vị thành viên nào (không giới hạn trong
 -- cây); cột này để báo cáo cấp Tập đoàn biết quan hệ giữa các đơn vị.

@@ -14,6 +14,9 @@ class MemberUnit(BaseModel):
     currency: str = "VND"           # loại tiền thu mua (VND/LAK/KHR) — ≠ VND ⇒ cần tỷ giá
     has_factory: bool = True        # có nhà máy chế biến — False ⇒ nhập tồn kho nguyên liệu
     parent_company: str | None = None  # công ty mẹ đã gán (cây mẹ-con, chỉ dùng cho báo cáo cấp Tập đoàn)
+    # Đang lấy giá mủ nguyên liệu của đơn vị này tự động sang lớp chuyên viên
+    # (bật ở màn Giá mủ nguyên liệu — xem `services/purchase_price_sync.py`).
+    auto_price_sync: bool = False
 
 
 class MemberUnitAdd(BaseModel):

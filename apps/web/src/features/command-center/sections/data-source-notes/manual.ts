@@ -65,6 +65,20 @@ export const MANUAL_NOTES: Record<string, DataSourceNote> = {
         unit: "đồng/độ TSC (VNĐ trên mỗi độ hàm lượng cao su khô — TSC)",
         note: "Đã nạp sẵn ~302 bản ghi (21/06/2024 → 20/06/2026).",
       },
+      {
+        name: "Số đơn vị thành viên tự khai (tự động — tuỳ chọn)",
+        where: "Nguồn gốc: giá mủ nước/mủ chén do chính đơn vị thành viên nhập trên tài khoản của họ.",
+        method: "Tự động, bật ở nút 'Tự động lấy số từ đơn vị'",
+        steps: [
+          "Bấm 'Tự động lấy số từ đơn vị' → bật công tắc.",
+          "Tích chọn đúng những đơn vị mà số tự khai đủ tin cậy rồi Lưu.",
+          "Từ đó, đơn vị nhập/sửa/xoá giá là ô tương ứng ở lưới này đổi theo.",
+          "Bấm 'Lấy số đã có' nếu muốn kéo cả những ngày đơn vị đã nộp trước khi bật.",
+        ],
+        field: "Chép nguyên giá từ source='vrg_unit' sang source='vrg' (cùng ngày, cùng đơn vị).",
+        unit: "đồng/độ TSC (mủ nước) · đồng/độ DRC (mủ chén)",
+        note: "Chỉ áp cho đơn vị được chọn; số của đơn vị là số thắng — ô sửa tay sẽ bị ghi đè ở lần nộp sau.",
+      },
     ],
   },
 

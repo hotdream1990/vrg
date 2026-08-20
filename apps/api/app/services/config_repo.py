@@ -103,6 +103,29 @@ def get_value(key: str, fallback: str | None = None) -> str | None:
     return (row[0] if row and row[0] else None) or fallback
 
 
+def set_value(key: str, value: str, by: str | None = None) -> None:
+    """Ghi 1 khoá cấu hình KHÔNG nằm trên trang admin (tính năng tự cấu hình trong màn nghiệp vụ).
+
+    `set_config` cố tình chỉ nhận khoá khai trong `CONFIG_SPEC` (form admin), nên công tắc do
+    chuyên viên bật/tắt ngay trong màn của mình đi đường này. Luôn coi là KHÔNG bí mật — đừng
+    dùng cho mật khẩu/API key (những thứ đó phải khai ở `CONFIG_SPEC` để API mask giá trị).
+    """
+    ensure_schema()
+    with session_scope() as db:
+        old = db.execute(text("SELECT value FROM app_config WHERE key = :k"), {"k": key}).scalar()
+        db.execute(
+            text("""
+                INSERT INTO app_config (key, value, is_secret, updated_by)
+                VALUES (:k, :v, false, :by)
+                ON CONFLICT (key) DO UPDATE
+                SET value = EXCLUDED.value, updated_at = now(), updated_by = EXCLUDED.updated_by
+            """),
+            {"k": key, "v": value, "by": by},
+        )
+    if old != value:
+        audit_repo.log("config", "update", key, before={"value": old}, after={"value": value})
+
+
 def set_config(updates: dict[str, str], by: str | None = None) -> int:
     """Upsert các khóa hợp lệ. Ô để trống/None → BỎ QUA (giữ giá trị cũ).
 

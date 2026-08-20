@@ -4,6 +4,20 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Tự động lấy giá mủ nguyên liệu từ đơn vị thành viên** (chốt 20/08/2026) — chuyên viên không phải
+  gõ lại con số đơn vị vừa nộp:
+  - Nút **"Tự động lấy số từ đơn vị"** ngay trên màn *Giá mủ nguyên liệu*: **công tắc tổng** +
+    **chọn từng đơn vị** được lấy tự động. Do **chuyên viên** (quyền `raw_material` mức Sửa) tự bật,
+    không phải admin — đây là quyết định nghiệp vụ về việc tin số của đơn vị nào.
+  - Bật rồi thì mỗi lần đơn vị **thêm/sửa/xoá** giá mủ nước hoặc mủ chén của mình, ô tương ứng bên
+    lưới chuyên viên đổi theo ngay (kể cả khi đơn vị nhập qua biểu Thu mua hay link công khai) —
+    móc đặt ở tầng kho giá nên **mọi đường ghi** đều đi qua.
+  - Cầu chảy **một chiều** `vrg_unit` → `vrg`: chuyên viên sửa lưới của mình **không** ghi ngược về
+    số đơn vị đã khai. Với đơn vị đang bật, **số của đơn vị là số thắng** (ô sửa tay sẽ bị ghi đè ở
+    lần đơn vị nộp sau) — muốn giữ số của mình thì bỏ đơn vị đó khỏi danh sách.
+  - Nút **"Lấy số đã có (7 ngày gần nhất)"** để kéo nốt các ngày đơn vị đã nộp trước khi bật.
+  - **Mặc định TẮT** — không bật thì hai lớp giá vẫn tách hẳn như cũ. Cột đang lấy tự động có dấu
+    đồng bộ ở đầu.
 - **Quản lý hợp đồng 2 cấp + khách hàng riêng từng đơn vị** (chốt buổi làm việc VRG 30/07/2026) —
   chuyển trục phân hệ báo cáo đơn vị thành viên:
   - **Khách hàng**: danh mục **riêng của từng đơn vị**, không dùng chung cấp Tập đoàn; hợp đồng chỉ

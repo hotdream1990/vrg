@@ -116,3 +116,14 @@ class HistorySeries(BaseModel):
     source: str
     grade: str
     points: list[HistoryPoint]
+
+
+class PurchaseAutoSyncEdit(BaseModel):
+    """Cấu hình tự động lấy giá mủ nguyên liệu từ đơn vị (xem `services/purchase_price_sync.py`).
+
+    `companies` là danh sách ĐẦY ĐỦ các đơn vị được bật — đơn vị không có trong danh sách sẽ bị
+    tắt. Gửi từng đơn vị một sẽ không diễn tả được thao tác "bỏ chọn".
+    """
+
+    enabled: bool
+    companies: list[str] = []

@@ -168,6 +168,10 @@ MARKET_QUOTE_PACKAGING = ["Hàng rời", "Pallet"]
 # lưu biểu Thu mua là ghi đè số chuyên viên đã chốt (và ngược lại).
 #   `vrg`      — giá Ban TTKD (chuyên viên) chốt: dùng cho bản tin ngày, báo cáo tuần, gợi ý giá sàn.
 #   `vrg_unit` — giá đơn vị thành viên tự khai: dùng cho biểu Thu mua và các bảng thống kê của đơn vị.
+# Hai lớp vẫn TÁCH RIÊNG; chuyên viên có thể bắc CẦU MỘT CHIỀU `vrg_unit` → `vrg` cho từng đơn vị
+# mình tin (bật ở màn Giá mủ nguyên liệu, xem `services/purchase_price_sync.py`) — đơn vị nhập là
+# số chảy thẳng sang lớp chuyên viên, khỏi gõ lại. Cầu chỉ chảy MỘT CHIỀU: chuyên viên sửa ô của
+# mình KHÔNG bao giờ ghi ngược về số đơn vị đã khai.
 PURCHASE_SOURCE_HQ = "vrg"
 PURCHASE_SOURCE_UNIT = "vrg_unit"
 PURCHASE_SOURCES = (PURCHASE_SOURCE_HQ, PURCHASE_SOURCE_UNIT)

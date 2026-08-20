@@ -32,6 +32,7 @@ from app.routers import (
     member_unit,
     prices,
     public_purchase,
+    purchase_auto_sync,
     sales_contracts,
     schedules,
     settings as settings_router,
@@ -148,6 +149,7 @@ app.include_router(public_purchase.router)  # CÔNG KHAI: đơn vị nhập giá
 
 _protected = [Depends(get_current_user)]
 app.include_router(prices.router, dependencies=_protected)
+app.include_router(purchase_auto_sync.router, dependencies=_protected)  # cầu tự động: giá đơn vị tự khai → lớp chuyên viên
 app.include_router(floor.router, dependencies=_protected)
 # Các màn phân tích/bản tin gác theo quyền (admin=tất cả, editor=được-cấp, viewer=không) — cả đọc lẫn ghi.
 app.include_router(floor_suggest.router, dependencies=[Depends(require_cap("floor_suggest"))])
