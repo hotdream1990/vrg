@@ -16,7 +16,6 @@ import {
   FileProtectOutlined,
   FileTextOutlined,
   FundOutlined,
-  HistoryOutlined,
   IdcardOutlined,
   InboxOutlined,
   LineChartOutlined,
@@ -94,7 +93,8 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
     can("unit_daily") && { key: "/thong-ke/thu-mua", icon: <ShoppingOutlined />, label: "Thống kê thu mua" },
     can("unit_daily") && { key: "/thong-ke/ton-kho", icon: <InboxOutlined />, label: "Thống kê tồn kho" },
     can("unit_daily") && { key: "/thong-ke/tieu-thu", icon: <ExportOutlined />, label: "Thống kê tiêu thụ" },
-    can("unit_daily") && { key: "/thong-ke-hop-dong", icon: <HistoryOutlined />, label: "Hợp đồng cũ (trước 30/07)" },
+    // "Hợp đồng cũ (trước 30/07)" ĐÃ ẨN khỏi menu (20/08/2026) — dữ liệu và route `/thong-ke-hop-dong`
+    // vẫn còn để tra cứu bằng đường dẫn, chỉ thôi bày ra cho người dùng thường.
   ]));
   items.push(...group("analysis", <LineChartOutlined />, "Phân tích & Bản tin", [
     can("floor_suggest") && { key: "/goi-y-gia-san", icon: <BulbOutlined />, label: "Gợi ý giá sàn" },
@@ -138,7 +138,6 @@ function buildMemberMenu(hasPurchasePlan: boolean) {
     ]),
     ...group("reports", <BarChartOutlined />, "Báo cáo", [
       { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Tiêu thụ" },
-      { key: "/thong-ke-hop-dong", icon: <HistoryOutlined />, label: "Hợp đồng cũ (trước 30/07)" },
     ]),
   ];
 }

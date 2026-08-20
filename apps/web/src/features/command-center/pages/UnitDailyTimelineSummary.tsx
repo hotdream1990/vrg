@@ -34,9 +34,9 @@ export default function UnitDailyTimelineSummary({ kind, rows, totals, extraCols
               {totals?.stock_as_of
                 ? `tồn kho: số mới nhất ${dmy(totals.stock_as_of)}`
                 : "tồn kho: chưa đơn vị nào chốt số trong khoảng"}
-              {/* Nhóm cột tiêu thụ ở biểu này là số cũ đã khai (nay tiêu thụ tính từ hợp đồng) —
-                  nói rõ ngay dưới dòng tổng để không ai cộng thêm lần nữa vào số hiện hành. */}
-              <br />tiêu thụ: số cũ đã khai — số hiện hành ở Báo cáo tiêu thụ
+              {/* Tiêu thụ là DÒNG CHẢY (cộng dồn) còn tồn kho là số THỜI ĐIỂM — nói rõ nguồn để
+                  không ai tưởng hai nhóm cột cùng một cách tính. */}
+              <br />tiêu thụ: cộng dồn các lần giao trên hợp đồng
             </div>
           )}
         </Table.Summary.Cell>

@@ -2,7 +2,6 @@
    THỨ TỰ CỘT GIỮ ĐÚNG NHƯ FILE EXCEL, kể cả cột suy ra (compute) nằm XEN GIỮA đúng vị trí.
    Bộ key input PHẢI khớp backend `app/services/unit_daily_fields.py`. */
 
-import type { SaleLine } from "./unit-daily-consumption";
 import { CUP_PRICE_UNIT, LATEX_PRICE_UNIT } from "./purchase-price-unit";
 
 export type Kind = "purchase" | "consumption";
@@ -73,33 +72,42 @@ const PURCHASE: Column[] = [
 ];
 
 // ── Tiêu thụ – Tồn kho ─────────────────────────────────────────────────────────────────
-// TIÊU THỤ nhập theo 2 BẢNG NHIỀU DÒNG (ConsumptionForm): `sales` = mủ thu mua · `sales_own` = mủ
-// khai thác. Bảng chỉ hiển thị TỔNG HỢP GỘP CHUNG cả hai (số lượng theo hình thức) + `revenue`
-// (tổng doanh thu VND đã tính lúc lưu). TỒN KHO là ô phẳng.
-// Nhóm tiêu thụ = DỮ LIỆU CŨ (trước 30/07/2026). Từ nay tiêu thụ tính từ hợp đồng và xem ở màn
-// "Báo cáo tiêu thụ"; cột ở đây chỉ để tra lại số đơn vị đã khai trước khi chuyển đổi.
-const _TT = "Tiêu thụ (số cũ đã khai)";
+// TIÊU THỤ chỉ còn MỘT nguồn: các LẦN GIAO của hợp đồng (khoá `c_*`, server gom sẵn).
+//
+// ⚠ Nhóm cột "Tiêu thụ (số cũ đã khai)" ĐÃ GỠ (20/08/2026). Nó đọc ô `revenue` chốt cứng lúc lưu
+// phiếu nên KHÔNG đổi theo khi hợp đồng được sửa: đợt sửa đơn giá 10/08/2026 chỉnh trên hợp đồng
+// mà ô đó vẫn giữ số sai, hai màn nói khác nhau và người dùng không lần ra được bản ghi lệch
+// (Đồng Nai - Kratie 27/01/2026 hiện giá bán 45.406 thay vì 45,406 triệu đ/tấn).
+// Mảng `sales`/`sales_own`/`revenue` VẪN NGUYÊN trong payload để tra cứu lịch sử — chỉ thôi hiển
+// thị. Muốn xem lại thì truy vấn thẳng `unit_daily_report`.
 const _TK = "Tồn kho";
-/** Dòng bán của CẢ 2 bảng: mủ thu mua (`sales`) + mủ khai thác (`sales_own`) — tổng cộng chung. */
-const salesOf = (v: Values): SaleLine[] => {
-  const rec = v as Record<string, unknown>;
-  return ["sales", "sales_own"].flatMap((k) => (Array.isArray(rec[k]) ? (rec[k] as SaleLine[]) : []));
-};
-const salesQty = (v: Values, keep?: (l: SaleLine) => boolean): number =>
-  salesOf(v).reduce((a, l) => a + (keep && !keep(l) ? 0 : (n(l.qty) ?? 0)), 0);
 /** Tổng số lượng (TẤN) 1 bảng tồn kho (`stock_no_contract` | `stock_contract`). */
 const stockTonnes = (v: Values, key: string): number => {
   const rows = (v as Record<string, unknown>)[key];
   return Array.isArray(rows) ? rows.reduce((a: number, r) => a + (n((r as { qty?: number }).qty) ?? 0), 0) : 0;
 };
 
+/* Nhóm cột TIÊU THỤ — gom từ các LẦN GIAO của hợp đồng (server tính, gắn vào bản ghi dưới khoá
+   `c_*`), CÙNG nguồn với màn Báo cáo tiêu thụ nên hai màn không thể nói khác nhau.
+   Sản lượng là TẤN QUY KHÔ, đúng quy ước của mọi báo cáo tiêu thụ hiện hành. */
+const _TT_HD = "Tiêu thụ (theo hợp đồng)";
+const cField = (key: string) => (v: Values): number | null =>
+  n((v as Record<string, unknown>)[key] as number | null | undefined);
+
+const C_CONSUMPTION: Column[] = [
+  { key: "c_qty", label: "Tổng tiêu thụ", unit: "tấn quy khô", group: _TT_HD, compute: cField("c_qty") },
+  { key: "c_qty_export", label: "XK / UTXK", unit: "tấn quy khô", group: _TT_HD, compute: cField("c_qty_export") },
+  { key: "c_qty_domestic", label: "Tiêu thụ trong nước", unit: "tấn quy khô", group: _TT_HD, compute: cField("c_qty_domestic") },
+  // Nội bộ tách riêng vì tổng ĐÃ gồm nó: thiếu cột này thì Tổng ≠ XK + trong nước, đọc như lỗi.
+  { key: "c_qty_internal", label: "Tiêu thụ nội bộ", unit: "tấn quy khô", group: _TT_HD, compute: cField("c_qty_internal") },
+  { key: "c_revenue", label: "Doanh thu", unit: "tỷ đồng", group: _TT_HD, scale: 1_000_000_000, compute: cField("c_revenue") },
+  { key: "c_avg_price", label: "Giá bán bình quân", unit: "triệu đ/tấn", group: _TT_HD, scale: 1_000_000, compute: cField("c_avg_price") },
+];
+
 const CONSUMPTION: Column[] = [
-  { key: "total_consumption", label: "Tổng tiêu thụ", unit: "tấn", group: _TT, compute: (v) => salesQty(v) || null },
-  { key: "qty_export", label: "Tổng XK / UTXK", unit: "tấn", group: _TT, compute: (v) => salesQty(v, (l) => l.channel === "export") || null },
-  { key: "qty_domestic", label: "Tổng tiêu thụ trong nước", unit: "tấn", group: _TT, compute: (v) => salesQty(v, (l) => l.channel === "domestic") || null },
-  { key: "revenue", label: "Doanh thu", unit: "tỷ đồng", group: _TT, scale: 1_000_000_000 },
-  { key: "avg_price", label: "Giá bán bình quân", unit: "triệu đ/tấn", group: _TT, scale: 1_000_000,
-    compute: (v) => { const q = salesQty(v); return q ? (n(v.revenue) ?? 0) / q : null; } },
+  // Mọi cột tiêu thụ đều là cột SUY RA nên không lọt vào `INPUT_KEYS` — form không gửi ngược lên,
+  // và backend cũng không nhận (`unit_daily_fields.CONSUMPTION_FIELDS` là danh sách cho phép).
+  ...C_CONSUMPTION,
   // Tồn kho = chỉ tiêu THỜI ĐIỂM (mẫu tuần mục 11–14), đơn vị TẤN — KHÔNG cộng dồn giữa các ngày.
   { key: "stock_not_warehoused_t", label: "Chế biến chưa nhập kho", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_not_warehoused") || null },
   { key: "stock_warehoused_t", label: "Đã nhập kho", unit: "tấn", group: _TK, compute: (v) => stockTonnes(v, "stock_warehoused") || null },
@@ -174,7 +182,7 @@ export function summaryLine(kind: Kind, v: Values): string {
     return parts.filter(Boolean).join(" · ");
   }
   const parts = [
-    `Tổng tiêu thụ ${fmtNum(colValue(kind, "total_consumption", v), 3)}t`,
+    `Tổng tiêu thụ ${fmtNum(colValue(kind, "c_qty", v), 3)}t`,
     `Tồn kho TP ${fmtNum(colValue(kind, "stock_finished_t", v), 3)}t`,
     `Đã ký HĐ chưa giao ${fmtNum(colValue(kind, "stock_signed_t", v), 3)}t`,
   ];

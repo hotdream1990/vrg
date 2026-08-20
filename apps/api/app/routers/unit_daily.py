@@ -20,8 +20,9 @@ from app.schemas.unit_daily import (
     ExcelImportCommit, PurchasePlanEdit, StockContractEdit, UnitDailyEdit, UnitDailyMove,
 )
 from app.services import (
-    contract_files, member_region_repo, member_unit_repo, unit_daily_excel_io, unit_daily_repo,
-    unit_daily_timeline_totals, unit_period_excel, unit_period_report, unit_stock_contract_repo,
+    contract_files, member_region_repo, member_unit_repo, unit_daily_contract_consumption,
+    unit_daily_excel_io, unit_daily_repo, unit_daily_timeline_totals, unit_period_excel,
+    unit_period_report, unit_stock_contract_repo,
 )
 from app.services.unit_report_query import split_csv
 
@@ -67,8 +68,13 @@ def timeline_page(kind: str, d_from: str, d_to: str | None, companies: list[str]
     res = unit_daily_repo.recent(kind, d_from, companies=companies, date_to=d_to,
                                  limit=page_size, offset=(page - 1) * page_size)
     d_close = d_to or edit_window.today().isoformat()
+    # Nhóm cột "Tiêu thụ (theo hợp đồng)" chạy SONG SONG với nhóm số cũ để đối chiếu: số cũ là ô
+    # `revenue` chốt cứng lúc lưu, số này gom lại từ các lần giao nên luôn khớp Báo cáo tiêu thụ.
+    cc = unit_daily_contract_consumption.summarize(d_from, d_close, companies)
+    unit_daily_contract_consumption.attach(res["entries"], cc["by_key"])
+    totals = unit_daily_timeline_totals.consumption_totals(d_from, d_close, companies)
     return {"entries": res["entries"], "total": res["total"], "paged": True,
-            "totals": unit_daily_timeline_totals.consumption_totals(d_from, d_close, companies)}
+            "totals": {**totals, **cc["totals"]}}
 
 
 def _year_of(as_of: str) -> int:
@@ -114,13 +120,19 @@ def day(kind: str = Query(..., pattern="^(purchase|consumption)$"),
     except ValueError as exc:
         raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
     units = member_unit_repo.active_names()
+    entries = unit_daily_repo.entries_on(kind, as_of)
+    if kind == "consumption":
+        # Lưới này dùng CHUNG danh mục cột với bảng theo ngày → phải gắn cả nhóm "theo hợp đồng",
+        # nếu không cả nhóm cột hiện "—" và người đọc tưởng ngày đó không bán gì.
+        unit_daily_contract_consumption.attach_day(
+            entries, as_of, unit_daily_contract_consumption.by_company_day(as_of, as_of))
     return {
         "as_of": as_of,
         "today": edit_window.today().isoformat(),
         "edit_window_days": edit_window.editor_window(),
         "units": units,
         "plans": unit_daily_repo.plans_for_year(_year_of(as_of)),
-        "entries": unit_daily_repo.entries_on(kind, as_of),
+        "entries": entries,
         **unit_daily_repo.day_extras(kind, as_of, units),
     }
 

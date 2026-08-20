@@ -3,12 +3,12 @@
 Bảng này cắt trang Ở SERVER nên web không thể tự cộng: cộng trên màn hình chỉ ra tổng của 50 dòng
 đang thấy. Service cộng trên TOÀN BỘ khoảng đang lọc rồi trả về đúng đơn vị hiển thị của bảng.
 
-Hai loại chỉ tiêu, tuyệt đối KHÔNG trộn:
+Ở đây chỉ còn khối TỒN KHO — chỉ tiêu **THỜI ĐIỂM**: lấy ẢNH CHỤP MỚI NHẤT của TỪNG đơn vị rồi
+mới cộng ngang các đơn vị. Cộng tồn kho của nhiều ngày là đếm đi đếm lại cùng một lô hàng. Ngày
+của ảnh chụp trả kèm (`stock_as_of`) vì có thể sớm hơn ngày cuối khoảng — đơn vị chưa cập nhật tồn.
 
-* **Dòng chảy** (tiêu thụ, doanh thu) → CỘNG DỒN cả khoảng.
-* **Thời điểm** (tồn kho) → lấy ẢNH CHỤP MỚI NHẤT của TỪNG đơn vị rồi mới cộng ngang các đơn vị.
-  Cộng tồn kho của nhiều ngày là đếm đi đếm lại cùng một lô hàng. Ngày của ảnh chụp trả kèm
-  (`stock_as_of`) vì có thể sớm hơn ngày cuối khoảng — đơn vị chưa cập nhật tồn.
+Khối TIÊU THỤ (dòng chảy, cộng dồn) nằm ở `unit_daily_contract_consumption` — gom từ các lần giao
+của hợp đồng; router trộn hai phần lại trước khi trả về.
 
 Công thức phải khớp cột cùng tên ở `apps/web/src/lib/unit-daily-fields.ts` (CONSUMPTION), nếu
 không dòng tổng sẽ cãi nhau với chính các dòng phía trên. Khoá của kết quả = khoá cột của bảng.
@@ -20,25 +20,12 @@ from typing import Any
 
 from app.services import unit_daily_repo, unit_report_rows
 
-TY = 1_000_000_000      # doanh thu lưu base = đồng, bảng hiện "tỷ đồng"
-TRIEU = 1_000_000       # giá bán bình quân hiện "triệu đ/tấn"
-
 
 def _num(v: Any) -> float:
     try:
         return 0.0 if v is None else float(v)
     except (TypeError, ValueError):
         return 0.0
-
-
-def _sale_lines(fields: dict) -> list[dict]:
-    """Dòng bán của CẢ 2 bảng: mủ thu mua (`sales`) + mủ khai thác (`sales_own`)."""
-    out: list[dict] = []
-    for key in ("sales", "sales_own"):
-        rows = fields.get(key)
-        if isinstance(rows, list):
-            out.extend(r for r in rows if isinstance(r, dict))
-    return out
 
 
 def _tonnes(fields: dict, key: str) -> float:
@@ -67,17 +54,6 @@ def consumption_totals(date_from: str, date_to: str,
     """Lũy kế cả khoảng cho biểu Tiêu thụ – Tồn kho. Khoá = khoá cột của bảng ở web."""
     entries = unit_daily_repo.in_range("consumption", date_from, date_to, companies,
                                        attach_contracts=False)
-    total = export = domestic = revenue = 0.0
-    for e in entries:
-        revenue += _num(e["fields"].get("revenue"))
-        for ln in _sale_lines(e["fields"]):
-            qty = _num(ln.get("qty"))
-            total += qty
-            if ln.get("channel") == "export":
-                export += qty
-            elif ln.get("channel") == "domestic":
-                domestic += qty
-
     latest = _latest_stock_per_company(entries)
     not_wh = sum(_tonnes(e["fields"], "stock_not_warehoused") for e in latest.values())
     wh = sum(_tonnes(e["fields"], "stock_warehoused") for e in latest.values())
@@ -89,11 +65,8 @@ def consumption_totals(date_from: str, date_to: str,
 
     z = lambda v: v or None                                    # noqa: E731 — 0 hiện "—", không phải "0"
     return {
-        "total_consumption": z(total),
-        "qty_export": z(export),
-        "qty_domestic": z(domestic),
-        "revenue": z(revenue / TY),
-        "avg_price": (revenue / total / TRIEU) if total else None,
+        # Tiêu thụ KHÔNG còn ở đây: nhóm cột số cũ đã gỡ 20/08/2026, số hiện hành do
+        # `unit_daily_contract_consumption.totals()` cộng từ các lần giao và trộn vào ở router.
         "stock_not_warehoused_t": z(not_wh),
         "stock_warehoused_t": z(wh),
         "stock_finished_t": z(not_wh + wh),

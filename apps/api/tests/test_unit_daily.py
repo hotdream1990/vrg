@@ -31,6 +31,13 @@ def _admin() -> dict[str, str]:
     return _bearer("admin", "admin")
 
 
+def _wipe_unit(unit: str) -> None:
+    """Xoá sạch dấu vết của một đơn vị test (hợp đồng → khách hàng → phiếu ngày)."""
+    with session_scope() as db:
+        for tbl in ("sales_contract", "unit_customer", "unit_daily_report"):
+            db.execute(text(f"DELETE FROM {tbl} WHERE company = :c"), {"c": unit})
+
+
 def _legacy_contract(company: str, code: str, grade: str, qty: float,
                      start: str, delivered: str | None) -> dict:
     """Dựng 1 hợp đồng ở bảng CŨ như dữ liệu lịch sử sẵn có.
@@ -679,17 +686,24 @@ def test_consumption_timeline_is_paged_but_purchase_is_not() -> None:
     client.delete(f"/api/member-units/{unit}", headers=h)
 
 
-def test_consumption_timeline_totals_add_up_flows_but_snapshot_the_stock() -> None:
-    """Lũy kế biểu Tồn kho: tiêu thụ CỘNG DỒN, tồn kho lấy ẢNH CHỤP MỚI NHẤT — và không đổi theo trang.
+def test_consumption_timeline_totals_come_from_contracts_not_the_old_declared_arrays() -> None:
+    """Lũy kế biểu Tồn kho: tiêu thụ lấy TỪ HỢP ĐỒNG, tồn kho lấy ẢNH CHỤP MỚI NHẤT.
+
+    Nhóm cột "Tiêu thụ (số cũ đã khai)" đã gỡ 20/08/2026: nó đọc ô `revenue` chốt cứng lúc lưu
+    phiếu nên không đổi theo khi hợp đồng được sửa (đợt sửa đơn giá 10/08/2026 chỉnh hợp đồng mà ô
+    đó vẫn giữ số sai gấp 1.000 lần). Test này khoá hai điều: mảng `sales`/`sales_own`/`revenue` cũ
+    KHÔNG được cộng vào đâu nữa, và số tiêu thụ phải khớp các lần giao.
 
     Cộng tồn kho qua các ngày là đếm đi đếm lại cùng một lô hàng. Bảng lại cắt trang ở server nên
     tổng phải do server cộng trên cả khoảng; tổng của trang 2 mà khác trang 1 là báo sai.
     """
     h = _admin()
     unit = "_zz_ud_totals"
+    _wipe_unit(unit)                      # lần chạy trước hỏng giữa chừng thì dọn lại cho sạch
     client.post("/api/member-units", json={"name": unit}, headers=h)
     days = [(date.today() - timedelta(days=i)).isoformat() for i in range(3)]
-    # Ngày mới nhất mang tồn 100 tấn; ngày cũ hơn 80 tấn (KHÔNG được cộng thành 180).
+
+    # Số CŨ trong phiếu — cố ý để lệch hẳn (14 tấn / 6 tỷ) để thấy rõ nó KHÔNG còn được cộng.
     payloads = [
         {"revenue": 3_000_000_000.0, "stock_warehoused": [{"grade": "SVR 3L Mix", "qty": 100.0}],
          "sales": [{"qty": 5.0, "channel": "export"}]},
@@ -702,23 +716,48 @@ def test_consumption_timeline_totals_add_up_flows_but_snapshot_the_stock() -> No
                           json={"kind": "consumption", "company": unit, "as_of": d,
                                 "fields": fields}).status_code == 200
 
-    url = "/api/unit-daily/timeline?kind=consumption&days=10"
-    t = client.get(f"{url}&page=1&page_size=2", headers=h).json()["totals"]
-    assert t["total_consumption"] == pytest.approx(14.0)          # 5 + 7 + 2, cộng dồn
-    assert t["qty_export"] == pytest.approx(7.0)                  # cả `sales` lẫn `sales_own`
-    assert t["qty_domestic"] == pytest.approx(7.0)
-    assert t["revenue"] == pytest.approx(6.0)                     # 6 tỷ đồng
+    # Số HIỆN HÀNH: 2 lần giao của một hợp đồng — 5 tấn XK (ngày mới nhất) + 7 tấn nội tiêu.
+    cus = client.put("/api/customers", json={"company": unit, "name": "KH tổng"},
+                     headers=h).json()["id"]
+    line = lambda qty: {"grade": "SVR 10 / CSR 10", "qty": qty, "price": 40.0, "ccy": "VND"}  # noqa: E731
+    parent = client.put("/api/sales-contracts", json={
+        "company": unit, "code": "HD-TOTALS", "delivery_type": "multi", "contract_type": "long_term",
+        "customer_id": cus, "sign_date": days[2], "lines": [line(100.0)]}, headers=h).json()["contract"]
+    for code, d, channel, qty in (("PL-1", days[0], "export", 5.0), ("PL-2", days[1], "domestic", 7.0)):
+        r = client.put("/api/sales-contracts", json={
+            "company": unit, "parent_id": parent["id"], "code": code, "delivered_at": d,
+            "channel": channel, "lines": [line(qty)]}, headers=h)
+        assert r.status_code == 200, r.text
+
+    # Gọi thẳng `timeline_page` với BỘ LỌC ĐƠN VỊ: endpoint của chuyên viên không lọc đơn vị nên
+    # trên máy có sẵn dữ liệu thật, tổng sẽ gộp cả Tập đoàn và test không nói lên điều gì.
+    from app.routers.unit_daily import timeline_page
+    page1 = timeline_page("consumption", days[2], days[0], [unit], 1, 2)
+    t = page1["totals"]
+    # Khoá cũ phải BIẾN MẤT hẳn — còn sót là nhóm cột cũ đã lẻn về.
+    for gone in ("total_consumption", "qty_export", "qty_domestic", "revenue", "avg_price"):
+        assert gone not in t, f"khoá cũ {gone} vẫn còn trong lũy kế"
+    assert t["c_qty"] == pytest.approx(12.0)                      # 5 + 7 từ hợp đồng, KHÔNG phải 14
+    assert t["c_qty_export"] == pytest.approx(5.0)
+    assert t["c_qty_domestic"] == pytest.approx(7.0)
+    assert t["c_revenue"] == pytest.approx(0.48)                  # 12 × 40 triệu = 0,48 tỷ (≠ 6 tỷ)
+    assert t["c_avg_price"] == pytest.approx(40.0)
     # Tồn kho = ảnh chụp ngày mới nhất CÓ tồn, không phải 100 + 80.
     assert t["stock_warehoused_t"] == pytest.approx(100.0)
     assert t["stock_finished_t"] == pytest.approx(100.0)
     assert t["stock_as_of"] == days[0]
 
-    page2 = client.get(f"{url}&page=2&page_size=2", headers=h).json()
+    # Từng DÒNG cũng mang số theo hợp đồng của đúng (đơn vị × ngày) đó.
+    row = next(e for e in page1["entries"] if e["as_of"] == days[0])
+    assert row["fields"]["c_qty"] == pytest.approx(5.0)
+    assert row["fields"]["c_qty_export"] == pytest.approx(5.0)
+    assert row["fields"]["c_qty_domestic"] is None                # ngày đó không bán nội tiêu
+
+    page2 = timeline_page("consumption", days[2], days[0], [unit], 2, 2)
     assert len(page2["entries"]) == 1                             # trang 2 chỉ còn 1 dòng…
     assert page2["totals"] == t                                   # …nhưng tổng vẫn của cả khoảng
 
-    with session_scope() as db:
-        db.execute(text("DELETE FROM unit_daily_report WHERE company = :c"), {"c": unit})
+    _wipe_unit(unit)
     client.delete(f"/api/member-units/{unit}", headers=h)
 
 
