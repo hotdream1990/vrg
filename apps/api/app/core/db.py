@@ -276,6 +276,9 @@ CREATE INDEX IF NOT EXISTS ix_sales_contract_parent ON sales_contract (parent_id
 CREATE INDEX IF NOT EXISTS ix_sales_contract_delivered ON sales_contract (delivered_at);
 
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
+-- Job chạy theo NGÀY TRONG TUẦN (rỗng/NULL = chạy hằng ngày như trước). Vd 'fri' = tối thứ Sáu
+-- cho job chốt tồn kho Tập đoàn theo tuần.
+ALTER TABLE schedule_job ADD COLUMN IF NOT EXISTS day_of_week text;
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS title text;
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS dispatch_no text;
 ALTER TABLE vrg_floor_price ADD COLUMN IF NOT EXISTS dispatch_summary text;

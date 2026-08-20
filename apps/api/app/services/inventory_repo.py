@@ -36,9 +36,21 @@ def series(limit: int | None = None) -> list[dict[str, Any]]:
         return [_row(r) for r in db.execute(text(sql)).all()]
 
 
+def get(as_of: str) -> dict[str, Any] | None:
+    """1 tuần theo ngày chốt (None nếu chưa có) — dùng để biết tuần đó do ai ghi (`source`)."""
+    ensure_schema()
+    with session_scope() as db:
+        return _snapshot(db, as_of)
+
+
 def upsert(as_of: str, ton_kho: float | None, ton_kho_hd: float | None,
-           note: str | None = None, source: str = "manual") -> dict[str, Any]:
-    """Thêm/sửa 1 tuần (khóa = as_of)."""
+           note: str | None = None, source: str = "manual",
+           audit_note: str | None = None, actor: str | None = None) -> dict[str, Any]:
+    """Thêm/sửa 1 tuần (khóa = as_of).
+
+    `source` ĐƯỢC cập nhật khi ghi đè: người ghi sau cùng làm chủ dòng đó. Nhờ vậy chuyên viên sửa
+    tay một tuần do máy tính là tuần đó thành 'manual' và máy không đè lại (xem `inventory_auto`).
+    """
     ensure_schema()
     with session_scope() as db:
         before = _snapshot(db, as_of)
@@ -46,12 +58,13 @@ def upsert(as_of: str, ton_kho: float | None, ton_kho_hd: float | None,
             "INSERT INTO fact_inventory (as_of, ton_kho, ton_kho_hd, note, source) "
             "VALUES (:a, :t, :h, :n, :s) "
             "ON CONFLICT (as_of) DO UPDATE SET ton_kho=EXCLUDED.ton_kho, "
-            "ton_kho_hd=EXCLUDED.ton_kho_hd, note=EXCLUDED.note, ingested_at=now()"),
+            "ton_kho_hd=EXCLUDED.ton_kho_hd, note=EXCLUDED.note, source=EXCLUDED.source, "
+            "ingested_at=now()"),
             {"a": as_of, "t": ton_kho, "h": ton_kho_hd, "n": note, "s": source})
         r = db.execute(text(_SELECT_ONE), {"a": as_of}).first()
     after = _row(r)
     audit_repo.log("inventory", "update" if before else "create", as_of,
-                   before=before, after=after, as_of=as_of)
+                   before=before, after=after, as_of=as_of, note=audit_note, actor=actor)
     return after
 
 

@@ -21,3 +21,49 @@ export const upsertInventory = (w: {
 
 export const deleteInventory = (as_of: string) =>
   req<{ deleted: string }>(`/api/inventory/${as_of}`, { method: "DELETE" });
+
+/* ── Tự tính tồn kho từ số liệu đơn vị thành viên ─────────────────────────── */
+
+export type InventoryAutoConfig = {
+  enabled: boolean;
+  weekday_label: string;
+  max_age_days: number;
+  recompute_weeks: number;
+  last_anchor: string;
+};
+
+export type InventoryAutoPreview = {
+  as_of: string;
+  ton_kho: number | null;
+  ton_kho_hd: number | null;
+  units_counted: number;
+  units_expected: number;
+  missing: string[];
+  no_stock: string[];
+  note: string;
+};
+
+export type InventoryRecompute = {
+  weeks: number;
+  written: string[];
+  kept_manual: string[];
+  no_data: string[];
+};
+
+export const fetchInventoryAuto = () => req<InventoryAutoConfig>(`/api/inventory/auto`);
+
+export const saveInventoryAuto = (enabled: boolean) =>
+  req<InventoryAutoConfig>(`/api/inventory/auto`, { method: "PUT", body: JSON.stringify({ enabled }) });
+
+/** Xem trước số tự tính của 1 tuần — KHÔNG ghi gì (để đối chiếu trước khi đồng bộ). */
+export const previewInventoryAuto = (as_of: string) =>
+  req<InventoryAutoPreview>(`/api/inventory/auto/preview?as_of=${as_of}`);
+
+/** Đồng bộ NGAY 1 tuần theo số đơn vị — chạy được cả khi công tắc đang tắt, ghi đè cả số nhập tay. */
+export const applyInventoryAuto = (as_of: string) =>
+  req<{ written: boolean; data: InventoryAutoPreview; week: InventoryWeek }>(
+    `/api/inventory/auto/apply?as_of=${as_of}`, { method: "POST" });
+
+/** Tính lại N tuần gần nhất, giữ nguyên các tuần chuyên viên đã nhập tay. */
+export const recomputeInventoryAuto = (weeks: number) =>
+  req<InventoryRecompute>(`/api/inventory/auto/recompute?weeks=${weeks}`, { method: "POST" });

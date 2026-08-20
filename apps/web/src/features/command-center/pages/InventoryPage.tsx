@@ -1,10 +1,14 @@
-import { InboxOutlined } from "@ant-design/icons";
+import { InboxOutlined, SyncOutlined } from "@ant-design/icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
+  type InventoryAutoConfig,
   type InventoryWeek,
+  applyInventoryAuto,
   deleteInventory,
   fetchInventory,
+  fetchInventoryAuto,
+  previewInventoryAuto,
   upsertInventory,
 } from "../../../lib/inventory-client";
 import { isBigChange } from "../../../lib/change-warning";
@@ -14,9 +18,13 @@ import ChangeWarn from "../sections/ChangeWarn";
 import DateInput from "../sections/DateInput";
 import DataSourceNote from "../sections/DataSourceNote";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
+import InventoryAutoModal from "./components/InventoryAutoModal";
 import "../../bulletin/bulletin.css";
 
-const fmt = (n: number | null) => (n == null ? "—" : n.toLocaleString("vi-VN"));
+// Số tự tính cộng từ hàng chục đơn vị nên lẻ tới hàng kg — hiển thị 1 số lẻ cho đỡ rối,
+// DB vẫn giữ nguyên số đầy đủ (không làm tròn dữ liệu).
+const fmt = (n: number | null) =>
+  (n == null ? "—" : n.toLocaleString("vi-VN", { maximumFractionDigits: 1 }));
 const EMPTY = { as_of: "", ton_kho: "", ton_kho_hd: "", note: "" };
 
 /** Quản lý số liệu → Tồn kho Tập đoàn: chuỗi tuần (tồn kho + tồn kho đã có hợp đồng), nhập/sửa/xoá. */
@@ -28,9 +36,12 @@ export default function InventoryPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [auto, setAuto] = useState<InventoryAutoConfig | null>(null);
+  const [autoOpen, setAutoOpen] = useState(false);
 
   const load = useCallback(() => {
     fetchInventory().then(setWeeks).catch((e) => setErr(e.message));
+    fetchInventoryAuto().then(setAuto).catch(() => setAuto(null));
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -64,6 +75,26 @@ export default function InventoryPage() {
     ton_kho_hd: w.ton_kho_hd?.toString() ?? "", note: w.note ?? "",
   });
 
+  // Đồng bộ 1 tuần theo số đơn vị — dùng được cả khi công tắc tự tính đang TẮT (thao tác cố ý
+  // của chuyên viên nên được ghi đè số đang có, kể cả số nhập tay).
+  const syncWeek = async (as_of: string) => {
+    setBusy(true); setErr("");
+    try {
+      const pre = await previewInventoryAuto(as_of);
+      if (!pre.units_counted) {
+        setErr(`Chưa đơn vị nào có số tồn kho cho tuần ${as_of}.`);
+        return;
+      }
+      if (!confirm(`Đồng bộ tuần ${as_of} theo số liệu đơn vị?\n`
+        + `Tồn kho ${fmt(pre.ton_kho)} tấn · Đã có HĐ ${fmt(pre.ton_kho_hd)} tấn `
+        + `(${pre.units_counted}/${pre.units_expected} đơn vị có số).\n`
+        + "Số đang có của tuần này sẽ bị thay.")) return;
+      await applyInventoryAuto(as_of);
+      load();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
+    finally { setBusy(false); }
+  };
+
   const remove = async (as_of: string) => {
     if (!confirm(`Xoá số liệu tồn kho tuần ${as_of}?`)) return;
     setBusy(true); setErr("");
@@ -77,7 +108,7 @@ export default function InventoryPage() {
       <div className="page-title">
         <div>
           <h2><InboxOutlined style={{ marginRight: 8 }} />Tồn kho Tập đoàn</h2>
-          <p>Chuỗi tồn kho thành phẩm theo tuần (từ báo cáo tuần chị Hạnh): <b>Tồn kho</b> và <b>Tồn kho đã có hợp đồng</b> (đơn vị: tấn). Nhập/sửa thủ công hoặc nạp tự động từ file PDF.</p>
+          <p>Chuỗi tồn kho thành phẩm theo tuần (từ báo cáo tuần chị Hạnh): <b>Tồn kho</b> và <b>Tồn kho đã có hợp đồng</b> (đơn vị: tấn). Nhập/sửa thủ công, nạp từ file PDF, hoặc <b>tự tính từ biểu Tồn kho của các đơn vị thành viên</b>.</p>
         </div>
       </div>
 
@@ -107,13 +138,29 @@ export default function InventoryPage() {
             disabled={busy || !form.as_of || !ew.isEditable(form.as_of)}>
             {weeks.some((w) => w.as_of === form.as_of) ? "Cập nhật tuần" : "＋ Thêm tuần"}
           </button>
+          {form.as_of && (
+            <button className="btn" onClick={() => syncWeek(form.as_of)} disabled={busy}
+              title="Lấy số tự tính từ số liệu đơn vị thành viên cho ngày này">Đồng bộ ngày này</button>
+          )}
           {form.as_of && <button className="btn" onClick={() => setForm({ ...EMPTY })} disabled={busy}>Hủy</button>}
         </div>
       )}
 
       {err && <div className="blt-error">{err}</div>}
 
-      <div className="blt-toolbar"><span style={{ color: "var(--muted)", fontSize: 13 }}>{weeks.length} tuần</span></div>
+      <div className="blt-toolbar" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ color: "var(--muted)", fontSize: 13 }}>{weeks.length} tuần</span>
+        {auto && (
+          <span className="chip" style={{ fontSize: 11 }}>
+            Tự tính từ đơn vị: {auto.enabled ? "đang bật" : "đang tắt"}
+          </span>
+        )}
+        {canEdit && (
+          <button className="btn" style={{ marginLeft: "auto" }} onClick={() => setAutoOpen(true)}>
+            <SyncOutlined style={{ marginRight: 6 }} />Tự tính từ số liệu đơn vị
+          </button>
+        )}
+      </div>
 
       <div className="card" style={{ padding: 0, overflow: "auto" }}>
         <table>
@@ -132,9 +179,17 @@ export default function InventoryPage() {
                 </td>
                 <td className="r">{fmt(w.ton_kho)}</td>
                 <td className="r">{fmt(w.ton_kho_hd)}</td>
-                <td><span className="chip" style={{ fontSize: 11 }}>{w.source === "hanh_weekly" ? "PDF tuần" : "Nhập tay"}</span></td>
+                <td>
+                  <span className="chip" style={{ fontSize: 11 }} title={w.note ?? undefined}>
+                    {w.source === "hanh_weekly" ? "PDF tuần" : w.source === "auto" ? "Tự tính" : "Nhập tay"}
+                  </span>
+                </td>
                 {canEdit && (
                   <td className="r" style={{ whiteSpace: "nowrap" }}>
+                    {/* Đồng bộ chạy được cả ngoài cửa sổ sửa: số do máy cộng từ chuỗi ngày của
+                        đơn vị, không phải người gõ tay — và luôn nhập tay lại được. */}
+                    <button className="btn" title="Lấy số tự tính từ đơn vị thành viên cho tuần này"
+                      onClick={() => syncWeek(w.as_of)} disabled={busy}>Đồng bộ</button>{" "}
                     {ed ? (
                       <>
                         <button className="btn" onClick={() => edit(w)} disabled={busy}>Sửa</button>{" "}
@@ -152,6 +207,11 @@ export default function InventoryPage() {
           </tbody>
         </table>
       </div>
+
+      {autoOpen && (
+        <InventoryAutoModal readOnly={!canEdit} onClose={() => setAutoOpen(false)}
+          onSaved={(cfg) => { setAuto(cfg); load(); }} />
+      )}
     </div>
   );
 }

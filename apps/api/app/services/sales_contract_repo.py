@@ -17,6 +17,7 @@ Tiêu thụ = tổng các đợt ĐÃ GIAO trong kỳ (`delivered_at`); đợt c
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from sqlalchemy import text
@@ -24,6 +25,8 @@ from sqlalchemy import text
 from app.core.db import ensure_schema, session_scope
 from app.services import audit_repo, contract_docs, sales_contract_calc as calc
 from app.services.sales_contract_clean import clean, assert_unit_exists
+
+logger = logging.getLogger("vrg.sales_contract")
 
 _COLS = ("id", "company", "parent_id", "code", "customer_id", "delivery_type", "contract_type",
          "sign_date", "expiry_date", "start_date", "lines", "delivered", "delivered_at", "channel",
@@ -203,6 +206,7 @@ def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
     audit_repo.log("sales_contract", "update" if before else "create", label,
                    before=before, after=saved, as_of=saved.get("delivered_at") or saved.get("sign_date"),
                    company=company)
+    _sync_group_inventory()
     return saved
 
 
@@ -261,4 +265,18 @@ def delete(contract_id: int, companies: list[str] | None) -> bool:
         db.execute(text("DELETE FROM sales_contract WHERE id = :i"), {"i": contract_id})
     audit_repo.log("sales_contract", "delete", (before or {}).get("code") or f"#{contract_id}",
                    before=before, as_of=(before or {}).get("sign_date"), company=cur)
+    _sync_group_inventory()
     return True
+
+
+def _sync_group_inventory() -> None:
+    """Hợp đồng/đợt giao đổi → tính lại phần "đã có HĐ" của tuần đang chạy ở Tồn kho Tập đoàn.
+
+    Chỉ chạy khi chuyên viên đã bật tự tính; lỗi ở đây không được làm hỏng thao tác lưu hợp đồng.
+    """
+    from app.services import inventory_auto
+
+    try:
+        inventory_auto.sync_current_week()
+    except Exception as exc:                       # noqa: BLE001 - không chặn luồng nhập liệu
+        logger.warning("Không cập nhật được tồn kho Tập đoàn: %s", exc)

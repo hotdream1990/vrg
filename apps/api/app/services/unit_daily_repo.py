@@ -8,6 +8,7 @@ Khối 3 (`stock_signed_undelivered`, đã ký HĐ chưa giao) KHÔNG nằm tron
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 from typing import Any
 
@@ -16,6 +17,8 @@ from sqlalchemy import text
 from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC
 from app.services import audit_repo, unit_daily_fields
+
+logger = logging.getLogger("vrg.unit_daily")
 
 #: 'purchase' | 'consumption' → nhãn ghi vào nhật ký (đúng tên biểu mẫu người dùng thấy).
 _KIND_LABEL = {"purchase": "Thu mua", "consumption": "Tiêu thụ – tồn kho"}
@@ -51,6 +54,24 @@ def upsert(kind: str, as_of: str, company: str, fields: dict, updated_by: str | 
                    f"{as_of}|{company}|{kind}", before=before, after=clean,
                    as_of=as_of, company=company,
                    note=note or f"Biểu {_KIND_LABEL.get(kind, kind)}")
+    _sync_group_inventory(kind, as_of, updated_by)
+
+
+def _sync_group_inventory(kind: str, as_of: str, by: str | None) -> None:
+    """Đơn vị vừa nộp/sửa biểu Tồn kho → cập nhật chuỗi tồn kho TẬP ĐOÀN của tuần tương ứng.
+
+    Chỉ chạy khi chuyên viên đã bật công tắc (`inventory_auto.enabled`). Lỗi ở đây tuyệt đối không
+    được làm hỏng thao tác lưu của đơn vị — số của họ đã ghi xong, tổng Tập đoàn tính lại lúc nào
+    cũng được (nút "Đồng bộ tuần này" / "Tính lại N tuần" ở màn Tồn kho Tập đoàn).
+    """
+    if kind != "consumption":
+        return
+    from app.services import inventory_auto
+
+    try:
+        inventory_auto.sync_for_date(as_of, by=by)
+    except Exception as exc:                       # noqa: BLE001 - không chặn luồng nhập liệu
+        logger.warning("Không cập nhật được tồn kho Tập đoàn cho %s: %s", as_of, exc)
 
 
 _BULK_NO_PURCHASE = text("""
@@ -126,6 +147,8 @@ def move_day(kind: str, company: str, as_of: str, to_date: str, updated_by: str 
     # lớp `vrg` của chuyên viên chốt giá) — xem tách 2 lớp ở market_meta.
     prices = (price_repo.move_purchase_prices(company, as_of, to_date, UNIT_SRC)
               if kind == "purchase" else {"moved": [], "kept": []})
+    for d in (as_of, to_date):        # số rời khỏi tuần cũ và nhập vào tuần mới → tính lại CẢ HAI
+        _sync_group_inventory(kind, d, updated_by)
     return {"moved_prices": prices["moved"], "kept_prices": prices["kept"]}
 
 

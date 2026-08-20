@@ -204,6 +204,8 @@ export type ScheduleJob = {
   purpose: string | null;
   hour: number;
   minute: number;
+  /** Rỗng/null = chạy hằng ngày; 'fri'… = chỉ chạy đúng thứ đó (job theo tuần). */
+  day_of_week: string | null;
   enabled: boolean;
   last_run: CrawlRun | null;
   next_run: string | null;

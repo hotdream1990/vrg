@@ -1,6 +1,8 @@
-"""Repository lịch chạy job định kỳ (schedule_job): giờ/phút + bật/tắt cho mỗi job.
+"""Repository lịch chạy job định kỳ (schedule_job): giờ/phút (+ thứ) + bật/tắt cho mỗi job.
 
 Job metadata (nhãn, mô tả, hàm chạy) nằm ở app/services/scheduler.py; bảng này chỉ giữ lịch.
+`day_of_week` rỗng = chạy HẰNG NGÀY; có giá trị ('fri'…) = chỉ chạy đúng thứ đó (job theo tuần).
+Admin chỉ sửa giờ/bật-tắt trên UI — chu kỳ theo thứ do code quy định, không cho đổi lung tung.
 """
 from __future__ import annotations
 
@@ -12,15 +14,20 @@ from app.core.db import ensure_schema, session_scope
 from app.services import audit_repo
 
 
-def seed_defaults(defaults: dict[str, tuple[int, int]]) -> None:
-    """Tạo lịch mặc định cho job chưa có (không đụng job đã cấu hình)."""
+def seed_defaults(defaults: dict[str, tuple[int, int, str | None]]) -> None:
+    """Tạo lịch mặc định cho job chưa có (không đụng giờ/bật-tắt admin đã cấu hình).
+
+    Riêng `day_of_week` LUÔN đồng bộ theo registry: đó là chu kỳ nghiệp vụ của job (job tuần phải
+    chạy đúng thứ), không phải tuỳ chọn của admin — job cũ trong DB nhờ vậy cũng được nâng cấp.
+    """
     ensure_schema()
     with session_scope() as db:
-        for name, (hour, minute) in defaults.items():
+        for name, (hour, minute, dow) in defaults.items():
             db.execute(
-                text("INSERT INTO schedule_job (name, hour, minute) VALUES (:n, :h, :m) "
-                     "ON CONFLICT (name) DO NOTHING"),
-                {"n": name, "h": hour, "m": minute},
+                text("INSERT INTO schedule_job (name, hour, minute, day_of_week) "
+                     "VALUES (:n, :h, :m, :d) "
+                     "ON CONFLICT (name) DO UPDATE SET day_of_week = EXCLUDED.day_of_week"),
+                {"n": name, "h": hour, "m": minute, "d": dow},
             )
 
 
@@ -28,7 +35,8 @@ def list_jobs() -> list[dict[str, Any]]:
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(text(
-            "SELECT name, hour, minute, enabled, updated_at FROM schedule_job ORDER BY name"))
+            "SELECT name, hour, minute, day_of_week, enabled, updated_at "
+            "FROM schedule_job ORDER BY name"))
         return [dict(m) for m in rows.mappings().all()]
 
 

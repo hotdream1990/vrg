@@ -5,12 +5,29 @@ Thay cho launchd/cron của OS: lịch do app quản lý, admin xem/sửa trên 
 """
 from __future__ import annotations
 
+import logging
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from app.services import scan_service, schedule_repo
+from app.services import inventory_auto, scan_service, schedule_repo
+
+logger = logging.getLogger("vrg.scheduler")
 
 _TZ = "Asia/Ho_Chi_Minh"
+_ZONE = ZoneInfo(_TZ)
+
+#: Job lỡ giờ vì tiến trình đang bận/đang khởi động → APScheduler vẫn chạy bù trong khoảng này.
+#: (Chỉ cứu được lúc tiến trình CÒN SỐNG; tiến trình tắt hẳn thì dựa vào `catch_up` bên dưới.)
+_MISFIRE_GRACE = 3600
+
+#: Sau khi khởi động bao lâu thì chạy các job đã lỡ (để app boot xong, DB/scheduler sẵn sàng).
+_CATCHUP_DELAY_SECONDS = 30
+
+#: 'mon'…'sun' → chỉ số của `datetime.weekday()` (0 = thứ Hai).
+_DOW_INDEX = {d: i for i, d in enumerate(("mon", "tue", "wed", "thu", "fri", "sat", "sun"))}
 
 # Các mốc quét trong ngày (giờ VN, Asia/Ho_Chi_Minh). "daily-scan" giữ tên cũ (đã seed DB) = 18:00.
 # ⚠ Nguồn Á châu ra giá đầu-giữa chiều VN: LGM/MRB upload phiên "Noon" ~14:00 VN (15:00 giờ Malaysia),
@@ -33,14 +50,25 @@ def _scan_meta(hm: tuple[int, int]) -> dict:
         "label": f"Quét giá đa sàn {hm[0]:02d}:{hm[1]:02d}",
         "purpose": "Quét giá các sàn + tỷ giá → lưu DB (tích lũy lịch sử)",
         "source": "all",
-        "default": hm,
+        "default": (hm[0], hm[1], None),        # (giờ, phút, thứ) — None = hằng ngày
         "run": lambda: scan_service.scan_and_persist("all"),
     }
 
 
 # Đăng ký job định kỳ: name → nhãn, mô tả, nguồn (khớp meta_crawl_run.sources),
-# lịch mặc định (giờ, phút), hàm chạy. Mỗi mốc = 1 job (admin xem/sửa/tắt riêng ở Lịch chạy).
+# lịch mặc định (giờ, phút, thứ), hàm chạy. Mỗi mốc = 1 job (admin xem/sửa/tắt riêng ở Lịch chạy).
+# `catch_up=True` → lỡ giờ vì máy chủ tắt/deploy thì chạy bù ngay sau khi khởi động lại.
 JOB_REGISTRY: dict[str, dict] = {name: _scan_meta(hm) for name, hm in _SCAN_SLOTS.items()}
+
+JOB_REGISTRY[inventory_auto.WEEKLY_JOB_NAME] = {
+    "label": "Chốt tồn kho Tập đoàn (tối thứ Sáu)",
+    "purpose": "Cộng tồn kho từ biểu Tồn kho của đơn vị thành viên → chuỗi tuần Tồn kho Tập đoàn "
+               "(chỉ chạy khi chuyên viên đã bật tự tính; không đè tuần nhập tay)",
+    "source": inventory_auto.WEEKLY_JOB_SOURCE,
+    "default": (19, 0, "fri"),
+    "catch_up": True,
+    "run": inventory_auto.run_weekly_job,
+}
 
 _scheduler: BackgroundScheduler | None = None
 
@@ -52,6 +80,52 @@ def _run_job(name: str) -> None:
         print(f"[scheduler] job '{name}' lỗi: {exc}")
 
 
+def last_due(hour: int, minute: int, dow: str | None, ref: datetime) -> datetime:
+    """Thời điểm job ĐÁNG LẼ chạy gần nhất tính đến `ref` (mốc để biết đã lỡ hay chưa).
+
+    Hằng ngày → hôm nay (hoặc hôm qua nếu chưa tới giờ). Theo thứ → đúng thứ đó gần nhất đã qua.
+    """
+    d = ref.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if d > ref:
+        d -= timedelta(days=1)
+    if not dow:
+        return d
+    return d - timedelta(days=(d.weekday() - _DOW_INDEX[dow]) % 7)
+
+
+def missed_jobs(now: datetime | None = None) -> list[str]:
+    """Các job `catch_up` đang BẬT mà lần chạy gần nhất còn trước mốc đáng lẽ phải chạy.
+
+    Đây là lưới an toàn cho việc tiến trình KHÔNG chạy vào giờ đó (deploy, khởi động lại, máy chủ
+    tắt): APScheduler dùng jobstore trong bộ nhớ nên khởi động lại là quên sạch các lần đã lỡ.
+    """
+    ref = now or datetime.now(_ZONE)
+    out: list[str] = []
+    for job in schedule_repo.list_jobs():
+        meta = JOB_REGISTRY.get(job["name"])
+        if not meta or not meta.get("catch_up") or not job["enabled"]:
+            continue
+        due = last_due(job["hour"], job["minute"], job["day_of_week"], ref)
+        last = schedule_repo.last_run_for(meta["source"])
+        started = last["started_at"] if last else None
+        if started is not None and started.tzinfo is None:
+            started = started.replace(tzinfo=_ZONE)
+        if started is None or started < due:
+            out.append(job["name"])
+    return out
+
+
+def _schedule_catch_up() -> None:
+    """Lên lịch chạy bù (một lần, ngay sau khi khởi động) cho các job đã lỡ."""
+    if _scheduler is None:
+        return
+    run_at = datetime.now(_ZONE) + timedelta(seconds=_CATCHUP_DELAY_SECONDS)
+    for name in missed_jobs():
+        logger.warning("[scheduler] job '%s' đã lỡ giờ — chạy bù lúc %s", name, run_at)
+        _scheduler.add_job(_run_job, "date", run_date=run_at, args=[name],
+                           id=f"catchup:{name}", replace_existing=True)
+
+
 def start() -> None:
     """Seed lịch mặc định + khởi động scheduler + lên lịch các job đang bật."""
     global _scheduler
@@ -59,6 +133,7 @@ def start() -> None:
     _scheduler = BackgroundScheduler(timezone=_TZ)
     _scheduler.start()
     sync()
+    _schedule_catch_up()
 
 
 def sync() -> None:
@@ -75,8 +150,10 @@ def sync() -> None:
         if job["enabled"]:
             _scheduler.add_job(
                 _run_job,
-                CronTrigger(hour=job["hour"], minute=job["minute"], timezone=_TZ),
+                CronTrigger(day_of_week=job["day_of_week"] or None, hour=job["hour"],
+                            minute=job["minute"], timezone=_TZ),
                 args=[name], id=jid, replace_existing=True,
+                misfire_grace_time=_MISFIRE_GRACE,
             )
 
 

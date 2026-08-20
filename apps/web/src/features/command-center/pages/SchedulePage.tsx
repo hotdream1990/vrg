@@ -13,6 +13,13 @@ const STATUS: Record<string, { label: string; color: string }> = {
 };
 
 const hhmm = (h: number, m: number) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+
+/** Chu kỳ hiển thị dưới ô giờ — job theo tuần chỉ chạy đúng thứ của nó. */
+const DOW: Record<string, string> = {
+  mon: "Thứ Hai", tue: "Thứ Ba", wed: "Thứ Tư", thu: "Thứ Năm",
+  fri: "Thứ Sáu", sat: "Thứ Bảy", sun: "Chủ nhật",
+};
+const cycle = (dow: string | null) => (dow ? `${DOW[dow] ?? dow} hằng tuần` : "Hằng ngày");
 const dt = (s: string) => new Date(s).toLocaleString("vi-VN");
 
 type EditState = Record<string, { time: string; enabled: boolean }>;
@@ -47,9 +54,10 @@ export default function SchedulePage() {
     setBusy(name);
     try {
       const r = await runSchedule(name);
-      const err = r.sources.find((s) => s.status === "error");
+      const err = r.sources?.find((s) => s.status === "error");
       if (err) message.error(err.note || "Chạy thất bại");
-      else message.success(`Đã ghi ${r.persisted} bản ghi`);
+      // Job không phải quét giá tự mô tả kết quả trong `note` (vd chốt tồn kho: mấy tuần được ghi).
+      else message.success(r.sources?.[0]?.note || `Đã ghi ${r.persisted} bản ghi`);
       load();
     } catch (e) {
       message.error(String(e));
@@ -66,11 +74,14 @@ export default function SchedulePage() {
       ),
     },
     {
-      title: "Giờ chạy (hàng ngày)", key: "time",
+      title: "Giờ chạy", key: "time",
       render: (_: unknown, j: ScheduleJob) => (
-        <input type="time" className="blt-date-input"
-          value={edit[j.name]?.time ?? ""}
-          onChange={(e) => patch(j.name, { time: e.target.value })} />
+        <div>
+          <input type="time" className="blt-date-input"
+            value={edit[j.name]?.time ?? ""}
+            onChange={(e) => patch(j.name, { time: e.target.value })} />
+          <div style={{ fontSize: 11, color: "var(--muted)" }}>{cycle(j.day_of_week)}</div>
+        </div>
       ),
     },
     {
@@ -112,7 +123,8 @@ export default function SchedulePage() {
         <div>
           <h2><ClockCircleOutlined style={{ marginRight: 8 }} />Lịch chạy</h2>
           <p>Tác vụ tự động chạy theo giờ — do hệ thống tự lên lịch (không cài đặt vào máy chủ).
-            Sửa giờ, bật/tắt hoặc bấm "Chạy ngay".</p>
+            Sửa giờ, bật/tắt hoặc bấm "Chạy ngay". Job lỡ giờ vì máy chủ tắt/khởi động lại sẽ được
+            <b> chạy bù ngay sau khi hệ thống lên lại</b>.</p>
         </div>
       </div>
       <div className="card">
