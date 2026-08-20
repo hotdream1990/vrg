@@ -1,9 +1,10 @@
+import { Segmented } from "antd";
 import { useEffect, useState } from "react";
 
-import { type PurchaseSeries, fetchPurchaseSeries } from "../../../../lib/api-client";
+import { type PriceBasket, type PurchaseSeries, fetchPurchaseSeries } from "../../../../lib/api-client";
 import { dm } from "../../../../lib/date";
-import { readAt, thinNote } from "../../../../lib/purchase-series";
 import { CUP_PRICE_UNIT_SHORT, LATEX_PRICE_UNIT_SHORT } from "../../../../lib/purchase-price-unit";
+import { readAt, thinNote } from "../../../../lib/purchase-series";
 import PriceVolumeChart from "../../charts/PriceVolumeChart";
 
 const vnum = (n: number, d = 0) => n.toLocaleString("vi-VN", { maximumFractionDigits: d });
@@ -15,6 +16,11 @@ type Kind = { key: "latex" | "cup"; title: string; unit: string; color: string }
 const KINDS: Kind[] = [
   { key: "latex", title: "Giá & sản lượng mủ nước (thu mua nội địa)", unit: LATEX_PRICE_UNIT_SHORT, color: "#16AF67" },
   { key: "cup", title: "Giá & sản lượng mủ chén (thu mua nội địa)", unit: CUP_PRICE_UNIT_SHORT, color: "#a855f7" },
+];
+
+const BASKETS: { value: PriceBasket; label: string }[] = [
+  { value: "steady", label: "Đơn vị khai đều" },
+  { value: "all", label: "Tất cả đơn vị" },
 ];
 
 const from = (days: number) => {
@@ -36,16 +42,19 @@ function caption(rows: PurchaseSeries["rows"], k: Kind): string {
 }
 
 /** Giá & sản lượng thu mua mủ nguyên liệu — CÙNG một nguồn: số đơn vị thành viên tự khai.
- *  Cột = sản lượng thu mua trong ngày, dải + đường = khoảng đơn giá giữa các đơn vị. */
+ *  Cột = sản lượng thu mua trong ngày, dải + đường = khoảng đơn giá giữa các đơn vị.
+ *  Ô trống và giá trị 0 bị bỏ qua (không vẽ) để chuỗi không giật vì hôm có hôm không. */
 export default function RawMaterialBlock() {
+  const [basket, setBasket] = useState<PriceBasket>("steady");
   const [series, setSeries] = useState<PurchaseSeries | null>(null);
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    fetchPurchaseSeries(from(WINDOW_DAYS))
+    setSeries(null);
+    fetchPurchaseSeries(from(WINDOW_DAYS), undefined, basket)
       .then(setSeries)
       .catch((e) => setErr(e instanceof Error ? e.message : "Lỗi tải dữ liệu"));
-  }, []);
+  }, [basket]);
 
   return (
     <div className="grid-2">
@@ -66,6 +75,11 @@ export default function RawMaterialBlock() {
               : !ready ? <div className="scan-empty">Đơn vị thành viên chưa khai giá/sản lượng loại mủ này.</div>
               : (
                 <>
+                  {/* Nút chọn rổ để riêng một hàng: card nằm nửa màn hình, nhét vào cạnh tiêu đề là vỡ chữ. */}
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+                    <Segmented size="small" value={basket} options={BASKETS}
+                               onChange={(v) => setBasket(v as PriceBasket)} />
+                  </div>
                   <div className="chart-wrap">
                     <PriceVolumeChart
                       labels={rows.map((r) => dm(r.as_of))}
@@ -78,8 +92,11 @@ export default function RawMaterialBlock() {
                     />
                   </div>
                   <p style={{ color: "var(--muted)", fontSize: 11, margin: "10px 0 0" }}>
-                    Số liệu do đơn vị thành viên tự khai (biểu Thu mua + giá mủ nguyên liệu của đơn vị).
-                    Cột sản lượng đọc theo trục phải; dải màu là khoảng giá giữa các đơn vị trong ngày.
+                    Số liệu do đơn vị thành viên tự khai (biểu Thu mua + giá mủ nguyên liệu của đơn vị);
+                    ngày không có số hoặc bằng 0 được bỏ qua. Cột sản lượng (trục phải) luôn là tổng
+                    của mọi đơn vị. Dải giá {basket === "steady"
+                      ? `chỉ tính ${series.basket_units[k.key]} đơn vị khai đều — các ngày mới so được với nhau`
+                      : "tính trên mọi đơn vị có khai — đáy/đỉnh nhảy theo việc hôm đó ai nộp"}.
                   </p>
                 </>
               )}

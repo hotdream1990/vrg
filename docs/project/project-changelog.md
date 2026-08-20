@@ -20,6 +20,11 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
   - **Nhận định AI** của Bản tin biến động dùng đúng nguồn này: nhóm Tồn kho nói thêm **chủng loại**
     và **khu vực** lớn nhất, nhóm mủ nguyên liệu có thêm **sản lượng**.
   - API mới (chỉ đọc, chỉ cần đăng nhập): `GET /api/inventory/series` · `GET /api/prices/purchase-series`.
+- **Biểu đồ thu mua mủ hết "giật"** (phản hồi 20/08/2026): ngày không có số hoặc bằng 0 bị **bỏ qua**
+  (không vẽ cột 0, không để khoảng trống giữa chuỗi), và dải giá mặc định chỉ tính trên **rổ đơn vị
+  khai đều** (đơn vị có giá ≥ 80% số ngày của đơn vị chăm nhất) — có nút *"Tất cả đơn vị"* để xem
+  toàn bộ. Trước đó đáy/đỉnh nhảy dựng đứng chỉ vì hôm đó có thêm một đơn vị vùng giá thấp nộp muộn,
+  nhìn như giá lao dốc. **Cột sản lượng luôn là tổng của mọi đơn vị** (số cộng, lọc bớt là báo thiếu hàng).
 - **Tự động lấy giá mủ nguyên liệu từ đơn vị thành viên** (chốt 20/08/2026) — chuyên viên không phải
   gõ lại con số đơn vị vừa nộp:
   - Nút **"Tự động lấy số từ đơn vị"** ngay trên màn *Giá mủ nguyên liệu*: **công tắc tổng** +

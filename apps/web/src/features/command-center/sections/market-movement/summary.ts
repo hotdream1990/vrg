@@ -240,7 +240,7 @@ export async function buildSummaries(): Promise<GroupMeta[]> {
       "Giá sàn công bố mới nhất vs giá thị trường phiên gần nhất — /api/floor + /api/prices/sheet",
       floorData.range, floorData.asOf),
     mk("raw", "Giá & sản lượng mủ nước, mủ chén nội địa", rawLine,
-      "Đơn giá + sản lượng thu mua do đơn vị thành viên tự khai — /api/prices/purchase-series",
+      "Đơn giá (rổ đơn vị khai đều) + sản lượng thu mua do đơn vị thành viên tự khai — /api/prices/purchase-series",
       usedRange(rawDates, "ngày"), latestOf(rawDates)),
   ];
 }

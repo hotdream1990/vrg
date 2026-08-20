@@ -111,17 +111,23 @@ export type PurchaseDayStat = {
   qty_units: number;      // số đơn vị đã khai SẢN LƯỢNG
 };
 
+/** Rổ tính dải giá: `steady` = chỉ đơn vị khai đều (các ngày so được với nhau) · `all` = mọi đơn vị. */
+export type PriceBasket = "steady" | "all";
+
 export type PurchaseSeries = {
   date_from: string;
   date_to: string;
+  basket: PriceBasket;
+  basket_units: { latex: number; cup: number };     // số đơn vị trong rổ giá
   rows: { as_of: string; latex: PurchaseDayStat; cup: PurchaseDayStat }[];   // ngày TĂNG dần
 };
 
 /** Mủ nước & mủ chén theo ngày — sản lượng + dải giá, cùng gốc "đơn vị thành viên tự khai". */
-export const fetchPurchaseSeries = (dateFrom?: string, dateTo?: string) => {
+export const fetchPurchaseSeries = (dateFrom?: string, dateTo?: string, basket?: PriceBasket) => {
   const p = new URLSearchParams();
   if (dateFrom) p.set("date_from", dateFrom);
   if (dateTo) p.set("date_to", dateTo);
+  if (basket) p.set("basket", basket);
   return req<PurchaseSeries>(`/api/prices/purchase-series?${p}`);
 };
 

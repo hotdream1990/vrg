@@ -74,10 +74,14 @@ def test_price_without_volume_still_counted(clean) -> None:
 
 
 def test_hq_price_layer_is_ignored(clean) -> None:
-    """Chuỗi này chỉ đọc lớp ĐƠN VỊ tự khai — số chuyên viên chốt không được trộn vào."""
+    """Chuỗi này chỉ đọc lớp ĐƠN VỊ tự khai — số chuyên viên chốt không được trộn vào.
+
+    Không dùng `_row`: giá lớp chuyên viên KHÔNG tạo ra số liệu nào cho ngày đó, mà ngày rỗng thì
+    đã bị loại khỏi chuỗi — trên DB sạch `rows` rỗng hẳn.
+    """
     _price(UNIT, 888888, source=PURCHASE_SOURCE_HQ)
-    row = _row(unit_series.purchase_series(DAY, DAY), DAY)
-    assert (row["latex"]["max"] or 0) != 888888
+    rows = unit_series.purchase_series(DAY, DAY)["rows"]
+    assert all((r["latex"]["max"] or 0) != 888888 for r in rows)
 
 
 def test_foreign_unit_local_price_converted(clean) -> None:
@@ -146,3 +150,32 @@ def test_window_clamps_to_floor_and_max_span() -> None:
     assert a == st.STOCK_START
     a2, b2 = unit_series.window("2020-01-01", DAY)
     assert (date.fromisoformat(b2) - date.fromisoformat(a2)).days == unit_series.MAX_WINDOW_DAYS - 1
+
+
+# ── Rổ giá & bỏ số rỗng/bằng 0 ─────────────────────────────────────────────────
+def test_zero_volume_is_not_a_volume(clean) -> None:
+    """Sản lượng 0 (có tổ chức mua nhưng không mua được) không được vẽ thành cột 0."""
+    far = (date.today() - timedelta(days=395)).isoformat()   # ngày xa hẳn dữ liệu thật trong DB
+    _price(UNIT, 500, as_of=far)
+    unit_daily_repo.upsert("purchase", far, UNIT, {"latex_wet": 0}, "test")
+    row = _row(unit_series.purchase_series(far, far), far)
+    assert (row["latex"]["qty"], row["latex"]["qty_units"]) == (None, 0)
+    assert row["latex"]["units"] == 1        # ngày vẫn còn vì có đơn giá
+
+
+def test_days_without_any_number_are_dropped(clean) -> None:
+    """Ngày không có giá lẫn sản lượng của cả hai loại mủ thì không nằm trong chuỗi."""
+    far = (date.today() - timedelta(days=400)).isoformat()   # xa hẳn dữ liệu thật trong DB
+    assert unit_series.purchase_series(far, far)["rows"] == []
+
+
+def test_steady_basket_drops_occasional_units(clean) -> None:
+    """Đơn vị chỉ khai 1 ngày không được kéo đáy dải giá của riêng ngày đó."""
+    days = [(date.fromisoformat(DAY) - timedelta(days=i)).isoformat() for i in range(6)]
+    for d in days:                                  # đơn vị khai ĐỀU, giá cao
+        _price(UNIT, 500, as_of=d)
+    _price(LAO, 100, as_of=DAY)                     # đơn vị khai LÁC ĐÁC, giá thấp
+
+    steady = _row(unit_series.purchase_series(days[-1], DAY), DAY)["latex"]
+    every = _row(unit_series.purchase_series(days[-1], DAY, "all"), DAY)["latex"]
+    assert every["min"] <= 100 < steady["min"]      # rổ "all" thấy đáy 100, rổ mặc định thì không

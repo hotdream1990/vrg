@@ -17,7 +17,9 @@ export default function PriceVolumeChart(
 ) {
   const pointRadius = labels.length <= 20 ? 3 : 0;
   const suffix = unit ? ` (${unit})` : "";
-  const line = { yAxisID: "y", order: 1, tension: 0.25, pointRadius, pointHoverRadius: pointRadius + 2 };
+  // spanGaps: ngày lẻ thiếu giá thì nối liền qua, không cắt đường thành từng mẩu.
+  const line = { yAxisID: "y", order: 1, tension: 0.25, pointRadius,
+                 pointHoverRadius: pointRadius + 2, spanGaps: true };
 
   const data: ChartData<"bar" | "line"> = {
     labels,

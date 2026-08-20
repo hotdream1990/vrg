@@ -131,6 +131,8 @@ def purchase_sheet(
 def purchase_series(
     date_from: str | None = Query(None, description="từ ngày YYYY-MM-DD"),
     date_to: str | None = Query(None, description="đến ngày YYYY-MM-DD"),
+    basket: str = Query("steady", pattern="^(steady|all)$",
+                        description="rổ tính dải giá: steady = chỉ đơn vị khai đều"),
 ) -> dict:
     """Mủ nước & mủ chén theo ngày: SẢN LƯỢNG thu mua (tấn) + dải đơn giá của các đơn vị.
 
@@ -138,7 +140,7 @@ def purchase_series(
     đơn giá luôn cùng một gốc; khác `purchase-sheet` (lưới giá lớp chuyên viên chốt, không có sản lượng).
     """
     a, b = unit_series.window(date_from, date_to)
-    return unit_series.purchase_series(a, b)
+    return unit_series.purchase_series(a, b, basket)
 
 
 @router.delete("/purchase")
