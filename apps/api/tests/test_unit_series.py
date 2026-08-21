@@ -137,6 +137,18 @@ def test_structure_splits_signed_and_free(clean) -> None:
     assert round(row["values"]["signed"] + row["values"]["free"], 3) == row["total"]
 
 
+def test_stock_reports_only_units_that_actually_have_stock(clean) -> None:
+    """Độ phủ chỉ đếm đơn vị CÓ tồn thành phẩm — không kèm mẫu số "trên tổng số đơn vị".
+
+    Mẫu số cũ (mọi đơn vị đang hoạt động) gồm cả đơn vị không có nhà máy, vốn không có tồn thành
+    phẩm để khai, nên "62/67 đơn vị" nói sai về chính biểu đồ đang vẽ (user báo 21/08/2026).
+    """
+    _stock(DAY)
+    row = _row(st.stock_series(DAY, DAY, "structure"), DAY)
+    assert "units_expected" not in row
+    assert row["units_counted"] >= 1
+
+
 def test_grade_and_region_cover_the_same_total(clean) -> None:
     """Ba cách nhóm cùng một ngày phải cộng ra cùng một tổng tồn kho."""
     _stock(DAY)

@@ -16,6 +16,12 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
   - Nhận định AI của Bản tin biến động có thêm nhóm **Tiêu thụ**.
   - Ghi chú: hệ thống chỉ có số của các đơn vị thành viên VRG, **không có số liệu ngoài Tập đoàn**,
     nên không dựng được biểu đồ "toàn ngành".
+### Fixed
+- **Bỏ dòng "Độ phủ: 62/67 đơn vị" dưới biểu đồ tồn kho** — con số này nói sai về chính biểu đồ:
+  tử số đếm mọi đơn vị có bất kỳ số tồn nào (kể cả đơn vị không có nhà máy, chỉ khai tồn nguyên
+  liệu), còn mẫu số 67 là toàn bộ đơn vị đang hoạt động, trong đó 22 đơn vị không có nhà máy nên
+  không bao giờ có tồn thành phẩm để khai. Nay chỉ còn một con số duy nhất và đúng, hiện trong
+  tooltip: **số đơn vị thật sự có tồn thành phẩm** trong ngày đó.
 - **Tồn kho · giá & sản lượng mủ nguyên liệu lấy thẳng từ số đơn vị nhập** (phản hồi 20/08/2026) —
   ba biểu đồ ở *Command Center* và *Bản tin biến động* đổi sang nguồn đơn vị thành viên tự khai:
   - **Tồn kho VRG theo ngày** (thay biểu đồ theo tuần): cộng khối *"Đã nhập kho"* của các đơn vị,

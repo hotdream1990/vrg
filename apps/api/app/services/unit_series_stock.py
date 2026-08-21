@@ -84,8 +84,14 @@ def _free_by_grade(stock: dict[str, float], signed: dict[str, float]) -> dict[st
 def stock_series(date_from: str, date_to: str, group_by: str = "structure") -> dict[str, Any]:
     """Tồn kho Tập đoàn theo ngày, nhóm theo cơ cấu hợp đồng · chủng loại · khu vực.
 
-    Mỗi ngày kèm độ phủ (`units_counted`/`units_expected`): thiếu đơn vị mà không nói ra thì người
-    xem tưởng cột thấp là hàng bán được nhiều, trong khi thật ra là chưa ai nhập.
+    Mỗi ngày kèm `units_counted` = số đơn vị THẬT SỰ có tồn thành phẩm trong ảnh chụp đó: thiếu đơn
+    vị mà không nói ra thì người xem tưởng cột thấp là hàng bán được nhiều, trong khi thật ra là
+    chưa ai nhập.
+
+    ⚠ KHÔNG trả "n/N đơn vị": mẫu số nào cũng sai. Toàn bộ đơn vị hoạt động (67) gồm 22 đơn vị
+    KHÔNG có nhà máy — họ không có tồn thành phẩm để khai; còn cờ `has_factory` cũng không dùng làm
+    mẫu số được (đo prod 21/08/2026: 53 đơn vị có tồn thành phẩm nhưng chỉ 43 trong số đó gắn cờ có
+    nhà máy). Đếm đơn vị CÓ SỐ là con số duy nhất nói đúng về cái biểu đồ đang vẽ.
 
     ⚠ `total` LUÔN là tồn kho tổng, kể cả ở cách nhìn `free_grade` (nơi các cột chỉ là phần tự do) —
     dòng tổng dưới biểu đồ và tooltip phải nói đúng con số tồn, không đổi nghĩa theo cách xem.
@@ -94,7 +100,6 @@ def stock_series(date_from: str, date_to: str, group_by: str = "structure") -> d
         group_by = "structure"
     snaps = _snapshots(date_from, date_to)
     meta = unit_report_rows.unit_meta()
-    expected = len(meta)
 
     rows: list[dict[str, Any]] = []
     grade_totals: dict[str, float] = {}
@@ -126,7 +131,7 @@ def stock_series(date_from: str, date_to: str, group_by: str = "structure") -> d
                 region = (meta.get(company) or {}).get("region") or NO_REGION
                 values[region] = values.get(region, 0.0) + sum(g.values())
         rows.append({"as_of": day, "total": round(total, 3) if snap else None,
-                     "units_counted": len(snap), "units_expected": expected,
+                     "units_counted": sum(1 for g in by_company.values() if sum(g.values())),
                      "values": {k: round(v, 3) for k, v in values.items()}})
 
     if group_by in ("grade", "free_grade"):

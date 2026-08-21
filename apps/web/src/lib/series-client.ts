@@ -68,7 +68,7 @@ export type StockSeries = {
   start_floor: string;                  // ngày đầu tiên đơn vị nhập đủ để cộng thành số Tập đoàn
   max_age_days: number;                 // số ngày được phép lấy lại bản ghi cũ của một đơn vị
   series: SeriesKey[];
-  rows: (StackedRow & { units_counted: number; units_expected: number })[];
+  rows: (StackedRow & { units_counted: number })[];   // số đơn vị CÓ tồn thành phẩm hôm đó
 };
 
 export const fetchStockSeries = (groupBy: StockGroupBy, dateFrom?: string, dateTo?: string) =>

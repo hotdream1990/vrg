@@ -209,7 +209,7 @@ export async function buildSummaries(): Promise<GroupMeta[]> {
     return `Ngày ${dmy(cur.as_of)}: tổng tồn kho ${vnum(cur.total)} tấn`
       + (d != null ? ` (${d >= 0 ? "+" : ""}${vnum(d)} so ngày ${dm(prev!.as_of)})` : "")
       + `; đã ký HĐ ${vnum(cur.values.signed ?? 0)}; tự do ${vnum(cur.values.free ?? 0)} tấn`
-      + ` (${cur.units_counted}/${cur.units_expected} đơn vị có số).`
+      + ` (${cur.units_counted} đơn vị có tồn thành phẩm).`
       + (grades ? ` Chủng loại lớn nhất: ${grades} tấn.` : "")
       + (regions ? ` Khu vực lớn nhất: ${regions} tấn.` : "");
   })();

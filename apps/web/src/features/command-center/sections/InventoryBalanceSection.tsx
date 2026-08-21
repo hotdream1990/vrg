@@ -22,21 +22,6 @@ const SUBTITLE: Record<StockGroupBy, string> = {
   region: "Mỗi cột = tồn kho tổng chia theo khu vực của đơn vị thành viên — tấn, theo ngày",
 };
 
-/** Dòng số của ngày mới nhất — nói đúng cái đang xem, không lặp lại con số của cách xem khác. */
-function summary(s: StockSeries, last: StockSeries["rows"][number]): string {
-  const head = `Ngày ${dmy(last.as_of)}: tồn ${fmt(last.total)} tấn`;
-  if (s.group_by === "structure") {
-    return `${head} = đã ký ${fmt(last.values.signed)} + tự do ${fmt(last.values.free)} tấn.`;
-  }
-  const top = Object.entries(last.values).sort((a, b) => b[1] - a[1]).slice(0, 3)
-    .map(([k, v]) => `${k} ${fmt(v)}`).join(", ");
-  if (s.group_by === "free_grade") {
-    const free = Object.values(last.values).reduce((t, v) => t + v, 0);
-    return `${head}, còn bán được ${fmt(free)} tấn — nhiều nhất: ${top} tấn.`;
-  }
-  return `${head} — cao nhất: ${top} tấn.`;
-}
-
 /** Tồn kho Tập đoàn theo NGÀY, cộng thẳng từ biểu "Tồn kho" của các đơn vị thành viên.
  *  Xem được theo 4 chiều: cơ cấu hợp đồng · chủng loại · tồn tự do theo chủng loại · khu vực. */
 export default function InventoryBalanceSection() {
@@ -74,7 +59,7 @@ export default function InventoryBalanceSection() {
         <div className="chart-wrap">
           <StackedDaysChart
             rows={data.rows} series={data.series}
-            footer={(r) => `Tổng tồn: ${fmt(r.total)} tấn · ${(r as typeof last).units_counted}/${(r as typeof last).units_expected} đơn vị có số`}
+            footer={(r) => `Tổng tồn: ${fmt(r.total)} tấn · ${(r as typeof last).units_counted} đơn vị có tồn thành phẩm`}
           />
         </div>
       )}
@@ -85,7 +70,6 @@ export default function InventoryBalanceSection() {
           Chuỗi bắt đầu từ {dmy(data.start_floor)} — trước đó chưa đủ đơn vị nhập để cộng thành số Tập đoàn.
           {view === "structure" && " Tồn tự do cao ⇒ áp lực bán ⇒ có thể điều chỉnh giá sàn hợp lý hơn để dễ tiêu thụ."}
           {view === "free_grade" && " Phần đã ký hợp đồng được trừ theo TỪNG chủng loại của từng đơn vị (cắt trần, không âm)."}
-          {" "}{summary(data, last)} Độ phủ: {last.units_counted}/{last.units_expected} đơn vị.
         </p>
       )}
     </div>
