@@ -160,46 +160,47 @@ def consumption_xlsx(date_from: str = Query(...), date_to: str = Query(...),
 #: Trục của màn tồn kho là 1 NGÀY CHỐT + số ngày được phép lùi (khác các màn kia dùng khoảng kỳ):
 #: tồn kho là số thời điểm nên "tổng của một kỳ" không có nghĩa.
 _STOCK_GROUPS = "^(company|region|grade|day)$"
-MAX_STOCK_AGE_DAYS = 90
+MAX_STOCK_DAYS_BACK = 90
 
 
-def _stock(as_of: str, max_age_days: int, companies: str | None, regions: str | None,
+def _stock(as_of: str, days_back: int, companies: str | None, regions: str | None,
            grades: str | None, group_by: str) -> dict:
     try:
         date.fromisoformat(as_of)
     except ValueError as exc:
         raise HTTPException(400, "Ngày chốt không hợp lệ (YYYY-MM-DD).") from exc
-    return st.stock_report(as_of, max_age_days, companies=companies, regions=regions,
+    return st.stock_report(as_of, days_back, companies=companies, regions=regions,
                            grades=grades, group_by=group_by)
 
 
 def _stock_period(rep: dict) -> str:
     """Dòng "kỳ" của file Excel — nói rõ đây là ảnh chụp, không phải tổng của một khoảng ngày."""
-    age = rep["max_age_days"]
-    lui = "chỉ lấy số nhập đúng ngày" if age <= 0 else f"lấy số cũ tối đa {age} ngày"
-    return f"Ngày chốt {q.dmy(rep['as_of'])} ({lui})"
+    back = rep["days_back"]
+    xem = f", xem lại {back} ngày" if back and rep["group_by"] == "day" else ""
+    return f"Ngày chốt {q.dmy(rep['as_of'])}{xem}"
 
 
 @router.get("/stock")
 def stock(as_of: str = Query(..., description="Ngày chốt (YYYY-MM-DD)"),
-          max_age_days: int = Query(7, ge=0, le=MAX_STOCK_AGE_DAYS,
-                                    description="Số ngày được phép lùi khi đơn vị chưa nhập"),
+          days_back: int = Query(0, ge=0, le=MAX_STOCK_DAYS_BACK,
+                                 description="Chỉ dùng khi nhóm theo NGÀY: xem lại bao nhiêu ngày"),
           companies: str | None = Query(None), regions: str | None = Query(None),
           grades: str | None = Query(None),
           group_by: str = Query("company", pattern=_STOCK_GROUPS),
           username: str = Depends(_require)) -> dict:
-    """Tồn kho tại NGÀY CHỐT: mỗi đơn vị lấy số mới nhất ≤ ngày chốt (kèm ngày thật + độ phủ)."""
-    return _stock(as_of, max_age_days, companies, regions, grades, group_by)
+    """Tồn kho tại NGÀY CHỐT: khai ngày nào lấy ngày đó, tick "không phát sinh" thì giữ số lần khai
+    gần nhất, không khai gì thì không có số (kèm ngày thật + độ phủ)."""
+    return _stock(as_of, days_back, companies, regions, grades, group_by)
 
 
 @router.get("/stock.xlsx")
 def stock_xlsx(as_of: str = Query(...),
-               max_age_days: int = Query(7, ge=0, le=MAX_STOCK_AGE_DAYS),
+               days_back: int = Query(0, ge=0, le=MAX_STOCK_DAYS_BACK),
                companies: str | None = Query(None), regions: str | None = Query(None),
                grades: str | None = Query(None),
                group_by: str = Query("company", pattern=_STOCK_GROUPS),
                username: str = Depends(_require)):
-    rep = _stock(as_of, max_age_days, companies, regions, grades, group_by)
+    rep = _stock(as_of, days_back, companies, regions, grades, group_by)
     data = xls.build_xlsx(title="THỐNG KÊ TỒN KHO", period=_stock_period(rep),
                           period_label="Ảnh chụp", note=_note(rep), group_by=group_by,
                           columns=xls.STOCK_COLS, rows=rep["rows"], totals=rep["totals"])

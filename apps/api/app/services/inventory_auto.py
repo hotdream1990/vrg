@@ -41,8 +41,9 @@ AUTO_SOURCE = "auto"
 #: Ngày chốt tuần = **thứ Sáu** — đúng chu kỳ chuyên viên đang nhập (79/81 tuần trong DB là thứ Sáu).
 ANCHOR_WEEKDAY = 4                  # date.weekday(): 0=Thứ Hai … 4=Thứ Sáu
 
-#: Số ngày được phép lùi khi lấy số của một đơn vị cho ngày chốt (đơn vị không nộp đúng thứ Sáu
-#: thì lấy bản ghi gần nhất trong tuần; cũ hơn thế coi như KHÔNG có số, thà thiếu hơn là đắp bừa).
+#: Cửa sổ TÍNH LẠI: bản ghi ngày D có thể đổi số của các tuần chốt trong ngần này ngày sau đó (đơn
+#: vị tick "không phát sinh" ở các ngày kế tiếp thì số ngày D còn được dùng cho tuần sau).
+#: ⚠ KHÔNG phải "số ngày được phép đắp số cũ" — quy tắc lấy số nằm ở `unit_report_rows.stock_rows`.
 MAX_AGE_DAYS = 7
 
 DEFAULT_RECOMPUTE_WEEKS = 8
@@ -77,7 +78,7 @@ def config() -> dict[str, Any]:
     return {
         "enabled": enabled(),
         "weekday_label": "Thứ Sáu hằng tuần",
-        "max_age_days": MAX_AGE_DAYS,
+        "recompute_window_days": MAX_AGE_DAYS,
         "recompute_weeks": DEFAULT_RECOMPUTE_WEEKS,
         "last_anchor": last_anchor().isoformat(),
     }
@@ -117,11 +118,12 @@ def compute(as_of: str) -> dict[str, Any]:
     """Số tồn kho Tập đoàn tại ngày chốt `as_of`, cộng từ biểu Tồn kho của các đơn vị.
 
     Dùng lại NGUYÊN quy tắc của màn "Thống kê tồn kho" (`unit_report_stock`) để hai màn không bao
-    giờ lệch nhau: mỗi đơn vị lấy bản ghi tồn mới nhất ≤ ngày chốt trong `MAX_AGE_DAYS` ngày.
+    giờ lệch nhau: đơn vị khai ngày nào lấy ngày đó, tick "không phát sinh tồn kho" thì giữ số lần
+    khai gần nhất, không khai gì thì không có số.
     """
     from app.services import unit_report_stock
 
-    rep = unit_report_stock.stock_report(as_of, MAX_AGE_DAYS, group_by="company")
+    rep = unit_report_stock.stock_report(as_of, group_by="company")
     ton = hd = 0.0
     for g in rep["rows"]:
         warehoused = g["warehoused"] or 0.0        # KHÔNG lấy `total`: chỉ khối "Đã nhập kho"

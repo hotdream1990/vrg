@@ -66,9 +66,10 @@ export type StockGroupBy = "structure" | "grade" | "region" | "free_grade";
 export type StockSeries = {
   group_by: StockGroupBy;
   start_floor: string;                  // ngày đầu tiên đơn vị nhập đủ để cộng thành số Tập đoàn
-  max_age_days: number;                 // số ngày được phép lấy lại bản ghi cũ của một đơn vị
   series: SeriesKey[];
   rows: (StackedRow & { units_counted: number })[];   // số đơn vị CÓ tồn thành phẩm hôm đó
+  /** Ngày cuối chuỗi đang nhập dở nên chưa vẽ (số đơn vị còn quá thấp so với các ngày trước). */
+  pending: { as_of: string; units_counted: number }[];
 };
 
 export const fetchStockSeries = (groupBy: StockGroupBy, dateFrom?: string, dateTo?: string) =>

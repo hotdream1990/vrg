@@ -118,9 +118,10 @@ export default function InventoryAutoModal({ onClose, onSaved, readOnly }: Props
       </div>
 
       <p className="form-note" style={{ fontSize: 12, marginTop: 10 }}>
-        Chốt <b>{cfg?.weekday_label ?? "thứ Sáu hằng tuần"}</b> — đúng chu kỳ đang nhập tay. Mỗi đơn
-        vị lấy số tồn mới nhất trong <b>{cfg?.max_age_days ?? 7} ngày</b> tính đến ngày chốt; đơn vị
-        chưa có số thì <b>không</b> được đắp bằng số cũ hơn, mà ghi rõ ở ghi chú của tuần.
+        Chốt <b>{cfg?.weekday_label ?? "thứ Sáu hằng tuần"}</b> — đúng chu kỳ đang nhập tay. Đơn vị
+        <b> khai tồn ngày chốt</b> thì lấy số ngày đó; đơn vị tick <b>“không phát sinh tồn kho để
+        khai”</b> thì giữ nguyên số của lần khai gần nhất; đơn vị <b>chưa khai gì</b> thì không có
+        số — không đắp số ngày khác vào, mà ghi rõ ở ghi chú của tuần.
         Tồn kho = khối <b>“Đã nhập kho”</b>; Đã có HĐ = phần đã ký chưa giao, <b>cắt trần</b> theo
         tồn kho của chính đơn vị đó. Tuần chuyên viên đã nhập tay <b>không bị đè</b> — muốn thay thì
         bấm nút đồng bộ của đúng tuần đó.

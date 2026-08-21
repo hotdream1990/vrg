@@ -16,6 +16,20 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
   - Nhận định AI của Bản tin biến động có thêm nhóm **Tiêu thụ**.
   - Ghi chú: hệ thống chỉ có số của các đơn vị thành viên VRG, **không có số liệu ngoài Tập đoàn**,
     nên không dựng được biểu đồ "toàn ngành".
+### Changed
+- **Tồn kho không còn đắp số ngày trước** (chốt 21/08/2026) — quy tắc lấy số của một đơn vị cho một
+  ngày, áp dụng ở **mọi nơi tính tồn kho** (biểu đồ Bản tin biến động · màn Thống kê tồn kho · chức
+  năng tự tính tồn kho tuần của Tập đoàn):
+  - đơn vị **khai tồn** ngày nào → lấy đúng số ngày đó;
+  - đơn vị tick **“không phát sinh tồn kho để khai”** → giữ nguyên số của lần khai gần nhất;
+  - đơn vị **không khai gì** → KHÔNG có số (trước đây số cũ được đắp sang trong 7 ngày, nên biểu đồ
+    hiện tồn kho cho cả những đơn vị chưa hề nộp).
+  - Màn Thống kê tồn kho bỏ ô *“số ngày được phép lùi”*; khi nhóm theo NGÀY có ô *“xem lại N ngày”*
+    thay thế — nó chỉ mở rộng phạm vi ngày xem, không đắp số.
+  - Biểu đồ **không vẽ các ngày cuối đang nhập dở** (độ phủ dưới 85% ngày tốt nhất) và ghi rõ đã bỏ
+    những ngày nào, mới bao nhiêu đơn vị — nếu không, ngày đang nhập tụt thành vách đá trông như
+    Tập đoàn bán sạch kho trong một đêm.
+
 ### Fixed
 - **Bỏ dòng "Độ phủ: 62/67 đơn vị" dưới biểu đồ tồn kho** — con số này nói sai về chính biểu đồ:
   tử số đếm mọi đơn vị có bất kỳ số tồn nào (kể cả đơn vị không có nhà máy, chỉ khai tồn nguyên
@@ -166,6 +180,20 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
   quá xa kỳ trước được tô viền + banner "N ô cần kiểm tra" chỉ rõ bảng·dòng·cột. Biên lấy từ dữ liệu
   thật trên production rồi nới rộng — **chỉ cảnh báo, không chặn gõ/lưu, không đổi số liệu**.
 - Danh sách báo cáo ngày (timeline) chọn được **khoảng ngày tự chọn**, ngoài các mốc 30/60/90/180 ngày.
+### Changed
+- **Tồn kho không còn đắp số ngày trước** (chốt 21/08/2026) — quy tắc lấy số của một đơn vị cho một
+  ngày, áp dụng ở **mọi nơi tính tồn kho** (biểu đồ Bản tin biến động · màn Thống kê tồn kho · chức
+  năng tự tính tồn kho tuần của Tập đoàn):
+  - đơn vị **khai tồn** ngày nào → lấy đúng số ngày đó;
+  - đơn vị tick **“không phát sinh tồn kho để khai”** → giữ nguyên số của lần khai gần nhất;
+  - đơn vị **không khai gì** → KHÔNG có số (trước đây số cũ được đắp sang trong 7 ngày, nên biểu đồ
+    hiện tồn kho cho cả những đơn vị chưa hề nộp).
+  - Màn Thống kê tồn kho bỏ ô *“số ngày được phép lùi”*; khi nhóm theo NGÀY có ô *“xem lại N ngày”*
+    thay thế — nó chỉ mở rộng phạm vi ngày xem, không đắp số.
+  - Biểu đồ **không vẽ các ngày cuối đang nhập dở** (độ phủ dưới 85% ngày tốt nhất) và ghi rõ đã bỏ
+    những ngày nào, mới bao nhiêu đơn vị — nếu không, ngày đang nhập tụt thành vách đá trông như
+    Tập đoàn bán sạch kho trong một đêm.
+
 ### Fixed
 - **Doanh thu tiêu thụ của bản ghi cũ bị sai 1.000 lần**: dòng bán lưu trước khi có loại tiền theo
   từng dòng (`ccy` rỗng) bị đọc thành VNĐ, khiến giá 1.640 USD/tấn thành 1.640 triệu đ/tấn. Nay

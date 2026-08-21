@@ -95,8 +95,7 @@ export default function StockStatsPage() {
       />
 
       {data?.coverage && (
-        <StockCoverageBar asOf={filters.asOf} maxAgeDays={filters.maxAgeDays}
-                          coverage={data.coverage} />
+        <StockCoverageBar asOf={filters.asOf} coverage={data.coverage} />
       )}
 
       <DrillHeader

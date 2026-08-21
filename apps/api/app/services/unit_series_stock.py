@@ -2,21 +2,19 @@
 
 Hai quy tắc bắt buộc giữ nguyên để các màn không lệch nhau:
 
-1. **Ảnh chụp từng ngày, KHÔNG cộng dồn.** Mỗi ngày, mỗi đơn vị lấy bản ghi tồn mới nhất ≤ ngày đó
-   và cũ không quá `inventory_auto.MAX_AGE_DAYS`; cũ hơn coi như không có số (thà thiếu còn hơn đắp
-   số ngày khác vào).
+1. **Ảnh chụp từng ngày, KHÔNG cộng dồn**, lấy số theo đúng quy tắc dùng chung ở
+   `unit_report_rows.stock_rows`: đơn vị khai ngày nào dùng ngày đó · tick "không phát sinh tồn kho
+   để khai" thì giữ số lần khai gần nhất · không khai gì thì không có số.
 2. **Tồn kho = khối "Đã nhập kho"**, phần "đã có HĐ" = Σ `min(đã ký chưa giao, đã nhập kho)` của
    TỪNG đơn vị — đúng công thức `inventory_auto.compute()` đang ghi vào chuỗi tuần của Tập đoàn.
 """
 
 from __future__ import annotations
 
-from datetime import date, timedelta
 from typing import Any
 
-from app.services import unit_daily_repo, unit_report_rows
-from app.services.inventory_auto import MAX_AGE_DAYS
-from app.services.unit_series import days_between, num, series_of
+from app.services import unit_report_rows
+from app.services.unit_series import days_between, series_of
 
 #: Ngày đầu tiên các đơn vị nhập biểu Tồn kho đủ độ phủ (42 đơn vị; các ngày trước đó ≤ 12) —
 #: trước mốc này chuỗi chỉ là vài đơn vị lẻ, vẽ lên biểu đồ sẽ thành "tồn kho Tập đoàn sụt mạnh".
@@ -25,6 +23,12 @@ STOCK_START = "2026-07-24"
 #: 4 cách nhìn tồn kho. `free_grade` = phần CÒN BÁN ĐƯỢC của từng chủng loại (tồn − đã ký hợp đồng),
 #: câu hỏi thường trực của Ban TTKD: "loại nào đang ế" chứ không chỉ "còn bao nhiêu".
 GROUPS = ("structure", "grade", "region", "free_grade")
+
+#: Ngày CUỐI chuỗi thường đang nhập dở (đo prod 21/08/2026: 4 đơn vị lúc 9h sáng so với ~53 ngày
+#: trước). Từ khi bỏ đắp số ngày cũ, những ngày đó tụt thành vách đá trên biểu đồ, nhìn như Tập
+#: đoàn bán sạch kho trong một đêm. Cắt phần ĐUÔI chưa đạt ngần này so với ngày phủ tốt nhất và
+#: nói rõ đã cắt mấy ngày — cắt đuôi chứ không cắt giữa: ngày giữa mà thiếu thì đó là sự thật.
+MIN_COVERAGE_RATIO = 0.85
 NO_REGION = "Chưa gán khu vực"
 
 
@@ -34,41 +38,17 @@ STRUCTURE_KEYS: tuple[tuple[str, str], ...] = (
 )
 
 
-def _snapshots(date_from: str, date_to: str) -> dict[str, dict[str, dict[str, Any]]]:
-    """{ngày: {đơn vị: bản ghi tồn}} — mỗi ngày là ảnh chụp độc lập, KHÔNG cộng dồn.
-
-    Bản ghi được dùng lại cho các ngày sau tối đa `MAX_AGE_DAYS` ngày (đơn vị không nhập hằng ngày),
-    quá hạn thì rơi khỏi ảnh chụp — không đắp số quá cũ cho ngày đang xét.
-    """
-    start = (date.fromisoformat(date_from) - timedelta(days=MAX_AGE_DAYS)).isoformat()
-    entries = unit_daily_repo.in_range("consumption", start, date_to, attach_contracts=False)
-    latest: dict[str, dict[str, Any]] = {}          # đơn vị → bản ghi tồn mới nhất đã gặp
-    by_day: dict[str, list[dict[str, Any]]] = {}
-    for e in entries:
-        if unit_report_rows.has_stock(e["fields"]):
-            by_day.setdefault(e["as_of"], []).append(e)
-
-    out: dict[str, dict[str, dict[str, Any]]] = {}
-    for day in days_between(start, date_to):
-        for e in by_day.get(day, []):
-            latest[e["company"]] = e
-        if day < date_from:
-            continue
-        limit = (date.fromisoformat(day) - timedelta(days=MAX_AGE_DAYS)).isoformat()
-        out[day] = {c: e for c, e in latest.items() if e["as_of"] >= limit}
-    return out
-
-
-def _warehoused(fields: dict) -> dict[str, float]:
-    """{chủng loại: tấn} của khối "Đã nhập kho" — khối được chọn làm TỒN KHO (xem docstring module)."""
-    out: dict[str, float] = {}
-    for ln in fields.get("stock_warehoused") or []:
-        q = num(ln.get("qty"))
-        if q is None:
-            continue
-        grade = str(ln.get("grade") or "").strip() or "—"
-        out[grade] = out.get(grade, 0.0) + q
-    return out
+def _trim_pending(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Bỏ các ngày CUỐI chưa đủ đơn vị nhập; trả (chuỗi đã cắt, các ngày bị cắt) để UI nói rõ."""
+    best = max((r["units_counted"] for r in rows), default=0)
+    if not best:
+        return rows, []
+    need = best * MIN_COVERAGE_RATIO
+    cut = len(rows)
+    while cut and rows[cut - 1]["units_counted"] < need:
+        cut -= 1
+    pending = [{"as_of": r["as_of"], "units_counted": r["units_counted"]} for r in rows[cut:]]
+    return (rows[:cut], pending) if cut else (rows, [])
 
 
 def _free_by_grade(stock: dict[str, float], signed: dict[str, float]) -> dict[str, float]:
@@ -98,41 +78,55 @@ def stock_series(date_from: str, date_to: str, group_by: str = "structure") -> d
     """
     if group_by not in GROUPS:
         group_by = "structure"
-    snaps = _snapshots(date_from, date_to)
-    meta = unit_report_rows.unit_meta()
+    days = days_between(date_from, date_to)
+    raw = unit_report_rows.stock_rows(date_to, all_days=True, days_back=len(days) - 1)
+
+    # {ngày: {đơn vị: {chủng loại: tấn}}} cho tồn ĐÃ NHẬP KHO và cho phần đã ký hợp đồng chưa giao.
+    stock: dict[str, dict[str, dict[str, float]]] = {}
+    signed: dict[str, dict[str, dict[str, float]]] = {}
+    regions: dict[str, str] = {}
+    for r in raw["rows"]:
+        qty = r["qty"] or 0.0
+        if not qty:
+            continue
+        bucket = (stock if r["block"] == "stock_warehoused"
+                  else signed if r["block"] == unit_report_rows.CONTRACT_BLOCK else None)
+        if bucket is None:                 # tồn "chưa nhập kho" và tồn nguyên liệu không vào đây
+            continue
+        by_company = bucket.setdefault(r["as_of"], {}).setdefault(r["company"], {})
+        by_company[r["grade"]] = by_company.get(r["grade"], 0.0) + qty
+        regions[r["company"]] = r.get("region") or NO_REGION
 
     rows: list[dict[str, Any]] = []
     grade_totals: dict[str, float] = {}
-    # Chỉ 2 cách nhìn cần hỏi hợp đồng (1 truy vấn / ngày) — 2 cách còn lại khỏi trả phí đó.
-    needs_contracts = group_by in ("structure", "free_grade")
-    for day, snap in snaps.items():
-        by_company = {c: _warehoused(e["fields"]) for c, e in snap.items()}
+    for day in days:
+        by_company = stock.get(day, {})
+        signed_day = signed.get(day, {})
         total = sum(sum(g.values()) for g in by_company.values())
-        undelivered = (unit_daily_repo.contracts_on(day, list(snap))
-                       if needs_contracts and snap else {})
         values: dict[str, float] = {}
         if group_by == "structure":
-            signed = sum(min((undelivered.get(c) or {}).get("qty") or 0.0, sum(g.values()))
-                         for c, g in by_company.items())
-            values = {"signed": signed, "free": total - signed}
+            done = sum(min(sum((signed_day.get(c) or {}).values()), sum(g.values()))
+                       for c, g in by_company.items())
+            values = {"signed": done, "free": total - done}
         elif group_by == "free_grade":
-            for company, stock in by_company.items():
-                signed_grades = (undelivered.get(company) or {}).get("by_grade") or {}
-                for grade, q in _free_by_grade(stock, signed_grades).items():
+            for company, grades in by_company.items():
+                for grade, q in _free_by_grade(grades, signed_day.get(company) or {}).items():
                     values[grade] = values.get(grade, 0.0) + q
                     grade_totals[grade] = grade_totals.get(grade, 0.0) + q
         elif group_by == "grade":
-            for g in by_company.values():
-                for grade, q in g.items():
+            for grades in by_company.values():
+                for grade, q in grades.items():
                     values[grade] = values.get(grade, 0.0) + q
                     grade_totals[grade] = grade_totals.get(grade, 0.0) + q
         else:
-            for company, g in by_company.items():
-                region = (meta.get(company) or {}).get("region") or NO_REGION
-                values[region] = values.get(region, 0.0) + sum(g.values())
-        rows.append({"as_of": day, "total": round(total, 3) if snap else None,
-                     "units_counted": sum(1 for g in by_company.values() if sum(g.values())),
+            for company, grades in by_company.items():
+                region = regions.get(company) or NO_REGION
+                values[region] = values.get(region, 0.0) + sum(grades.values())
+        rows.append({"as_of": day, "total": round(total, 3) if by_company else None,
+                     "units_counted": len(by_company),
                      "values": {k: round(v, 3) for k, v in values.items()}})
+
+    rows, pending = _trim_pending(rows)
 
     if group_by in ("grade", "free_grade"):
         series = series_of(rows, grade_totals)
@@ -142,5 +136,4 @@ def stock_series(date_from: str, date_to: str, group_by: str = "structure") -> d
         series = [{"key": k, "label": lb} for k, lb in STRUCTURE_KEYS]
 
     return {"date_from": date_from, "date_to": date_to, "group_by": group_by,
-            "start_floor": STOCK_START, "max_age_days": MAX_AGE_DAYS,
-            "series": series, "rows": rows}
+            "start_floor": STOCK_START, "series": series, "rows": rows, "pending": pending}

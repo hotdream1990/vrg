@@ -558,9 +558,10 @@ def test_period_report_keeps_last_real_stock() -> None:
     assert row["stock_by_grade"]["RSS 3"] == 24.0
 
     # Khớp màn Thống kê tồn kho (cùng quy tắc `has_stock`) — hai màn không được lệch nhau.
-    # Màn đó chốt theo NGÀY: hôm nay chỉ có dòng bán nên số tồn phải lùi về ảnh chụp hôm qua.
+    # Màn đó chốt theo NGÀY nên phải chốt vào ĐÚNG ngày đơn vị khai tồn: từ 21/08/2026 hôm nay chỉ
+    # có dòng bán thì không còn được đắp số hôm qua sang (đơn vị phải tick "không phát sinh").
     st = client.get("/api/unit-daily/analytics/stock?group_by=company"
-                    f"&as_of={today}&max_age_days=7", headers=eh).json()
+                    f"&as_of={yesterday}", headers=eh).json()
     srow = next(r for r in st["rows"] if r["key"] == unit)
     assert srow["total"] == row["stock_finished"] and srow["as_of"] == row["stock_as_of"]
 

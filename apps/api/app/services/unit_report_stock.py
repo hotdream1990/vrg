@@ -1,9 +1,9 @@
 """Thống kê Tồn kho — ảnh chụp tại một NGÀY CHỐT (số THỜI ĐIỂM, không cộng dồn).
 
-Mỗi đơn vị lấy bản ghi tồn MỚI NHẤT có ngày ≤ ngày chốt và cũ không quá `max_age_days` ngày;
-**luôn trả kèm ngày đã lấy + số ngày đã cũ** để người xem biết số thuộc ngày nào (không nơi nào
-được hiểu số cũ là số của đúng ngày chốt). Đơn vị không có số trong cửa sổ thì báo thiếu, KHÔNG
-lấy số ngày khác đắp vào.
+Đơn vị KHAI tồn ngày nào thì lấy đúng số ngày đó; đơn vị tick "không phát sinh tồn kho để khai"
+thì giữ nguyên số của lần khai gần nhất; đơn vị không khai gì thì báo thiếu, KHÔNG đắp số ngày
+khác vào (quy tắc chung ở `unit_report_rows.stock_rows`, chốt 21/08/2026). Mỗi dòng **luôn trả kèm
+ngày đã lấy + số ngày đã cũ** để người xem biết số thuộc ngày nào.
 
 Ngoài 3 khối đơn vị nhập tay (chưa nhập kho · đã nhập kho · nguyên liệu), báo cáo còn 2 chỉ tiêu
 SUY RA từ hợp đồng bán hàng, lấy tại ĐÚNG ngày của số tồn:
@@ -84,8 +84,8 @@ def _coverage(snap: list[dict], no_stock: dict[str, str], comps: list[str] | Non
     thì người xem tưởng đó là số đầy đủ. Đơn vị khai "không phát sinh tồn kho" tách thành nhóm
     RIÊNG — đã nộp nên không phải "chưa nhập", nhưng cũng không có số nào để cộng vào tổng.
 
-    Số cũ (lấy lùi ngày trong cửa sổ `max_age_days`) KHÔNG bị điểm mặt riêng: mỗi dòng đã mang sẵn
-    ngày lấy số + số ngày đã cũ, người xem tự thấy — thêm cảnh báo ngưỡng nữa chỉ gây nhiễu.
+    Số giữ lại theo cờ "không phát sinh" KHÔNG bị điểm mặt riêng: mỗi dòng đã mang sẵn ngày lấy số
+    + số ngày đã cũ, người xem tự thấy — thêm cảnh báo ngưỡng nữa chỉ gây nhiễu.
     """
     units = member_unit_repo.list_units(include_inactive=False)
     if comps:
@@ -113,12 +113,10 @@ def _names(items: list[dict], key: str = "company") -> str:
     return f"{head} …và {more} đơn vị khác" if more > 0 else head
 
 
-def _warnings(cov: dict, as_of: str, max_age_days: int, group_by: str) -> list[str]:
+def _warnings(cov: dict, as_of: str, group_by: str) -> list[str]:
     w: list[str] = []
     if cov["missing"]:
-        window = (f"ngày {dmy(as_of)}" if max_age_days <= 0
-                  else f"{max_age_days} ngày tính đến {dmy(as_of)}")
-        w.append(f"{len(cov['missing'])} đơn vị chưa có số tồn kho trong {window} → KHÔNG tính vào "
+        w.append(f"{len(cov['missing'])} đơn vị chưa có số tồn kho tại ngày {dmy(as_of)} → KHÔNG tính vào "
                  f"tổng (kể cả phần đã ký HĐ chưa giao của họ): {_names(cov['missing'])}.")
     # Đơn vị khai "không phát sinh tồn kho" KHÔNG lên cảnh báo: họ đã nộp đúng hạn, không có gì
     # sai để nhắc. Vẫn giữ trong `coverage` để dải độ phủ cộng đủ (có số + khai trống + chưa có số).
@@ -128,14 +126,20 @@ def _warnings(cov: dict, as_of: str, max_age_days: int, group_by: str) -> list[s
     return w
 
 
-def stock_report(as_of: str, max_age_days: int = 7, *, companies: str | None = None,
+def stock_report(as_of: str, days_back: int = 0, *, companies: str | None = None,
                  regions: str | None = None, grades: str | None = None,
                  group_by: str = "company") -> dict[str, Any]:
-    """Tồn kho tại NGÀY CHỐT theo bộ lọc (đơn vị · khu vực · chủng loại)."""
+    """Tồn kho tại NGÀY CHỐT theo bộ lọc (đơn vị · khu vực · chủng loại).
+
+    Số của mỗi đơn vị lấy theo quy tắc ở `unit_report_rows.stock_rows`: khai ngày nào dùng ngày đó,
+    tick "không phát sinh" thì giữ số lần khai gần nhất, không khai gì thì KHÔNG có số.
+    `days_back` chỉ dùng khi nhóm theo NGÀY (xem diễn biến bao nhiêu ngày trở lại).
+    """
     comps, regs, grds = split_csv(companies), split_csv(regions), split_csv(grades)
     # Nhóm theo NGÀY = xem diễn biến tồn → giữ mọi ngày trong cửa sổ; các cách nhóm khác chỉ lấy
     # ảnh chụp tại ngày chốt (mỗi đơn vị 1 dòng số mới nhất của mình).
-    raw = unit_report_rows.stock_rows(as_of, max_age_days, comps, all_days=group_by == "day")
+    raw = unit_report_rows.stock_rows(as_of, comps, all_days=group_by == "day",
+                                      days_back=days_back if group_by == "day" else 0)
     rows = filter_scope(raw["rows"], comps, regs)
     snap = _latest_per_company(rows) if group_by == "day" else rows
     # Độ phủ tính TRƯỚC khi lọc chủng loại: đơn vị có tồn nhưng không có chủng loại đang lọc thì
@@ -164,7 +168,7 @@ def stock_report(as_of: str, max_age_days: int = 7, *, companies: str | None = N
     total = _new_group("Tổng cộng", None)
     for r in snap:
         _feed(total, r, with_grade=True)
-    return {"as_of": as_of, "max_age_days": max_age_days, "group_by": group_by,
+    return {"as_of": as_of, "days_back": days_back, "group_by": group_by,
             "rows": [_close(g) for g in sort_groups(groups, group_by)],
             "totals": _close(total), "coverage": cov,
-            "warnings": _warnings(cov, as_of, max_age_days, group_by)}
+            "warnings": _warnings(cov, as_of, group_by)}

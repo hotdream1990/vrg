@@ -103,21 +103,29 @@ def _stock(as_of: str, company: str = UNIT, warehoused: float = 100.0) -> None:
 
 
 def _totals(date_from: str, date_to: str) -> dict[str, float]:
-    """{ngày: tổng tồn} — đo bằng CHÊNH LỆCH trước/sau khi seed vì DB test dùng chung có số nền."""
-    return {r["as_of"]: (r["total"] or 0.0) for r in st.stock_series(date_from, date_to, "grade")["rows"]}
+    """{ngày: tổng tồn} — đo bằng CHÊNH LỆCH trước/sau khi seed vì DB test dùng chung có số nền.
+
+    Ngày bị cắt khỏi chuỗi (đang nhập dở) coi như 0: đúng nghĩa "không có số cho ngày đó".
+    """
+    rows = st.stock_series(date_from, date_to, "grade")["rows"]
+    got = {r["as_of"]: (r["total"] or 0.0) for r in rows}
+    return {d: got.get(d, 0.0) for d in unit_series.days_between(date_from, date_to)}
 
 
-def test_stock_snapshot_carries_forward_then_expires(clean) -> None:
-    """Số của một ngày được dùng lại tối đa MAX_AGE_DAYS ngày rồi rơi khỏi ảnh chụp."""
-    base = date.fromisoformat(DAY) - timedelta(days=st.MAX_AGE_DAYS + 2)
-    within = (base + timedelta(days=st.MAX_AGE_DAYS)).isoformat()
-    after = (base + timedelta(days=st.MAX_AGE_DAYS + 1)).isoformat()
-    before = _totals(base.isoformat(), DAY)
+def test_stock_carries_only_when_unit_declares_no_change(clean) -> None:
+    """Số tồn chỉ được giữ sang ngày sau khi đơn vị tick "không phát sinh tồn kho để khai"."""
+    d0 = (date.fromisoformat(DAY) - timedelta(days=2)).isoformat()
+    d1 = (date.fromisoformat(DAY) - timedelta(days=1)).isoformat()
+    before = _totals(d0, DAY)
 
-    _stock(base.isoformat())
-    now = _totals(base.isoformat(), DAY)
-    assert round(now[within] - before[within], 3) == 100.0    # còn trong hạn → vẫn tính
-    assert round(now[after] - before[after], 3) == 0.0        # quá hạn → rơi khỏi ảnh chụp
+    _stock(d0)                                   # khai 100 tấn ngày d0, im lặng ngày d1
+    quiet = _totals(d0, DAY)
+    assert round(quiet[d0] - before[d0], 3) == 100.0
+    assert round(quiet[d1] - before[d1], 3) == 0.0        # im lặng → KHÔNG đắp số ngày trước
+
+    unit_daily_repo.upsert("consumption", d1, UNIT, {"no_stock": True}, "test")
+    declared = _totals(d0, DAY)
+    assert round(declared[d1] - before[d1], 3) == 100.0   # tick "không phát sinh" → giữ số d0
 
 
 def test_stock_never_accumulates_across_days(clean) -> None:

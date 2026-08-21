@@ -192,41 +192,76 @@ def has_stock(fields: dict) -> bool:
                 or fields.get("stock_material") is not None)
 
 
-def stock_rows(as_of: str, max_age_days: int, companies: list[str] | None = None,
-               all_days: bool = False) -> dict[str, Any]:
-    """Tồn kho tại NGÀY CHỐT `as_of`: mỗi đơn vị lấy bản ghi tồn MỚI NHẤT có ngày ≤ ngày chốt.
+#: Đơn vị tick "không phát sinh tồn kho để khai" thì giữ nguyên số của LẦN KHAI GẦN NHẤT — quét lùi
+#: tối đa ngần này ngày để tìm lần khai đó. Xa hơn nữa coi như đơn vị không có số: dựng tồn kho hôm
+#: nay từ một con số hai tháng trước thì thà báo thiếu còn hơn.
+CARRY_LOOKBACK_DAYS = 30
 
-    `max_age_days` = số ngày được phép lùi: bản ghi cũ hơn thế coi như KHÔNG có số (thà thiếu còn
-    hơn lấy số quá cũ đắp cho ngày chốt). Mỗi dòng mang `age_days` = số ngày đã cũ để người xem
-    biết số thuộc ngày nào — không nơi nào được hiểu đây là số nhập đúng ngày chốt.
+
+def stock_rows(as_of: str, companies: list[str] | None = None, all_days: bool = False,
+               days_back: int = 0) -> dict[str, Any]:
+    """Tồn kho tại NGÀY CHỐT `as_of` — ảnh chụp, KHÔNG cộng dồn giữa các ngày.
+
+    Quy tắc lấy số của một đơn vị cho một ngày (chốt với chủ đề án 21/08/2026):
+
+    1. Đơn vị **khai tồn** ngày đó → dùng đúng số ngày đó.
+    2. Đơn vị tick **"hôm nay không phát sinh tồn kho để khai"** → giữ nguyên số của lần khai gần
+       nhất (cờ đó nghĩa là tồn không đổi), quét lùi tối đa `CARRY_LOOKBACK_DAYS` ngày.
+    3. Đơn vị **không khai gì** → KHÔNG có số. Trước đây số của ngày trước được đắp sang trong 7
+       ngày, khiến biểu đồ hiện tồn kho cho cả những đơn vị chưa hề nộp.
+
+    Mỗi dòng mang `age_days` = số ngày đã cũ (0 = khai đúng ngày) để người xem biết số thuộc ngày nào.
+
+    `days_back` chỉ mở rộng PHẠM VI NGÀY trả về khi `all_days=True` (xem diễn biến tồn) — nó không
+    còn dùng để đắp số cũ cho ngày thiếu.
 
     Trả về:
     - `rows`     → mỗi dòng = 1 chủng loại trong 1 khối (chưa nhập kho / đã nhập kho / đã ký HĐ
-                   chưa giao) + 1 dòng tồn nguyên liệu. `all_days=True` giữ TẤT CẢ các ngày trong
-                   cửa sổ (xem diễn biến tồn), mỗi ngày vẫn là ảnh chụp độc lập — KHÔNG cộng dồn
-                   giữa các ngày.
-    - `no_stock` → {đơn vị: ngày mới nhất} đã khai "không phát sinh tồn kho để khai". Đơn vị này
-                   ĐÃ NỘP nhưng KHÔNG có số để cộng: không được đếm là thiếu báo cáo, cũng không
-                   được tự suy thành tồn = 0 (cờ chỉ nói "không có gì để khai", không nói hết hàng).
+                   chưa giao) + 1 dòng tồn nguyên liệu.
+    - `no_stock` → {đơn vị: ngày} đã tick "không phát sinh" mà KHÔNG tìm được lần khai nào trước đó
+                   (đã nộp nhưng chưa từng có số) — không đếm là thiếu báo cáo, cũng không suy ra 0.
     """
-    day = date.fromisoformat(as_of)
-    start = (day - timedelta(days=max(max_age_days, 0))).isoformat()
+    end_day = date.fromisoformat(as_of)
+    first_day = end_day - timedelta(days=max(days_back, 0))
+    scan_from = (first_day - timedelta(days=CARRY_LOOKBACK_DAYS)).isoformat()
     meta = unit_meta()
-    entries = unit_daily_repo.in_range("consumption", start, as_of, companies)
+    entries = unit_daily_repo.in_range("consumption", scan_from, as_of, companies)
+
+    declared: dict[str, dict[str, dict[str, Any]]] = {}   # ngày → {đơn vị: bản ghi có số}
+    unchanged: dict[str, set[str]] = {}                   # ngày → đơn vị tick "không phát sinh"
+    for e in entries:
+        if has_stock(e["fields"]):
+            declared.setdefault(e["as_of"], {})[e["company"]] = e
+        elif e["fields"].get("no_stock") is True:
+            unchanged.setdefault(e["as_of"], set()).add(e["company"])
+
     kept: dict[Any, dict[str, Any]] = {}
     no_stock: dict[str, str] = {}
-    for e in entries:                      # in_range trả theo ngày TĂNG dần → ghi đè = ngày cuối
-        if has_stock(e["fields"]):
-            kept[(e["company"], e["as_of"]) if all_days else e["company"]] = e
-        elif e["fields"].get("no_stock") is True:
-            no_stock[e["company"]] = e["as_of"]
+    latest: dict[str, dict[str, Any]] = {}                # đơn vị → lần khai gần nhất đã gặp
+    span = (end_day - date.fromisoformat(scan_from)).days
+    for i in range(span + 1):
+        day = (date.fromisoformat(scan_from) + timedelta(days=i)).isoformat()
+        latest.update(declared.get(day, {}))
+        if day < first_day.isoformat() or (not all_days and day != as_of):
+            continue
+        snap = dict(declared.get(day, {}))
+        for company in unchanged.get(day, set()):
+            carried = latest.get(company)                 # cờ "không đổi" → giữ số lần khai gần nhất
+            if carried and company not in snap:
+                snap[company] = carried
+            elif not carried:
+                no_stock[company] = day
+        for company, entry in snap.items():
+            kept[(company, day) if all_days else company] = (entry, day)
 
-    undelivered = _undelivered_by_snapshot(kept.values())
+    undelivered = _undelivered_by_snapshot([e for e, _ in kept.values()])
     rows: list[dict[str, Any]] = []
-    for e in kept.values():
-        base = _base(e, meta)
-        base["age_days"] = (day - date.fromisoformat(e["as_of"])).days
-        f = e["fields"]
+    for entry, day in kept.values():
+        base = _base(entry, meta)
+        base["as_of"] = day                    # ngày của ẢNH CHỤP…
+        base["source_as_of"] = entry["as_of"]  # …còn đây là ngày số liệu được khai
+        base["age_days"] = (date.fromisoformat(day) - date.fromisoformat(entry["as_of"])).days
+        f = entry["fields"]
         for block in STOCK_BLOCKS:
             for ln in f.get(block) or []:
                 qty = _num(ln.get("qty"))
@@ -236,7 +271,7 @@ def stock_rows(as_of: str, max_age_days: int, companies: list[str] | None = None
                              "grade": str(ln.get("grade") or "").strip() or "—", "qty": qty})
         rows.append({**base, "block": "stock_material", "grade": "Nguyên liệu chưa sản xuất",
                      "qty": _num(f.get("stock_material"))})
-        for grade, qty in (undelivered.get((e["as_of"], e["company"])) or {}).items():
+        for grade, qty in (undelivered.get((entry["as_of"], entry["company"])) or {}).items():
             rows.append({**base, "block": CONTRACT_BLOCK,
                          "grade": str(grade or "").strip() or "—", "qty": _num(qty)})
     return {"rows": rows, "no_stock": no_stock}

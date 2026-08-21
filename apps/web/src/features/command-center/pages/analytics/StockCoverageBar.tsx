@@ -11,7 +11,7 @@ import { Tooltip } from "antd";
 import { dmy } from "../../../../lib/date";
 import type { StockCoverage } from "../../../../lib/unit-analytics-client";
 
-type Props = { asOf: string; maxAgeDays: number; coverage: StockCoverage };
+type Props = { asOf: string; coverage: StockCoverage };
 
 const item = (color: string, icon: React.ReactNode, text: string, tip?: string) => (
   <Tooltip title={tip} key={text}>
@@ -22,7 +22,7 @@ const item = (color: string, icon: React.ReactNode, text: string, tip?: string) 
   </Tooltip>
 );
 
-export default function StockCoverageBar({ asOf, maxAgeDays, coverage }: Props) {
+export default function StockCoverageBar({ asOf, coverage }: Props) {
   const { units_counted: counted, missing } = coverage;
   const expected = coverage.units_expected - (coverage.no_stock ?? []).length;
   const full = counted >= expected;
@@ -33,7 +33,7 @@ export default function StockCoverageBar({ asOf, maxAgeDays, coverage }: Props) 
       <span>
         Ảnh chụp tại ngày chốt <b>{dmy(asOf)}</b>
         <span style={{ color: "var(--muted)" }}>
-          {maxAgeDays > 0 ? ` · lấy số cũ tối đa ${maxAgeDays} ngày` : " · chỉ lấy số nhập đúng ngày"}
+          {" · đơn vị tick “không phát sinh tồn kho” thì giữ số lần khai gần nhất"}
         </span>
       </span>
       {item(full ? "var(--accent)" : "inherit", <CheckCircleOutlined />,

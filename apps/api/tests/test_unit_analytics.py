@@ -131,9 +131,12 @@ def _get(path: str, h: dict, **params) -> dict:
 
 
 def _stock(h: dict, **params) -> dict:
-    """Màn tồn kho đi theo NGÀY CHỐT (mặc định: hôm nay, cho lùi tối đa 7 ngày)."""
-    params.setdefault("as_of", date.today().isoformat())
-    params.setdefault("max_age_days", 7)
+    """Màn tồn kho đi theo NGÀY CHỐT — mặc định D1, ngày đơn vị test khai tồn lần cuối.
+
+    Từ 21/08/2026 số của một ngày KHÔNG còn được đắp sang ngày sau (trừ khi đơn vị tick "không phát
+    sinh tồn kho"), nên chốt vào hôm nay là rỗng — phải chốt đúng ngày có số.
+    """
+    params.setdefault("as_of", D1)
     res = client.get(f"{API}/stock", headers=h, params=params)
     assert res.status_code == 200, res.text
     return res.json()
@@ -286,14 +289,14 @@ def test_contract_without_type_goes_to_its_own_bucket(seeded) -> None:
 
 
 def test_stock_is_snapshot_at_the_reference_day(seeded) -> None:
-    """Ảnh chụp tại ngày chốt: lấy số MỚI NHẤT ≤ ngày chốt, kèm ngày thật + số ngày đã cũ."""
+    """Ảnh chụp tại ngày chốt: lấy đúng số đơn vị đã khai ngày đó, kèm ngày thật + số ngày đã cũ."""
     rep = _stock(seeded, companies=UNIT_A)
     a = _row(rep, UNIT_A)
-    # Bản ghi tồn mới nhất là D1 (cách hôm nay 2 ngày): 800 tấn chưa nhập kho, khối đã nhập kho trống.
-    assert a["as_of"] == D1 and a["age_days"] == 2 and a["not_warehoused"] == 800
+    # Ngày chốt D1 chính là ngày đơn vị khai: 800 tấn chưa nhập kho, khối đã nhập kho trống.
+    assert a["as_of"] == D1 and a["age_days"] == 0 and a["not_warehoused"] == 800
     assert a["warehoused"] is None and a["total"] == 800      # KHÔNG cộng dồn 1000 + 800
     assert a["material"] == 60
-    assert rep["as_of"] == date.today().isoformat() and rep["max_age_days"] == 7
+    assert rep["as_of"] == D1 and rep["days_back"] == 0
     by_grade = _stock(seeded, group_by="grade", companies=UNIT_A)
     assert [r["key"] for r in by_grade["rows"]] == ["SVR 3L"]   # ngày cuối chỉ còn 1 chủng loại
 
@@ -330,20 +333,24 @@ def test_tradable_stock_stays_negative_when_signed_more_than_on_hand(seeded) -> 
     assert a["signed_undelivered"] == 1000 and a["tradable"] == -200
 
 
-def test_stock_drops_numbers_older_than_the_allowed_window(seeded) -> None:
-    """Số quá cũ KHÔNG được đắp cho ngày chốt: quá hạn thì báo thiếu, không lấy đại số cũ."""
-    rep = _stock(seeded, companies=UNIT_A, max_age_days=1)
-    assert rep["rows"] == [] and rep["totals"]["total"] is None
-    assert [m["company"] for m in rep["coverage"]["missing"]] == [UNIT_A]
-    assert any("chưa có số tồn kho" in w for w in rep["warnings"])
-    # Nới cửa sổ đủ rộng thì số cũ được dùng lại — mỗi dòng phải nói rõ số đã cũ mấy ngày.
+def test_stock_only_carries_when_the_unit_declares_no_change(seeded) -> None:
+    """Số ngày trước CHỈ được giữ lại khi đơn vị tick "không phát sinh tồn kho để khai".
+
+    Chốt 21/08/2026: đơn vị im lặng thì báo thiếu (trước đây số cũ được đắp sang trong 7 ngày,
+    khiến biểu đồ hiện tồn kho cho cả đơn vị chưa hề nộp).
+    """
+    ngay_sau = (date.fromisoformat(D1) + timedelta(days=1)).isoformat()
+    im_lang = _stock(seeded, companies=UNIT_A, as_of=ngay_sau)
+    assert im_lang["rows"] == [] and im_lang["totals"]["total"] is None
+    assert [m["company"] for m in im_lang["coverage"]["missing"]] == [UNIT_A]
+    assert any("chưa có số tồn kho" in w for w in im_lang["warnings"])
+
     client.put("/api/unit-daily/report", headers=seeded, json={
-        "kind": "consumption", "company": UNIT_B, "as_of": D0,
-        "fields": {"stock_warehoused": [{"grade": "SVR 10", "qty": 200}]}})
-    ok = _stock(seeded, companies=f"{UNIT_A},{UNIT_B}", max_age_days=7)
-    assert _row(ok, UNIT_A)["total"] == 800 and _row(ok, UNIT_B)["age_days"] == 3
-    assert not ok["coverage"]["missing"]        # có số trong cửa sổ = đủ, không cảnh báo "số cũ"
-    assert not any("số cũ" in w for w in ok["warnings"])
+        "kind": "consumption", "company": UNIT_A, "as_of": ngay_sau, "fields": {"no_stock": True}})
+    giu_so = _stock(seeded, companies=UNIT_A, as_of=ngay_sau)
+    row = _row(giu_so, UNIT_A)
+    assert row["total"] == 800 and row["age_days"] == 1     # số của D1, đã cũ 1 ngày
+    assert not giu_so["coverage"]["missing"]
 
 
 def test_stock_by_day_totals_are_the_reference_day_snapshot(seeded) -> None:
@@ -356,7 +363,8 @@ def test_stock_by_day_totals_are_the_reference_day_snapshot(seeded) -> None:
     client.put("/api/unit-daily/report", headers=h, json={
         "kind": "consumption", "company": UNIT_B, "as_of": D0,
         "fields": {"stock_warehoused": [{"grade": "SVR 10", "qty": 200}]}})
-    rep = _stock(h, companies=f"{UNIT_A},{UNIT_B}", group_by="day")
+    # Nhóm theo NGÀY: `days_back` là phạm vi ngày muốn xem lại (không còn là "đắp số cũ").
+    rep = _stock(h, companies=f"{UNIT_A},{UNIT_B}", group_by="day", days_back=7)
     assert [r["key"] for r in rep["rows"]] == [D0, D1]
     assert _row(rep, D0)["total"] == 1700      # A: 1000 + 500, B: 200
     assert _row(rep, D1)["total"] == 800
@@ -455,7 +463,7 @@ def test_range_validation_and_xlsx(seeded) -> None:
     # Màn tồn kho: ngày chốt sai định dạng bị chặn, số ngày lùi vượt trần cũng vậy.
     assert client.get(f"{API}/stock", headers=seeded, params={"as_of": "10-08-2026"}).status_code == 400
     assert client.get(f"{API}/stock", headers=seeded,
-                      params={"as_of": D1, "max_age_days": 400}).status_code == 422
+                      params={"as_of": D1, "days_back": 400}).status_code == 422
     stock_xlsx = client.get(f"{API}/stock.xlsx", headers=seeded, params={"as_of": D1})
     assert stock_xlsx.status_code == 200 and stock_xlsx.content[:2] == b"PK"
 

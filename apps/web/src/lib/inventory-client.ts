@@ -27,7 +27,7 @@ export const deleteInventory = (as_of: string) =>
 export type InventoryAutoConfig = {
   enabled: boolean;
   weekday_label: string;
-  max_age_days: number;
+  recompute_window_days: number;   // cửa sổ TÍNH LẠI tuần khi đơn vị nộp muộn
   recompute_weeks: number;
   last_anchor: string;
 };

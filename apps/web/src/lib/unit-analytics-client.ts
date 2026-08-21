@@ -26,8 +26,9 @@ export type StatsFilters = {
 /** Màn TỒN KHO đi theo trục "ngày chốt" (số thời điểm) chứ không theo khoảng kỳ như các màn khác. */
 export type StockFilters = {
   asOf: string;
-  /** Số ngày được phép lùi khi đơn vị chưa nhập đúng ngày chốt (0 = chỉ lấy số nhập đúng ngày). */
-  maxAgeDays: number;
+  /** CHỈ dùng khi nhóm theo NGÀY: xem diễn biến tồn bao nhiêu ngày trở lại (0 = chỉ ngày chốt).
+   *  KHÔNG còn là "số ngày được phép lùi" — quy tắc lấy số nay theo cờ "không phát sinh tồn kho". */
+  daysBack: number;
   companies: string[]; regions: string[]; grades: string[];
   groupBy: string;
 };
@@ -40,7 +41,7 @@ export type StatsReport = {
   total?: number;
   /** Chỉ có ở màn tồn kho: ngày chốt + độ phủ số liệu. */
   as_of?: string;
-  max_age_days?: number;
+  days_back?: number;
   coverage?: StockCoverage;
 };
 
@@ -96,7 +97,7 @@ export const fetchConsumptionStats = (f: StatsFilters) =>
 /** Bộ lọc tồn kho → query string (trục ngày chốt, không có date_from/date_to). */
 export function stockQuery(f: StockFilters): string {
   const p = new URLSearchParams({
-    as_of: f.asOf, max_age_days: String(f.maxAgeDays), group_by: f.groupBy,
+    as_of: f.asOf, days_back: String(f.daysBack), group_by: f.groupBy,
   });
   const put = (k: string, v: string[]) => { if (v.length) p.set(k, v.join(",")); };
   put("companies", f.companies);

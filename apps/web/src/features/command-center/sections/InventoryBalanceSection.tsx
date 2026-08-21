@@ -65,9 +65,12 @@ export default function InventoryBalanceSection() {
       )}
       {data && last && (
         <p style={{ color: "var(--muted)", fontSize: 11, margin: "10px 0 0" }}>
-          Cộng từ khối “Đã nhập kho” của các đơn vị thành viên, mỗi ngày là số thời điểm (không cộng dồn);
-          đơn vị chưa nhập đúng ngày thì lấy số gần nhất trong {data.max_age_days} ngày.
-          Chuỗi bắt đầu từ {dmy(data.start_floor)} — trước đó chưa đủ đơn vị nhập để cộng thành số Tập đoàn.
+          Cộng từ khối “Đã nhập kho” của các đơn vị thành viên, mỗi ngày là số thời điểm (không cộng dồn).
+          Đơn vị khai ngày nào thì lấy số ngày đó; đơn vị tick “không phát sinh tồn kho để khai” thì giữ
+          nguyên số của lần khai gần nhất; đơn vị chưa khai thì không có số — rê chuột để xem mỗi ngày
+          có bao nhiêu đơn vị. Chuỗi bắt đầu từ {dmy(data.start_floor)} — trước đó chưa đủ đơn vị nhập
+          để cộng thành số Tập đoàn.
+          {data.pending.length > 0 && ` Chưa vẽ ${data.pending.map((p) => dmy(p.as_of)).join(", ")} vì đang nhập dở (mới ${data.pending.map((p) => p.units_counted).join(", ")} đơn vị).`}
           {view === "structure" && " Tồn tự do cao ⇒ áp lực bán ⇒ có thể điều chỉnh giá sàn hợp lý hơn để dễ tiêu thụ."}
           {view === "free_grade" && " Phần đã ký hợp đồng được trừ theo TỪNG chủng loại của từng đơn vị (cắt trần, không âm)."}
         </p>
