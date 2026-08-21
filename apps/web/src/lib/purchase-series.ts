@@ -7,7 +7,7 @@
    Quy tắc: mốc đọc = ngày MỚI NHẤT có độ phủ đạt ngưỡng so với ngày phủ tốt nhất trong cửa sổ.
    KHÔNG đắp số ngày khác vào ngày thiếu — chỉ chọn đúng ngày để đọc, và luôn nói rõ ngày nào. */
 
-import type { PurchaseDayStat, PurchaseSeries } from "./api-client";
+import type { PurchaseDayStat, PurchaseSeries } from "./series-client";
 
 export type Material = "latex" | "cup";
 type Row = PurchaseSeries["rows"][number];

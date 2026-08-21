@@ -3,15 +3,16 @@
 
 import {
   type PriceSheet,
-  type PurchaseSeries,
   fetchPhysicalSheet,
-  fetchPurchaseSeries,
   fetchSheet,
 } from "../../../../lib/api-client";
 import { dm, dmy } from "../../../../lib/date";
 import { compareFloorVsMarket } from "../../../../lib/floor-vs-market";
 import { getFloor, listFloors } from "../../../../lib/floor-client";
-import { type StockSeries, fetchStockSeries } from "../../../../lib/inventory-client";
+import {
+  type ConsumptionSeries, type PurchaseSeries, type StockSeries,
+  fetchConsumptionSeries, fetchPurchaseSeries, fetchStockSeries,
+} from "../../../../lib/series-client";
 import type { GroupMeta } from "../../../../lib/market-movement-client";
 import { type MarketQuote, getQuote, listQuotes } from "../../../../lib/market-quote-client";
 import { isNoTrading } from "../../../../lib/no-trading";
@@ -106,6 +107,22 @@ function rawLines(series: PurchaseSeries): string {
   return parts.length ? parts.join(" ") : "Chưa đủ dữ liệu.";
 }
 
+/** Tiêu thụ: ngày mới nhất + tổng cả kỳ, kèm doanh thu và cơ cấu chủng loại lớn nhất. */
+function consumptionLine(c: ConsumptionSeries): string {
+  const last = c.rows.at(-1);
+  if (!last) return "Chưa đủ dữ liệu.";
+  const tonnes = c.rows.reduce((t, r) => t + (r.total ?? 0), 0);
+  const revenue = c.rows.reduce((t, r) => t + (r.revenue_vnd ?? 0), 0);
+  const top = Object.entries(last.values).sort((a, b) => b[1] - a[1]).slice(0, 3)
+    .map(([k, v]) => `${k} ${vnum(v)}`).join(", ");
+  const missing = c.rows.reduce((t, r) => t + r.revenue_missing_lines, 0);
+  return `Ngày ${dmy(last.as_of)}: giao ${vnum(last.total ?? 0)} tấn`
+    + (last.revenue_vnd ? `, doanh thu ${vnum(last.revenue_vnd / 1e9, 1)} tỷ đồng` : "")
+    + (top ? `; chủng loại nhiều nhất: ${top} tấn` : "")
+    + `. Cả kỳ ${c.rows.length} ngày: ${vnum(tonnes)} tấn, ${vnum(revenue / 1e9, 1)} tỷ đồng`
+    + (missing ? ` (${missing} dòng bán chưa có tỷ giá nên chưa tính doanh thu)` : "") + ".";
+}
+
 /** Ngày mới nhất có số của một chuỗi tồn kho (chuỗi trả theo ngày TĂNG dần). */
 const lastStock = (s: StockSeries | null) =>
   s ? [...s.rows].reverse().find((r) => r.total != null) ?? null : null;
@@ -135,13 +152,15 @@ function mqLines(c: MarketQuote, p: MarketQuote | null, date: string): string {
 
 /** Gom tóm tắt các nhóm (song song, chịu lỗi từng nhóm). */
 export async function buildSummaries(): Promise<GroupMeta[]> {
-  const [sheet, physical, purchase, invStruct, invGrade, invRegion, floorSch, mq] = await Promise.all([
+  const [sheet, physical, purchase, invStruct, invGrade, invRegion, consumption, floorSch, mq]
+    = await Promise.all([
     fetchSheet({ days: 30 }).catch(() => null),
     fetchPhysicalSheet().catch(() => null),
     fetchPurchaseSeries().catch(() => null),
     fetchStockSeries("structure").catch(() => null),
     fetchStockSeries("grade").catch(() => null),
     fetchStockSeries("region").catch(() => null),
+    fetchConsumptionSeries("grade").catch(() => null),
     (async () => {
       const list = await listFloors().catch(() => []);
       return list.length ? await getFloor(list[0].lan) : null;
@@ -196,6 +215,7 @@ export async function buildSummaries(): Promise<GroupMeta[]> {
   })();
 
   const rawLine = purchase ? rawLines(purchase) : "Chưa đủ dữ liệu.";
+  const conLine = consumption ? consumptionLine(consumption) : "Chưa đủ dữ liệu.";
 
   // Ngày dữ liệu thực đã nạp cho từng nhóm (để hiển thị "nạp gì · khoảng ngày nào").
   const exDates = sheet ? sheet.rows.map((r) => r.as_of) : [];
@@ -203,6 +223,7 @@ export async function buildSummaries(): Promise<GroupMeta[]> {
     ? sheet.rows.filter((r) => r.fx && Object.values(r.fx).some((v) => v != null)).map((r) => r.as_of)
     : [];
   const invDates = (invStruct?.rows ?? []).filter((r) => r.total != null).map((r) => r.as_of);
+  const conDates = (consumption?.rows ?? []).map((r) => r.as_of);
   const rawDates = purchase
     ? (["latex", "cup"] as const).flatMap((k) => {
         const { settled, prev } = readAt(purchase.rows, k);
@@ -236,6 +257,9 @@ export async function buildSummaries(): Promise<GroupMeta[]> {
     mk("inventory", "Tồn kho Tập đoàn", invLine,
       "Tồn kho theo ngày cộng từ biểu Tồn kho của đơn vị thành viên (cơ cấu HĐ · chủng loại · khu vực) — /api/inventory/series",
       usedRange(invDates, "ngày"), latestOf(invDates)),
+    mk("consumption", "Tiêu thụ (giao hàng theo hợp đồng)", conLine,
+      "Sản lượng giao + doanh thu từ các lần giao của hợp đồng bán hàng — /api/series/consumption",
+      usedRange(conDates, "ngày"), latestOf(conDates)),
     mk("floor", "Giá sàn Tập đoàn vs Thị trường", floorData.line,
       "Giá sàn công bố mới nhất vs giá thị trường phiên gần nhất — /api/floor + /api/prices/sheet",
       floorData.range, floorData.asOf),

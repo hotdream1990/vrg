@@ -1,20 +1,20 @@
-"""Chuỗi số liệu THEO NGÀY lấy thẳng từ biểu đơn vị thành viên đã nhập.
+"""Khung chung cho các chuỗi số liệu THEO NGÀY dựng từ biểu đơn vị thành viên đã nhập.
 
 Phục vụ Command Center / Bản tin biến động — nơi cần *diễn biến* chứ không phải bảng lọc như màn
-"Thống kê số liệu".
+"Thống kê số liệu". Ba miền số liệu dùng chung khung này:
 
-Ở đây là chuỗi **thu mua**: sản lượng + đơn giá mủ nước/mủ chén từng ngày. Chuỗi **tồn kho**
-(cơ cấu hợp đồng · chủng loại · khu vực) nằm ở `unit_series_stock.py` và dùng chung khung cửa sổ
-ngày (`window`, `days_between`) của module này.
+- `unit_series_purchase.py`    — thu mua: đơn giá + sản lượng (mủ nước · mủ chén).
+- `unit_series_stock.py`       — tồn kho: cơ cấu hợp đồng · chủng loại · khu vực · tồn tự do.
+- `unit_series_consumption.py` — tiêu thụ: khu vực · công ty · chủng loại · loại/hình thức hợp đồng.
+
+Mọi chuỗi trả cùng một khuôn để web dùng chung một biểu đồ cột chồng:
+`{series: [{key, label}], rows: [{as_of, total, values: {key: số}}]}`.
 """
 
 from __future__ import annotations
 
 from datetime import date, timedelta
 from typing import Any
-
-from app.core.market_meta import PURCHASE_SOURCE_UNIT
-from app.services import price_repo, unit_daily_repo
 
 #: Cửa sổ hiển thị mặc định / tối đa (ngày). Chuỗi tồn kho hỏi hợp đồng 1 lần cho MỖI ngày nên
 #: cửa sổ phải có trần, không để màn hình kéo theo cả năm.
@@ -42,105 +42,45 @@ def window(date_from: str | None, date_to: str | None, *, start_floor: str | Non
     return start.isoformat(), end.isoformat()
 
 
-# ── Thu mua: sản lượng + đơn giá theo ngày ─────────────────────────────────────
-def _num(v: Any) -> float | None:
+
+def num(v: Any) -> float | None:
+    """Số hoặc None (payload jsonb có thể chứa chuỗi/None)."""
     try:
         return None if v is None else float(v)
     except (TypeError, ValueError):
         return None
 
 
-#: Rổ giá "đơn vị khai đều": đơn vị phải có giá ít nhất ngần này phần số ngày trong kỳ.
-#: Dải thấp nhất–cao nhất chỉ có nghĩa khi các ngày được so trên CÙNG một rổ đơn vị. Thực tế mủ chén:
-#: 17/27 đơn vị khai đều, 8 đơn vị khai lác đác (<10/30 ngày) — hôm có hôm không, và mấy đơn vị đó
-#: lại ở vùng giá thấp nên đáy của biểu đồ nhảy dựng đứng đúng những ngày họ nộp, trông như giá lao dốc.
-STEADY_RATIO = 0.8
-
-BASKETS = ("steady", "all")
+#: Số nhóm vẽ riêng trên một biểu đồ cột chồng; phần đuôi gộp `OTHER_KEY` cho đọc được.
+#: Vượt ngần này thì chú giải dài hơn cả biểu đồ và các dải màu mỏng đến mức không phân biệt nổi.
+MAX_KEYS = 8
+OTHER_KEY = "Khác"
 
 
-def _steady_units(prices: dict[str, dict[str, dict[str, float]]], material: str) -> set[str]:
-    """Các đơn vị khai giá đều đặn cho loại mủ này.
-
-    Ngưỡng so với **đơn vị chăm nhất trong kỳ**, không so với số ngày lịch: kỳ có cuối tuần / ngày
-    nghỉ hay kỳ trải dài trước lúc đơn vị bắt đầu nhập thì không đơn vị nào đạt mốc theo ngày lịch,
-    rổ sẽ rỗng và biểu đồ mất sạch dải giá.
-    """
-    counted: dict[str, int] = {}
-    for day in prices.values():
-        for company in day.get(material, {}):
-            counted[company] = counted.get(company, 0) + 1
-    if not counted:
-        return set()
-    need = max(1, round(max(counted.values()) * STEADY_RATIO))
-    return {c for c, n in counted.items() if n >= need}
+def top_keys(totals: dict[str, float], limit: int = MAX_KEYS) -> list[str]:
+    """Các nhóm lớn nhất theo tổng cả kỳ (đã sắp tên), phần đuôi thành `OTHER_KEY`."""
+    ranked = [k for k, _ in sorted(totals.items(), key=lambda kv: -kv[1])]
+    if len(ranked) <= limit:
+        return sorted(ranked)
+    return sorted(ranked[:limit]) + [OTHER_KEY]
 
 
-def _stats(values: list[float]) -> dict[str, Any]:
-    """Dải giá của một ngày qua các đơn vị: thấp nhất · cao nhất · trung bình · số đơn vị."""
-    if not values:
-        return {"min": None, "max": None, "avg": None, "units": 0}
-    return {"min": min(values), "max": max(values), "avg": sum(values) / len(values),
-            "units": len(values)}
+def pack_rows(rows: list[dict[str, Any]], keys: list[str]) -> None:
+    """Gộp các nhóm ngoài `keys` vào `OTHER_KEY` ngay trên từng ngày (sửa tại chỗ)."""
+    head = set(keys)
+    for r in rows:
+        merged: dict[str, float] = {}
+        for k, v in r["values"].items():
+            slot = k if k in head else OTHER_KEY
+            merged[slot] = merged.get(slot, 0.0) + v
+        r["values"] = {k: round(v, 3) for k, v in merged.items()}
 
 
-def purchase_series(date_from: str, date_to: str, basket: str = "steady") -> dict[str, Any]:
-    """Mủ nước & mủ chén theo ngày: sản lượng thu mua (tấn) + dải đơn giá của các đơn vị.
-
-    Giá lấy lớp **đơn vị tự khai** (`vrg_unit`) để cùng nguồn với sản lượng; đơn vị nước ngoài khai
-    giá nội tệ thì quy ra VND bằng tỷ giá của chính bản ghi ngày đó (giống `unit_report_rows`).
-    Ngày đơn vị có giá nhưng chưa khai sản lượng vẫn được tính vào dải giá — và ngược lại.
-
-    `basket="steady"` (mặc định): dải giá chỉ tính trên **đơn vị khai đều** → các ngày so được với
-    nhau. `basket="all"` lấy mọi đơn vị (đúng hơn về phạm vi, nhưng đáy/đỉnh nhảy theo việc hôm nay
-    ai nộp). **Sản lượng LUÔN là tổng của mọi đơn vị** — đó là con số cộng, không phải thống kê phân
-    tán, lọc bớt là báo thiếu hàng. Giá trị 0 / không có số bị bỏ qua ở cả hai chế độ.
-    """
-    px = price_repo.purchase_prices_in_range(date_from, date_to, PURCHASE_SOURCE_UNIT)
-    entries = unit_daily_repo.in_range("purchase", date_from, date_to, attach_contracts=False)
-
-    # {ngày: {loại: {đơn vị: giá}}} và {ngày: {loại: {đơn vị: sản lượng}}}
-    prices: dict[str, dict[str, dict[str, float]]] = {}
-    qty: dict[str, dict[str, dict[str, float]]] = {}
-    for (company, day), slot in px.items():
-        for material in ("latex", "cup"):
-            v = slot.get(material)
-            if v:
-                prices.setdefault(day, {}).setdefault(material, {})[company] = v
-
-    for e in entries:
-        f, day, company = e["fields"], e["as_of"], e["company"]
-        fx_local = _num(f.get("fx_purchase"))
-        for material, qty_key, local_key in (("latex", "latex_wet", "price_latex_local"),
-                                             ("cup", "coagulum", "price_cup_local")):
-            local = _num(f.get(local_key))
-            if local and fx_local:      # đơn vị nước ngoài: giá nội tệ × tỷ giá → VND
-                prices.setdefault(day, {}).setdefault(material, {})[company] = local * fx_local
-            q = _num(f.get(qty_key))
-            if q is not None:
-                qty.setdefault(day, {}).setdefault(material, {})[company] = q
-
-    days = days_between(date_from, date_to)
-    basket = basket if basket in BASKETS else "steady"
-    steady = {m: _steady_units(prices, m) for m in ("latex", "cup")}
-
-    rows = []
-    for day in days:
-        row: dict[str, Any] = {"as_of": day}
-        for material in ("latex", "cup"):
-            px_day = prices.get(day, {}).get(material, {})
-            if basket == "steady":
-                px_day = {c: v for c, v in px_day.items() if c in steady[material]}
-            # Sản lượng 0 = có tổ chức mua nhưng không mua được → KHÔNG phải một mức sản lượng,
-            # bỏ qua như ô trống (yêu cầu 20/08: chuỗi không được giật vì số rỗng/bằng 0).
-            q = {c: v for c, v in qty.get(day, {}).get(material, {}).items() if v}
-            total = round(sum(q.values()), 3) if q else None
-            stats = _stats(sorted(px_day.values()))
-            row[material] = {**stats, "qty": total, "qty_units": len(q)}
-        rows.append(row)
-
-    # Ngày không có gì (cả 2 loại mủ đều trống) không được vẽ thành khoảng trống giữa biểu đồ.
-    rows = [r for r in rows if any(r[m]["units"] or r[m]["qty"] for m in ("latex", "cup"))]
-    return {"date_from": date_from, "date_to": date_to, "basket": basket,
-            "basket_units": {m: len(steady[m]) for m in ("latex", "cup")},
-            "rows": rows}
+def series_of(rows: list[dict[str, Any]], totals: dict[str, float] | None = None,
+              limit: int = MAX_KEYS) -> list[dict[str, str]]:
+    """Danh sách nhóm cho chú giải; có `totals` thì cắt top và gộp đuôi ngay trên `rows`."""
+    if totals is None:
+        return [{"key": k, "label": k} for k in sorted({k for r in rows for k in r["values"]})]
+    keys = top_keys(totals, limit)
+    pack_rows(rows, keys)
+    return [{"key": k, "label": k} for k in keys]

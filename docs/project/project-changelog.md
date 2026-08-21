@@ -4,6 +4,18 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Ba nhóm biểu đồ theo ngày xem được nhiều chiều** (phản hồi 20/08/2026) — gom về họ API
+  `/api/series/*` (thu mua · tồn kho · tiêu thụ), tất cả cùng khuôn cột chồng theo ngày:
+  - **Thu mua**: mỗi loại mủ (nước · chén) xem theo *Giá & sản lượng* · **Khu vực** · **Đơn vị**.
+  - **Tồn kho**: thêm cách xem **Tồn tự do theo chủng loại** = tồn − đã ký hợp đồng, trừ theo TỪNG
+    chủng loại của TỪNG đơn vị (cắt trần, không âm) — trả lời "loại nào đang còn bán được".
+  - **Tiêu thụ** (biểu đồ mới): sản lượng giao theo ngày chia theo **khu vực · công ty · chủng loại ·
+    loại hợp đồng · hình thức hợp đồng**, kèm **đường doanh thu** (tỷ đồng, trục phải). Nguồn là các
+    lần giao của hợp đồng bán hàng — cùng số với màn *Thống kê tiêu thụ*; dòng bán USD chưa khai tỷ
+    giá thì vẫn tính sản lượng, không tính doanh thu và nói rõ có bao nhiêu dòng như vậy.
+  - Nhận định AI của Bản tin biến động có thêm nhóm **Tiêu thụ**.
+  - Ghi chú: hệ thống chỉ có số của các đơn vị thành viên VRG, **không có số liệu ngoài Tập đoàn**,
+    nên không dựng được biểu đồ "toàn ngành".
 - **Tồn kho · giá & sản lượng mủ nguyên liệu lấy thẳng từ số đơn vị nhập** (phản hồi 20/08/2026) —
   ba biểu đồ ở *Command Center* và *Bản tin biến động* đổi sang nguồn đơn vị thành viên tự khai:
   - **Tồn kho VRG theo ngày** (thay biểu đồ theo tuần): cộng khối *"Đã nhập kho"* của các đơn vị,

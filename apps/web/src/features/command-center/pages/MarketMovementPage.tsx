@@ -5,6 +5,7 @@ import HeatmapAndVrg from "../sections/HeatmapAndVrg";
 import InventoryBalanceSection from "../sections/InventoryBalanceSection";
 import KpiRow from "../sections/KpiRow";
 import AssessmentBox from "../sections/market-movement/AssessmentBox";
+import ConsumptionBlock from "../sections/market-movement/ConsumptionBlock";
 import FxTrendBlock from "../sections/market-movement/FxTrendBlock";
 import MarketHistoryBlock from "../sections/market-movement/MarketHistoryBlock";
 import ModelVsActualBlock from "../sections/market-movement/ModelVsActualBlock";
@@ -20,7 +21,7 @@ export default function MarketMovementPage() {
       <div className="page-title" id="top">
         <div>
           <h2><LineChartOutlined style={{ marginRight: 8 }} />Bản tin biến động</h2>
-          <p>Bảng tổng hợp <b>tất cả nhóm số liệu</b> hệ thống (sàn quốc tế · physical · tỷ giá · tồn kho · giá sàn · mủ nước) dạng biểu đồ/bảng. Trên cùng: nhận định AI theo từng nhóm.</p>
+          <p>Bảng tổng hợp <b>tất cả nhóm số liệu</b> hệ thống (sàn quốc tế · physical · tỷ giá · thu mua · tồn kho · tiêu thụ · giá sàn) dạng biểu đồ/bảng. Trên cùng: nhận định AI theo từng nhóm.</p>
         </div>
         <div className="actions">
           <button className="btn" onClick={() => window.location.reload()}><ReloadOutlined /> Cập nhật</button>
@@ -44,6 +45,7 @@ export default function MarketMovementPage() {
 
       <ModelVsActualBlock />
       <InventoryBalanceSection />
+      <ConsumptionBlock />
     </>
   );
 }

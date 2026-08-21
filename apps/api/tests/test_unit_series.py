@@ -19,6 +19,8 @@ from sqlalchemy import text
 from app.core.db import db_healthy, session_scope
 from app.core.market_meta import PURCHASE_SOURCE_HQ, PURCHASE_SOURCE_UNIT
 from app.services import price_repo, unit_daily_repo, unit_series
+from app.services import unit_series_purchase as pur
+from app.services import unit_series_consumption as con
 from app.services import unit_series_stock as st
 
 pytestmark = pytest.mark.skipif(not db_healthy(), reason="DB không sẵn sàng")
@@ -61,7 +63,7 @@ def test_purchase_series_joins_price_and_volume(clean) -> None:
     _price(UNIT, 480, price_type="purchase_cup")
     unit_daily_repo.upsert("purchase", DAY, UNIT, {"latex_wet": 12.5, "coagulum": 3.0}, "test")
 
-    row = _row(unit_series.purchase_series(PREV, DAY), DAY)
+    row = _row(pur.purchase_series(PREV, DAY), DAY)
     assert row["latex"]["qty"] >= 12.5 and row["latex"]["min"] <= 520 <= row["latex"]["max"]
     assert row["cup"]["qty"] >= 3.0 and row["cup"]["min"] <= 480 <= row["cup"]["max"]
 
@@ -69,7 +71,7 @@ def test_purchase_series_joins_price_and_volume(clean) -> None:
 def test_price_without_volume_still_counted(clean) -> None:
     """Đơn vị công bố giá nhưng chưa khai sản lượng: vẫn nằm trong dải giá của ngày."""
     _price(UNIT, 999999)                      # giá "chỉ dấu" cao để nhận ra trong dải
-    row = _row(unit_series.purchase_series(DAY, DAY), DAY)
+    row = _row(pur.purchase_series(DAY, DAY), DAY)
     assert row["latex"]["max"] == 999999 and row["latex"]["units"] >= 1
 
 
@@ -80,7 +82,7 @@ def test_hq_price_layer_is_ignored(clean) -> None:
     đã bị loại khỏi chuỗi — trên DB sạch `rows` rỗng hẳn.
     """
     _price(UNIT, 888888, source=PURCHASE_SOURCE_HQ)
-    rows = unit_series.purchase_series(DAY, DAY)["rows"]
+    rows = pur.purchase_series(DAY, DAY)["rows"]
     assert all((r["latex"]["max"] or 0) != 888888 for r in rows)
 
 
@@ -88,7 +90,7 @@ def test_foreign_unit_local_price_converted(clean) -> None:
     """Giá nội tệ (LAK/độ) × tỷ giá của bản ghi = giá VND — không lấy nguyên số nội tệ."""
     unit_daily_repo.upsert("purchase", DAY, LAO,
                            {"latex_wet": 5.0, "price_latex_local": 100.0, "fx_purchase": 1.5}, "test")
-    row = _row(unit_series.purchase_series(DAY, DAY), DAY)
+    row = _row(pur.purchase_series(DAY, DAY), DAY)
     assert row["latex"]["max"] >= 150.0       # 100 × 1,5 = 150 đồng/độ
 
 
@@ -158,7 +160,7 @@ def test_zero_volume_is_not_a_volume(clean) -> None:
     far = (date.today() - timedelta(days=395)).isoformat()   # ngày xa hẳn dữ liệu thật trong DB
     _price(UNIT, 500, as_of=far)
     unit_daily_repo.upsert("purchase", far, UNIT, {"latex_wet": 0}, "test")
-    row = _row(unit_series.purchase_series(far, far), far)
+    row = _row(pur.purchase_series(far, far), far)
     assert (row["latex"]["qty"], row["latex"]["qty_units"]) == (None, 0)
     assert row["latex"]["units"] == 1        # ngày vẫn còn vì có đơn giá
 
@@ -166,7 +168,7 @@ def test_zero_volume_is_not_a_volume(clean) -> None:
 def test_days_without_any_number_are_dropped(clean) -> None:
     """Ngày không có giá lẫn sản lượng của cả hai loại mủ thì không nằm trong chuỗi."""
     far = (date.today() - timedelta(days=400)).isoformat()   # xa hẳn dữ liệu thật trong DB
-    assert unit_series.purchase_series(far, far)["rows"] == []
+    assert pur.purchase_series(far, far)["rows"] == []
 
 
 def test_steady_basket_drops_occasional_units(clean) -> None:
@@ -176,6 +178,46 @@ def test_steady_basket_drops_occasional_units(clean) -> None:
         _price(UNIT, 500, as_of=d)
     _price(LAO, 100, as_of=DAY)                     # đơn vị khai LÁC ĐÁC, giá thấp
 
-    steady = _row(unit_series.purchase_series(days[-1], DAY), DAY)["latex"]
-    every = _row(unit_series.purchase_series(days[-1], DAY, "all"), DAY)["latex"]
+    steady = _row(pur.purchase_series(days[-1], DAY), DAY)["latex"]
+    every = _row(pur.purchase_series(days[-1], DAY, "all"), DAY)["latex"]
     assert every["min"] <= 100 < steady["min"]      # rổ "all" thấy đáy 100, rổ mặc định thì không
+
+
+# ── Các cách chia mới (thu mua theo khu vực/đơn vị · tồn tự do · tiêu thụ) ─────
+def test_purchase_volume_groups_by_region_and_company(clean) -> None:
+    """Sản lượng chia theo khu vực/đơn vị: đơn vị chưa gán khu vực vẫn phải hiện ra, không rơi mất."""
+    far = (date.today() - timedelta(days=396)).isoformat()
+    unit_daily_repo.upsert("purchase", far, UNIT, {"latex_wet": 7.5}, "test")
+
+    by_company = pur.purchase_volume_series(far, far, "latex", "company")
+    assert _row(by_company, far)["values"][UNIT] == 7.5
+    by_region = pur.purchase_volume_series(far, far, "latex", "region")
+    assert _row(by_region, far)["values"][pur.NO_REGION] == 7.5
+
+
+def test_purchase_volume_skips_zero(clean) -> None:
+    """Ngày đơn vị khai 0 tấn không tạo ra cột 0 (cùng quy tắc với chuỗi giá)."""
+    far = (date.today() - timedelta(days=397)).isoformat()
+    unit_daily_repo.upsert("purchase", far, UNIT, {"latex_wet": 0}, "test")
+    assert pur.purchase_volume_series(far, far, "latex", "company")["rows"] == []
+
+
+def test_free_grade_is_stock_minus_signed_capped(clean) -> None:
+    """Tồn tự do theo chủng loại = tồn − đã ký, cắt trần từng chủng loại (không bao giờ âm)."""
+    _stock(DAY)                      # 100 tấn SVR 10 đã nhập kho, chưa có hợp đồng nào
+    row = _row(st.stock_series(DAY, DAY, "free_grade"), DAY)
+    grade = row["values"].get("SVR 10") or row["values"].get(unit_series.OTHER_KEY)
+    assert grade is not None and all(v >= 0 for v in row["values"].values())
+    # Tổng vẫn là TỒN KHO, không phải tổng phần tự do — tooltip/dòng tổng dùng chung con số này.
+    assert row["total"] >= sum(row["values"].values())
+
+
+def test_consumption_series_groups_and_revenue(clean) -> None:
+    """Chuỗi tiêu thụ: mọi cách chia cho cùng một tổng sản lượng của ngày."""
+    day_from = (date.today() - timedelta(days=30)).isoformat()
+    totals = {}
+    for g in con.GROUPS:
+        rep = con.consumption_series(day_from, DAY, g)
+        totals[g] = round(sum(r["total"] for r in rep["rows"]), 3)
+        assert all(r["revenue_missing_lines"] >= 0 for r in rep["rows"])
+    assert len(set(totals.values())) == 1, totals

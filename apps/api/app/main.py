@@ -35,6 +35,7 @@ from app.routers import (
     purchase_auto_sync,
     sales_contracts,
     schedules,
+    series,
     settings as settings_router,
     unit_analytics,
     unit_daily,
@@ -167,6 +168,8 @@ app.include_router(audit.router)  # Nhật ký hoạt động (tự gác quyền
 app.include_router(assistant.router, dependencies=[Depends(require_cap("assistant"))])  # Trợ lý AI (hỏi đáp số liệu + tư vấn giá sàn)
 app.include_router(settings_router.router, dependencies=_protected)  # cài đặt đọc-được (cửa sổ nhập liệu)
 app.include_router(inventory.router, dependencies=_protected)
+# Chuỗi số liệu theo ngày cho dashboard (thu mua · tồn kho · tiêu thụ) — chỉ đọc, chỉ gác đăng nhập.
+app.include_router(series.router, dependencies=_protected)
 app.include_router(market_movement.router, dependencies=[Depends(require_cap("market_movement"))])
 app.include_router(market_quote.router, dependencies=_protected)
 app.include_router(weekly_reports.router, dependencies=[Depends(require_cap("bulletin_weekly"))])

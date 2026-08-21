@@ -16,26 +16,17 @@ from typing import Any
 
 from app.services import unit_daily_repo, unit_report_rows
 from app.services.inventory_auto import MAX_AGE_DAYS
-from app.services.unit_series import days_between
+from app.services.unit_series import days_between, num, series_of
 
 #: Ngày đầu tiên các đơn vị nhập biểu Tồn kho đủ độ phủ (42 đơn vị; các ngày trước đó ≤ 12) —
 #: trước mốc này chuỗi chỉ là vài đơn vị lẻ, vẽ lên biểu đồ sẽ thành "tồn kho Tập đoàn sụt mạnh".
 STOCK_START = "2026-07-24"
 
-GROUPS = ("structure", "grade", "region")
+#: 4 cách nhìn tồn kho. `free_grade` = phần CÒN BÁN ĐƯỢC của từng chủng loại (tồn − đã ký hợp đồng),
+#: câu hỏi thường trực của Ban TTKD: "loại nào đang ế" chứ không chỉ "còn bao nhiêu".
+GROUPS = ("structure", "grade", "region", "free_grade")
 NO_REGION = "Chưa gán khu vực"
 
-
-def _num(v: Any) -> float | None:
-    try:
-        return None if v is None else float(v)
-    except (TypeError, ValueError):
-        return None
-
-
-#: Số chủng loại vẽ riêng trên biểu đồ; phần đuôi gộp vào "Khác" cho đọc được.
-MAX_GRADE_KEYS = 8
-OTHER_KEY = "Khác"
 
 STRUCTURE_KEYS: tuple[tuple[str, str], ...] = (
     ("signed", "Đã ký hợp đồng"),
@@ -72,7 +63,7 @@ def _warehoused(fields: dict) -> dict[str, float]:
     """{chủng loại: tấn} của khối "Đã nhập kho" — khối được chọn làm TỒN KHO (xem docstring module)."""
     out: dict[str, float] = {}
     for ln in fields.get("stock_warehoused") or []:
-        q = _num(ln.get("qty"))
+        q = num(ln.get("qty"))
         if q is None:
             continue
         grade = str(ln.get("grade") or "").strip() or "—"
@@ -80,12 +71,14 @@ def _warehoused(fields: dict) -> dict[str, float]:
     return out
 
 
-def _top_keys(totals: dict[str, float]) -> list[str]:
-    """Các chủng loại lớn nhất vẽ riêng, phần đuôi gộp `OTHER_KEY`."""
-    ranked = [k for k, _ in sorted(totals.items(), key=lambda kv: -kv[1])]
-    if len(ranked) <= MAX_GRADE_KEYS:
-        return sorted(ranked)
-    return sorted(ranked[:MAX_GRADE_KEYS]) + [OTHER_KEY]
+def _free_by_grade(stock: dict[str, float], signed: dict[str, float]) -> dict[str, float]:
+    """Tồn TỰ DO của một đơn vị theo chủng loại = tồn − đã ký hợp đồng, CẮT TRẦN từng chủng loại.
+
+    Cắt trần vì hợp đồng ký cả cho hàng chưa sản xuất (đúng quy tắc `inventory_auto`): lấy nguyên
+    số hợp đồng thì phần "tự do" âm và cột chồng vỡ. Chủng loại chỉ có hợp đồng mà không có tồn thì
+    không sinh ra dòng nào — không có hàng thì không có gì để bán.
+    """
+    return {g: q - min(signed.get(g, 0.0), q) for g, q in stock.items() if q > 0}
 
 
 def stock_series(date_from: str, date_to: str, group_by: str = "structure") -> dict[str, Any]:
@@ -93,6 +86,9 @@ def stock_series(date_from: str, date_to: str, group_by: str = "structure") -> d
 
     Mỗi ngày kèm độ phủ (`units_counted`/`units_expected`): thiếu đơn vị mà không nói ra thì người
     xem tưởng cột thấp là hàng bán được nhiều, trong khi thật ra là chưa ai nhập.
+
+    ⚠ `total` LUÔN là tồn kho tổng, kể cả ở cách nhìn `free_grade` (nơi các cột chỉ là phần tự do) —
+    dòng tổng dưới biểu đồ và tooltip phải nói đúng con số tồn, không đổi nghĩa theo cách xem.
     """
     if group_by not in GROUPS:
         group_by = "structure"
@@ -102,21 +98,29 @@ def stock_series(date_from: str, date_to: str, group_by: str = "structure") -> d
 
     rows: list[dict[str, Any]] = []
     grade_totals: dict[str, float] = {}
+    # Chỉ 2 cách nhìn cần hỏi hợp đồng (1 truy vấn / ngày) — 2 cách còn lại khỏi trả phí đó.
+    needs_contracts = group_by in ("structure", "free_grade")
     for day, snap in snaps.items():
         by_company = {c: _warehoused(e["fields"]) for c, e in snap.items()}
         total = sum(sum(g.values()) for g in by_company.values())
+        undelivered = (unit_daily_repo.contracts_on(day, list(snap))
+                       if needs_contracts and snap else {})
         values: dict[str, float] = {}
         if group_by == "structure":
-            undelivered = unit_daily_repo.contracts_on(day, list(snap)) if snap else {}
             signed = sum(min((undelivered.get(c) or {}).get("qty") or 0.0, sum(g.values()))
                          for c, g in by_company.items())
             values = {"signed": signed, "free": total - signed}
+        elif group_by == "free_grade":
+            for company, stock in by_company.items():
+                signed_grades = (undelivered.get(company) or {}).get("by_grade") or {}
+                for grade, q in _free_by_grade(stock, signed_grades).items():
+                    values[grade] = values.get(grade, 0.0) + q
+                    grade_totals[grade] = grade_totals.get(grade, 0.0) + q
         elif group_by == "grade":
             for g in by_company.values():
                 for grade, q in g.items():
                     values[grade] = values.get(grade, 0.0) + q
-            for grade, q in values.items():
-                grade_totals[grade] = grade_totals.get(grade, 0.0) + q
+                    grade_totals[grade] = grade_totals.get(grade, 0.0) + q
         else:
             for company, g in by_company.items():
                 region = (meta.get(company) or {}).get("region") or NO_REGION
@@ -125,18 +129,10 @@ def stock_series(date_from: str, date_to: str, group_by: str = "structure") -> d
                      "units_counted": len(snap), "units_expected": expected,
                      "values": {k: round(v, 3) for k, v in values.items()}})
 
-    if group_by == "grade":
-        keys = _top_keys(grade_totals)
-        head = set(keys)
-        for r in rows:                       # gộp phần đuôi vào "Khác" ngay trên từng ngày
-            merged: dict[str, float] = {}
-            for k, v in r["values"].items():
-                merged[k if k in head else OTHER_KEY] = merged.get(k if k in head else OTHER_KEY, 0.0) + v
-            r["values"] = {k: round(v, 3) for k, v in merged.items()}
-        series = [{"key": k, "label": k} for k in keys]
+    if group_by in ("grade", "free_grade"):
+        series = series_of(rows, grade_totals)
     elif group_by == "region":
-        names = sorted({k for r in rows for k in r["values"]})
-        series = [{"key": k, "label": k} for k in names]
+        series = series_of(rows)
     else:
         series = [{"key": k, "label": lb} for k, lb in STRUCTURE_KEYS]
 
