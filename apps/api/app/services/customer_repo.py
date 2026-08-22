@@ -155,11 +155,19 @@ def delete(customer_id: int, companies: list[str] | None) -> bool:
                          {"i": customer_id}).scalar()
         if cur is None or (companies is not None and cur not in companies):
             return False
+        # Phải đếm CẢ hợp đồng mẹ: khách chỉ gắn ở hồ sơ mẹ (chưa có phụ lục nào) mà xoá được thì
+        # hồ sơ trỏ vào một id không còn tồn tại — màn chi tiết hiện "—" và lưu lại bị chặn bằng
+        # "Khách hàng không còn tồn tại", không còn đường sửa.
         used = db.execute(text("SELECT count(*) FROM sales_contract WHERE customer_id = :i"),
                           {"i": customer_id}).scalar() or 0
-        if used:
+        used_master = db.execute(text("SELECT count(*) FROM master_contract WHERE customer_id = :i"),
+                                 {"i": customer_id}).scalar() or 0
+        if used or used_master:
+            what = " · ".join(filter(None, [
+                f"{used} hợp đồng" if used else "",
+                f"{used_master} hợp đồng mẹ" if used_master else ""]))
             raise ValueError(
-                f"Khách hàng đang gắn với {used} hợp đồng — hãy ẩn (bỏ tick Đang dùng) thay vì xoá.")
+                f"Khách hàng đang gắn với {what} — hãy ẩn (bỏ tick Đang dùng) thay vì xoá.")
         db.execute(text("DELETE FROM unit_customer WHERE id = :i"), {"i": customer_id})
     audit_repo.log("customer", "delete", (before or {}).get("name") or f"#{customer_id}",
                    before=before, company=cur)

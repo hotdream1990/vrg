@@ -338,3 +338,78 @@ def test_contract_list_filters_by_master(env) -> None:
                       params={"company": UNIT, "unlinked": "true"}).json()
     ids = {r["id"] for r in rest["contracts"]}
     assert free["id"] in ids and annex["id"] not in ids
+
+
+def test_renaming_a_unit_carries_its_master_contracts(env) -> None:
+    """Đổi tên đơn vị phải kéo theo hồ sơ mẹ — bỏ sót thì hồ sơ mồ côi và phụ lục hết sửa được."""
+    h = env
+    m = _master(h, _customer(h), code="HDDH-DOI-TEN", master_type="long_term")
+    annex = _annex(h, m["id"], code="PL-DOI-TEN").json()["contract"]
+    new_name = f"{UNIT}_moi"
+    try:
+        r = client.put(f"/api/member-units/{UNIT}", json={"new_name": new_name}, headers=h)
+        assert r.status_code == 200, r.text
+
+        moved = client.get(f"/api/master-contracts/{m['id']}", headers=h).json()["master"]
+        assert moved["company"] == new_name
+        # Phụ lục vẫn sửa được: hồ sơ mẹ và hợp đồng phải cùng đơn vị sau khi đổi tên.
+        again = client.put("/api/sales-contracts", headers=h, json={
+            **annex, "company": new_name, "note": "sửa sau khi đổi tên"})
+        assert again.status_code == 200, again.text
+    finally:
+        client.put(f"/api/member-units/{new_name}", json={"new_name": UNIT}, headers=h)
+
+
+def test_customer_used_only_by_a_master_cannot_be_deleted(env) -> None:
+    """Khách chỉ gắn ở HỒ SƠ MẸ (chưa có phụ lục) cũng phải chặn xoá, nếu không hồ sơ trỏ vào id ma."""
+    h = env
+    cus = _customer(h, UNIT, "KH chỉ ở hồ sơ mẹ")
+    _master(h, cus, code="HDNT-KHOA-KHACH")
+    r = client.delete(f"/api/customers/{cus}", headers=h)
+    assert r.status_code == 400 and "hợp đồng mẹ" in r.json()["detail"]
+
+
+def test_master_contract_respects_view_and_edit_levels(env) -> None:
+    """Quyền `sales_contract` 2 cấp áp cho CẢ hồ sơ mẹ: mức Xem đọc được, mọi đường ghi 403."""
+    h = env
+    m = _master(h, _customer(h), code="HDNT-QUYEN")
+    for u in ("mc_view", "mc_none"):
+        client.delete(f"/api/users/{u}", headers=h)
+    client.post("/api/users", json={"username": "mc_view", "password": "pass123",
+                                    "role": "editor", "permissions": ["sales_contract:view"]},
+                headers=h)
+    client.post("/api/users", json={"username": "mc_none", "password": "pass123",
+                                    "role": "editor", "permissions": ["inventory"]}, headers=h)
+    tok = lambda u: {"Authorization": "Bearer " + client.post(  # noqa: E731
+        "/api/auth/login", json={"username": u, "password": "pass123"}).json()["access_token"]}
+    vh, nh = tok("mc_view"), tok("mc_none")
+
+    assert client.get("/api/master-contracts", headers=vh).status_code == 200
+    assert client.get(f"/api/master-contracts/{m['id']}", headers=vh).status_code == 200
+    body = {"company": UNIT, "code": "HDNT-LEN", "master_type": "principle",
+            "customer_id": m["customer_id"], "lines": [{"grade": "SVR 10 / CSR 10"}]}
+    assert client.put("/api/master-contracts", json=body, headers=vh).status_code == 403
+    assert client.delete(f"/api/master-contracts/{m['id']}", headers=vh).status_code == 403
+    assert client.put(f"/api/master-contracts/{m['id']}/annexes", headers=vh,
+                      json={"contract_ids": [1]}).status_code == 403
+
+    # Không có quyền `sales_contract` thì đọc cũng không được.
+    assert client.get("/api/master-contracts", headers=nh).status_code == 403
+
+    for u in ("mc_view", "mc_none"):
+        client.delete(f"/api/users/{u}", headers=h)
+
+
+def test_master_contract_scan_file_can_be_downloaded(env) -> None:
+    """File scan của hồ sơ mẹ dùng chung endpoint với hợp đồng — thiếu hợp nhất owner là 404."""
+    h = env
+    pdf = b"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
+    up = client.post("/api/sales-contracts/file", headers=h,
+                     files={"file": ("hop-dong-me.pdf", pdf, "application/pdf")})
+    assert up.status_code == 200, up.text
+    doc = up.json()
+    _master(h, _customer(h), code="HDDH-CO-FILE", master_type="long_term",
+            files=[{"file": doc["file"], "filename": doc["filename"]}])
+
+    got = client.get(f"/api/sales-contracts/file/{doc['file']}", headers=h)
+    assert got.status_code == 200 and got.content == pdf
