@@ -57,6 +57,15 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     Tập đoàn bán sạch kho trong một đêm.
 
 ### Fixed
+- **Tỷ giá chỉ bắt buộc khi đã có NGÀY GIAO** (phản hồi 22/08/2026) — trước đây hễ dòng bán bằng
+  ngoại tệ là đòi tỷ giá ngay lúc ký hợp đồng, trong khi tỷ giá chỉ biết được lúc giao hàng: đơn vị
+  buộc phải bịa một con số và con số bịa ấy đi thẳng vào doanh thu.
+  - Hợp đồng **giao nhiều lần**: cấp hợp đồng không bao giờ bị hỏi tỷ giá — khai ở từng **đợt giao**.
+  - Hợp đồng **giao 1 lần** và **đợt giao**: chỉ bắt buộc khi đã điền *Ngày giao*; chưa giao thì để
+    trống vẫn lưu được, ô ghi *"khi giao"* thay vì *"bắt buộc"*.
+  - Thiếu tỷ giá thì **doanh thu để trống (không biết)**, tuyệt đối không tính bằng 0 — dòng tổng ở
+    danh sách hợp đồng ghi rõ *"chưa gồm N HĐ chưa quy đổi được"*.
+  - Tỷ giá **đã nhập** thì vẫn phải lớn hơn 0 ở mọi trạng thái.
 - **Bỏ dòng "Độ phủ: 62/67 đơn vị" dưới biểu đồ tồn kho** — con số này nói sai về chính biểu đồ:
   tử số đếm mọi đơn vị có bất kỳ số tồn nào (kể cả đơn vị không có nhà máy, chỉ khai tồn nguyên
   liệu), còn mẫu số 67 là toàn bộ đơn vị đang hoạt động, trong đó 22 đơn vị không có nhà máy nên

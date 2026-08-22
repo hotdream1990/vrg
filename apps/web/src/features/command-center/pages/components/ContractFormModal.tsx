@@ -134,7 +134,11 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
       if (meta.dry_required.includes(l.grade) && !l.qty_dry) {
         p.push(`${at} (${l.grade}): nhập quy khô.`);
       }
-      if (l.ccy !== "VND" && !l.fx) p.push(`${at}: bán bằng ${l.ccy} thì phải nhập tỷ giá.`);
+      // Tỷ giá chỉ bắt buộc khi ĐÃ có ngày giao — khớp `require_fx` ở server. Lúc ký hợp đồng
+      // chưa ai biết tỷ giá ngày giao hàng.
+      if (isDelivery && l.ccy !== "VND" && !l.fx) {
+        p.push(`${at}: đã có ngày giao thì bán bằng ${l.ccy} phải nhập tỷ giá.`);
+      }
     });
     if (overCap) p.push(`Giảm sản lượng đợt giao xuống tối đa ${t3(Math.max(0, cap))} tấn.`);
     return p;
@@ -296,7 +300,7 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
       )}
 
       <h4 style={{ margin: "14px 0 6px" }}>Chi tiết {isChild ? "đợt giao" : "hợp đồng"}</h4>
-      <ContractLinesTable lines={c.lines} meta={meta}
+      <ContractLinesTable lines={c.lines} meta={meta} requireFx={isDelivery}
         currencies={currencies} onChange={(lines) => set({ lines })} />
 
       {/* Tổng của cả hợp đồng/đợt giao — quy về VNĐ để cộng được các dòng khác loại tiền.

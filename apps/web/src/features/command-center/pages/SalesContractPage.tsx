@@ -28,11 +28,11 @@ const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 }
 const money = (n: number | null) => (n == null ? "—" : t3(n / 1_000_000));
 /** Đã giao đủ sản lượng hợp đồng (chưa chốt hoàn thành) — cùng luật với bộ lọc "Đã giao đủ". */
 const fullyDelivered = (r: ContractRow) => !r.completed_at && r.remaining_qty <= 1e-9;
-/** Số hợp đồng CHƯA vào được tổng tiền (thiếu đơn giá / tỷ giá). Phải nói ra: tổng thiếu mà im
- *  lặng thì bị đọc là tổng đủ. */
+/** Số hợp đồng CHƯA vào được tổng tiền (thiếu đơn giá, hoặc bán ngoại tệ mà chưa có tỷ giá vì
+ *  chưa tới ngày giao). Phải nói ra: tổng thiếu mà im lặng thì bị đọc là tổng đủ. */
 const missingNote = (n: number) => (n === 0 ? null : (
   <div style={{ fontSize: 11, fontWeight: 400, color: "var(--warn, #d48806)" }}>
-    chưa gồm {n.toLocaleString("vi-VN")} HĐ thiếu giá
+    chưa gồm {n.toLocaleString("vi-VN")} HĐ chưa quy đổi được
   </div>
 ));
 /** Quá thời hạn hợp đồng mà vẫn còn hàng chưa giao (hợp đồng đã chốt hoàn thành thì thôi). */

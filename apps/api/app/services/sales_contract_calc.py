@@ -30,13 +30,20 @@ def _num(v) -> float | None:
     return None if f is not None and not math.isfinite(f) else f
 
 
-def clean_lines(lines) -> list[dict[str, Any]]:
+def clean_lines(lines, require_fx: bool = True) -> list[dict[str, Any]]:
     """Lọc/kiểm tra danh sách dòng chi tiết. Raise ValueError với thông báo tiếng Việt.
 
     Bán LATEX và 2 loại mủ nguyên liệu mới thì BẮT BUỘC nhập quy khô mới cho lưu — đúng chốt Q4
     (30/07/2026), áp cho MỌI lần ghi: tạo mới lẫn sửa, hợp đồng lẫn đợt giao, đã giao hay chưa.
     Trước đây chỉ ép khi đã giao, nên phần cam kết của hợp đồng giao-nhiều-lần vào sổ bằng số mủ
     nước còn phần đã giao bằng số khô: hai vế của phép trừ "đã ký chưa giao" khác đơn vị tính nhau.
+
+    `require_fx` — TỶ GIÁ chỉ bắt buộc khi bản ghi GHI NHẬN MỘT LẦN GIAO, tức là đã có NGÀY GIAO
+    (chốt 22/08/2026). Lúc ký hợp đồng chưa ai biết tỷ giá ngày giao hàng, ép nhập từ lúc đó là
+    bắt đơn vị bịa một con số rồi con số bịa ấy đi thẳng vào doanh thu. Chưa có tỷ giá thì doanh
+    thu dòng đó là KHÔNG BIẾT (`line_revenue_vnd` trả None) — không phải 0.
+    ⚠ KHÁC quy khô: quy khô ép ở mọi trạng thái vì nó là cách khai SẢN LƯỢNG, không phụ thuộc
+    ngày giao.
     """
     out: list[dict[str, Any]] = []
     for i, ln in enumerate(lines if isinstance(lines, list) else [], start=1):
@@ -71,8 +78,13 @@ def clean_lines(lines) -> list[dict[str, Any]]:
             raise ValueError(f"Dòng {i} ({grade}): loại tiền “{ln.get('ccy')}” không hợp lệ "
                              f"(chỉ nhận {', '.join(SALE_CURRENCIES)}).")
         fx = _num(ln.get("fx"))
-        if ccy != "VND" and (fx is None or fx <= 0):
-            raise ValueError(f"Dòng {i} ({grade}): bán bằng {ccy} thì phải nhập tỷ giá quy ra VNĐ.")
+        # Tỷ giá đã nhập thì phải là số dương — kiểm ở MỌI trạng thái: tỷ giá âm/0 làm doanh thu
+        # âm hoặc bằng 0 mà nhìn bảng không thấy gì bất thường.
+        if fx is not None and fx <= 0:
+            raise ValueError(f"Dòng {i} ({grade}): tỷ giá phải lớn hơn 0.")
+        if ccy != "VND" and require_fx and fx is None:
+            raise ValueError(f"Dòng {i} ({grade}): đã có ngày giao mà bán bằng {ccy} thì phải "
+                             "nhập tỷ giá quy ra VNĐ.")
         price = _num(ln.get("price"))
         if price is not None and price < 0:
             raise ValueError(f"Dòng {i} ({grade}): đơn giá không được âm.")

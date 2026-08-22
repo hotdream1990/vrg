@@ -22,6 +22,9 @@ type Props = {
   meta: ContractMeta;
   /** Loại tiền được phép của ĐƠN VỊ đang chọn (đã lọc ở form) — không dùng thẳng meta.currencies. */
   currencies: string[];
+  /** Bản ghi ĐÃ CÓ NGÀY GIAO → tỷ giá là bắt buộc. Chưa giao thì chưa ai biết tỷ giá ngày giao,
+   *  ép nhập chỉ tổ bắt đơn vị bịa số (chốt 22/08/2026) — phải khớp `require_fx` ở server. */
+  requireFx?: boolean;
   readOnly?: boolean;
   onChange: (lines: ContractLine[]) => void;
 };
@@ -35,12 +38,14 @@ type Props = {
  *  hợp đồng (30/07/2026) thì màn mới KHÔNG có cảnh báo nào — lỗi cũ lặp lại y nguyên.
  *  CHỈ CẢNH BÁO, không chặn lưu: giá thị trường có thể vượt biên thật, chặn cứng là chặn nghiệp vụ.
  */
-function lineWarnings(ln: ContractLine, needDry: boolean) {
+function lineWarnings(ln: ContractLine, needDry: boolean, requireFx: boolean) {
   return {
     qty: boundWarning(ln.qty, TONNES_CONTRACT),
     qty_dry: needDry && !ln.qty_dry ? "Bắt buộc nhập quy khô mới lưu được." : null,
     price: boundWarning(ln.price, priceBound(ln.ccy)),
-    fx: fxWarning(ln) ?? boundWarning(ln.fx, FX_USD_VND),
+    // Chưa có ngày giao thì tỷ giá trống là BÌNH THƯỜNG, không phải ô cần kiểm tra — nhắc ở đây
+    // sẽ hiện cảnh báo trên gần như mọi hợp đồng ngoại tệ mới ký.
+    fx: (requireFx ? fxWarning(ln) : null) ?? boundWarning(ln.fx, FX_USD_VND),
   };
 }
 
@@ -64,7 +69,9 @@ function Field({ label, w, children }: { label: string; w: number; children: Rea
  *   - Quy khô: chỉ latex và mủ nguyên liệu (thành phẩm bán ra vốn đã là hàng khô).
  *   - Tỷ giá: chỉ dòng bán bằng ngoại tệ.
  */
-export default function ContractLinesTable({ lines, meta, currencies, readOnly, onChange }: Props) {
+export default function ContractLinesTable({
+  lines, meta, currencies, requireFx = false, readOnly, onChange,
+}: Props) {
   const dry = new Set(meta.dry_required);
   const set = (i: number, patch: Partial<ContractLine>) =>
     onChange(lines.map((ln, k) => (k === i ? { ...ln, ...patch } : ln)));
@@ -85,7 +92,7 @@ export default function ContractLinesTable({ lines, meta, currencies, readOnly, 
   // Gom cảnh báo của MỌI dòng: ô lệch rất dễ nằm ngoài tầm nhìn khi khối tự xuống hàng, chỉ tô
   // viền thôi thì người nhập vẫn bấm Lưu mà không thấy gì (bài học của banner biểu nhập ngày).
   const alerts = lines.flatMap((ln, i) => {
-    const w = lineWarnings(ln, dry.has(ln.grade));
+    const w = lineWarnings(ln, dry.has(ln.grade), requireFx);
     return ([["Sản lượng", w.qty], ["Quy khô", w.qty_dry], ["Đơn giá", w.price],
              ["Tỷ giá", w.fx]] as const)
       .filter(([, m]) => m)
@@ -98,7 +105,7 @@ export default function ContractLinesTable({ lines, meta, currencies, readOnly, 
         {lines.map((ln, i) => {
           const hasDry = dry.has(ln.grade);
           const needFx = ln.ccy !== "VND";
-          const w = lineWarnings(ln, hasDry);
+          const w = lineWarnings(ln, hasDry, requireFx);
           return (
             <div className="ct-line" key={i}>
               <Field label="Chủng loại" w={230}>
@@ -133,8 +140,10 @@ export default function ContractLinesTable({ lines, meta, currencies, readOnly, 
                 </select>
               </Field>
               {needFx && (
-                <Field label="Tỷ giá → VNĐ" w={120}>
-                  {num(ln.fx, (v) => set(i, { fx: v }), w.fx, "bắt buộc")}
+                <Field label={`Tỷ giá → VNĐ${requireFx ? " *" : ""}`} w={120}>
+                  {/* Chưa có ngày giao thì để trống được — ghi rõ "khi giao" thay vì "bắt buộc",
+                      không thì người nhập tưởng đang thiếu số mà không sao lưu nổi. */}
+                  {num(ln.fx, (v) => set(i, { fx: v }), w.fx, requireFx ? "bắt buộc" : "khi giao")}
                 </Field>
               )}
               {/* Thành tiền = SL × đơn giá, hiện theo ĐÚNG loại tiền của dòng. Ô CHỈ ĐỌC — sửa
@@ -172,9 +181,10 @@ export default function ContractLinesTable({ lines, meta, currencies, readOnly, 
       )}
       <div className="form-note" style={{ fontSize: 11.5, marginTop: 6 }}>
         Đơn giá: bán bằng <b>VNĐ</b> nhập theo <b>triệu đồng/tấn</b>; bán bằng ngoại tệ nhập theo
-        <b> ngoại tệ/tấn</b> và phải có tỷ giá quy ra VNĐ. Bán <b>LATEX</b> và 2 loại mủ nguyên liệu
-        mới thì <b>bắt buộc nhập quy khô</b> mới lưu được — cả lúc tạo lẫn lúc sửa, kể cả hợp đồng
-        chưa giao.
+        <b> ngoại tệ/tấn</b>. <b>Tỷ giá</b> chỉ bắt buộc khi đã điền <b>Ngày giao</b> — lúc ký hợp
+        đồng chưa biết tỷ giá ngày giao hàng, để trống thì doanh thu tạm để trống chứ không tính
+        bằng 0. Bán <b>LATEX</b> và 2 loại mủ nguyên liệu mới thì <b>bắt buộc nhập quy khô</b> mới
+        lưu được — cả lúc tạo lẫn lúc sửa, kể cả hợp đồng chưa giao.
         <br />
         Với 3 chủng loại đó: <b>SL nước</b> là số để tính <b>thành tiền</b> (đơn giá là giá theo tấn
         mủ nước), còn <b>sản lượng tiêu thụ trên báo cáo lấy theo số quy khô</b>.
