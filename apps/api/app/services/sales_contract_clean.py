@@ -164,8 +164,9 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         "sign_date": sign.isoformat() if sign else None,
         "expiry_date": expiry.isoformat() if expiry else None,
         "start_date": start.isoformat() if start else None,
-        # Quy khô ép ở MỌI trạng thái (kể cả hợp đồng chưa giao) — xem `calc.clean_lines`.
-        "lines": calc.clean_lines(row.get("lines")),
+        # Quy khô ép ở MỌI trạng thái (kể cả hợp đồng chưa giao); TỶ GIÁ thì chỉ ép khi bản ghi
+        # đã có NGÀY GIAO — lúc ký hợp đồng chưa biết tỷ giá ngày giao (chốt 22/08/2026).
+        "lines": calc.clean_lines(row.get("lines"), require_fx=delivered),
         "delivered": delivered,
         "delivered_at": delivered_at.isoformat() if delivered_at else None,
         "channel": channel,

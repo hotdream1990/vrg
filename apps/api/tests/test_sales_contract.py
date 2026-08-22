@@ -236,17 +236,69 @@ def test_dry_weight_enforced_on_update_of_an_old_record(env, cus) -> None:
 
 
 def test_foreign_currency_needs_fx(env, cus) -> None:
+    """ĐÃ GIAO mà bán ngoại tệ thì bắt buộc có tỷ giá (chốt 22/08/2026 — xem test bên dưới)."""
     h = env
-    bad = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-LAK", "delivery_type": "single", "contract_type": "long_term", "customer_id": cus, "sign_date": TODAY,
-        "lines": [_line(qty=5.0, ccy="LAK")]}, headers=h)
+    base = {"company": UNIT, "code": "HD-LAK", "delivery_type": "single",
+            "contract_type": "long_term", "customer_id": cus, "sign_date": TODAY,
+            "delivered_at": TODAY, "channel": "export"}
+    bad = client.put("/api/sales-contracts",
+                     json={**base, "lines": [_line(qty=5.0, ccy="LAK")]}, headers=h)
     assert bad.status_code == 400 and "tỷ giá" in bad.json()["detail"]
 
     ok = client.put("/api/sales-contracts", json={
-        "company": UNIT, "code": "HD-LAK", "delivery_type": "single", "contract_type": "long_term", "customer_id": cus, "sign_date": TODAY,
-        "lines": [_line(qty=5.0, ccy="LAK", price=900_000.0, fx=1.24)]}, headers=h)
+        **base, "lines": [_line(qty=5.0, ccy="LAK", price=900_000.0, fx=1.24)]}, headers=h)
     assert ok.status_code == 200, ok.text
     assert ok.json()["contract"]["revenue"] == pytest.approx(5.0 * 900_000.0 * 1.24)
+
+
+def test_fx_is_only_required_once_there_is_a_delivery_date(env, cus) -> None:
+    """TỶ GIÁ chỉ nhập khi nhập TIÊU THỤ (chốt 22/08/2026).
+
+    Lúc ký hợp đồng chưa ai biết tỷ giá ngày giao hàng — ép nhập từ đó là bắt đơn vị bịa một con
+    số rồi con số bịa ấy đi thẳng vào doanh thu. Doanh thu khi thiếu tỷ giá là KHÔNG BIẾT (None),
+    tuyệt đối không phải 0.
+    """
+    h = env
+    base = {"company": UNIT, "contract_type": "long_term", "customer_id": cus, "sign_date": TODAY}
+
+    # 1) Hợp đồng giao 1 lần, CHƯA có ngày giao → lưu được, doanh thu để trống.
+    wait = client.put("/api/sales-contracts", json={
+        **base, "code": "HD-USD-CHUA-GIAO", "delivery_type": "single",
+        "lines": [_line(qty=10.0, ccy="USD", price=1800.0)]}, headers=h)
+    assert wait.status_code == 200, wait.text
+    assert wait.json()["contract"]["revenue"] is None
+
+    # 2) Chính hợp đồng đó điền NGÀY GIAO mà vẫn thiếu tỷ giá → chặn.
+    saved = wait.json()["contract"]
+    now = client.put("/api/sales-contracts", json={
+        **saved, "delivered_at": TODAY, "channel": "export",
+        "lines": [_line(qty=10.0, ccy="USD", price=1800.0)]}, headers=h)
+    assert now.status_code == 400 and "tỷ giá" in now.json()["detail"]
+
+    # 3) Hợp đồng giao NHIỀU LẦN: cấp hợp đồng không bao giờ bị hỏi tỷ giá…
+    parent = client.put("/api/sales-contracts", json={
+        **base, "code": "HD-USD-MULTI", "delivery_type": "multi",
+        "lines": [_line(qty=20.0, ccy="USD", price=1800.0)]}, headers=h)
+    assert parent.status_code == 200, parent.text
+
+    # …đợt giao chưa điền ngày giao cũng vậy (đang chờ giao)…
+    pid = parent.json()["contract"]["id"]
+    pending = client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": pid, "code": "Đợt 1",
+        "lines": [_line(qty=5.0, ccy="USD", price=1800.0)]}, headers=h)
+    assert pending.status_code == 200, pending.text
+
+    # …nhưng điền ngày giao vào đợt đó thì bắt buộc.
+    done = client.put("/api/sales-contracts", json={
+        **pending.json()["contract"], "delivered_at": TODAY, "channel": "export",
+        "lines": [_line(qty=5.0, ccy="USD", price=1800.0)]}, headers=h)
+    assert done.status_code == 400 and "tỷ giá" in done.json()["detail"]
+
+    # 4) Tỷ giá ĐÃ nhập thì phải dương — kiểm ở mọi trạng thái, kể cả khi chưa giao.
+    neg = client.put("/api/sales-contracts", json={
+        **base, "code": "HD-USD-FX-AM", "delivery_type": "single",
+        "lines": [_line(qty=1.0, ccy="USD", price=1800.0, fx=-26000.0)]}, headers=h)
+    assert neg.status_code == 400 and "lớn hơn 0" in neg.json()["detail"]
 
 
 def test_consumption_and_block3_computed_from_contracts(env, cus) -> None:
@@ -577,9 +629,11 @@ def test_invalid_inputs_are_rejected_not_coerced(env, cus) -> None:
     h = env
     base = {"company": UNIT, "delivery_type": "single", "contract_type": "long_term", "customer_id": cus, "sign_date": TODAY}
 
-    # "usd" viết thường nay được chuẩn hoá thành USD → vẫn đòi tỷ giá (KHÔNG lặng lẽ thành VNĐ).
+    # "usd" viết thường nay được chuẩn hoá thành USD → ĐÃ GIAO thì vẫn đòi tỷ giá (KHÔNG lặng lẽ
+    # thành VNĐ). Chưa giao thì không đòi — xem `test_fx_is_only_required_once_there_is_a_delivery_date`.
     r = client.put("/api/sales-contracts",
-                   json={**base, "code": "HD-usd", "lines": [_line(ccy="usd")]}, headers=h)
+                   json={**base, "code": "HD-usd", "delivered_at": TODAY, "channel": "export",
+                         "lines": [_line(ccy="usd")]}, headers=h)
     assert r.status_code == 400 and "tỷ giá" in r.json()["detail"]
     # Loại tiền không nằm trong danh mục thì báo lỗi hẳn.
     r = client.put("/api/sales-contracts",
