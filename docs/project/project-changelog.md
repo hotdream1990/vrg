@@ -18,6 +18,10 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     khai khách hàng như trước — mọi hợp đồng cũ giữ nguyên.
   - Danh sách hợp đồng hiện *“phụ lục của HĐ …”* dưới số hợp đồng; màn chi tiết hiện hợp đồng mẹ và
     **công thức giá** của nó. Màn hợp đồng mẹ đếm **số phụ lục + sản lượng đã ký** để đối chiếu cam kết.
+  - **Nhập phụ lục ngay trên màn hợp đồng mẹ** (22/08/2026): nút *Thêm phụ lục* mở thẳng form hợp
+    đồng với **đơn vị + hợp đồng mẹ khoá sẵn, khách hàng và loại HĐ điền sẵn** — chỉ còn gõ số phụ
+    lục và chi tiết hàng. Trước đó phải sang màn *Hợp đồng & đợt giao* rồi gõ lại số hợp đồng mẹ để
+    tìm, dù đang mở đúng hồ sơ đó.
   - **Gắn hợp đồng ĐÃ CÓ vào hồ sơ** (22/08/2026): ở màn chi tiết hợp đồng mẹ bấm *Gắn hợp đồng có
     sẵn* → chọn nhiều hợp đồng (chỉ hiện hợp đồng **của đúng đơn vị** và **chưa thuộc hồ sơ nào**),
     gắn một lượt tối đa 200. Mỗi phụ lục có nút **gỡ** để tách khỏi hồ sơ. Cần cho việc dọn hàng

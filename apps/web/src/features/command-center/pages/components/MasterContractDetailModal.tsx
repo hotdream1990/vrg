@@ -1,4 +1,4 @@
-import { DisconnectOutlined, LinkOutlined } from "@ant-design/icons";
+import { DisconnectOutlined, LinkOutlined, PlusOutlined } from "@ant-design/icons";
 import { Modal } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
@@ -10,6 +10,7 @@ import {
 } from "../../../../lib/master-contract-client";
 import type { ContractMeta } from "../../../../lib/sales-contract-client";
 import ContractAttach from "./ContractAttach";
+import ContractFormModal from "./ContractFormModal";
 import MasterAnnexPickerModal from "./MasterAnnexPickerModal";
 
 type Props = {
@@ -33,6 +34,9 @@ const num = (n: number | null | undefined) => (n == null ? "—" : t3(n));
 export default function MasterContractDetailModal({ masterId, meta, canEdit, onClose, onChanged }: Props) {
   const [d, setD] = useState<MasterDetail | null>(null);
   const [picking, setPicking] = useState(false);
+  // Nhập phụ lục MỚI ngay tại đây (chốt 22/08/2026): trước phải sang màn Hợp đồng & đợt giao rồi
+  // gõ lại số hợp đồng mẹ để tìm — đang mở đúng hồ sơ mà vẫn phải đi đường vòng.
+  const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
@@ -127,9 +131,14 @@ export default function MasterContractDetailModal({ masterId, meta, canEdit, onC
           <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "16px 0 6px" }}>
             <h4 style={{ margin: 0 }}>Phụ lục đã nối ({d.annexes.length})</h4>
             {canEdit && (
-              <button className="btn" disabled={busy} onClick={() => setPicking(true)}>
-                <LinkOutlined /> Gắn hợp đồng có sẵn
-              </button>
+              <>
+                <button className="btn btn-primary" disabled={busy} onClick={() => setAdding(true)}>
+                  <PlusOutlined /> Thêm phụ lục
+                </button>
+                <button className="btn" disabled={busy} onClick={() => setPicking(true)}>
+                  <LinkOutlined /> Gắn hợp đồng có sẵn
+                </button>
+              </>
             )}
           </div>
           <div className="card table-scroll" style={{ padding: 0 }}>
@@ -178,6 +187,16 @@ export default function MasterContractDetailModal({ masterId, meta, canEdit, onC
       )}
       {picking && m && (
         <MasterAnnexPickerModal master={m} onClose={() => setPicking(false)} onLinked={refresh} />
+      )}
+      {adding && m && (
+        // Điền sẵn đơn vị + hợp đồng mẹ (+ loại HĐ suy từ loại hồ sơ) — người nhập chỉ còn gõ số
+        // phụ lục và chi tiết hàng. Khách hàng do server lấy theo hợp đồng mẹ.
+        <ContractFormModal meta={meta} onClose={() => setAdding(false)} onSaved={refresh}
+          preset={{
+            company: m.company,
+            master_id: m.id,
+            contract_type: m.master_type === "long_term" ? "long_term" : "spot",
+          }} />
       )}
     </Modal>
   );

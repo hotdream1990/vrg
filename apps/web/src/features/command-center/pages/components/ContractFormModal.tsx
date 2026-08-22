@@ -23,6 +23,9 @@ type Props = {
   /** Tổng sản lượng các đợt giao KHÁC của hợp đồng (không tính đợt đang sửa). */
   otherQty?: number;
   initial?: Contract | null;
+  /** Điền sẵn cho bản ghi MỚI (khác `initial` — cái đó là đang SỬA bản ghi có sẵn).
+   *  Dùng khi mở form từ màn Hợp đồng mẹ: đã biết đơn vị + hợp đồng mẹ nên không bắt chọn lại. */
+  preset?: Partial<Contract>;
   onClose: () => void;
   onSaved: () => void;
 };
@@ -57,7 +60,9 @@ function sumAmountVnd(lines: ContractLine[]): number | null {
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
 
 /** Modal thêm/sửa HỢP ĐỒNG hoặc ĐỢT GIAO (mỗi đợt = 1 lần giao + 1 lần thanh toán). */
-export default function ContractFormModal({ meta, parent, otherQty = 0, initial, onClose, onSaved }: Props) {
+export default function ContractFormModal({
+  meta, parent, otherQty = 0, initial, preset, onClose, onSaved,
+}: Props) {
   const isChild = !!parent;
   const [c, setC] = useState<Contract>(() => {
     if (initial) {
@@ -69,10 +74,10 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
         .map((l) => (okDry.has(l.grade) ? l : { ...l, qty_dry: null }));
       return { ...initial, lines };
     }
-    const base = blank(parent?.company ?? meta.units[0] ?? "");
+    const base = blank(parent?.company ?? preset?.company ?? meta.units[0] ?? "");
     // Đợt giao không có ngày ký riêng: form không hiện ô đó, gửi kèm ngày mặc định (hôm nay) là
     // server tưởng đợt được "ký" hôm nay rồi chặn mọi ngày giao trong quá khứ.
-    return isChild ? { ...base, parent_id: parent!.id, sign_date: null } : base;
+    return isChild ? { ...base, parent_id: parent!.id, sign_date: null } : { ...base, ...preset };
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -173,7 +178,8 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
       onOk={submit} okButtonProps={{ loading: busy, disabled: overCap }} destroyOnHidden>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 10 }}>
         <label className="form-field">Đơn vị
-          <select className="blt-date-input" value={c.company} disabled={isChild || !!initial}
+          <select className="blt-date-input" value={c.company}
+            disabled={isChild || !!initial || !!preset?.company}
             onChange={(e) => set({
               // Hợp đồng mẹ và khách hàng đều là của RIÊNG từng đơn vị → đổi đơn vị là bỏ cả hai.
               company: e.target.value, customer_id: null, master_id: null,
@@ -197,6 +203,9 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
             <label className="form-field">Hợp đồng mẹ (HĐNT/HĐDH)
               <MasterContractPicker company={c.company} value={c.master_id}
                 typeLabels={meta.master_types}
+                // Mở từ chính màn hợp đồng mẹ thì hồ sơ đã chốt — khoá ô lại, đổi nhầm sang hồ sơ
+                // khác ngay trong lúc đang xem một hồ sơ là chuyện không ai chủ ý làm.
+                disabled={preset?.master_id != null}
                 // Mở lại một phụ lục cũ: picker tra hợp đồng mẹ theo id rồi báo về đây để ô
                 // khách hàng hiện đúng TÊN, không phải chữ "(theo hợp đồng mẹ)" trống rỗng.
                 onResolved={(m) => setMasterCustomer(m.customer_name ?? null)}
@@ -255,7 +264,9 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
         )}
       </div>
 
-      {!isChild && (
+      {/* Mở TỪ màn hợp đồng mẹ thì hồ sơ đã chọn sẵn — nhắc "sang màn Hợp đồng mẹ mà lập" là
+          chỉ đường tới nơi người dùng đang đứng. */}
+      {!isChild && !preset?.master_id && (
         <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
           Có <b>hợp đồng nguyên tắc / dài hạn</b> thì lập hồ sơ ở màn <b>Hợp đồng mẹ</b> rồi chọn
           vào ô trên — bản ghi này thành <b>phụ lục</b>, khách hàng lấy theo hợp đồng mẹ. Không có
