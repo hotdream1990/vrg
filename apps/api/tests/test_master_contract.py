@@ -413,3 +413,34 @@ def test_master_contract_scan_file_can_be_downloaded(env) -> None:
 
     got = client.get(f"/api/sales-contracts/file/{doc['file']}", headers=h)
     assert got.status_code == 200 and got.content == pdf
+
+
+def test_member_account_manages_only_its_own_master_contracts(env) -> None:
+    """Tài khoản ĐƠN VỊ THÀNH VIÊN tự lập hồ sơ mẹ của mình, nhưng không thấy/đụng được đơn vị khác."""
+    h = env
+    mine = _master(h, _customer(h), code="HDDH-CUA-TOI", master_type="long_term")
+    other = _master(h, _customer(h, UNIT2, "KH đv2"), company=UNIT2, code="HDNT-CUA-DV-KHAC")
+
+    client.delete("/api/users/_zz_mc_mem", headers=h)
+    client.post("/api/users", json={"username": "_zz_mc_mem", "password": "pass123",
+                                    "role": "member", "member_units": [UNIT]}, headers=h)
+    tok = client.post("/api/auth/login",
+                      json={"username": "_zz_mc_mem", "password": "pass123"}).json()["access_token"]
+    mh = {"Authorization": f"Bearer {tok}"}
+    try:
+        seen = client.get("/api/master-contracts", headers=mh).json()
+        codes = {m["code"] for m in seen["items"]}
+        assert "HDDH-CUA-TOI" in codes and "HDNT-CUA-DV-KHAC" not in codes
+
+        # Hồ sơ của đơn vị khác: không xem được, không sửa được.
+        assert client.get(f"/api/master-contracts/{other['id']}", headers=mh).status_code == 404
+        assert client.put("/api/master-contracts", headers=mh, json={
+            **other, "note": "cố sửa"}).status_code == 403
+
+        # Hồ sơ của chính mình thì tự lập được (đơn vị ký hợp đồng thì đơn vị khai hồ sơ).
+        made = client.put("/api/master-contracts", headers=mh, json={
+            "company": UNIT, "code": "HDNT-MEM-TU-LAP", "master_type": "principle",
+            "customer_id": mine["customer_id"], "lines": [{"grade": "SVR 10 / CSR 10"}]})
+        assert made.status_code == 200, made.text
+    finally:
+        client.delete("/api/users/_zz_mc_mem", headers=h)
