@@ -83,6 +83,7 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
   ]));
   items.push(...group("contracts", <FileProtectOutlined />, "Quản lý hợp đồng", [
     can("sales_contract") && { key: "/hop-dong/khach-hang", icon: <ContactsOutlined />, label: "Khách hàng" },
+    can("sales_contract") && { key: "/hop-dong/hop-dong-me", icon: <FileTextOutlined />, label: "Hợp đồng mẹ (HĐNT/HĐDH)" },
     can("sales_contract") && { key: "/hop-dong", icon: <FileProtectOutlined />, label: "Hợp đồng & đợt giao" },
   ]));
   items.push(...group("stats", <BarChartOutlined />, "Báo cáo & Thống kê", [
@@ -134,6 +135,7 @@ function buildMemberMenu(hasPurchasePlan: boolean) {
     ]),
     ...group("contracts", <FileProtectOutlined />, "Quản lý hợp đồng", [
       { key: "/hop-dong/khach-hang", icon: <ContactsOutlined />, label: "Khách hàng" },
+      { key: "/hop-dong/hop-dong-me", icon: <FileTextOutlined />, label: "Hợp đồng mẹ (HĐNT/HĐDH)" },
       { key: "/hop-dong", icon: <FileProtectOutlined />, label: "Hợp đồng & đợt giao" },
     ]),
     ...group("reports", <BarChartOutlined />, "Báo cáo", [
@@ -169,8 +171,8 @@ export default function AdminLayout() {
     "/quan-ly-so-lieu/gia-mu-nguyen-lieu", "/quan-ly-so-lieu/gia-physical",
     "/quan-ly-so-lieu/ton-kho", "/quan-ly-so-lieu/bao-gia-mu", "/quan-ly-so-lieu/don-vi-thanh-vien",
     "/nhu-cau-thi-truong", "/bao-cao-thu-mua", "/bao-cao-tieu-thu", "/bao-cao-ton-kho",
-    // "/hop-dong/khach-hang" phải đứng TRƯỚC "/hop-dong" — khớp tiền tố sẽ nuốt mục con.
-    "/hop-dong/khach-hang", "/hop-dong",
+    // Các mục con phải đứng TRƯỚC "/hop-dong" — khớp tiền tố sẽ nuốt mục con.
+    "/hop-dong/khach-hang", "/hop-dong/hop-dong-me", "/hop-dong",
     "/thong-ke-hop-dong", "/ke-hoach-nam", "/bao-cao-tong-hop",
     "/thong-ke/tinh-trang-nop", "/thong-ke/thu-mua", "/thong-ke/tieu-thu", "/thong-ke/ton-kho",
     "/goi-y-gia-san", "/ban-tin-bien-dong", "/tro-ly-ai", "/ban-tin/tuan", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",

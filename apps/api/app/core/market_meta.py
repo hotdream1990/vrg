@@ -145,11 +145,20 @@ DELIVERY_TYPES: dict[str, str] = {
 
 # Loại HỢP ĐỒNG — chỉ tiêu báo cáo (mẫu Tiêu thụ – Tồn kho, Kế hoạch năm). ĐỘC LẬP với loại GIAO:
 # một hợp đồng dài hạn vẫn có thể giao trọn 1 lần, nên KHÔNG suy ra từ `DELIVERY_TYPES`.
-# KHÔNG quản lý hợp đồng khung: đơn vị có hợp đồng dài hạn nhập MỖI PHỤ LỤC NHƯ MỘT HỢP ĐỒNG rồi
-# chọn "HĐ dài hạn" ở đây để phân biệt loại (chốt 05/08/2026).
+# Đơn vị có hợp đồng dài hạn nhập MỖI PHỤ LỤC NHƯ MỘT HỢP ĐỒNG rồi chọn "HĐ dài hạn" ở đây; từ
+# 21/08/2026 phụ lục còn nối được về HỢP ĐỒNG MẸ (`MASTER_CONTRACT_TYPES` bên dưới).
 CONTRACT_TYPES: dict[str, str] = {
     "long_term": "HĐ dài hạn",
     "spot": "HĐ chuyến",
+}
+
+# Loại HỢP ĐỒNG MẸ (chốt 21/08/2026) — hồ sơ gốc ký với khách hàng, phụ lục nối về đây:
+#   - `principle` HĐ NGUYÊN TẮC (HĐNT): khung nguyên tắc, thường KHÔNG có công thức giá.
+#   - `long_term` HĐ DÀI HẠN (HĐDH): có công thức giá, mỗi chuyến hàng là một phụ lục.
+# KHÁC `CONTRACT_TYPES` ở trên: cái đó là chỉ tiêu báo cáo của từng hợp đồng/phụ lục.
+MASTER_CONTRACT_TYPES: dict[str, str] = {
+    "principle": "HĐ nguyên tắc (HĐNT)",
+    "long_term": "HĐ dài hạn (HĐDH)",
 }
 
 # Loại tiền trên dòng bán/thu mua — thêm nội tệ đơn vị nước ngoài (Lào LAK · Campuchia KHR).

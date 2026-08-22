@@ -27,6 +27,7 @@ from app.routers import (
     market_demand,
     market_movement,
     market_quote,
+    master_contracts,
     member_region,
     member_self,
     member_unit,
@@ -163,6 +164,7 @@ app.include_router(unit_analytics.router, dependencies=[Depends(require_cap("uni
 # Hợp đồng & khách hàng: DÙNG CHUNG cho đơn vị thành viên lẫn chuyên viên — router tự ép phạm vi
 # đơn vị theo tài khoản (cap_or_member_scope), nên chỉ gác đăng nhập ở đây.
 app.include_router(customers.router, dependencies=_protected)
+app.include_router(master_contracts.router, dependencies=_protected)  # hợp đồng mẹ HĐNT/HĐDH (cùng quyền `sales_contract`)
 app.include_router(sales_contracts.router, dependencies=_protected)
 app.include_router(audit.router)  # Nhật ký hoạt động (tự gác quyền `audit` trong router)
 app.include_router(assistant.router, dependencies=[Depends(require_cap("assistant"))])  # Trợ lý AI (hỏi đáp số liệu + tư vấn giá sàn)

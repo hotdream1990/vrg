@@ -25,6 +25,7 @@ import PhysicalSheetPage from "./features/command-center/pages/PhysicalSheetPage
 import PriceSheetPage from "./features/command-center/pages/PriceSheetPage";
 import ProfilePage from "./features/command-center/pages/ProfilePage";
 import RawMaterialPage from "./features/command-center/pages/RawMaterialPage";
+import MasterContractPage from "./features/command-center/pages/MasterContractPage";
 import SalesContractPage from "./features/command-center/pages/SalesContractPage";
 import ScanPage from "./features/command-center/pages/ScanPage";
 import SchedulePage from "./features/command-center/pages/SchedulePage";
@@ -139,6 +140,8 @@ export default function App() {
                   {/* Quản lý hợp đồng — khách hàng riêng từng đơn vị + hợp đồng 2 cấp */}
                   <Route path="/hop-dong/khach-hang" element={
                     <ContractRoute><CustomerPage /></ContractRoute>} />
+                  <Route path="/hop-dong/hop-dong-me" element={
+                    <ContractRoute><MasterContractPage /></ContractRoute>} />
                   <Route path="/hop-dong" element={
                     <ContractRoute><SalesContractPage /></ContractRoute>} />
                   <Route path="/ke-hoach-nam" element={<YearPlanRoute />} />

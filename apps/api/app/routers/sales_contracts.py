@@ -18,6 +18,7 @@ from app.core.market_meta import (
     CONTRACT_TYPES,
     DELIVERY_TYPES,
     DRY_REQUIRED_GRADES,
+    MASTER_CONTRACT_TYPES,
     SALE_CHANNELS,
     SALE_CURRENCIES,
     UNIT_GRADES,
@@ -29,6 +30,7 @@ from app.schemas.sales_contract import CompletionIn, ContractIn, DeliveryTypeIn
 from app.services import (
     contract_files,
     customer_repo,
+    master_contract_repo,
     member_unit_repo,
     sales_contract_consumption_excel,
     sales_contract_delivery_history,
@@ -81,6 +83,7 @@ def meta(scope: Scope) -> dict:
         "channels": SALE_CHANNELS,
         "delivery_types": DELIVERY_TYPES,
         "contract_types": CONTRACT_TYPES,
+        "master_types": MASTER_CONTRACT_TYPES,
         "currencies": list(SALE_CURRENCIES),
     }
 
@@ -94,6 +97,8 @@ def list_contracts(scope: Scope, company: str | None = Query(None),
                    q: str | None = Query(None, max_length=120),
                    channel: list[str] | None = Query(
                        None, description="Lọc hình thức tiêu thụ; '' = chưa khai hình thức"),
+                   unlinked: bool = Query(
+                       False, description="Chỉ hợp đồng CHƯA gắn hợp đồng mẹ (ô chọn phụ lục)"),
                    page: int = Query(1, ge=1),
                    page_size: int = Query(25, ge=1, le=200)) -> dict:
     """MỘT TRANG hợp đồng kèm tiến độ giao → `{contracts, total, page, page_size}`.
@@ -113,13 +118,18 @@ def list_contracts(scope: Scope, company: str | None = Query(None),
     res = sales_contract_report.parents_with_progress(
         companies, customer_ids=customer_id, status=None if status == "all" else status,
         q=q, date_from=date_from, date_to=date_to, channels=channel,
-        limit=page_size, offset=(page - 1) * page_size)
+        only_unlinked=unlinked, limit=page_size, offset=(page - 1) * page_size)
     rows = res["rows"]
     # Chỉ tra tên của đúng những khách xuất hiện TRONG TRANG — danh mục cả Tập đoàn rất dài.
     names = customer_repo.names_by_id(companies, sorted({
         r["customer_id"] for r in rows if r.get("customer_id")}))
+    # Số HỢP ĐỒNG MẸ của phụ lục — tra riêng cho đúng các dòng trong trang (cùng cách làm với
+    # tên khách hàng), thay vì join thêm một bảng vào câu truy vấn tiến độ vốn đã nhiều CTE.
+    masters = master_contract_repo.codes_by_id(companies, sorted({
+        r["master_id"] for r in rows if r.get("master_id")}))
     for r in rows:
         r["customer_name"] = names.get(r.get("customer_id") or 0)
+        r["master_code"] = masters.get(r.get("master_id") or 0)
     # `totals` cộng TOÀN BỘ hợp đồng khớp lọc, không phải trang đang xem — bảng có phân trang nên
     # cộng ở web sẽ ra tổng của 25 dòng và bị đọc nhầm là tổng của cả bộ lọc.
     return {"contracts": rows, "total": res["total"], "totals": res["totals"],
@@ -238,7 +248,11 @@ def get_contract(contract_id: int, scope: Scope) -> dict:
     # khỏi /meta): thiếu nó là ô "Khách hàng" trên màn chi tiết luôn hiện "—".
     names = customer_repo.names_by_id([c["company"]],
                                       [c["customer_id"]] if c.get("customer_id") else [])
+    # Hợp đồng mẹ (nếu là phụ lục) — màn chi tiết cần số HĐ mẹ, loại và CÔNG THỨC GIÁ: giá của
+    # phụ lục vốn tính theo công thức ghi ở hợp đồng mẹ.
+    master = master_contract_repo.get(c["master_id"]) if c.get("master_id") else None
     return {"contract": c, "children": kids, "delivered_qty": done, "pending_qty": pending,
+            "master": master,
             # Tiền của HÀNG ĐÃ GIAO — khác tiền ghi trên hợp đồng vì đơn giá/sản lượng chốt ở đợt giao.
             "delivered_revenue": sales_contract_report.delivered_revenue(
                 c, [k["revenue"] for k in kids if k["delivered_at"]]),
@@ -341,7 +355,10 @@ def get_file(name: str, scope: Scope, filename: str | None = Query(None)):
     này, tài khoản đơn vị A biết tên file là tải được bản scan hợp đồng của đơn vị B.
     """
     _, companies = scope
-    owners = sales_contract_repo.companies_of_file(name)
+    # Hợp đồng mẹ dùng CHUNG thư mục lưu file với hợp đồng bán hàng → phải hỏi cả hai bảng,
+    # thiếu một bảng là bản scan của bảng đó luôn trả 404.
+    owners = (sales_contract_repo.companies_of_file(name)
+              | master_contract_repo.companies_of_file(name))
     # Endpoint này CHỈ phục vụ file của hợp đồng bán hàng. File của module khác dùng chung thư mục
     # lưu trữ nên không chặn ở đây là mở đường đọc chéo module (chuyên viên chỉ có quyền hợp đồng
     # vẫn tải được file của biểu Thu mua/Tồn kho).

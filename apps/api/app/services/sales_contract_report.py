@@ -349,6 +349,7 @@ def parents_with_progress(companies: list[str] | None = None, *,
                           status: str | None = None, q: str | None = None,
                           date_from: str | None = None, date_to: str | None = None,
                           channels: list[str] | None = None,
+                          only_unlinked: bool = False,
                           limit: int = 25, offset: int = 0) -> dict[str, Any]:
     """MỘT TRANG hợp đồng kèm tiến độ giao → `{"rows": [...], "total": <tổng khớp lọc>}`.
 
@@ -362,6 +363,9 @@ def parents_with_progress(companies: list[str] | None = None, *,
       - `over_qty` phần giao VƯỢT hợp đồng (thực giao được lệch, xem `repo.MAX_OVER_RATIO`)
       - `delivered_revenue` TIỀN của hàng đã giao — lệch với `revenue` (tiền hợp đồng) là bình
         thường, xem `delivered_revenue()`
+
+    `only_unlinked` = chỉ hợp đồng CHƯA gắn hợp đồng mẹ — dùng cho ô chọn phụ lục ở màn hợp đồng
+    mẹ: bày cả hợp đồng đã thuộc hồ sơ khác chỉ để người dùng chọn rồi bị chặn.
 
     `channels` lọc theo HÌNH THỨC TIÊU THỤ (xuất khẩu / trong nước / nội bộ) — dùng `[""]` để tìm
     các hợp đồng CHƯA KHAI hình thức. Hình thức nằm ở LẦN GIAO chứ không ở hợp đồng, nên hợp đồng
@@ -378,6 +382,8 @@ def parents_with_progress(companies: list[str] | None = None, *,
     if customer_ids:
         where.append("customer_id = ANY(:cu)")
         params["cu"] = list(customer_ids)
+    if only_unlinked:
+        where.append("master_id IS NULL")
     if date_from:
         where.append("(sign_date IS NULL OR sign_date >= CAST(:df AS date))")
         params["df"] = date_from

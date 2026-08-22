@@ -4,8 +4,10 @@
     lần — hợp đồng giữ TỔNG sản lượng cam kết, nhập ĐỢT GIAO tới khi hết).
   - `parent_id` khác NULL = ĐỢT GIAO (tên cũ: phụ lục): hoá đơn · ngày giao · dòng chi tiết
     (chủng loại/số lượng/đơn giá) + 1 lần thanh toán.
-  - KHÔNG quản lý hợp đồng khung: đơn vị có hợp đồng dài hạn nhập MỖI PHỤ LỤC NHƯ MỘT HỢP ĐỒNG,
-    chọn loại "HĐ dài hạn" để phân biệt (chốt 05/08/2026).
+  - `master_id` khác NULL = bản ghi này là PHỤ LỤC của một HỢP ĐỒNG MẸ (HĐNT/HĐDH, bảng
+    `master_contract` — chốt 21/08/2026): số ở ô `code` là SỐ PHỤ LỤC và khách hàng thừa kế của
+    hợp đồng mẹ. `master_id` NULL = hợp đồng đứng một mình, khai khách hàng như trước.
+    ⚠ Cấp hợp đồng mẹ CHỈ là hồ sơ: tiêu thụ và "đã ký HĐ chưa giao" vẫn tính trên bảng này.
 
 Chốt 05/08/2026 — sản lượng thực giao được phép LỆCH so với hợp đồng đã ký:
   - Tổng các đợt giao được vượt cam kết, nhưng KHÔNG quá `MAX_OVER_RATIO` (110%).
@@ -28,7 +30,8 @@ from app.services.sales_contract_clean import clean, assert_unit_exists
 
 logger = logging.getLogger("vrg.sales_contract")
 
-_COLS = ("id", "company", "parent_id", "code", "customer_id", "delivery_type", "contract_type",
+_COLS = ("id", "company", "parent_id", "master_id", "code", "customer_id",
+         "delivery_type", "contract_type",
          "sign_date", "expiry_date", "start_date", "lines", "delivered", "delivered_at", "channel",
          "to_company", "invoice_no", "invoice_docs", "payment_date", "payment_qty",
          "payment_docs", "files", "note", "completed_at")
@@ -84,12 +87,13 @@ def assert_open(contract: dict[str, Any], what: str) -> None:
 
 
 _INSERT = text(
-    "INSERT INTO sales_contract (company, parent_id, code, customer_id, delivery_type, "
-    " contract_type, sign_date, "
+    "INSERT INTO sales_contract (company, parent_id, master_id, code, customer_id, "
+    " delivery_type, contract_type, sign_date, "
     " expiry_date, start_date, lines, delivered, delivered_at, channel, to_company, "
     " invoice_no, invoice_docs, payment_date, "
     " payment_qty, payment_docs, files, note, updated_by) "
-    "VALUES (:company, :parent_id, :code, :customer_id, :delivery_type, :contract_type, "
+    "VALUES (:company, :parent_id, :master_id, :code, :customer_id, :delivery_type, "
+    " :contract_type, "
     " CAST(:sign_date AS date), "
     " CAST(:expiry_date AS date), CAST(:start_date AS date), CAST(:lines AS jsonb), :delivered, "
     " CAST(:delivered_at AS date), "
@@ -98,7 +102,8 @@ _INSERT = text(
     " CAST(:payment_docs AS jsonb), CAST(:files AS jsonb), :note, :by) RETURNING id")
 
 _UPDATE = text(
-    "UPDATE sales_contract SET code = :code, customer_id = :customer_id, "
+    "UPDATE sales_contract SET code = :code, master_id = :master_id, "
+    " customer_id = :customer_id, "
     " delivery_type = :delivery_type, contract_type = :contract_type, "
     " sign_date = CAST(:sign_date AS date), "
     " expiry_date = CAST(:expiry_date AS date), start_date = CAST(:start_date AS date), "

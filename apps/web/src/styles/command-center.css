@@ -158,6 +158,24 @@ tfoot tr:hover td{background:var(--panel-2)}
 .ud-sales.ud-narrow{min-width:360px;max-width:560px}
 /* Thu mua thành phẩm (7 cột) — hẹp hơn bảng tiêu thụ để vừa khung nhập, khỏi cuộn ngang. */
 .ud-sales.ud-finished{min-width:700px}
+
+/* Bảng HỢP ĐỒNG MẸ + bảng chọn phụ lục: nhiều cột mang chữ DÀI (tên đơn vị, tên khách hàng).
+   Để trình duyệt tự chia (`table-layout:auto`) thì cột bị bóp còn vài ký tự và "Công ty Cổ phần
+   Cao Su Bà Rịa" xuống 6 dòng, bảng nhìn như vỡ. Chốt bề rộng từng cột rồi cho khung cuộn ngang
+   (`.table-scroll` đã `overflow:auto`) — cùng cách đang dùng cho `.ud-sales`. */
+.mc-table{table-layout:fixed;min-width:1125px}
+/* Cột THAO TÁC ghim bên phải: bảng rộng hơn khung nên phải cuộn ngang, mà nút Xem/Sửa/Xoá là thứ
+   người dùng cần nhất — để nó trôi ra ngoài là mỗi lần thao tác phải kéo ngang một lần.
+   Nền phải ĐỤC và đổi theo `tr:hover`, không thì các cột chạy xuyên qua khi cuộn. */
+.mc-table td:last-child,.mc-table th:last-child{position:sticky;right:0;background:var(--panel)}
+.mc-table thead th:last-child{z-index:3}
+.mc-table tbody td:last-child{z-index:1;border-left:1px solid var(--line)}
+.mc-table tbody tr:hover td:last-child{background:#f3f7f4}
+.mc-annex{table-layout:fixed;min-width:820px}
+.mc-pick{table-layout:fixed;min-width:880px}
+/* Ô có chữ dài: ngắt trong lòng TỪ khi từ dài hơn cả cột (mã hợp đồng liền một mạch), thay vì
+   tràn ra ngoài đè cột bên cạnh. */
+.mc-table td,.mc-annex td,.mc-pick td{overflow-wrap:anywhere}
 /* Tồn kho đã ký HĐ: 7 cột số liệu ở hàng trên, các mốc ngày + HĐ scan xuống hàng dưới. */
 .ud-sales.ud-contract{min-width:760px}
 .ud-sales td{padding:6px;vertical-align:middle}

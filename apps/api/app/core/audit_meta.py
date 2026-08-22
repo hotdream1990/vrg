@@ -17,6 +17,7 @@ ENTITIES: dict[str, str] = {
     "unit_daily": "Báo cáo đơn vị theo ngày",
     "stock_contract": "Hợp đồng tồn kho (dữ liệu cũ)",
     "customer": "Khách hàng",
+    "master_contract": "Hợp đồng mẹ (HĐNT/HĐDH)",
     "sales_contract": "Hợp đồng bán hàng",
     "unit_plan": "Kế hoạch năm",
     "market_demand": "Nhu cầu thị trường",

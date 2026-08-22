@@ -4,6 +4,7 @@
 
 import { API, apiFetch } from "./http";
 import { authHeaders } from "./auth-token";
+import type { MasterContract } from "./master-contract-client";
 
 const J = { "Content-Type": "application/json" };
 
@@ -40,6 +41,9 @@ export type Contract = {
   id: number | null;
   company: string;
   parent_id: number | null;
+  /** Khác null = bản ghi này là PHỤ LỤC của một HỢP ĐỒNG MẸ (HĐNT/HĐDH): ô `code` là SỐ PHỤ LỤC
+   *  và khách hàng thừa kế của hợp đồng mẹ (server tự ghi, form không hỏi lại). */
+  master_id: number | null;
   code: string;
   customer_id: number | null;
   delivery_type: "single" | "multi";
@@ -87,6 +91,8 @@ export type ContractRow = Contract & {
   channels: string[];
   children: number;
   customer_name?: string | null;
+  /** Số hợp đồng mẹ (nếu là phụ lục) — server tra sẵn để bảng khỏi gọi thêm. */
+  master_code?: string | null;
 };
 
 export type ContractMeta = {
@@ -97,6 +103,8 @@ export type ContractMeta = {
   channels: Record<string, string>;
   delivery_types: Record<string, string>;
   contract_types: Record<string, string>;
+  /** Nhãn loại HỢP ĐỒNG MẸ: principle = HĐ nguyên tắc · long_term = HĐ dài hạn. */
+  master_types: Record<string, string>;
   /** {đơn vị: đơn vị được nhận hàng nội bộ} — chỉ trong nhóm công ty mẹ–con. Không có tên trong
    *  map = đơn vị đứng một mình → form ẩn hình thức "Tiêu thụ nội bộ". */
   internal_targets: Record<string, string[]>;
@@ -119,6 +127,9 @@ export type ContractDetail = {
   /** Trần sản lượng được phép giao (110% sản lượng hợp đồng). */
   max_qty: number;
   customer_name: string | null;
+  /** Hợp đồng mẹ của phụ lục (null = hợp đồng đứng một mình). Giá của phụ lục vốn tính theo
+   *  CÔNG THỨC GIÁ ghi ở hợp đồng mẹ nên màn chi tiết phải hiện được nó. */
+  master: MasterContract | null;
 };
 
 export type ContractFilters = {
@@ -131,6 +142,8 @@ export type ContractFilters = {
   date_from?: string;
   date_to?: string;
   q?: string;
+  /** Chỉ hợp đồng CHƯA gắn hợp đồng mẹ — dùng cho ô chọn phụ lục ở màn Hợp đồng mẹ. */
+  unlinked?: boolean;
   /** Phân trang Ở SERVER — danh sách hợp đồng dài thêm mỗi ngày, không tải hết về máy. */
   page?: number;
   page_size?: number;
@@ -239,6 +252,7 @@ export function listContracts(f: ContractFilters = {}) {
   if (f.date_from) p.set("date_from", f.date_from);
   if (f.date_to) p.set("date_to", f.date_to);
   if (f.q) p.set("q", f.q);
+  if (f.unlinked) p.set("unlinked", "true");
   p.set("page", String(f.page ?? 1));
   p.set("page_size", String(f.page_size ?? 25));
   return apiFetch<ContractPage>(`/api/sales-contracts?${p}`);

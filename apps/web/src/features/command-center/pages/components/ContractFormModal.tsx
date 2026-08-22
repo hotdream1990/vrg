@@ -11,6 +11,7 @@ import {
 } from "../../../../lib/sales-contract-client";
 import CustomerPicker from "../../sections/CustomerPicker";
 import DateInput from "../../sections/DateInput";
+import MasterContractPicker from "../../sections/MasterContractPicker";
 import ContractAttach from "./ContractAttach";
 import ContractBatchDocs from "./ContractBatchDocs";
 import ContractLinesTable, { EMPTY_LINE } from "./ContractLinesTable";
@@ -29,7 +30,8 @@ type Props = {
 const today = () => new Date().toISOString().slice(0, 10);
 
 const blank = (company: string): Contract => ({
-  id: null, company, parent_id: null, code: "", customer_id: null, delivery_type: "single",
+  id: null, company, parent_id: null, master_id: null, code: "", customer_id: null,
+  delivery_type: "single",
   contract_type: null,
   sign_date: today(), expiry_date: null, start_date: null, lines: [{ ...EMPTY_LINE }],
   delivered: false, delivered_at: null, channel: null, to_company: null,
@@ -74,8 +76,13 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Khách hàng của HỢP ĐỒNG MẸ vừa chọn — chỉ để hiện ngay cho người nhập thấy mình đang nối vào
+  // đúng hồ sơ. Bản ghi thật do SERVER ghi (xem `sales_contract_clean`), form không gửi khách.
+  const [masterCustomer, setMasterCustomer] = useState<string | null>(null);
 
   const set = (patch: Partial<Contract>) => setC((prev) => ({ ...prev, ...patch }));
+  // Có hợp đồng mẹ = bản ghi này là PHỤ LỤC: ô số ghi SỐ PHỤ LỤC và khách hàng thừa kế của mẹ.
+  const isAnnex = !isChild && c.master_id != null;
   // Đợt CHỈ tính là đã giao khi có NGÀY GIAO. Chưa có = đang chờ giao (vẫn nằm trong phần chưa
   // giao của hợp đồng), lúc đó chưa ép hình thức tiêu thụ vì hàng chưa bán ra. Quy khô thì ép ở
   // MỌI trạng thái — nó là cách khai sản lượng, không phải dữ kiện của lần bán.
@@ -107,8 +114,12 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
   const problems = (): string[] => {
     const p: string[] = [];
     if (!c.company) p.push("Chọn đơn vị.");
-    if (!c.code.trim()) p.push(isChild ? "Nhập số đợt giao." : "Nhập số hợp đồng.");
-    if (!isChild && !c.customer_id) p.push("Chọn khách hàng.");
+    if (!c.code.trim()) {
+      p.push(isChild ? "Nhập số đợt giao."
+        : isAnnex ? "Nhập số phụ lục hợp đồng." : "Nhập số hợp đồng.");
+    }
+    // Phụ lục thừa kế khách của hợp đồng mẹ nên không hỏi ô này (server tự ghi).
+    if (!isChild && !isAnnex && !c.customer_id) p.push("Chọn khách hàng.");
     if (!isChild && !c.sign_date) p.push("Chọn ngày ký.");
     if (isDelivery && !c.channel) p.push("Chọn hình thức tiêu thụ.");
     if (c.channel === "internal" && !c.to_company) p.push("Chọn đơn vị nhận hàng.");
@@ -138,6 +149,9 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
         ...c,
         lines: c.lines.filter((l) => l.grade || l.qty != null),
         parent_id: isChild ? parent!.id : null,
+        // Đợt giao đi theo hợp đồng, KHÔNG nối thẳng vào hợp đồng mẹ (server cũng ép NULL) —
+        // nối cả hai cấp là cộng đôi sản lượng đã ký của hợp đồng mẹ.
+        master_id: isChild ? null : c.master_id,
       } as unknown as Record<string, unknown>);
       onSaved(); onClose();
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
@@ -146,7 +160,7 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
 
   const title = isChild
     ? `${initial ? "Sửa" : "Thêm"} đợt giao — HĐ ${parent!.code}`
-    : `${initial ? "Sửa" : "Thêm"} hợp đồng`;
+    : `${initial ? "Sửa" : "Thêm"} ${isAnnex ? "phụ lục hợp đồng" : "hợp đồng"}`;
 
   // Modal rộng để dòng chi tiết đủ chỗ nằm một hàng; `min()` giữ mép modal không tràn ra ngoài
   // màn hình hẹp — số cứng 1280 sẽ vượt khung ở laptop 13".
@@ -157,7 +171,8 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
         <label className="form-field">Đơn vị
           <select className="blt-date-input" value={c.company} disabled={isChild || !!initial}
             onChange={(e) => set({
-              company: e.target.value, customer_id: null,
+              // Hợp đồng mẹ và khách hàng đều là của RIÊNG từng đơn vị → đổi đơn vị là bỏ cả hai.
+              company: e.target.value, customer_id: null, master_id: null,
               // Đổi đơn vị là đổi luôn NHÓM mẹ–con → đơn vị nhận cũ có thể không còn cùng nhóm.
               ...(c.channel === "internal" ? { channel: null, to_company: null } : {}),
               lines: c.lines.map((l) => ({ ...l, ccy: "VND", fx: null })),
@@ -165,22 +180,54 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
             {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </label>
-        <label className="form-field">{isChild ? "Số đợt giao *" : "Số hợp đồng *"}
+        <label className="form-field">
+          {isChild ? "Số đợt giao *" : isAnnex ? "Số phụ lục hợp đồng *" : "Số hợp đồng *"}
           <input className="blt-date-input" value={c.code}
             onChange={(e) => set({ code: e.target.value })} />
         </label>
         {!isChild && (
           <>
-            <label className="form-field">Khách hàng *
-              {/* Chỉ tìm trong danh mục CỦA ĐƠN VỊ đang chọn — server cũng chặn gán khách của
-                  đơn vị khác (xem `sales_contract_repo.save`). */}
-              <CustomerPicker width="100%" company={c.company} placeholder="Gõ để tìm khách hàng"
-                value={c.customer_id ? [c.customer_id] : []}
-                onChange={(ids) => set({ customer_id: ids[0] ?? null })} />
+            {/* HỢP ĐỒNG MẸ (HĐNT/HĐDH) — chọn nếu chuyến hàng này nằm trong một hợp đồng nguyên
+                tắc / dài hạn đã ký. Chọn rồi thì bản ghi là PHỤ LỤC: ô số ở trên đổi thành "số
+                phụ lục hợp đồng" và khách hàng lấy theo hợp đồng mẹ, không khai lại. */}
+            <label className="form-field">Hợp đồng mẹ (HĐNT/HĐDH)
+              <MasterContractPicker company={c.company} value={c.master_id}
+                typeLabels={meta.master_types}
+                // Mở lại một phụ lục cũ: picker tra hợp đồng mẹ theo id rồi báo về đây để ô
+                // khách hàng hiện đúng TÊN, không phải chữ "(theo hợp đồng mẹ)" trống rỗng.
+                onResolved={(m) => setMasterCustomer(m.customer_name ?? null)}
+                onChange={(id, master) => {
+                  setMasterCustomer(master?.customer_name ?? null);
+                  set({
+                    master_id: id,
+                    // Khách của phụ lục do server ghi theo hợp đồng mẹ — xoá ô ở form cho khớp.
+                    customer_id: id ? null : c.customer_id,
+                    // Gợi ý loại hợp đồng theo loại của hợp đồng mẹ (vẫn sửa được): HĐ dài hạn
+                    // thì phụ lục là "HĐ dài hạn", HĐ nguyên tắc thì từng chuyến là "HĐ chuyến".
+                    contract_type: master
+                      ? (master.master_type === "long_term" ? "long_term" : "spot")
+                      : c.contract_type,
+                  });
+                }} />
             </label>
+            {isAnnex ? (
+              <label className="form-field">Khách hàng
+                <input className="blt-date-input" readOnly tabIndex={-1}
+                  style={{ background: "transparent" }}
+                  value={masterCustomer ?? "(theo hợp đồng mẹ)"} />
+              </label>
+            ) : (
+              <label className="form-field">Khách hàng *
+                {/* Chỉ tìm trong danh mục CỦA ĐƠN VỊ đang chọn — server cũng chặn gán khách của
+                    đơn vị khác (xem `sales_contract_repo.save`). */}
+                <CustomerPicker width="100%" company={c.company} placeholder="Gõ để tìm khách hàng"
+                  value={c.customer_id ? [c.customer_id] : []}
+                  onChange={(ids) => set({ customer_id: ids[0] ?? null })} />
+              </label>
+            )}
             {/* Loại HỢP ĐỒNG là chỉ tiêu của báo cáo (dài hạn/chuyến) — KHÁC loại GIAO bên dưới:
-                một hợp đồng dài hạn vẫn có thể giao trọn 1 lần. Đơn vị có hợp đồng khung thì nhập
-                MỖI PHỤ LỤC NHƯ MỘT HỢP ĐỒNG và chọn "HĐ dài hạn" ở đây. */}
+                một hợp đồng dài hạn vẫn có thể giao trọn 1 lần. Chọn hợp đồng mẹ thì ô này được
+                điền sẵn theo loại của hợp đồng mẹ, vẫn sửa lại được. */}
             <label className="form-field">Loại hợp đồng *
               <select className="blt-date-input" value={c.contract_type ?? ""}
                 onChange={(e) => set({ contract_type: (e.target.value || null) as ContractType })}>
@@ -206,8 +253,9 @@ export default function ContractFormModal({ meta, parent, otherQty = 0, initial,
 
       {!isChild && (
         <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
-          Hệ thống <b>không quản lý hợp đồng khung</b>: đơn vị có hợp đồng dài hạn thì nhập{" "}
-          <b>mỗi phụ lục như một hợp đồng</b> và chọn loại <b>HĐ dài hạn</b> để phân biệt.
+          Có <b>hợp đồng nguyên tắc / dài hạn</b> thì lập hồ sơ ở màn <b>Hợp đồng mẹ</b> rồi chọn
+          vào ô trên — bản ghi này thành <b>phụ lục</b>, khách hàng lấy theo hợp đồng mẹ. Không có
+          hợp đồng mẹ thì để trống và khai khách hàng như bình thường.
           {initial && <> Đổi <b>loại giao</b> bằng nút <b>Chuyển sang giao nhiều lần</b> ở màn chi
             tiết hợp đồng — lần giao đã nhập sẽ tự thành đợt giao đầu tiên, không phải nhập lại.</>}
         </p>

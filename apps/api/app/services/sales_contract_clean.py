@@ -82,6 +82,22 @@ def _assert_same_group(company: str, to_company: str) -> None:
             "Gán Công ty mẹ ở màn Đơn vị thành viên trước.")
 
 
+def _master_of(master_id: int, company: str) -> dict[str, Any]:
+    """Hợp đồng mẹ của phụ lục — phải có thật và CÙNG ĐƠN VỊ.
+
+    Import muộn để tránh vòng import: `master_contract_repo` đọc SQL sản lượng của
+    `sales_contract_report`, mà module đó lại đi qua `sales_contract_repo` → file này.
+    """
+    from app.services import master_contract_repo
+
+    master = master_contract_repo.get(master_id)
+    if master is None:
+        raise ValueError("Hợp đồng mẹ không còn tồn tại (có thể đã bị xoá).")
+    if master["company"] != company:
+        raise ValueError("Hợp đồng mẹ thuộc đơn vị khác.")
+    return master
+
+
 def clean(row: dict, company: str) -> dict[str, Any]:
     """Chuẩn hoá + kiểm tra 1 hợp đồng / đợt giao trước khi ghi (raise ValueError nếu sai)."""
     code = str(row.get("code") or "").strip()[:80]
@@ -89,6 +105,11 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         raise ValueError("Thiếu số hợp đồng / số đợt giao.")
     parent_id = _int_id(row.get("parent_id"), "Hợp đồng")
     is_child = parent_id is not None
+    # HỢP ĐỒNG MẸ (HĐNT/HĐDH) — có nối = bản ghi này là PHỤ LỤC, số ở ô `code` là SỐ PHỤ LỤC.
+    # Chỉ đặt ở HỢP ĐỒNG: đợt giao nằm bên trong phụ lục, nối thẳng vào hợp đồng mẹ sẽ bị đếm
+    # hai lần khi cộng sản lượng đã ký của hợp đồng mẹ (xem `master_contract_repo._ANNEX_SQL`).
+    master_id = None if is_child else _int_id(row.get("master_id"), "Hợp đồng mẹ")
+    master = _master_of(master_id, company) if master_id is not None else None
     delivery_type = str(row.get("delivery_type") or "single").strip()
     if delivery_type not in DELIVERY_TYPES:
         raise ValueError(f"Loại giao “{row.get('delivery_type')}” không hợp lệ.")
@@ -143,9 +164,15 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         raise ValueError("Ngày giao không thể trước ngày ký hợp đồng.")
 
     paid_at = _as_date(row.get("payment_date"), "Ngày thanh toán")
-    customer_id = _int_id(row.get("customer_id"), "Khách hàng")
+    # Phụ lục KHÔNG khai khách hàng: lấy nguyên khách của hợp đồng mẹ và GHI XUỐNG bản ghi, để
+    # mọi báo cáo theo khách hàng (`by_customer`, bộ lọc khách) chạy y như hợp đồng thường —
+    # không phải join ngược lên hợp đồng mẹ ở mọi câu truy vấn. Khách của hợp đồng mẹ đổi thì
+    # `master_contract_repo.save` cập nhật lại các phụ lục.
+    customer_id = (master["customer_id"] if master
+                   else _int_id(row.get("customer_id"), "Khách hàng"))
     if customer_id is None and not is_child:
-        raise ValueError("Hợp đồng phải gán một khách hàng của đơn vị.")
+        raise ValueError("Hợp đồng phải gán một khách hàng của đơn vị "
+                         "(hoặc chọn hợp đồng mẹ để thừa kế khách hàng của nó).")
     if customer_id is not None:
         owner = customer_repo.owner_of(customer_id)
         if owner is None:
@@ -157,6 +184,7 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         "id": _int_id(row.get("id"), "Mã hợp đồng"),
         "company": company,
         "parent_id": parent_id,
+        "master_id": master_id,
         "code": code,
         "customer_id": customer_id,
         "delivery_type": delivery_type,

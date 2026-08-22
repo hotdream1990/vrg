@@ -4,6 +4,32 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Hợp đồng mẹ HĐNT/HĐDH + phụ lục hợp đồng** (phản hồi 21/08/2026) — thêm cấp hồ sơ gốc phía trên
+  hợp đồng bán hàng, trước đây hệ thống không quản lý:
+  - Màn mới **Quản lý hợp đồng → Hợp đồng mẹ (HĐNT/HĐDH)**: số hợp đồng · loại (*HĐ nguyên tắc* /
+    *HĐ dài hạn*) · **khách hàng** · **nhiều chủng loại, mỗi chủng loại một đơn giá** · **file
+    scan** · ngày ký/thời hạn. Số lượng và đơn giá **được để trống** khi hợp đồng chưa chốt.
+    **Công thức giá** (text tự do) **chỉ có ở HĐ dài hạn** — HĐ nguyên tắc không có phần này, ở cả
+    form nhập lẫn màn chi tiết; đổi loại sang nguyên tắc thì công thức cũ được bỏ (server cũng bỏ,
+    không nhận chữ từ ô đã ẩn).
+  - Màn **Hợp đồng & đợt giao** có ô **Hợp đồng mẹ**: chọn vào thì bản ghi là **phụ lục** — nhãn ô
+    số đổi thành *“Số phụ lục hợp đồng”*, **khách hàng thừa kế của hợp đồng mẹ** (không khai lại),
+    loại hợp đồng được điền sẵn theo loại của hợp đồng mẹ. Không có hợp đồng mẹ thì để trống và
+    khai khách hàng như trước — mọi hợp đồng cũ giữ nguyên.
+  - Danh sách hợp đồng hiện *“phụ lục của HĐ …”* dưới số hợp đồng; màn chi tiết hiện hợp đồng mẹ và
+    **công thức giá** của nó. Màn hợp đồng mẹ đếm **số phụ lục + sản lượng đã ký** để đối chiếu cam kết.
+  - **Gắn hợp đồng ĐÃ CÓ vào hồ sơ** (22/08/2026): ở màn chi tiết hợp đồng mẹ bấm *Gắn hợp đồng có
+    sẵn* → chọn nhiều hợp đồng (chỉ hiện hợp đồng **của đúng đơn vị** và **chưa thuộc hồ sơ nào**),
+    gắn một lượt tối đa 200. Mỗi phụ lục có nút **gỡ** để tách khỏi hồ sơ. Cần cho việc dọn hàng
+    nghìn hợp đồng đã nhập trước khi có cấp hợp đồng mẹ. ⚠ Gắn vào là **đổi khách hàng** của hợp
+    đồng đó theo hợp đồng mẹ (màn hình báo trước); gỡ ra thì giữ nguyên khách đang có.
+  - Bảng danh sách **không có cột Công thức giá** (đoạn văn dài, chiếm chỗ mọi cột khác mà đọc vẫn
+    cụt — xem đủ ở màn chi tiết) và **chốt bề rộng từng cột** (`table-layout: fixed`): tên đơn vị /
+    khách hàng dài không còn bóp cột thành một chữ mỗi dòng. Ngày ký + thời hạn gộp thành cột
+    **Hiệu lực**; màn hẹp thì cuộn ngang nhưng cột **Thao tác ghim bên phải** để luôn bấm được.
+  - ⚠ Hợp đồng mẹ **không góp số vào bất kỳ báo cáo sản lượng nào** — tiêu thụ và *“đã ký HĐ chưa
+    giao”* vẫn tính trên hợp đồng/đợt giao (cộng cả hai cấp là đếm hai lần). Đợt giao không nối
+    thẳng vào hợp đồng mẹ. Dùng chung quyền `sales_contract`, không phải cấp quyền mới.
 - **Ba nhóm biểu đồ theo ngày xem được nhiều chiều** (phản hồi 20/08/2026) — gom về họ API
   `/api/series/*` (thu mua · tồn kho · tiêu thụ), tất cả cùng khuôn cột chồng theo ngày:
   - **Thu mua**: mỗi loại mủ (nước · chén) xem theo *Giá & sản lượng* · **Khu vực** · **Đơn vị**.

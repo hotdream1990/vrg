@@ -35,6 +35,9 @@ class ContractIn(BaseModel):
     id: int | None = None
     company: str
     parent_id: int | None = None      # khác None = ĐỢT GIAO (một lần giao + một lần thanh toán)
+    # Khác None = bản ghi này là PHỤ LỤC của một HỢP ĐỒNG MẸ (HĐNT/HĐDH): `code` là SỐ PHỤ LỤC và
+    # khách hàng thừa kế của hợp đồng mẹ (server tự ghi, bỏ qua `customer_id` client gửi lên).
+    master_id: int | None = None
     code: str
     customer_id: int | None = None
     delivery_type: str = "single"     # single = giao 1 lần · multi = giao nhiều lần (chia đợt)
