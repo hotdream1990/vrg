@@ -16,6 +16,7 @@ import { useEditWindow } from "../../../lib/edit-window";
 import { useAuth } from "../../auth/AuthContext";
 import CustomerPicker from "../sections/CustomerPicker";
 import DateInput from "../sections/DateInput";
+import MasterContractPicker from "../sections/MasterContractPicker";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import ContractDetailModal from "./components/ContractDetailModal";
 import ContractFormModal from "./components/ContractFormModal";
@@ -111,9 +112,10 @@ export default function SalesContractPage() {
             <label className="blt-date-label">Đơn vị
               <select className="blt-date-input" value={f.company ?? ""}
                 onChange={(e) => setFilter({
-                  // Đổi đơn vị thì bỏ luôn khách đã chọn — khách là của RIÊNG từng đơn vị, giữ
-                  // lại sẽ ra danh sách rỗng mà người dùng không hiểu vì sao.
+                  // Đổi đơn vị thì bỏ luôn khách + hồ sơ đã chọn — cả hai là của RIÊNG từng
+                  // đơn vị, giữ lại sẽ ra danh sách rỗng mà người dùng không hiểu vì sao.
                   ...f, company: e.target.value || undefined, customer_ids: [],
+                  master_id: undefined,
                 })}>
                 <option value="">Tất cả</option>
                 {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
@@ -123,6 +125,22 @@ export default function SalesContractPage() {
           <label className="blt-date-label">Khách hàng
             <CustomerPicker multiple width={320} value={f.customer_ids ?? []} company={f.company}
               onChange={(ids) => setFilter({ ...f, customer_ids: ids })} />
+          </label>
+          {/* HỢP ĐỒNG MẸ — xem trọn các phụ lục của một hồ sơ ngay ở đây, không phải mở modal chi
+              tiết của hồ sơ. Ô "chưa gắn hồ sơ" bên cạnh để rà những hợp đồng còn phải đưa vào. */}
+          <label className="blt-date-label">Hợp đồng mẹ
+            <MasterContractPicker width={240} company={f.company} typeLabels={meta.master_types}
+              placeholder="Tất cả hồ sơ" value={f.master_id ?? null}
+              // Chọn một hồ sơ thì bỏ "chưa gắn" — hai điều kiện loại trừ nhau, để cả hai là
+              // bảng luôn trống mà người dùng không hiểu vì sao.
+              onChange={(id) => setFilter({ ...f, master_id: id ?? undefined, unlinked: false })} />
+          </label>
+          <label className="blt-date-label" style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input type="checkbox" checked={!!f.unlinked}
+              onChange={(e) => setFilter({
+                ...f, unlinked: e.target.checked || undefined, master_id: undefined,
+              })} />
+            Chưa gắn hồ sơ
           </label>
           <label className="blt-date-label">Trạng thái
             <select className="blt-date-input" value={f.status ?? "all"}

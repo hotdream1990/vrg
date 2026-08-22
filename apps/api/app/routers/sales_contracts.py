@@ -97,6 +97,8 @@ def list_contracts(scope: Scope, company: str | None = Query(None),
                    q: str | None = Query(None, max_length=120),
                    channel: list[str] | None = Query(
                        None, description="Lọc hình thức tiêu thụ; '' = chưa khai hình thức"),
+                   master_id: list[int] | None = Query(
+                       None, description="Chỉ phụ lục của (các) hợp đồng mẹ này"),
                    unlinked: bool = Query(
                        False, description="Chỉ hợp đồng CHƯA gắn hợp đồng mẹ (ô chọn phụ lục)"),
                    page: int = Query(1, ge=1),
@@ -118,7 +120,8 @@ def list_contracts(scope: Scope, company: str | None = Query(None),
     res = sales_contract_report.parents_with_progress(
         companies, customer_ids=customer_id, status=None if status == "all" else status,
         q=q, date_from=date_from, date_to=date_to, channels=channel,
-        only_unlinked=unlinked, limit=page_size, offset=(page - 1) * page_size)
+        master_ids=master_id, only_unlinked=unlinked,
+        limit=page_size, offset=(page - 1) * page_size)
     rows = res["rows"]
     # Chỉ tra tên của đúng những khách xuất hiện TRONG TRANG — danh mục cả Tập đoàn rất dài.
     names = customer_repo.names_by_id(companies, sorted({

@@ -349,6 +349,7 @@ def parents_with_progress(companies: list[str] | None = None, *,
                           status: str | None = None, q: str | None = None,
                           date_from: str | None = None, date_to: str | None = None,
                           channels: list[str] | None = None,
+                          master_ids: list[int] | None = None,
                           only_unlinked: bool = False,
                           limit: int = 25, offset: int = 0) -> dict[str, Any]:
     """MỘT TRANG hợp đồng kèm tiến độ giao → `{"rows": [...], "total": <tổng khớp lọc>}`.
@@ -364,6 +365,8 @@ def parents_with_progress(companies: list[str] | None = None, *,
       - `delivered_revenue` TIỀN của hàng đã giao — lệch với `revenue` (tiền hợp đồng) là bình
         thường, xem `delivered_revenue()`
 
+    `master_ids` = chỉ phụ lục của (các) HỢP ĐỒNG MẸ này — xem trọn một hồ sơ ở màn danh sách thay
+    vì phải mở modal chi tiết của hồ sơ.
     `only_unlinked` = chỉ hợp đồng CHƯA gắn hợp đồng mẹ — dùng cho ô chọn phụ lục ở màn hợp đồng
     mẹ: bày cả hợp đồng đã thuộc hồ sơ khác chỉ để người dùng chọn rồi bị chặn.
 
@@ -382,6 +385,9 @@ def parents_with_progress(companies: list[str] | None = None, *,
     if customer_ids:
         where.append("customer_id = ANY(:cu)")
         params["cu"] = list(customer_ids)
+    if master_ids:
+        where.append("master_id = ANY(:mids)")
+        params["mids"] = [int(i) for i in master_ids]
     if only_unlinked:
         where.append("master_id IS NULL")
     if date_from:

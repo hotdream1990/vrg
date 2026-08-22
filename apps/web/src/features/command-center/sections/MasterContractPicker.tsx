@@ -17,6 +17,9 @@ type Opt = {
   label: string;
   customer: string;
   type: string;
+  /** Đơn vị sở hữu hồ sơ — chỉ hiện khi đang xem NHIỀU đơn vị: hai đơn vị hoàn toàn có thể đánh
+   *  trùng số hợp đồng, thiếu tên đơn vị là chọn nhầm hồ sơ mà không biết. */
+  company: string;
 };
 
 type Props = {
@@ -29,11 +32,14 @@ type Props = {
   company?: string;
   typeLabels: Record<string, string>;
   disabled?: boolean;
+  /** Đặt lại chữ mờ trong ô (form nhập ≠ bộ lọc). */
+  placeholder?: string;
   width?: number | string;
 };
 
 export default function MasterContractPicker({
-  value, onChange, onResolved, company, typeLabels, disabled, width = "100%",
+  value, onChange, onResolved, company, typeLabels, disabled,
+  placeholder = "Gõ số hợp đồng mẹ (để trống nếu không có)", width = "100%",
 }: Props) {
   const [q, setQ] = useState("");
   const [found, setFound] = useState<MasterContract[]>([]);
@@ -82,15 +88,16 @@ export default function MasterContractPicker({
       label: `${o.code} — ${typeLabels[o.master_type] ?? o.master_type}`,
       customer: o.customer_name ?? "—",
       type: typeLabels[o.master_type] ?? o.master_type,
+      company: company ? "" : o.company,
     }));
-  }, [found, known, value, typeLabels]);
+  }, [found, known, value, typeLabels, company]);
 
   return (
     <Select
       allowClear
       optionLabelProp="short"
       style={{ minWidth: width }}
-      placeholder="Gõ số hợp đồng mẹ (để trống nếu không có)"
+      placeholder={placeholder}
       disabled={disabled}
       loading={loading}
       // Server đã lọc rồi — để antd lọc lại sẽ giấu mất kết quả khớp theo ghi chú.
@@ -108,7 +115,9 @@ export default function MasterContractPicker({
         return (
           <div>
             <div>{opt.short}</div>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>{opt.type} · {opt.customer}</div>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>
+              {opt.type} · {opt.customer}{opt.company ? ` · ${opt.company}` : ""}
+            </div>
           </div>
         );
       }}

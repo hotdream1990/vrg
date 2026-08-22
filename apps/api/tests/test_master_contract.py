@@ -317,3 +317,24 @@ def test_price_formula_belongs_to_long_term_only(env) -> None:
     back = client.put("/api/master-contracts", headers=h,
                       json={**dh.json()["master"], "master_type": "principle"})
     assert back.json()["master"]["price_formula"] is None
+
+
+def test_contract_list_filters_by_master(env) -> None:
+    """Màn Hợp đồng lọc được theo HỒ SƠ MẸ, và lọc ngược "chưa gắn hồ sơ" để rà bản ghi còn sót."""
+    h = env
+    m = _master(h, _customer(h), code="HDDH-LOC-DS", master_type="long_term")
+    annex = _annex(h, m["id"], code="PL-TRONG-HO-SO").json()["contract"]
+    free = _annex(h, None, code="HD-NGOAI-HO-SO",
+                  customer_id=_customer(h, UNIT, "KH ngoài hồ sơ")).json()["contract"]
+
+    only = client.get("/api/sales-contracts", headers=h,
+                      params={"company": UNIT, "master_id": m["id"]}).json()
+    assert {r["id"] for r in only["contracts"]} == {annex["id"]}
+    assert only["total"] == 1
+    # Dòng tổng cộng phải cộng theo ĐÚNG bộ lọc, không phải toàn bộ đơn vị.
+    assert only["totals"]["qty"] == pytest.approx(annex["qty"])
+
+    rest = client.get("/api/sales-contracts", headers=h,
+                      params={"company": UNIT, "unlinked": "true"}).json()
+    ids = {r["id"] for r in rest["contracts"]}
+    assert free["id"] in ids and annex["id"] not in ids

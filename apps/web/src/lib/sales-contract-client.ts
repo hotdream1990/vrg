@@ -142,7 +142,10 @@ export type ContractFilters = {
   date_from?: string;
   date_to?: string;
   q?: string;
-  /** Chỉ hợp đồng CHƯA gắn hợp đồng mẹ — dùng cho ô chọn phụ lục ở màn Hợp đồng mẹ. */
+  /** Chỉ phụ lục của MỘT hợp đồng mẹ (xem trọn một hồ sơ ngay ở màn danh sách). */
+  master_id?: number;
+  /** Chỉ hợp đồng CHƯA gắn hợp đồng mẹ — ô chọn phụ lục ở màn Hợp đồng mẹ, và bộ lọc "chưa gắn
+   *  hồ sơ" ở màn danh sách (để rà những hợp đồng cần đưa vào hồ sơ). */
   unlinked?: boolean;
   /** Phân trang Ở SERVER — danh sách hợp đồng dài thêm mỗi ngày, không tải hết về máy. */
   page?: number;
@@ -252,6 +255,7 @@ export function listContracts(f: ContractFilters = {}) {
   if (f.date_from) p.set("date_from", f.date_from);
   if (f.date_to) p.set("date_to", f.date_to);
   if (f.q) p.set("q", f.q);
+  if (f.master_id) p.set("master_id", String(f.master_id));
   if (f.unlinked) p.set("unlinked", "true");
   p.set("page", String(f.page ?? 1));
   p.set("page_size", String(f.page_size ?? 25));
