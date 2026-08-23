@@ -72,9 +72,18 @@ def _master(h, cus: int, company=UNIT, code="HDNT-01", master_type="principle", 
     return r.json()["master"]
 
 
+def _default_customer(h) -> int:
+    """Khách mặc định của UNIT — tạo một lần rồi dùng lại (tên trùng trong đơn vị bị chặn)."""
+    got = client.get("/api/customers", headers=h, params={"company": UNIT, "limit": 1}).json()
+    return got["items"][0]["id"] if got["items"] else _customer(h)
+
+
 def _annex(h, master_id: int | None, code="PL-01", **kw) -> dict:
+    """Một HỢP ĐỒNG, có/không nối hồ sơ mẹ. Khách hàng LUÔN phải có — nối hồ sơ mẹ không thay
+    khách (chốt 24/08/2026), nên mọi hợp đồng vẫn tự khai khách như trước."""
     body = {"company": UNIT, "code": code, "contract_type": "long_term", "sign_date": TODAY,
             "master_id": master_id,
+            "customer_id": kw.pop("customer_id", None) or _default_customer(h),
             "lines": [{"grade": "SVR 10 / CSR 10", "qty": 100.0, "price": 40.0, "ccy": "VND"}],
             **kw}
     return client.put("/api/sales-contracts", json=body, headers=h)
@@ -138,26 +147,38 @@ def test_master_code_unique_per_unit(env) -> None:
     assert _master(h, _customer(h, UNIT2, "KH đv2"), company=UNIT2)["code"] == "HDNT-01"
 
 
-def test_annex_inherits_customer_from_master(env) -> None:
+def test_linking_a_master_never_touches_contract_data(env) -> None:
+    """Nối hợp đồng mẹ CHỈ là liên kết hồ sơ (chốt 24/08/2026).
+
+    Yêu cầu của khách: cấp hợp đồng mẹ phải ảnh hưởng ÍT NHẤT tới luồng hợp đồng & đợt giao cũ.
+    Vì vậy hợp đồng giữ nguyên KHÁCH HÀNG của chính nó — đổi khách ở hồ sơ mẹ cũng không kéo theo.
+    Bản đầu từng ghi đè khách theo hồ sơ: gắn một hợp đồng cũ vào hồ sơ là lặng lẽ đổi số liệu
+    "theo khách hàng" của một kỳ đã chốt.
+    """
     h = env
-    cus, other = _customer(h), _customer(h, UNIT, "KH KHÔNG được dùng")
+    cus, own = _customer(h), _customer(h, UNIT, "KH riêng của hợp đồng")
     m = _master(h, cus, code="HDDH-2026", master_type="long_term",
                 price_formula="Giá SICOM TSR20 bình quân tuần trước + 30 USD/tấn")
 
-    # Client cố gửi khách hàng KHÁC → server vẫn ghi khách của hợp đồng mẹ.
-    r = _annex(h, m["id"], customer_id=other)
+    r = _annex(h, m["id"], customer_id=own)
     assert r.status_code == 200, r.text
     c = r.json()["contract"]
-    assert c["master_id"] == m["id"] and c["customer_id"] == cus
+    assert c["master_id"] == m["id"] and c["customer_id"] == own
 
-    # Đổi khách ở hợp đồng mẹ → phụ lục đi theo (không để phụ lục mang khách cũ).
-    moved = _customer(h, UNIT, "KH chuyển sang")
+    # Đổi khách ở hợp đồng mẹ → hợp đồng KHÔNG đổi theo.
+    moved = _customer(h, UNIT, "KH mới của hồ sơ")
     client.put("/api/master-contracts", headers=h,
                json={**m, "customer_id": moved, "lines": m["lines"]})
     detail = client.get(f"/api/sales-contracts/{c['id']}", headers=h).json()
-    assert detail["contract"]["customer_id"] == moved
+    assert detail["contract"]["customer_id"] == own
     assert detail["master"]["code"] == "HDDH-2026"
-    assert "SICOM" in detail["master"]["price_formula"]
+
+    # Hợp đồng nối hồ sơ vẫn BẮT BUỘC tự khai khách hàng như mọi hợp đồng khác.
+    no_cus = client.put("/api/sales-contracts", headers=h, json={
+        "company": UNIT, "code": "PL-THIEU-KHACH", "contract_type": "long_term",
+        "sign_date": TODAY, "master_id": m["id"],
+        "lines": [{"grade": "SVR 10 / CSR 10", "qty": 10.0, "price": 40.0, "ccy": "VND"}]})
+    assert no_cus.status_code == 400 and "khách hàng" in no_cus.json()["detail"]
 
     # Danh sách hợp đồng kèm SỐ HỢP ĐỒNG MẸ để bảng hiện "phụ lục của HĐ …".
     row = next(x for x in client.get("/api/sales-contracts", headers=h,
@@ -166,9 +187,11 @@ def test_annex_inherits_customer_from_master(env) -> None:
     assert row["master_code"] == "HDDH-2026"
 
 
-def test_annex_without_master_still_needs_customer(env) -> None:
+def test_contract_without_master_still_needs_customer(env) -> None:
     h = env
-    r = _annex(h, None, code="HD-DOC-LAP")
+    r = client.put("/api/sales-contracts", headers=h, json={
+        "company": UNIT, "code": "HD-DOC-LAP", "contract_type": "long_term", "sign_date": TODAY,
+        "lines": [{"grade": "SVR 10 / CSR 10", "qty": 10.0, "price": 40.0, "ccy": "VND"}]})
     assert r.status_code == 400 and "khách hàng" in r.json()["detail"]
     assert _annex(h, None, code="HD-DOC-LAP", customer_id=_customer(h)).status_code == 200
 
@@ -229,8 +252,8 @@ def _link(h, master_id: int, ids: list[int], attach: bool = True):
                       json={"contract_ids": ids, "attach": attach})
 
 
-def test_attach_existing_contract_takes_master_customer(env) -> None:
-    """Gắn hợp đồng ĐÃ CÓ vào hợp đồng mẹ — đường dọn hồ sơ cũ (chiều ngược của ô ở form)."""
+def test_attach_existing_contract_only_sets_the_link(env) -> None:
+    """Gắn hợp đồng ĐÃ CÓ vào hồ sơ — chỉ đổi liên kết, KHÔNG đụng số liệu của hợp đồng."""
     h = env
     own, master_cus = _customer(h, UNIT, "KH riêng của HĐ"), _customer(h)
     m = _master(h, master_cus, code="HDDH-GAN", master_type="long_term")
@@ -241,13 +264,13 @@ def test_attach_existing_contract_takes_master_customer(env) -> None:
     assert r.status_code == 200, r.text
     assert r.json()["count"] == 1 and len(r.json()["annexes"]) == 1
     after = client.get(f"/api/sales-contracts/{c['id']}", headers=h).json()["contract"]
-    # Gắn vào = thừa kế khách của hợp đồng mẹ (ghi đè khách riêng đang có).
-    assert after["master_id"] == m["id"] and after["customer_id"] == master_cus
+    # Khách hàng + sản lượng của hợp đồng giữ NGUYÊN sau khi gắn.
+    assert after["master_id"] == m["id"] and after["customer_id"] == own
+    assert after["qty"] == pytest.approx(c["qty"])
 
-    # Gỡ ra: GIỮ khách đang có — hợp đồng bắt buộc có khách, xoá đi là bản ghi hỏng.
     assert _link(h, m["id"], [c["id"]], attach=False).status_code == 200
     off = client.get(f"/api/sales-contracts/{c['id']}", headers=h).json()["contract"]
-    assert off["master_id"] is None and off["customer_id"] == master_cus
+    assert off["master_id"] is None and off["customer_id"] == own
 
 
 def test_attach_rejects_other_unit_batch_and_taken_contract(env) -> None:

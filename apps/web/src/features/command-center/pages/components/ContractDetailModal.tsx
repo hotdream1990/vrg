@@ -116,8 +116,8 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
             {/* Hàng số liệu để NGOÀI tab: đây là thứ người dùng mở hợp đồng ra để xem đầu tiên,
                 cần thấy ngay cả khi đang ở tab đợt giao. */}
             <div className="kpi-row ct-kpi">
-              {/* Là PHỤ LỤC của một hợp đồng mẹ thì phải thấy ngay hồ sơ gốc: khách hàng và
-                  công thức giá của phụ lục đều nằm ở đó. */}
+              {/* Hợp đồng có nối hồ sơ mẹ thì ghi ra để tra cứu — số liệu vẫn của chính hợp
+                  đồng này, hồ sơ mẹ không góp gì vào. */}
               {d.master && (
                 <div className="kpi"><div className="label">Hợp đồng mẹ</div>
                   <div className="value" title={meta.master_types[d.master.master_type]}>
@@ -155,12 +155,6 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
               <div className="kpi"><div className="label">Ngày ký</div><div className="value">{dmy(c.sign_date) || "—"}</div></div>
               <div className="kpi"><div className="label">Thời hạn</div><div className="value">{dmy(c.expiry_date) || "—"}</div></div>
             </div>
-
-            {d.master?.price_formula && (
-              <p className="form-note" style={{ fontSize: 12, margin: "8px 0 0" }}>
-                <b>Công thức giá (HĐ mẹ {d.master.code}):</b> {d.master.price_formula}
-              </p>
-            )}
 
             {canEdit && (
               <div className="blt-toolbar" style={{ marginTop: 10 }}>

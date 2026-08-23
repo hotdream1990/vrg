@@ -182,7 +182,7 @@ export default function SalesContractPage() {
       <div className="card table-scroll" style={{ padding: 0 }}>
         <table>
           <thead><tr>
-            <th>Đơn vị</th><th>Số hợp đồng / phụ lục</th><th>Khách hàng</th><th>Loại giao</th>
+            <th>Đơn vị</th><th>Số hợp đồng</th><th>Khách hàng</th><th>Loại giao</th>
             <th>Hình thức</th>
             <th>Ngày ký</th><th className="r">SL hợp đồng (tấn)</th><th className="r">Thành tiền (tr.đ)</th>
             <th className="r">TT đã giao (tr.đ)</th>
@@ -196,11 +196,10 @@ export default function SalesContractPage() {
                 <td>{r.company}</td>
                 <td style={{ fontWeight: 500 }}>
                   {r.code}
-                  {/* Có hợp đồng mẹ = dòng này là PHỤ LỤC — nói rõ thuộc hợp đồng nào, nếu không
-                      số phụ lục ("PL 01") đứng một mình thì không tra được thuộc hồ sơ nào. */}
+                  {/* Chỉ ghi CHÚ THÍCH hợp đồng này thuộc hồ sơ nào — không đổi cách đọc dòng. */}
                   {r.master_code && (
                     <div style={{ fontSize: 11, fontWeight: 400, color: "var(--muted)" }}>
-                      phụ lục của HĐ {r.master_code}
+                      thuộc HĐ mẹ {r.master_code}
                     </div>
                   )}
                 </td>

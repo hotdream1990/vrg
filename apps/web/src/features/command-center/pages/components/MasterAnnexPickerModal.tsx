@@ -79,12 +79,9 @@ export default function MasterAnnexPickerModal({ master, onClose, onLinked }: Pr
         )}
       </div>
 
-      {/* Cảnh báo phải nằm TRƯỚC khi bấm: gắn vào là đổi khách hàng của hợp đồng đó, người dùng
-          không thể đoán ra điều này từ chữ "gắn phụ lục". */}
       <p className="form-note" style={{ fontSize: 12, margin: "0 0 8px" }}>
-        Hợp đồng được gắn sẽ thành <b>phụ lục</b> của hồ sơ này và <b>khách hàng đổi thành{" "}
-        “{master.customer_name ?? "khách của hợp đồng mẹ"}”</b> (phụ lục thừa kế khách hàng của hợp
-        đồng mẹ). Danh sách chỉ hiện hợp đồng của <b>{master.company}</b> chưa thuộc hồ sơ nào.
+        Gắn vào hồ sơ <b>chỉ tạo liên kết</b> — khách hàng, loại hợp đồng và mọi số liệu của hợp
+        đồng giữ nguyên. Danh sách chỉ hiện hợp đồng của <b>{master.company}</b> chưa thuộc hồ sơ nào.
       </p>
 
       <div className="card table-scroll" style={{ padding: 0, maxHeight: 360 }}>

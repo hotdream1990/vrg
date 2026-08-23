@@ -81,13 +81,7 @@ export default function ContractFormModal({
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  // Khách hàng của HỢP ĐỒNG MẸ vừa chọn — chỉ để hiện ngay cho người nhập thấy mình đang nối vào
-  // đúng hồ sơ. Bản ghi thật do SERVER ghi (xem `sales_contract_clean`), form không gửi khách.
-  const [masterCustomer, setMasterCustomer] = useState<string | null>(null);
-
   const set = (patch: Partial<Contract>) => setC((prev) => ({ ...prev, ...patch }));
-  // Có hợp đồng mẹ = bản ghi này là PHỤ LỤC: ô số ghi SỐ PHỤ LỤC và khách hàng thừa kế của mẹ.
-  const isAnnex = !isChild && c.master_id != null;
   // Đợt CHỈ tính là đã giao khi có NGÀY GIAO. Chưa có = đang chờ giao (vẫn nằm trong phần chưa
   // giao của hợp đồng), lúc đó chưa ép hình thức tiêu thụ vì hàng chưa bán ra. Quy khô thì ép ở
   // MỌI trạng thái — nó là cách khai sản lượng, không phải dữ kiện của lần bán.
@@ -119,12 +113,8 @@ export default function ContractFormModal({
   const problems = (): string[] => {
     const p: string[] = [];
     if (!c.company) p.push("Chọn đơn vị.");
-    if (!c.code.trim()) {
-      p.push(isChild ? "Nhập số đợt giao."
-        : isAnnex ? "Nhập số phụ lục hợp đồng." : "Nhập số hợp đồng.");
-    }
-    // Phụ lục thừa kế khách của hợp đồng mẹ nên không hỏi ô này (server tự ghi).
-    if (!isChild && !isAnnex && !c.customer_id) p.push("Chọn khách hàng.");
+    if (!c.code.trim()) p.push(isChild ? "Nhập số đợt giao." : "Nhập số hợp đồng.");
+    if (!isChild && !c.customer_id) p.push("Chọn khách hàng.");
     if (!isChild && !c.sign_date) p.push("Chọn ngày ký.");
     if (isDelivery && !c.channel) p.push("Chọn hình thức tiêu thụ.");
     if (c.channel === "internal" && !c.to_company) p.push("Chọn đơn vị nhận hàng.");
@@ -169,7 +159,7 @@ export default function ContractFormModal({
 
   const title = isChild
     ? `${initial ? "Sửa" : "Thêm"} đợt giao — HĐ ${parent!.code}`
-    : `${initial ? "Sửa" : "Thêm"} ${isAnnex ? "phụ lục hợp đồng" : "hợp đồng"}`;
+    : `${initial ? "Sửa" : "Thêm"} hợp đồng`;
 
   // Modal rộng để dòng chi tiết đủ chỗ nằm một hàng; `min()` giữ mép modal không tràn ra ngoài
   // màn hình hẹp — số cứng 1280 sẽ vượt khung ở laptop 13".
@@ -190,8 +180,7 @@ export default function ContractFormModal({
             {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </label>
-        <label className="form-field">
-          {isChild ? "Số đợt giao *" : isAnnex ? "Số phụ lục hợp đồng *" : "Số hợp đồng *"}
+        <label className="form-field">{isChild ? "Số đợt giao *" : "Số hợp đồng *"}
           <input className="blt-date-input" value={c.code}
             onChange={(e) => set({ code: e.target.value })} />
         </label>
@@ -208,36 +197,18 @@ export default function ContractFormModal({
                 disabled={preset?.master_id != null}
                 // Mở lại một phụ lục cũ: picker tra hợp đồng mẹ theo id rồi báo về đây để ô
                 // khách hàng hiện đúng TÊN, không phải chữ "(theo hợp đồng mẹ)" trống rỗng.
-                onResolved={(m) => setMasterCustomer(m.customer_name ?? null)}
-                onChange={(id, master) => {
-                  setMasterCustomer(master?.customer_name ?? null);
-                  set({
-                    master_id: id,
-                    // Khách của phụ lục do server ghi theo hợp đồng mẹ — xoá ô ở form cho khớp.
-                    customer_id: id ? null : c.customer_id,
-                    // Gợi ý loại hợp đồng theo loại của hợp đồng mẹ (vẫn sửa được): HĐ dài hạn
-                    // thì phụ lục là "HĐ dài hạn", HĐ nguyên tắc thì từng chuyến là "HĐ chuyến".
-                    contract_type: master
-                      ? (master.master_type === "long_term" ? "long_term" : "spot")
-                      : c.contract_type,
-                  });
-                }} />
+                // Chọn hồ sơ CHỈ ghi liên kết — không đụng khách hàng hay loại hợp đồng của
+                // bản ghi. Hợp đồng mẹ là hồ sơ đính kèm, không phải nguồn số liệu.
+                onChange={(id) => set({ master_id: id })} />
             </label>
-            {isAnnex ? (
-              <label className="form-field">Khách hàng
-                <input className="blt-date-input" readOnly tabIndex={-1}
-                  style={{ background: "transparent" }}
-                  value={masterCustomer ?? "(theo hợp đồng mẹ)"} />
-              </label>
-            ) : (
-              <label className="form-field">Khách hàng *
-                {/* Chỉ tìm trong danh mục CỦA ĐƠN VỊ đang chọn — server cũng chặn gán khách của
-                    đơn vị khác (xem `sales_contract_repo.save`). */}
-                <CustomerPicker width="100%" company={c.company} placeholder="Gõ để tìm khách hàng"
-                  value={c.customer_id ? [c.customer_id] : []}
-                  onChange={(ids) => set({ customer_id: ids[0] ?? null })} />
-              </label>
-            )}
+            <label className="form-field">Khách hàng *
+              {/* Chỉ tìm trong danh mục CỦA ĐƠN VỊ đang chọn — server cũng chặn gán khách của
+                  đơn vị khác (xem `sales_contract_repo.save`). Nối hợp đồng mẹ KHÔNG đổi ô này:
+                  hợp đồng giữ khách của chính nó (chốt 24/08/2026). */}
+              <CustomerPicker width="100%" company={c.company} placeholder="Gõ để tìm khách hàng"
+                value={c.customer_id ? [c.customer_id] : []}
+                onChange={(ids) => set({ customer_id: ids[0] ?? null })} />
+            </label>
             {/* Loại HỢP ĐỒNG là chỉ tiêu của báo cáo (dài hạn/chuyến) — KHÁC loại GIAO bên dưới:
                 một hợp đồng dài hạn vẫn có thể giao trọn 1 lần. Chọn hợp đồng mẹ thì ô này được
                 điền sẵn theo loại của hợp đồng mẹ, vẫn sửa lại được. */}
@@ -268,9 +239,9 @@ export default function ContractFormModal({
           chỉ đường tới nơi người dùng đang đứng. */}
       {!isChild && !preset?.master_id && (
         <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
-          Có <b>hợp đồng nguyên tắc / dài hạn</b> thì lập hồ sơ ở màn <b>Hợp đồng mẹ</b> rồi chọn
-          vào ô trên — bản ghi này thành <b>phụ lục</b>, khách hàng lấy theo hợp đồng mẹ. Không có
-          hợp đồng mẹ thì để trống và khai khách hàng như bình thường.
+          Ô <b>Hợp đồng mẹ</b> chỉ để nối bản ghi này vào hồ sơ <b>HĐ nguyên tắc / dài hạn</b> đã
+          lập ở màn <b>Hợp đồng mẹ</b> — <b>không đổi</b> khách hàng, loại hợp đồng hay bất kỳ số
+          liệu nào. Không có hợp đồng mẹ thì để trống, nhập như bình thường.
           {initial && <> Đổi <b>loại giao</b> bằng nút <b>Chuyển sang giao nhiều lần</b> ở màn chi
             tiết hợp đồng — lần giao đã nhập sẽ tự thành đợt giao đầu tiên, không phải nhập lại.</>}
         </p>

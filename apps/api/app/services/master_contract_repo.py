@@ -173,11 +173,6 @@ def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
                 new_id = d["id"]
             else:
                 new_id = db.execute(_INSERT, params).scalar()
-            # Khách hàng của hợp đồng mẹ đổi → các phụ lục phải đi theo, nếu không phụ lục vẫn
-            # mang khách CŨ mà màn hình lại ghi "thừa kế của hợp đồng mẹ" (số liệu nói dối).
-            db.execute(text("UPDATE sales_contract SET customer_id = :c, updated_at = now() "
-                            "WHERE master_id = :m AND customer_id IS DISTINCT FROM :c"),
-                       {"c": d["customer_id"], "m": new_id})
     except IntegrityError as exc:
         raise ValueError(f"Đơn vị đã có hợp đồng mẹ số “{d['code']}”.") from exc
     saved = get(new_id) or {**d, "id": new_id}

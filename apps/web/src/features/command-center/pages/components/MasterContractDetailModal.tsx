@@ -47,10 +47,10 @@ export default function MasterContractDetailModal({ masterId, meta, canEdit, onC
 
   const refresh = () => { load(); onChanged?.(); };
 
-  /** Gỡ 1 phụ lục khỏi hồ sơ — hợp đồng đó GIỮ nguyên khách hàng đang có, chỉ mất liên kết. */
+  /** Gỡ 1 phụ lục khỏi hồ sơ — chỉ bỏ liên kết, hợp đồng còn nguyên vẹn. */
   const detach = async (id: number, code: string) => {
-    if (!confirm(`Gỡ “${code}” khỏi hợp đồng mẹ?\n\nHợp đồng vẫn còn nguyên (giữ khách hàng `
-      + "đang có), chỉ thôi là phụ lục của hồ sơ này.")) return;
+    if (!confirm(`Gỡ “${code}” khỏi hợp đồng mẹ?\n\n`
+      + "Hợp đồng vẫn còn nguyên, chỉ thôi là phụ lục của hồ sơ này.")) return;
     setBusy(true); setErr("");
     try { await linkMasterAnnexes(masterId, [id], false); refresh(); }
     catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
@@ -189,14 +189,10 @@ export default function MasterContractDetailModal({ masterId, meta, canEdit, onC
         <MasterAnnexPickerModal master={m} onClose={() => setPicking(false)} onLinked={refresh} />
       )}
       {adding && m && (
-        // Điền sẵn đơn vị + hợp đồng mẹ (+ loại HĐ suy từ loại hồ sơ) — người nhập chỉ còn gõ số
-        // phụ lục và chi tiết hàng. Khách hàng do server lấy theo hợp đồng mẹ.
         <ContractFormModal meta={meta} onClose={() => setAdding(false)} onSaved={refresh}
-          preset={{
-            company: m.company,
-            master_id: m.id,
-            contract_type: m.master_type === "long_term" ? "long_term" : "spot",
-          }} />
+          // Chỉ điền sẵn ĐƠN VỊ + HỒ SƠ MẸ. Khách hàng và loại hợp đồng vẫn do người nhập
+          // khai như mọi hợp đồng khác — hồ sơ mẹ không quyết định số liệu của phụ lục.
+          preset={{ company: m.company, master_id: m.id }} />
       )}
     </Modal>
   );

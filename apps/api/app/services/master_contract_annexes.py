@@ -5,9 +5,9 @@ Hai đường vào cùng một quan hệ `sales_contract.master_id`:
   2. Ở màn hợp đồng mẹ: **chọn hợp đồng ĐÃ CÓ rồi gắn vào** — cần cho việc dọn hồ sơ cũ, vì
      prod đang có hàng nghìn hợp đồng nhập trước khi có cấp hợp đồng mẹ.
 
-⚠ Gắn phụ lục **ghi đè khách hàng** của hợp đồng đó bằng khách của hợp đồng mẹ (đúng luật "phụ lục
-thừa kế khách hàng"), nên màn hình phải nói rõ trước khi bấm. Gỡ ra thì GIỮ NGUYÊN khách đang có —
-hợp đồng bắt buộc phải có khách hàng, xoá đi là để lại bản ghi không hợp lệ.
+⚠ Gắn/gỡ CHỈ đổi liên kết `master_id`, KHÔNG đụng tới bất kỳ số liệu nào của hợp đồng (khách hàng,
+loại hợp đồng, sản lượng…). Bản đầu từng ghi đè khách hàng theo hợp đồng mẹ — gắn một hợp đồng cũ
+vào hồ sơ là lặng lẽ đổi số liệu "theo khách hàng" của một kỳ đã chốt.
 
 Tách khỏi `master_contract_repo` cho mỗi file một việc (giống `sales_contract_lifecycle` tách khỏi
 `sales_contract_repo`).
@@ -88,17 +88,11 @@ def link(master_id: int, contract_ids, attach: bool, companies: list[str] | None
         if len(rows) != len(ids):
             raise ValueError("Có hợp đồng không còn tồn tại (danh sách đã cũ) — tải lại rồi thử lại.")
         _assert_linkable(rows, master, attach)
-        if attach:
-            # Ghi đè khách hàng theo hợp đồng mẹ: phụ lục KHÔNG giữ khách riêng, nếu không báo cáo
-            # theo khách hàng sẽ có phụ lục nằm dưới một khách khác hẳn hợp đồng mẹ của nó.
-            db.execute(text("UPDATE sales_contract SET master_id = :m, customer_id = :c, "
-                            "updated_by = :by, updated_at = now() WHERE id = ANY(:ids)"),
-                       {"m": master_id, "c": master["customer_id"], "by": updated_by, "ids": ids})
-        else:
-            # Gỡ ra thì GIỮ khách hàng đang có — hợp đồng bắt buộc có khách, xoá đi là bản ghi hỏng.
-            db.execute(text("UPDATE sales_contract SET master_id = NULL, updated_by = :by, "
-                            "updated_at = now() WHERE id = ANY(:ids)"),
-                       {"by": updated_by, "ids": ids})
+        # CHỈ đổi liên kết hồ sơ. Khách hàng, loại hợp đồng, số lượng… của hợp đồng giữ NGUYÊN —
+        # gắn vào hồ sơ không được phép sửa số liệu của một kỳ đã chốt (chốt 24/08/2026).
+        db.execute(text("UPDATE sales_contract SET master_id = CAST(:m AS bigint), "
+                        "updated_by = :by, updated_at = now() WHERE id = ANY(:ids)"),
+                   {"m": master_id if attach else None, "by": updated_by, "ids": ids})
     codes = ", ".join(r["code"] for r in rows)
     audit_repo.log("master_contract", "update", f"HĐ mẹ {master['code']}",
                    before={"annexes": "—"},

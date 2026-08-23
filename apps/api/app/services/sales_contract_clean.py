@@ -82,8 +82,9 @@ def _assert_same_group(company: str, to_company: str) -> None:
             "Gán Công ty mẹ ở màn Đơn vị thành viên trước.")
 
 
-def _master_of(master_id: int, company: str) -> dict[str, Any]:
-    """Hợp đồng mẹ của phụ lục — phải có thật và CÙNG ĐƠN VỊ.
+def _assert_master_ok(master_id: int, company: str) -> None:
+    """Hợp đồng mẹ được nối tới phải có thật và CÙNG ĐƠN VỊ. Ngoài ra KHÔNG lấy gì từ nó —
+    hợp đồng giữ nguyên khách hàng, loại hợp đồng, mọi thứ của chính nó.
 
     Import muộn để tránh vòng import: `master_contract_repo` đọc SQL sản lượng của
     `sales_contract_report`, mà module đó lại đi qua `sales_contract_repo` → file này.
@@ -95,7 +96,6 @@ def _master_of(master_id: int, company: str) -> dict[str, Any]:
         raise ValueError("Hợp đồng mẹ không còn tồn tại (có thể đã bị xoá).")
     if master["company"] != company:
         raise ValueError("Hợp đồng mẹ thuộc đơn vị khác.")
-    return master
 
 
 def clean(row: dict, company: str) -> dict[str, Any]:
@@ -109,7 +109,8 @@ def clean(row: dict, company: str) -> dict[str, Any]:
     # Chỉ đặt ở HỢP ĐỒNG: đợt giao nằm bên trong phụ lục, nối thẳng vào hợp đồng mẹ sẽ bị đếm
     # hai lần khi cộng sản lượng đã ký của hợp đồng mẹ (xem `master_contract_repo._ANNEX_SQL`).
     master_id = None if is_child else _int_id(row.get("master_id"), "Hợp đồng mẹ")
-    master = _master_of(master_id, company) if master_id is not None else None
+    if master_id is not None:
+        _assert_master_ok(master_id, company)
     delivery_type = str(row.get("delivery_type") or "single").strip()
     if delivery_type not in DELIVERY_TYPES:
         raise ValueError(f"Loại giao “{row.get('delivery_type')}” không hợp lệ.")
@@ -164,15 +165,13 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         raise ValueError("Ngày giao không thể trước ngày ký hợp đồng.")
 
     paid_at = _as_date(row.get("payment_date"), "Ngày thanh toán")
-    # Phụ lục KHÔNG khai khách hàng: lấy nguyên khách của hợp đồng mẹ và GHI XUỐNG bản ghi, để
-    # mọi báo cáo theo khách hàng (`by_customer`, bộ lọc khách) chạy y như hợp đồng thường —
-    # không phải join ngược lên hợp đồng mẹ ở mọi câu truy vấn. Khách của hợp đồng mẹ đổi thì
-    # `master_contract_repo.save` cập nhật lại các phụ lục.
-    customer_id = (master["customer_id"] if master
-                   else _int_id(row.get("customer_id"), "Khách hàng"))
+    # ⚠ Nối hợp đồng mẹ KHÔNG đụng tới khách hàng (chốt 24/08/2026): hợp đồng vẫn tự khai khách
+    # như trước, `master_id` chỉ là liên kết hồ sơ. Bản trước từng ghi đè khách theo hợp đồng mẹ
+    # — gắn một hợp đồng cũ vào hồ sơ là đổi luôn khách của nó, tức là đổi số liệu "theo khách
+    # hàng" của một kỳ đã chốt. Yêu cầu là hợp đồng mẹ ảnh hưởng ÍT NHẤT tới luồng cũ.
+    customer_id = _int_id(row.get("customer_id"), "Khách hàng")
     if customer_id is None and not is_child:
-        raise ValueError("Hợp đồng phải gán một khách hàng của đơn vị "
-                         "(hoặc chọn hợp đồng mẹ để thừa kế khách hàng của nó).")
+        raise ValueError("Hợp đồng phải gán một khách hàng của đơn vị.")
     if customer_id is not None:
         owner = customer_repo.owner_of(customer_id)
         if owner is None:
