@@ -1,8 +1,8 @@
 /* Client HỢP ĐỒNG MẸ — HĐ nguyên tắc (HĐNT) / HĐ dài hạn (HĐDH).
 
    Hợp đồng mẹ là HỒ SƠ GỐC ký với khách hàng (khách hàng · cam kết chủng loại–số lượng–đơn giá ·
-   công thức giá · bản scan). Từng chuyến hàng vẫn nhập ở màn Hợp đồng: chọn hợp đồng mẹ thì bản
-   ghi đó là PHỤ LỤC và thừa kế khách hàng của hợp đồng mẹ.
+   công thức giá · bản scan). Từng chuyến hàng vẫn nhập ở màn Hợp đồng như cũ; chọn hợp đồng mẹ chỉ
+   để NỐI bản ghi vào hồ sơ — không đổi khách hàng hay số liệu nào của hợp đồng.
 
    ⚠ Hợp đồng mẹ KHÔNG có số liệu tiêu thụ — mọi báo cáo sản lượng vẫn đọc từ hợp đồng/đợt giao. */
 

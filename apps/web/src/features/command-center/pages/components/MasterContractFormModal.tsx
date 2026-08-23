@@ -32,7 +32,7 @@ const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 }
  *
  *  Đây là HỒ SƠ GỐC ký với khách hàng: số hợp đồng · khách hàng · chủng loại kèm đơn giá ·
  *  công thức giá · bản scan. Từng chuyến hàng nhập ở màn Hợp đồng và chọn hợp đồng mẹ này —
- *  khi đó bản ghi bên đó là PHỤ LỤC và không phải khai lại khách hàng.
+ *  rồi chọn hồ sơ này để nối vào — việc nối KHÔNG đổi số liệu nào của hợp đồng.
  */
 export default function MasterContractFormModal({ meta, initial, defaultCompany, onClose, onSaved }: Props) {
   const [m, setM] = useState<MasterContract>(
@@ -117,7 +117,8 @@ export default function MasterContractFormModal({ meta, initial, defaultCompany,
           </select>
         </label>
         <label className="form-field">Khách hàng *
-          {/* Khách hàng chỉ khai ở ĐÂY — phụ lục thừa kế, không hỏi lại (chốt 21/08/2026). */}
+          {/* Khách hàng của HỒ SƠ. Hợp đồng nối vào vẫn tự khai khách của chính nó — nối hồ
+              sơ không đụng số liệu hợp đồng (chốt 24/08/2026). */}
           <CustomerPicker width="100%" company={m.company} placeholder="Gõ để tìm khách hàng"
             value={m.customer_id ? [m.customer_id] : []}
             onChange={(ids) => set({ customer_id: ids[0] ?? null })} />

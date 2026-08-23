@@ -74,9 +74,9 @@ export default function MasterContractPage() {
           <h2><FileTextOutlined style={{ marginRight: 8 }} />Hợp đồng mẹ (HĐNT/HĐDH)</h2>
           <p>
             Hồ sơ gốc ký với khách hàng: <b>HĐ nguyên tắc</b> hoặc <b>HĐ dài hạn</b> — số hợp đồng,
-            khách hàng, chủng loại kèm đơn giá, công thức giá và bản scan. Từng chuyến hàng nhập ở{" "}
-            <b>Hợp đồng &amp; đợt giao</b> rồi chọn hợp đồng mẹ này; khi đó bản ghi bên đó là{" "}
-            <b>phụ lục</b> và không phải khai lại khách hàng.
+            khách hàng, chủng loại kèm đơn giá, công thức giá và bản scan. Từng chuyến hàng vẫn nhập
+            ở <b>Hợp đồng &amp; đợt giao</b> như bình thường, chỉ chọn thêm hợp đồng mẹ này để nối
+            vào hồ sơ — <b>không đổi</b> khách hàng hay bất kỳ số liệu nào của hợp đồng.
           </p>
         </div>
         {canEdit && meta && (
