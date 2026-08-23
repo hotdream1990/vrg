@@ -180,6 +180,12 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: dict[str, Any] | 
         "plan_sales_spot_tonnes": _num(plan.get("plan_sales_spot_tonnes")),
         "pct_plan_sales_spot": ((spot_total / p_sales * 100)
                                 if (p_sales := _num(plan.get("plan_sales_spot_tonnes"))) else None),
+        # Kế hoạch DOANH THU năm (tỷ đồng) — so với doanh thu THỰC của kỳ, cùng đơn vị tỷ đồng.
+        # Doanh thu là None khi có lần giao thiếu tỷ giá ⇒ % cũng để None, KHÔNG coi là 0.
+        "plan_revenue_ty": _num(plan.get("plan_revenue_ty")),
+        "pct_plan_revenue": ((revenue / TY / p_rev * 100)
+                             if (p_rev := _num(plan.get("plan_revenue_ty"))) and revenue is not None
+                             else None),
         "lt_export": lt_e or None, "lt_domestic": lt_d or None,
         "lt_total": lt_total or None,
         "spot_export": sp_e or None, "spot_domestic": sp_d or None,

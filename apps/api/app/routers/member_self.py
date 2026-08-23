@@ -188,7 +188,7 @@ def upsert_my_year_plan(body: PurchasePlanEdit,
     _assert_company(member, body.company)
     unit_daily_repo.set_year_plan(body.year, body.company, body.plan_tonnes, body.signed_lt_tonnes,
                                   body.carry_lt_tonnes, body.carry_spot_tonnes,
-                                  body.plan_sales_spot_tonnes, member.get("username"))
+                                  body.plan_sales_spot_tonnes, body.plan_revenue_ty, member.get("username"))
     return {"ok": True}
 
 

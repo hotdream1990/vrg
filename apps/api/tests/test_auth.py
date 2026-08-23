@@ -267,8 +267,8 @@ def test_member_has_purchase_plan_flag() -> None:
     member_unit_repo.add_unit(plan_unit)
     member_unit_repo.add_unit(no_plan_unit)
     year = date.today().year
-    unit_daily_repo.set_year_plan(year, plan_unit, 1000.0, None, None, None, None, "admin")
-    unit_daily_repo.set_year_plan(year, no_plan_unit, 0.0, None, None, None, None, "admin")
+    unit_daily_repo.set_year_plan(year, plan_unit, 1000.0, None, None, None, None, None, "admin")
+    unit_daily_repo.set_year_plan(year, no_plan_unit, 0.0, None, None, None, None, None, "admin")
     client.delete("/api/users/mem_plan", headers=h)  # dọn nếu sót
 
     # Chỉ gắn đơn vị KHÔNG có KH thu mua → cờ False.

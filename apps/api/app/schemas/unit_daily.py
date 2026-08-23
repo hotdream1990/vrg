@@ -40,6 +40,7 @@ class PurchasePlanEdit(BaseModel):
     carry_lt_tonnes: float | None = None    # SL tiêu thụ HĐ dài hạn năm trước chuyển sang (tấn)
     carry_spot_tonnes: float | None = None  # SL tiêu thụ HĐ chuyến năm trước chuyển sang (tấn)
     plan_sales_spot_tonnes: float | None = None  # kế hoạch TIÊU THỤ cho HĐ chuyến (tấn)
+    plan_revenue_ty: float | None = None  # kế hoạch DOANH THU năm (TỶ ĐỒNG)
 
 
 class ContractDocIn(BaseModel):

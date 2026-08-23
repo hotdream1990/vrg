@@ -78,7 +78,7 @@ def test_checklist_lists_only_fixable_days_and_respects_purchase_plan() -> None:
         assert old not in u["stock_missing"]                  # ngày đã khoá thì không nhắc
 
         # 2) Có kế hoạch thu mua → mới bị đòi biểu Thu mua.
-        unit_daily_repo.set_year_plan(today.year, UNIT, 1000.0, None, None, None, None, "admin")
+        unit_daily_repo.set_year_plan(today.year, UNIT, 1000.0, None, None, None, None, None, "admin")
         u = client.get("/api/member/checklist", headers=mh).json()["units"][0]
         assert u["needs_purchase"] is True and u["year_plan_missing"] is False
         assert len(u["purchase_missing"]) == len(u["stock_missing"])
@@ -236,7 +236,7 @@ def test_year_plan_counts_toward_total() -> None:
 
         # Khai 0 = "đơn vị không tổ chức thu mua": đã khai nên hết nợ, và cũng không bị đòi biểu
         # Thu mua (khai số > 0 mới bật màn đó — lúc ấy lại thiếu đúng các ngày chưa nhập).
-        unit_daily_repo.set_year_plan(today_year(), UNIT, 0.0, None, None, None, None, "admin")
+        unit_daily_repo.set_year_plan(today_year(), UNIT, 0.0, None, None, None, None, None, "admin")
         assert client.get("/api/member/checklist", headers=mh).json()["total_missing"] == 0
     finally:
         _cleanup(h)

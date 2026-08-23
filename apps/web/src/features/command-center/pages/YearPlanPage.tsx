@@ -37,7 +37,8 @@ export default function YearPlanPage() {
   useEffect(() => { load(); }, [load]);
 
   const EMPTY: YearPlanRow = { plan_tonnes: null, plan_sales_spot_tonnes: null,
-    signed_lt_tonnes: null, carry_lt_tonnes: null, carry_spot_tonnes: null };
+    signed_lt_tonnes: null, carry_lt_tonnes: null, carry_spot_tonnes: null,
+    plan_revenue_ty: null };
 
   const rowOf = (u: string): YearPlanRow => plans[u] ?? EMPTY;
 
@@ -100,6 +101,9 @@ export default function YearPlanPage() {
                 <th className="r" style={{ width: 220 }}>HĐ dài hạn đã ký (tấn)</th>
                 <th className="r" style={{ width: 220 }}>HĐ dài hạn 2025 chuyển sang (tấn)</th>
                 <th className="r" style={{ width: 220 }}>HĐ chuyến 2025 chuyển sang (tấn)</th>
+                {/* Ô TIỀN duy nhất của bảng — ghi rõ TỶ ĐỒNG ngay trên tiêu đề, cột còn lại đều
+                    là tấn nên không ghi thì chắc chắn có người nhập nhầm sang tấn. */}
+                <th className="r" style={{ width: 220 }}>Kế hoạch doanh thu (tỷ đồng)</th>
               </tr>
             </thead>
             <tbody>
@@ -124,11 +128,14 @@ export default function YearPlanPage() {
                     <td onBlur={() => canEdit && save(u)}>
                       {numInput(r.carry_spot_tonnes, (v) => setCell(u, "carry_spot_tonnes", v), !canEdit)}
                     </td>
+                    <td onBlur={() => canEdit && save(u)}>
+                      {numInput(r.plan_revenue_ty, (v) => setCell(u, "plan_revenue_ty", v), !canEdit)}
+                    </td>
                   </tr>
                 );
               })}
               {units.length === 0 && !loading && (
-                <tr><td colSpan={7} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                   Chưa có đơn vị nào.
                 </td></tr>
               )}
@@ -141,6 +148,7 @@ export default function YearPlanPage() {
                   <td className="r">{fmtNum(total("signed_lt_tonnes"), 3)}</td>
                   <td className="r">{fmtNum(total("carry_lt_tonnes"), 3)}</td>
                   <td className="r">{fmtNum(total("carry_spot_tonnes"), 3)}</td>
+                  <td className="r">{fmtNum(total("plan_revenue_ty"), 3)}</td>
                 </tr>
               )}
             </tbody>

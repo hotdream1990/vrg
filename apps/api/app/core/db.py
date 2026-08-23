@@ -333,6 +333,9 @@ ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS carry_spot_tonnes double
 -- Kế hoạch TIÊU THỤ cho hợp đồng chuyến (chốt 03/08/2026) — chỉ để đối chiếu % thực hiện,
 -- KHÔNG bật/tắt màn nào (khác kế hoạch thu mua: cái đó là công tắc của màn Thu mua).
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_sales_spot_tonnes double precision;
+-- Kế hoạch DOANH THU năm (chốt 24/08/2026) — đơn vị **TỶ ĐỒNG**, cùng đơn vị với `revenue_ty` của
+-- báo cáo kỳ nên "% thực hiện" là phép chia cùng đơn vị, không phải quy đổi (chỗ dễ sai nhất).
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_revenue_ty double precision;
 -- Hợp đồng tồn kho: đính kèm NHIỀU file. Cột file/filename cũ giữ nguyên = file ĐẦU danh sách.
 ALTER TABLE unit_stock_contract ADD COLUMN IF NOT EXISTS files jsonb NOT NULL DEFAULT '[]'::jsonb;
 -- Đã được script chuyển sang bảng hợp đồng 2 cấp `sales_contract` chưa. Bản ghi CŨ vẫn giữ nguyên

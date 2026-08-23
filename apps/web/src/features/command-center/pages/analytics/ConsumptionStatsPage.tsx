@@ -35,6 +35,9 @@ const PLAN_DIMS = new Set(["company", "region"]);
 const PLAN_COLS: StatsCol[] = [
   { key: "plan_sales_spot_tonnes", label: "KH tiêu thụ HĐ chuyến", unit: "tấn", note: "chỉ tiêu năm" },
   { key: "pct_plan_sales_spot", label: "% thực hiện KH", unit: "%", note: "= HĐ chuyến / KH" },
+  { key: "plan_revenue_ty", label: "KH doanh thu", unit: "tỷ đồng", note: "chỉ tiêu năm" },
+  { key: "pct_plan_revenue", label: "% thực hiện KH doanh thu", unit: "%",
+    note: "= doanh thu kỳ / KH năm" },
 ];
 
 const withPlanCols = (cols: StatsCol[]): StatsCol[] => {

@@ -311,7 +311,7 @@ def set_plan(body: PurchasePlanEdit, username: str = Depends(_require_edit)) -> 
         raise HTTPException(400, "Đơn vị không hợp lệ.")
     unit_daily_repo.set_year_plan(body.year, body.company, body.plan_tonnes, body.signed_lt_tonnes,
                                   body.carry_lt_tonnes, body.carry_spot_tonnes,
-                                  body.plan_sales_spot_tonnes, username)
+                                  body.plan_sales_spot_tonnes, body.plan_revenue_ty, username)
     return {"ok": True}
 
 

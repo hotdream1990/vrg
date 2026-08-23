@@ -72,6 +72,9 @@ export type YearPlanRow = {
   signed_lt_tonnes: number | null;   // tổng SL đã ký HĐ dài hạn (tấn)
   carry_lt_tonnes: number | null;    // HĐ dài hạn năm trước chuyển sang (tấn)
   carry_spot_tonnes: number | null;  // HĐ chuyến năm trước chuyển sang (tấn)
+  /** Kế hoạch DOANH THU năm — đơn vị **TỶ ĐỒNG** (cùng đơn vị `revenue_ty` của báo cáo kỳ, nên
+   *  "% thực hiện" là phép chia cùng đơn vị chứ không phải quy đổi). */
+  plan_revenue_ty: number | null;
 };
 export type YearPlanData = { year: number; units: string[]; plans: Record<string, YearPlanRow> };
 

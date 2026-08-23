@@ -127,7 +127,8 @@ def test_unit_daily_member_and_editor_flow() -> None:
     pl = client.get(f"/api/unit-daily/plan?year={date.today().year}", headers=eh)
     assert pl.json()["plans"][unit] == {"plan_tonnes": 2000, "signed_lt_tonnes": 1500,
                                         "carry_lt_tonnes": 40, "carry_spot_tonnes": 15,
-                                        "plan_sales_spot_tonnes": None}
+                                        "plan_sales_spot_tonnes": None,
+                                        "plan_revenue_ty": None}
 
     # Đơn vị thành viên tự cập nhật số liệu năm của mình; không đụng được đơn vị khác.
     assert client.put("/api/member/plan",
@@ -797,3 +798,30 @@ def test_grade_catalog_is_one_list_shared_by_every_entry_screen() -> None:
                       re.S).group(1)
     assert re.findall(r'"([^"]+)"', block) == list(UNIT_GRADES), (
         "Danh mục chủng loại ở web đã lệch khỏi UNIT_GRADES — sửa cả 2 nơi.")
+
+
+def test_year_plan_keeps_revenue_target_in_ty_dong() -> None:
+    """Kế hoạch DOANH THU năm (TỶ ĐỒNG) lưu được, để trống là xoá chỉ tiêu.
+
+    Đơn vị tính là tỷ đồng — cùng đơn vị `revenue_ty` của báo cáo kỳ, nên "% thực hiện" là phép
+    chia cùng đơn vị chứ không phải quy đổi (chỗ dự án đã sai nhiều lần).
+    """
+    h = _admin()
+    unit = "_zz_ud_plan_rev"
+    year = date.today().year
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    body = {"year": year, "company": unit, "plan_tonnes": 1000,
+            "plan_sales_spot_tonnes": 300, "plan_revenue_ty": 250.5}
+    assert client.put("/api/unit-daily/plan", json=body, headers=h).status_code == 200
+    row = client.get(f"/api/unit-daily/plan?year={year}", headers=h).json()["plans"][unit]
+    assert row["plan_revenue_ty"] == pytest.approx(250.5)
+    # Các ô cũ không bị đụng khi thêm ô mới.
+    assert row["plan_tonnes"] == 1000 and row["plan_sales_spot_tonnes"] == 300
+
+    client.put("/api/unit-daily/plan", json={**body, "plan_revenue_ty": None}, headers=h)
+    again = client.get(f"/api/unit-daily/plan?year={year}", headers=h).json()["plans"][unit]
+    assert again["plan_revenue_ty"] is None
+
+    with session_scope() as db:
+        db.execute(text("DELETE FROM unit_purchase_plan WHERE company = :c"), {"c": unit})
+    _cleanup(h, [], [unit])

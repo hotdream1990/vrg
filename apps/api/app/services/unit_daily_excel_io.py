@@ -146,6 +146,7 @@ SPECS: dict[str, Spec] = {
         [_UNIT_COL, Col("year", "Năm", required=True, type="year", width=10),
          Col("plan_tonnes", "Kế hoạch thu mua", "tấn", width=20),
          Col("plan_sales_spot_tonnes", "Kế hoạch tiêu thụ (HĐ chuyến)", "tấn", width=26),
+         Col("plan_revenue_ty", "Kế hoạch doanh thu", "tỷ đồng", width=22),
          Col("signed_lt_tonnes", "HĐ dài hạn đã ký", "tấn", width=20),
          Col("carry_lt_tonnes", "HĐ dài hạn năm trước chuyển sang", "tấn", width=28),
          Col("carry_spot_tonnes", "HĐ chuyến năm trước chuyển sang", "tấn", width=28)]),
@@ -435,7 +436,8 @@ def _commit_rows(kind: str, rows: list[dict], username: str | None,
             unit_daily_repo.set_year_plan(int(r["year"]), r["company"], r.get("plan_tonnes"),
                                           r.get("signed_lt_tonnes"), r.get("carry_lt_tonnes"),
                                           r.get("carry_spot_tonnes"),
-                                          r.get("plan_sales_spot_tonnes"), username)
+                                          r.get("plan_sales_spot_tonnes"),
+                                          r.get("plan_revenue_ty"), username)
             n += 1
         return {"saved": n, "skipped": len(rows) - len(good), "warnings": []}
 
