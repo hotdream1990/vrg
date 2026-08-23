@@ -242,8 +242,8 @@ CREATE INDEX IF NOT EXISTS ix_unit_customer_company ON unit_customer (company, i
 --   `parent_id` khác  = ĐỢT GIAO (tên cũ: phụ lục). Mỗi đợt = 1 lần giao: hoá đơn · giấy xuất
 --                       hàng · ngày giao · dòng chi tiết + 1 lần thanh toán.
 --   `master_id` khác  = bản ghi là PHỤ LỤC của một HỢP ĐỒNG MẸ (`master_contract` — 21/08/2026):
---                       `code` là SỐ PHỤ LỤC, khách hàng thừa kế của hợp đồng mẹ. NULL = hợp đồng
---                       đứng một mình (mọi bản ghi cũ) — vẫn khai khách hàng ngay trên nó.
+--                       CHỈ là liên kết hồ sơ: hợp đồng vẫn giữ khách hàng và mọi số liệu của
+--                       chính nó. NULL = hợp đồng không thuộc hồ sơ nào (mọi bản ghi cũ).
 -- Tiêu thụ = tổng các ĐỢT ĐÃ GIAO; "đã ký HĐ chưa giao" (khối 3) = SL cam kết của HỢP ĐỒNG
 -- − tổng đã giao, tính tới khi hợp đồng được đánh dấu HOÀN THÀNH (`completed_at`).
 -- `lines` jsonb: [{grade, qty, qty_dry, price, ccy, fx, cost}] — nhiều chủng loại trên 1 hợp đồng.
@@ -279,8 +279,10 @@ CREATE INDEX IF NOT EXISTS ix_sales_contract_delivered ON sales_contract (delive
 -- HỢP ĐỒNG MẸ — HĐ NGUYÊN TẮC (HĐNT) / HĐ DÀI HẠN (HĐDH) ký với khách hàng (chốt 21/08/2026).
 -- Trước đây hệ thống KHÔNG quản lý cấp này: đơn vị nhập MỖI PHỤ LỤC như một hợp đồng. Nay hồ sơ
 -- gốc được lưu riêng, `sales_contract.master_id` nối phụ lục về hợp đồng mẹ của nó.
--- Hợp đồng mẹ giữ THÔNG TIN KHÁCH HÀNG (phụ lục thừa kế, không khai lại) + cam kết chủng loại /
--- số lượng / đơn giá + CÔNG THỨC GIÁ (HĐDH có công thức, HĐNT thường không) + bản scan.
+-- Hợp đồng mẹ giữ THÔNG TIN KHÁCH HÀNG của hồ sơ + cam kết chủng loại / số lượng / đơn giá +
+-- CÔNG THỨC GIÁ (HĐDH có công thức, HĐNT không có phần này) + bản scan.
+-- ⚠ Nối hồ sơ CHỈ là liên kết (chốt 24/08/2026): hợp đồng vẫn tự khai khách hàng của chính nó,
+-- gắn/gỡ hồ sơ KHÔNG đụng tới bất kỳ số liệu nào của hợp đồng.
 -- ⚠ Bảng này KHÔNG vào bất kỳ báo cáo sản lượng nào — tiêu thụ và "đã ký HĐ chưa giao" vẫn tính
 -- trên `sales_contract`; cộng cả hai cấp là đếm sản lượng hai lần.
 CREATE TABLE IF NOT EXISTS master_contract (
@@ -288,7 +290,7 @@ CREATE TABLE IF NOT EXISTS master_contract (
     company       text NOT NULL,        -- đơn vị ký (khớp member_unit)
     code          text NOT NULL,        -- SỐ HỢP ĐỒNG (mẹ) — duy nhất trong đơn vị
     master_type   text NOT NULL,        -- principle = HĐ nguyên tắc | long_term = HĐ dài hạn
-    customer_id   bigint,               -- khách hàng (unit_customer.id) — phụ lục thừa kế
+    customer_id   bigint,               -- khách hàng CỦA HỒ SƠ (unit_customer.id)
     sign_date     date,
     expiry_date   date,
     lines         jsonb NOT NULL DEFAULT '[]'::jsonb,  -- [{grade, qty, price, ccy, fx}]
@@ -355,9 +357,9 @@ ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS invoice_docs jsonb NOT NULL 
 -- nên phải có thao tác CHỐT để phần chênh còn lại rời khỏi "đã ký HĐ chưa giao". Đặt ở hợp đồng
 -- mẹ; NULL = đang thực hiện.
 ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS completed_at date;
--- HỢP ĐỒNG MẸ của phụ lục (chốt 21/08/2026): NULL = hợp đồng đứng một mình (mọi bản ghi cũ, và
--- hợp đồng chuyến ký thẳng). Khác NULL = bản ghi này là PHỤ LỤC của hợp đồng mẹ đó — khách hàng
--- lấy theo hợp đồng mẹ, số ghi ở ô `code` là SỐ PHỤ LỤC. Chỉ đặt ở hợp đồng, đợt giao luôn NULL.
+-- HỢP ĐỒNG MẸ của phụ lục (chốt 21/08/2026): NULL = hợp đồng không thuộc hồ sơ nào (mọi bản ghi
+-- cũ). Khác NULL = hợp đồng này nằm trong hồ sơ đó. ⚠ CHỈ là liên kết — hợp đồng vẫn giữ khách
+-- hàng, loại hợp đồng và mọi số liệu của chính nó. Chỉ đặt ở hợp đồng, đợt giao luôn NULL.
 ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS master_id bigint;
 CREATE INDEX IF NOT EXISTS ix_sales_contract_master ON sales_contract (master_id);
 -- Nâng bản ghi cũ (1 file ở cột phẳng) lên danh sách. Idempotent: chỉ chạm dòng chưa có danh sách.

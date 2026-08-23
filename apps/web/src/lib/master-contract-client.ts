@@ -100,7 +100,7 @@ export const deleteMasterContract = (id: number) =>
   apiFetch<{ ok: boolean }>(`/api/master-contracts/${id}`, { method: "DELETE" });
 
 /** GẮN các hợp đồng ĐÃ CÓ vào hợp đồng mẹ (`attach = false` là GỠ ra).
- *  ⚠ Gắn vào là ghi đè khách hàng của những hợp đồng đó bằng khách của hợp đồng mẹ. */
+ *  Gắn/gỡ CHỈ đổi liên kết — không đụng khách hàng hay số liệu nào của hợp đồng. */
 export const linkMasterAnnexes = (masterId: number, contractIds: number[], attach = true) =>
   apiFetch<{ count: number; attached: boolean; annexes: Contract[] }>(
     `/api/master-contracts/${masterId}/annexes`,

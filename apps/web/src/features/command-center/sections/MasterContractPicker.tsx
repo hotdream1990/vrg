@@ -25,9 +25,6 @@ type Opt = {
 type Props = {
   value: number | null;
   onChange: (id: number | null, master: MasterContract | null) => void;
-  /** Gọi khi picker TRA LẠI được hợp đồng mẹ đang chọn (mở lại form của một phụ lục cũ) — form
-   *  cần nó để hiện tên khách hàng thừa kế, thay vì chỉ ghi "(theo hợp đồng mẹ)". */
-  onResolved?: (master: MasterContract) => void;
   /** Chỉ tìm trong 1 đơn vị — hợp đồng mẹ của đơn vị khác không nối được (server cũng chặn). */
   company?: string;
   typeLabels: Record<string, string>;
@@ -38,7 +35,7 @@ type Props = {
 };
 
 export default function MasterContractPicker({
-  value, onChange, onResolved, company, typeLabels, disabled,
+  value, onChange, company, typeLabels, disabled,
   placeholder = "Gõ số hợp đồng mẹ (để trống nếu không có)", width = "100%",
 }: Props) {
   const [q, setQ] = useState("");
@@ -71,12 +68,9 @@ export default function MasterContractPicker({
     if (!value || known.has(value) || asked.current.has(value)) return;
     asked.current.add(value);
     searchMasterContracts({ ids: [value] })
-      .then((rows) => {
-        setPicked((prev) => [...prev, ...rows]);
-        if (rows[0]) onResolved?.(rows[0]);
-      })
+      .then((rows) => setPicked((prev) => [...prev, ...rows]))
       .catch(() => asked.current.delete(value));
-  }, [value, known, onResolved]);
+  }, [value, known]);
 
   const options: Opt[] = useMemo(() => {
     const chosen = value ? [known.get(value)].filter(Boolean) as MasterContract[] : [];

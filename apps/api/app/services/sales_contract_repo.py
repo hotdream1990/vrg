@@ -5,8 +5,8 @@
   - `parent_id` khác NULL = ĐỢT GIAO (tên cũ: phụ lục): hoá đơn · ngày giao · dòng chi tiết
     (chủng loại/số lượng/đơn giá) + 1 lần thanh toán.
   - `master_id` khác NULL = bản ghi này là PHỤ LỤC của một HỢP ĐỒNG MẸ (HĐNT/HĐDH, bảng
-    `master_contract` — chốt 21/08/2026): số ở ô `code` là SỐ PHỤ LỤC và khách hàng thừa kế của
-    hợp đồng mẹ. `master_id` NULL = hợp đồng đứng một mình, khai khách hàng như trước.
+    `master_contract`): CHỈ là liên kết hồ sơ — hợp đồng vẫn giữ khách hàng, loại hợp đồng và mọi
+    số liệu của chính nó. NULL = không thuộc hồ sơ nào (mọi bản ghi cũ).
     ⚠ Cấp hợp đồng mẹ CHỈ là hồ sơ: tiêu thụ và "đã ký HĐ chưa giao" vẫn tính trên bảng này.
 
 Chốt 05/08/2026 — sản lượng thực giao được phép LỆCH so với hợp đồng đã ký:

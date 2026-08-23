@@ -41,8 +41,8 @@ class MasterContractIn(BaseModel):
 class AnnexLinkIn(BaseModel):
     """Gắn / gỡ PHỤ LỤC cho hợp đồng mẹ — chọn hợp đồng ĐÃ CÓ rồi nối vào hồ sơ.
 
-    `attach = False` là GỠ. Gắn thì khách hàng của các hợp đồng đó được ghi đè bằng khách của hợp
-    đồng mẹ (luật "phụ lục thừa kế khách hàng"); gỡ thì giữ nguyên khách đang có.
+    `attach = False` là GỠ. Gắn/gỡ CHỈ đổi liên kết `master_id` — khách hàng, loại hợp đồng và mọi
+    số liệu của hợp đồng giữ nguyên (chốt 24/08/2026).
     """
     contract_ids: list[int] = Field(default_factory=list)
     attach: bool = True

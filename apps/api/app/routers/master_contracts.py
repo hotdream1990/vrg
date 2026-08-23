@@ -82,7 +82,7 @@ def link_annexes(master_id: int, body: AnnexLinkIn, scope: EditScope) -> dict:
     """Gắn các hợp đồng ĐÃ CÓ vào hợp đồng mẹ này (`attach=false` là gỡ ra).
 
     Chiều ngược của ô "Hợp đồng mẹ" ở form hợp đồng — cần cho việc dọn hồ sơ cũ, vì hàng nghìn hợp
-    đồng đã nhập trước khi có cấp hợp đồng mẹ. ⚠ Gắn vào là ghi đè khách hàng theo hợp đồng mẹ.
+    đồng đã nhập trước khi có cấp hợp đồng mẹ. Gắn/gỡ CHỈ đổi liên kết, không đụng số liệu.
     """
     username, companies = scope
     try:

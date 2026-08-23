@@ -35,8 +35,8 @@ class ContractIn(BaseModel):
     id: int | None = None
     company: str
     parent_id: int | None = None      # khác None = ĐỢT GIAO (một lần giao + một lần thanh toán)
-    # Khác None = bản ghi này là PHỤ LỤC của một HỢP ĐỒNG MẸ (HĐNT/HĐDH): `code` là SỐ PHỤ LỤC và
-    # khách hàng thừa kế của hợp đồng mẹ (server tự ghi, bỏ qua `customer_id` client gửi lên).
+    # Khác None = hợp đồng nằm trong một HỒ SƠ HỢP ĐỒNG MẸ (HĐNT/HĐDH). CHỈ là liên kết — khách
+    # hàng và mọi số liệu khác vẫn do chính hợp đồng khai (chốt 24/08/2026).
     master_id: int | None = None
     code: str
     customer_id: int | None = None

@@ -41,8 +41,8 @@ export type Contract = {
   id: number | null;
   company: string;
   parent_id: number | null;
-  /** Khác null = bản ghi này là PHỤ LỤC của một HỢP ĐỒNG MẸ (HĐNT/HĐDH): ô `code` là SỐ PHỤ LỤC
-   *  và khách hàng thừa kế của hợp đồng mẹ (server tự ghi, form không hỏi lại). */
+  /** Khác null = hợp đồng này nằm trong một HỒ SƠ HỢP ĐỒNG MẸ (HĐNT/HĐDH). CHỈ là liên kết —
+   *  hợp đồng vẫn giữ khách hàng, loại hợp đồng và mọi số liệu của chính nó. */
   master_id: number | null;
   code: string;
   customer_id: number | null;
