@@ -44,7 +44,7 @@
         "Từ 06/08/2026, **thêm/sửa khách hàng nhập trong popup**: trang Khách hàng chỉ còn nút **Thêm khách hàng**, bấm vào mới hiện ô nhập. Cách nhập và các quy tắc không đổi.",
         "Từ 06/08/2026, mọi màn của đơn vị có thêm **bảng nhắc “còn thiếu gì”** ở đầu trang — xem mục 3. Đơn vị không phải tự dò xem mình đã nộp đủ chưa.",
         "**Từ 22/08/2026 — tỷ giá chỉ bắt buộc khi đã điền Ngày giao.** Lúc ký hợp đồng chưa ai biết tỷ giá ngày giao hàng, nên ô này để trống vẫn lưu được; ô ghi *“khi giao”* thay vì *“bắt buộc”*. Khi chưa có tỷ giá thì **doanh thu tạm để trống**, không tính bằng 0.",
-        "**Từ 24/08/2026 — có thêm mục Hợp đồng mẹ (HĐNT/HĐDH)** trong nhóm Quản lý hợp đồng (mục 9). Màn *Hợp đồng & đợt giao* giữ nguyên như cũ, chỉ thêm **một ô chọn hợp đồng mẹ**; nối hồ sơ **không đổi** khách hàng hay bất kỳ số liệu nào của hợp đồng.",
+        "**Từ 24/08/2026 — có thêm mục Hợp đồng mẹ (HĐNT/HĐDH)** trong nhóm Quản lý hợp đồng (mục 8). Kèm theo đó, **HĐ dài hạn nay là *phụ lục* của một hợp đồng mẹ nên bắt buộc chọn hồ sơ mới lưu được**; **HĐ chuyến không đổi gì** — ô hợp đồng mẹ không hiện. Hợp đồng dài hạn đã nhập trước đây vẫn còn nguyên và vẫn lên báo cáo bình thường, chỉ khi **sửa** mới phải chọn hồ sơ — cứ dọn dần, không phải làm gấp.",
         "**Từ 24/08/2026 — Kế hoạch năm có thêm ô Kế hoạch doanh thu (tỷ đồng)** — xem mục 17."
       ]
     },
@@ -221,8 +221,9 @@
         "**Hợp đồng mẹ đã ký (scan)** — đính kèm bản scan; **Ghi chú** nếu cần. Bấm **Lưu**."
       ],
       "notes": [
+        "**Đơn vị có bán dài hạn thì lập hồ sơ ở đây trước.** Mọi HĐ dài hạn đều phải thuộc một hồ sơ mới lưu được (mục 10), nên chưa có hồ sơ là không nhập được hợp đồng dài hạn.",
         "**Nối phụ lục vào hồ sơ — có 2 cách**, đều nằm trong mục *Phụ lục* ở màn chi tiết hồ sơ (bấm **Xem**): **Thêm phụ lục** để nhập một hợp đồng mới ngay tại chỗ (đơn vị và hồ sơ đã chọn sẵn), hoặc **Gắn hợp đồng có sẵn** để chọn các hợp đồng đã nhập trước đó — danh sách chỉ hiện hợp đồng **của đơn vị mình** và **chưa thuộc hồ sơ nào**.",
-        "**Nối hoặc gỡ chỉ đổi liên kết**, KHÔNG đổi khách hàng, loại hợp đồng hay bất kỳ số liệu nào của hợp đồng. Gỡ ra thì hợp đồng vẫn còn nguyên, chỉ thôi thuộc hồ sơ.",
+        "**Nối hoặc gỡ chỉ đổi liên kết**, KHÔNG đổi khách hàng, loại hợp đồng hay bất kỳ số liệu nào của hợp đồng. Gỡ ra thì hợp đồng vẫn còn nguyên, chỉ thôi thuộc hồ sơ — nhưng nếu đó là **HĐ dài hạn** thì lần **sửa** sau hệ thống sẽ hỏi hợp đồng mẹ, nên chỉ gỡ khi định chuyển sang hồ sơ khác.",
         "**Hồ sơ hợp đồng mẹ không vào báo cáo sản lượng.** Tiêu thụ và “đã ký HĐ chưa giao” vẫn tính trên hợp đồng/đợt giao như trước — cộng cả hai cấp là đếm hai lần. Số *Đã ký phụ lục* trên hồ sơ chỉ để đối chiếu với sản lượng cam kết.",
         "Muốn **xoá hồ sơ** thì phải **gỡ hết phụ lục** trước — tránh xoá nhầm làm mất liên kết của hàng loạt hợp đồng.",
         "Ở màn *Hợp đồng & đợt giao* có ô lọc **Hợp đồng mẹ** để xem trọn các phụ lục của một hồ sơ, và ô tick **Chưa gắn hồ sơ** để rà những hợp đồng còn phải đưa vào hồ sơ."
