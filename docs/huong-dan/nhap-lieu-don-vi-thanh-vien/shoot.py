@@ -53,7 +53,7 @@ def call(method: str, path: str, token: str | None = None, body: dict | None = N
         raise SystemExit(f"{method} {path} → {e.code}: {e.read().decode()[:300]}") from e
 
 
-def seed(tok: str) -> None:
+def seed(tok: str, cus: int, master_id: int) -> None:
     """Số liệu mẫu vừa đủ để mọi màn có nội dung thật (không màn nào trống)."""
     call("PUT", "/api/member/daily-report", tok, {
         "kind": "purchase", "company": UNIT, "as_of": D(1),
@@ -77,11 +77,6 @@ def seed(tok: str) -> None:
         "content": "Khách Trung Quốc hỏi mua SVR 10 giao tháng sau, số lượng khoảng 500 tấn. "
                    "Giá chào quanh 41,5 triệu đ/tấn, đang thương lượng."})
 
-    cus = call("PUT", "/api/customers", tok, {
-        "company": UNIT, "name": "Công ty TNHH Cao su Sài Gòn", "code": "KH-01",
-        "note": "Khách hàng dài hạn"})["id"]
-    call("PUT", "/api/customers", tok, {
-        "company": UNIT, "name": "Shanghai Rubber Trading Co.", "code": "KH-02"})
 
     # HĐ giao 1 lần, ĐÃ giao → lên Báo cáo tiêu thụ. Ngày giao phải NẰM TRONG kỳ mặc định của màn
     # báo cáo (đầu tháng → hôm nay), nếu không ảnh chụp ra toàn số 0.
@@ -96,7 +91,8 @@ def seed(tok: str) -> None:
     # "Hoàn thành hợp đồng" có phần chênh thật (nếu giao vừa đủ thì màn đó không nói lên điều gì).
     parent = call("PUT", "/api/sales-contracts", tok, {
         "company": UNIT, "code": "HĐ-102/2026", "customer_id": cus, "delivery_type": "multi",
-        "contract_type": "long_term", "sign_date": D(20), "expiry_date": D(-160),
+        "contract_type": "long_term", "master_id": master_id,   # HĐ dài hạn là phụ lục của hồ sơ
+        "sign_date": D(20), "expiry_date": D(-160),
         "lines": [{"grade": "SVR 10 / CSR 10", "qty": 900, "price": 41.8, "ccy": "VND"}]})["contract"]
     call("PUT", "/api/sales-contracts", tok, {
         "company": UNIT, "parent_id": parent["id"], "code": "Đợt 01/HĐ-102",
@@ -112,23 +108,28 @@ def seed(tok: str) -> None:
                    "fx": 26200}]})
 
 
-def seed_master(tok: str) -> None:
-    """1 hồ sơ HỢP ĐỒNG MẸ (HĐDH) + nối hợp đồng mẫu vào — để 3 ảnh mục 8 có nội dung thật."""
-    cus = call("GET", f"/api/customers?company={urllib.parse.quote(UNIT)}&limit=1", tok)["items"]
+def seed_customers(tok: str) -> int:
+    """Danh mục khách hàng — tạo TRƯỚC hồ sơ mẹ (hồ sơ bắt buộc gán khách) và trước hợp đồng."""
+    cus = call("PUT", "/api/customers", tok, {
+        "company": UNIT, "name": "Công ty TNHH Cao su Sài Gòn", "code": "KH-01",
+        "note": "Khách hàng dài hạn"})["id"]
+    call("PUT", "/api/customers", tok, {
+        "company": UNIT, "name": "Shanghai Rubber Trading Co.", "code": "KH-02"})
+    return cus
+
+
+def seed_master(tok: str, cus: int) -> int:
+    """1 hồ sơ HỢP ĐỒNG MẸ (HĐDH) — phải lập TRƯỚC khi seed hợp đồng: từ 24/08/2026 mọi HĐ dài hạn
+    bắt buộc thuộc một hồ sơ, seed hợp đồng trước là bị chặn 400."""
     master = call("PUT", "/api/master-contracts", tok, {
         "company": UNIT, "code": "01/2026/HĐDH-BL", "master_type": "long_term",
-        "customer_id": cus[0]["id"], "sign_date": D(200), "expiry_date": D(-160),
+        "customer_id": cus, "sign_date": D(200), "expiry_date": D(-160),
         "price_formula": "Giá SICOM TSR20 bình quân tuần trước liền kề + 30 USD/tấn, FOB HCM",
         "lines": [{"grade": "SVR 3L", "qty": 1200, "price": 1780, "ccy": "USD", "fx": 26300},
                   {"grade": "SVR 10 / CSR 10", "qty": 800, "price": 1650, "ccy": "USD",
                    "fx": 26300}],
     })["master"]
-    ids = [c["id"] for c in call("GET", "/api/sales-contracts?company="
-                                 + urllib.parse.quote(UNIT) + "&unlinked=true&page_size=2",
-                                 tok)["contracts"]]
-    if ids:
-        call("PUT", f"/api/master-contracts/{master['id']}/annexes", tok,
-             {"contract_ids": ids, "attach": True})
+    return master["id"]
 
 
 def seed_legacy() -> None:
@@ -331,6 +332,10 @@ def open_contract_form(page) -> None:
     "Quy khô (tấn)" của 3 chủng loại bán theo mủ nước (chốt PA1). Để trống chủng loại thì nhãn chỉ
     là "SL (tấn)", người đọc hướng dẫn không thấy được chỗ khác biệt."""
     open_modal(page, "Thêm hợp đồng")
+    # Chọn HĐ DÀI HẠN để ảnh có ô "Hợp đồng mẹ *": ô này CHỈ hiện với HĐ dài hạn (HĐ chuyến ẩn
+    # hẳn — chốt 24/08/2026), để mặc định thì người đọc hướng dẫn không thấy ô đang được nói tới.
+    page.locator('label:has-text("Loại hợp đồng") select').first.select_option("long_term")
+    page.wait_for_timeout(400)
     page.locator(".ct-line select").first.select_option(label="LATEX")
     page.wait_for_timeout(400)
 
@@ -391,8 +396,8 @@ def main() -> int:
     UNIT = resolve_unit(admin)
     tok = call("POST", "/api/auth/impersonate", admin, {"username": MEMBER})["access_token"]
     clean()               # chạy lại lần 2 không nhân đôi dữ liệu mẫu
-    seed(tok)
-    seed_master(tok)
+    cus = seed_customers(tok)
+    seed(tok, cus, seed_master(tok, cus))
     seed_legacy()
     OUT.mkdir(exist_ok=True)
 
