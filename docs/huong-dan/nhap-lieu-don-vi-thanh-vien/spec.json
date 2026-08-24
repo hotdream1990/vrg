@@ -36,7 +36,7 @@
         "**Không còn khối “đã ký HĐ chưa giao” trong phiếu tồn kho.** Số này nay **tự tính** = sản lượng hợp đồng − đã giao. Phiếu tồn kho còn đúng 3 khối nhập tay.",
         "**Có thêm danh mục Khách hàng.** Mỗi hợp đồng phải gắn một khách hàng của đơn vị — nhờ đó báo cáo tách được sản lượng và doanh thu theo từng khách.",
         "**Hợp đồng nhập trước 30/07 chuyển sang mục “Hợp đồng cũ”**, chỉ để tra cứu, không sửa được. Số liệu cũ vẫn còn nguyên.",
-        "**Hợp đồng dài hạn có thể lập hồ sơ HỢP ĐỒNG MẸ.** Đơn vị ký HĐ nguyên tắc (HĐNT) hoặc HĐ dài hạn (HĐDH) thì lập một **hồ sơ hợp đồng mẹ** rồi nối các hợp đồng chuyến hàng vào đó — xem mục 9. Việc này **không bắt buộc**: không lập hồ sơ thì nhập hợp đồng y như trước."
+        "**Hợp đồng dài hạn nay đi theo cặp: hồ sơ HỢP ĐỒNG MẸ + các phụ lục.** Đơn vị ký HĐ nguyên tắc (HĐNT) hoặc HĐ dài hạn (HĐDH) thì lập **một hồ sơ hợp đồng mẹ** (mục 8), rồi mỗi lần ký một hợp đồng dài hạn là **một phụ lục** nối về hồ sơ đó. **HĐ chuyến không nằm trong hồ sơ nào** — bán đứt từng chuyến, nhập y như trước."
       ],
       "notes": [
         "Từ 05/08/2026 gọi là **đợt giao** thay cho “phụ lục”, và mỗi đợt ghi thêm **số hoá đơn** kèm file scan. Hợp đồng đã nhập trước đó giữ nguyên, chỉ đổi tên gọi trên màn hình.",
@@ -45,7 +45,7 @@
         "Từ 06/08/2026, mọi màn của đơn vị có thêm **bảng nhắc “còn thiếu gì”** ở đầu trang — xem mục 3. Đơn vị không phải tự dò xem mình đã nộp đủ chưa.",
         "**Từ 22/08/2026 — tỷ giá chỉ bắt buộc khi đã điền Ngày giao.** Lúc ký hợp đồng chưa ai biết tỷ giá ngày giao hàng, nên ô này để trống vẫn lưu được; ô ghi *“khi giao”* thay vì *“bắt buộc”*. Khi chưa có tỷ giá thì **doanh thu tạm để trống**, không tính bằng 0.",
         "**Từ 24/08/2026 — có thêm mục Hợp đồng mẹ (HĐNT/HĐDH)** trong nhóm Quản lý hợp đồng (mục 8). Kèm theo đó, **HĐ dài hạn nay là *phụ lục* của một hợp đồng mẹ nên bắt buộc chọn hồ sơ mới lưu được**; **HĐ chuyến không đổi gì** — ô hợp đồng mẹ không hiện. Hợp đồng dài hạn đã nhập trước đây vẫn còn nguyên và vẫn lên báo cáo bình thường, chỉ khi **sửa** mới phải chọn hồ sơ — cứ dọn dần, không phải làm gấp.",
-        "**Từ 24/08/2026 — Kế hoạch năm có thêm ô Kế hoạch doanh thu (tỷ đồng)** — xem mục 17."
+        "**Từ 24/08/2026 — Kế hoạch năm có thêm ô Kế hoạch doanh thu (tỷ đồng)** — xem mục 16."
       ]
     },
     {
