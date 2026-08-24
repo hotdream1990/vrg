@@ -16,6 +16,17 @@
     "title": "Hướng dẫn nhập liệu — Đơn vị thành viên",
     "intro": "Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình. Số tiêu thụ KHÔNG còn nhập tay theo ngày — hệ thống tự tính từ các ĐỢT GIAO ghi trên hợp đồng. Đơn vị nhập 4 mục theo ngày/năm và quản lý hợp đồng bán hàng của mình; hai mục còn lại chỉ để xem."
   },
+  "readme_head": {
+    "intro": [
+      "Tài liệu dành cho cán bộ đơn vị thành viên VRG nhập số liệu trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản đơn vị chỉ thấy và chỉ nhập được số liệu của chính đơn vị mình.",
+      "Số tiêu thụ **không còn nhập tay theo ngày** — hệ thống tự tính từ các **đợt giao** ghi trên hợp đồng. Đơn vị nhập 4 mục theo ngày/năm và quản lý hợp đồng bán hàng của mình; hai mục còn lại chỉ để xem."
+    ],
+    "links": [
+      "Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-don-vi-thanh-vien.docx](./Huong-dan-nhap-lieu-don-vi-thanh-vien.docx)",
+      "Sửa nội dung: chỉ sửa `spec.json` rồi chạy `python3 render_readme.py` (dựng lại README) và `node build_guide.js spec.json` (dựng lại bản Word).",
+      "Dựng lại ảnh khi giao diện đổi: `uv run --directory apps/api --with playwright python ../../docs/huong-dan/nhap-lieu-don-vi-thanh-vien/shoot.py` — thêm tham số để chụp lại vài ảnh, vd `… shoot.py 05` chỉ chụp màn Khách hàng."
+    ]
+  },
   "sections": [
     {
       "title": "1. Có gì thay đổi so với cách làm cũ",
@@ -25,13 +36,16 @@
         "**Không còn khối “đã ký HĐ chưa giao” trong phiếu tồn kho.** Số này nay **tự tính** = sản lượng hợp đồng − đã giao. Phiếu tồn kho còn đúng 3 khối nhập tay.",
         "**Có thêm danh mục Khách hàng.** Mỗi hợp đồng phải gắn một khách hàng của đơn vị — nhờ đó báo cáo tách được sản lượng và doanh thu theo từng khách.",
         "**Hợp đồng nhập trước 30/07 chuyển sang mục “Hợp đồng cũ”**, chỉ để tra cứu, không sửa được. Số liệu cũ vẫn còn nguyên.",
-        "**Hệ thống không quản lý hợp đồng khung.** Đơn vị có hợp đồng dài hạn thì nhập **mỗi phụ lục như một hợp đồng** và chọn loại **HĐ dài hạn** để phân biệt."
+        "**Hợp đồng dài hạn có thể lập hồ sơ HỢP ĐỒNG MẸ.** Đơn vị ký HĐ nguyên tắc (HĐNT) hoặc HĐ dài hạn (HĐDH) thì lập một **hồ sơ hợp đồng mẹ** rồi nối các hợp đồng chuyến hàng vào đó — xem mục 9. Việc này **không bắt buộc**: không lập hồ sơ thì nhập hợp đồng y như trước."
       ],
       "notes": [
         "Từ 05/08/2026 gọi là **đợt giao** thay cho “phụ lục”, và mỗi đợt ghi thêm **số hoá đơn** kèm file scan. Hợp đồng đã nhập trước đó giữ nguyên, chỉ đổi tên gọi trên màn hình.",
         "**“Đã ký HĐ chưa giao” nay tính trên cả hợp đồng** (trước chỉ tính phần đã chia thành đợt) nên con số này sẽ lớn hơn trước — đó là phần hàng đã ký bán mà chưa giao, kể cả chưa sản xuất.",
         "Từ 06/08/2026, **thêm/sửa khách hàng nhập trong popup**: trang Khách hàng chỉ còn nút **Thêm khách hàng**, bấm vào mới hiện ô nhập. Cách nhập và các quy tắc không đổi.",
-        "Từ 06/08/2026, mọi màn của đơn vị có thêm **bảng nhắc “còn thiếu gì”** ở đầu trang — xem mục 3. Đơn vị không phải tự dò xem mình đã nộp đủ chưa."
+        "Từ 06/08/2026, mọi màn của đơn vị có thêm **bảng nhắc “còn thiếu gì”** ở đầu trang — xem mục 3. Đơn vị không phải tự dò xem mình đã nộp đủ chưa.",
+        "**Từ 22/08/2026 — tỷ giá chỉ bắt buộc khi đã điền Ngày giao.** Lúc ký hợp đồng chưa ai biết tỷ giá ngày giao hàng, nên ô này để trống vẫn lưu được; ô ghi *“khi giao”* thay vì *“bắt buộc”*. Khi chưa có tỷ giá thì **doanh thu tạm để trống**, không tính bằng 0.",
+        "**Từ 24/08/2026 — có thêm mục Hợp đồng mẹ (HĐNT/HĐDH)** trong nhóm Quản lý hợp đồng (mục 9). Màn *Hợp đồng & đợt giao* giữ nguyên như cũ, chỉ thêm **một ô chọn hợp đồng mẹ**; nối hồ sơ **không đổi** khách hàng hay bất kỳ số liệu nào của hợp đồng.",
+        "**Từ 24/08/2026 — Kế hoạch năm có thêm ô Kế hoạch doanh thu (tỷ đồng)** — xem mục 17."
       ]
     },
     {
@@ -171,7 +185,51 @@
       ]
     },
     {
-      "title": "8. Hợp đồng & đợt giao — danh sách",
+      "title": "8. Hợp đồng mẹ (HĐNT/HĐDH)",
+      "location": "Quản lý hợp đồng → Hợp đồng mẹ (HĐNT/HĐDH)",
+      "intro": "Nơi lưu **hồ sơ gốc** của hợp đồng nguyên tắc (HĐNT) hoặc hợp đồng dài hạn (HĐDH) đã ký với khách hàng: số hợp đồng, khách hàng, chủng loại kèm đơn giá, công thức giá và bản scan. Từng chuyến hàng vẫn nhập ở *Hợp đồng & đợt giao* như bình thường, chỉ chọn thêm hồ sơ này để nối vào. **Không bắt buộc** — đơn vị không có HĐNT/HĐDH thì bỏ qua mục này.",
+      "image": [
+        {
+          "path": "img/05c-hop-dong-me-danh-sach.png",
+          "w": 3000,
+          "h": 1640
+        },
+        {
+          "path": "img/05d-hop-dong-me-form.png",
+          "w": 3000,
+          "h": 1640
+        },
+        {
+          "path": "img/05e-hop-dong-me-chi-tiet.png",
+          "w": 3000,
+          "h": 1640
+        }
+      ],
+      "caption": [
+        "Hình 5c. Danh sách hồ sơ hợp đồng mẹ",
+        "Hình 5d. Phiếu thêm hợp đồng mẹ",
+        "Hình 5e. Chi tiết hồ sơ và danh sách phụ lục"
+      ],
+      "pre": "Lập hồ sơ:",
+      "steps": [
+        "Bấm **Thêm hợp đồng mẹ**.",
+        "**Số hợp đồng** — bắt buộc, không trùng trong cùng đơn vị.",
+        "**Loại hợp đồng mẹ** — bắt buộc: *HĐ nguyên tắc (HĐNT)* hay *HĐ dài hạn (HĐDH)*.",
+        "**Khách hàng** — bắt buộc, chọn trong danh mục khách của đơn vị (mục 7).",
+        "**Chủng loại & đơn giá** — mỗi chủng loại một dòng, **mỗi loại một đơn giá riêng**. **Số lượng và đơn giá được để trống** nếu hợp đồng chưa chốt (HĐNT thường chỉ ghi chủng loại).",
+        "**Công thức giá** — ô này **chỉ hiện với HĐ dài hạn**; HĐ nguyên tắc không có phần này.",
+        "**Hợp đồng mẹ đã ký (scan)** — đính kèm bản scan; **Ghi chú** nếu cần. Bấm **Lưu**."
+      ],
+      "notes": [
+        "**Nối phụ lục vào hồ sơ — có 2 cách**, đều nằm trong mục *Phụ lục* ở màn chi tiết hồ sơ (bấm **Xem**): **Thêm phụ lục** để nhập một hợp đồng mới ngay tại chỗ (đơn vị và hồ sơ đã chọn sẵn), hoặc **Gắn hợp đồng có sẵn** để chọn các hợp đồng đã nhập trước đó — danh sách chỉ hiện hợp đồng **của đơn vị mình** và **chưa thuộc hồ sơ nào**.",
+        "**Nối hoặc gỡ chỉ đổi liên kết**, KHÔNG đổi khách hàng, loại hợp đồng hay bất kỳ số liệu nào của hợp đồng. Gỡ ra thì hợp đồng vẫn còn nguyên, chỉ thôi thuộc hồ sơ.",
+        "**Hồ sơ hợp đồng mẹ không vào báo cáo sản lượng.** Tiêu thụ và “đã ký HĐ chưa giao” vẫn tính trên hợp đồng/đợt giao như trước — cộng cả hai cấp là đếm hai lần. Số *Đã ký phụ lục* trên hồ sơ chỉ để đối chiếu với sản lượng cam kết.",
+        "Muốn **xoá hồ sơ** thì phải **gỡ hết phụ lục** trước — tránh xoá nhầm làm mất liên kết của hàng loạt hợp đồng.",
+        "Ở màn *Hợp đồng & đợt giao* có ô lọc **Hợp đồng mẹ** để xem trọn các phụ lục của một hồ sơ, và ô tick **Chưa gắn hồ sơ** để rà những hợp đồng còn phải đưa vào hồ sơ."
+      ]
+    },
+    {
+      "title": "9. Hợp đồng & đợt giao — danh sách",
       "location": "Quản lý hợp đồng → Hợp đồng & đợt giao",
       "intro": "Danh sách các hợp đồng của đơn vị kèm tiến độ giao hàng.",
       "image": {
@@ -181,9 +239,9 @@
       },
       "caption": "Hình 6. Danh sách hợp đồng và tiến độ giao",
       "steps": [
-        "**Thêm hợp đồng** — lập hợp đồng mới (xem mục 9).",
+        "**Thêm hợp đồng** — lập hợp đồng mới (xem mục 10).",
         "**Lọc theo Hình thức** — *Xuất khẩu / UTXK* · *Tiêu thụ trong nước* · *Tiêu thụ nội bộ*, hoặc **Chưa khai hình thức** để tìm nhanh những hợp đồng cũ còn thiếu mục này.",
-        "**Xem / Sửa / Xoá** ở cuối mỗi dòng. Bấm **Xem** để mở màn chi tiết (mục 10)."
+        "**Xem / Sửa / Xoá** ở cuối mỗi dòng. Bấm **Xem** để mở màn chi tiết (mục 11)."
       ],
       "notes": [
         "**SL hợp đồng** — tổng sản lượng ghi trên hợp đồng đã ký.",
@@ -195,7 +253,7 @@
       ]
     },
     {
-      "title": "9. Thêm hợp đồng",
+      "title": "10. Thêm hợp đồng",
       "location": "Quản lý hợp đồng → Hợp đồng & đợt giao → Thêm hợp đồng",
       "image": {
         "path": "img/07-hop-dong-form.png",
@@ -205,24 +263,25 @@
       "caption": "Hình 7. Phiếu thêm hợp đồng",
       "steps": [
         "**Số hợp đồng** — bắt buộc, không trùng trong cùng đơn vị.",
+        "**Hợp đồng mẹ (HĐNT/HĐDH)** — **để trống nếu không có**. Chuyến hàng này nằm trong một hợp đồng nguyên tắc / dài hạn đã lập hồ sơ (mục 8) thì gõ số hồ sơ rồi chọn. Chọn vào **không đổi** khách hàng, loại hợp đồng hay bất kỳ ô nào khác — chỉ ghi nhận hợp đồng này thuộc hồ sơ đó.",
         "**Khách hàng** — bắt buộc; gõ vài chữ trong tên (hoặc mã khách) rồi chọn. Danh sách chỉ có khách của chính đơn vị (mục 7).",
         "**Loại hợp đồng** — bắt buộc: *HĐ dài hạn* hay *HĐ chuyến*. Đây là chỉ tiêu của báo cáo, **khác** với Loại giao bên dưới.",
-        "**Loại giao** — *Giao 1 lần* (cả hợp đồng giao trọn một lần) hay *Giao nhiều lần* (chia thành nhiều đợt giao). Chọn nhầm vẫn đổi được sau, xem mục 10.",
+        "**Loại giao** — *Giao 1 lần* (cả hợp đồng giao trọn một lần) hay *Giao nhiều lần* (chia thành nhiều đợt giao). Chọn nhầm vẫn đổi được sau, xem mục 11.",
         "**Ngày ký** — bắt buộc. Từ ngày này, sản lượng hợp đồng nằm ở mục “đã ký HĐ chưa giao”.",
         "**Ngày giao** — chỉ hiện với hợp đồng *giao 1 lần*; điền khi đã giao xong. Bên dưới là **Hình thức tiêu thụ** và khối **Hoá đơn** (số hoá đơn + file scan).",
-        "**Chi tiết hợp đồng** — mỗi chủng loại một dòng (ô SL đổi nhãn thành **SL nước** với latex và mủ nguyên liệu). Ô **Quy khô** chỉ hiện với latex và mủ nguyên liệu; ô **Tỷ giá** chỉ hiện khi dòng bán bằng ngoại tệ.",
+        "**Chi tiết hợp đồng** — mỗi chủng loại một dòng (ô SL đổi nhãn thành **SL nước** với latex và mủ nguyên liệu). Ô **Quy khô** chỉ hiện với latex và mủ nguyên liệu; ô **Tỷ giá** chỉ hiện khi dòng bán bằng ngoại tệ và **chỉ bắt buộc khi đã điền Ngày giao**.",
         "**Thành tiền** — ô CHỈ ĐỌC ở cuối mỗi dòng (= số lượng × đơn giá, theo đúng loại tiền của dòng). Tổng thành tiền của hợp đồng hiện ngay dưới bảng, quy về triệu đồng."
       ],
       "notes": [
-        "**Không quản lý hợp đồng khung:** đơn vị có hợp đồng dài hạn thì nhập **mỗi phụ lục như một hợp đồng** và chọn loại **HĐ dài hạn** để phân biệt.",
+        "**Hợp đồng mẹ chỉ là hồ sơ đính kèm.** Nối vào hay không, hợp đồng vẫn khai đủ khách hàng, loại hợp đồng và chi tiết hàng như nhau; báo cáo cũng không đổi.",
         "**LATEX và 2 loại mủ nguyên liệu bán theo MỦ NƯỚC:** ô **SL nước (tấn)** là số để tính **Thành tiền** (đơn giá là giá theo tấn mủ nước), còn **sản lượng tiêu thụ trên báo cáo lấy theo ô Quy khô**. Vì vậy hai ô này phải khai đủ và đúng.",
-        "Bán bằng **VNĐ** nhập đơn giá theo **triệu đồng/tấn**; bán bằng **ngoại tệ** nhập theo **ngoại tệ/tấn** và **phải có tỷ giá** quy ra VNĐ, nếu không doanh thu sẽ hiện “—”.",
+        "Bán bằng **VNĐ** nhập đơn giá theo **triệu đồng/tấn**; bán bằng **ngoại tệ** nhập theo **ngoại tệ/tấn**. **Tỷ giá chỉ bắt buộc khi đã điền Ngày giao** — lúc ký hợp đồng chưa biết tỷ giá ngày giao hàng nên để trống vẫn lưu được, khi đó doanh thu hiện “—” cho tới lúc điền tỷ giá.",
         "Bán **LATEX** và 2 loại mủ nguyên liệu thì **bắt buộc nhập quy khô** mới lưu được.",
         "Hợp đồng **giao nhiều lần** không tự đánh dấu đã giao — mỗi lần giao nhập một đợt giao."
       ]
     },
     {
-      "title": "10. Màn chi tiết hợp đồng",
+      "title": "11. Màn chi tiết hợp đồng",
       "location": "Quản lý hợp đồng → Hợp đồng & đợt giao → bấm Xem ở dòng hợp đồng",
       "intro": "Nơi theo dõi tiến độ một hợp đồng, nhập các đợt giao và chốt hợp đồng khi kết thúc.",
       "image": {
@@ -234,10 +293,10 @@
       "steps": [
         "**Hàng số liệu** — khách hàng, loại hợp đồng, sản lượng hợp đồng, đã giao, còn phải giao, trạng thái. Luôn hiện dù đang ở tab nào.",
         "**Chuyển sang giao nhiều lần / Chuyển về giao 1 lần** — đổi loại giao ngay tại đây, **không phải xoá hợp đồng nhập lại**. Hợp đồng giao-1-lần đã ghi ngày giao thì lần giao đó tự chuyển thành **đợt giao đầu tiên** (giữ nguyên ngày giao, hoá đơn, thanh toán, chi tiết hàng).",
-        "**Hoàn thành hợp đồng** — chốt thời điểm kết thúc (xem mục 12).",
+        "**Hoàn thành hợp đồng** — chốt thời điểm kết thúc (xem mục 13).",
         "**Tab Thông tin hợp đồng** — sửa hợp đồng, file scan, ghi chú và các dòng chi tiết đã ký.",
         "**Tab Đợt giao** — danh sách các lần giao; hợp đồng giao nhiều lần mở thẳng vào tab này.",
-        "**Thêm đợt giao** — ghi một lần giao mới (xem mục 11)."
+        "**Thêm đợt giao** — ghi một lần giao mới (xem mục 12)."
       ],
       "notes": [
         "Hợp đồng **giao 1 lần** không có tab Đợt giao: chính hợp đồng là một lần giao.",
@@ -246,8 +305,8 @@
       ]
     },
     {
-      "title": "11. Thêm đợt giao — mỗi đợt là một lần giao",
-      "location": "Màn chi tiết hợp đồng (mục 10) → tab Đợt giao → Thêm đợt giao",
+      "title": "12. Thêm đợt giao — mỗi đợt là một lần giao",
+      "location": "Màn chi tiết hợp đồng (mục 11) → tab Đợt giao → Thêm đợt giao",
       "intro": "Mỗi đợt giao = một lần giao hàng + một lần thanh toán. Đây là cách ghi nhận tiêu thụ của cơ chế mới.",
       "image": {
         "path": "img/09-dot-giao-form.png",
@@ -267,12 +326,13 @@
         "Phiếu hiện sẵn dòng *Còn phải giao theo hợp đồng … · tối đa nhập được …*. Sản lượng thực giao **được phép lệch** so với hợp đồng: vượt thì có cảnh báo vàng nhưng vẫn lưu, **quá 110% sản lượng hợp đồng mới bị chặn**.",
         "**Tiêu thụ nội bộ** chỉ hiện khi đơn vị thuộc một nhóm công ty mẹ–con, và chỉ chọn được đơn vị trong cùng nhóm.",
         "**Thành tiền** của mỗi dòng = số lượng × đơn giá, hệ thống tự tính (không nhập tay); tổng của cả đợt hiện ngay dưới bảng chi tiết.",
-        "Lần giao đã ghi quá **số ngày cho phép sửa** sẽ chuyển sang **chỉ xem** (dòng hiện “(chỉ xem)” thay cho nút Sửa/Xoá). Hợp đồng **không** bị khoá, vẫn thêm đợt giao mới bình thường."
+        "Lần giao đã ghi quá **số ngày cho phép sửa** sẽ chuyển sang **chỉ xem** (dòng hiện “(chỉ xem)” thay cho nút Sửa/Xoá). Hợp đồng **không** bị khoá, vẫn thêm đợt giao mới bình thường.",
+        "**Tỷ giá:** đợt chưa điền *Ngày giao* thì để trống được (ô ghi “khi giao”); vừa điền ngày giao là **bắt buộc** phải có tỷ giá, nếu không sẽ không lưu được."
       ]
     },
     {
-      "title": "12. Hoàn thành hợp đồng",
-      "location": "Màn chi tiết hợp đồng (mục 10) → Hoàn thành hợp đồng",
+      "title": "13. Hoàn thành hợp đồng",
+      "location": "Màn chi tiết hợp đồng (mục 11) → Hoàn thành hợp đồng",
       "intro": "Sản lượng thực giao thường lệch vài phần trăm so với hợp đồng đã ký. Khi hai bên đã kết thúc hợp đồng, bấm Hoàn thành hợp đồng để chốt lại — phần chênh còn lại thôi không nằm ở “đã ký HĐ chưa giao” nữa.",
       "image": {
         "path": "img/10-hoan-thanh-hop-dong.png",
@@ -292,7 +352,7 @@
       ]
     },
     {
-      "title": "13. Báo cáo tiêu thụ",
+      "title": "14. Báo cáo tiêu thụ",
       "location": "Báo cáo → Tiêu thụ",
       "intro": "Bảng chỉ để xem — số do hệ thống tổng hợp từ các lần giao, đơn vị không nhập tay.",
       "image": {
@@ -314,7 +374,7 @@
       ]
     },
     {
-      "title": "14. Nhu cầu thị trường",
+      "title": "15. Nhu cầu thị trường",
       "location": "Nhập liệu số liệu → Nhu cầu thị trường",
       "intro": "Ghi nhận nhu cầu và tín hiệu thị trường của đơn vị, nhập tự do bằng chữ theo ngày.",
       "image": {
@@ -331,7 +391,7 @@
       ]
     },
     {
-      "title": "15. Kế hoạch năm",
+      "title": "16. Kế hoạch năm",
       "location": "Nhập liệu số liệu → Kế hoạch năm",
       "intro": "Số liệu nhập một lần cho cả năm, cập nhật khi có điều chỉnh.",
       "image": {
@@ -344,15 +404,17 @@
         "**Kế hoạch thu mua** (tấn) — dùng để tính % hoàn thành kế hoạch trên báo cáo.",
         "**Kế hoạch tiêu thụ — HĐ chuyến** (tấn) — chỉ tiêu tiêu thụ giao cho hợp đồng chuyến trong năm.",
         "**HĐ dài hạn đã ký** (tấn) trong năm.",
-        "**HĐ dài hạn / HĐ chuyến năm trước chuyển sang** (tấn)."
+        "**HĐ dài hạn / HĐ chuyến năm trước chuyển sang** (tấn).",
+        "**Kế hoạch doanh thu** — chỉ tiêu doanh thu cả năm, đơn vị **TỶ ĐỒNG**. Đây là ô TIỀN duy nhất của bảng (các ô còn lại đều là **tấn**) — nhập nhầm sang tấn là % thực hiện sai hàng nghìn lần."
       ],
       "notes": [
         "Ô **Kế hoạch thu mua** chính là công tắc: có số **> 0** thì đơn vị mới thấy màn **Báo cáo thu mua**; để trống hoặc **0** = đơn vị không tổ chức thu mua.",
-        "Ô **Kế hoạch tiêu thụ — HĐ chuyến** dùng để đối chiếu **% thực hiện** trên báo cáo kỳ; ô này KHÔNG bật/tắt màn nào."
+        "Ô **Kế hoạch tiêu thụ — HĐ chuyến** dùng để đối chiếu **% thực hiện** trên báo cáo kỳ; ô này KHÔNG bật/tắt màn nào.",
+        "Kế hoạch doanh thu dùng để tính **% thực hiện** ở màn *Thống kê tiêu thụ* của Ban TTKD (= doanh thu trong kỳ / kế hoạch năm). Để trống ô này = không đặt chỉ tiêu, không phải đặt bằng 0."
       ]
     },
     {
-      "title": "16. Hợp đồng cũ (trước 30/07)",
+      "title": "17. Hợp đồng cũ (trước 30/07)",
       "location": "Báo cáo → Hợp đồng cũ (trước 30/07)",
       "intro": "Toàn bộ hợp đồng đã ký nhập theo cách cũ, kể cả hợp đồng đã giao. Màn này chỉ để tra cứu — không có nút sửa.",
       "image": {
@@ -370,18 +432,21 @@
       ]
     },
     {
-      "title": "17. Những lỗi hay gặp",
+      "title": "18. Những lỗi hay gặp",
       "notes": [
         "**Không lưu được hợp đồng, báo thiếu loại hợp đồng** → Chưa chọn **HĐ dài hạn / HĐ chuyến** — đây là ô bắt buộc.",
-        "**Doanh thu trên báo cáo hiện “—”** → Có lần giao bán ngoại tệ chưa nhập tỷ giá. Mở đợt giao, điền tỷ giá quy ra VNĐ.",
+        "**Doanh thu trên báo cáo hiện “—”** → Có lần giao bán ngoại tệ chưa nhập tỷ giá. Mở lần giao đó, điền tỷ giá quy ra VNĐ. Hợp đồng **chưa tới ngày giao** mà chưa có tỷ giá là bình thường.",
         "**Báo cáo tiêu thụ ra 0 dù đơn vị có bán** → Ngày giao nằm ngoài kỳ đang xem, hoặc đợt giao **chưa điền Ngày giao** (vẫn đang chờ giao).",
         "**Không thấy “Tiêu thụ nội bộ”** → Đơn vị chưa thuộc nhóm công ty mẹ–con. Báo Ban TTKD gán Công ty mẹ.",
         "**Không lưu được đợt giao, báo vượt quá 110%** → Tổng các đợt giao vượt quá 110% sản lượng hợp đồng. Kiểm lại số cân; nếu hai bên đã thống nhất tăng thì sửa sản lượng trên hợp đồng.",
         "**Hợp đồng còn treo sản lượng chưa giao dù đã bán xong** → Giao thiếu vài % là bình thường; bấm **Hoàn thành hợp đồng** để chốt, phần chênh sẽ rời khỏi “đã ký HĐ chưa giao”.",
         "**Không sửa được hợp đồng, báo “đã hoàn thành”** → Hợp đồng đã chốt. Bấm **Mở lại hợp đồng** ở màn chi tiết rồi sửa.",
         "**Không sửa được số liệu ngày cũ** → Ngoài cửa sổ sửa cho phép. Báo Ban TTKD nếu cần mở lại.",
-        "**Đợt giao hiện “(chỉ xem)”, không có nút Sửa** → Lần giao đã quá số ngày cho phép sửa. Báo Ban TTKD nếu thật sự cần chỉnh."
-      ]
+        "**Đợt giao hiện “(chỉ xem)”, không có nút Sửa** → Lần giao đã quá số ngày cho phép sửa. Báo Ban TTKD nếu thật sự cần chỉnh.",
+        "**Không thấy hợp đồng cần gắn trong danh sách “Gắn hợp đồng có sẵn”** → Hợp đồng đó đã thuộc một hồ sơ khác. Mở hồ sơ đó gỡ ra trước, rồi gắn sang hồ sơ mới.",
+        "**Không xoá được hợp đồng mẹ** → Hồ sơ còn phụ lục. Gỡ hết phụ lục ở màn chi tiết rồi mới xoá."
+      ],
+      "notes_as_table": true
     }
   ]
 }

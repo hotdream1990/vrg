@@ -27,7 +27,10 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 
 API = "http://localhost:8390"
 WEB = "http://localhost:5390"
-UNIT = "Bảo Lâm"
+#: Đơn vị mẫu — dò theo TỪ KHOÁ chứ không ghi cứng tên đầy đủ: tên đơn vị đổi (hoặc DB được
+#: clone lại từ prod với tên đầy đủ "Công ty Cổ phần Cao Su Bảo Lâm") là script chết ở bước seed.
+UNIT_KEY = "Bảo Lâm"
+UNIT = UNIT_KEY          # gán lại bằng tên THẬT trong main(), sau khi hỏi API
 MEMBER = "caosubaolam@gmail.com"
 OUT = pathlib.Path(__file__).parent / "img"
 
@@ -109,6 +112,25 @@ def seed(tok: str) -> None:
                    "fx": 26200}]})
 
 
+def seed_master(tok: str) -> None:
+    """1 hồ sơ HỢP ĐỒNG MẸ (HĐDH) + nối hợp đồng mẫu vào — để 3 ảnh mục 8 có nội dung thật."""
+    cus = call("GET", f"/api/customers?company={urllib.parse.quote(UNIT)}&limit=1", tok)["items"]
+    master = call("PUT", "/api/master-contracts", tok, {
+        "company": UNIT, "code": "01/2026/HĐDH-BL", "master_type": "long_term",
+        "customer_id": cus[0]["id"], "sign_date": D(200), "expiry_date": D(-160),
+        "price_formula": "Giá SICOM TSR20 bình quân tuần trước liền kề + 30 USD/tấn, FOB HCM",
+        "lines": [{"grade": "SVR 3L", "qty": 1200, "price": 1780, "ccy": "USD", "fx": 26300},
+                  {"grade": "SVR 10 / CSR 10", "qty": 800, "price": 1650, "ccy": "USD",
+                   "fx": 26300}],
+    })["master"]
+    ids = [c["id"] for c in call("GET", "/api/sales-contracts?company="
+                                 + urllib.parse.quote(UNIT) + "&unlinked=true&page_size=2",
+                                 tok)["contracts"]]
+    if ids:
+        call("PUT", f"/api/master-contracts/{master['id']}/annexes", tok,
+             {"contract_ids": ids, "attach": True})
+
+
 def seed_legacy() -> None:
     """1 hợp đồng ở bảng CŨ (`unit_stock_contract`) — màn "Hợp đồng cũ" chỉ đọc bảng này, không
     seed thì ảnh chụp ra bảng trống. Ghi thẳng DB vì giao diện đã chuyển sang chỉ-xem."""
@@ -136,8 +158,10 @@ def clean() -> None:
     dsn = os.environ.get("DATABASE_URL", "postgresql://vrg:changeme@localhost:5433/vrg_caosu")
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
         cur.execute("DELETE FROM sales_contract WHERE company = %s OR to_company = %s", (UNIT, UNIT))
-        for t in ("unit_customer", "unit_daily_report", "unit_purchase_plan", "market_demand",
-                  "unit_stock_contract"):
+        # `master_contract` phải xoá TRƯỚC `unit_customer` (hồ sơ trỏ tới khách) và SAU
+        # `sales_contract` (không xoá được hồ sơ còn phụ lục ở tầng nghiệp vụ; ở đây xoá thẳng DB).
+        for t in ("master_contract", "unit_customer", "unit_daily_report", "unit_purchase_plan",
+                  "market_demand", "unit_stock_contract"):
             cur.execute(f"DELETE FROM {t} WHERE company = %s", (UNIT,))
         conn.commit()
 
@@ -331,6 +355,18 @@ def open_batch_form(page) -> None:
     page.wait_for_timeout(600)
 
 
+def open_master_form(page) -> None:
+    """Phiếu THÊM hợp đồng mẹ."""
+    page.click('button:has-text("Thêm hợp đồng mẹ")')
+    page.wait_for_timeout(700)
+
+
+def open_master_detail(page) -> None:
+    """Màn chi tiết hồ sơ (có mục Phụ lục + 2 nút thêm/gắn)."""
+    page.click('tbody button:has-text("Xem")')
+    page.wait_for_timeout(900)
+
+
 def open_complete_modal(page) -> None:
     """Màn chốt HOÀN THÀNH hợp đồng — chỉ MỞ để chụp, không bấm nút hoàn thành."""
     open_detail(page)
@@ -338,12 +374,25 @@ def open_complete_modal(page) -> None:
     page.wait_for_timeout(600)
 
 
+def resolve_unit(admin: str) -> str:
+    """Tên THẬT của đơn vị mẫu (dò theo `UNIT_KEY`). Không có thì dừng hẳn với thông báo rõ ràng —
+    chạy tiếp với tên sai chỉ tạo ra bộ ảnh trống mà không ai để ý."""
+    names = [u["name"] for u in call("GET", "/api/member-units", admin)]
+    hit = [n for n in names if UNIT_KEY in n]
+    if len(hit) != 1:
+        raise SystemExit(f"Không xác định được đơn vị mẫu từ khoá {UNIT_KEY!r}: {hit or 'không có'}")
+    return hit[0]
+
+
 def main() -> int:
+    global UNIT
     admin = call("POST", "/api/auth/login", None,
                  {"username": "admin", "password": "admin"})["access_token"]
+    UNIT = resolve_unit(admin)
     tok = call("POST", "/api/auth/impersonate", admin, {"username": MEMBER})["access_token"]
     clean()               # chạy lại lần 2 không nhân đôi dữ liệu mẫu
     seed(tok)
+    seed_master(tok)
     seed_legacy()
     OUT.mkdir(exist_ok=True)
 
@@ -385,9 +434,9 @@ def main() -> int:
              wait_for="table", setup=lambda pg: open_modal(pg, "Thêm khách hàng"))
         shot(f"{WEB}/hop-dong", CONTRACT_LIST_SCREEN, "06-hop-dong-danh-sach.png", wait_for="table")
         shot(f"{WEB}/hop-dong",
-             mixed_targets(("f", "Số hợp đồng"), ("f", "Khách hàng"), ("f", "Loại hợp đồng"),
-                           ("f", "Loại giao"), ("f", "Ngày ký"), ("f", "Ngày giao"),
-                           ("b", "Chi tiết hợp đồng"), ("f", "Thành tiền")),
+             mixed_targets(("f", "Số hợp đồng"), ("f", "Hợp đồng mẹ"), ("f", "Khách hàng"),
+                           ("f", "Loại hợp đồng"), ("f", "Loại giao"), ("f", "Ngày ký"),
+                           ("f", "Ngày giao"), ("b", "Chi tiết hợp đồng"), ("f", "Thành tiền")),
              "07-hop-dong-form.png", wait_for="table", setup=open_contract_form)
         shot(f"{WEB}/hop-dong", CONTRACT_DETAIL, "08-hop-dong-chi-tiet.png",
              wait_for="table", setup=open_detail)
@@ -398,6 +447,21 @@ def main() -> int:
              "09-dot-giao-form.png", wait_for="table", setup=open_batch_form)
         shot(f"{WEB}/hop-dong", COMPLETE_MODAL, "10-hoan-thanh-hop-dong.png",
              wait_for="table", setup=open_complete_modal)
+        shot(f"{WEB}/hop-dong/hop-dong-me",
+             "(() => window.__annotate([document.querySelector('.blt-toolbar'),"
+             " document.querySelector('table')]))()",
+             "05c-hop-dong-me-danh-sach.png", wait_for="table")
+        shot(f"{WEB}/hop-dong/hop-dong-me",
+             block_targets("Số hợp đồng *", "Loại hợp đồng mẹ *", "Khách hàng *",
+                           "Chủng loại &", "Công thức giá"),
+             "05d-hop-dong-me-form.png", wait_for="table", setup=open_master_form)
+        shot(f"{WEB}/hop-dong/hop-dong-me",
+             "(() => window.__annotate([document.querySelector('.ct-kpi'),"
+             " [...document.querySelectorAll('h4')].find(e => e.textContent.includes('Phụ lục')),"
+             " [...document.querySelectorAll('button')].find(e => e.textContent.includes('Thêm phụ lục')),"
+             " [...document.querySelectorAll('button')].find(e => e.textContent.includes('Gắn hợp đồng'))"
+             "]))()",
+             "05e-hop-dong-me-chi-tiet.png", wait_for="table", setup=open_master_detail)
         shot(f"{WEB}/bao-cao-tieu-thu",
              "(() => window.__annotate([document.querySelector('.blt-toolbar'),"
              " document.querySelector('table')]))()",
@@ -415,7 +479,8 @@ def main() -> int:
                });
                return window.__annotate([th('Kế hoạch thu mua'), th('Kế hoạch tiêu thụ'),
                                          th('HĐ dài hạn', 'đã ký'),
-                                         th('HĐ dài hạn', 'chuyển sang')]);
+                                         th('HĐ dài hạn', 'chuyển sang'),
+                                         th('Kế hoạch doanh thu')]);
              })()""",
              "13-ke-hoach-nam.png", wait_for="table")
         shot(f"{WEB}/thong-ke-hop-dong",
