@@ -53,22 +53,41 @@ def _customer(h: dict[str, str], company: str) -> int:
         c["id"] for c in client.get("/api/customers", headers=h).json()["items"] if c["company"] == company)
 
 
+_MASTERS: dict[str, int] = {}
+
+
+def _master_for(h: dict[str, str], company: str) -> int:
+    """Hồ sơ hợp đồng mẹ dùng chung cho mọi HĐ dài hạn của một đơn vị (lập một lần)."""
+    if company not in _MASTERS:
+        _MASTERS[company] = client.put("/api/master-contracts", headers=h, json={
+            "company": company, "code": f"HS-{company[-6:]}", "master_type": "long_term",
+            "customer_id": _customer(h, company),
+            "lines": [{"grade": "SVR 3L"}]}).json()["master"]["id"]
+    return _MASTERS[company]
+
+
 def _deliver(h: dict[str, str], company: str, code: str, day: str, ctype: str, channel: str,
              grade: str, qty: float, price: float, ccy: str = "VND",
              fx: float | None = None) -> None:
-    """1 hợp đồng giao-1-lần ĐÃ GIAO trong ngày `day` — nguồn tiêu thụ của cơ chế mới."""
+    """1 hợp đồng giao-1-lần ĐÃ GIAO trong ngày `day` — nguồn tiêu thụ của cơ chế mới.
+
+    HĐ dài hạn BẮT BUỘC thuộc một hợp đồng mẹ (chốt 24/08/2026) nên helper tự lập sẵn hồ sơ cho
+    đơn vị đó rồi nối vào; HĐ chuyến thì không có hồ sơ.
+    """
     r = client.put("/api/sales-contracts", json={
         "company": company, "code": code, "customer_id": _customer(h, company),
         "delivery_type": "single", "contract_type": ctype, "sign_date": day, "start_date": day,
+        "master_id": _master_for(h, company) if ctype == "long_term" else None,
         "delivered_at": day, "channel": channel,
         "lines": [{"grade": grade, "qty": qty, "price": price, "ccy": ccy, "fx": fx}]}, headers=h)
     assert r.status_code == 200, r.text
 
 
 def _cleanup(h: dict[str, str]) -> None:
+    _MASTERS.clear()
     with session_scope() as db:
         for tbl in ("unit_daily_report", "unit_purchase_plan", "unit_stock_contract",
-                    "sales_contract"):
+                    "sales_contract", "master_contract"):
             db.execute(text(f"DELETE FROM {tbl} WHERE company = ANY(:u)"), {"u": [UNIT_A, UNIT_B]})
         db.execute(text("DELETE FROM unit_customer WHERE company = ANY(:u)"), {"u": [UNIT_A, UNIT_B]})
         db.execute(text("DELETE FROM fact_price WHERE grade = ANY(:u)"), {"u": [UNIT_A, UNIT_B]})
@@ -306,6 +325,7 @@ def _sign(h: dict, code: str, day: str, qty: float, grade: str = "SVR 3L") -> No
     r = client.put("/api/sales-contracts", json={
         "company": UNIT_A, "code": code, "customer_id": _customer(h, UNIT_A),
         "delivery_type": "single", "contract_type": "long_term", "channel": "export",
+        "master_id": _master_for(h, UNIT_A),   # HĐ dài hạn phải thuộc hồ sơ mẹ (24/08/2026)
         "sign_date": day, "start_date": day,
         "lines": [{"grade": grade, "qty": qty, "price": 30, "ccy": "VND"}]}, headers=h)
     assert r.status_code == 200, r.text

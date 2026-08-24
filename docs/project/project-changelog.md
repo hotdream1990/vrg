@@ -3,6 +3,16 @@
 Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/).
 
 ## [Unreleased]
+### Changed
+- **Hồ sơ hợp đồng mẹ nay gắn theo LOẠI HỢP ĐỒNG** (chốt 24/08/2026):
+  - **HĐ chuyến** bán đứt từng chuyến ⇒ **không có hợp đồng mẹ**; ô đó tự khoá lại, đổi loại sang
+    HĐ chuyến thì hồ sơ đang chọn bị bỏ.
+  - **HĐ dài hạn** là **phụ lục** của một hợp đồng mẹ ⇒ **bắt buộc** chọn hồ sơ, **cả lúc tạo lẫn
+    lúc sửa**. 942 hợp đồng dài hạn nhập trước khi có cấp hồ sơ sẽ phải gắn hồ sơ ở lần sửa tiếp
+    theo — đây là cách dọn dần hồ sơ cũ.
+  - Không đụng tới: *Hoàn thành hợp đồng*, *Chuyển loại giao* và mọi thao tác trên **đợt giao**
+    (đợt giao không mang loại hợp đồng).
+
 ### Added
 - **Kế hoạch doanh thu năm cho đơn vị** (24/08/2026) — thêm ô *Kế hoạch doanh thu* (**tỷ đồng**) vào
   màn **Kế hoạch năm**, cạnh các chỉ tiêu sản lượng đang có; nhập/xuất được qua biểu Excel Kế hoạch.

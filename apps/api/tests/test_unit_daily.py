@@ -723,7 +723,7 @@ def test_consumption_timeline_totals_come_from_contracts_not_the_old_declared_ar
                      headers=h).json()["id"]
     line = lambda qty: {"grade": "SVR 10 / CSR 10", "qty": qty, "price": 40.0, "ccy": "VND"}  # noqa: E731
     parent = client.put("/api/sales-contracts", json={
-        "company": unit, "code": "HD-TOTALS", "delivery_type": "multi", "contract_type": "long_term",
+        "company": unit, "code": "HD-TOTALS", "delivery_type": "multi", "contract_type": "spot",
         "customer_id": cus, "sign_date": days[2], "lines": [line(100.0)]}, headers=h).json()["contract"]
     for code, d, channel, qty in (("PL-1", days[0], "export", 5.0), ("PL-2", days[1], "domestic", 7.0)):
         r = client.put("/api/sales-contracts", json={

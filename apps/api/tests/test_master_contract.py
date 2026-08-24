@@ -79,9 +79,15 @@ def _default_customer(h) -> int:
 
 
 def _annex(h, master_id: int | None, code="PL-01", **kw) -> dict:
-    """Một HỢP ĐỒNG, có/không nối hồ sơ mẹ. Khách hàng LUÔN phải có — nối hồ sơ mẹ không thay
-    khách (chốt 24/08/2026), nên mọi hợp đồng vẫn tự khai khách như trước."""
-    body = {"company": UNIT, "code": code, "contract_type": "long_term", "sign_date": TODAY,
+    """Một HỢP ĐỒNG, có/không nối hồ sơ mẹ.
+
+    Khách hàng LUÔN phải có — nối hồ sơ mẹ không thay khách (chốt 24/08/2026).
+    LOẠI HỢP ĐỒNG suy theo luật 24/08: có hồ sơ ⇒ **HĐ dài hạn** (phụ lục), không hồ sơ ⇒
+    **HĐ chuyến**. Test nào muốn phá luật thì truyền `contract_type` tường minh.
+    """
+    body = {"company": UNIT, "code": code, "sign_date": TODAY,
+            "contract_type": kw.pop("contract_type",
+                                    "long_term" if master_id else "spot"),
             "master_id": master_id,
             "customer_id": kw.pop("customer_id", None) or _default_customer(h),
             "lines": [{"grade": "SVR 10 / CSR 10", "qty": 100.0, "price": 40.0, "ccy": "VND"}],
@@ -190,7 +196,7 @@ def test_linking_a_master_never_touches_contract_data(env) -> None:
 def test_contract_without_master_still_needs_customer(env) -> None:
     h = env
     r = client.put("/api/sales-contracts", headers=h, json={
-        "company": UNIT, "code": "HD-DOC-LAP", "contract_type": "long_term", "sign_date": TODAY,
+        "company": UNIT, "code": "HD-DOC-LAP", "contract_type": "spot", "sign_date": TODAY,
         "lines": [{"grade": "SVR 10 / CSR 10", "qty": 10.0, "price": 40.0, "ccy": "VND"}]})
     assert r.status_code == 400 and "khách hàng" in r.json()["detail"]
     assert _annex(h, None, code="HD-DOC-LAP", customer_id=_customer(h)).status_code == 200
@@ -467,3 +473,45 @@ def test_member_account_manages_only_its_own_master_contracts(env) -> None:
         assert made.status_code == 200, made.text
     finally:
         client.delete("/api/users/_zz_mc_mem", headers=h)
+
+
+def test_long_term_needs_a_master_and_spot_must_not_have_one(env) -> None:
+    """Luật theo LOẠI HỢP ĐỒNG (chốt 24/08/2026).
+
+    - HĐ CHUYẾN bán đứt từng chuyến ⇒ KHÔNG thuộc hồ sơ nào.
+    - HĐ DÀI HẠN là PHỤ LỤC của một hợp đồng mẹ ⇒ bắt buộc có hồ sơ, **cả lúc tạo lẫn lúc sửa**
+      (ép cả lúc sửa là cách dọn dần các hợp đồng dài hạn nhập trước khi có cấp hồ sơ).
+    """
+    h = env
+    m = _master(h, _customer(h), code="HDDH-LUAT", master_type="long_term")
+
+    # 1) HĐ dài hạn tạo mới mà không có hồ sơ → chặn.
+    no_master = _annex(h, None, code="PL-THIEU-HO-SO", contract_type="long_term")
+    assert no_master.status_code == 400 and "hợp đồng mẹ" in no_master.json()["detail"]
+
+    # 2) HĐ chuyến mà lại gắn hồ sơ → chặn.
+    spot_with = _annex(h, m["id"], code="HD-CHUYEN-CO-HO-SO", contract_type="spot")
+    assert spot_with.status_code == 400 and "HĐ chuyến" in spot_with.json()["detail"]
+
+    # 3) Đúng luật thì lưu được cả hai loại.
+    assert _annex(h, m["id"], code="PL-DUNG", contract_type="long_term").status_code == 200
+    spot = _annex(h, None, code="HD-CHUYEN-DUNG", contract_type="spot")
+    assert spot.status_code == 200, spot.text
+
+    # 4) Hợp đồng dài hạn CŨ (chưa gắn hồ sơ) — sửa cũng bị ép gắn hồ sơ.
+    old = spot.json()["contract"]
+    to_lt = client.put("/api/sales-contracts", headers=h,
+                       json={**old, "contract_type": "long_term"})
+    assert to_lt.status_code == 400 and "hợp đồng mẹ" in to_lt.json()["detail"]
+    fixed = client.put("/api/sales-contracts", headers=h,
+                       json={**old, "contract_type": "long_term", "master_id": m["id"]})
+    assert fixed.status_code == 200, fixed.text
+
+    # 5) ĐỢT GIAO không mang loại hợp đồng nên không dính luật này.
+    parent = client.put("/api/sales-contracts", headers=h, json={
+        **old, "contract_type": "long_term", "master_id": m["id"],
+        "delivery_type": "multi"}).json()["contract"]
+    batch = client.put("/api/sales-contracts", headers=h, json={
+        "company": UNIT, "parent_id": parent["id"], "code": "Đợt 1",
+        "lines": [{"grade": "SVR 10 / CSR 10", "qty": 5.0, "price": 40.0, "ccy": "VND"}]})
+    assert batch.status_code == 200, batch.text

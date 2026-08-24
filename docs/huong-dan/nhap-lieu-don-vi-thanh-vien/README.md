@@ -142,7 +142,7 @@ Danh mục khách hàng riêng của từng đơn vị — đơn vị khác khô
 
 **Vị trí:** Quản lý hợp đồng → Hợp đồng mẹ (HĐNT/HĐDH)
 
-Nơi lưu **hồ sơ gốc** của hợp đồng nguyên tắc (HĐNT) hoặc hợp đồng dài hạn (HĐDH) đã ký với khách hàng: số hợp đồng, khách hàng, chủng loại kèm đơn giá, công thức giá và bản scan. Từng chuyến hàng vẫn nhập ở *Hợp đồng & đợt giao* như bình thường, chỉ chọn thêm hồ sơ này để nối vào. **Không bắt buộc** — đơn vị không có HĐNT/HĐDH thì bỏ qua mục này.
+Nơi lưu **hồ sơ gốc** của hợp đồng nguyên tắc (HĐNT) hoặc hợp đồng dài hạn (HĐDH) đã ký với khách hàng: số hợp đồng, khách hàng, chủng loại kèm đơn giá, công thức giá và bản scan. **Mọi HĐ dài hạn đều là phụ lục của một hồ sơ** nên đơn vị có bán dài hạn thì phải lập hồ sơ ở đây trước. HĐ chuyến thì không cần.
 
 ![Hình 5c. Danh sách hồ sơ hợp đồng mẹ](img/05c-hop-dong-me-danh-sach.png)
 
@@ -202,7 +202,7 @@ Danh sách các hợp đồng của đơn vị kèm tiến độ giao hàng.
 *Hình 7. Phiếu thêm hợp đồng*
 
 1. **Số hợp đồng** — bắt buộc, không trùng trong cùng đơn vị.
-2. **Hợp đồng mẹ (HĐNT/HĐDH)** — **để trống nếu không có**. Chuyến hàng này nằm trong một hợp đồng nguyên tắc / dài hạn đã lập hồ sơ (mục 8) thì gõ số hồ sơ rồi chọn. Chọn vào **không đổi** khách hàng, loại hợp đồng hay bất kỳ ô nào khác — chỉ ghi nhận hợp đồng này thuộc hồ sơ đó.
+2. **Hợp đồng mẹ (HĐNT/HĐDH)** — theo **Loại hợp đồng** bên cạnh: **HĐ dài hạn** là *phụ lục* của một hợp đồng mẹ nên **bắt buộc** chọn hồ sơ (chưa có thì lập ở mục 8 trước, rồi quay lại). **HĐ chuyến** bán đứt từng chuyến nên **không có hợp đồng mẹ** — ô này tự khoá lại.
 3. **Khách hàng** — bắt buộc; gõ vài chữ trong tên (hoặc mã khách) rồi chọn. Danh sách chỉ có khách của chính đơn vị (mục 7).
 4. **Loại hợp đồng** — bắt buộc: *HĐ dài hạn* hay *HĐ chuyến*. Đây là chỉ tiêu của báo cáo, **khác** với Loại giao bên dưới.
 5. **Loại giao** — *Giao 1 lần* (cả hợp đồng giao trọn một lần) hay *Giao nhiều lần* (chia thành nhiều đợt giao). Chọn nhầm vẫn đổi được sau, xem mục 11.
@@ -211,7 +211,7 @@ Danh sách các hợp đồng của đơn vị kèm tiến độ giao hàng.
 8. **Chi tiết hợp đồng** — mỗi chủng loại một dòng (ô SL đổi nhãn thành **SL nước** với latex và mủ nguyên liệu). Ô **Quy khô** chỉ hiện với latex và mủ nguyên liệu; ô **Tỷ giá** chỉ hiện khi dòng bán bằng ngoại tệ và **chỉ bắt buộc khi đã điền Ngày giao**.
 9. **Thành tiền** — ô CHỈ ĐỌC ở cuối mỗi dòng (= số lượng × đơn giá, theo đúng loại tiền của dòng). Tổng thành tiền của hợp đồng hiện ngay dưới bảng, quy về triệu đồng.
 
-> - **Hợp đồng mẹ chỉ là hồ sơ đính kèm.** Nối vào hay không, hợp đồng vẫn khai đủ khách hàng, loại hợp đồng và chi tiết hàng như nhau; báo cáo cũng không đổi.
+> - **HĐ dài hạn cũ chưa gắn hồ sơ:** lần sửa tiếp theo hệ thống sẽ yêu cầu chọn hợp đồng mẹ mới lưu được — đây là cách dọn dần hồ sơ cũ. Bấm *Hoàn thành hợp đồng*, *Chuyển loại giao* và mọi thao tác trên **đợt giao** thì không bị hỏi.
 > - **LATEX và 2 loại mủ nguyên liệu bán theo MỦ NƯỚC:** ô **SL nước (tấn)** là số để tính **Thành tiền** (đơn giá là giá theo tấn mủ nước), còn **sản lượng tiêu thụ trên báo cáo lấy theo ô Quy khô**. Vì vậy hai ô này phải khai đủ và đúng.
 > - Bán bằng **VNĐ** nhập đơn giá theo **triệu đồng/tấn**; bán bằng **ngoại tệ** nhập theo **ngoại tệ/tấn**. **Tỷ giá chỉ bắt buộc khi đã điền Ngày giao** — lúc ký hợp đồng chưa biết tỷ giá ngày giao hàng nên để trống vẫn lưu được, khi đó doanh thu hiện “—” cho tới lúc điền tỷ giá.
 > - Bán **LATEX** và 2 loại mủ nguyên liệu thì **bắt buộc nhập quy khô** mới lưu được.
@@ -362,3 +362,5 @@ Toàn bộ hợp đồng đã ký nhập theo cách cũ, kể cả hợp đồng
 | **Đợt giao hiện “(chỉ xem)”, không có nút Sửa** | Lần giao đã quá số ngày cho phép sửa. Báo Ban TTKD nếu thật sự cần chỉnh. |
 | **Không thấy hợp đồng cần gắn trong danh sách “Gắn hợp đồng có sẵn”** | Hợp đồng đó đã thuộc một hồ sơ khác. Mở hồ sơ đó gỡ ra trước, rồi gắn sang hồ sơ mới. |
 | **Không xoá được hợp đồng mẹ** | Hồ sơ còn phụ lục. Gỡ hết phụ lục ở màn chi tiết rồi mới xoá. |
+| **Không lưu được HĐ dài hạn, báo phải chọn hợp đồng mẹ** | HĐ dài hạn là phụ lục của một hồ sơ. Lập hồ sơ ở mục 8 rồi quay lại chọn; hoặc đổi **Loại hợp đồng** sang *HĐ chuyến* nếu bán đứt. |
+| **Ô Hợp đồng mẹ bị khoá, không chọn được** | Đang để **Loại hợp đồng = HĐ chuyến**. HĐ chuyến không thuộc hồ sơ nào; đổi sang *HĐ dài hạn* thì ô mở ra. |

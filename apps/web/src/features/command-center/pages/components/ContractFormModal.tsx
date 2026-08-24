@@ -82,6 +82,10 @@ export default function ContractFormModal({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const set = (patch: Partial<Contract>) => setC((prev) => ({ ...prev, ...patch }));
+  // HĐ DÀI HẠN là phụ lục của một hợp đồng mẹ → BẮT BUỘC chọn hồ sơ, cả lúc tạo lẫn lúc sửa
+  // (chốt 24/08/2026). Hợp đồng dài hạn cũ chưa gắn hồ sơ sẽ phải gắn ngay lần sửa đầu tiên —
+  // đây là cách dọn dần 942 bản ghi cũ trên prod.
+  const needMaster = !isChild && c.contract_type === "long_term";
   // Đợt CHỈ tính là đã giao khi có NGÀY GIAO. Chưa có = đang chờ giao (vẫn nằm trong phần chưa
   // giao của hợp đồng), lúc đó chưa ép hình thức tiêu thụ vì hàng chưa bán ra. Quy khô thì ép ở
   // MỌI trạng thái — nó là cách khai sản lượng, không phải dữ kiện của lần bán.
@@ -115,6 +119,11 @@ export default function ContractFormModal({
     if (!c.company) p.push("Chọn đơn vị.");
     if (!c.code.trim()) p.push(isChild ? "Nhập số đợt giao." : "Nhập số hợp đồng.");
     if (!isChild && !c.customer_id) p.push("Chọn khách hàng.");
+    if (needMaster && !c.master_id) {
+      p.push("HĐ dài hạn phải chọn hợp đồng mẹ — chưa có hồ sơ thì lập ở màn Hợp đồng mẹ trước, "
+             + "rồi quay lại sửa hợp đồng này.");
+    }
+    if (c.contract_type === "spot" && c.master_id) p.push("HĐ chuyến không có hợp đồng mẹ.");
     if (!isChild && !c.sign_date) p.push("Chọn ngày ký.");
     if (isDelivery && !c.channel) p.push("Chọn hình thức tiêu thụ.");
     if (c.channel === "internal" && !c.to_company) p.push("Chọn đơn vị nhận hàng.");
@@ -189,16 +198,20 @@ export default function ContractFormModal({
             {/* HỢP ĐỒNG MẸ (HĐNT/HĐDH) — chọn nếu chuyến hàng này nằm trong một hợp đồng nguyên
                 tắc / dài hạn đã ký. Chọn rồi thì bản ghi là PHỤ LỤC: ô số ở trên đổi thành "số
                 phụ lục hợp đồng" và khách hàng lấy theo hợp đồng mẹ, không khai lại. */}
-            <label className="form-field">Hợp đồng mẹ (HĐNT/HĐDH)
+            <label className="form-field">
+              Hợp đồng mẹ (HĐNT/HĐDH){needMaster ? " *" : ""}
               <MasterContractPicker company={c.company} value={c.master_id}
                 typeLabels={meta.master_types}
                 // Mở từ chính màn hợp đồng mẹ thì hồ sơ đã chốt — khoá ô lại, đổi nhầm sang hồ sơ
                 // khác ngay trong lúc đang xem một hồ sơ là chuyện không ai chủ ý làm.
-                disabled={preset?.master_id != null}
                 // Mở lại một phụ lục cũ: picker tra hợp đồng mẹ theo id rồi báo về đây để ô
                 // khách hàng hiện đúng TÊN, không phải chữ "(theo hợp đồng mẹ)" trống rỗng.
-                // Chọn hồ sơ CHỈ ghi liên kết — không đụng khách hàng hay loại hợp đồng của
-                // bản ghi. Hợp đồng mẹ là hồ sơ đính kèm, không phải nguồn số liệu.
+                // HĐ CHUYẾN không thuộc hồ sơ nào → khoá ô lại cho khỏi chọn nhầm (server
+                // cũng chặn). Chọn hồ sơ CHỈ ghi liên kết, không đụng số liệu của bản ghi.
+                disabled={preset?.master_id != null || c.contract_type === "spot"}
+                placeholder={c.contract_type === "spot"
+                  ? "HĐ chuyến không có hợp đồng mẹ"
+                  : "Gõ số hợp đồng mẹ"}
                 onChange={(id) => set({ master_id: id })} />
             </label>
             <label className="form-field">Khách hàng *
@@ -214,7 +227,12 @@ export default function ContractFormModal({
                 điền sẵn theo loại của hợp đồng mẹ, vẫn sửa lại được. */}
             <label className="form-field">Loại hợp đồng *
               <select className="blt-date-input" value={c.contract_type ?? ""}
-                onChange={(e) => set({ contract_type: (e.target.value || null) as ContractType })}>
+                onChange={(e) => {
+                  const t = (e.target.value || null) as ContractType;
+                  // Chuyển sang HĐ chuyến thì XOÁ hồ sơ đang chọn — ô đã khoá, giữ lại thì server
+                  // chặn mà người nhập không thấy ô nào để sửa.
+                  set({ contract_type: t, ...(t === "spot" ? { master_id: null } : {}) });
+                }}>
                 <option value="">— chọn loại hợp đồng —</option>
                 {Object.entries(meta.contract_types).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
@@ -239,9 +257,10 @@ export default function ContractFormModal({
           chỉ đường tới nơi người dùng đang đứng. */}
       {!isChild && !preset?.master_id && (
         <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
-          Ô <b>Hợp đồng mẹ</b> chỉ để nối bản ghi này vào hồ sơ <b>HĐ nguyên tắc / dài hạn</b> đã
-          lập ở màn <b>Hợp đồng mẹ</b> — <b>không đổi</b> khách hàng, loại hợp đồng hay bất kỳ số
-          liệu nào. Không có hợp đồng mẹ thì để trống, nhập như bình thường.
+          <b>HĐ dài hạn</b> là <b>phụ lục</b> của một hợp đồng mẹ — phải chọn hồ sơ ở ô{" "}
+          <b>Hợp đồng mẹ</b> (chưa có thì lập ở màn <b>Hợp đồng mẹ</b> trước). <b>HĐ chuyến</b> bán
+          đứt từng chuyến nên <b>không có hợp đồng mẹ</b>, ô đó sẽ khoá lại. Nối hồ sơ{" "}
+          <b>không đổi</b> khách hàng hay bất kỳ số liệu nào của hợp đồng.
           {initial && <> Đổi <b>loại giao</b> bằng nút <b>Chuyển sang giao nhiều lần</b> ở màn chi
             tiết hợp đồng — lần giao đã nhập sẽ tự thành đợt giao đầu tiên, không phải nhập lại.</>}
         </p>
