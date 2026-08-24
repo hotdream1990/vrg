@@ -195,9 +195,10 @@ export default function ContractFormModal({
         </label>
         {!isChild && (
           <>
-            {/* HỢP ĐỒNG MẸ (HĐNT/HĐDH) — chọn nếu chuyến hàng này nằm trong một hợp đồng nguyên
-                tắc / dài hạn đã ký. Chọn rồi thì bản ghi là PHỤ LỤC: ô số ở trên đổi thành "số
-                phụ lục hợp đồng" và khách hàng lấy theo hợp đồng mẹ, không khai lại. */}
+            {/* HỢP ĐỒNG MẸ — chỉ có nghĩa với HĐ DÀI HẠN (nó là phụ lục của một hồ sơ).
+                HĐ CHUYẾN bán đứt từng chuyến nên ô này KHÔNG hiện luôn, không phải chỉ khoá:
+                một ô mờ nằm đó vẫn khiến người nhập dừng lại tự hỏi có phải mình thiếu gì không. */}
+            {c.contract_type !== "spot" && (
             <label className="form-field">
               Hợp đồng mẹ (HĐNT/HĐDH){needMaster ? " *" : ""}
               <MasterContractPicker company={c.company} value={c.master_id}
@@ -206,14 +207,12 @@ export default function ContractFormModal({
                 // khác ngay trong lúc đang xem một hồ sơ là chuyện không ai chủ ý làm.
                 // Mở lại một phụ lục cũ: picker tra hợp đồng mẹ theo id rồi báo về đây để ô
                 // khách hàng hiện đúng TÊN, không phải chữ "(theo hợp đồng mẹ)" trống rỗng.
-                // HĐ CHUYẾN không thuộc hồ sơ nào → khoá ô lại cho khỏi chọn nhầm (server
-                // cũng chặn). Chọn hồ sơ CHỈ ghi liên kết, không đụng số liệu của bản ghi.
-                disabled={preset?.master_id != null || c.contract_type === "spot"}
-                placeholder={c.contract_type === "spot"
-                  ? "HĐ chuyến không có hợp đồng mẹ"
-                  : "Gõ số hợp đồng mẹ"}
+                // Chọn hồ sơ CHỈ ghi liên kết, không đụng số liệu của bản ghi.
+                disabled={preset?.master_id != null}
+                placeholder="Gõ số hợp đồng mẹ"
                 onChange={(id) => set({ master_id: id })} />
             </label>
+            )}
             <label className="form-field">Khách hàng *
               {/* Chỉ tìm trong danh mục CỦA ĐƠN VỊ đang chọn — server cũng chặn gán khách của
                   đơn vị khác (xem `sales_contract_repo.save`). Nối hợp đồng mẹ KHÔNG đổi ô này:
@@ -259,7 +258,7 @@ export default function ContractFormModal({
         <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
           <b>HĐ dài hạn</b> là <b>phụ lục</b> của một hợp đồng mẹ — phải chọn hồ sơ ở ô{" "}
           <b>Hợp đồng mẹ</b> (chưa có thì lập ở màn <b>Hợp đồng mẹ</b> trước). <b>HĐ chuyến</b> bán
-          đứt từng chuyến nên <b>không có hợp đồng mẹ</b>, ô đó sẽ khoá lại. Nối hồ sơ{" "}
+          đứt từng chuyến nên <b>không có hợp đồng mẹ</b> — chọn loại đó thì ô kia không hiện. Nối hồ sơ{" "}
           <b>không đổi</b> khách hàng hay bất kỳ số liệu nào của hợp đồng.
           {initial && <> Đổi <b>loại giao</b> bằng nút <b>Chuyển sang giao nhiều lần</b> ở màn chi
             tiết hợp đồng — lần giao đã nhập sẽ tự thành đợt giao đầu tiên, không phải nhập lại.</>}

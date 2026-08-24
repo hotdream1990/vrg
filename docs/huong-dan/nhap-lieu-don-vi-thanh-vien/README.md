@@ -202,7 +202,7 @@ Danh sách các hợp đồng của đơn vị kèm tiến độ giao hàng.
 *Hình 7. Phiếu thêm hợp đồng*
 
 1. **Số hợp đồng** — bắt buộc, không trùng trong cùng đơn vị.
-2. **Hợp đồng mẹ (HĐNT/HĐDH)** — theo **Loại hợp đồng** bên cạnh: **HĐ dài hạn** là *phụ lục* của một hợp đồng mẹ nên **bắt buộc** chọn hồ sơ (chưa có thì lập ở mục 8 trước, rồi quay lại). **HĐ chuyến** bán đứt từng chuyến nên **không có hợp đồng mẹ** — ô này tự khoá lại.
+2. **Hợp đồng mẹ (HĐNT/HĐDH)** — theo **Loại hợp đồng** bên cạnh: **HĐ dài hạn** là *phụ lục* của một hợp đồng mẹ nên **bắt buộc** chọn hồ sơ (chưa có thì lập ở mục 8 trước, rồi quay lại). **HĐ chuyến** bán đứt từng chuyến nên **không có hợp đồng mẹ** — chọn loại đó thì ô này không hiện.
 3. **Khách hàng** — bắt buộc; gõ vài chữ trong tên (hoặc mã khách) rồi chọn. Danh sách chỉ có khách của chính đơn vị (mục 7).
 4. **Loại hợp đồng** — bắt buộc: *HĐ dài hạn* hay *HĐ chuyến*. Đây là chỉ tiêu của báo cáo, **khác** với Loại giao bên dưới.
 5. **Loại giao** — *Giao 1 lần* (cả hợp đồng giao trọn một lần) hay *Giao nhiều lần* (chia thành nhiều đợt giao). Chọn nhầm vẫn đổi được sau, xem mục 11.
@@ -363,4 +363,4 @@ Toàn bộ hợp đồng đã ký nhập theo cách cũ, kể cả hợp đồng
 | **Không thấy hợp đồng cần gắn trong danh sách “Gắn hợp đồng có sẵn”** | Hợp đồng đó đã thuộc một hồ sơ khác. Mở hồ sơ đó gỡ ra trước, rồi gắn sang hồ sơ mới. |
 | **Không xoá được hợp đồng mẹ** | Hồ sơ còn phụ lục. Gỡ hết phụ lục ở màn chi tiết rồi mới xoá. |
 | **Không lưu được HĐ dài hạn, báo phải chọn hợp đồng mẹ** | HĐ dài hạn là phụ lục của một hồ sơ. Lập hồ sơ ở mục 8 rồi quay lại chọn; hoặc đổi **Loại hợp đồng** sang *HĐ chuyến* nếu bán đứt. |
-| **Ô Hợp đồng mẹ bị khoá, không chọn được** | Đang để **Loại hợp đồng = HĐ chuyến**. HĐ chuyến không thuộc hồ sơ nào; đổi sang *HĐ dài hạn* thì ô mở ra. |
+| **Không thấy ô Hợp đồng mẹ** | Đang để **Loại hợp đồng = HĐ chuyến**. HĐ chuyến không thuộc hồ sơ nào nên ô đó ẩn đi; đổi sang *HĐ dài hạn* thì ô hiện ra. |
