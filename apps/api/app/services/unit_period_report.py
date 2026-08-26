@@ -263,7 +263,11 @@ def period_report(kind: str, date_from: str, date_to: str,
     scope = merge_scope(companies, split_merged, date_to)
     roll = {} if split_merged else {u["name"]: u["merged_into"]
                                     for u in _merged_before(date_to)}
-    entries = merge_rollup(unit_daily_repo.in_range(kind, date_from, date_to, scope),
+    # `attach_contracts=False`: khối 3 của báo cáo kỳ là chỉ tiêu THỜI ĐIỂM, lấy MỘT lần ở ngày
+    # cuối kỳ (`signed_at_close` bên dưới) — gắn thêm khối 3 cho từng ngày là 1 truy vấn/ngày rồi
+    # bỏ đi (kỳ 8 tháng đo được ~1,8s mỗi biểu).
+    entries = merge_rollup(unit_daily_repo.in_range(kind, date_from, date_to, scope,
+                                                    attach_contracts=False),
                            split_merged, date_to)
     grouped = _by_company(entries)
     plans = _roll_dict(unit_daily_repo.year_plan(year, scope), roll)
@@ -275,7 +279,8 @@ def period_report(kind: str, date_from: str, date_to: str,
               if kind == "purchase" else {})
     # Biểu Thu mua cần số tiêu thụ mủ thu mua — nay nằm ở bản ghi 'consumption'.
     sold_by_company = (_by_company(merge_rollup(
-                           unit_daily_repo.in_range("consumption", date_from, date_to, scope),
+                           unit_daily_repo.in_range("consumption", date_from, date_to, scope,
+                                                    attach_contracts=False),
                            split_merged, date_to))
                        if kind == "purchase" else {})
     # Tồn kho đã ký HĐ = chỉ tiêu THỜI ĐIỂM: các hợp đồng còn tồn ở NGÀY CUỐI KỲ (sales_contract

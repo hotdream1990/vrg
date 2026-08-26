@@ -46,7 +46,11 @@ def status_report(kind: str, date_from: str, date_to: str, *, companies: str | N
         keep = set(regs)
         units = [u for u in units if (u.get("region") or "") in keep]
 
-    entries = unit_daily_repo.in_range(kind, date_from, date_to, [u["name"] for u in units])
+    # `attach_contracts=False`: bảng này chỉ hỏi "đã nộp hay chưa" (`fields.has_data`, xem
+    # `_SUBMITTED_KEYS`) nên không đụng tới khối 3 — mà gắn khối đó là MỘT truy vấn hợp đồng cho
+    # MỖI ngày trong khoảng (kỳ 8 tháng = 237 truy vấn, đo được 1,76s chỉ để rồi vứt đi).
+    entries = unit_daily_repo.in_range(kind, date_from, date_to, [u["name"] for u in units],
+                                       attach_contracts=False)
     state: dict[tuple[str, str], str] = {}
     for e in entries:
         # Bản ghi rỗng KHÔNG tính là đã nộp — biểu Tồn kho đang mang hàng trăm bản ghi cũ của biểu
