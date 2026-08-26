@@ -136,12 +136,19 @@ export default function DataLockConfirmModal({ company, roundId, readOnly, onClo
               <Kpi label="Mủ chén (tấn)" value={n3(p.coagulum)} />
               <Kpi label="Thành phẩm (tấn)" value={n3(p.finished_qty)} />
               <Kpi label="Tổng thu mua (tấn)" value={n3(p.total_purchase)} />
-              <Kpi label="Giá BQ mủ nước (đ/độ)" value={n3(p.price_latex_avg)} />
-              <Kpi label="Giá BQ mủ chén (đ/độ)" value={n3(p.price_cup_avg)} />
               <Kpi label="% kế hoạch năm" value={n3(p.pct_plan, "%")} />
-              <Kpi label="Ngày không thu mua" value={n3(p.no_purchase_days)} />
             </Block>
           )}
+
+          <Block title="Tồn kho tại ngày chốt"
+            hint={`Lấy từ biểu Tồn kho đơn vị nhập theo ngày. Là số THỜI ĐIỂM — lấy lần nhập tồn `
+              + `gần nhất${s.stock_as_of ? ` (ngày ${dmy(String(s.stock_as_of))})` : ""}, không cộng dồn.`}>
+            <Kpi label="Tồn thành phẩm (tấn)" value={n3(s.stock_finished)} />
+            <Kpi label="Chưa nhập kho (tấn)" value={n3(s.stock_not_warehoused)} />
+            <Kpi label="Đã nhập kho (tấn)" value={n3(s.stock_warehoused)} />
+            <Kpi label="Tồn nguyên liệu (tấn)" value={n3(s.stock_material)} />
+            <Kpi label="Đã ký HĐ chưa giao (tấn)" value={n3(s.stock_finished_hd)} />
+          </Block>
 
           <Block title="Tiêu thụ (cộng dồn trong kỳ)"
             hint={"Đơn vị KHÔNG nhập tay: số này tính từ các LẦN GIAO của hợp đồng. Chốt xong, "
@@ -153,17 +160,6 @@ export default function DataLockConfirmModal({ company, roundId, readOnly, onClo
             <Kpi label="HĐ dài hạn (tấn)" value={n3(c.lt_total)} />
             <Kpi label="HĐ chuyến (tấn)" value={n3(c.spot_total)} />
             <Kpi label="Doanh thu (tỷ đồng)" value={n3(c.revenue_ty)} />
-            <Kpi label="Giá bán BQ (tr.đ/tấn)" value={n3(c.avg_sell_price)} />
-          </Block>
-
-          <Block title="Tồn kho tại ngày chốt"
-            hint={`Lấy từ biểu Tồn kho đơn vị nhập theo ngày. Là số THỜI ĐIỂM — lấy lần nhập tồn `
-              + `gần nhất${s.stock_as_of ? ` (ngày ${dmy(String(s.stock_as_of))})` : ""}, không cộng dồn.`}>
-            <Kpi label="Tồn thành phẩm (tấn)" value={n3(s.stock_finished)} />
-            <Kpi label="Chưa nhập kho (tấn)" value={n3(s.stock_not_warehoused)} />
-            <Kpi label="Đã nhập kho (tấn)" value={n3(s.stock_warehoused)} />
-            <Kpi label="Tồn nguyên liệu (tấn)" value={n3(s.stock_material)} />
-            <Kpi label="Đã ký HĐ chưa giao (tấn)" value={n3(s.stock_finished_hd)} />
           </Block>
 
           {!readOnly && (
