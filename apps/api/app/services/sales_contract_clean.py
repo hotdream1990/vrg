@@ -64,6 +64,23 @@ def assert_unit_exists(name: str, label: str) -> None:
         raise ValueError(f"{label} “{name}” không có trong danh sách đơn vị thành viên.")
 
 
+def assert_unit_can_sign(name: str, label: str) -> None:
+    """Đơn vị ĐÃ SÁP NHẬP không ký hợp đồng MỚI nữa (chốt 24/08/2026).
+
+    Chỉ chặn bản ghi mới ở cấp HỢP ĐỒNG / HỒ SƠ MẸ. Hợp đồng đã ký trước đó vẫn phải chạy cho hết:
+    thêm đợt giao, điền ngày giao, chốt hoàn thành — nếu chặn luôn thì phần hàng đã cam kết của
+    đơn vị cũ không giao nốt được, mà chuyển hợp đồng sang đơn vị mới lại làm sản lượng đã giao
+    trước đó nhảy đơn vị.
+    """
+    from app.services import member_unit_merge
+
+    if info := member_unit_merge.merged_info(name):
+        tgt, at = info
+        raise ValueError(
+            f"{label} “{name}” đã sáp nhập vào “{tgt}” từ {at} — hợp đồng mới ký ở “{tgt}”. "
+            f"Hợp đồng cũ của “{name}” vẫn thêm được đợt giao và chốt hoàn thành.")
+
+
 def _assert_same_group(company: str, to_company: str) -> None:
     """Tiêu thụ NỘI BỘ chỉ trong nhóm công ty mẹ–con — bán ra ngoài nhóm là bán ngoài.
 

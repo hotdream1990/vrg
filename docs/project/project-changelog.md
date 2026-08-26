@@ -14,6 +14,23 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     (đợt giao không mang loại hợp đồng).
 
 ### Added
+- **Sáp nhập đơn vị thành viên** (24/08/2026) — cột **Sáp nhập** ở màn *Đơn vị thành viên*: chọn
+  đơn vị nhận + **ngày hiệu lực** (chọn lùi ngày được), có nút **Gỡ** để hoàn tác.
+  - **Số liệu trước ngày hiệu lực giữ nguyên tên đơn vị cũ** — cố ý KHÔNG chuyển sang đơn vị mới
+    như thao tác *đổi tên*, để còn tách được "trước / sau sáp nhập". Nhờ vậy gỡ sáp nhập không
+    phải khôi phục dữ liệu.
+  - Từ ngày hiệu lực: đơn vị cũ biến khỏi các form nhập liệu, mọi endpoint ghi chặn kèm câu chỉ rõ
+    phải nhập vào đơn vị nào; **ngày trước đó vẫn sửa được**. Tài khoản chuyển hẳn sang đơn vị mới,
+    đơn vị con trong cây mẹ–con trỏ sang đơn vị mới.
+  - Thống kê (thu mua · tiêu thụ · tồn kho) và **Báo cáo tổng hợp** mặc định **GỘP** số của đơn vị
+    cũ vào đơn vị hiện hành, có công tắc **Tách đơn vị đã sáp nhập**. Chỉ tiêu kế hoạch năm cộng
+    theo — gộp tử số mà bỏ mẫu số thì % thực hiện tự đẹp lên. Kỳ kết thúc **trước** ngày hiệu lực
+    vẫn để hai đơn vị đứng riêng (lúc đó chúng còn độc lập; với tồn kho, gộp là cộng trùng).
+  - **Theo dõi nộp báo cáo** không đòi đơn vị đã sáp nhập nộp cho những ngày sau ngày hiệu lực
+    (ô trạng thái riêng, không tính vào mẫu số).
+  - **Hợp đồng đã ký của đơn vị cũ vẫn chạy hết**: thêm đợt giao / chốt hoàn thành bình thường,
+    chỉ chặn ký hợp đồng (và mở hồ sơ hợp đồng mẹ) MỚI — chuyển hợp đồng sang đơn vị mới sẽ kéo
+    theo cả sản lượng đã giao trước đó nhảy đơn vị.
 - **Kế hoạch doanh thu năm cho đơn vị** (24/08/2026) — thêm ô *Kế hoạch doanh thu* (**tỷ đồng**) vào
   màn **Kế hoạch năm**, cạnh các chỉ tiêu sản lượng đang có; nhập/xuất được qua biểu Excel Kế hoạch.
   Màn **Thống kê tiêu thụ** thêm 2 dòng: *KH doanh thu* và ***% thực hiện*** = doanh thu kỳ / kế

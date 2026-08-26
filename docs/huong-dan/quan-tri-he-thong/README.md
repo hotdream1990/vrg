@@ -148,6 +148,33 @@ Ba nút thao tác nằm ở cột cuối cùng. Bảng rộng nên phải cuộn
 > - Ba cột cấu hình lưu **ngay khi chọn**, không cần bấm nút lưu.
 > - Nút **Ẩn** dùng cho đơn vị ngừng hoạt động: không còn hiện ở ô chọn nhưng số liệu cũ vẫn giữ. An toàn hơn **Xoá**.
 
+### Sáp nhập đơn vị
+
+Dùng khi một đơn vị nhập vào đơn vị khác. Cột **Sáp nhập** ở cuối bảng.
+
+1. Bấm **Sáp nhập…** ở dòng đơn vị **bị sáp nhập** (đơn vị sẽ không còn nữa).
+2. Chọn **đơn vị nhận** ở ô *Sáp nhập vào…*.
+3. Chọn **ngày hiệu lực** — ngày quyết định sáp nhập có hiệu lực. Chọn lùi ngày cũng được.
+4. Bấm **Lưu** rồi đọc kỹ bảng xác nhận trước khi đồng ý.
+
+Sau khi sáp nhập:
+
+- Số liệu của **những ngày trước ngày hiệu lực vẫn đứng tên đơn vị cũ** — không mất, không bị
+  chuyển sang đơn vị mới. Nhờ vậy vẫn tra được đơn vị đó làm được bao nhiêu khi chưa sáp nhập.
+- Từ ngày hiệu lực, **đơn vị cũ không nhận số liệu mới**; nhập nhầm vào đó hệ thống sẽ báo tên
+  đơn vị phải nhập thay thế. Số liệu của những ngày trước đó **vẫn sửa được** như cũ.
+- **Tài khoản của đơn vị cũ chuyển sang đơn vị mới**, người dùng đăng nhập như bình thường.
+- Các bảng thống kê và Báo cáo tổng hợp **mặc định cộng gộp** số của đơn vị cũ vào đơn vị mới.
+  Muốn xem riêng từng đơn vị thì tích ô **Tách đơn vị đã sáp nhập** trên thanh lọc.
+- Bảng **Theo dõi nộp báo cáo** không đòi đơn vị cũ nộp cho những ngày từ ngày hiệu lực trở đi.
+
+> - **Hợp đồng đã ký của đơn vị cũ vẫn chạy tiếp**: thêm đợt giao, điền ngày giao, chốt hoàn thành
+>   đều bình thường. Chỉ **hợp đồng mới** là phải ký ở đơn vị nhận.
+> - Bấm nhầm thì bấm **Gỡ** ở cột Sáp nhập — đơn vị hoạt động trở lại ngay, số liệu không suy
+>   suyển. Riêng **tài khoản không tự trả về**, phải gán lại ở *Quản trị → Người dùng*.
+> - Sáp nhập **khác đổi tên**: đổi tên là cùng một đơn vị mang tên mới nên toàn bộ lịch sử đi theo
+>   tên mới; sáp nhập là hai đơn vị nên lịch sử của mỗi bên vẫn đứng tên của bên đó.
+
 ## 8. Đơn vị ngoài Việt Nam và đơn vị chưa có nhà máy
 
 **Vị trí:** Quản lý số liệu (thủ công) → Đơn vị thành viên → tab Đơn vị

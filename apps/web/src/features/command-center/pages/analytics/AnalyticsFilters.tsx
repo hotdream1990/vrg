@@ -2,7 +2,7 @@
    chủng loại · cách nhóm — cộng các ô đặc thù của từng màn truyền vào qua `extra`. */
 
 import { DownloadOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Button, Segmented, Select } from "antd";
+import { Button, Checkbox, Segmented, Select, Tooltip } from "antd";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -40,6 +40,23 @@ export function MultiSelect({ placeholder, options, value, onChange, width = 220
   );
 }
 
+/** Công tắc "Tách đơn vị đã sáp nhập" — KHÔNG hiện khi hệ thống chưa có đơn vị nào sáp nhập,
+ *  để thanh lọc không phình thêm một ô mà đa số người dùng không bao giờ cần. */
+export function SplitMergedToggle({ catalog, value, onChange }: {
+  catalog: FilterCatalog | null; value: boolean; onChange: (v: boolean) => void;
+}) {
+  const merged = catalog?.merged_units ?? [];
+  if (!merged.length) return null;
+  const list = merged.map((m) => `${m.name} → ${m.merged_into}`).join(" · ");
+  return (
+    <Tooltip title={`Mặc định số liệu trước sáp nhập được cộng vào đơn vị hiện hành: ${list}`}>
+      <Checkbox checked={value} onChange={(e) => onChange(e.target.checked)}>
+        Tách đơn vị đã sáp nhập
+      </Checkbox>
+    </Tooltip>
+  );
+}
+
 export default function AnalyticsFilters({
   catalog, value, onChange, groupOptions, groupValue, onGroupChange,
   showGrades, extra, onReload, onExport, loading, exporting,
@@ -56,6 +73,10 @@ export default function AnalyticsFilters({
   // Chọn khu vực thì danh sách đơn vị thu hẹp theo khu vực đó (đỡ phải dò trong danh sách dài).
   const units = (catalog?.units ?? []).filter(
     (u) => !value.regions.length || value.regions.includes(u.region ?? ""));
+  // Đang TÁCH thì đơn vị đã sáp nhập mới có dòng riêng để chọn.
+  const unitNames = value.splitMerged
+    ? [...units.map((u) => u.name), ...(catalog?.merged_units ?? []).map((m) => m.name)]
+    : units.map((u) => u.name);
 
   return (
     <div className="card" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -65,13 +86,15 @@ export default function AnalyticsFilters({
       <DateInput value={value.to} onChange={(v) => { patch({ to: v }); setPreset("Tự chọn"); }} style={{ width: 160 }} />
       <MultiSelect placeholder="Tất cả khu vực" options={catalog?.regions ?? []}
                    value={value.regions} onChange={(v) => patch({ regions: v })} width={190} />
-      <MultiSelect placeholder="Tất cả đơn vị" options={units.map((u) => u.name)}
+      <MultiSelect placeholder="Tất cả đơn vị" options={unitNames}
                    value={value.companies} onChange={(v) => patch({ companies: v })} width={230} />
       {showGrades && (
         <MultiSelect placeholder="Tất cả chủng loại" options={catalog?.grades ?? []}
                      value={value.grades} onChange={(v) => patch({ grades: v })} width={210} />
       )}
       {extra}
+      <SplitMergedToggle catalog={catalog} value={!!value.splitMerged}
+                         onChange={(v) => patch({ splitMerged: v })} />
       <span style={{ color: "var(--muted)", fontSize: 13 }}>Nhóm theo</span>
       <Select style={{ width: 155 }} value={groupValue ?? value.groupBy} options={groupOptions}
               onChange={(v) => (onGroupChange ? onGroupChange(v) : patch({ groupBy: v }))} />

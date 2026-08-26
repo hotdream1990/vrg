@@ -15,7 +15,8 @@ from app.core.market_meta import UNIT_GRADES
 from app.core.security import require_admin, require_cap
 from app.schemas.unit_daily import MarkNoPurchase
 from app.services import (
-    member_region_repo, member_unit_repo, unit_analytics_excel as xls, unit_daily_repo,
+    member_region_repo, member_unit_merge, member_unit_repo, unit_analytics_excel as xls,
+    unit_daily_repo,
     unit_report_consumption as con, unit_report_purchase as pur, unit_report_query as q,
     unit_report_status as sta, unit_report_stock as st,
 )
@@ -63,6 +64,9 @@ def filters(username: str = Depends(_require)) -> dict:
         "units": [{"name": u["name"], "region": u.get("region"),
                    "has_factory": u.get("has_factory", True)}
                   for u in member_unit_repo.list_units(include_inactive=False)],
+        # Đơn vị đã sáp nhập: số liệu cũ của họ mặc định gộp vào đơn vị hiện hành. Web dùng danh
+        # sách này để hiện ô "Tách đơn vị đã sáp nhập" + chú thích gộp vào đâu, từ ngày nào.
+        "merged_units": member_unit_merge.merged_units(),
         "regions": member_region_repo.active_names(),
         "grades": list(UNIT_GRADES),
         "materials": [{"value": k, "label": v} for k, v in q.MATERIAL_LABELS.items()],
@@ -74,10 +78,12 @@ def filters(username: str = Depends(_require)) -> dict:
 
 # ── 1. Thu mua ────────────────────────────────────────────────────────────────
 def _purchase(date_from: str, date_to: str, companies: str | None, regions: str | None,
-              materials: str | None, grades: str | None, group_by: str) -> dict:
+              materials: str | None, grades: str | None, group_by: str,
+              split_merged: bool = False) -> dict:
     assert_range(date_from, date_to)
     return pur.purchase_report(date_from, date_to, companies=companies, regions=regions,
-                               materials=materials, grades=grades, group_by=group_by)
+                               materials=materials, grades=grades, group_by=group_by,
+                               split_merged=split_merged)
 
 
 @router.get("/purchase")
@@ -87,9 +93,11 @@ def purchase(date_from: str = Query(...), date_to: str = Query(...),
              materials: str | None = Query(None, description="latex,cup,finished"),
              grades: str | None = Query(None, description="Chủng loại (chỉ áp cho mủ thành phẩm)"),
              group_by: str = Query("company", pattern="^(company|region|grade|day|material)$"),
+             split_merged: bool = Query(False, description="Tách riêng đơn vị đã sáp nhập"),
              username: str = Depends(_require)) -> dict:
     """Bảng Thu mua theo bộ lọc — cuối bảng có Tổng sản lượng + 3 đơn giá BQ (theo đơn vị tính riêng)."""
-    return _purchase(date_from, date_to, companies, regions, materials, grades, group_by)
+    return _purchase(date_from, date_to, companies, regions, materials, grades, group_by,
+                     split_merged)
 
 
 @router.get("/purchase.xlsx")
@@ -97,8 +105,10 @@ def purchase_xlsx(date_from: str = Query(...), date_to: str = Query(...),
                   companies: str | None = Query(None), regions: str | None = Query(None),
                   materials: str | None = Query(None), grades: str | None = Query(None),
                   group_by: str = Query("company", pattern="^(company|region|grade|day|material)$"),
+                  split_merged: bool = Query(False),
                   username: str = Depends(_require)):
-    rep = _purchase(date_from, date_to, companies, regions, materials, grades, group_by)
+    rep = _purchase(date_from, date_to, companies, regions, materials, grades, group_by,
+                    split_merged)
     data = xls.build_xlsx(title="THỐNG KÊ THU MUA", period=f"{date_from} → {date_to}",
                           note=_note(rep), group_by=group_by, columns=xls.purchase_cols(group_by),
                           rows=rep["rows"], totals=rep["totals"])
@@ -109,11 +119,12 @@ def purchase_xlsx(date_from: str = Query(...), date_to: str = Query(...),
 def _consumption(date_from: str, date_to: str, companies: str | None, regions: str | None,
                  grades: str | None, contract: str | None, channel: str | None,
                  source: str | None, group_by: str, limit: int | None = None,
-                 offset: int = 0) -> dict:
+                 offset: int = 0, split_merged: bool = False) -> dict:
     assert_range(date_from, date_to)
     return con.consumption_report(date_from, date_to, companies=companies, regions=regions,
                                   grades=grades, contract=contract, channel=channel,
-                                  source=source, group_by=group_by, limit=limit, offset=offset)
+                                  source=source, group_by=group_by, limit=limit, offset=offset,
+                                  split_merged=split_merged)
 
 
 _CONSUMPTION_GROUPS = "^(company|region|grade|contract|channel|source|day|none)$"
@@ -129,6 +140,7 @@ def consumption(date_from: str = Query(...), date_to: str = Query(...),
                 group_by: str = Query("company", pattern=_CONSUMPTION_GROUPS),
                 page: int = Query(1, ge=1),
                 page_size: int = Query(100, ge=1, le=500),
+                split_merged: bool = Query(False, description="Tách riêng đơn vị đã sáp nhập"),
                 username: str = Depends(_require)) -> dict:
     """Bảng Tiêu thụ theo bộ lọc — `group_by=none` trả từng dòng bán để đối chiếu chứng từ.
 
@@ -137,7 +149,8 @@ def consumption(date_from: str = Query(...), date_to: str = Query(...),
     Bản xuất Excel KHÔNG cắt trang — file phải đủ dữ liệu để đối chiếu.
     """
     return _consumption(date_from, date_to, companies, regions, grades, contract, channel,
-                        source, group_by, limit=page_size, offset=(page - 1) * page_size)
+                        source, group_by, limit=page_size, offset=(page - 1) * page_size,
+                        split_merged=split_merged)
 
 
 @router.get("/consumption.xlsx")
@@ -146,9 +159,10 @@ def consumption_xlsx(date_from: str = Query(...), date_to: str = Query(...),
                      grades: str | None = Query(None), contract: str | None = Query(None),
                      channel: str | None = Query(None), source: str | None = Query(None),
                      group_by: str = Query("company", pattern=_CONSUMPTION_GROUPS),
+                     split_merged: bool = Query(False),
                      username: str = Depends(_require)):
     rep = _consumption(date_from, date_to, companies, regions, grades, contract, channel,
-                       source, group_by)
+                       source, group_by, split_merged=split_merged)
     cols = xls.CONSUMPTION_DETAIL_COLS if rep["detail"] else xls.consumption_cols(group_by)
     data = xls.build_xlsx(title="THỐNG KÊ TIÊU THỤ", period=f"{date_from} → {date_to}",
                           note=_note(rep), group_by=group_by, columns=cols,
@@ -164,13 +178,13 @@ MAX_STOCK_DAYS_BACK = 90
 
 
 def _stock(as_of: str, days_back: int, companies: str | None, regions: str | None,
-           grades: str | None, group_by: str) -> dict:
+           grades: str | None, group_by: str, split_merged: bool = False) -> dict:
     try:
         date.fromisoformat(as_of)
     except ValueError as exc:
         raise HTTPException(400, "Ngày chốt không hợp lệ (YYYY-MM-DD).") from exc
     return st.stock_report(as_of, days_back, companies=companies, regions=regions,
-                           grades=grades, group_by=group_by)
+                           grades=grades, group_by=group_by, split_merged=split_merged)
 
 
 def _stock_period(rep: dict) -> str:
@@ -187,10 +201,11 @@ def stock(as_of: str = Query(..., description="Ngày chốt (YYYY-MM-DD)"),
           companies: str | None = Query(None), regions: str | None = Query(None),
           grades: str | None = Query(None),
           group_by: str = Query("company", pattern=_STOCK_GROUPS),
+          split_merged: bool = Query(False, description="Tách riêng đơn vị đã sáp nhập"),
           username: str = Depends(_require)) -> dict:
     """Tồn kho tại NGÀY CHỐT: khai ngày nào lấy ngày đó, tick "không phát sinh" thì giữ số lần khai
     gần nhất, không khai gì thì không có số (kèm ngày thật + độ phủ)."""
-    return _stock(as_of, days_back, companies, regions, grades, group_by)
+    return _stock(as_of, days_back, companies, regions, grades, group_by, split_merged)
 
 
 @router.get("/stock.xlsx")
@@ -199,8 +214,9 @@ def stock_xlsx(as_of: str = Query(...),
                companies: str | None = Query(None), regions: str | None = Query(None),
                grades: str | None = Query(None),
                group_by: str = Query("company", pattern=_STOCK_GROUPS),
+               split_merged: bool = Query(False),
                username: str = Depends(_require)):
-    rep = _stock(as_of, days_back, companies, regions, grades, group_by)
+    rep = _stock(as_of, days_back, companies, regions, grades, group_by, split_merged)
     data = xls.build_xlsx(title="THỐNG KÊ TỒN KHO", period=_stock_period(rep),
                           period_label="Ảnh chụp", note=_note(rep), group_by=group_by,
                           columns=xls.STOCK_COLS, rows=rep["rows"], totals=rep["totals"])

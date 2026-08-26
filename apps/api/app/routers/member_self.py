@@ -16,6 +16,7 @@ from app.core import edit_window
 from app.core.feature_flags import require_excel_import
 from app.core.market_meta import PURCHASE_PRICE_UNIT, PURCHASE_SOURCE_UNIT, UNIT_GRADES
 from app.core.security import get_current_member
+from app.core.unit_guard import assert_unit_can_enter
 from app.routers.unit_daily import resolve_timeline_range, timeline_page
 from app.schemas.market_demand import MarketDemandEdit
 from app.schemas.member_self import MemberPriceEdit
@@ -40,10 +41,16 @@ def _price_unit(price_type: str, basis: str | None = None) -> str:
     return PURCHASE_PRICE_UNIT[price_type]
 
 
-def _assert_company(member: dict, company: str) -> None:
-    """Chặn ghi cho đơn vị không được gán cho tài khoản này."""
+def _assert_company(member: dict, company: str, as_of: str | None = None) -> None:
+    """Chặn ghi cho đơn vị không được gán cho tài khoản này (và đơn vị đã sáp nhập).
+
+    Sáp nhập đã chuyển tài khoản sang đơn vị mới nên vế 403 thường chặn trước, nhưng nếu quản trị
+    gán tay lại đơn vị cũ thì đây là lớp chặn cuối: `as_of` = NGÀY SỐ LIỆU, ngày trước ngày sáp
+    nhập vẫn sửa được.
+    """
     if company not in (member.get("member_units") or []):
         raise HTTPException(403, "Đơn vị không thuộc quyền quản lý của tài khoản.")
+    assert_unit_can_enter(company, as_of, require_known=False)
 
 
 @router.get("/checklist")
@@ -59,7 +66,7 @@ def my_prices(days: int = Query(30, ge=1, le=180),
     units = list(member["member_units"])
     sheets = {u: price_repo.member_price_history(u, days) for u in units}
     return {"units": units, "today": edit_window.today().isoformat(),
-            "edit_window_days": edit_window.member_window(), "sheets": sheets}
+            "sheets": sheets}
 
 
 @router.put("/prices")
@@ -69,7 +76,7 @@ def upsert_my_price(body: MemberPriceEdit,
 
     Giá 0 = "ngày đó không có giá" → `price_repo` xoá ô giá thay vì lưu số 0 (xem `market_meta`).
     """
-    _assert_company(member, body.company)
+    _assert_company(member, body.company, body.as_of)
     edit_window.assert_editable(body.as_of, edit_window.member_window())
     # Giá đơn vị TỰ KHAI nằm ở lớp riêng — không đè lên giá chuyên viên đã chốt (xem market_meta).
     price_repo.upsert_record({
@@ -88,7 +95,7 @@ def clear_my_price(
     member: dict = Depends(get_current_member),
 ) -> dict:
     """Xoá 1 ô giá của 1 đơn vị được gán (trong cửa sổ cho phép)."""
-    _assert_company(member, company)
+    _assert_company(member, company, as_of)
     if price_type not in PURCHASE_PRICE_UNIT:
         raise HTTPException(400, "Loại giá không hợp lệ.")
     edit_window.assert_editable(as_of, edit_window.member_window())
@@ -123,7 +130,7 @@ def my_market_demand(as_of: str = Query(..., description="YYYY-MM-DD"),
 def upsert_my_market_demand(body: MarketDemandEdit,
                             member: dict = Depends(get_current_member)) -> dict:
     """Ghi/sửa nhu cầu 1 đơn vị được gán, trong cửa sổ cho phép. create_only → chống ghi trùng."""
-    _assert_company(member, body.company)
+    _assert_company(member, body.company, body.as_of)
     edit_window.assert_editable(body.as_of, edit_window.member_window())
     if body.create_only and market_demand_repo.entries_on(body.as_of).get(body.company, "").strip():
         raise HTTPException(409, "Đơn vị này đã có nhu cầu cho ngày này — vui lòng dùng chức năng Sửa.")
@@ -165,7 +172,7 @@ def my_daily(kind: str = Query(..., pattern="^(purchase|consumption)$"),
         raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
     entries = unit_daily_repo.entries_on(kind, as_of)
     return {"as_of": as_of, "today": edit_window.today().isoformat(),
-            "edit_window_days": edit_window.member_window(), "units": units,
+            "units": units,
             "plans": unit_daily_repo.plans_for_year(year),
             "entries": {u: entries.get(u) for u in units},
             **unit_daily_repo.day_extras(kind, as_of, units)}
@@ -185,7 +192,8 @@ def my_year_plan(year: int = Query(..., ge=2020, le=2100),
 def upsert_my_year_plan(body: PurchasePlanEdit,
                         member: dict = Depends(get_current_member)) -> dict:
     """Đơn vị tự cập nhật số liệu năm của mình (không giới hạn cửa sổ ngày — số liệu năm)."""
-    _assert_company(member, body.company)
+    # Chỉ tiêu NĂM: mốc so là 01/01 năm đó — sáp nhập giữa năm vẫn sửa được kế hoạch năm ấy.
+    _assert_company(member, body.company, f"{body.year}-01-01")
     unit_daily_repo.set_year_plan(body.year, body.company, body.plan_tonnes, body.signed_lt_tonnes,
                                   body.carry_lt_tonnes, body.carry_spot_tonnes,
                                   body.plan_sales_spot_tonnes, body.plan_revenue_ty, member.get("username"))
@@ -233,7 +241,7 @@ def my_stock_contract_history(status: str = Query("all", pattern="^(all|undelive
 def save_my_stock_contract(body: StockContractEdit,
                            member: dict = Depends(get_current_member)) -> dict:
     """Đơn vị thêm HĐ mới hoặc cập nhật NGÀY GIAO khi đã xuất kho."""
-    _assert_company(member, body.company)
+    _assert_company(member, body.company, body.start_date)
     try:
         return {"contract": unit_stock_contract_repo.save(
             body.model_dump(), body.company, member.get("username"))}
@@ -268,7 +276,7 @@ def my_prev_stock(company: str = Query(...),
 def upsert_my_daily(body: UnitDailyEdit,
                     member: dict = Depends(get_current_member)) -> dict:
     """Ghi/sửa số liệu 1 đơn vị được gán cho 1 ngày, trong cửa sổ cho phép. create_only → chống ghi trùng."""
-    _assert_company(member, body.company)
+    _assert_company(member, body.company, body.as_of)
     edit_window.assert_editable(body.as_of, edit_window.member_window())
     if body.create_only and unit_daily_repo.has_entry(body.kind, body.as_of, body.company):
         raise HTTPException(409, "Đơn vị này đã có số liệu cho ngày này — vui lòng dùng chức năng Sửa.")
@@ -283,7 +291,8 @@ def move_my_daily_date(body: UnitDailyMove,
 
     Ép cửa sổ sửa cho CẢ ngày cũ lẫn ngày mới: không được kéo số liệu ra/vào vùng đã khoá.
     """
-    _assert_company(member, body.company)
+    # Ngày ĐÍCH mới là ngày số liệu sẽ nằm sau khi dời.
+    _assert_company(member, body.company, body.to_date)
     edit_window.assert_editable(body.as_of, edit_window.member_window())
     edit_window.assert_editable(body.to_date, edit_window.member_window())
     try:

@@ -15,8 +15,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services import member_unit_repo, unit_report_rows
-from app.services.unit_report_query import dmy, filter_scope, sort_groups, split_csv
+from app.services import unit_report_rows
+from app.services.unit_report_query import (
+    dmy, filter_scope, merge_rollup, merge_scope, merge_view, report_units, sort_groups,
+    split_csv,
+)
 
 _BLOCK_KEY = {"stock_not_warehoused": "not_warehoused", "stock_warehoused": "warehoused"}
 #: Khối tự tính từ hợp đồng: phần ĐÃ KÝ CHƯA GIAO — NẰM TRONG tồn thành phẩm nên chỉ trừ ra để
@@ -77,7 +80,7 @@ def _latest_per_company(rows: list[dict]) -> list[dict]:
 
 
 def _coverage(snap: list[dict], no_stock: dict[str, str], comps: list[str] | None,
-              regs: list[str] | None) -> dict[str, Any]:
+              regs: list[str] | None, split_merged: bool = False) -> dict[str, Any]:
     """Độ phủ của ảnh chụp: bao nhiêu đơn vị có số, đơn vị nào chưa có số.
 
     Thiếu đơn vị là chuyện PHẢI hiện ra: tổng tồn kho toàn Tập đoàn thiếu vài đơn vị mà không báo
@@ -87,7 +90,7 @@ def _coverage(snap: list[dict], no_stock: dict[str, str], comps: list[str] | Non
     Số giữ lại theo cờ "không phát sinh" KHÔNG bị điểm mặt riêng: mỗi dòng đã mang sẵn ngày lấy số
     + số ngày đã cũ, người xem tự thấy — thêm cảnh báo ngưỡng nữa chỉ gây nhiễu.
     """
-    units = member_unit_repo.list_units(include_inactive=False)
+    units = report_units(split_merged)   # xem TÁCH thì đơn vị đã sáp nhập cũng nằm trong khung
     if comps:
         keep = set(comps)
         units = [u for u in units if u["name"] in keep]
@@ -128,7 +131,7 @@ def _warnings(cov: dict, as_of: str, group_by: str) -> list[str]:
 
 def stock_report(as_of: str, days_back: int = 0, *, companies: str | None = None,
                  regions: str | None = None, grades: str | None = None,
-                 group_by: str = "company") -> dict[str, Any]:
+                 group_by: str = "company", split_merged: bool = False) -> dict[str, Any]:
     """Tồn kho tại NGÀY CHỐT theo bộ lọc (đơn vị · khu vực · chủng loại).
 
     Số của mỗi đơn vị lấy theo quy tắc ở `unit_report_rows.stock_rows`: khai ngày nào dùng ngày đó,
@@ -138,13 +141,23 @@ def stock_report(as_of: str, days_back: int = 0, *, companies: str | None = None
     comps, regs, grds = split_csv(companies), split_csv(regions), split_csv(grades)
     # Nhóm theo NGÀY = xem diễn biến tồn → giữ mọi ngày trong cửa sổ; các cách nhóm khác chỉ lấy
     # ảnh chụp tại ngày chốt (mỗi đơn vị 1 dòng số mới nhất của mình).
-    raw = unit_report_rows.stock_rows(as_of, comps, all_days=group_by == "day",
+    raw = unit_report_rows.stock_rows(as_of, merge_scope(comps, split_merged, as_of),
+                                      all_days=group_by == "day",
                                       days_back=days_back if group_by == "day" else 0)
-    rows = filter_scope(raw["rows"], comps, regs)
+    rows = raw["rows"]
+    # "Số mới nhất của từng đơn vị" phải chọn TRÊN TÊN ĐƠN VỊ GỐC rồi mới gộp: gộp trước thì ảnh
+    # chụp của đơn vị cũ và đơn vị mới tranh nhau một chỗ, chỉ một cái sống sót → mất tồn kho.
     snap = _latest_per_company(rows) if group_by == "day" else rows
+    # Tồn kho là số THỜI ĐIỂM: dòng của những ngày TRƯỚC sáp nhập vẫn đứng tên đơn vị cũ (mốc theo
+    # NGÀY CỦA TỪNG DÒNG), nếu không hàng của đơn vị cũ vừa nằm trong tồn của đơn vị mới lại vừa
+    # được cộng thêm một lần nữa dưới tên đơn vị mới.
+    rows = merge_rollup(rows, split_merged, date_key="as_of")
+    snap = merge_rollup(snap, split_merged, date_key="as_of")
+    view = merge_view(comps, split_merged, as_of)
+    rows, snap = filter_scope(rows, view, regs), filter_scope(snap, view, regs)
     # Độ phủ tính TRƯỚC khi lọc chủng loại: đơn vị có tồn nhưng không có chủng loại đang lọc thì
     # vẫn là đơn vị "đã nhập", không được đếm thành thiếu số liệu.
-    cov = _coverage(snap, raw["no_stock"], comps, regs)
+    cov = _coverage(snap, raw["no_stock"], comps, regs, split_merged)
     if grds:   # lọc chủng loại: chỉ áp cho 2 khối thành phẩm, tồn nguyên liệu không có chủng loại
         keep = set(grds)
         def _keep(lst: list[dict]) -> list[dict]:

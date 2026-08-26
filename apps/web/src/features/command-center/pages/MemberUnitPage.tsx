@@ -24,6 +24,7 @@ import {
 } from "../../../lib/member-unit-client";
 import { useAuth } from "../../auth/AuthContext";
 import UnitLoginButton from "./components/UnitLoginButton";
+import UnitMergeCell from "./components/UnitMergeCell";
 import DataSourceNote from "../sections/DataSourceNote";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import ManagedListTab, { type ListApi } from "./components/ManagedListTab";
@@ -89,12 +90,23 @@ export default function MemberUnitPage() {
             KHÔNG chọn được hình thức "Tiêu thụ nội bộ". Cột này còn dùng để gom báo cáo cấp
             Tập đoàn.
           </p>
+          <p className="form-note" style={{ fontSize: 12, marginBottom: 8 }}>
+            Cột "Sáp nhập" dùng khi một đơn vị nhập vào đơn vị khác. Số liệu TRƯỚC ngày hiệu lực
+            vẫn đứng tên đơn vị cũ (không mất, không chuyển đi đâu) nên vẫn tra được đơn vị đó làm
+            được bao nhiêu khi chưa sáp nhập; từ ngày hiệu lực, đơn vị cũ không nhận số liệu mới và
+            tài khoản của nó chuyển sang đơn vị mới. Các bảng thống kê mặc định GỘP số của đơn vị
+            cũ vào đơn vị mới, muốn xem riêng thì bật "Tách đơn vị đã sáp nhập".
+          </p>
           <ManagedListTab<MemberUnit>
             api={unitApi} canEdit={canEdit}
             placeholder="Tên đơn vị mới (vd: Bình Long)" addLabel="Thêm đơn vị"
             countWord="đơn vị" nameHeader="Tên đơn vị"
             confirmDelete={(n) => `Xoá đơn vị "${n}" khỏi danh sách? (Giá đã nhập vẫn giữ trong kho)`}
             onItemsChange={setUnits}
+            statusOf={(u) => u.merged_into
+              ? { label: "Đã sáp nhập", tone: "info" }
+              : { label: u.is_active ? "Đang dùng" : "Đã ẩn", tone: u.is_active ? "" : "warn" }}
+            canToggleActive={(u) => !u.merged_into}
             extraCols={[
               {
                 header: "Khu vực", width: 200,
@@ -141,6 +153,12 @@ export default function MemberUnitPage() {
                       .map((o) => ({ value: o.name, label: o.name }))}
                     filterOption={(i, o) => (o?.label ?? "").toLowerCase().includes(i.toLowerCase())}
                     onChange={(v) => run(() => setUnitParent(u.name, v ?? null))} />
+                ),
+              },
+              {
+                header: "Sáp nhập", width: 320,
+                render: (u, run) => (
+                  <UnitMergeCell unit={u} units={units} canEdit={canEdit} run={run} />
                 ),
               },
               // Chỉ admin thấy cột này (component tự ẩn) — vào thẳng tài khoản của đơn vị để xem

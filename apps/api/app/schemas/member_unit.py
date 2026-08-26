@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from pydantic import BaseModel, Field
 
 
@@ -17,6 +19,10 @@ class MemberUnit(BaseModel):
     # Đang lấy giá mủ nguyên liệu của đơn vị này tự động sang lớp chuyên viên
     # (bật ở màn Giá mủ nguyên liệu — xem `services/purchase_price_sync.py`).
     auto_price_sync: bool = False
+    # SÁP NHẬP: đơn vị này đã nhập vào đơn vị nào, từ ngày nào. Số liệu TRƯỚC ngày đó vẫn đứng tên
+    # đơn vị này (xem `services/member_unit_merge.py`) — khác hẳn đổi tên.
+    merged_into: str | None = None
+    merged_at: date | None = None
 
 
 class MemberUnitAdd(BaseModel):
@@ -37,6 +43,13 @@ class MemberUnitUpdate(BaseModel):
     set_factory: bool = False       # True = áp has_factory
     parent_company: str | None = None      # công ty mẹ (áp khi set_parent=True); "" hoặc None = bỏ gán
     set_parent: bool = False               # True = áp parent_company
+
+
+class MemberUnitMerge(BaseModel):
+    """Sáp nhập đơn vị này vào `merged_into` kể từ `merged_at` (số liệu cũ giữ nguyên tên cũ)."""
+
+    merged_into: str                 # đơn vị NHẬN (phải đang hoạt động, chưa sáp nhập đi đâu)
+    merged_at: str                   # ngày hiệu lực 'YYYY-MM-DD'
 
 
 class MemberUnitReorder(BaseModel):

@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core import request_ctx
+from app.core.unit_guard import assert_unit_can_enter
 from app.core.market_meta import PURCHASE_PRICE_UNIT, PURCHASE_SOURCE_UNIT
 from app.core.security import create_public_token, require_public
 from app.schemas.public_purchase import PublicAuthReq, PublicRecentReq, PublicSubmitReq
@@ -40,8 +41,7 @@ def auth(body: PublicAuthReq) -> dict:
 @router.post("", dependencies=_public)
 def submit(body: PublicSubmitReq) -> dict:
     """Nhập giá mủ nước cho đơn vị — LUÔN ghi cho ngày hôm nay (server ép, không cho chọn ngày)."""
-    if body.company not in set(member_unit_repo.active_names()):
-        raise HTTPException(400, "Đơn vị không hợp lệ.")
+    assert_unit_can_enter(body.company, _today())
     if not (body.price and body.price > 0):
         raise HTTPException(400, "Giá không hợp lệ.")
     today = _today()

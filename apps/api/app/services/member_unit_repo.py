@@ -16,7 +16,7 @@ from app.core.market_meta import PURCHASE_SOURCES, VRG_COMPANIES
 from app.services import audit_repo
 
 _COLS = ("name, sort_order, is_active, region, country, currency, has_factory, "
-         "parent_company, auto_price_sync")
+         "parent_company, auto_price_sync, merged_into, merged_at")
 
 
 def _snapshot(name: str) -> dict[str, Any] | None:
@@ -123,6 +123,10 @@ def rename_unit(old: str, new: str) -> None:
                    {"new": new, "old": old})
         # Cây công ty mẹ-con: đơn vị con đang trỏ về tên cũ phải trỏ theo tên mới.
         db.execute(text("UPDATE member_unit SET parent_company = :new WHERE parent_company = :old"),
+                   {"new": new, "old": old})
+        # Chuỗi SÁP NHẬP: các đơn vị đã sáp nhập VÀO đơn vị này đang trỏ về tên cũ — không đổi thì
+        # chúng thành mồ côi và số liệu trước sáp nhập không còn gộp được về đơn vị hiện hành.
+        db.execute(text("UPDATE member_unit SET merged_into = :new WHERE merged_into = :old"),
                    {"new": new, "old": old})
         # Tài khoản đơn vị thành viên giữ danh sách đơn vị dạng mảng jsonb → thay đúng phần tử cũ.
         db.execute(
@@ -279,6 +283,10 @@ def delete_unit(name: str) -> bool:
                               {"n": name}).scalars().all()
         db.execute(text("UPDATE member_unit SET parent_company = NULL WHERE parent_company = :n"),
                    {"n": name})
+        # Đơn vị đã SÁP NHẬP vào đơn vị này: gỡ con trỏ + cho hoạt động lại, nếu không chúng vừa
+        # bị ẩn vừa trỏ về một đơn vị không còn tồn tại → không nhập được mà cũng không gộp được.
+        db.execute(text("UPDATE member_unit SET merged_into = NULL, merged_at = NULL, "
+                        "is_active = true WHERE merged_into = :n"), {"n": name})
         res = db.execute(text("DELETE FROM member_unit WHERE name = :n"), {"n": name})
         deleted = res.rowcount > 0
     if deleted:

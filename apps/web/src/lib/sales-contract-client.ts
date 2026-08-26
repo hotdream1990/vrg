@@ -98,6 +98,8 @@ export type ContractRow = Contract & {
 export type ContractMeta = {
   units: string[];
   all_units: string[];
+  /** Đơn vị ĐÃ SÁP NHẬP — chỉ để LỌC hợp đồng cũ của họ, không mở hợp đồng mới ở đó nữa. */
+  merged_units?: string[];
   grades: string[];
   dry_required: string[];
   channels: Record<string, string>;

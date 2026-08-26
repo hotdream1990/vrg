@@ -10,7 +10,8 @@ from typing import Any
 
 from app.services import unit_report_rows as rows_mod
 from app.services.unit_report_query import (
-    GROUPERS, avg, filter_scope, sort_groups, split_csv, year_plan_by_group,
+    GROUPERS, avg, filter_scope, merge_rollup, merge_scope, merge_view, sort_groups, split_csv,
+    year_plan_by_group,
 )
 from app.services.unit_report_rows import TRIEU
 
@@ -77,12 +78,20 @@ def _feed_purchase(g: dict, r: dict) -> None:
 
 def purchase_report(date_from: str, date_to: str, *, companies: str | None = None,
                     regions: str | None = None, materials: str | None = None,
-                    grades: str | None = None, group_by: str = "company") -> dict[str, Any]:
-    """Bảng thống kê Thu mua theo bộ lọc (đơn vị · khu vực · loại mủ · chủng loại · kỳ)."""
+                    grades: str | None = None, group_by: str = "company",
+                    split_merged: bool = False) -> dict[str, Any]:
+    """Bảng thống kê Thu mua theo bộ lọc (đơn vị · khu vực · loại mủ · chủng loại · kỳ).
+
+    `split_merged=True` → TÁCH đơn vị đã sáp nhập thành dòng riêng; mặc định gộp số của họ vào
+    đơn vị hiện hành (xem `unit_report_query.merge_rollup`).
+    """
     comps, regs = split_csv(companies), split_csv(regions)
     mats, grds = split_csv(materials), split_csv(grades)
-    data = rows_mod.purchase_rows(date_from, date_to, comps)
-    rows = filter_scope(data["rows"], comps, regs)
+    # Mốc xét sáp nhập là NGÀY CUỐI KỲ: kỳ kết thúc trước ngày sáp nhập thì lúc ấy hai đơn vị còn
+    # độc lập nên vẫn đứng riêng, dù bảng đang ở chế độ gộp.
+    data = rows_mod.purchase_rows(date_from, date_to, merge_scope(comps, split_merged, date_to))
+    view = merge_view(comps, split_merged, date_to)
+    rows = filter_scope(merge_rollup(data["rows"], split_merged, date_to), view, regs)
     if mats:
         rows = [r for r in rows if r["material"] in set(mats)]
     if grds:   # chủng loại chỉ áp cho mủ thành phẩm (mủ nước/chén không có chủng loại)
@@ -100,9 +109,9 @@ def purchase_report(date_from: str, date_to: str, *, companies: str | None = Non
     # Ngày không tổ chức thu mua: chỉ đếm được khi nhóm theo đơn vị/khu vực/ngày.
     if group_by in ("company", "region", "day") and not (mats or grds):
         meta = rows_mod.unit_meta()
-        for p in data["no_purchase"]:
+        for p in merge_rollup(data["no_purchase"], split_merged, date_to):
             pseudo = {**p, "region": (meta.get(p["company"]) or {}).get("region")}
-            if comps and p["company"] not in set(comps):
+            if view and p["company"] not in set(view):
                 continue
             if regs and (pseudo["region"] or "") not in set(regs):
                 continue
@@ -123,7 +132,8 @@ def purchase_report(date_from: str, date_to: str, *, companies: str | None = Non
     year = int(date_to[:4])
     filtered = bool(mats or grds)
     plan_by_key, plan_total = (({}, 0.0) if filtered
-                               else year_plan_by_group(_PLAN_KEY, group_by, comps, regs, year))
+                               else year_plan_by_group(_PLAN_KEY, group_by, comps, regs, year,
+                                                       split_merged, date_to))
     _attach_plan(totals, plan_total)
     for row in out_rows:
         _attach_plan(row, plan_by_key.get(row["key"]))   # nhóm khác đơn vị/khu vực → để trống

@@ -15,6 +15,8 @@ import { dmy } from "../../../lib/date";
 import { PRESETS, type Preset, rangeOf } from "../../../lib/date-presets";
 import { type Kind, displayDigits, fmtNum } from "../../../lib/unit-daily-fields";
 import DateInput from "../sections/DateInput";
+import { SplitMergedToggle } from "./analytics/AnalyticsFilters";
+import { useFilterCatalog } from "./analytics/use-stats";
 import "../../bulletin/bulletin.css";
 import { CUP_PRICE_UNIT, LATEX_PRICE_UNIT } from "../../../lib/purchase-price-unit";
 
@@ -96,6 +98,9 @@ export default function PeriodReportPage() {
   const [data, setData] = useState<PeriodReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Mặc định GỘP số của đơn vị đã sáp nhập vào đơn vị hiện hành; bật để tách ra xem riêng.
+  const [splitMerged, setSplitMerged] = useState(false);
+  const catalog = useFilterCatalog();
 
   const pickPreset = (p: Preset) => {
     setPreset(p);
@@ -106,9 +111,9 @@ export default function PeriodReportPage() {
   const load = useCallback(() => {
     if (from > to) { message.warning("Khoảng ngày không hợp lệ: từ ngày sau đến ngày."); return; }
     setLoading(true);
-    fetchPeriodReport(kind, from, to)
+    fetchPeriodReport(kind, from, to, splitMerged)
       .then(setData).catch((e) => message.error(e.message)).finally(() => setLoading(false));
-  }, [kind, from, to]);
+  }, [kind, from, to, splitMerged]);
   useEffect(() => { load(); }, [load]);
 
   const cols: Col[] = useMemo(() => {
@@ -130,7 +135,7 @@ export default function PeriodReportPage() {
   const exportXlsx = async () => {
     setSaving(true);
     try {
-      await downloadPeriodXlsx(kind, from, to);
+      await downloadPeriodXlsx(kind, from, to, splitMerged);
       message.success("Đã tải file Excel.");
     } catch (e) { message.error((e as Error).message); } finally { setSaving(false); }
   };
@@ -158,6 +163,7 @@ export default function PeriodReportPage() {
         <DateInput value={from} onChange={(v) => { setFrom(v); setPreset("Tự chọn"); }} style={{ width: 170 }} />
         <span style={{ color: "var(--muted)" }}>→</span>
         <DateInput value={to} onChange={(v) => { setTo(v); setPreset("Tự chọn"); }} style={{ width: 170 }} />
+        <SplitMergedToggle catalog={catalog} value={splitMerged} onChange={setSplitMerged} />
         <Button icon={<ReloadOutlined />} onClick={load}>Làm mới</Button>
         <Button type="primary" icon={<DownloadOutlined />} onClick={exportXlsx}
                 loading={saving} disabled={!hasData}>Xuất Excel</Button>

@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, Up
 from fastapi.responses import FileResponse
 
 from app.core import edit_window
+from app.core.unit_guard import assert_unit_can_enter
 from app.core.feature_flags import require_excel_import
 from app.core.market_meta import UNIT_GRADES
 from app.core.security import assert_editor_window, require_cap, require_cap_edit
@@ -187,6 +188,7 @@ def contract_history(company: str | None = Query(None),
 @router.put("/stock-contracts")
 def save_stock_contract(body: StockContractEdit, username: str = Depends(_require_edit)) -> dict:
     """Thêm mới / cập nhật 1 hợp đồng (kể cả điền NGÀY GIAO khi đã xuất kho)."""
+    assert_unit_can_enter(body.company, body.start_date)
     try:
         return {"contract": unit_stock_contract_repo.save(
             body.model_dump(), body.company, username)}
@@ -221,8 +223,7 @@ def upsert(body: UnitDailyEdit, username: str = Depends(_require_edit)) -> dict:
 
     `create_only=True` (nút Thêm) → 409 nếu (ngày, đơn vị, loại) đã có số (chống ghi trùng).
     """
-    if body.company not in member_unit_repo.active_names():
-        raise HTTPException(400, "Đơn vị không hợp lệ.")
+    assert_unit_can_enter(body.company, body.as_of)
     assert_editor_window(username, body.as_of)
     if body.create_only and unit_daily_repo.has_entry(body.kind, body.as_of, body.company):
         raise HTTPException(409, "Đơn vị này đã có số liệu cho ngày này — vui lòng dùng chức năng Sửa.")
@@ -236,8 +237,8 @@ def move_date(body: UnitDailyMove, username: str = Depends(_require_edit)) -> di
 
     Ép cửa sổ sửa cho CẢ ngày cũ lẫn ngày mới: không được kéo số liệu ra/vào vùng đã khoá.
     """
-    if body.company not in member_unit_repo.active_names():
-        raise HTTPException(400, "Đơn vị không hợp lệ.")
+    # Ngày ĐÍCH mới là ngày số liệu sẽ nằm — dời vào vùng sau ngày sáp nhập là sai đơn vị.
+    assert_unit_can_enter(body.company, body.to_date)
     assert_editor_window(username, body.as_of)
     assert_editor_window(username, body.to_date)
     try:
@@ -263,10 +264,14 @@ def get_contract_file(name: str, username: str = Depends(_require)):
 def period_report(kind: str = Query(..., pattern="^(purchase|consumption)$"),
                   date_from: str = Query(..., description="Từ ngày 'YYYY-MM-DD'"),
                   date_to: str = Query(..., description="Đến ngày 'YYYY-MM-DD'"),
+                  split_merged: bool = Query(False, description="Tách riêng đơn vị đã sáp nhập"),
                   username: str = Depends(_require)) -> dict:
-    """Báo cáo tổng hợp theo kỳ (tuần/tháng/năm/khoảng tự chọn) — MỌI đơn vị."""
+    """Báo cáo tổng hợp theo kỳ (tuần/tháng/năm/khoảng tự chọn) — MỌI đơn vị.
+
+    Mặc định gộp số của đơn vị đã sáp nhập vào đơn vị hiện hành; `split_merged` để tách ra.
+    """
     _assert_range(date_from, date_to)
-    return unit_period_report.period_report(kind, date_from, date_to)
+    return unit_period_report.period_report(kind, date_from, date_to, split_merged=split_merged)
 
 
 def _xlsx_response(rep: dict, kind: str, date_from: str, date_to: str) -> Response:
@@ -285,10 +290,11 @@ def _xlsx_response(rep: dict, kind: str, date_from: str, date_to: str) -> Respon
 @router.get("/period-report.xlsx")
 def period_report_xlsx(kind: str = Query(..., pattern="^(purchase|consumption)$"),
                        date_from: str = Query(...), date_to: str = Query(...),
+                       split_merged: bool = Query(False),
                        username: str = Depends(_require)):
     """Tải báo cáo kỳ dạng Excel (bám mẫu Biểu (1)/(2)) — MỌI đơn vị."""
     _assert_range(date_from, date_to)
-    rep = unit_period_report.period_report(kind, date_from, date_to)
+    rep = unit_period_report.period_report(kind, date_from, date_to, split_merged=split_merged)
     return _xlsx_response(rep, kind, date_from, date_to)
 
 
@@ -307,8 +313,9 @@ def get_plan(year: int = Query(..., ge=2020, le=2100),
 @router.put("/plan")
 def set_plan(body: PurchasePlanEdit, username: str = Depends(_require_edit)) -> dict:
     """Đặt/xoá số liệu năm của 1 đơn vị (chuyên viên có quyền `unit_daily`)."""
-    if body.company not in member_unit_repo.active_names():
-        raise HTTPException(400, "Đơn vị không hợp lệ.")
+    # Chỉ tiêu NĂM: mốc so là 01/01 của năm đó — đơn vị sáp nhập giữa năm 2026 vẫn sửa được kế
+    # hoạch 2026 (nó đã chạy phần đầu năm), nhưng không nhận kế hoạch của các năm sau đó.
+    assert_unit_can_enter(body.company, f"{body.year}-01-01")
     unit_daily_repo.set_year_plan(body.year, body.company, body.plan_tonnes, body.signed_lt_tonnes,
                                   body.carry_lt_tonnes, body.carry_spot_tonnes,
                                   body.plan_sales_spot_tonnes, body.plan_revenue_ty, username)

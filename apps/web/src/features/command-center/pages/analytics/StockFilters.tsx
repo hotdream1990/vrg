@@ -9,7 +9,7 @@ import { Button, Select } from "antd";
 import { isoDate } from "../../../../lib/date";
 import type { FilterCatalog, Opt, StockFilters as Filters } from "../../../../lib/unit-analytics-client";
 import DateInput from "../../sections/DateInput";
-import { MultiSelect } from "./AnalyticsFilters";
+import { MultiSelect, SplitMergedToggle } from "./AnalyticsFilters";
 
 /** Chỉ dùng khi nhóm theo NGÀY: xem diễn biến tồn mấy ngày trở lại ngày chốt. */
 export const DAYS_BACK_OPTIONS: Opt[] = [
@@ -46,6 +46,9 @@ export default function StockFilters({
   const patch = (p: Partial<Filters>) => onChange({ ...value, ...p });
   const units = (catalog?.units ?? []).filter(
     (u) => !value.regions.length || value.regions.includes(u.region ?? ""));
+  const unitNames = value.splitMerged
+    ? [...units.map((u) => u.name), ...(catalog?.merged_units ?? []).map((m) => m.name)]
+    : units.map((u) => u.name);
 
   return (
     <div className="card" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -57,10 +60,12 @@ export default function StockFilters({
       )}
       <MultiSelect placeholder="Tất cả khu vực" options={catalog?.regions ?? []}
                    value={value.regions} onChange={(v) => patch({ regions: v })} width={190} />
-      <MultiSelect placeholder="Tất cả đơn vị" options={units.map((u) => u.name)}
+      <MultiSelect placeholder="Tất cả đơn vị" options={unitNames}
                    value={value.companies} onChange={(v) => patch({ companies: v })} width={230} />
       <MultiSelect placeholder="Tất cả chủng loại" options={catalog?.grades ?? []}
                    value={value.grades} onChange={(v) => patch({ grades: v })} width={210} />
+      <SplitMergedToggle catalog={catalog} value={!!value.splitMerged}
+                         onChange={(v) => patch({ splitMerged: v })} />
       <span style={{ color: "var(--muted)", fontSize: 13 }}>Nhóm theo</span>
       <Select style={{ width: 155 }} value={groupValue} options={groupOptions} onChange={onGroupChange} />
       <Button icon={<ReloadOutlined />} onClick={onReload} loading={loading}>Làm mới</Button>

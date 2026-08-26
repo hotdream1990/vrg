@@ -119,6 +119,10 @@ export default function SalesContractPage() {
                 })}>
                 <option value="">Tất cả</option>
                 {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
+                {/* Đơn vị đã sáp nhập: hợp đồng cũ vẫn chạy tiếp nên vẫn phải lọc tới được. */}
+                {(meta.merged_units ?? []).map((u) => (
+                  <option key={u} value={u}>{u} (đã sáp nhập)</option>
+                ))}
               </select>
             </label>
           ) : null}

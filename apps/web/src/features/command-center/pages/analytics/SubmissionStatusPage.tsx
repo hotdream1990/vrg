@@ -3,7 +3,7 @@
    ô trống của ngày nào, đơn vị nào — thay vì phải mở từng ngày một. */
 
 import {
-  CheckCircleFilled, CloseCircleFilled, MinusCircleFilled, ReloadOutlined,
+  CheckCircleFilled, CloseCircleFilled, MinusCircleFilled, ReloadOutlined, StopOutlined,
 } from "@ant-design/icons";
 import { Button, Segmented, Spin, message } from "antd";
 import { useCallback, useEffect, useState } from "react";
@@ -27,6 +27,9 @@ const CELL: Record<StatusCell, { icon: JSX.Element; title: string }> = {
   ok: { icon: <CheckCircleFilled style={{ color: "var(--ok, #52c41a)" }} />, title: "Đã nhập" },
   no_purchase: { icon: <MinusCircleFilled style={{ color: "var(--muted)" }} />, title: "Không tổ chức thu mua" },
   none: { icon: <CloseCircleFilled style={{ color: "var(--danger, #ff4d4f)" }} />, title: "Chưa nhập" },
+  // Đơn vị đã sáp nhập: từ ngày hiệu lực họ KHÔNG còn phải nộp — ô này không phải lỗi, và cũng
+  // không nằm trong mẫu số "cần nộp" ở dòng tổng.
+  merged: { icon: <StopOutlined style={{ color: "var(--muted)", opacity: 0.5 }} />, title: "Đã sáp nhập — không còn phải nộp" },
 };
 
 /** Khoảng N ngày gần nhất (tính cả hôm nay). */
@@ -146,6 +149,11 @@ export default function SubmissionStatusPage() {
                       thêm ở cuối sẽ nằm ngoài màn hình. Chỉ admin thấy (component tự ẩn). */}
                   <td style={{ fontWeight: 500, whiteSpace: "nowrap", position: "sticky", left: 110, zIndex: 1, background: "var(--card, #fff)" }}>
                     {r.company}
+                    {r.merged_into && (
+                      <span className="chip info" style={{ fontSize: 10, marginLeft: 6 }}>
+                        → {r.merged_into}
+                      </span>
+                    )}
                     <UnitLoginButton unit={r.company} compact />
                   </td>
                   {(data?.dates ?? []).map((d) => (

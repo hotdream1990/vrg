@@ -6,9 +6,12 @@ import { API, apiFetch } from "./http";
 
 export type Opt = { value: string; label: string };
 export type FilterUnit = { name: string; region: string | null; has_factory: boolean };
+/** Đơn vị đã SÁP NHẬP vào đơn vị khác — số liệu cũ của họ mặc định gộp về đơn vị hiện hành. */
+export type MergedUnit = { name: string; merged_into: string; merged_at: string | null };
 export type FilterCatalog = {
   units: FilterUnit[]; regions: string[]; grades: string[];
   materials: Opt[]; contracts: Opt[]; channels: Opt[]; sources: Opt[];
+  merged_units: MergedUnit[];
 };
 
 /** Bộ lọc chung của mọi màn thống kê (mảng rỗng = không lọc). */
@@ -21,6 +24,8 @@ export type StatsFilters = {
   groupBy: string;
   /** Chế độ CHI TIẾT (groupBy="none") cắt trang ở server — trang đang xem. */
   page?: number;
+  /** TÁCH đơn vị đã sáp nhập thành dòng riêng (mặc định gộp vào đơn vị hiện hành). */
+  splitMerged?: boolean;
 };
 
 /** Màn TỒN KHO đi theo trục "ngày chốt" (số thời điểm) chứ không theo khoảng kỳ như các màn khác. */
@@ -31,6 +36,7 @@ export type StockFilters = {
   daysBack: number;
   companies: string[]; regions: string[]; grades: string[];
   groupBy: string;
+  splitMerged?: boolean;
 };
 
 export type StatsRow = { key: string; label: string; region: string | null; [k: string]: unknown };
@@ -57,10 +63,12 @@ export type StockCoverage = {
 /** Số dòng mỗi trang ở chế độ chi tiết — khớp mặc định của server. */
 export const DETAIL_PAGE_SIZE = 100;
 
-export type StatusCell = "ok" | "no_purchase" | "none";
+//: `merged` = đơn vị đã sáp nhập, từ ngày đó KHÔNG còn phải nộp (khác hẳn "chưa nộp").
+export type StatusCell = "ok" | "no_purchase" | "none" | "merged";
 export type StatusRow = {
   company: string; region: string | null; cells: Record<string, StatusCell>;
   filled: number; no_purchase: number; missing: number; last_day: string | null;
+  merged_into?: string | null; merged_at?: string | null;
 };
 export type StatusReport = {
   kind: string; dates: string[]; rows: StatusRow[];
@@ -79,6 +87,7 @@ export function statsQuery(f: StatsFilters): string {
   put("materials", f.materials);
   put("contract", f.contract);
   put("channel", f.channel);
+  if (f.splitMerged) p.set("split_merged", "true");
   if (f.groupBy === "none") {
     p.set("page", String(f.page ?? 1));
     p.set("page_size", String(DETAIL_PAGE_SIZE));
@@ -103,6 +112,7 @@ export function stockQuery(f: StockFilters): string {
   put("companies", f.companies);
   put("regions", f.regions);
   put("grades", f.grades);
+  if (f.splitMerged) p.set("split_merged", "true");
   return p.toString();
 }
 

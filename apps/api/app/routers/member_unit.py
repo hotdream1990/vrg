@@ -8,10 +8,11 @@ from app.core.security import require_cap_edit
 from app.schemas.member_unit import (
     MemberUnit,
     MemberUnitAdd,
+    MemberUnitMerge,
     MemberUnitReorder,
     MemberUnitUpdate,
 )
-from app.services import member_unit_repo
+from app.services import member_unit_merge, member_unit_repo
 
 router = APIRouter(prefix="/api/member-units", tags=["member-units"])
 
@@ -41,6 +42,11 @@ def update_unit(name: str, body: MemberUnitUpdate):
             member_unit_repo.rename_unit(name, body.new_name)
             name = body.new_name.strip() or name
         if body.is_active is not None:
+            # Đơn vị đã sáp nhập bị ẩn theo thiết kế — bật lại bằng nút "Hiện" sẽ cho nó xuất hiện
+            # trở lại ở mọi form nhập liệu trong khi vẫn mang cờ sáp nhập. Phải gỡ sáp nhập trước.
+            if body.is_active and (unit := _get(name)) and unit.get("merged_into"):
+                raise ValueError(f"“{name}” đã sáp nhập vào “{unit['merged_into']}” — "
+                                 "gỡ sáp nhập trước nếu muốn cho hoạt động trở lại.")
             member_unit_repo.set_active(name, body.is_active)
         if body.set_region:
             member_unit_repo.set_region(name, body.region)
@@ -53,6 +59,35 @@ def update_unit(name: str, body: MemberUnitUpdate):
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return member_unit_repo.list_units()
+
+
+def _get(name: str) -> dict | None:
+    return next((u for u in member_unit_repo.list_units() if u["name"] == name), None)
+
+
+@router.post("/{name}/merge", dependencies=_editor)
+def merge_unit(name: str, body: MemberUnitMerge):
+    """Sáp nhập đơn vị `name` vào đơn vị khác kể từ ngày hiệu lực.
+
+    KHÔNG chuyển số liệu: mọi bản ghi cũ giữ nguyên tên đơn vị cũ nên vẫn tách được "trước sáp
+    nhập / sau sáp nhập" (xem `services/member_unit_merge.py`). Từ ngày hiệu lực, đơn vị cũ bị ẩn
+    khỏi các form nhập liệu và tài khoản của nó chuyển sang đơn vị mới.
+    """
+    try:
+        result = member_unit_merge.merge(name, body.merged_into.strip(), body.merged_at)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {**result, "units": member_unit_repo.list_units()}
+
+
+@router.delete("/{name}/merge", dependencies=_editor)
+def unmerge_unit(name: str):
+    """Gỡ sáp nhập — đơn vị hoạt động độc lập trở lại (tài khoản KHÔNG tự trả về, cấp lại tay)."""
+    try:
+        result = member_unit_merge.unmerge(name)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {**result, "units": member_unit_repo.list_units()}
 
 
 @router.post("/reorder", response_model=list[MemberUnit], dependencies=_editor)

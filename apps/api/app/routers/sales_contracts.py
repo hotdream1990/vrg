@@ -15,10 +15,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile
 
 from app.core.market_meta import (
+    CONTRACT_CERTS,
     CONTRACT_TYPES,
     DELIVERY_TYPES,
     DRY_REQUIRED_GRADES,
     MASTER_CONTRACT_TYPES,
+    PREMIUM_CURRENCIES,
     SALE_CHANNELS,
     SALE_CURRENCIES,
     UNIT_GRADES,
@@ -31,6 +33,7 @@ from app.services import (
     contract_files,
     customer_repo,
     master_contract_repo,
+    member_unit_merge,
     member_unit_repo,
     sales_contract_consumption_excel,
     sales_contract_delivery_history,
@@ -75,6 +78,11 @@ def meta(scope: Scope) -> dict:
         # trong nước bán VND, thêm USD khi xuất khẩu; nước ngoài mới có thêm LAK/KHR).
         "unit_currency": {u["name"]: (u.get("currency") or "VND") for u in units},
         "all_units": [u["name"] for u in units],
+        # Đơn vị ĐÃ SÁP NHẬP: hợp đồng cũ của họ vẫn còn và vẫn chạy tiếp (thêm đợt giao, chốt
+        # hoàn thành) nên phải LỌC được; chỉ không mở hợp đồng MỚI ở đó nữa. Danh sách này KHÔNG
+        # trộn vào `units` — `units` là danh sách chọn khi tạo hợp đồng.
+        "merged_units": [m["name"] for m in member_unit_merge.merged_units()
+                         if companies is None or m["name"] in (companies or [])],
         # Đơn vị NHẬN khi tiêu thụ nội bộ — chỉ trong NHÓM công ty mẹ–con. Đơn vị không có tên ở đây
         # là đứng một mình → form ẩn luôn hình thức "Tiêu thụ nội bộ".
         "internal_targets": member_unit_repo.internal_targets(),
@@ -265,7 +273,8 @@ def get_contract(contract_id: int, scope: Scope) -> dict:
             "customer_name": names.get(c.get("customer_id") or 0)}
 
 
-def _assert_delivery_window(username: str, contract_id: int | None, new_delivered_at: str | None) -> None:
+def _assert_delivery_window(username: str, contract_id: int | None, new_delivered_at: str | None,
+                            company: str | None = None) -> None:
     """Cửa sổ sửa — chỉ áp cho LẦN GIAO, mốc là NGÀY GIAO (chốt 02/08/2026).
 
     Lần giao là bản ghi tiêu thụ, đúng thứ cửa sổ sửa sinh ra để bảo vệ: giao xong quá N ngày thì
@@ -289,7 +298,7 @@ def save_contract(body: ContractIn, scope: EditScope) -> dict:
     """Thêm mới / cập nhật hợp đồng hoặc ĐỢT GIAO (đợt có ngày giao mới tính là đã giao)."""
     username, companies = scope
     _assert_company(companies, body.company)
-    _assert_delivery_window(username, body.id, body.delivered_at)
+    _assert_delivery_window(username, body.id, body.delivered_at, body.company)
     try:
         return {"contract": sales_contract_repo.save(body.model_dump(), body.company, username)}
     except ValueError as exc:

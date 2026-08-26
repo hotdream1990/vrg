@@ -152,10 +152,12 @@ _UPDATE = text(
 
 def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
     """Thêm mới (không có id) hoặc cập nhật 1 hợp đồng mẹ. Raise ValueError nếu sai nghiệp vụ."""
-    from app.services.sales_contract_clean import assert_unit_exists
+    from app.services.sales_contract_clean import assert_unit_can_sign, assert_unit_exists
 
     d = clean(row, company)
     assert_unit_exists(company, "Đơn vị")
+    if d["id"] is None:      # hồ sơ MỚI — đơn vị đã sáp nhập thì mở hồ sơ ở đơn vị nhận
+        assert_unit_can_sign(company, "Đơn vị")
     ensure_schema()
     before = get(d["id"]) if d["id"] is not None else None
     params = {**d, "lines": json.dumps(d["lines"]), "files": json.dumps(d["files"]),

@@ -11,6 +11,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core import edit_window
+from app.core.unit_guard import assert_unit_can_enter
 from app.core.security import assert_editor_window, require_cap, require_cap_edit
 from app.schemas.market_demand import MarketDemandEdit
 from app.services import market_demand_repo, member_unit_repo
@@ -53,8 +54,7 @@ def upsert(body: MarketDemandEdit, username: str = Depends(_require_md_edit)) ->
 
     `create_only=True` (nút Thêm nhu cầu) → chặn 409 nếu đơn vị đã có nhu cầu ngày đó (chống ghi trùng).
     """
-    if body.company not in member_unit_repo.active_names():
-        raise HTTPException(400, "Đơn vị không hợp lệ.")
+    assert_unit_can_enter(body.company, body.as_of)
     assert_editor_window(username, body.as_of)
     if body.create_only and market_demand_repo.entries_on(body.as_of).get(body.company, "").strip():
         raise HTTPException(409, "Đơn vị này đã có nhu cầu cho ngày này — vui lòng dùng chức năng Sửa.")

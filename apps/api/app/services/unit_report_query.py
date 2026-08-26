@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from app.services import member_unit_repo, unit_daily_repo
+from app.services import member_unit_merge, member_unit_repo, unit_daily_repo
 from app.services.unit_report_rows import MATERIAL_LABELS, SOURCE_LABELS
 
 #: Nhãn cho ô CHƯA KHAI — hiện rõ là thiếu dữ liệu, thay vì để chuỗi rỗng hay đoán bừa một loại.
@@ -43,6 +43,56 @@ GROUPERS: dict[str, Callable[[dict], str | None]] = {
     "channel": lambda r: label_of(CHANNEL_LABELS, r.get("channel")),
     "source": lambda r: SOURCE_LABELS.get(r.get("source") or ""),
 }
+
+
+#: Mặc định các bảng thống kê GỘP số liệu của đơn vị đã sáp nhập vào đơn vị hiện hành (chốt
+#: 24/08/2026) — người xem cần con số đầy đủ của đơn vị đang tồn tại. Bật `split_merged` để TÁCH
+#: ra xem riêng giai đoạn trước sáp nhập.
+def region_of_units() -> dict[str, str | None]:
+    """{tên đơn vị: khu vực} cho MỌI đơn vị (kể cả đã sáp nhập) — dùng khi quy dòng về đơn vị mới."""
+    return {u["name"]: u.get("region") for u in member_unit_repo.list_units()}
+
+
+def report_units(split_merged: bool = False) -> list[dict]:
+    """Khung đơn vị của báo cáo: đang hoạt động, cộng thêm đơn vị ĐÃ SÁP NHẬP khi xem TÁCH.
+
+    Xem tách mà bỏ đơn vị đã sáp nhập ra khỏi khung thì số của họ biến mất khỏi bảng dù vẫn còn
+    trong kho dữ liệu — đúng thứ tính năng sáp nhập cam kết giữ lại.
+    """
+    units = member_unit_repo.list_units(include_inactive=False)
+    if split_merged:
+        merged = [u for u in member_unit_repo.list_units() if u.get("merged_into")]
+        units = sorted(units + merged, key=lambda u: (u.get("sort_order") or 0, u["name"]))
+    return units
+
+
+def merge_view(companies: list[str] | None, split_merged: bool,
+               as_of: str | None = None) -> list[str] | None:
+    """Bộ lọc đơn vị SAU khi đã gộp: tên đơn vị đã sáp nhập quy về đơn vị hiện hành.
+
+    Chọn nhầm đơn vị cũ trong lúc đang xem GỘP mà không quy đổi thì bảng trống trơn — dòng của họ
+    lúc đó đã mang tên đơn vị mới, không khớp bộ lọc nào.
+    """
+    if split_merged or not companies:
+        return companies
+    roll = member_unit_merge.rollup_map(as_of)
+    return list(dict.fromkeys(roll.get(c, c) for c in companies))
+
+
+def merge_scope(companies: list[str] | None, split_merged: bool,
+                as_of: str | None = None) -> list[str] | None:
+    """Danh sách đơn vị dùng để TRUY VẤN dữ liệu: khi gộp, chọn B phải kéo theo dữ liệu cũ của A."""
+    if split_merged:
+        return companies
+    return member_unit_merge.expand(merge_view(companies, split_merged, as_of), as_of)
+
+
+def merge_rollup(rows: list[dict], split_merged: bool, as_of: str | None = None,
+                 date_key: str | None = None) -> list[dict]:
+    """Quy các dòng của đơn vị đã sáp nhập về đơn vị hiện hành (bỏ qua khi đang xem TÁCH)."""
+    if split_merged:
+        return rows
+    return member_unit_merge.rollup_rows(rows, region_of_units(), as_of, date_key=date_key)
 
 
 def dmy(iso: str | None) -> str:
@@ -82,28 +132,40 @@ PLAN_DIMS = ("company", "region")
 
 
 def year_plan_by_group(plan_key: str, group_by: str, companies: list[str] | None,
-                       regions: list[str] | None, year: int) -> tuple[dict[str, float], float]:
+                       regions: list[str] | None, year: int, split_merged: bool = False,
+                       as_of: str | None = None) -> tuple[dict[str, float], float]:
     """Chỉ tiêu NĂM `plan_key` của màn "Kế hoạch năm" → ({khoá nhóm: tấn}, tổng theo bộ lọc).
 
     Mẫu số lấy theo DANH SÁCH ĐƠN VỊ khớp bộ lọc, không phải theo đơn vị có phát sinh số liệu:
     đơn vị được giao kế hoạch mà kỳ này chưa phát sinh gì vẫn phải nằm trong mẫu số — bỏ ra là %
     tự đẹp lên.
+
+    Khi GỘP đơn vị đã sáp nhập, chỉ tiêu của đơn vị cũ cộng vào đơn vị hiện hành: tử số đã gồm sản
+    lượng của đơn vị cũ, mẫu số bỏ chỉ tiêu của họ ra thì % thực hiện tự đẹp lên.
     """
-    units = member_unit_repo.list_units(include_inactive=False)
+    units = report_units(split_merged=True)     # luôn xét cả đơn vị đã sáp nhập…
+    roll = {} if split_merged else member_unit_merge.rollup_map(as_of)   # …rồi quy về đơn vị hiện hành
     if companies:
-        units = [u for u in units if u["name"] in set(companies)]
-    if regions:
-        units = [u for u in units if (u.get("region") or "") in set(regions)]
+        keep = set(merge_scope(companies, split_merged, as_of) or [])
+        units = [u for u in units if u["name"] in keep]
+    view = set(merge_view(companies, split_merged, as_of) or [])
+    region_of = region_of_units()
     plans = unit_daily_repo.year_plan(year)
     by_key: dict[str, float] = {}
     total = 0.0
     for u in units:
+        cur = roll.get(u["name"], u["name"])
+        region = region_of.get(cur) if cur != u["name"] else u.get("region")
+        if regions and (region or "") not in set(regions):
+            continue
+        if view and cur not in view:      # đơn vị cũ đã gộp về đơn vị KHÁC bộ lọc → không tính
+            continue
         n = (plans.get(u["name"]) or {}).get(plan_key) or 0.0
         if not n:
             continue
         total += n
         if group_by in PLAN_DIMS:
-            k = u["name"] if group_by == "company" else (u.get("region") or NO_REGION_LABEL)
+            k = cur if group_by == "company" else (region or NO_REGION_LABEL)
             by_key[k] = by_key.get(k, 0.0) + n
     return by_key, total
 

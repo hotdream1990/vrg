@@ -57,6 +57,10 @@ export default function RawMaterialPage() {
     return [...set].sort().reverse();
   }, [sheet, extraDates, ew.windowDates]);
   const companies = sheet?.companies ?? [];
+  // Đơn vị đã sáp nhập: {tên: ngày hiệu lực} — ô từ ngày đó trở đi khoá lại (số đã thuộc đơn vị mới).
+  const mergedAt = new Map((sheet?.merged_units ?? [])
+    .filter((m) => companies.includes(m.name))
+    .map((m) => [m.name, m.merged_at ?? ""]));
   // prev[company][date] = giá ngày trước để cảnh báo lệch ≥10% khi nhập tay.
   const prevOf = useMemo(() => buildGridPrevMap(companies, dates, sheet?.values), [companies, dates, sheet]);
 
@@ -144,6 +148,11 @@ export default function RawMaterialPage() {
                       title="Đang lấy số tự động từ đơn vị — sửa tay sẽ bị ghi đè ở lần đơn vị nộp sau" />
                   )}
                   {co}
+                  {mergedAt.has(co) && (
+                    <div style={{ fontWeight: 400, fontSize: 10, color: "var(--muted)" }}>
+                      đã sáp nhập
+                    </div>
+                  )}
                 </th>
               ))}
             </tr>
@@ -165,7 +174,8 @@ export default function RawMaterialPage() {
                 {companies.map((co) => (
                   <td key={co} className="r">
                     <EditableCell value={sheet?.values[co]?.[d] ?? null} prevValue={prevOf[co]?.[d]}
-                      onSave={(n) => saveCell(co, d, n)} onClear={() => clearCell(co, d)} readOnly={!canEdit || !ed} />
+                      onSave={(n) => saveCell(co, d, n)} onClear={() => clearCell(co, d)}
+                      readOnly={!canEdit || !ed || d >= (mergedAt.get(co) ?? "\uffff")} />
                   </td>
                 ))}
               </tr>

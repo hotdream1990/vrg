@@ -12,8 +12,8 @@ from typing import Any
 
 from app.services import unit_report_rows as rows_mod
 from app.services.unit_report_query import (
-    CHANNEL_LABELS, CONTRACT_LABELS, GROUPERS, avg, filter_scope, label_of, sort_groups, split_csv,
-    year_plan_by_group,
+    CHANNEL_LABELS, CONTRACT_LABELS, GROUPERS, avg, filter_scope, label_of, merge_rollup,
+    merge_scope, merge_view, sort_groups, split_csv, year_plan_by_group,
 )
 from app.services.unit_report_rows import SOURCE_LABELS, TRIEU
 
@@ -74,14 +74,18 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
                        regions: str | None = None, grades: str | None = None,
                        contract: str | None = None, channel: str | None = None,
                        source: str | None = None, group_by: str = "company",
-                       limit: int | None = None, offset: int = 0) -> dict[str, Any]:
+                       limit: int | None = None, offset: int = 0,
+                       split_merged: bool = False) -> dict[str, Any]:
     """Bảng thống kê Tiêu thụ (đơn vị · khu vực · chủng loại · loại HĐ · hình thức · nguồn mủ).
 
     `group_by='none'` → trả DÒNG CHI TIẾT từng lần bán (để đối chiếu chứng từ).
+    `split_merged=True` → tách riêng đơn vị đã sáp nhập; mặc định gộp vào đơn vị hiện hành.
     """
     comps, regs = split_csv(companies), split_csv(regions)
-    data = rows_mod.consumption_rows(date_from, date_to, comps)
-    rows = filter_scope(data["rows"], comps, regs)
+    # Mốc xét sáp nhập là NGÀY CUỐI KỲ (xem `unit_report_purchase.purchase_report`).
+    data = rows_mod.consumption_rows(date_from, date_to, merge_scope(comps, split_merged, date_to))
+    rows = filter_scope(merge_rollup(data["rows"], split_merged, date_to),
+                        merge_view(comps, split_merged, date_to), regs)
     warnings: list[str] = []
     for field, val in (("grade", grades), ("contract", contract), ("channel", channel), ("source", source)):
         if vals := split_csv(val):
@@ -97,7 +101,8 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
     # Kế hoạch là chỉ tiêu NĂM → lấy theo năm của ngày CUỐI kỳ. Kỳ vắt qua 2 năm thì tử số có cả
     # sản lượng năm trước trong khi mẫu số chỉ là kế hoạch 1 năm → phải nói rõ, đừng để đọc nhầm.
     year = int(date_to[:4])
-    plan_by_key, plan_total = year_plan_by_group(_PLAN_KEY, group_by, comps, regs, year)
+    plan_by_key, plan_total = year_plan_by_group(_PLAN_KEY, group_by, comps, regs, year,
+                                                 split_merged, date_to)
     totals = _close_consumption(total)
     _attach_plan(totals, plan_total)
     if plan_total and date_from[:4] != date_to[:4]:

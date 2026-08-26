@@ -462,9 +462,17 @@ def purchase_sheet(date_from: str | None = None, date_to: str | None = None,
             dates.append(d)
         values.setdefault(r["grade"], {})[d] = float(r["price"])
 
-    from app.services import member_unit_repo
+    from app.services import member_unit_merge, member_unit_repo
 
-    return {"companies": member_unit_repo.active_names(), "dates": dates, "values": values}
+    # Đơn vị ĐÃ SÁP NHẬP vẫn giữ cột trong lưới CHỪNG NÀO khoảng ngày đang xem còn chạm giai đoạn
+    # trước sáp nhập — giá cũ của họ vẫn nằm trong `fact_price`, bỏ cột đi là lịch sử biến mất khỏi
+    # màn hình dù dữ liệu còn nguyên. Cột nằm cuối để không xáo trộn thứ tự quen thuộc.
+    first_day = dates[-1] if dates else None
+    merged = [m["name"] for m in member_unit_merge.merged_units()
+              if m["merged_at"] and first_day and first_day < m["merged_at"]]
+    return {"companies": [*member_unit_repo.active_names(), *merged],
+            "merged_units": member_unit_merge.merged_units(),
+            "dates": dates, "values": values}
 
 
 def purchase_recent_for(grade: str, limit: int = 10,

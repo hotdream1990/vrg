@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS member_unit (
     country     text NOT NULL DEFAULT 'VN',   -- quốc gia (VN/LA/KH) — nước ngoài cần tỷ giá
     currency    text NOT NULL DEFAULT 'VND',  -- loại tiền thu mua (VND/LAK/KHR)
     has_factory boolean NOT NULL DEFAULT true, -- có nhà máy chế biến (không → nhập tồn kho nguyên liệu)
+    merged_into text,                          -- đã sáp nhập vào đơn vị nào (NULL = còn hoạt động độc lập)
+    merged_at   date,                          -- sáp nhập từ ngày nào (số liệu trước ngày này vẫn của đơn vị này)
     created_at  timestamptz NOT NULL DEFAULT now()
 );
 

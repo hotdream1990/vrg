@@ -90,6 +90,9 @@ export type PurchaseSheet = {
   companies: string[];
   dates: string[];                                    // mới nhất trước
   values: Record<string, Record<string, number>>;     // values[company][date] = đồng/độ TSC
+  /** Đơn vị ĐÃ SÁP NHẬP — vẫn có cột chừng nào khoảng ngày còn chạm giai đoạn trước sáp nhập,
+   *  nhưng ô của những ngày TỪ ngày sáp nhập trở đi chỉ để xem (số liệu đã thuộc đơn vị mới). */
+  merged_units?: { name: string; merged_into: string; merged_at: string | null }[];
 };
 
 /** Lưới giá thu mua mủ nước (công ty × ngày). Lọc khoảng ngày tùy chọn. */

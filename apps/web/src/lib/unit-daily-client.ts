@@ -229,14 +229,18 @@ export type PeriodReport = {
 // CHỈ chuyên viên/admin có quyền `unit_daily` — đơn vị thành viên không có màn này.
 const PERIOD_BASE = "/api/unit-daily/period-report";
 
-export const fetchPeriodReport = (kind: Kind, dateFrom: string, dateTo: string) =>
-  apiFetch<PeriodReport>(`${PERIOD_BASE}?kind=${kind}&date_from=${dateFrom}&date_to=${dateTo}`);
+/** `splitMerged` = tách riêng đơn vị đã sáp nhập (mặc định gộp vào đơn vị hiện hành). */
+export const fetchPeriodReport = (kind: Kind, dateFrom: string, dateTo: string,
+                                  splitMerged = false) =>
+  apiFetch<PeriodReport>(`${PERIOD_BASE}?kind=${kind}&date_from=${dateFrom}&date_to=${dateTo}`
+    + (splitMerged ? "&split_merged=true" : ""));
 
 /** Tải Excel báo cáo kỳ (bám mẫu Biểu (1)/(2)) — fetch kèm token rồi lưu file. */
 export async function downloadPeriodXlsx(
-  kind: Kind, dateFrom: string, dateTo: string,
+  kind: Kind, dateFrom: string, dateTo: string, splitMerged = false,
 ): Promise<void> {
-  const url = `${API}${PERIOD_BASE}.xlsx?kind=${kind}&date_from=${dateFrom}&date_to=${dateTo}`;
+  const url = `${API}${PERIOD_BASE}.xlsx?kind=${kind}&date_from=${dateFrom}&date_to=${dateTo}`
+    + (splitMerged ? "&split_merged=true" : "");
   const res = await fetch(url, { headers: authHeaders() });
   if (!res.ok) throw new Error("Không tải được file Excel.");
   const blob = await res.blob();

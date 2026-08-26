@@ -9,8 +9,8 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from app.services import member_unit_repo, unit_daily_fields as fields, unit_daily_repo
-from app.services.unit_report_query import split_csv
+from app.services import member_unit_merge, unit_daily_fields as fields, unit_daily_repo
+from app.services.unit_report_query import report_units, split_csv
 
 
 def _date_list(date_from: str, date_to: str) -> list[str]:
@@ -25,9 +25,14 @@ def status_report(kind: str, date_from: str, date_to: str, *, companies: str | N
     Biểu Thu mua chỉ tính các đơn vị ĐƯỢC GIAO kế hoạch thu mua (đơn vị khác không phải nộp) —
     lấy ĐÚNG danh sách bật màn Thu mua cho người dùng, xem `companies_with_purchase_plan`.
     Đơn vị chỉ tính là ĐÃ NỘP khi bản ghi có số liệu thật của biểu đó (`fields.has_data`).
+
+    Bảng này LUÔN để đơn vị đã sáp nhập đứng riêng (không gộp như các bảng số liệu): "ai nộp, ai
+    chưa" là chuyện của từng đơn vị nhập liệu. Các ngày TỪ ngày sáp nhập trở đi của đơn vị cũ mang
+    trạng thái `merged` — không phải "chưa nộp" (họ không còn phải nộp nữa) và không vào mẫu số.
     """
     comps, regs = split_csv(companies), split_csv(regions)
-    units = member_unit_repo.list_units(include_inactive=False)
+    units = report_units(split_merged=True)
+    merged_at = {m["name"]: m["merged_at"] for m in member_unit_merge.merged_units()}
     if kind == "purchase":
         # KHÔNG dùng cờ `member_unit.has_purchase_plan`: cờ đó bỏ từ 03/08/2026, số ở màn Kế hoạch
         # năm mới là công tắc. Dùng cờ cũ thì bảng đòi nộp cả những đơn vị KHÔNG có màn Thu mua.
@@ -52,17 +57,26 @@ def status_report(kind: str, date_from: str, date_to: str, *, companies: str | N
         state[(e["company"], e["as_of"])] = "no_purchase" if no_buy else "ok"
 
     dates = _date_list(date_from, date_to)
-    rows, filled, no_purchase = [], 0, 0
+    rows, filled, no_purchase, expected = [], 0, 0, 0
     for u in units:
-        cells = {d: state.get((u["name"], d), "none") for d in dates}
+        gone = merged_at.get(u["name"])       # ngày sáp nhập — từ ngày này đơn vị hết phải nộp
+        cells = {d: ("merged" if gone and d >= gone else state.get((u["name"], d), "none"))
+                 for d in dates}
+        # Đơn vị đã sáp nhập TRƯỚC cả kỳ đang xem thì không còn dòng nào để nhắc — bỏ hẳn khỏi bảng
+        # thay vì để một dòng xám toàn tập làm loãng tỷ lệ nộp.
+        if gone and all(v == "merged" for v in cells.values()):
+            continue
         ok = sum(1 for v in cells.values() if v == "ok")
         skip = sum(1 for v in cells.values() if v == "no_purchase")
+        due = sum(1 for v in cells.values() if v != "merged")
         filled += ok
         no_purchase += skip
+        expected += due
         rows.append({"company": u["name"], "region": u.get("region"), "cells": cells,
-                     "filled": ok, "no_purchase": skip, "missing": len(dates) - ok - skip,
-                     "last_day": max((d for d, v in cells.items() if v != "none"), default=None)})
-    expected = len(dates) * len(units)
+                     "merged_into": u.get("merged_into"), "merged_at": gone,
+                     "filled": ok, "no_purchase": skip, "missing": due - ok - skip,
+                     "last_day": max((d for d, v in cells.items() if v not in ("none", "merged")),
+                                     default=None)})
     return {"kind": kind, "date_from": date_from, "date_to": date_to, "dates": dates, "rows": rows,
             "totals": {"expected": expected, "filled": filled, "no_purchase": no_purchase,
                        "missing": expected - filled - no_purchase}}

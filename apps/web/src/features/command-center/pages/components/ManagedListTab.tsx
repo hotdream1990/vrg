@@ -29,6 +29,10 @@ type Props<T extends ListItem> = {
   confirmDelete: (name: string) => string;
   extraCols?: ExtraCol<T>[];
   onItemsChange?: (items: T[]) => void;
+  /** Nhãn trạng thái riêng (vd đơn vị ĐÃ SÁP NHẬP — "Đã ẩn" nói không đúng chuyện gì đã xảy ra). */
+  statusOf?: (it: T) => { label: string; tone: string };
+  /** Ẩn nút Ẩn/Hiện cho những dòng không được bật/tắt bằng tay (vd đang ở trạng thái sáp nhập). */
+  canToggleActive?: (it: T) => boolean;
 };
 
 /** Bảng quản lý danh sách (thêm/đổi tên/ẩn-hiện/sắp xếp/xoá) dùng chung cho Đơn vị + Khu vực. */
@@ -124,16 +128,22 @@ export default function ManagedListTab<T extends ListItem>(props: Props<T>) {
                 </td>
                 {extraCols.map((c) => <td key={c.header}>{c.render(u, run)}</td>)}
                 <td>
-                  <span className={`chip ${u.is_active ? "" : "warn"}`} style={{ fontSize: 11 }}>
-                    {u.is_active ? "Đang dùng" : "Đã ẩn"}
-                  </span>
+                  {(() => {
+                    const st = props.statusOf?.(u)
+                      ?? { label: u.is_active ? "Đang dùng" : "Đã ẩn", tone: u.is_active ? "" : "warn" };
+                    return <span className={`chip ${st.tone}`} style={{ fontSize: 11 }}>{st.label}</span>;
+                  })()}
                 </td>
                 {canEdit && (
                   <td className="r" style={{ whiteSpace: "nowrap" }}>
                     <button className="btn" onClick={() => move(i, -1)} disabled={busy || i === 0} title="Lên">↑</button>{" "}
                     <button className="btn" onClick={() => move(i, 1)} disabled={busy || i === items.length - 1} title="Xuống">↓</button>{" "}
                     <button className="btn" onClick={() => { setEditing(u.name); setEditVal(u.name); }} disabled={busy}>Đổi tên</button>{" "}
-                    <button className="btn" onClick={() => run(() => api.setActive(u.name, !u.is_active))} disabled={busy}>{u.is_active ? "Ẩn" : "Hiện"}</button>{" "}
+                    {(props.canToggleActive?.(u) ?? true) && (
+                      <>
+                        <button className="btn" onClick={() => run(() => api.setActive(u.name, !u.is_active))} disabled={busy}>{u.is_active ? "Ẩn" : "Hiện"}</button>{" "}
+                      </>
+                    )}
                     <button className="btn" onClick={() => { if (confirm(confirmDelete(u.name))) run(() => api.remove(u.name)); }} disabled={busy}>Xoá</button>
                   </td>
                 )}

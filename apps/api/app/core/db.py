@@ -324,6 +324,14 @@ ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS has_purchase_plan boolean NOT N
 -- chọn cho phép số tự khai (`fact_price` lớp `vrg_unit`) chảy thẳng sang lớp chuyên viên (`vrg`)
 -- mỗi khi đơn vị thêm/sửa/xoá giá. Mặc định FALSE — bật từng đơn vị, không bật cả loạt.
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS auto_price_sync boolean NOT NULL DEFAULT false;
+-- SÁP NHẬP ĐƠN VỊ (chốt 24/08/2026): đơn vị này đã sáp nhập vào đơn vị nào, kể từ ngày nào.
+-- ⚠ CỐ Ý KHÔNG đụng tới một dòng số liệu nào — khác hẳn ĐỔI TÊN (`rename_unit` ghi đè `company`
+-- ở mọi bảng). Đổi tên = một pháp nhân đổi tên; sáp nhập = HAI pháp nhân, lịch sử phải tách thì
+-- mới trả lời được câu "đơn vị này lúc chưa sáp nhập làm được bao nhiêu". Số liệu cũ giữ nguyên
+-- `company` = tên đơn vị cũ; báo cáo gộp bằng cách CỘNG theo dòng đời (xem `member_unit_repo`).
+-- Nhờ vậy gỡ sáp nhập chỉ là xoá 2 cột này, không phải khôi phục dữ liệu.
+ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS merged_into text;
+ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS merged_at date;
 -- Cây công ty MẸ – CON (chốt 30/07/2026): tên đơn vị mẹ của đơn vị này (rỗng = không thuộc cây nào).
 -- Đơn vị con vẫn được chuyển TIÊU THỤ NỘI BỘ cho BẤT KỲ đơn vị thành viên nào (không giới hạn trong
 -- cây); cột này để báo cáo cấp Tập đoàn biết quan hệ giữa các đơn vị.
