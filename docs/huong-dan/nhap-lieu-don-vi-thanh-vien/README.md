@@ -142,7 +142,7 @@ Danh mục khách hàng riêng của từng đơn vị — đơn vị khác khô
 
 **Vị trí:** Quản lý hợp đồng → Hợp đồng mẹ (HĐNT/HĐDH)
 
-Nơi lưu **hồ sơ gốc** của hợp đồng nguyên tắc (HĐNT) hoặc hợp đồng dài hạn (HĐDH) đã ký với khách hàng: số hợp đồng, khách hàng, chủng loại kèm đơn giá, công thức giá và bản scan. **Mọi HĐ dài hạn đều là phụ lục của một hồ sơ** nên đơn vị có bán dài hạn thì phải lập hồ sơ ở đây trước. HĐ chuyến thì không cần.
+Nơi lưu **hồ sơ gốc** của hợp đồng nguyên tắc (HĐNT) hoặc hợp đồng dài hạn (HĐDH) đã ký với khách hàng: số hợp đồng, khách hàng, chủng loại kèm sản lượng cam kết, công thức giá và bản scan. **Mọi HĐ dài hạn đều là phụ lục của một hồ sơ** nên đơn vị có bán dài hạn thì phải lập hồ sơ ở đây trước. HĐ chuyến thì không cần.
 
 ![Hình 5c. Danh sách hồ sơ hợp đồng mẹ](img/05c-hop-dong-me-danh-sach.png)
 
@@ -162,9 +162,11 @@ Lập hồ sơ:
 2. **Số hợp đồng** — bắt buộc, không trùng trong cùng đơn vị.
 3. **Loại hợp đồng mẹ** — bắt buộc: *HĐ nguyên tắc (HĐNT)* hay *HĐ dài hạn (HĐDH)*.
 4. **Khách hàng** — bắt buộc, chọn trong danh mục khách của đơn vị (mục 7).
-5. **Chủng loại & đơn giá** — mỗi chủng loại một dòng, **mỗi loại một đơn giá riêng**. **Số lượng và đơn giá được để trống** nếu hợp đồng chưa chốt (HĐNT thường chỉ ghi chủng loại).
-6. **Công thức giá** — ô này **chỉ hiện với HĐ dài hạn**; HĐ nguyên tắc không có phần này.
-7. **Hợp đồng mẹ đã ký (scan)** — đính kèm bản scan; **Ghi chú** nếu cần. Bấm **Lưu**.
+5. **Chủng loại & sản lượng cam kết** — mỗi chủng loại một dòng: *Chủng loại* · *SL (tấn)*. **Số lượng để trống được** nếu hợp đồng chưa chốt sản lượng (HĐNT thường chỉ ghi chủng loại). Với **LATEX** và 2 loại mủ nguyên liệu, ô SL đổi nhãn thành **SL nước** và hiện thêm ô **Quy khô (tấn)** — đã ghi số lượng thì phải ghi cả quy khô.
+   Hồ sơ mẹ **không nhập đơn giá**: giá là số của từng chuyến, khai ở phụ lục; giá theo công thức thì ghi ở ô *Công thức giá*.
+6. **Hàng có chứng chỉ** — tick các chứng chỉ của lô hàng (**PEFC · EUDR · VRG GREEN**, chọn được nhiều) và ô **Premium** là khoản khách trả thêm: tự nhập số tiền, chọn **USD** hay **VNĐ**. **Không có premium thì để trống ô tiền.** Premium chỉ để ghi nhận — **không tự cộng vào đơn giá** ở phần chi tiết.
+7. **Công thức giá** — ô này **chỉ hiện với HĐ dài hạn**; HĐ nguyên tắc không có phần này.
+8. **Hợp đồng mẹ đã ký (scan)** — đính kèm bản scan; **Ghi chú** nếu cần. Bấm **Lưu**.
 
 > - **Đơn vị có bán dài hạn thì lập hồ sơ ở đây trước.** Mọi HĐ dài hạn đều phải thuộc một hồ sơ mới lưu được (mục 10), nên chưa có hồ sơ là không nhập được hợp đồng dài hạn.
 > - **Nối phụ lục vào hồ sơ — có 2 cách**, đều nằm trong mục *Phụ lục* ở màn chi tiết hồ sơ (bấm **Xem**): **Thêm phụ lục** để nhập một hợp đồng mới ngay tại chỗ (đơn vị và hồ sơ đã chọn sẵn), hoặc **Gắn hợp đồng có sẵn** để chọn các hợp đồng đã nhập trước đó — danh sách chỉ hiện hợp đồng **của đơn vị mình** và **chưa thuộc hồ sơ nào**.
@@ -210,7 +212,8 @@ Danh sách các hợp đồng của đơn vị kèm tiến độ giao hàng.
 6. **Ngày ký** — bắt buộc. Từ ngày này, sản lượng hợp đồng nằm ở mục “đã ký HĐ chưa giao”.
 7. **Ngày giao** — chỉ hiện với hợp đồng *giao 1 lần*; điền khi đã giao xong. Bên dưới là **Hình thức tiêu thụ** và khối **Hoá đơn** (số hoá đơn + file scan).
 8. **Chi tiết hợp đồng** — mỗi chủng loại một dòng (ô SL đổi nhãn thành **SL nước** với latex và mủ nguyên liệu). Ô **Quy khô** chỉ hiện với latex và mủ nguyên liệu; ô **Tỷ giá** chỉ hiện khi dòng bán bằng ngoại tệ và **chỉ bắt buộc khi đã điền Ngày giao**.
-9. **Thành tiền** — ô CHỈ ĐỌC ở cuối mỗi dòng (= số lượng × đơn giá, theo đúng loại tiền của dòng). Tổng thành tiền của hợp đồng hiện ngay dưới bảng, quy về triệu đồng.
+9. **Hàng có chứng chỉ** — tick các chứng chỉ của lô hàng (**PEFC · EUDR · VRG GREEN**, chọn được nhiều) và ô **Premium** là khoản khách trả thêm: tự nhập số tiền, chọn **USD** hay **VNĐ**. **Không có premium thì để trống ô tiền.** Premium chỉ để ghi nhận — **không tự cộng vào đơn giá** ở phần chi tiết.
+10. **Thành tiền** — ô CHỈ ĐỌC ở cuối mỗi dòng (= số lượng × đơn giá, theo đúng loại tiền của dòng). Tổng thành tiền của hợp đồng hiện ngay dưới bảng, quy về triệu đồng.
 
 > - **HĐ dài hạn cũ chưa gắn hồ sơ:** lần sửa tiếp theo hệ thống sẽ yêu cầu chọn hợp đồng mẹ mới lưu được — đây là cách dọn dần hồ sơ cũ. Bấm *Hoàn thành hợp đồng*, *Chuyển loại giao* và mọi thao tác trên **đợt giao** thì không bị hỏi.
 > - **LATEX và 2 loại mủ nguyên liệu bán theo MỦ NƯỚC:** ô **SL nước (tấn)** là số để tính **Thành tiền** (đơn giá là giá theo tấn mủ nước), còn **sản lượng tiêu thụ trên báo cáo lấy theo ô Quy khô**. Vì vậy hai ô này phải khai đủ và đúng.
@@ -348,7 +351,26 @@ Toàn bộ hợp đồng đã ký nhập theo cách cũ, kể cả hợp đồng
 > - Hợp đồng phát sinh từ 30/07 trở đi nằm ở mục **Hợp đồng & đợt giao**, không nằm ở đây.
 > - Cần sửa một hợp đồng cũ thì báo Ban TTKD.
 
-## 18. Những lỗi hay gặp
+## 18. Chốt số liệu định kỳ
+
+**Vị trí:** Hiện ở đầu mọi màn hình khi Ban TTKD phát yêu cầu chốt
+
+Định kỳ Ban TTKD yêu cầu các đơn vị **chốt số liệu đến một ngày** (vd đến hết 25/08/2026). Khi đó đầu mọi màn hình của đơn vị hiện **hàng cảnh báo đỏ**. **Chốt xong đơn vị không tự sửa được số liệu của những ngày đã chốt nữa** — nên rà kỹ trước khi bấm.
+
+Các bước:
+
+1. Bấm **Xem số liệu & xác nhận chốt** trên hàng cảnh báo đỏ.
+2. Đọc bảng số liệu hiện ra: **Thu mua** (cộng các ngày đơn vị nhập ở biểu Thu mua), **Tiêu thụ** (hệ thống tự tính từ các **lần giao của hợp đồng**, đơn vị không nhập tay) và **Tồn kho** tại ngày chốt (lần nhập tồn gần nhất ở biểu Tồn kho). Đây đúng là những con số Ban TTKD sẽ dùng để tổng hợp.
+3. Nếu bảng báo **còn ngày chưa nộp**, nên thoát ra nhập bù trước rồi quay lại chốt (vẫn chốt được, nhưng chốt xong là không tự nhập bù được nữa). Riêng **Tồn kho** chỉ đếm **từ 24/07/2026** trở đi — trước ngày đó đơn vị chưa phải nộp biểu này.
+4. Số liệu đã đúng thì bấm **Xác nhận chốt số liệu**.
+
+> - **Chốt xong sửa thế nào?** Không tự sửa được nữa — **báo Ban TTKD** để chuyên viên sửa hộ, hoặc đề nghị Ban mở khoá cho đơn vị nhập lại.
+> - **Những gì bị khoá**: phiếu **Thu mua**, phiếu **Tồn kho**, **các đợt giao đã có ngày giao trước hoặc bằng ngày chốt** (tiêu thụ tính từ đây, không nhập tay), và đơn giá mủ nguyên liệu của những ngày đó.
+> - **Những gì KHÔNG bị khoá**: hợp đồng vẫn sửa được, vẫn **thêm đợt giao mới** cho những ngày sau ngày chốt như bình thường.
+> - Sau khi chốt, hàng cảnh báo đổi thành **dòng xanh “Đã chốt số liệu”**; bấm *xem lại số đã chốt* để mở lại đúng bảng số liệu đã xác nhận.
+> - Nếu đơn vị chưa bấm xác nhận, Ban TTKD vẫn có thể **khoá hộ** khi thấy số liệu đã đủ.
+
+## 19. Những lỗi hay gặp
 
 | Hiện tượng | Nguyên nhân & cách xử lý |
 |---|---|

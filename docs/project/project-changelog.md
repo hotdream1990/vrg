@@ -3,7 +3,56 @@
 Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/).
 
 ## [Unreleased]
+### Added
+- **Hàng có chứng chỉ + Premium trên hợp đồng** (26/08/2026) — khối mới *Hàng có chứng chỉ* ở **cả
+  hợp đồng gốc (HĐNT/HĐDH) lẫn hợp đồng bán (gồm HĐ chuyến)**: chọn **nhiều** chứng chỉ trong danh
+  mục **PEFC · EUDR · VRG GREEN**, kèm ô **Premium** khách trả thêm — **tự nhập số tiền**, chọn
+  **USD** hay **VNĐ**. Không có premium thì **để trống** (bỏ trống số tiền thì loại tiền cũng xoá
+  theo, không đọng lại giá trị mồ côi).
+  - Trước đây đơn vị phải nhét chữ "PEFC"/"EUDR" vào **số hợp đồng** hoặc **tên file scan** (dữ liệu
+    thật trên prod: `194.SEP.NEW KOREA SVR10 EUDR SPOT.pdf`) — không lọc, không thống kê được.
+  - **Premium KHÔNG tự cộng vào đơn giá/doanh thu**: đơn giá trên dòng hợp đồng là giá bán thực tế
+    đã chốt với khách (thường đã gồm premium), cộng thêm lần nữa là thổi doanh thu. Đây là số ghi
+    nhận riêng để sau thống kê "bán bao nhiêu tấn hàng có chứng chỉ, premium bình quân bao nhiêu".
+  - Khai ở **cấp hợp đồng**; **đợt giao thừa kế** của hợp đồng cha (đợt tự khai thì cùng một lô
+    hàng có hai câu trả lời). Chứng chỉ ngoài danh mục hoặc loại tiền khác USD/VNĐ đều **báo lỗi**.
+  - Màn chi tiết của cả hai loại hợp đồng hiện chip chứng chỉ + khoản premium.
+- **Chốt số liệu đơn vị thành viên** (25/08/2026) — Ban TTKD phát yêu cầu *"chốt số liệu đến hết
+  ngày X"*, đơn vị rà số rồi **xác nhận**; xác nhận xong là đơn vị **hết tự sửa** số liệu của
+  những ngày đó.
+  - **Màn quản trị mới**: *Báo cáo & Thống kê → **Chốt số liệu đơn vị*** — tạo/sửa/huỷ đợt chốt,
+    bảng theo dõi từng đơn vị (đã chốt · chưa xác nhận · ai xác nhận · lúc nào), **lọc "chỉ đơn vị
+    chưa xác nhận"**, và nút **khoá hộ / mở khoá** (từng đơn vị hoặc cả loạt). Xem trang cần quyền
+    *Báo cáo đơn vị theo ngày*; tạo đợt và khoá/mở là **quản trị**.
+  - **Cảnh báo trên mọi màn của đơn vị**: hàng đỏ "yêu cầu chốt đến ngày…", bấm là mở **bảng số
+    liệu sẽ chốt** (thu mua · tiêu thụ · tồn kho tại ngày chốt, kèm số ngày còn thiếu) rồi mới xác
+    nhận. Chốt xong hàng đổi thành dòng xanh kèm nhắc *báo Ban TTKD nếu cần sửa*.
+  - **Phạm vi khoá**: 2 biểu ngày đơn vị nhập (**Thu mua** · **Tồn kho**), **mọi bản ghi đã giao có ngày giao
+    ≤ ngày chốt** (đợt giao / HĐ giao-1-lần — để con số tiêu thụ đã chốt không đổi được nữa), đơn
+    giá mủ nguyên liệu đơn vị tự khai, và tồn kho đã ký HĐ. **Hợp đồng vẫn cập nhật bình thường**,
+    vẫn thêm đợt giao mới sau ngày chốt.
+  - **Ngoại lệ biểu Tồn kho**: cảnh báo *"còn N ngày chưa nộp"* chỉ rà **từ 24/07/2026** (mốc các đơn vị bắt đầu nộp tồn kho); ngày trước đó không ai phải nộp nên không tính là thiếu. Màn hình ghi rõ *"chỉ tính từ 24/07/2026"*. Biểu Thu mua vẫn rà cả kỳ.
+  - Chuyên viên và quản trị **không** bị chặn — sau khi chốt, đó là đường sửa duy nhất.
+  - Chốt số liệu và *cửa sổ nhập liệu* là **hai hàng rào độc lập**: cái nào chặn tới ngày mới hơn
+    thì cái đó quyết định.
+  - Con số trong bảng xác nhận **được chụp lại** lúc bấm — trang theo dõi hiện luôn số đã chốt của
+    từng đơn vị để đối chiếu về sau.
+
 ### Changed
+- **Báo cáo kỳ + Theo dõi nộp báo cáo nhanh hơn ~20 lần** (25/08/2026) — hai chỗ này gọi
+  `unit_daily_repo.in_range` với mặc định *gắn khối "đã ký HĐ chưa giao" cho TỪNG NGÀY* (một truy
+  vấn hợp đồng mỗi ngày, kỳ 8 tháng = 237 truy vấn) trong khi cả hai **không đọc khối đó**: báo cáo
+  kỳ lấy khối 3 một lần ở ngày cuối kỳ, còn bảng theo dõi chỉ hỏi "đã nộp hay chưa". Đo trên dữ
+  liệu thật: báo cáo kỳ 2,0s → 0,17s; bảng ngày thiếu 1,76s → 0,05s.
+- **Hợp đồng mẹ bỏ ĐƠN GIÁ, thêm QUY KHÔ** (chốt 25/08/2026) — khối *Chủng loại & sản lượng cam
+  kết* chỉ còn **Chủng loại · SL (tấn)**; bỏ hẳn *Đơn giá*, *Loại tiền*, *Tỷ giá*. Giá là số của
+  từng chuyến nên khai ở phụ lục; giá đi theo công thức thì ghi ở ô **Công thức giá** (HĐ dài hạn).
+  - **LATEX và 2 loại mủ nguyên liệu** nay có ô **Quy khô (tấn)** và ô SL đổi nhãn thành **SL
+    nước**, đúng như phiếu hợp đồng và đợt giao. Đã ghi số lượng thì **bắt buộc** ghi quy khô;
+    chưa cam kết số lượng thì để trống cả hai (HĐNT thường chỉ chốt chủng loại).
+  - Ô số lượng không còn chữ mờ *"chưa cam kết" / "chưa chốt"* — để trống như các màn khác.
+  - Đơn giá/loại tiền/tỷ giá của hồ sơ **đã nhập trước đây** sẽ bị bỏ ở lần **lưu** kế tiếp; không
+    báo lỗi, vì người dùng không còn ô nào để sửa 3 giá trị đó nữa.
 - **Hồ sơ hợp đồng mẹ nay gắn theo LOẠI HỢP ĐỒNG** (chốt 24/08/2026):
   - **HĐ chuyến** bán đứt từng chuyến ⇒ **không có hợp đồng mẹ**; ô đó tự khoá lại, đổi loại sang
     HĐ chuyến thì hồ sơ đang chọn bị bỏ.
