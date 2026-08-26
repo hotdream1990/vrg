@@ -145,16 +145,22 @@ def page_missing(rows_a: list, rows_d: list, days: int, until: date) -> str:
 
 
 def page_wrong(rows_b: list, rows_c: list) -> str:
-    """Ảnh B: nhập sai đơn vị tính — giá mủ nguyên liệu (đ/độ) và giá bán (triệu đ/tấn)."""
+    """Ảnh B: nhập sai đơn vị tính — giá mủ nguyên liệu (đ/độ) và giá bán ở HỢP ĐỒNG."""
     b = "".join(
         f'<tr><td class="stt">{i}</td><td>{r[0]}</td>'
         f'<td>{GRADE_LABEL.get(r[1], r[1])}</td>'
         f'<td class="num bad">{vn(float(r[2]))}</td><td class="num">{r[3]}</td></tr>'
         for i, r in enumerate(rows_b, 1))
+    # Cột "Hợp đồng" quan trọng hơn cột ngày: đơn vị sửa giá bằng cách mở đúng hợp đồng đó.
+    def ky_c(r: list) -> str:
+        if not r[2]:
+            return "—"
+        return f"{r[2][8:10]}/{r[2][5:7]}" + ("" if r[2] == r[3]
+                                              else f" – {r[3][8:10]}/{r[3][5:7]}")
+
     c = "".join(
         f'<tr><td class="stt">{i}</td><td>{r[0]}</td>'
-        f'<td>{r[2][8:10]}/{r[2][5:7]}'
-        f'{"" if r[2] == r[3] else " – " + r[3][8:10] + "/" + r[3][5:7]}</td>'
+        f'<td>{r[7] if len(r) > 7 else "—"}</td><td>{ky_c(r)}</td>'
         f'<td class="num bad">{vn(float(r[4]))}{" USD" if "USD" in r[5] else ""}</td>'
         f'<td class="num">{r[1]}</td></tr>'
         for i, r in enumerate(rows_c, 1))
@@ -173,8 +179,9 @@ def page_wrong(rows_b: list, rows_c: list) -> str:
 {f'''<table><thead><tr><th>#</th><th style="text-align:left">Đơn vị</th><th>Loại mủ</th>
   <th>Giá đã nhập</th><th>Số ô sai</th></tr></thead><tbody>{b}</tbody></table>''' if b else none}
 
-<h2>2. Giá bán ở biểu Tiêu thụ — phải nhập theo TRIỆU ĐỒNG/TẤN (mặt bằng 40 – 70)</h2>
-{f'''<table><thead><tr><th>#</th><th style="text-align:left">Đơn vị</th><th>Ngày</th>
+<h2>2. Giá bán ở hợp đồng tiêu thụ — phải nhập theo TRIỆU ĐỒNG/TẤN (mặt bằng 40 – 70)</h2>
+{f'''<table><thead><tr><th>#</th><th style="text-align:left">Đơn vị</th>
+  <th style="text-align:left">Hợp đồng</th><th>Ngày</th>
   <th>Giá đã nhập</th><th>Số dòng sai</th></tr></thead><tbody>{c}</tbody></table>''' if c else none}
 {note}
 """

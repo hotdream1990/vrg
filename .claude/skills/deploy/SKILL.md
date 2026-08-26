@@ -3,6 +3,35 @@ name: deploy
 description: Build + deploy VRG lên production (Dokploy · docker-compose). Dùng khi user nói "deploy", "build và deploy", "đưa bản mới lên", "rollback về bản cũ", hoặc cần chạy SQL trên DB prod.
 ---
 
+## Ba lớp ghi — đọc trước khi đụng prod
+
+| Lớp | Ở đâu | Mất khi |
+|---|---|---|
+| **L1** DB Dokploy (`compose.env`, `compose.composeFile`) | container `dokploy-postgres` | không mất — **UI đọc lớp này** |
+| **L2** `/etc/dokploy/compose/<appName>/code/{docker-compose.yml,.env}` | đĩa server | bị ghi đè từ L1 mỗi lần Deploy |
+| **L3** runtime (`docker service update` / container) | swarm hoặc docker | bị ghi đè khi Dokploy Deploy |
+
+Sửa thẳng L3 hoặc L2 mà không ghi L1 = **thay đổi biến mất** lần kế tiếp ai bấm Deploy, và UI Dokploy
+không bao giờ thấy nó. Đầy đủ: `~/.claude/skills/dokploy-deploy/SKILL.md` mục 1.
+
+```bash
+./.claude/skills/deploy/dokploy-sync.local.sh check          # CHỈ ĐỌC — so 3 lớp. Chạy trước mọi đợt.
+./.claude/skills/deploy/dokploy-sync.local.sh set-env K=V    # ghi env vào L1 + L2
+./.claude/skills/deploy/dokploy-sync.local.sh push-compose f # ghi compose vào L1 (KHÔNG đụng đĩa)
+./.claude/skills/deploy/dokploy-sync.local.sh deploy         # Dokploy tự dựng lại — không cần API key
+```
+
+`deploy` gọi webhook `refreshToken` → làm **đúng việc nút Deploy trên UI làm**
+(`docker stack deploy --prune --with-registry-auth`). `--prune` xoá service không có trong compose.
+Đây là thay đổi production → **hỏi chủ dự án trước khi chạy**.
+
+> ⚠️ **Bảo mật — CÒN VIỆC CHO ANH:** `SSH_PASSWORD` cũ **trùng đúng chuỗi** với `composeId` của app
+> trên Dokploy — ai vào được panel Dokploy đều đọc được (chuỗi cụ thể xem `docs/data/prod-accounts.md`, file đã gitignore). Đã **gỡ khỏi**
+> `dokploy-target.local.env` và chuyển script sang SSH key (đã kiểm vào được), nên **đổi mật khẩu root
+> của server không làm hỏng deploy**. Việc đổi mật khẩu là thao tác của anh, em không tự làm.
+> Env đã đồng bộ 23/08/2026 (đĩa đang cũ: `VRG_TAG` 0.2.28 → 0.4.37 khớp container đang chạy).
+
+
 # Deploy VRG lên production
 
 **1 image gộp** (web Vite tĩnh + FastAPI phục vụ cả SPA lẫn `/api` cùng origin),

@@ -73,7 +73,8 @@ def put(ws, r: int, vals: list, bad_cols: tuple = (), group_row: bool = False):
 
 
 def dmy(d: str) -> str:
-    return f'{d[8:10]}/{d[5:7]}/{d[:4]}'
+    # Hợp đồng có thể chưa có ngày nào (chưa ký, chưa giao) → để trống thay vì in '//'.
+    return f'{d[8:10]}/{d[5:7]}/{d[:4]}' if d else ''
 
 
 def build(g: dict, days: int, until: date, pdays: int, pg: dict | None) -> openpyxl.Workbook:
@@ -112,8 +113,8 @@ def build(g: dict, days: int, until: date, pdays: int, pg: dict | None) -> openp
     # ── B · Sai đơn vị tính ──────────────────────────────────────────────────
     ws = sheet(wb, 'B · Sai đơn vị tính',
                'Không giới hạn kỳ — lỗi còn tồn trên hệ thống thì còn phải sửa. Giá mủ nguyên liệu '
-               'phải nhập ĐỒNG/ĐỘ (mặt bằng 100–1.500); giá bán phải nhập TRIỆU ĐỒNG/TẤN (40–70) '
-               'hoặc USD/TẤN (1.400–2.200).',
+               'phải nhập ĐỒNG/ĐỘ (mặt bằng 100–1.500); giá bán ở HỢP ĐỒNG TIÊU THỤ phải nhập '
+               'TRIỆU ĐỒNG/TẤN (40–70) hoặc USD/TẤN (1.400–2.200).',
                ['#', 'Đơn vị', 'Chỉ tiêu', 'Giá lớn nhất đang lưu', 'Số ô sai',
                 'Từ ngày', 'Đến ngày', 'Ghi chú'], [5, 42, 22, 20, 10, 12, 12, 30])
     r = 4
@@ -124,15 +125,16 @@ def build(g: dict, days: int, until: date, pdays: int, pg: dict | None) -> openp
         put(ws, r, [i, row[0], GRADE_LABEL.get(row[1], row[1]), int(row[2]), int(row[3]),
                     None, None, 'Nhập nhầm đồng/kg hoặc đồng/tấn'], bad_cols=(4,))
     r += 1
-    put(ws, r, ['', 'GIÁ BÁN Ở BIỂU TIÊU THỤ (phải là triệu đồng/tấn)', '', '', '', '', '', ''],
+    put(ws, r, ['', 'GIÁ BÁN Ở HỢP ĐỒNG TIÊU THỤ (phải là triệu đồng/tấn)', '', '', '', '', '', ''],
         group_row=True)
     for i, row in enumerate(g['C'], 1):
         r += 1
-        # C: đơn vị|số dòng|từ ngày|đến ngày|giá lớn nhất|tiền|thiếu tỷ giá
+        # C: đơn vị|số dòng|từ ngày|đến ngày|giá lớn nhất|tiền|thiếu tỷ giá|mã hợp đồng
+        note = f'HĐ {row[7]}' if len(row) > 7 and row[7] else ''
+        note = ' · '.join(filter(None, [note, f'loại tiền {row[5]}',
+                                        'có dòng thiếu tỷ giá' if row[6] == 't' else '']))
         put(ws, r, [i, row[0], 'Giá bán', float(row[4]), int(row[1]),
-                    dmy(row[2]), dmy(row[3]),
-                    f'Loại tiền {row[5]}' + (' · có dòng thiếu tỷ giá' if row[6] == 't' else '')],
-            bad_cols=(4,))
+                    dmy(row[2]), dmy(row[3]), note], bad_cols=(4,))
 
     # ── C · Tồn kho theo ngày ────────────────────────────────────────────────
     dates = [(until - timedelta(days=i)).isoformat() for i in range(days - 1, -1, -1)]

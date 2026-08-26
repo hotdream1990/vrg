@@ -68,29 +68,36 @@ SELECT 'B|' || grade || '|' || price_type || '|' || max(price)::bigint || '|' ||
  WHERE source = 'vrg_unit' AND price_type IN ('purchase', 'purchase_cup') AND price > 1500
  GROUP BY grade, price_type ORDER BY grade, price_type;
 
--- ── C) Giá bán ở biểu Tiêu thụ SAI ĐƠN VỊ TÍNH: C|đơn vị|số dòng|từ ngày|đến ngày|giá|tiền|thiếu tỷ giá
--- VND phải nhập TRIỆU ĐỒNG/TẤN (mặt bằng 40–70) → > 200 là đã gõ đồng/tấn.
+-- ── C) Giá bán ở HỢP ĐỒNG TIÊU THỤ sai đơn vị tính ─────────────────────────────────────────
+-- C|đơn vị|số dòng|từ ngày|đến ngày|giá lớn nhất|tiền|thiếu tỷ giá|mã hợp đồng
+-- VND phải nhập TRIỆU ĐỒNG/TẤN (mặt bằng 40–70) → > 200 là đã gõ nghìn/đồng trên tấn.
 -- USD nhập USD/TẤN (mặt bằng 1.400–2.200) → > 10.000 là sai đơn vị.
--- ⚠ Loại tiền của dòng bán phải suy đúng như form nhập: dòng → ngày (`sales_ccy`) → mặc định của
---   đơn vị (trong nước VND · nước ngoài USD). Bỏ bước này thì 1.640 USD/tấn bị đọc thành
---   1.640 triệu đ/tấn → báo oan đơn vị nước ngoài.
-SELECT 'C|' || company || '|' || count(*) || '|' || min(as_of)::text || '|' || max(as_of)::text
-       || '|' || max(price)::bigint || '|' || string_agg(DISTINCT ccy, ',')
-       || '|' || bool_or(no_fx)::text
+-- ⚠ ĐỌC `sales_contract`, KHÔNG đọc mảng `sales`/`sales_own` trong `unit_daily_report` nữa.
+--   Cơ chế khai tiêu thụ theo NGÀY đã bỏ: toàn bộ dòng bán cũ được chuyển sang hợp đồng (cờ
+--   `sales_migrated` trên bản ghi ngày), mảng cũ chỉ còn nằm lại để tra cứu và KHÔNG có ô nào
+--   trên form để sửa. Quét mảng cũ vừa báo oan (đơn vị không sửa được, mà bản hợp đồng đã đúng),
+--   vừa BỎ SÓT lỗi thật đang nằm ở `sales_contract.lines`.
+-- ⚠ Loại tiền lấy ngay ở dòng hợp đồng (`lines[].ccy`); dòng nào trống mới suy theo mặc định của
+--   đơn vị (trong nước VND · nước ngoài USD). Bỏ bước này thì 2.680 USD/tấn bị đọc thành
+--   2.680 triệu đ/tấn → báo oan đơn vị xuất khẩu.
+-- Hợp đồng mẹ và phụ lục là hai dòng riêng: cùng một lỗi có thể đếm 2 lần, nhưng cả hai đều phải
+-- sửa nên vẫn liệt kê đủ mã để đơn vị biết mở phiếu nào.
+SELECT 'C|' || company || '|' || count(*) || '|' || COALESCE(min(d)::text, '')
+       || '|' || COALESCE(max(d)::text, '') || '|' || max(price)::bigint
+       || '|' || string_agg(DISTINCT ccy, ',') || '|' || bool_or(no_fx)::text
+       || '|' || string_agg(DISTINCT code, ', ')
   FROM (
-    SELECT r.company, r.as_of,
-           CASE WHEN s.ln->>'ccy' IN ('VND', 'USD') THEN s.ln->>'ccy'
-                WHEN r.payload->>'sales_ccy' IN ('VND', 'USD') THEN r.payload->>'sales_ccy'
+    SELECT c.company,
+           COALESCE(NULLIF(c.code, ''), '(chưa có mã)') AS code,
+           COALESCE(c.delivered_at, c.start_date, c.sign_date, c.completed_at) AS d,
+           CASE WHEN ln->>'ccy' IN ('VND', 'USD') THEN ln->>'ccy'
                 WHEN COALESCE(u.currency, 'VND') = 'VND' THEN 'VND' ELSE 'USD' END AS ccy,
-           (s.ln->>'price')::numeric AS price,
-           (COALESCE(s.ln->>'fx', r.payload->>'fx_revenue') IS NULL) AS no_fx
-      FROM unit_daily_report r
-      LEFT JOIN member_unit u ON u.name = r.company
-      CROSS JOIN LATERAL (
-        SELECT jsonb_array_elements(COALESCE(r.payload->'sales', '[]'::jsonb)) AS ln
-        UNION ALL
-        SELECT jsonb_array_elements(COALESCE(r.payload->'sales_own', '[]'::jsonb))) s
-     WHERE r.kind = 'consumption' AND (s.ln->>'price') ~ '^[0-9.]+$'
+           (ln->>'price')::numeric AS price,
+           (ln->>'fx' IS NULL) AS no_fx
+      FROM sales_contract c
+      LEFT JOIN member_unit u ON u.name = c.company
+      CROSS JOIN LATERAL jsonb_array_elements(COALESCE(c.lines, '[]'::jsonb)) AS ln
+     WHERE (ln->>'price') ~ '^[0-9.]+$'
   ) t
  WHERE (ccy = 'VND' AND price > 200) OR (ccy = 'USD' AND price > 10000)
  GROUP BY company ORDER BY count(*) DESC, company;

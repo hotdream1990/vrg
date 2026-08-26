@@ -97,12 +97,22 @@ thu mua mà ô đơn giá còn trống. Ngày `no_purchase = true` được lo�
 | Chỉ tiêu | Đơn vị đúng | Mặt bằng | Bắt lỗi khi |
 |---|---|---|---|
 | Giá mủ nguyên liệu | đồng/độ TSC | 100 – 1.500 | `> 1.500` (gõ nhầm đồng/kg hoặc đồng/tấn) |
-| Giá bán (VND) | triệu đồng/tấn | 40 – 70 | `> 200` (gõ nhầm đồng/tấn) |
+| Giá bán (VND) | triệu đồng/tấn | 40 – 70 | `> 200` (gõ nhầm nghìn/đồng trên tấn) |
 | Giá bán (USD) | USD/tấn | 1.400 – 2.200 | `> 10.000` |
 
-⚠ **Loại tiền của dòng bán phải suy đúng như form nhập**: dòng → `sales_ccy` của ngày → mặc định của
-đơn vị (trong nước VND · nước ngoài USD). Bỏ bước này thì 1.640 USD/tấn bị đọc thành 1.640 triệu đ/tấn
-→ **báo oan các đơn vị Lào/Campuchia**.
+⚠ **Giá bán đọc ở `sales_contract.lines`, KHÔNG đọc mảng `sales`/`sales_own` trong
+`unit_daily_report`.** Cơ chế khai tiêu thụ theo NGÀY đã bỏ, chuyển sang hợp đồng: script
+`scripts/migrate-sales-contracts.py` đã copy toàn bộ dòng bán cũ sang hợp đồng rồi bật cờ
+`sales_migrated` trên bản ghi ngày (đo 22/08/2026 trên prod: **1.535/1.535 ngày đều đã migrate**).
+Mảng cũ vẫn nằm trong payload để tra cứu nhưng **form không còn ô nào để sửa nó**, và bản chuyển
+sang hợp đồng đã được chuẩn hoá đơn vị. Quét mảng cũ là **vừa báo oan vừa bỏ sót**: bản báo cáo
+21/08/2026 từng nêu tên 3 đơn vị (Dầu Tiếng · Phước Hoà · Đồng Nai–Kratie) chỉ vì bản sao đã chết,
+trong khi 2 đơn vị sai thật ở hợp đồng (Hà Tĩnh · Dầu Tiếng) thì không ai biết.
+Cùng lý do này, `unit_daily_fields.py` cũng CỐ Ý bỏ `sales`/`sales_own` khỏi luật "đã nộp".
+
+⚠ **Loại tiền lấy ngay ở dòng hợp đồng** (`lines[].ccy`, prod đã có đủ ở 7.246/7.246 dòng); dòng nào
+trống mới suy theo mặc định của đơn vị (trong nước VND · nước ngoài USD). Bỏ bước này thì 2.680
+USD/tấn bị đọc thành 2.680 triệu đ/tấn → **báo oan các đơn vị xuất khẩu**.
 
 Ảnh B **không giới hạn kỳ**: sai đơn vị tính là lỗi còn tồn trên hệ thống, còn sai là còn phải sửa.
 Ảnh A thì giới hạn theo `--days`.
@@ -110,7 +120,7 @@ thu mua mà ô đơn giá còn trống. Ngày `no_purchase = true` được lo�
 ## Sửa nội dung/bố cục
 
 - Truy vấn: `scripts/collect.sql` — 7 nhóm **A** tình trạng nộp · **D** thiếu đơn giá · **B** giá mủ
-  sai đơn vị · **C** giá bán sai đơn vị · **E** tồn kho theo ngày · **F** thu mua theo tháng · **G** kế hoạch năm; mỗi dòng ra là chuỗi ngăn bằng `|`, ký tự đầu là tên nhóm.
+  sai đơn vị · **C** giá bán sai đơn vị (nguồn: `sales_contract`) · **E** tồn kho theo ngày · **F** thu mua theo tháng · **G** kế hoạch năm; mỗi dòng ra là chuỗi ngăn bằng `|`, ký tự đầu là tên nhóm.
 - HTML/CSS + chụp ảnh: `scripts/make-report.py` (`page_missing`, `page_wrong`,
   `page_stock_missing`, `page_purchase_months`, `page_year_plan`, `CSS`). Bảng nhiều cột thì truyền bề ngang ở tham số thứ 3 của
   mỗi trang trong `shoot()`, không thì tên đơn vị vắt dòng và ảnh cao gấp mấy lần.
@@ -121,5 +131,6 @@ thu mua mà ô đơn giá còn trống. Ngày `no_purchase = true` được lo�
 ## Sau khi có ảnh
 
 Gửi kèm 1 câu chốt: kỳ nào, bao nhiêu đơn vị chưa nộp, bao nhiêu đơn vị sai đơn vị tính, hạn sửa.
-Đơn vị sửa bằng cách mở lại phiếu ngày đó (**Báo cáo thu mua / Tiêu thụ / Giá mủ nguyên liệu**) — nếu
+Đơn vị sửa bằng cách mở lại phiếu ngày đó (**Báo cáo thu mua / Tồn kho / Giá mủ nguyên liệu**) — nếu
 ngày đã ngoài cửa sổ sửa thì admin phải nới `MEMBER_EDIT_WINDOW_DAYS` ở **Quản trị → Cấu hình hệ thống**.
+Riêng giá bán sai đơn vị tính thì sửa ở **Hợp đồng tiêu thụ** — ảnh B in sẵn mã hợp đồng cần mở.
