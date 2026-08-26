@@ -2,14 +2,16 @@
 
 Hợp đồng mẹ là HỒ SƠ GỐC ký với khách hàng — nó KHÔNG vào báo cáo sản lượng nào (tiêu thụ và
 "đã ký HĐ chưa giao" vẫn tính trên `sales_contract`). Vì vậy ràng buộc ở đây nới hơn hợp đồng bán:
-số lượng và đơn giá được để trống, vì HĐ nguyên tắc thường chỉ chốt chủng loại còn giá đi theo
-công thức / thoả thuận từng chuyến. Ngược lại, những gì làm hồ sơ vô nghĩa thì BẮT BUỘC: số hợp
-đồng, loại hợp đồng, khách hàng và ít nhất một chủng loại.
+số lượng được để trống, vì HĐ nguyên tắc thường chỉ chốt chủng loại. Ngược lại, những gì làm hồ
+sơ vô nghĩa thì BẮT BUỘC: số hợp đồng, loại hợp đồng, khách hàng và ít nhất một chủng loại.
+
+ĐƠN GIÁ / LOẠI TIỀN / TỶ GIÁ không thuộc hồ sơ mẹ (chốt 25/08/2026) — giá là số của từng chuyến,
+khai ở phụ lục; hồ sơ mẹ chỉ giữ CÔNG THỨC GIÁ.
 
 CÔNG THỨC GIÁ chỉ thuộc về HĐ DÀI HẠN — HĐ nguyên tắc không có phần này (chốt 22/08/2026).
 
 Giá trị sai vẫn BÁO LỖI chứ không lặng lẽ quy về mặc định — cùng nguyên tắc với
-`sales_contract_clean` (một `ccy` viết thường từng làm doanh thu sai ~38 lần).
+`sales_contract_clean`.
 """
 
 from __future__ import annotations
@@ -55,18 +57,22 @@ def _as_date(v, label: str) -> date | None:
 
 
 def clean_lines(lines) -> list[dict[str, Any]]:
-    """Dòng cam kết của hợp đồng mẹ: chủng loại BẮT BUỘC, số lượng/đơn giá tuỳ chọn.
+    """Dòng cam kết của hợp đồng mẹ: chủng loại BẮT BUỘC, số lượng + quy khô tuỳ chọn.
 
-    KHÔNG có ô quy khô: hợp đồng mẹ chỉ ghi cam kết theo chủng loại, phần quy khô thuộc về từng
-    lần bán thật (khai ở phụ lục / đợt giao).
+    KHÔNG có đơn giá / loại tiền / tỷ giá (chốt 25/08/2026) — hồ sơ mẹ cam kết chủng loại và sản
+    lượng, còn giá là số của từng chuyến (khai ở phụ lục) hoặc đi theo công thức giá của hồ sơ.
+    Bản ghi cũ có 3 ô này thì lần lưu sau bỏ luôn, không báo lỗi: người dùng không còn ô nào để sửa.
+
+    QUY KHÔ khai giống dòng hợp đồng bán: latex và 2 loại mủ nguyên liệu bán theo mủ nước nên
+    số lượng cam kết phải đi kèm phần quy khô; chủng loại thành phẩm không có ô này.
     """
     out: list[dict[str, Any]] = []
     for i, ln in enumerate(lines if isinstance(lines, list) else [], start=1):
         if not isinstance(ln, dict):
             continue
         grade = str(ln.get("grade") or "").strip()[:80]
-        qty, price = _num(ln.get("qty")), _num(ln.get("price"))
-        if not grade and qty is None and price is None:
+        qty, qty_dry = _num(ln.get("qty")), _num(ln.get("qty_dry"))
+        if not grade and qty is None and qty_dry is None:
             continue  # dòng trống người dùng bấm thêm rồi bỏ dở
         if not grade:
             raise ValueError(f"Dòng {i}: thiếu chủng loại.")
@@ -75,18 +81,19 @@ def clean_lines(lines) -> list[dict[str, Any]]:
         if qty is not None and qty <= 0:
             raise ValueError(f"Dòng {i} ({grade}): số lượng phải lớn hơn 0 (để trống nếu chưa "
                              "cam kết sản lượng).")
-        if price is not None and price < 0:
-            raise ValueError(f"Dòng {i} ({grade}): đơn giá không được âm.")
-        ccy = str(ln.get("ccy") or "VND").strip().upper()
-        if ccy not in _CCY:
-            raise ValueError(f"Dòng {i} ({grade}): loại tiền “{ln.get('ccy')}” không hợp lệ "
-                             f"(chỉ nhận {', '.join(SALE_CURRENCIES)}).")
-        fx = _num(ln.get("fx"))
-        # Tỷ giá chỉ cần khi ĐÃ có đơn giá ngoại tệ — chưa có giá thì chưa có gì để quy đổi.
-        if price is not None and ccy != "VND" and (fx is None or fx <= 0):
-            raise ValueError(f"Dòng {i} ({grade}): đơn giá bằng {ccy} thì phải nhập tỷ giá quy "
-                             "ra VNĐ.")
-        out.append({"grade": grade, "qty": qty, "price": price, "ccy": ccy, "fx": fx})
+        if grade not in DRY_REQUIRED_GRADES and qty_dry is not None:
+            raise ValueError(f"Dòng {i} ({grade}): chủng loại này không có quy khô — số lượng bán "
+                             "đã là khối lượng khô. Chỉ latex và mủ nguyên liệu mới khai quy khô.")
+        # Quy khô ĐI KÈM số lượng, không ép khi chưa cam kết sản lượng: hồ sơ mẹ được phép chỉ
+        # chốt chủng loại (khác hợp đồng bán — ở đó số lượng luôn bắt buộc nên quy khô cũng vậy).
+        if grade in DRY_REQUIRED_GRADES and qty is not None and (qty_dry is None or qty_dry <= 0):
+            raise ValueError(f"Dòng {i} ({grade}): đã cam kết số lượng thì phải nhập quy khô.")
+        if qty_dry is not None and qty_dry <= 0:
+            raise ValueError(f"Dòng {i} ({grade}): quy khô phải lớn hơn 0.")
+        if qty is not None and qty_dry is not None and qty_dry > qty + 1e-9:
+            raise ValueError(f"Dòng {i} ({grade}): quy khô ({qty_dry:g} tấn) không thể lớn hơn "
+                             f"số lượng ({qty:g} tấn).")
+        out.append({"grade": grade, "qty": qty, "qty_dry": qty_dry})
     if not out:
         raise ValueError("Hợp đồng mẹ phải có ít nhất một chủng loại.")
     seen = [ln["grade"] for ln in out]

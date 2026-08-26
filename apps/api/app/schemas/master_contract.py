@@ -12,16 +12,17 @@ from app.schemas.sales_contract import ContractDocIn
 
 
 class MasterLineIn(BaseModel):
-    """1 dòng cam kết: chủng loại · số lượng · ĐƠN GIÁ của chủng loại đó · loại tiền · tỷ giá.
+    """1 dòng cam kết: chủng loại · số lượng · quy khô.
 
-    Số lượng và đơn giá để TRỐNG được: HĐ nguyên tắc thường chỉ chốt chủng loại, còn giá đi theo
-    công thức/thoả thuận từng chuyến (khai ở phụ lục).
+    KHÔNG có đơn giá/loại tiền/tỷ giá (chốt 25/08/2026): hồ sơ mẹ chỉ cam kết CHỦNG LOẠI và SẢN
+    LƯỢNG, còn giá là số của từng chuyến — khai ở phụ lục, hoặc đi theo công thức giá của hồ sơ.
+
+    Số lượng để TRỐNG được: HĐ nguyên tắc thường chỉ chốt chủng loại. Quy khô đi kèm số lượng cho
+    latex và mủ nguyên liệu, giống dòng hợp đồng bán.
     """
     grade: str = ""
-    qty: float | None = None
-    price: float | None = None         # VNĐ: triệu đ/tấn · ngoại tệ: /tấn (giống dòng hợp đồng)
-    ccy: str = "VND"
-    fx: float | None = None            # tỷ giá quy về VNĐ (bắt buộc khi có đơn giá ngoại tệ)
+    qty: float | None = None           # latex/mủ nguyên liệu: SL MỦ NƯỚC (tấn)
+    qty_dry: float | None = None       # quy khô (tấn) — chỉ latex và mủ nguyên liệu
 
 
 class MasterContractIn(BaseModel):

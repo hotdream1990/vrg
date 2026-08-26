@@ -1,5 +1,5 @@
 import { Modal } from "antd";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import {
   type MasterContract,
@@ -30,9 +30,10 @@ const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 }
 
 /** Thêm/sửa HỢP ĐỒNG MẸ — HĐ nguyên tắc (HĐNT) / HĐ dài hạn (HĐDH).
  *
- *  Đây là HỒ SƠ GỐC ký với khách hàng: số hợp đồng · khách hàng · chủng loại kèm đơn giá ·
- *  công thức giá · bản scan. Từng chuyến hàng nhập ở màn Hợp đồng và chọn hợp đồng mẹ này —
- *  rồi chọn hồ sơ này để nối vào — việc nối KHÔNG đổi số liệu nào của hợp đồng.
+ *  Đây là HỒ SƠ GỐC ký với khách hàng: số hợp đồng · khách hàng · chủng loại kèm sản lượng cam
+ *  kết · công thức giá · bản scan. KHÔNG có đơn giá — giá là số của từng chuyến (chốt 25/08/2026).
+ *  Từng chuyến hàng vẫn nhập ở màn Hợp đồng rồi chọn hồ sơ này để nối vào — việc nối KHÔNG đổi
+ *  số liệu nào của hợp đồng.
  */
 export default function MasterContractFormModal({ meta, initial, defaultCompany, onClose, onSaved }: Props) {
   const [m, setM] = useState<MasterContract>(
@@ -41,13 +42,12 @@ export default function MasterContractFormModal({ meta, initial, defaultCompany,
   const [err, setErr] = useState("");
   const set = (patch: Partial<MasterContract>) => setM((v) => ({ ...v, ...patch }));
 
-  // Q10: trong nước bán VNĐ (+USD khi xuất khẩu); đơn vị nước ngoài thêm NỘI TỆ CỦA CHÍNH nó.
-  const currencies = useMemo(() => {
-    const local = meta.unit_currency?.[m.company];
-    return local && local !== "VND" ? ["VND", "USD", local] : ["VND", "USD"];
-  }, [meta.unit_currency, m.company]);
-
   const qty = m.lines.reduce((s, l) => s + (l.qty ?? 0), 0);
+  const qtyDry = m.lines.reduce((s, l) => s + (l.qty_dry ?? 0), 0);
+  const dry = new Set(meta.dry_required);
+  /** Dòng người dùng đã động vào — dòng trống bấm thêm rồi bỏ dở thì không kiểm, không lưu. */
+  const filled = (l: MasterContract["lines"][number]) =>
+    !!l.grade || l.qty != null || l.qty_dry != null;
 
   /** Kiểm mọi ô bắt buộc trong một lượt để hiện lỗi cùng lúc (giống form hợp đồng). */
   const problems = (): string[] => {
@@ -55,15 +55,18 @@ export default function MasterContractFormModal({ meta, initial, defaultCompany,
     if (!m.company) p.push("Chọn đơn vị.");
     if (!m.code.trim()) p.push("Nhập số hợp đồng.");
     if (!m.customer_id) p.push("Chọn khách hàng.");
-    const rows = m.lines.filter((l) => l.grade || l.qty != null || l.price != null);
+    const rows = m.lines.filter(filled);
     if (!rows.length) p.push("Thêm ít nhất một chủng loại.");
     rows.forEach((l, i) => {
       const at = `Dòng ${i + 1}`;
       if (!l.grade) p.push(`${at}: chọn chủng loại.`);
       if (l.qty != null && l.qty <= 0) p.push(`${at}: số lượng phải lớn hơn 0.`);
-      // Tỷ giá chỉ cần khi ĐÃ có đơn giá ngoại tệ — chưa có giá thì chưa có gì để quy đổi.
-      if (l.price != null && l.ccy !== "VND" && !l.fx) {
-        p.push(`${at}: đơn giá bằng ${l.ccy} thì phải nhập tỷ giá.`);
+      // Quy khô chỉ bắt buộc khi ĐÃ cam kết số lượng — hồ sơ mẹ được phép chỉ chốt chủng loại.
+      if (dry.has(l.grade) && l.qty != null && !l.qty_dry) {
+        p.push(`${at} (${l.grade}): đã cam kết số lượng thì phải nhập quy khô.`);
+      }
+      if (l.qty != null && l.qty_dry != null && l.qty_dry > l.qty) {
+        p.push(`${at} (${l.grade}): quy khô không thể lớn hơn số lượng.`);
       }
     });
     const dup = rows.map((l) => l.grade).filter((g, i, a) => g && a.indexOf(g) !== i);
@@ -77,7 +80,7 @@ export default function MasterContractFormModal({ meta, initial, defaultCompany,
     setBusy(true); setErr("");
     try {
       await saveMasterContract({
-        ...m, lines: m.lines.filter((l) => l.grade || l.qty != null || l.price != null),
+        ...m, lines: m.lines.filter(filled),
       } as unknown as Record<string, unknown>);
       onSaved(m.company); onClose();
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
@@ -94,10 +97,7 @@ export default function MasterContractFormModal({ meta, initial, defaultCompany,
           {/* Đổi đơn vị của hồ sơ đã lưu = kéo theo cả khách hàng lẫn phụ lục sang đơn vị khác
               → khoá khi sửa, giống danh mục khách hàng. */}
           <select className="blt-date-input" value={m.company} disabled={!!initial}
-            onChange={(e) => set({
-              company: e.target.value, customer_id: null,
-              lines: m.lines.map((l) => ({ ...l, ccy: "VND", fx: null })),
-            })}>
+            onChange={(e) => set({ company: e.target.value, customer_id: null })}>
             {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </label>

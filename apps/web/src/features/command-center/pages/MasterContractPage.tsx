@@ -20,8 +20,8 @@ const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 }
 
 /** Quản lý hợp đồng → Hợp đồng mẹ: hồ sơ gốc HĐ nguyên tắc (HĐNT) / HĐ dài hạn (HĐDH).
  *
- *  Hợp đồng mẹ giữ khách hàng, chủng loại–đơn giá, công thức giá và bản scan. Từng chuyến hàng
- *  nhập ở màn "Hợp đồng & đợt giao" rồi chọn hợp đồng mẹ — bản ghi đó là PHỤ LỤC.
+ *  Hợp đồng mẹ giữ khách hàng, chủng loại–sản lượng cam kết, công thức giá và bản scan. Từng
+ *  chuyến hàng nhập ở màn "Hợp đồng & đợt giao" rồi chọn hợp đồng mẹ — bản ghi đó là PHỤ LỤC.
  *  ⚠ Màn này KHÔNG có số tiêu thụ: mọi báo cáo sản lượng vẫn tính trên hợp đồng/đợt giao.
  */
 export default function MasterContractPage() {
@@ -74,9 +74,9 @@ export default function MasterContractPage() {
           <h2><FileTextOutlined style={{ marginRight: 8 }} />Hợp đồng mẹ (HĐNT/HĐDH)</h2>
           <p>
             Hồ sơ gốc ký với khách hàng: <b>HĐ nguyên tắc</b> hoặc <b>HĐ dài hạn</b> — số hợp đồng,
-            khách hàng, chủng loại kèm đơn giá, công thức giá và bản scan. Từng chuyến hàng vẫn nhập
-            ở <b>Hợp đồng &amp; đợt giao</b> như bình thường, chỉ chọn thêm hợp đồng mẹ này để nối
-            vào hồ sơ — <b>không đổi</b> khách hàng hay bất kỳ số liệu nào của hợp đồng.
+            khách hàng, chủng loại kèm sản lượng cam kết, công thức giá và bản scan. Từng chuyến
+            hàng vẫn nhập ở <b>Hợp đồng &amp; đợt giao</b> như bình thường, chỉ chọn thêm hợp đồng
+            mẹ này để nối vào hồ sơ — <b>không đổi</b> khách hàng hay bất kỳ số liệu nào của hợp đồng.
           </p>
         </div>
         {canEdit && meta && (

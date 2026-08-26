@@ -1,18 +1,16 @@
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 
-import { FX_USD_VND, boundWarning, fxWarning, priceBound } from "../../../../lib/entry-bounds";
+import { TONNES_CONTRACT, boundWarning } from "../../../../lib/entry-bounds";
 import type { MasterLine } from "../../../../lib/master-contract-client";
 import NumInput from "../../sections/NumInput";
 
-export const EMPTY_MASTER_LINE: MasterLine = {
-  grade: "", qty: null, price: null, ccy: "VND", fx: null,
-};
+export const EMPTY_MASTER_LINE: MasterLine = { grade: "", qty: null, qty_dry: null };
 
 type Props = {
   lines: MasterLine[];
   grades: string[];
-  /** Loại tiền được phép của ĐƠN VỊ đang chọn (đã lọc ở form) — không hiện cả LAK lẫn KHR. */
-  currencies: string[];
+  /** Chủng loại bán theo MỦ NƯỚC → phải khai thêm quy khô (`meta.dry_required`). */
+  dryGrades: string[];
   readOnly?: boolean;
   onChange: (lines: MasterLine[]) => void;
 };
@@ -27,16 +25,16 @@ function Field({ label, w, children }: { label: string; w: number; children: Rea
 }
 
 /**
- * Dòng CAM KẾT của hợp đồng mẹ: chủng loại · số lượng · ĐƠN GIÁ riêng cho chủng loại đó · loại
- * tiền · tỷ giá. Một hợp đồng mẹ có nhiều chủng loại, mỗi chủng loại một đơn giá.
+ * Dòng CAM KẾT của hợp đồng mẹ: chủng loại · số lượng · quy khô (latex và mủ nguyên liệu).
  *
- * KHÁC dòng hợp đồng bán (`ContractLinesTable`):
- *   - KHÔNG có ô quy khô: quy khô là dữ kiện của lần bán thật, khai ở phụ lục / đợt giao.
- *   - Số lượng và đơn giá ĐỂ TRỐNG được: HĐ nguyên tắc thường chỉ chốt chủng loại, giá đi theo
- *     công thức hoặc thoả thuận từng chuyến. Vẫn cảnh báo biên khi đã nhập, để không lọt lỗi
- *     nhầm đơn vị tính (đơn giá gõ theo đồng/tấn thay vì triệu đồng/tấn).
+ * KHÔNG có đơn giá / loại tiền / tỷ giá (chốt 25/08/2026): hồ sơ mẹ cam kết CHỦNG LOẠI và SẢN
+ * LƯỢNG, còn giá là số của từng chuyến — khai ở phụ lục, hoặc đi theo CÔNG THỨC GIÁ của hồ sơ.
+ *
+ * KHÁC dòng hợp đồng bán (`ContractLinesTable`): số lượng ĐỂ TRỐNG được, vì HĐ nguyên tắc thường
+ * chỉ chốt chủng loại. Đã cam kết số lượng thì quy khô mới bắt buộc.
  */
-export default function MasterLinesTable({ lines, grades, currencies, readOnly, onChange }: Props) {
+export default function MasterLinesTable({ lines, grades, dryGrades, readOnly, onChange }: Props) {
+  const dry = new Set(dryGrades);
   const set = (i: number, patch: Partial<MasterLine>) =>
     onChange(lines.map((ln, k) => (k === i ? { ...ln, ...patch } : ln)));
 
@@ -51,33 +49,35 @@ export default function MasterLinesTable({ lines, grades, currencies, readOnly, 
     <div>
       <div className="card" style={{ padding: "0 12px" }}>
         {lines.map((ln, i) => {
-          const needFx = ln.ccy !== "VND" && ln.price != null;
-          const priceWarn = boundWarning(ln.price, priceBound(ln.ccy, ln.grade));
-          const fxWarn = fxWarning(ln) ?? boundWarning(ln.fx, FX_USD_VND);
+          const hasDry = dry.has(ln.grade);
+          const qtyWarn = boundWarning(ln.qty, TONNES_CONTRACT);
+          // Chỉ nhắc quy khô khi ĐÃ cam kết số lượng — chưa có số lượng thì để trống là bình thường.
+          const dryWarn = hasDry && ln.qty != null && !ln.qty_dry
+            ? "Đã cam kết số lượng thì phải nhập quy khô."
+            : (ln.qty != null && ln.qty_dry != null && ln.qty_dry > ln.qty
+              ? "Quy khô không thể lớn hơn số lượng." : null);
           return (
             <div className="ct-line" key={i}>
               <Field label="Chủng loại *" w={230}>
                 <select className="blt-date-input" value={ln.grade} disabled={readOnly}
-                  onChange={(e) => set(i, { grade: e.target.value })}>
+                  // Đổi sang chủng loại không có quy khô phải XOÁ số cũ: ô đã ẩn nên người dùng
+                  // không tự xoá được, giữ lại thì lưu bị chặn mà không biết sửa ở đâu.
+                  onChange={(e) => set(i, {
+                    grade: e.target.value,
+                    ...(dry.has(e.target.value) ? {} : { qty_dry: null }),
+                  })}>
                   <option value="">— chọn chủng loại —</option>
                   {grades.map((g) => <option key={g} value={g}>{g}</option>)}
                 </select>
               </Field>
-              <Field label="Số lượng (tấn)" w={130}>
-                {num(ln.qty, (v) => set(i, { qty: v }), null, "chưa cam kết")}
+              {/* Latex + 2 loại mủ nguyên liệu cam kết theo MỦ NƯỚC — ghi thẳng vào nhãn, giống
+                  phiếu hợp đồng, để không ai hiểu nhầm đây là sản lượng khô. */}
+              <Field label={hasDry ? "SL nước (tấn)" : "SL (tấn)"} w={130}>
+                {num(ln.qty, (v) => set(i, { qty: v }), qtyWarn)}
               </Field>
-              <Field label={`Đơn giá (${ln.ccy === "VND" ? "tr.đ/tấn" : `${ln.ccy}/tấn`})`} w={140}>
-                {num(ln.price, (v) => set(i, { price: v }), priceWarn, "chưa chốt")}
-              </Field>
-              <Field label="Loại tiền" w={96}>
-                <select className="blt-date-input" value={ln.ccy} disabled={readOnly}
-                  onChange={(e) => set(i, { ccy: e.target.value })}>
-                  {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </Field>
-              {needFx && (
-                <Field label="Tỷ giá → VNĐ" w={130}>
-                  {num(ln.fx, (v) => set(i, { fx: v }), fxWarn, "bắt buộc")}
+              {hasDry && (
+                <Field label="Quy khô (tấn)" w={130}>
+                  {num(ln.qty_dry, (v) => set(i, { qty_dry: v }), dryWarn)}
                 </Field>
               )}
               {!readOnly && (
@@ -99,10 +99,10 @@ export default function MasterLinesTable({ lines, grades, currencies, readOnly, 
         </div>
       )}
       <div className="form-note" style={{ fontSize: 11.5, marginTop: 6 }}>
-        Mỗi chủng loại một dòng, có <b>đơn giá riêng</b>. Đơn giá bán bằng <b>VNĐ</b> nhập theo{" "}
-        <b>triệu đồng/tấn</b>; bằng ngoại tệ nhập theo <b>ngoại tệ/tấn</b> và phải có tỷ giá quy ra
-        VNĐ. <b>Số lượng và đơn giá được để trống</b> nếu hợp đồng chưa chốt — số thật của từng
-        chuyến khai ở phụ lục.
+        Mỗi chủng loại một dòng. <b>Số lượng để trống được</b> nếu hợp đồng chưa chốt sản lượng —
+        số thật của từng chuyến khai ở phụ lục. Hồ sơ mẹ <b>không nhập đơn giá</b>: giá theo từng
+        chuyến ở phụ lục, hoặc ghi ở ô <b>Công thức giá</b> (HĐ dài hạn). Cam kết <b>LATEX</b> và 2
+        loại mủ nguyên liệu thì <b>SL nước</b> phải đi kèm <b>quy khô</b>.
       </div>
     </div>
   );

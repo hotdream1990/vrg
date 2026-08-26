@@ -1,6 +1,6 @@
 /* Client HỢP ĐỒNG MẸ — HĐ nguyên tắc (HĐNT) / HĐ dài hạn (HĐDH).
 
-   Hợp đồng mẹ là HỒ SƠ GỐC ký với khách hàng (khách hàng · cam kết chủng loại–số lượng–đơn giá ·
+   Hợp đồng mẹ là HỒ SƠ GỐC ký với khách hàng (khách hàng · cam kết chủng loại–số lượng ·
    công thức giá · bản scan). Từng chuyến hàng vẫn nhập ở màn Hợp đồng như cũ; chọn hợp đồng mẹ chỉ
    để NỐI bản ghi vào hồ sơ — không đổi khách hàng hay số liệu nào của hợp đồng.
 
@@ -13,14 +13,13 @@ const J = { "Content-Type": "application/json" };
 
 export type MasterType = "principle" | "long_term";
 
-/** 1 dòng cam kết: chủng loại + ĐƠN GIÁ của riêng chủng loại đó. Số lượng/đơn giá để trống được
- *  — HĐ nguyên tắc thường chỉ chốt chủng loại, giá đi theo công thức hoặc thoả thuận từng chuyến. */
+/** 1 dòng cam kết: chủng loại · số lượng · quy khô. KHÔNG có đơn giá/loại tiền/tỷ giá — giá là số
+ *  của từng chuyến (khai ở phụ lục) hoặc đi theo công thức giá của hồ sơ (chốt 25/08/2026).
+ *  Số lượng để trống được: HĐ nguyên tắc thường chỉ chốt chủng loại. */
 export type MasterLine = {
   grade: string;
-  qty: number | null;
-  price: number | null;
-  ccy: string;
-  fx: number | null;
+  qty: number | null;                   // latex/mủ nguyên liệu: SL MỦ NƯỚC (tấn)
+  qty_dry: number | null;               // quy khô (tấn) — chỉ latex và mủ nguyên liệu
 };
 
 export type MasterContract = {

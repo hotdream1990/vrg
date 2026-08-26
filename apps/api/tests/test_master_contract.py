@@ -118,27 +118,47 @@ def test_master_requires_customer_type_and_grade(env) -> None:
     assert client.put("/api/master-contracts", json=base, headers=h).status_code == 200
 
 
-def test_master_price_needs_fx_only_when_priced(env) -> None:
+def test_master_line_has_no_price_and_keeps_dry_qty(env) -> None:
+    """Dòng hồ sơ mẹ chỉ còn chủng loại · số lượng · quy khô (chốt 25/08/2026)."""
     h = env
     cus = _customer(h)
-    base = {"company": UNIT, "code": "HDDH-FX", "master_type": "long_term", "customer_id": cus}
+    base = {"company": UNIT, "code": "HDDH-KHO", "master_type": "long_term", "customer_id": cus}
 
-    # Đơn giá USD mà thiếu tỷ giá → chặn (giống dòng hợp đồng bán).
-    bad = client.put("/api/master-contracts", headers=h, json={
+    # Client cũ (hoặc bản ghi cũ) còn gửi đơn giá/loại tiền/tỷ giá → BỎ, không báo lỗi: người dùng
+    # không còn ô nào để sửa 3 giá trị đó nữa.
+    old = client.put("/api/master-contracts", headers=h, json={
         **base, "lines": [{"grade": "SVR 10 / CSR 10", "qty": 10, "price": 1600, "ccy": "USD"}]})
-    assert bad.status_code == 400 and "tỷ giá" in bad.json()["detail"]
+    assert old.status_code == 200, old.text
+    assert old.json()["master"]["lines"] == [
+        {"grade": "SVR 10 / CSR 10", "qty": 10.0, "qty_dry": None}]
 
-    # Chưa có đơn giá thì chưa cần tỷ giá — chưa có gì để quy đổi.
+    # LATEX cam kết số lượng thì phải có quy khô — giống dòng hợp đồng bán.
+    no_dry = client.put("/api/master-contracts", headers=h, json={
+        **base, "code": "HDDH-KHO2", "lines": [{"grade": "LATEX", "qty": 30}]})
+    assert no_dry.status_code == 400 and "quy khô" in no_dry.json()["detail"]
+
+    over = client.put("/api/master-contracts", headers=h, json={
+        **base, "code": "HDDH-KHO2",
+        "lines": [{"grade": "LATEX", "qty": 30, "qty_dry": 31}]})
+    assert over.status_code == 400 and "không thể lớn hơn" in over.json()["detail"]
+
     ok = client.put("/api/master-contracts", headers=h, json={
-        **base, "lines": [{"grade": "SVR 10 / CSR 10", "qty": 10, "ccy": "USD"}]})
+        **base, "code": "HDDH-KHO2",
+        "lines": [{"grade": "LATEX", "qty": 30, "qty_dry": 10}]})
     assert ok.status_code == 200, ok.text
+    assert ok.json()["master"]["lines"][0]["qty_dry"] == 10.0
 
-    # Loại tiền ngoài danh mục phải BÁO LỖI, không lặng lẽ quy về VNĐ (đơn giá 1.600 EUR/tấn đọc
-    # thành 1.600 TRIỆU đ/tấn là sai ~38 lần).
-    ccy = client.put("/api/master-contracts", headers=h, json={
-        **base, "code": "HDDH-FX2",
-        "lines": [{"grade": "SVR 10 / CSR 10", "qty": 10, "price": 5, "ccy": "EUR"}]})
-    assert ccy.status_code == 400 and "loại tiền" in ccy.json()["detail"]
+    # Chưa cam kết số lượng thì KHÔNG ép quy khô: HĐ nguyên tắc thường chỉ chốt chủng loại.
+    bare = client.put("/api/master-contracts", headers=h, json={
+        **base, "code": "HDNT-KHO3", "master_type": "principle",
+        "lines": [{"grade": "LATEX"}]})
+    assert bare.status_code == 200, bare.text
+
+    # Thành phẩm bán ra đã là hàng khô → khai quy khô cho nó là sai, phải chặn.
+    wrong = client.put("/api/master-contracts", headers=h, json={
+        **base, "code": "HDDH-KHO4",
+        "lines": [{"grade": "SVR 10 / CSR 10", "qty": 10, "qty_dry": 8}]})
+    assert wrong.status_code == 400 and "không có quy khô" in wrong.json()["detail"]
 
 
 def test_master_code_unique_per_unit(env) -> None:
