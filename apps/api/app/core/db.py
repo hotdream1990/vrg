@@ -368,6 +368,18 @@ ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS merged_at date;
 ALTER TABLE member_unit ADD COLUMN IF NOT EXISTS parent_company text;
 -- Số liệu năm nhập 1 lần (không theo ngày): tổng SL đã ký HĐ dài hạn của năm.
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS signed_lt_tonnes double precision;
+-- HÀNG CÓ CHỨNG CHỈ + PREMIUM (chốt 26/08/2026) — khai ở CẤP HỢP ĐỒNG cho cả hợp đồng gốc
+-- (`master_contract`) lẫn hợp đồng bán (`sales_contract`):
+--   `certs`       jsonb  danh sách chứng chỉ đã chọn (PEFC · EUDR · VRG GREEN) — chọn nhiều được
+--   `premium`     số tiền cộng thêm cho hàng có chứng chỉ; NULL = hợp đồng không có premium
+--   `premium_ccy` USD | VND (chỉ có nghĩa khi `premium` khác NULL)
+-- ⚠ Premium KHÔNG tự cộng vào đơn giá/doanh thu — xem `services/contract_certs.py`.
+ALTER TABLE master_contract ADD COLUMN IF NOT EXISTS certs jsonb NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE master_contract ADD COLUMN IF NOT EXISTS premium double precision;
+ALTER TABLE master_contract ADD COLUMN IF NOT EXISTS premium_ccy text;
+ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS certs jsonb NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS premium double precision;
+ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS premium_ccy text;
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS carry_lt_tonnes double precision;
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS carry_spot_tonnes double precision;
 -- Kế hoạch TIÊU THỤ cho hợp đồng chuyến (chốt 03/08/2026) — chỉ để đối chiếu % thực hiện,

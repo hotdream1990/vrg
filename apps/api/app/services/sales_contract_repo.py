@@ -26,7 +26,7 @@ from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
 from app.services import audit_repo, contract_docs, sales_contract_calc as calc
-from app.services.sales_contract_clean import clean, assert_unit_exists
+from app.services.sales_contract_clean import assert_unit_can_sign, assert_unit_exists, clean
 
 logger = logging.getLogger("vrg.sales_contract")
 
@@ -34,7 +34,7 @@ _COLS = ("id", "company", "parent_id", "master_id", "code", "customer_id",
          "delivery_type", "contract_type",
          "sign_date", "expiry_date", "start_date", "lines", "delivered", "delivered_at", "channel",
          "to_company", "invoice_no", "invoice_docs", "payment_date", "payment_qty",
-         "payment_docs", "files", "note", "completed_at")
+         "payment_docs", "files", "note", "completed_at", "certs", "premium", "premium_ccy")
 _DATE_COLS = ("sign_date", "expiry_date", "start_date", "delivered_at", "payment_date",
               "completed_at")
 _DOC_COLS = ("files", "payment_docs", "invoice_docs")
@@ -49,6 +49,7 @@ def _row(r) -> dict[str, Any]:
     for k in _DATE_COLS:
         d[k] = str(d[k]) if d.get(k) else None
     d["lines"] = d.get("lines") or []
+    d["certs"] = d.get("certs") or []
     for k in _DOC_COLS:
         d[k] = contract_docs.normalize(d.get(k), None, None)
     d["qty"] = calc.total_qty(d["lines"])
@@ -91,7 +92,7 @@ _INSERT = text(
     " delivery_type, contract_type, sign_date, "
     " expiry_date, start_date, lines, delivered, delivered_at, channel, to_company, "
     " invoice_no, invoice_docs, payment_date, "
-    " payment_qty, payment_docs, files, note, updated_by) "
+    " payment_qty, payment_docs, files, note, certs, premium, premium_ccy, updated_by) "
     "VALUES (:company, :parent_id, :master_id, :code, :customer_id, :delivery_type, "
     " :contract_type, "
     " CAST(:sign_date AS date), "
@@ -99,7 +100,8 @@ _INSERT = text(
     " CAST(:delivered_at AS date), "
     " :channel, :to_company, :invoice_no, CAST(:invoice_docs AS jsonb), "
     " CAST(:payment_date AS date), :payment_qty, "
-    " CAST(:payment_docs AS jsonb), CAST(:files AS jsonb), :note, :by) RETURNING id")
+    " CAST(:payment_docs AS jsonb), CAST(:files AS jsonb), :note, "
+    " CAST(:certs AS jsonb), :premium, :premium_ccy, :by) RETURNING id")
 
 _UPDATE = text(
     "UPDATE sales_contract SET code = :code, master_id = :master_id, "
@@ -114,12 +116,14 @@ _UPDATE = text(
     " payment_date = CAST(:payment_date AS date), "
     " payment_qty = :payment_qty, "
     " payment_docs = CAST(:payment_docs AS jsonb), files = CAST(:files AS jsonb), note = :note, "
+    " certs = CAST(:certs AS jsonb), premium = :premium, premium_ccy = :premium_ccy, "
     " updated_by = :by, updated_at = now() WHERE id = :id")
 
 
 def _params(d: dict, updated_by: str | None) -> dict[str, Any]:
     docs = {k: json.dumps(d[k]) for k in _DOC_COLS}
-    return {**d, **docs, "lines": json.dumps(d["lines"]), "by": updated_by}
+    return {**d, **docs, "lines": json.dumps(d["lines"]),
+            "certs": json.dumps(d.get("certs") or []), "by": updated_by}
 
 
 def _tan(v: float) -> str:
@@ -146,6 +150,8 @@ def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
     """Thêm mới (không có id) hoặc cập nhật. Raise ValueError nếu vi phạm nghiệp vụ."""
     d = clean(row, company)
     assert_unit_exists(company, "Đơn vị")
+    if d["id"] is None and d["parent_id"] is None:   # bản ghi MỚI ở cấp hợp đồng (không phải đợt giao)
+        assert_unit_can_sign(company, "Đơn vị")
     ensure_schema()
     before = get(d["id"]) if d["id"] is not None else None
     with session_scope() as db:

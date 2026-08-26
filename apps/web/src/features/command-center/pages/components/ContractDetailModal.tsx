@@ -58,6 +58,34 @@ function LinesTotal({ lines }: { lines: Contract["lines"] }) {
 }
 
 /** Chi tiết HỢP ĐỒNG + danh sách ĐỢT GIAO (mỗi đợt = 1 lần giao). */
+
+/** Chip chứng chỉ + khoản premium — hiện ở màn chi tiết của cả hợp đồng gốc lẫn hợp đồng bán. */
+function CertBadges({ certs, premium, ccy }: {
+  certs?: string[]; premium?: number | null; ccy?: string | null;
+}) {
+  if (!certs?.length && premium == null) return null;
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Hàng có chứng chỉ</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+        {(certs ?? []).map((c) => (
+          <span key={c} className="tag" style={{ padding: "2px 10px", borderRadius: 999,
+            border: "1px solid var(--line)", background: "var(--panel-2)", fontSize: 12.5 }}>{c}</span>
+        ))}
+        {premium != null && (
+          <span style={{ fontSize: 13 }}>
+            Premium: <b>{premium.toLocaleString("vi-VN", { maximumFractionDigits: 3 })} {ccy ?? ""}</b>
+            {ccy === "USD" ? "/tấn" : ""}
+          </span>
+        )}
+        {!certs?.length && premium != null && (
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>(chưa chọn chứng chỉ)</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ContractDetailModal({ contractId, meta, canEdit, onClose, onChanged }: Props) {
   const [d, setD] = useState<ContractDetail | null>(null);
   const [err, setErr] = useState("");
@@ -155,6 +183,8 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
               <div className="kpi"><div className="label">Ngày ký</div><div className="value">{dmy(c.sign_date) || "—"}</div></div>
               <div className="kpi"><div className="label">Thời hạn</div><div className="value">{dmy(c.expiry_date) || "—"}</div></div>
             </div>
+
+            <CertBadges certs={c.certs} premium={c.premium} ccy={c.premium_ccy} />
 
             {canEdit && (
               <div className="blt-toolbar" style={{ marginTop: 10 }}>

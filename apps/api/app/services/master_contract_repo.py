@@ -25,7 +25,7 @@ from app.services.master_contract_clean import clean
 from app.services.sales_contract_report import _QTY_SQL
 
 _COLS = ("id", "company", "code", "master_type", "customer_id", "sign_date", "expiry_date",
-         "lines", "price_formula", "files", "note")
+         "lines", "price_formula", "files", "note", "certs", "premium", "premium_ccy")
 _DATE_COLS = ("sign_date", "expiry_date")
 
 #: Tiến độ ký phụ lục — đếm phụ lục và cộng sản lượng ĐÃ KÝ của chúng (số trên hợp đồng, dùng
@@ -46,6 +46,7 @@ def _row(r) -> dict[str, Any]:
     for k in _DATE_COLS:
         d[k] = str(d[k]) if d.get(k) else None
     d["lines"] = d.get("lines") or []
+    d["certs"] = d.get("certs") or []
     d["files"] = contract_docs.normalize(d.get("files"), None, None)
     d["qty"] = sum(float(ln.get("qty") or 0) for ln in d["lines"])
     for k in ("annexes", "annex_qty"):
@@ -137,16 +138,17 @@ def companies_of_file(name: str) -> set[str]:
 
 _INSERT = text(
     "INSERT INTO master_contract (company, code, master_type, customer_id, sign_date, "
-    " expiry_date, lines, price_formula, files, note, updated_by) "
+    " expiry_date, lines, price_formula, files, note, certs, premium, premium_ccy, updated_by) "
     "VALUES (:company, :code, :master_type, :customer_id, CAST(:sign_date AS date), "
     " CAST(:expiry_date AS date), CAST(:lines AS jsonb), :price_formula, CAST(:files AS jsonb), "
-    " :note, :by) RETURNING id")
+    " :note, CAST(:certs AS jsonb), :premium, :premium_ccy, :by) RETURNING id")
 
 _UPDATE = text(
     "UPDATE master_contract SET code = :code, master_type = :master_type, "
     " customer_id = :customer_id, sign_date = CAST(:sign_date AS date), "
     " expiry_date = CAST(:expiry_date AS date), lines = CAST(:lines AS jsonb), "
     " price_formula = :price_formula, files = CAST(:files AS jsonb), note = :note, "
+    " certs = CAST(:certs AS jsonb), premium = :premium, premium_ccy = :premium_ccy, "
     " updated_by = :by, updated_at = now() WHERE id = :id")
 
 
@@ -161,7 +163,7 @@ def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
     ensure_schema()
     before = get(d["id"]) if d["id"] is not None else None
     params = {**d, "lines": json.dumps(d["lines"]), "files": json.dumps(d["files"]),
-              "by": updated_by}
+              "certs": json.dumps(d["certs"]), "by": updated_by}
     try:
         with session_scope() as db:
             if d["id"] is not None:

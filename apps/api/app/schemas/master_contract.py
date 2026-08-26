@@ -35,6 +35,10 @@ class MasterContractIn(BaseModel):
     expiry_date: str | None = None
     lines: list[MasterLineIn] = Field(default_factory=list)
     price_formula: str | None = None   # công thức giá — text tự do
+    # HÀNG CÓ CHỨNG CHỈ (26/08/2026) — chọn nhiều; premium để TRỐNG nếu hợp đồng không có.
+    certs: list[str] = Field(default_factory=list)   # PEFC · EUDR · VRG GREEN
+    premium: float | None = None                     # số tiền cộng thêm (tự nhập)
+    premium_ccy: str | None = None                   # USD | VND
     files: list[ContractDocIn] = Field(default_factory=list)
     note: str | None = None
 

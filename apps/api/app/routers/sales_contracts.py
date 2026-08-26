@@ -93,6 +93,9 @@ def meta(scope: Scope) -> dict:
         "contract_types": CONTRACT_TYPES,
         "master_types": MASTER_CONTRACT_TYPES,
         "currencies": list(SALE_CURRENCIES),
+        # Hàng có chứng chỉ + premium (26/08/2026) — dùng chung cho form hợp đồng bán và hợp đồng gốc.
+        "certs": list(CONTRACT_CERTS),
+        "premium_currencies": list(PREMIUM_CURRENCIES),
     }
 
 

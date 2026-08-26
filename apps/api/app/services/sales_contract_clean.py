@@ -12,7 +12,7 @@ from datetime import date
 from typing import Any
 
 from app.core.market_meta import CONTRACT_TYPES, DELIVERY_TYPES, SALE_CHANNELS
-from app.services import contract_docs, customer_repo, sales_contract_calc as calc
+from app.services import contract_certs, contract_docs, customer_repo, sales_contract_calc as calc
 
 
 def _as_date(v, label: str, required: bool = False) -> date | None:
@@ -238,5 +238,9 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         "payment_docs": contract_docs.normalize(row.get("payment_docs"), None, None),
         "files": contract_docs.normalize(row.get("files"), None, None),
         "note": str(row.get("note") or "").strip()[:500] or None,
+        # Hàng có chứng chỉ + premium: chỉ khai ở HỢP ĐỒNG. Đợt giao là một lần giao của chính hợp
+        # đồng đó nên thừa kế — để đợt tự khai thì cùng một lô hàng có 2 câu trả lời khác nhau.
+        **(contract_certs.clean(row) if not is_child
+           else {"certs": [], "premium": None, "premium_ccy": None}),
     }
 

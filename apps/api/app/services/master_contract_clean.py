@@ -20,10 +20,9 @@ import math
 from datetime import date
 from typing import Any
 
-from app.core.market_meta import MASTER_CONTRACT_TYPES, SALE_CURRENCIES, UNIT_GRADES
-from app.services import contract_docs, customer_repo
+from app.core.market_meta import DRY_REQUIRED_GRADES, MASTER_CONTRACT_TYPES, UNIT_GRADES
+from app.services import contract_certs, contract_docs, customer_repo
 
-_CCY = frozenset(SALE_CURRENCIES)
 _GRADES = frozenset(UNIT_GRADES)
 
 
@@ -140,4 +139,6 @@ def clean(row: dict, company: str) -> dict[str, Any]:
                           if master_type == "long_term" else None),
         "files": contract_docs.normalize(row.get("files"), None, None),
         "note": str(row.get("note") or "").strip()[:500] or None,
+        # Hàng có chứng chỉ + premium — xem `services/contract_certs.py`.
+        **contract_certs.clean(row),
     }

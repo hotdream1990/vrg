@@ -31,6 +31,34 @@ const num = (n: number | null | undefined) => (n == null ? "—" : t3(n));
  *  Sản lượng ở đây chỉ để ĐỐI CHIẾU cam kết với phần đã ký ở phụ lục — tiêu thụ và "đã ký HĐ
  *  chưa giao" vẫn tính trên hợp đồng/đợt giao, hợp đồng mẹ không góp số vào báo cáo nào.
  */
+
+/** Chip chứng chỉ + khoản premium — hiện ở màn chi tiết của cả hợp đồng gốc lẫn hợp đồng bán. */
+function CertBadges({ certs, premium, ccy }: {
+  certs?: string[]; premium?: number | null; ccy?: string | null;
+}) {
+  if (!certs?.length && premium == null) return null;
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Hàng có chứng chỉ</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+        {(certs ?? []).map((c) => (
+          <span key={c} className="tag" style={{ padding: "2px 10px", borderRadius: 999,
+            border: "1px solid var(--line)", background: "var(--panel-2)", fontSize: 12.5 }}>{c}</span>
+        ))}
+        {premium != null && (
+          <span style={{ fontSize: 13 }}>
+            Premium: <b>{premium.toLocaleString("vi-VN", { maximumFractionDigits: 3 })} {ccy ?? ""}</b>
+            {ccy === "USD" ? "/tấn" : ""}
+          </span>
+        )}
+        {!certs?.length && premium != null && (
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>(chưa chọn chứng chỉ)</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function MasterContractDetailModal({ masterId, meta, canEdit, onClose, onChanged }: Props) {
   const [d, setD] = useState<MasterDetail | null>(null);
   const [picking, setPicking] = useState(false);
@@ -82,28 +110,29 @@ export default function MasterContractDetailModal({ masterId, meta, canEdit, onC
               <div className="value">{dmy(m.expiry_date) || "—"}</div></div>
           </div>
 
-          <h4 style={{ margin: "14px 0 6px" }}>Chủng loại &amp; đơn giá</h4>
+          {/* Hồ sơ mẹ chỉ cam kết CHỦNG LOẠI + SẢN LƯỢNG — đơn giá là số của từng chuyến, xem ở
+              phụ lục (hoặc ô Công thức giá bên dưới với HĐ dài hạn). */}
+          <h4 style={{ margin: "14px 0 6px" }}>Chủng loại &amp; sản lượng cam kết</h4>
           <div className="card table-scroll" style={{ padding: 0 }}>
             <table>
               <thead><tr>
-                <th>Chủng loại</th><th className="r" style={{ width: 140 }}>Số lượng (tấn)</th>
-                <th className="r" style={{ width: 120 }}>Đơn giá</th>
-                <th style={{ width: 140 }}>Loại tiền</th>
-                <th className="r" style={{ width: 140 }}>Tỷ giá → VNĐ</th>
+                <th>Chủng loại</th>
+                <th className="r" style={{ width: 160 }}>Số lượng (tấn)</th>
+                <th className="r" style={{ width: 160 }}>Quy khô (tấn)</th>
               </tr></thead>
               <tbody>
                 {m.lines.map((ln, i) => (
                   <tr key={i}>
                     <td>{ln.grade}</td>
                     <td className="r">{num(ln.qty)}</td>
-                    <td className="r">{num(ln.price)}</td>
-                    <td>{ln.ccy}{ln.ccy === "VND" ? " (tr.đ/tấn)" : "/tấn"}</td>
-                    <td className="r">{num(ln.fx)}</td>
+                    <td className="r">{num(ln.qty_dry)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          <CertBadges certs={m.certs} premium={m.premium} ccy={m.premium_ccy} />
 
           {/* Chỉ HĐ dài hạn mới có công thức giá — HĐ nguyên tắc không có phần này, hiện ra một
               ô trống chỉ làm người đọc tưởng đang khai thiếu. */}

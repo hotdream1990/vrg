@@ -74,6 +74,11 @@ export type Contract = {
   qty_dry: number;
   /** Thành tiền quy về ĐỒNG. null = có dòng ngoại tệ thiếu tỷ giá (KHÔNG phải 0). */
   revenue: number | null;
+  /** Hàng có chứng chỉ (PEFC · EUDR · VRG GREEN) + khoản premium khách trả thêm. Chỉ khai ở
+   *  HỢP ĐỒNG — đợt giao thừa kế của hợp đồng cha. */
+  certs?: string[];
+  premium?: number | null;
+  premium_ccy?: string | null;
 };
 
 export type ContractRow = Contract & {
@@ -102,6 +107,9 @@ export type ContractMeta = {
   merged_units?: string[];
   grades: string[];
   dry_required: string[];
+  /** Danh mục chứng chỉ của lô hàng + loại tiền của premium (26/08/2026). */
+  certs?: string[];
+  premium_currencies?: string[];
   channels: Record<string, string>;
   delivery_types: Record<string, string>;
   contract_types: Record<string, string>;

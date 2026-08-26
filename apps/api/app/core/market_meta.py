@@ -164,6 +164,17 @@ MASTER_CONTRACT_TYPES: dict[str, str] = {
 # Loại tiền trên dòng bán/thu mua — thêm nội tệ đơn vị nước ngoài (Lào LAK · Campuchia KHR).
 SALE_CURRENCIES: tuple[str, ...] = ("VND", "USD", "LAK", "KHR")
 
+# ── HÀNG CÓ CHỨNG CHỈ (chốt 26/08/2026) ────────────────────────────────────────────────────────
+#: Chứng chỉ truy xuất nguồn gốc / bền vững gắn cho lô hàng của hợp đồng. Khách mua hàng có chứng
+#: chỉ thường trả THÊM một khoản (premium) trên giá tham chiếu — trước đây đơn vị phải nhét chữ
+#: "PEFC"/"EUDR" vào SỐ HỢP ĐỒNG hoặc TÊN FILE scan vì không có ô nào để khai.
+#: Lưu đúng nhãn hiển thị (giống cách lưu chủng loại) — không dựng mã riêng để khỏi phải map 2 chiều.
+CONTRACT_CERTS: tuple[str, ...] = ("PEFC", "EUDR", "VRG GREEN")
+
+#: Loại tiền của khoản premium. CHỈ 2 loại: hợp đồng xuất khẩu tính USD/tấn, nội địa tính VNĐ —
+#: nội tệ Lào/Campuchia không dùng cho khoản này (chốt 26/08/2026).
+PREMIUM_CURRENCIES: tuple[str, ...] = ("USD", "VND")
+
 
 # Chủng loại cho "Báo giá mủ thị trường" (Mục 1-3: giá tư nhân/VRG XK/VRG nội địa) — theo phiếu Excel.
 MARKET_QUOTE_GRADES = ["SVR CV 50", "SVR CV 60", "SVR 3L", "SVR 10", "RSS3", "LATEX"]

@@ -12,6 +12,7 @@ import {
 import CustomerPicker from "../../sections/CustomerPicker";
 import DateInput from "../../sections/DateInput";
 import MasterContractPicker from "../../sections/MasterContractPicker";
+import CertPremiumFields from "./CertPremiumFields";
 import ContractAttach from "./ContractAttach";
 import ContractBatchDocs from "./ContractBatchDocs";
 import ContractLinesTable, { EMPTY_LINE } from "./ContractLinesTable";
@@ -40,6 +41,7 @@ const blank = (company: string): Contract => ({
   delivered: false, delivered_at: null, channel: null, to_company: null,
   invoice_no: null, invoice_docs: [],
   payment_date: null, payment_qty: null, payment_docs: [], files: [], note: null,
+  certs: [], premium: null, premium_ccy: null,
   completed_at: null, qty: 0, qty_dry: 0, revenue: null,
 });
 
@@ -336,6 +338,16 @@ export default function ContractFormModal({
             </div>
           )}
         </>
+      )}
+
+      {/* Hàng có chứng chỉ + premium — CHỈ ở cấp hợp đồng. Đợt giao là một lần giao của chính
+          hợp đồng đó nên thừa kế; cho đợt tự khai thì cùng lô hàng có hai câu trả lời. */}
+      {!isChild && (
+        <CertPremiumFields
+          value={{ certs: c.certs ?? [], premium: c.premium ?? null,
+                   premium_ccy: c.premium_ccy ?? null }}
+          certs={meta.certs ?? []} currencies={meta.premium_currencies ?? ["USD", "VND"]}
+          onChange={(patch) => set(patch)} />
       )}
 
       {isBatch && <ContractBatchDocs c={c} set={set} />}

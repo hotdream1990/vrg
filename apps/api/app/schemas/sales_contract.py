@@ -61,6 +61,10 @@ class ContractIn(BaseModel):
     payment_qty: float | None = None
     payment_docs: list[ContractDocIn] = Field(default_factory=list)
     files: list[ContractDocIn] = Field(default_factory=list)
+    # HÀNG CÓ CHỨNG CHỈ (26/08/2026) — chọn nhiều; premium để TRỐNG nếu hợp đồng không có.
+    certs: list[str] = Field(default_factory=list)   # PEFC · EUDR · VRG GREEN
+    premium: float | None = None                     # số tiền cộng thêm (tự nhập)
+    premium_ccy: str | None = None                   # USD | VND
     note: str | None = None
 
 
