@@ -1,0 +1,23 @@
+GÓI TÀI LIỆU VRG — 25/08/2026
+Dự án AI Dự báo Giá Cao su · Đề án A · Giai đoạn PoC
+Bizino AI × Thái Hưng Infotech
+
+────────────────────────────────────────────────────────
+COPY CẢ THƯ MỤC NÀY, ĐỪNG TÁCH LẺ TỪNG FILE.
+Hai file HTML cần thư mục assets/ và deck-stage.js nằm cạnh nó.
+────────────────────────────────────────────────────────
+
+1. bao-cao-tien-do-25-08-2026.html   — DECK ĐỂ TRÌNH BÀY (15 slide)
+   Mở bằng trình duyệt (Chrome / Edge / Safari), bấm mũi tên ← → để chuyển slide.
+   Phím R = về slide đầu. Xuất PDF: Cmd+P (Mac) hoặc Ctrl+P (Windows) → Save as PDF.
+
+2. danh-muc-tinh-nang-25-08-2026.html — DANH MỤC TÍNH NĂNG (4 trang A4)
+   Bản in kèm theo deck, liệt kê đầy đủ từng đầu mục:
+   Bảng A trong phạm vi đã làm · Bảng B còn lại · Bảng C ngoài phạm vi đã bàn giao.
+   Xuất PDF: Cmd+P / Ctrl+P → Save as PDF (đã set sẵn khổ A4 dọc và ngắt trang).
+
+3. assets/       — logo Thái Hưng · Bizino · VRG (bắt buộc phải có)
+4. deck-stage.js — bộ điều khiển trình chiếu cho file số 1 (bắt buộc phải có)
+
+Số liệu trong hai tài liệu đo trực tiếp trên hệ thống thật ngày 25/08/2026,
+phiên bản v0.4.39.

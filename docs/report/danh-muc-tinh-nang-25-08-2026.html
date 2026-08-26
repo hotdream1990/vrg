@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Danh mục tính năng hệ thống (VRG · Đề án A) — 25/08/2026</title>
+<style>
+  :root{
+    --ink:#0E1B2C; --ink-2:#3E5065; --ink-3:#7A8DA0;
+    --green:#15B86A; --green-d:#0A7C44; --green-bg:#EAF6EF;
+    --blue:#3B4BA8; --blue-bg:#EEF0FB;
+    --amber:#B4780A; --amber-bg:#FDF4E3;
+    --line:#D8E2DC; --line-2:#EDF2EF;
+    --font:"Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--font);background:#5b6b62;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:12.5px;line-height:1.45}
+
+  .page{
+    width:210mm;min-height:297mm;margin:14mm auto;background:#fff;
+    padding:14mm 15mm 14mm;position:relative;
+    box-shadow:0 18px 50px -18px rgba(0,0,0,.5);
+  }
+
+  .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;border-bottom:2.5px solid var(--green-d);padding-bottom:10px}
+  .hd .logos{display:flex;align-items:center;gap:14px;background:#15212F;border-radius:9px;padding:8px 15px}
+  .hd .logos img.th{height:28px;width:auto;display:block}
+  .hd .logos img.bz{height:16px;width:auto;display:block;filter:brightness(0) invert(1)}
+  .hd .logos span.sep{width:1px;height:24px;background:rgba(255,255,255,.24)}
+  .hd .vrg{display:flex;align-items:center;gap:10px}
+  .hd .vrg img{height:48px;width:auto;display:block}
+  .hd .vrg em{font-style:normal;font-size:10.5px;color:var(--ink-3);font-weight:600;text-align:right;line-height:1.35}
+
+  h1{font-size:20px;font-weight:800;letter-spacing:-.01em;margin:14px 0 3px;color:var(--ink)}
+  .sub{font-size:12.5px;color:var(--ink-2);margin:0}
+  .meta{display:flex;flex-wrap:wrap;gap:5px 24px;margin-top:9px;font-size:11px;color:var(--ink-2)}
+  .meta b{color:var(--ink);font-weight:700}
+
+  h2.sec{font-size:11.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--green-d);margin:16px 0 7px;display:flex;align-items:center;gap:9px}
+  h2.sec::before{content:"";width:22px;height:2.5px;background:var(--green);border-radius:2px;flex:none}
+  h2.sec.amber{color:var(--amber)} h2.sec.amber::before{background:#E6A62A}
+  h2.sec.blue{color:var(--blue)} h2.sec.blue::before{background:#7C88DA}
+
+  .basis{background:var(--green-bg);border:1px solid #CDE8DA;border-radius:8px;padding:10px 14px;font-size:11.5px;color:var(--ink-2)}
+  .basis b{color:var(--ink)}
+  .basis ul{margin:5px 0 0;padding-left:17px}
+  .basis li{margin:2px 0}
+
+  table.t{width:100%;border-collapse:collapse;margin-top:7px;font-size:11.5px}
+  table.t th{background:var(--green-d);color:#fff;font-weight:700;font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:7px 8px;text-align:left;border:1px solid var(--green-d);vertical-align:middle}
+  table.t.amber th{background:#A97B12;border-color:#A97B12}
+  table.t.blue th{background:#41509B;border-color:#41509B}
+  table.t td{border:1px solid var(--line);padding:6px 8px;vertical-align:top;color:var(--ink-2);line-height:1.4}
+  table.t tr:nth-child(even) td{background:#FAFCFB}
+  table.t td.n{text-align:center;color:var(--ink-3);font-weight:700;font-family:var(--mono);width:24px}
+  table.t td.g{color:var(--ink);font-weight:800;font-size:11.5px}
+  table.t ul{margin:0;padding-left:15px}
+  table.t li{margin:1.5px 0}
+
+  .tag{display:inline-block;padding:1.5px 7px;border-radius:99px;font-size:9.5px;font-weight:800;letter-spacing:.03em;white-space:nowrap;vertical-align:middle}
+  .tag.live{background:var(--green-bg);color:var(--green-d);border:1px solid #BEDCCB}
+  .tag.wait{background:var(--amber-bg);color:var(--amber);border:1px solid #F0DDB4}
+  .tag.vrg{background:var(--blue-bg);color:var(--blue);border:1px solid #CBD2EF}
+  .tag.pause{background:#F2F4F3;color:var(--ink-3);border:1px solid var(--line)}
+  .tag.new{background:#FFF1E8;color:#C2410C;border:1px solid #FBCFB2}
+
+  .note{font-size:10.5px;color:var(--ink-3);margin-top:7px;line-height:1.45}
+  .note b{color:var(--ink-2)}
+
+  .pgft{position:absolute;left:15mm;right:15mm;bottom:8mm;display:flex;justify-content:space-between;font-size:10px;color:var(--ink-3);border-top:1px solid var(--line-2);padding-top:5px}
+  .pgft b{color:var(--green-d)}
+
+  @media print{
+    @page{size:A4 portrait;margin:10mm 11mm}
+    body{background:#fff;font-size:10.5px}
+    .page{margin:0;box-shadow:none;width:auto;min-height:0;padding:0}
+    .page + .page{page-break-before:always}
+    .pgft{position:static;left:auto;right:auto;bottom:auto;margin-top:10px}
+    table.t tr{page-break-inside:avoid}
+    thead{display:table-header-group}
+    .basis,.hd{page-break-inside:avoid}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<!-- ═══════════════ TRANG 1 ═══════════════ -->
+<div class="page">
+  <div class="hd">
+    <div class="logos">
+      <img class="th" src="assets/thaihung_trim.png" alt="Thái Hưng Infotech"/>
+      <span class="sep"></span>
+      <img class="bz" src="assets/bizino.png" alt="Bizino"/>
+    </div>
+    <div class="vrg">
+      <em>Tập đoàn Công nghiệp<br/>Cao su Việt Nam</em>
+      <img src="assets/vrg.png" alt="VRG"/>
+    </div>
+  </div>
+
+  <h1>DANH MỤC TÍNH NĂNG HỆ THỐNG</h1>
+  <p class="sub">Dự án AI Dự báo Giá Cao su · Đề án A · Giai đoạn PoC — liệt kê đầu mục: <b>đã làm theo kế hoạch</b> · <b>còn lại</b> · <b>ngoài dự kiến</b>.</p>
+  <div class="meta">
+    <span>Ngày lập: <b>25/08/2026</b></span>
+    <span>Phiên bản hệ thống: <b>v0.4.39</b></span>
+    <span>Bản trước: <b>11/08/2026 (v0.4.14)</b></span>
+    <span>Đơn vị lập: <b>Bizino AI × Thái Hưng Infotech</b></span>
+  </div>
+
+  <div class="basis" style="margin-top:12px">
+    <b>Cách đọc.</b> Bản này chỉ <b>liệt kê đầu mục tính năng</b>, không kèm số liệu khối lượng hay chi phí.
+    <ul>
+      <li><b>Bảng A</b> — hạng mục trong phạm vi đã thống nhất và <b>đã chạy trên hệ thống thật</b>.</li>
+      <li><b>Bảng B</b> — hạng mục trong phạm vi <b>còn lại</b>, gom thành 5 nhóm, ghi rõ đầu mối đang chờ.</li>
+      <li><b>Bảng C</b> — hạng mục <b>ngoài phạm vi ban đầu</b>, phát sinh trong quá trình triển khai và đã bàn giao.</li>
+      <li>Đầu mục gắn nhãn <span class="tag new">MỚI</span> là phần <b>bổ sung sau ngày 11/08/2026</b>.</li>
+    </ul>
+  </div>
+
+  <h2 class="sec">Bảng A · Trong kế hoạch — đã triển khai</h2>
+  <table class="t">
+    <thead><tr><th style="width:24px">#</th><th style="width:150px">Nhóm</th><th>Đầu mục tính năng</th><th style="width:70px">Trạng thái</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="n">A1</td>
+        <td class="g">Giám sát thị trường đa sàn</td>
+        <td>
+          <ul>
+            <li>Thu thập tự động giá sàn Nhật Bản (TOCOM/OSE)</li>
+            <li>Thu thập tự động giá sàn Thượng Hải (SHFE)</li>
+            <li>Thu thập tự động giá sàn Singapore (SGX – SICOM)</li>
+            <li>Thu thập tự động giá sàn Malaysia (LGM)</li>
+            <li>Giá giao ngay châu Á theo bản tin thị trường</li>
+            <li>Tỷ giá năm cặp tiền tệ (USD/VND · JPY · CNY · MYR · THB)</li>
+            <li>Sáu mốc quét tự động mỗi ngày, quản trị bật · tắt · đổi giờ từng mốc; kèm nút quét tay từng nguồn <span class="tag new">MỚI</span></li>
+            <li>Nhật ký từng lần quét, ghi rõ lý do khi nguồn không có phiên giao dịch (nghỉ lễ · không giao dịch · lấy phiên trước)</li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+      <tr>
+        <td class="n">A2</td>
+        <td class="g">Nền quản lý dữ liệu</td>
+        <td>
+          <ul>
+            <li>Bảng tính giá các sàn quy đổi về USD/tấn theo từng phiên</li>
+            <li>Màn quản lý tỷ giá</li>
+            <li>Màn quản lý giá sàn Tập đoàn, giá mủ nguyên liệu, giá giao ngay, tồn kho Tập đoàn</li>
+            <li>Thêm · sửa · xoá bản ghi giá; phân quyền theo từng nhóm dữ liệu</li>
+            <li>Lịch sử giá từ năm 2024 đến hiện tại</li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+      <tr>
+        <td class="n">A3</td>
+        <td class="g">Phân tích &amp; gợi ý giá sàn</td>
+        <td>
+          <ul>
+            <li>Công cụ gợi ý điều chỉnh giá sàn theo rổ chỉ số thị trường</li>
+            <li>Biểu đồ tương quan giữa chỉ số thị trường và giá sàn đã ban hành</li>
+            <li>Kiểm định kết quả (backtest) tại một lần ban hành được chọn</li>
+            <li>Ma trận kịch bản Bull / Base / Bear theo từng chủng loại</li>
+            <li>Khuyến nghị nâng / giữ / hạ kèm diễn giải</li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+      <tr>
+        <td class="n">A4</td>
+        <td class="g">Command Center &amp; trợ lý</td>
+        <td>
+          <ul>
+            <li>Dashboard điều hành tổng quan thị trường</li>
+            <li>Biểu đồ thu mua · tồn kho · tiêu thụ theo ngày, xem được theo khu vực · đơn vị · chủng loại · loại hợp đồng, kèm đường doanh thu <span class="tag new">MỚI</span></li>
+            <li>Trợ lý AI hỏi đáp tiếng Việt trên dữ liệu thật, trả về biểu đồ · bảng · dẫn nguồn số liệu</li>
+            <li>Bản tin ngày sinh tự động theo mẫu, xuất PDF</li>
+            <li>Ngưỡng biến động cấu hình được trong hệ thống</li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+      <tr>
+        <td class="n">A5</td>
+        <td class="g">Hạ tầng · phân quyền · vận hành</td>
+        <td>
+          <ul>
+            <li>Hệ thống vận hành thật với người dùng thật, có quy trình phát hành phiên bản</li>
+            <li>Đăng nhập, bốn vai trò người dùng, phân quyền theo nhóm dữ liệu, hai mức Xem / Sửa</li>
+            <li>Quản trị người dùng · cấu hình hệ thống · lịch chạy tác vụ tự động · nhật ký hoạt động</li>
+            <li>Bộ tài liệu hướng dẫn sử dụng có ảnh chụp màn hình từng bước</li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="pgft"><span>Danh mục tính năng · 25/08/2026 · <b>Bizino AI × Thái Hưng Infotech</b></span><span>Trang 1/4</span></div>
+</div>
+
+<!-- ═══════════════ TRANG 2 ═══════════════ -->
+<div class="page">
+  <h2 class="sec amber" style="margin-top:0">Bảng B · Trong kế hoạch — còn lại</h2>
+  <table class="t amber">
+    <thead><tr><th style="width:24px">#</th><th style="width:165px">Nhóm còn lại</th><th>Hiện trạng</th><th style="width:92px">Đầu mối</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="n">B1</td>
+        <td class="g">Mô hình dự báo giá 7 / 30 ngày</td>
+        <td>Chưa dựng khối mô hình chuỗi thời gian cho SVR 10 ⇒ <b>chưa đo được chỉ số sai số dự báo (MAPE)</b> — tiêu chí nghiệm thu chính của giai đoạn PoC. Kèm theo: chưa có kênh thu thập riêng cho <b>chỉ số vĩ mô</b> (dầu thô · butadiene · chỉ số USD · PMI Trung Quốc) làm biến đầu vào; hiện chỉ tham chiếu qua tin thị trường. Mới kiểm định trên dữ liệu quá khứ, chưa chạy <b>đối chiếu song song với nhận định của chuyên viên</b>.</td>
+        <td><span class="tag wait">Bizino</span></td>
+      </tr>
+      <tr>
+        <td class="n">B2</td>
+        <td class="g">Cảnh báo tự động ra ngoài hệ thống</td>
+        <td>Ngưỡng biến động đã cấu hình được trong hệ thống, nhưng chưa dựng kênh phát cảnh báo qua <b>Email / Zalo / Telegram</b>; bản tin ngày vẫn phải bấm tạo, chưa tự phát vào 07:30 và 17:00. Kênh Zalo cần tài khoản chính thức của VRG.</td>
+        <td><span class="tag wait">Bizino</span> <span class="tag vrg">VRG</span></td>
+      </tr>
+      <tr>
+        <td class="n">B3</td>
+        <td class="g">Đưa văn bản, tài liệu nội bộ vào hệ thống</td>
+        <td>Trợ lý AI hiện chỉ trả lời trên <em>số liệu</em>. Còn hai phần: đưa <b>nội dung văn bản</b> vào phần hỏi đáp để hỏi thẳng trong khung chat, và dựng <b>thư mục quản lý tài liệu · số liệu</b> để lưu, tra cứu và dẫn lại nguồn. Cần VRG giao tài liệu nội bộ để đưa vào.</td>
+        <td><span class="tag vrg">VRG</span></td>
+      </tr>
+      <tr>
+        <td class="n">B4</td>
+        <td class="g">An toàn &amp; tuân thủ</td>
+        <td>Chưa áp <b>mã hoá dữ liệu khi lưu trữ</b> và chưa ký <b>cam kết không lưu dữ liệu</b> với nhà cung cấp AI — hai hồ sơ đi kèm yêu cầu tuân thủ Nghị định 13/2023/NĐ-CP.</td>
+        <td><span class="tag wait">Bizino</span> <span class="tag vrg">VRG</span></td>
+      </tr>
+      <tr>
+        <td class="n">B5</td>
+        <td class="g">Nghiệm thu &amp; bàn giao hệ thống</td>
+        <td>Chưa tổ chức <b>đào tạo chính thức</b> và <b>chưa nghiệm thu hệ thống</b>. Chưa <b>đưa hệ thống về máy chủ nội bộ của VRG</b> — hiện đang chạy trên hạ tầng do đơn vị triển khai quản lý.</td>
+        <td><span class="tag vrg">VRG</span> <span class="tag wait">Bizino</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="note"><b>Ghi chú.</b> Hai nhóm <b>B3 · B5</b> không vướng kỹ thuật mà vướng đầu vào từ phía VRG: tài liệu nội bộ, máy chủ tiếp nhận và lịch nghiệm thu. Riêng <b>biên bản xác nhận đổi nguồn dữ liệu</b> (một sàn nêu trong kế hoạch ban đầu đã ngừng hoạt động, đã thay bằng nguồn khác) cần lập trước khi nghiệm thu Trụ 01.</p>
+
+  <h2 class="sec blue">Bảng C · Ngoài dự kiến — đã triển khai <span style="font-weight:600;text-transform:none;letter-spacing:0;font-size:10.5px;color:var(--ink-3)">(phần 1/3)</span></h2>
+  <table class="t blue">
+    <thead><tr><th style="width:24px">#</th><th style="width:150px">Nhóm</th><th>Đầu mục tính năng</th><th style="width:70px">Trạng thái</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="n">C1</td>
+        <td class="g">Nhập liệu số liệu đơn vị thành viên</td>
+        <td>
+          <ul>
+            <li>Biểu mẫu <b>Thu mua</b> theo ngày: mủ nước · mủ chén · mua mủ thành phẩm theo chủng loại</li>
+            <li>Biểu mẫu <b>Tiêu thụ</b> theo ngày: bán mủ thành phẩm · bán mủ khai thác, kèm số hợp đồng và ngày hoá đơn</li>
+            <li>Biểu mẫu <b>Tồn kho</b> theo ngày, chia bốn khối theo cách phân loại của Ban TTKD</li>
+            <li>Khai báo <b>kế hoạch năm</b> làm mẫu số cho tỷ lệ hoàn thành kế hoạch, gồm cả <b>kế hoạch doanh thu</b> <span class="tag new">MỚI</span></li>
+            <li>Khai báo <b>nhu cầu thị trường</b> tại địa bàn đơn vị</li>
+            <li>Đa tiền tệ theo từng dòng (VND · USD · LAK · KHR)</li>
+            <li>Quy khô bắt buộc, theo đúng chuẩn độ của từng loại mủ (TSC cho mủ nước · DRC cho mủ chén); khối lượng theo tấn, ba chữ số thập phân <span class="tag new">MỚI</span></li>
+            <li>Đánh dấu ngày không phát sinh thu mua, đánh dấu được <b>hàng loạt nhiều ngày một lượt</b> <span class="tag new">MỚI</span></li>
+            <li>Đính kèm nhiều chứng từ cho mỗi dòng số liệu (định dạng văn phòng và tệp quét)</li>
+            <li>Chuyển một báo cáo sang ngày khác khi đơn vị chọn nhầm ngày</li>
+            <li>Nhập bằng tệp Excel: tải biểu mẫu — xem trước — nạp vào hệ thống <span class="tag pause">đang tạm dừng</span></li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+      <tr>
+        <td class="n">C2</td>
+        <td class="g">Tài khoản &amp; phân quyền đơn vị</td>
+        <td>
+          <ul>
+            <li>Vai trò người dùng <b>Đơn vị thành viên</b> với menu riêng</li>
+            <li>Một tài khoản phụ trách nhiều đơn vị</li>
+            <li>Cửa sổ thời gian được phép sửa, cấu hình riêng cho đơn vị và cho chuyên viên</li>
+            <li>Quản trị đăng nhập thay đơn vị để hỗ trợ, có băng cảnh báo suốt phiên</li>
+            <li>Bảng nhắc “đơn vị còn thiếu số liệu gì”, số ngày rà lại do quản trị đặt; nay hiện thêm <b>các ô cần kiểm tra lại</b> ngay trên bảng nhắc <span class="tag new">MỚI</span></li>
+            <li>Ẩn / hiện biểu mẫu theo cờ đơn vị có nhà máy và đơn vị được giao kế hoạch thu mua</li>
+            <li>Cảnh báo nhập lệch bất thường so với kỳ trước và cảnh báo sai đơn vị tính</li>
+            <li><b>Sáp nhập đơn vị thành viên</b> có ngày hiệu lực và nút gỡ: số liệu trước ngày hiệu lực giữ nguyên tên đơn vị cũ, báo cáo mặc định gộp và có công tắc tách riêng <span class="tag new">MỚI</span> <span class="tag wait">chờ đưa lên hệ thống thật</span></li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="pgft"><span>Danh mục tính năng · 25/08/2026 · <b>Bizino AI × Thái Hưng Infotech</b></span><span>Trang 2/4</span></div>
+</div>
+
+<!-- ═══════════════ TRANG 3 ═══════════════ -->
+<div class="page">
+  <h2 class="sec blue" style="margin-top:0">Bảng C · Ngoài dự kiến — đã triển khai <span style="font-weight:600;text-transform:none;letter-spacing:0;font-size:10.5px;color:var(--ink-3)">(phần 2/3)</span></h2>
+  <table class="t blue">
+    <thead><tr><th style="width:24px">#</th><th style="width:150px">Nhóm</th><th>Đầu mục tính năng</th><th style="width:70px">Trạng thái</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="n">C3</td>
+        <td class="g">Quản lý hợp đồng &amp; khách hàng</td>
+        <td>
+          <ul>
+            <li><b>Hợp đồng mẹ (HĐ nguyên tắc / HĐ dài hạn)</b> — cấp hồ sơ gốc phía trên hợp đồng bán hàng: khách hàng · chủng loại kèm sản lượng cam kết (quy khô cho mủ nước) · công thức giá · tệp quét · ngày ký và thời hạn <span class="tag new">MỚI</span></li>
+            <li>Hợp đồng nối về hồ sơ mẹ thành <b>phụ lục</b>: nhập phụ lục ngay trên màn hợp đồng mẹ, gắn hợp đồng đã có vào hồ sơ, lọc danh sách theo hồ sơ, đối chiếu sản lượng đã ký với cam kết <span class="tag new">MỚI</span></li>
+            <li>Hợp đồng hai cấp: hợp đồng gốc và các đợt giao hàng bên dưới</li>
+            <li>Vòng đời từng đợt giao (bắt đầu → đã giao), theo dõi khối lượng đã giao và trạng thái đã giao đủ</li>
+            <li>Danh mục khách hàng riêng của từng đơn vị</li>
+            <li>Hình thức bán: xuất khẩu · trong nước · nội bộ Tập đoàn</li>
+            <li>Báo cáo tiêu thụ tính ra từ hợp đồng, kèm lịch sử giao hàng</li>
+            <li>Quy ước mủ nước: tiêu thụ quy về tấn khô, thanh toán theo khối lượng ướt</li>
+            <li>Tỷ giá chỉ bắt buộc <b>khi đợt giao đã có ngày giao</b> — lúc ký hợp đồng chưa biết tỷ giá <span class="tag new">MỚI</span></li>
+            <li>Kiểm tra trùng số hợp đồng; cảnh báo sai đơn vị tính khi nhập dòng hợp đồng; cảnh báo dòng bán ngoại tệ còn thiếu tỷ giá <span class="tag new">MỚI</span></li>
+            <li>Tìm kiếm không dấu, lọc nhiều khách hàng và nhiều chủng loại cùng lúc</li>
+            <li>Màn tra cứu dữ liệu hợp đồng theo cấu trúc cũ, giữ nguyên không trộn vào cấu trúc mới</li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+      <tr>
+        <td class="n">C4</td>
+        <td class="g">Thống kê số liệu đơn vị</td>
+        <td>
+          <ul>
+            <li>Thống kê thu mua · thống kê tiêu thụ · thống kê tồn kho, có bộ lọc theo đơn vị · khu vực · chủng loại · khoảng ngày</li>
+            <li>Thống kê tồn kho tại một ngày được chọn; <b>lấy đúng ngày đơn vị khai, không đắp số của ngày trước</b> <span class="tag new">MỚI</span></li>
+            <li>Màn theo dõi tình trạng nộp báo cáo của toàn bộ đơn vị</li>
+            <li>Báo cáo tổng hợp theo kỳ cho toàn Tập đoàn</li>
+            <li>Xem sâu năm lớp: Tập đoàn → Khu vực → Công ty → Ngày → chi tiết từng dòng</li>
+            <li>Tỷ lệ hoàn thành kế hoạch năm về <b>sản lượng và doanh thu</b> <span class="tag new">MỚI</span></li>
+            <li>Dòng lũy kế và dòng tổng cộng kỳ ở các bảng thu mua · tồn kho · tiêu thụ · hợp đồng <span class="tag new">MỚI</span></li>
+            <li>Xuất Excel đúng bộ lọc đang xem, kèm <b>sheet chi tiết từng dòng bán</b> để đối chiếu chứng từ <span class="tag new">MỚI</span></li>
+            <li>Phân trang phía máy chủ cho các màn danh sách dài</li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+      <tr>
+        <td class="n">C5</td>
+        <td class="g">Bản tin &amp; báo cáo nghiệp vụ</td>
+        <td>
+          <ul>
+            <li><b>Bản tin ngày</b> theo mẫu chính thức, xuất PDF, có phần nhận định AI theo tin thị trường</li>
+            <li><b>Báo cáo phân tích thị trường tuần</b> sáu phần theo mẫu Ban TTKD, bảng số tự tính theo bình quân tuần, xuất PDF <span class="tag wait">chưa đưa tài liệu hướng dẫn nội dung của Ban TTKD vào</span></li>
+            <li><b>Bản tin biến động</b>: biểu đồ theo từng nhóm số liệu kèm ô nhận định AI; bổ sung nhóm <b>Tiêu thụ</b> và cách xem <b>tồn tự do theo chủng loại</b> (tồn kho trừ phần đã ký hợp đồng) <span class="tag new">MỚI</span></li>
+            <li><b>Tờ trình giá sàn</b> theo mẫu Ban TTKD trình Tổng Giám đốc</li>
+            <li><b>Báo giá mủ thị trường</b> theo ngày</li>
+            <li>Gom giá mủ nguyên liệu theo khu vực khi lên bản tin</li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="pgft"><span>Danh mục tính năng · 25/08/2026 · <b>Bizino AI × Thái Hưng Infotech</b></span><span>Trang 3/4</span></div>
+</div>
+
+<!-- ═══════════════ TRANG 4 ═══════════════ -->
+<div class="page">
+  <h2 class="sec blue" style="margin-top:0">Bảng C · Ngoài dự kiến — đã triển khai <span style="font-weight:600;text-transform:none;letter-spacing:0;font-size:10.5px;color:var(--ink-3)">(phần 3/3)</span></h2>
+  <table class="t blue">
+    <thead><tr><th style="width:24px">#</th><th style="width:150px">Nhóm</th><th>Đầu mục tính năng</th><th style="width:70px">Trạng thái</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="n">C6</td>
+        <td class="g">Nhật ký hoạt động</td>
+        <td>
+          <ul>
+            <li>Ghi vết mọi thay đổi số liệu: người thực hiện · thời điểm · giá trị trước → sau</li>
+            <li>Áp cho tất cả lối vào: màn chuyên viên, màn đơn vị, nhập từ tệp, trang công khai, tác vụ tự chạy</li>
+            <li>Màn tra cứu nhật ký có bộ lọc, cấp quyền xem riêng</li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+      <tr>
+        <td class="n">C7</td>
+        <td class="g">Số liệu Tập đoàn tính từ số liệu đơn vị</td>
+        <td>
+          <ul>
+            <li><b>Tồn kho Tập đoàn tự tính</b> từ biểu tồn kho của các đơn vị thành viên, chạy tự động tối thứ Sáu, không đè lên tuần đã nhập tay, chuyên viên bật · tắt được <span class="tag new">MỚI</span></li>
+            <li><b>Giá mủ nguyên liệu</b> nối tự động từ số đơn vị tự khai sang lớp chuyên viên chốt, bật · tắt theo từng đơn vị <span class="tag new">MỚI</span></li>
+            <li>Tiêu thụ trên biểu tồn kho lấy thẳng từ hợp đồng, đơn vị không phải khai lại <span class="tag new">MỚI</span></li>
+            <li>Tách kho giá mủ nguyên liệu thành hai lớp: chuyên viên chốt · đơn vị tự khai</li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+      <tr>
+        <td class="n">C8</td>
+        <td class="g">Bóc tách &amp; nạp dữ liệu lịch sử</td>
+        <td>
+          <ul>
+            <li>Bóc tách các lần ban hành giá sàn từ hồ sơ gốc của Ban TTKD</li>
+            <li>Bóc tách chuỗi tồn kho theo tuần từ báo cáo định kỳ</li>
+            <li>Nạp lịch sử giá sàn · tỷ giá · giá mủ nguyên liệu · giá giao ngay từ năm 2024</li>
+            <li>Nhập nhanh giá giao ngay từ nội dung bản tin thị trường</li>
+            <li>Chuyển đổi cấu trúc dữ liệu và rà soát · sửa dữ liệu sai đơn vị tính trên hệ thống thật</li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+      <tr>
+        <td class="n">C9</td>
+        <td class="g">Kênh nhập liệu mở rộng &amp; danh mục</td>
+        <td>
+          <ul>
+            <li>Trang khai báo công khai có mật khẩu để đơn vị báo giá mủ trong ngày, không cần tài khoản <span class="tag pause">đang tạm dừng</span></li>
+            <li>Danh mục đơn vị thành viên, danh mục khu vực, quan hệ công ty mẹ – công ty con</li>
+            <li>Danh mục chủng loại dùng chung cho mọi màn nhập liệu của đơn vị</li>
+            <li>Công cụ xuất báo cáo đốc thúc nhập liệu để gửi các đơn vị, dạng ảnh và dạng tệp Excel <span class="tag new">MỚI</span></li>
+          </ul>
+        </td>
+        <td><span class="tag live">Đang chạy</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="basis" style="margin-top:14px">
+    <b>Ghi chú chung.</b>
+    <ul>
+      <li>Toàn bộ hạng mục ở Bảng A và Bảng C đang chạy trên hệ thống thật, phiên bản <b>v0.4.39</b>. Riêng <b>Sáp nhập đơn vị thành viên</b> (thuộc C2) đã hoàn thiện và đang chờ đưa lên hệ thống thật.</li>
+      <li>Hai lối nhập đã <b>tạm dừng</b>, giữ nguyên trong hệ thống để mở lại khi cần: nhập bằng tệp Excel (thuộc C1) và trang khai báo công khai (thuộc C9). Hiện đơn vị nhập trực tiếp trên màn hình.</li>
+      <li>Báo cáo phân tích thị trường tuần (thuộc C5) đã có khung mẫu và bảng số; <b>tài liệu hướng dẫn nội dung viết</b> do Ban TTKD cung cấp chưa được đưa vào.</li>
+      <li>Bản này chỉ liệt kê đầu mục để đối chiếu phạm vi; không kèm số liệu khối lượng hay chi phí.</li>
+    </ul>
+  </div>
+
+  <div class="pgft"><span>Danh mục tính năng · 25/08/2026 · <b>Bizino AI × Thái Hưng Infotech</b></span><span>Trang 4/4</span></div>
+</div>
+</body>
+</html>
