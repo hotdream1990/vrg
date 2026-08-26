@@ -5,6 +5,7 @@ import { Alert, Modal, Select, Spin, Tag, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { deleteRecord, upsertRecord } from "../../../lib/api-client";
+import { dmy } from "../../../lib/date";
 import { type MemberPriceType, clearMyPrice, upsertMyPrice } from "../../../lib/member-client";
 import { CUP_PRICE_UNIT, LATEX_PRICE_UNIT } from "../../../lib/purchase-price-unit";
 import {
@@ -55,11 +56,16 @@ export default function UnitDailyEditModal(
 
   const entry = data?.entries[company] ?? null;
   const exists = !!entry;
+  // Ngày đã CHỐT SỐ LIỆU của đơn vị đó → chỉ xem, giống ngày ngoài cửa sổ sửa. Hai hàng rào độc
+  // lập, cái nào chặn tới ngày mới hơn thì cái đó quyết định (xem `app/core/data_lock.py`).
+  const lockedUntil = data?.locked_until?.[company] ?? null;
+  const closed = !isAdmin && !!lockedUntil && !!day && day <= lockedUntil;   // đã chốt số liệu
   const editable = useMemo(() => {
     if (!canEdit || !day || day > today) return false;
     if (isAdmin) return true;
+    if (lockedUntil && day <= lockedUntil) return false;
     return daysBetween(today, day) <= (data?.edit_window_days ?? 7);
-  }, [canEdit, isAdmin, day, today, data]);
+  }, [canEdit, isAdmin, day, today, data, lockedUntil]);
 
   // Đơn giá mủ nước/mủ chén → ghi thẳng kho "Giá mủ nguyên liệu" (đúng đơn vị + ngày), chỉ khi đổi.
   //
@@ -122,9 +128,15 @@ export default function UnitDailyEditModal(
           ? <Tag color="blue">Đang sửa số đã có</Tag>
           : <Tag color="green">Tạo mới cho ngày này</Tag>}
       </div>
+      {/* Nói ĐÚNG lý do khoá: ngày đã chốt và ngày ngoài cửa sổ nhập là hai chuyện khác nhau, và
+          cách xử lý cũng khác (chốt rồi thì phải nhờ Ban TTKD sửa hộ). Ghi nhầm lý do là người
+          nhập ngồi chờ hết cửa sổ trong khi thực ra phải gọi điện cho Ban. */}
       {!editable && (
         <Alert type="info" showIcon style={{ marginBottom: 12 }}
-               message="Ngày này ở chế độ chỉ xem — ngoài cửa sổ nhập cho phép." />
+               message={closed
+                 ? `Số liệu đến hết ngày ${dmy(lockedUntil ?? "")} đã được chốt — đơn vị không tự `
+                   + "sửa được nữa. Cần điều chỉnh, đề nghị báo Ban TTKD để chuyên viên sửa hộ."
+                 : "Ngày này ở chế độ chỉ xem — ngoài cửa sổ nhập cho phép."} />
       )}
       <Spin spinning={loading}>
         {data && (

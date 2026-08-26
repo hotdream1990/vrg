@@ -40,6 +40,8 @@ export type DayData = {
   as_of: string;
   today: string;
   edit_window_days: number;
+  /** {đơn vị: ngày đã CHỐT SỐ LIỆU} — ngày ≤ mốc này đơn vị hết tự sửa. */
+  locked_until?: Record<string, string>;
   units: string[];
   plans: Record<string, number>;            // chỉ tiêu kế hoạch thu mua năm (đơn vị: tấn)
   entries: Record<string, DailyEntry | null>;
@@ -55,7 +57,8 @@ export type TimelineRow = {
  *  dữ liệu để tự cộng). Khoá = khoá cột của bảng; `stock_as_of` = ngày ảnh chụp tồn mới nhất. */
 export type TimelineTotals = Record<string, number | null> & { stock_as_of?: string | null };
 export type Timeline = {
-  today: string; edit_window_days: number; units: string[];
+  today: string; edit_window_days: number; locked_until?: Record<string, string>;
+  units: string[];
   plans: Record<string, number>; entries: TimelineRow[];
   /** Tổng số dòng khớp khoảng ngày (server cắt trang, `entries` chỉ là trang đang xem). */
   total: number;

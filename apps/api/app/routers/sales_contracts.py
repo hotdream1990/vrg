@@ -288,9 +288,15 @@ def _assert_delivery_window(username: str, contract_id: int | None, new_delivere
     lên (không cho khai lùi ra ngoài cửa sổ).
     """
     old = sales_contract_repo.get(contract_id) if contract_id else None
-    for as_of in (old.get("delivered_at") if old else None, new_delivered_at):
+    days = [old.get("delivered_at") if old else None, new_delivered_at]
+    for as_of in days:
         if as_of:
             security.assert_edit_window(username, as_of)
+    # CHỐT SỐ LIỆU: lần giao là bản ghi TIÊU THỤ — đơn vị đã chốt đến ngày X thì mọi lần giao
+    # ≤ X phải đứng yên, nếu không con số tiêu thụ vừa xác nhận vẫn đổi được sau lưng (yêu cầu
+    # 25/08/2026: "hợp đồng có thể cập nhật nhưng tiêu thụ sẽ bị chốt lại"). Hợp đồng và các đợt
+    # giao SAU ngày chốt vẫn thêm/sửa bình thường.
+    security.assert_not_data_locked(username, company or (old or {}).get("company"), *days)
 
 
 @router.put("")
@@ -330,6 +336,11 @@ def set_delivery_type(contract_id: int, body: DeliveryTypeIn, scope: EditScope) 
     nguyên ngày giao / hoá đơn / thanh toán / dòng chi tiết.
     """
     username, companies = scope
+    # Chuyển loại giao của một hợp đồng ĐÃ GIAO là dời chỗ ghi nhận tiêu thụ → chặn nếu đã chốt.
+    # CHỈ hàng rào chốt, KHÔNG thêm cửa sổ sửa: endpoint này xưa nay không bị cửa sổ chặn, siết
+    # thêm ở đây là đổi hành vi ngoài phạm vi việc đang làm.
+    _old = sales_contract_repo.get(contract_id) or {}
+    security.assert_not_data_locked(username, _old.get("company"), _old.get("delivered_at"))
     try:
         return {"contract": sales_contract_lifecycle.set_delivery_type(
             contract_id, body.delivery_type, companies, username)}

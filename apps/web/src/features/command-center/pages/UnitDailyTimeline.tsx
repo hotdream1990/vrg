@@ -95,14 +95,20 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
     ...(canEdit ? [{ title: "", key: "act", fixed: "right" as const, width: 96, align: "center" as const,
       render: (_: unknown, r: Row) => {
         // Ngoài cửa sổ sửa: vẫn hiện nút nhưng khoá + nói rõ lý do (đừng để user bấm rồi mới báo lỗi).
-        const locked = !isAdmin && daysBetween(data?.today ?? todayISO(), r.as_of) > (data?.edit_window_days ?? 7);
+        const lockedUntil = data?.locked_until?.[r.company] ?? null;
+        const closed = !isAdmin && !!lockedUntil && r.as_of <= lockedUntil;   // đã chốt số liệu
+        const locked = closed
+          || (!isAdmin && daysBetween(data?.today ?? todayISO(), r.as_of) > (data?.edit_window_days ?? 7));
         return (
           <>
             <Tooltip title="Sửa số liệu">
               <Button size="small" type="link" icon={<EditOutlined />}
                       onClick={() => onEdit(r.as_of, r.company)} />
             </Tooltip>
-            <Tooltip title={locked ? "Ngày này đã ngoài cửa sổ nhập — chỉ xem" : "Đổi ngày bản ghi (nhập nhầm ngày)"}>
+            <Tooltip title={closed
+              ? "Số liệu ngày này đã chốt — báo Ban TTKD nếu cần sửa"
+              : locked ? "Ngày này đã ngoài cửa sổ nhập — chỉ xem"
+                       : "Đổi ngày bản ghi (nhập nhầm ngày)"}>
               <Button size="small" type="link" icon={<CalendarOutlined />} disabled={locked}
                       onClick={() => setMoving({ as_of: r.as_of, company: r.company })} />
             </Tooltip>

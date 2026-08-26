@@ -199,6 +199,11 @@ def _snapshot(contract_id: int) -> dict[str, Any] | None:
     return _row(row) if row else None
 
 
+def get(contract_id: int) -> dict[str, Any] | None:
+    """1 hợp đồng theo id (None nếu không có) — dùng để kiểm ngày trước khi sửa/xoá."""
+    return _snapshot(contract_id)
+
+
 def delete(contract_id: int, companies: list[str] | None) -> bool:
     """Xoá 1 hợp đồng (chỉ trong các đơn vị được phép). False nếu không có/không thuộc quyền."""
     ensure_schema()

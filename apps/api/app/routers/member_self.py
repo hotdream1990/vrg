@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 
-from app.core import edit_window
+from app.core import data_lock, edit_window
 from app.core.feature_flags import require_excel_import
 from app.core.market_meta import PURCHASE_PRICE_UNIT, PURCHASE_SOURCE_UNIT, UNIT_GRADES
 from app.core.security import get_current_member
@@ -41,6 +41,15 @@ def _price_unit(price_type: str, basis: str | None = None) -> str:
     return PURCHASE_PRICE_UNIT[price_type]
 
 
+def _locked(member: dict) -> dict[str, str]:
+    """{đơn vị: ngày đã chốt} của riêng tài khoản này — trả kèm mọi payload có `edit_window_days`
+    để màn nhập liệu biết ngày nào đã chốt mà chuyển sang "(đã chốt)" thay vì mời bấm rồi báo lỗi."""
+    from app.services import data_lock_repo
+
+    got = data_lock_repo.locked_map()
+    return {u: got[u] for u in (member.get("member_units") or []) if u in got}
+
+
 def _assert_company(member: dict, company: str, as_of: str | None = None) -> None:
     """Chặn ghi cho đơn vị không được gán cho tài khoản này (và đơn vị đã sáp nhập).
 
@@ -66,6 +75,7 @@ def my_prices(days: int = Query(30, ge=1, le=180),
     units = list(member["member_units"])
     sheets = {u: price_repo.member_price_history(u, days) for u in units}
     return {"units": units, "today": edit_window.today().isoformat(),
+            "edit_window_days": edit_window.member_window(), "locked_until": _locked(member),
             "sheets": sheets}
 
 
@@ -78,6 +88,8 @@ def upsert_my_price(body: MemberPriceEdit,
     """
     _assert_company(member, body.company, body.as_of)
     edit_window.assert_editable(body.as_of, edit_window.member_window())
+    # Đơn giá thu mua là MỘT PHẦN của số liệu thu mua đã chốt → khoá theo cùng mốc.
+    data_lock.assert_not_locked(body.company, body.as_of)
     # Giá đơn vị TỰ KHAI nằm ở lớp riêng — không đè lên giá chuyên viên đã chốt (xem market_meta).
     price_repo.upsert_record({
         "as_of": body.as_of, "source": PURCHASE_SOURCE_UNIT, "grade": body.company, "contract": "",
@@ -99,6 +111,7 @@ def clear_my_price(
     if price_type not in PURCHASE_PRICE_UNIT:
         raise HTTPException(400, "Loại giá không hợp lệ.")
     edit_window.assert_editable(as_of, edit_window.member_window())
+    data_lock.assert_not_locked(company, as_of)
     price_repo.delete_record(as_of, PURCHASE_SOURCE_UNIT, company, "", price_type)
     return {"deleted": True}
 
@@ -156,6 +169,7 @@ def my_daily_timeline(kind: str = Query(..., pattern="^(purchase|consumption)$")
     res = timeline_page(kind, d_from, d_to, units, page, page_size)
     unit_daily_repo.attach_purchase_prices(res["entries"], kind)
     return {"today": today.isoformat(), "edit_window_days": edit_window.member_window(),
+            "locked_until": _locked(member),
             "units": units, "plans": unit_daily_repo.plans_for_year(today.year),
             **res, "page": page, "page_size": page_size}
 
@@ -172,6 +186,7 @@ def my_daily(kind: str = Query(..., pattern="^(purchase|consumption)$"),
         raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
     entries = unit_daily_repo.entries_on(kind, as_of)
     return {"as_of": as_of, "today": edit_window.today().isoformat(),
+            "edit_window_days": edit_window.member_window(), "locked_until": _locked(member),
             "units": units,
             "plans": unit_daily_repo.plans_for_year(year),
             "entries": {u: entries.get(u) for u in units},
@@ -242,6 +257,11 @@ def save_my_stock_contract(body: StockContractEdit,
                            member: dict = Depends(get_current_member)) -> dict:
     """Đơn vị thêm HĐ mới hoặc cập nhật NGÀY GIAO khi đã xuất kho."""
     _assert_company(member, body.company, body.start_date)
+    # Khoá theo CẢ ngày đang lưu lẫn ngày gửi lên: hợp đồng này nằm trong chỉ tiêu tồn kho đã chốt.
+    old = unit_stock_contract_repo.get(body.id) if body.id else None
+    data_lock.assert_not_locked(
+        body.company, body.start_date, body.delivered_date,
+        (old or {}).get("start_date"), (old or {}).get("delivered_date"))
     try:
         return {"contract": unit_stock_contract_repo.save(
             body.model_dump(), body.company, member.get("username"))}
@@ -253,6 +273,9 @@ def save_my_stock_contract(body: StockContractEdit,
 def delete_my_stock_contract(contract_id: int,
                              member: dict = Depends(get_current_member)) -> dict:
     """Xoá 1 hợp đồng của đơn vị mình (nhập nhầm)."""
+    old = unit_stock_contract_repo.get(contract_id) or {}
+    if old.get("company"):
+        data_lock.assert_not_locked(old["company"], old.get("start_date"), old.get("delivered_date"))
     if not unit_stock_contract_repo.delete(contract_id, list(member["member_units"])):
         raise HTTPException(404, "Không tìm thấy hợp đồng này.")
     return {"ok": True}
@@ -278,6 +301,7 @@ def upsert_my_daily(body: UnitDailyEdit,
     """Ghi/sửa số liệu 1 đơn vị được gán cho 1 ngày, trong cửa sổ cho phép. create_only → chống ghi trùng."""
     _assert_company(member, body.company, body.as_of)
     edit_window.assert_editable(body.as_of, edit_window.member_window())
+    data_lock.assert_not_locked(body.company, body.as_of)
     if body.create_only and unit_daily_repo.has_entry(body.kind, body.as_of, body.company):
         raise HTTPException(409, "Đơn vị này đã có số liệu cho ngày này — vui lòng dùng chức năng Sửa.")
     unit_daily_repo.upsert(body.kind, body.as_of, body.company, body.fields, member.get("username"))
@@ -295,6 +319,7 @@ def move_my_daily_date(body: UnitDailyMove,
     _assert_company(member, body.company, body.to_date)
     edit_window.assert_editable(body.as_of, edit_window.member_window())
     edit_window.assert_editable(body.to_date, edit_window.member_window())
+    data_lock.assert_not_locked(body.company, body.as_of, body.to_date)
     try:
         return {"ok": True, **unit_daily_repo.move_day(
             body.kind, body.company, body.as_of, body.to_date, member.get("username"))}
@@ -342,6 +367,10 @@ async def my_import_preview(kind: str = Query(..., pattern="^(purchase|sales|sto
 def my_import_commit(body: ExcelImportCommit,
                      member: dict = Depends(get_current_member)) -> dict:
     """Ghi các dòng hợp lệ — server ép lại đơn vị thuộc quyền tài khoản."""
+    # File Excel là đường ghi thứ hai vào đúng những bảng đã chốt → phải qua cùng hàng rào.
+    for r in body.rows:
+        if r.get("company") and r.get("as_of"):
+            data_lock.assert_not_locked(str(r["company"]), str(r["as_of"]))
     return unit_daily_excel_io.commit_rows(body.kind, body.rows, member.get("username"),
                                            allowed_units=list(member["member_units"]))
 

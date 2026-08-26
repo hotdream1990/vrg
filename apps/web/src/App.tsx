@@ -25,6 +25,7 @@ import PhysicalSheetPage from "./features/command-center/pages/PhysicalSheetPage
 import PriceSheetPage from "./features/command-center/pages/PriceSheetPage";
 import ProfilePage from "./features/command-center/pages/ProfilePage";
 import RawMaterialPage from "./features/command-center/pages/RawMaterialPage";
+import DataLockPage from "./features/command-center/pages/DataLockPage";
 import MasterContractPage from "./features/command-center/pages/MasterContractPage";
 import SalesContractPage from "./features/command-center/pages/SalesContractPage";
 import ScanPage from "./features/command-center/pages/ScanPage";
@@ -153,6 +154,9 @@ export default function App() {
                     <Route path="/thong-ke/tieu-thu" element={<ConsumptionStatsPage />} />
                     <Route path="/thong-ke/ton-kho" element={<StockStatsPage />} />
                     <Route path="/thong-ke/tinh-trang-nop" element={<SubmissionStatusPage />} />
+                    {/* Chốt số liệu: Ban TTKD theo dõi; riêng thao tác phát đợt/khoá/mở là của
+                        quản trị — trang tự ẩn các nút đó, server chặn bằng require_admin. */}
+                    <Route path="/chot-so-lieu" element={<DataLockPage />} />
                   </Route>
                   {/* Đường dẫn cũ → giữ cho link đã lưu */}
                   <Route path="/bao-cao-tieu-thu-ton-kho" element={<Navigate to="/bao-cao-ton-kho" replace />} />

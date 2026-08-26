@@ -19,6 +19,7 @@ import {
   IdcardOutlined,
   InboxOutlined,
   LineChartOutlined,
+  LockOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -44,6 +45,7 @@ import { VRG } from "../../theme";
 import { useAuth } from "../auth/AuthContext";
 import { IMPERSONATION_BANNER_HEIGHT } from "../auth/ImpersonationBanner";
 import MemberChecklistBanner from "./sections/MemberChecklistBanner";
+import MemberDataLockBanner from "./sections/MemberDataLockBanner";
 
 const { Header, Sider, Content, Footer } = Layout;
 
@@ -90,6 +92,7 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
     can("sales_contract") && { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Báo cáo tiêu thụ" },
     can("unit_daily") && { key: "/bao-cao-tong-hop", icon: <FileDoneOutlined />, label: "Báo cáo tổng hợp" },
     can("unit_daily") && { key: "/thong-ke/tinh-trang-nop", icon: <CheckSquareOutlined />, label: "Theo dõi nộp báo cáo" },
+    can("unit_daily") && { key: "/chot-so-lieu", icon: <LockOutlined />, label: "Chốt số liệu đơn vị" },
     // Xếp theo dòng chảy nghiệp vụ: mua vào → giữ kho → bán ra.
     can("unit_daily") && { key: "/thong-ke/thu-mua", icon: <ShoppingOutlined />, label: "Thống kê thu mua" },
     can("unit_daily") && { key: "/thong-ke/ton-kho", icon: <InboxOutlined />, label: "Thống kê tồn kho" },
@@ -265,6 +268,9 @@ export default function AdminLayout() {
         <Content style={{ overflow: "auto" }}>
           {/* Nhắc việc của đơn vị đặt Ở ĐÂY (khung), không ở từng trang: đơn vị vào màn nào cũng
               thấy ngay mình còn nợ số liệu ngày nào. */}
+          {/* Yêu cầu chốt số liệu đứng TRÊN bảng nhắc việc: đây là việc có hạn của Ban TTKD,
+              còn bảng nhắc là việc thường ngày. */}
+          {isMember && <MemberDataLockBanner />}
           {isMember && <MemberChecklistBanner />}
           <main className="main"><Outlet /></main>
         </Content>

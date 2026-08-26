@@ -305,6 +305,36 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_master_contract_code
     ON master_contract (company, lower(code));
 CREATE INDEX IF NOT EXISTS ix_master_contract_company ON master_contract (company, sign_date);
 
+-- CHỐT SỐ LIỆU ĐƠN VỊ (chốt 25/08/2026): Ban TTKD phát một ĐỢT CHỐT "chốt số liệu đến hết ngày X";
+-- mỗi đơn vị tự rà rồi XÁC NHẬN, xác nhận xong là số liệu ≤ ngày X khoá lại với chính đơn vị đó
+-- (chuyên viên/quản trị vẫn sửa được — đó là đường sửa duy nhất sau khi chốt).
+-- Vì sao 2 bảng: đợt chốt là việc của Ban (1 dòng cho cả hệ thống), còn xác nhận là việc của từng
+-- đơn vị (mỗi đơn vị 1 dòng) — nhờ vậy trang theo dõi lọc được "đơn vị chưa xác nhận" và giữ được
+-- lịch sử các lần chốt trước.
+CREATE TABLE IF NOT EXISTS data_lock_round (
+    id           bigserial PRIMARY KEY,
+    lock_date    date NOT NULL,          -- chốt số liệu đến HẾT ngày này
+    note         text,                   -- lời nhắn của Ban hiện trong cảnh báo của đơn vị
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    created_by   text,
+    cancelled_at timestamptz             -- huỷ đợt: giữ vết chứ không xoá; đợt đã huỷ hết khoá
+);
+CREATE INDEX IF NOT EXISTS ix_data_lock_round_date ON data_lock_round (lock_date DESC);
+
+-- Xác nhận chốt của TỪNG đơn vị. `snapshot` giữ CON SỐ tại lúc bấm xác nhận — để sau này còn đối
+-- chiếu "số đã chốt" với "số hiện tại" (chuyên viên sửa hộ là số sẽ lệch, và phải nhìn ra được).
+CREATE TABLE IF NOT EXISTS unit_data_lock (
+    id        bigserial PRIMARY KEY,
+    round_id  bigint NOT NULL,
+    company   text NOT NULL,
+    locked_at timestamptz NOT NULL DEFAULT now(),
+    locked_by text,                      -- tài khoản bấm xác nhận (đơn vị) hoặc quản trị khoá hộ
+    by_admin  boolean NOT NULL DEFAULT false,
+    snapshot  jsonb
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_unit_data_lock ON unit_data_lock (round_id, company);
+CREATE INDEX IF NOT EXISTS ix_unit_data_lock_company ON unit_data_lock (company);
+
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
 -- Job chạy theo NGÀY TRONG TUẦN (rỗng/NULL = chạy hằng ngày như trước). Vd 'fri' = tối thứ Sáu
 -- cho job chốt tồn kho Tập đoàn theo tuần.
