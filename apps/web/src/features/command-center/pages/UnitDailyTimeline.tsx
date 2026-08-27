@@ -2,7 +2,7 @@
    thành viên (đơn vị được gán) và chuyên viên (mọi đơn vị). Mỗi dòng = 1 (ngày × đơn vị); cột số
    liệu giữ đúng thứ tự Excel; ô "Ngày" gộp cho các đơn vị cùng ngày. */
 
-import { CalendarOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
+import { CalendarOutlined, EditOutlined, EyeOutlined, LockOutlined, PlusOutlined } from "@ant-design/icons";
 import { Button, Empty, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -101,8 +101,14 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
           || (!isAdmin && daysBetween(data?.today ?? todayISO(), r.as_of) > (data?.edit_window_days ?? 7));
         return (
           <>
-            <Tooltip title="Sửa số liệu">
-              <Button size="small" type="link" icon={<EditOutlined />}
+            {/* Icon phải nói đúng việc bấm vào sẽ làm được: ngày đã CHỐT thì mở ra cũng chỉ xem,
+                để nguyên cây bút là hứa hão (chốt 27/08/2026). Vẫn cho bấm để xem lại số. */}
+            <Tooltip title={closed
+              ? "Số liệu ngày này đã chốt — mở ra chỉ xem, cần sửa thì báo Ban TTKD"
+              : locked ? "Ngày này đã ngoài cửa sổ nhập — mở ra chỉ xem"
+                       : "Sửa số liệu"}>
+              <Button size="small" type="link"
+                      icon={closed ? <LockOutlined /> : locked ? <EyeOutlined /> : <EditOutlined />}
                       onClick={() => onEdit(r.as_of, r.company)} />
             </Tooltip>
             <Tooltip title={closed
