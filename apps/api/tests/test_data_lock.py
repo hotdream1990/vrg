@@ -284,3 +284,35 @@ def test_member_cannot_confirm_for_another_unit(env) -> None:
     r = client.post("/api/data-lock/confirm", headers=mh,
                     json={"round_id": rnd["id"], "company": "Công ty Cổ phần Cao Su Bà Rịa"})
     assert r.status_code == 403
+
+
+def test_another_units_round_does_not_shorten_my_period(env) -> None:
+    """Đợt chốt riêng của đơn vị KHÁC không được cắt đầu kỳ của đơn vị chưa chốt lần nào.
+
+    Đã xảy ra thật 27/08/2026: Ban phát thêm một đợt "chốt đến 20/08" cho vài đơn vị sáp nhập, thế
+    là 13 đơn vị khác vào xác nhận thấy kỳ chốt chỉ còn 21/08–26/08 thay vì lũy kế từ đầu năm —
+    họ ký trên bảng 6 ngày. Đầu kỳ phải tính theo lần chốt trước CỦA CHÍNH ĐƠN VỊ ĐÓ.
+    """
+    h, mh = env
+    rnd = _round(h)                                     # đợt chung, chốt đến hết LOCK
+    older = (TODAY - timedelta(days=3)).isoformat()
+    client.put("/api/data-lock/rounds",                 # đợt riêng của đơn vị khác, ngày cũ hơn
+               json={"lock_date": older, "note": "ZZ TEST"}, headers=h)
+
+    s = client.get(f"/api/data-lock/summary?company={UNIT}&round_id={rnd['id']}", headers=mh).json()
+    assert s["date_from"] == f"{LOCK[:4]}-01-01", "đơn vị này chưa chốt lần nào → kỳ tính từ 01/01"
+    assert s["prev_lock_date"] is None
+
+
+def test_my_own_previous_round_does_shorten_my_period(env) -> None:
+    """Ngược lại: chính đơn vị đã chốt ở đợt trước thì kỳ mới nối tiếp từ hôm sau mốc đó."""
+    h, mh = env
+    older = (TODAY - timedelta(days=3)).isoformat()
+    first = _round(h, older)
+    client.post("/api/data-lock/lock", json={"round_id": first["id"], "companies": [UNIT]},
+                headers=h)
+    rnd = _round(h)
+
+    s = client.get(f"/api/data-lock/summary?company={UNIT}&round_id={rnd['id']}", headers=mh).json()
+    assert s["prev_lock_date"] == older
+    assert s["date_from"] == (TODAY - timedelta(days=2)).isoformat()

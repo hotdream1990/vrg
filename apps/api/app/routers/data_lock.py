@@ -49,11 +49,13 @@ def _assert_company(username: str, company: str) -> None:
         raise HTTPException(403, "Đơn vị không thuộc quyền quản lý của tài khoản.")
 
 
-def _prev_lock_date(round_id: int, lock_date: str) -> str | None:
-    """Ngày chốt của đợt LIỀN TRƯỚC (chưa huỷ) — đầu kỳ của bảng số liệu sẽ chốt."""
-    prev = [r for r in data_lock_repo.list_rounds(50)
-            if not r["cancelled_at"] and r["id"] != round_id and r["lock_date"] < lock_date]
-    return max((r["lock_date"] for r in prev), default=None)
+def _prev_lock_date(company: str, lock_date: str) -> str | None:
+    """Đầu kỳ của bảng số liệu sẽ chốt = lần chốt trước CỦA CHÍNH ĐƠN VỊ ĐÓ (chưa có thì 01/01).
+
+    Theo đơn vị chứ không theo đợt: đợt chốt riêng của vài đơn vị (vd chốt trước sáp nhập) không
+    được cắt đầu kỳ của đơn vị khác — xem `data_lock_repo.locked_before_map`.
+    """
+    return data_lock_repo.locked_before_map([company], lock_date).get(company)
 
 
 # ── Phía ĐƠN VỊ ───────────────────────────────────────────────────────────────
@@ -88,7 +90,7 @@ def summary(company: str = Query(...), round_id: int | None = Query(None),
     rnd = data_lock_repo.get_round(round_id) if round_id else data_lock_repo.current_round()
     if not rnd:
         raise HTTPException(404, "Chưa có đợt chốt số liệu nào.")
-    prev = _prev_lock_date(rnd["id"], rnd["lock_date"])
+    prev = _prev_lock_date(company, rnd["lock_date"])
     return {"round": rnd, **data_lock_summary.summary(company, rnd["lock_date"], prev)}
 
 
@@ -99,7 +101,7 @@ def confirm(body: LockConfirmIn, username: str = Depends(get_current_user)) -> d
     rnd = data_lock_repo.get_round(body.round_id)
     if not rnd or rnd["cancelled_at"]:
         raise HTTPException(404, "Đợt chốt không còn hiệu lực.")
-    prev = _prev_lock_date(rnd["id"], rnd["lock_date"])
+    prev = _prev_lock_date(body.company, rnd["lock_date"])
     # Chụp lại CON SỐ tại lúc bấm — về sau còn đối chiếu với số hiện tại (chuyên viên sửa hộ là lệch).
     snap = data_lock_summary.summary(body.company, rnd["lock_date"], prev)
     data_lock_repo.confirm(rnd["id"], body.company, username, snapshot=snap)
@@ -188,10 +190,15 @@ def lock_units(body: LockUnitsIn, username: str = Depends(get_current_user)) -> 
     rnd = data_lock_repo.get_round(body.round_id)
     if not rnd or rnd["cancelled_at"]:
         raise HTTPException(404, "Đợt chốt không còn hiệu lực.")
-    prev = _prev_lock_date(rnd["id"], rnd["lock_date"])
-    # MỘT lượt tính cho cả danh sách: khoá hộ cả 70 đơn vị mà gọi `summary` từng cái là chạy lại
-    # toàn bộ báo cáo kỳ 70 lần.
-    snaps = data_lock_summary.summary_many(body.companies, rnd["lock_date"], prev)
+    # MỘT lượt tính cho mỗi ĐẦU KỲ: khoá hộ cả 70 đơn vị mà gọi `summary` từng cái là chạy lại
+    # toàn bộ báo cáo kỳ 70 lần. Đầu kỳ theo từng đơn vị nên gom các đơn vị cùng đầu kỳ lại.
+    prevs = data_lock_repo.locked_before_map(body.companies, rnd["lock_date"])
+    groups: dict[str | None, list[str]] = {}
+    for company in body.companies:
+        groups.setdefault(prevs.get(company), []).append(company)
+    snaps: dict[str, dict] = {}
+    for prev, companies in groups.items():
+        snaps.update(data_lock_summary.summary_many(companies, rnd["lock_date"], prev))
     for company in body.companies:
         data_lock_repo.confirm(rnd["id"], company, username, by_admin=True,
                                snapshot=snaps.get(company))

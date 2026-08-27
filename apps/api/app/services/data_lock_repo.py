@@ -159,6 +159,27 @@ def locked_until(company: str) -> date | None:
             " WHERE l.company = :c AND r.cancelled_at IS NULL"), {"c": company}).scalar()
 
 
+def locked_before_map(companies: list[str], before: str) -> dict[str, str]:
+    """{đơn vị: mốc chốt gần nhất TRƯỚC ngày `before`} — đầu kỳ của đợt chốt đang xét.
+
+    Đầu kỳ phải tính theo ĐƠN VỊ, không theo đợt: Ban có thể phát một đợt riêng cho vài đơn vị
+    (vd chốt trước sáp nhập) mà đơn vị khác không dính vào. Lấy "đợt liền trước của hệ thống" thì
+    đơn vị chưa chốt lần nào cũng bị cắt đầu kỳ theo đợt của người khác — đã xảy ra thật
+    27/08/2026: 13 đơn vị xác nhận trên bảng 6 ngày thay vì lũy kế từ đầu năm.
+    """
+    ensure_schema()
+    if not companies:
+        return {}
+    with session_scope() as db:
+        rows = db.execute(text(
+            "SELECT l.company, max(r.lock_date) AS d FROM unit_data_lock l "
+            "  JOIN data_lock_round r ON r.id = l.round_id "
+            " WHERE l.company = ANY(:cs) AND r.cancelled_at IS NULL "
+            "   AND r.lock_date < CAST(:d AS date) GROUP BY l.company"),
+            {"cs": list(companies), "d": before}).mappings().all()
+    return {r["company"]: str(r["d"]) for r in rows}
+
+
 def locked_map() -> dict[str, str]:
     """{đơn vị: ngày khoá} cho MỌI đơn vị đang bị khoá — dùng cho bảng theo dõi (1 truy vấn)."""
     ensure_schema()
