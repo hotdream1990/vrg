@@ -1455,3 +1455,48 @@ def test_contract_totals_match_the_rows(env, cus) -> None:
     one = client.get(f"/api/sales-contracts?company={UNIT}&q=TONG-M", headers=h).json()
     assert one["totals"]["qty"] == pytest.approx(100.0)
     assert one["totals"]["children"] == 2
+
+
+def test_completed_contract_is_not_still_owing_goods(env, cus) -> None:
+    """Chốt HOÀN THÀNH là hết nợ hàng — cột "còn phải giao" và dòng Tổng cộng phải bằng 0.
+
+    Lỗi thật gặp trên prod 27/08/2026: HĐ48/PL02 của Thanh Hoá chốt hoàn thành 24/04 lúc chưa giao
+    gì, danh sách vẫn ghi "còn phải giao 198,66 tấn" và cộng luôn vào Tổng cộng — trong khi khối 3
+    của báo cáo (đã ký HĐ chưa giao) đã loại nó ra. Hai màn kể hai câu chuyện khác nhau về cùng
+    một hợp đồng (đo được 4 hợp đồng, 327,635 tấn đếm thừa).
+    """
+    h = env
+    made = client.put("/api/sales-contracts", headers=h, json={
+        "company": UNIT, "code": "HD-DONE-0", "customer_id": cus, "contract_type": "spot",
+        "delivery_type": "single", "sign_date": TODAY,
+        "lines": [{"grade": "SVR 10 / CSR 10", "qty": 100.0, "price": 40.0, "ccy": "VND"}]})
+    assert made.status_code == 200, made.text
+    cid = made.json()["contract"]["id"]
+
+    row = lambda st=None: next(  # noqa: E731
+        r for r in client.get("/api/sales-contracts", headers=h,
+                              params={"company": UNIT, **({"status": st} if st else {})}
+                              ).json()["contracts"] if r["id"] == cid)
+    assert row()["remaining_qty"] == 100.0          # chưa chốt: còn nợ nguyên sản lượng
+
+    ok = client.put(f"/api/sales-contracts/{cid}/completion", headers=h,
+                    json={"completed_at": TODAY})
+    assert ok.status_code == 200, ok.text
+
+    after = row()
+    assert after["completed_at"] and after["remaining_qty"] == 0.0
+    assert after["delivered_qty"] == 0.0            # vẫn nói thật: chưa giao gì
+
+    # Không được lọt vào "Đã giao đủ" — chốt lúc chưa giao gì KHÔNG phải là giao đủ.
+    done_ids = [r["id"] for r in client.get("/api/sales-contracts", headers=h,
+                                            params={"company": UNIT, "status": "done"}).json()["contracts"]]
+    assert cid not in done_ids
+
+    # Dòng Tổng cộng cũng không được cộng phần đã chốt.
+    tot = client.get("/api/sales-contracts", headers=h,
+                     params={"company": UNIT}).json()["totals"]
+    assert tot["remaining_qty"] == 0.0
+
+    # Màn chi tiết kể cùng câu chuyện.
+    det = client.get(f"/api/sales-contracts/{cid}", headers=h).json()
+    assert det["remaining_qty"] == 0.0 and det["delivered_qty"] == 0.0

@@ -359,7 +359,8 @@ def parents_with_progress(companies: list[str] | None = None, *,
     truyền — mà màn hình chỉ hiện được vài chục dòng.
 
     Tiến độ của một hợp đồng:
-      - `delivered_qty` đã giao · `remaining_qty` = **sản lượng hợp đồng − đã giao** (còn phải giao)
+      - `delivered_qty` đã giao · `remaining_qty` = **sản lượng hợp đồng − đã giao** (còn phải
+        giao); hợp đồng ĐÃ CHỐT HOÀN THÀNH thì bằng 0 — chốt xong là hết trách nhiệm giao
       - `pending_qty` phần đã LẬP ĐỢT nhưng chưa điền ngày giao (nằm trong `remaining_qty`)
       - `over_qty` phần giao VƯỢT hợp đồng (thực giao được lệch, xem `repo.MAX_OVER_RATIO`)
       - `delivered_revenue` TIỀN của hàng đã giao — lệch với `revenue` (tiền hợp đồng) là bình
@@ -404,7 +405,9 @@ def parents_with_progress(companies: list[str] | None = None, *,
         params["q"] = f"%{vn_text.fold(q)}%"
     # "Còn hàng chưa giao" bỏ qua hợp đồng đã chốt hoàn thành — chốt xong là hết trách nhiệm giao.
     keep = {"open": "completed_at IS NULL AND remaining_qty > 1e-9",
-            "done": "remaining_qty <= 1e-9",
+            # `remaining_qty` của hợp đồng ĐÃ CHỐT nay bằng 0 → phải loại chúng ra, không thì
+            # "Đã giao đủ" gom cả hợp đồng chốt lúc chưa giao gì.
+            "done": "completed_at IS NULL AND remaining_qty <= 1e-9",
             "completed": "completed_at IS NOT NULL"}.get(status or "", "TRUE")
     # Lọc hình thức PHẢI đặt ở đây (sau khi đã gom `channels` của hợp đồng + các đợt), không đặt
     # được trong CTE `parent`: hợp đồng giao-nhiều-lần bản thân nó không mang hình thức nào.
@@ -458,7 +461,16 @@ def parents_with_progress(companies: list[str] | None = None, *,
                         ELSE 0 END AS pending_qty
             FROM parent p LEFT JOIN kid ON kid.parent_id = p.id
         ), scored AS (
-            SELECT g.*, GREATEST(g.pqty - g.delivered_qty, 0) AS remaining_qty,
+            SELECT g.*,
+                   -- CHỐT HOÀN THÀNH LÀ HẾT NỢ HÀNG: phần chênh giữa hợp đồng và thực giao rời khỏi
+                   -- "còn phải giao" kể từ ngày chốt — đúng luật khối 3 đang dùng (`_BLOCK3_SQL`
+                   -- loại hợp đồng đã hoàn thành). Trước 27/08/2026 câu này trừ thuần
+                   -- `pqty - delivered_qty` nên một hợp đồng chốt xong mà chưa giao gì vẫn hiện
+                   -- "còn phải giao" nguyên sản lượng, và dòng Tổng cộng cộng luôn phần đó —
+                   -- lệch hẳn với con số "đã ký HĐ chưa giao" trên báo cáo (đo prod: 4 hợp đồng,
+                   -- 327,635 tấn đếm thừa).
+                   CASE WHEN g.completed_at IS NOT NULL THEN 0
+                        ELSE GREATEST(g.pqty - g.delivered_qty, 0) END AS remaining_qty,
                    GREATEST(g.delivered_qty - g.pqty, 0) AS over_qty
             FROM progress g
         )

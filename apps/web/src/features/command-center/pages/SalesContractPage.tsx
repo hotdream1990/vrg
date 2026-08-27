@@ -227,10 +227,12 @@ export default function SalesContractPage() {
                 {/* Thành tiền = tổng dòng chi tiết CỦA HỢP ĐỒNG (tiền đã ký). */}
                 <td className="r">{r.revenue == null ? "—" : t3(r.revenue / 1_000_000)}</td>
                 {/* TT đã giao = tiền của HÀNG THỰC GIAO. Đơn giá/sản lượng chốt lại ở từng đợt nên
-                    lệch với tiền hợp đồng là bình thường — nêu rõ phần chênh để khỏi phải tự trừ. */}
+                    lệch với tiền hợp đồng là bình thường — nêu rõ phần chênh để khỏi phải tự trừ.
+                    Hợp đồng ĐÃ CHỐT thì thôi nêu: chốt xong phần chênh không còn là việc phải làm,
+                    để lại chỉ khiến người đọc tưởng hợp đồng còn dở dang (chốt 27/08/2026). */}
                 <td className="r">
                   {money(r.delivered_revenue)}
-                  {r.revenue != null && r.delivered_revenue != null
+                  {!r.completed_at && r.revenue != null && r.delivered_revenue != null
                     && Math.abs(r.delivered_revenue - r.revenue) > 1000 && (
                     <div style={{ fontSize: 11, color: "var(--muted)" }}>
                       {r.delivered_revenue > r.revenue ? "+" : "−"}

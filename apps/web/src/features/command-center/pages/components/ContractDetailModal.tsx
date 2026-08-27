@@ -301,7 +301,9 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                             <PlusOutlined /> Thêm đợt giao
                           </button>
                         )}
-                        {d.remaining_qty <= 1e-9 && (
+                        {/* `remaining_qty` của hợp đồng đã chốt nay là 0 → phải loại `done` ra,
+                            không thì hợp đồng chốt lúc chưa giao gì lại ghi "đã giao đủ". */}
+                        {!done && d.remaining_qty <= 1e-9 && (
                           <span style={{ color: "var(--muted)", fontSize: 12 }}>
                             Đã giao đủ sản lượng hợp đồng
                             {!done && " — bấm “Hoàn thành hợp đồng” để chốt."}
