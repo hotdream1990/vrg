@@ -284,9 +284,16 @@ export const deleteContract = (id: number) =>
 
 /** Chốt HOÀN THÀNH hợp đồng (`completedAt = null` là mở lại) — phần chênh còn lại rời khỏi
  *  "đã ký HĐ chưa giao" kể từ ngày chốt. */
-export const setContractCompletion = (id: number, completedAt: string | null) =>
+/** Chốt hoàn thành. Hợp đồng GIAO 1 LẦN chưa có ngày giao thì chốt CHÍNH LÀ ghi nhận đã giao —
+ *  gửi kèm `channel` (+ `delivered_at`, `to_company`), hoặc `no_delivery` nếu hợp đồng huỷ. */
+export const setContractCompletion = (
+  id: number, completedAt: string | null,
+  delivery?: { delivered_at?: string | null; channel?: string | null;
+               to_company?: string | null; no_delivery?: boolean },
+) =>
   apiFetch<{ contract: Contract }>(`/api/sales-contracts/${id}/completion`,
-    { method: "PUT", headers: J, body: JSON.stringify({ completed_at: completedAt }) });
+    { method: "PUT", headers: J,
+      body: JSON.stringify({ completed_at: completedAt, ...(delivery ?? {}) }) });
 
 /** Chuyển giao-1-lần ↔ giao-nhiều-lần tại chỗ; lần giao đang có được dời thành đợt giao đầu tiên. */
 export const setContractDeliveryType = (id: number, deliveryType: "single" | "multi") =>

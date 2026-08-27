@@ -349,7 +349,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
           initial={form.initial} onClose={() => setForm(null)} onSaved={refresh} />
       )}
       {completing && d && (
-        <ContractCompleteModal d={d} onClose={() => setCompleting(false)} onDone={refresh} />
+        <ContractCompleteModal d={d} meta={meta} onClose={() => setCompleting(false)} onDone={refresh} />
       )}
     </>
   );

@@ -1,11 +1,14 @@
 import { Modal } from "antd";
 import { useState } from "react";
 
-import { type ContractDetail, setContractCompletion } from "../../../../lib/sales-contract-client";
+import {
+  type ContractDetail, type ContractMeta, setContractCompletion,
+} from "../../../../lib/sales-contract-client";
 import DateInput from "../../sections/DateInput";
 
 type Props = {
   d: ContractDetail;
+  meta: ContractMeta;
   onClose: () => void;
   onDone: () => void;
 };
@@ -17,11 +20,18 @@ const today = () => new Date().toISOString().slice(0, 10);
  *
  *  Có màn riêng thay vì một nút bấm là xong, vì ngày chốt đi thẳng vào số liệu: khối "đã ký HĐ
  *  chưa giao" của mọi ngày TỪ ngày đó trở đi sẽ không còn phần chênh này. */
-export default function ContractCompleteModal({ d, onClose, onDone }: Props) {
+export default function ContractCompleteModal({ d, meta, onClose, onDone }: Props) {
   const c = d.contract;
   const [day, setDay] = useState(today());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // HĐ giao 1 lần chưa có ngày giao: chốt hoàn thành = ghi nhận đã giao (chốt 27/08/2026).
+  const needDelivery = c.delivery_type === "single" && !c.delivered_at;
+  const [noDelivery, setNoDelivery] = useState(false);   // huỷ / không giao nữa
+  const [giaoDay, setGiaoDay] = useState("");            // để trống = lấy đúng ngày hoàn thành
+  const [channel, setChannel] = useState("");
+  const [toCompany, setToCompany] = useState("");
+  const peers = meta.internal_targets?.[c.company] ?? [];
 
   const short = d.remaining_qty > 1e-9;
   // Giao thiếu thì nói "đạt x%" (số dương, dễ đọc); giao vượt mới nói "+x% so với hợp đồng".
@@ -32,9 +42,17 @@ export default function ContractCompleteModal({ d, onClose, onDone }: Props) {
       : `đạt ${ratio.toFixed(1)}% sản lượng hợp đồng`;
 
   const submit = async () => {
+    if (needDelivery && !noDelivery) {
+      if (!channel) { setErr("Chọn Hình thức tiêu thụ, hoặc tích “hợp đồng huỷ / không giao nữa”."); return; }
+      if (channel === "internal" && !toCompany) { setErr("Chọn đơn vị nhận hàng."); return; }
+    }
     setBusy(true); setErr("");
     try {
-      await setContractCompletion(c.id as number, day);
+      await setContractCompletion(c.id as number, day, needDelivery
+        ? (noDelivery
+          ? { no_delivery: true }
+          : { delivered_at: giaoDay || day, channel, to_company: channel === "internal" ? toCompany : null })
+        : undefined);
       onDone(); onClose();
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
     finally { setBusy(false); }
@@ -53,14 +71,53 @@ export default function ContractCompleteModal({ d, onClose, onDone }: Props) {
         {d.over_qty > 1e-9 && <div>Giao vượt: <b>{t3(d.over_qty)}</b> tấn</div>}
       </div>
 
-      {/* CHƯA GIAO GÌ mà đã chốt: gần như luôn là hiểu nhầm "Hoàn thành" = "đã giao xong".
-          Gặp thật 27/08/2026 — một hợp đồng 198,66 tấn rơi khỏi tiêu thụ vì lý do này. */}
-      {d.delivered_qty <= 1e-9 && (
-        <div className="blt-error" style={{ marginTop: 12, fontSize: 12.5 }}>
-          <b>Hợp đồng này chưa ghi lần giao nào.</b> Nếu hàng <b>đã giao</b>, hãy đóng cửa sổ này và
-          điền <b>Ngày giao</b> + <b>Hình thức tiêu thụ</b> trước — bấm <i>Hoàn thành</i> KHÔNG phải
-          là cách ghi nhận đã giao, chốt xong thì <b>{t3(c.qty)} tấn</b> này <b>không vào tiêu thụ</b>.
-          Chỉ chốt luôn khi hợp đồng <b>huỷ / không giao nữa</b>.
+      {/* HĐ giao 1 lần chưa có ngày giao: chốt hoàn thành CHÍNH LÀ ghi nhận đã giao, nên hỏi luôn
+          ngày giao + hình thức ở đây thay vì bắt đơn vị làm hai bước. Trước 27/08/2026 chốt suông
+          là sản lượng rơi khỏi tiêu thụ mà không ai hay (Thanh Hoá mất 198,66 tấn vì đúng chỗ này). */}
+      {needDelivery && (
+        <div className="card" style={{ marginTop: 12, padding: 12 }}>
+          <div style={{ fontSize: 13, marginBottom: 8 }}>
+            <b>Hợp đồng giao 1 lần chưa có ngày giao.</b> Chốt hoàn thành nghĩa là{" "}
+            <b>hàng đã giao</b> — điền nốt hai ô dưới đây để <b>{t3(c.qty)} tấn</b> vào tiêu thụ.
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13,
+            marginBottom: noDelivery ? 0 : 10 }}>
+            <input type="checkbox" checked={noDelivery}
+              onChange={(e) => setNoDelivery(e.target.checked)} />
+            Hợp đồng <b>huỷ / không giao nữa</b> — chốt mà không ghi lần giao
+          </label>
+          {!noDelivery && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+              gap: 10 }}>
+              <label className="form-field">Ngày giao
+                <DateInput value={giaoDay || day} onChange={setGiaoDay} />
+              </label>
+              <label className="form-field">Hình thức tiêu thụ *
+                <select className="blt-date-input" value={channel}
+                  onChange={(e) => { setChannel(e.target.value); setToCompany(""); }}>
+                  <option value="">— chọn hình thức —</option>
+                  {Object.entries(meta.channels)
+                    .filter(([k]) => k !== "internal" || peers.length > 0)
+                    .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </label>
+              {channel === "internal" && (
+                <label className="form-field">Đơn vị nhận *
+                  <select className="blt-date-input" value={toCompany}
+                    onChange={(e) => setToCompany(e.target.value)}>
+                    <option value="">— chọn đơn vị —</option>
+                    {peers.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
+          {noDelivery && (
+            <div className="form-note" style={{ fontSize: 12, marginTop: 8 }}>
+              Chốt xong, <b>{t3(c.qty)} tấn</b> này <b>không vào tiêu thụ</b> và rời khỏi mục
+              “đã ký HĐ chưa giao”.
+            </div>
+          )}
         </div>
       )}
 

@@ -1479,8 +1479,9 @@ def test_completed_contract_is_not_still_owing_goods(env, cus) -> None:
                               ).json()["contracts"] if r["id"] == cid)
     assert row()["remaining_qty"] == 100.0          # chưa chốt: còn nợ nguyên sản lượng
 
+    # Chốt kiểu "huỷ / không giao nữa" — chốt suông, không sinh lần giao.
     ok = client.put(f"/api/sales-contracts/{cid}/completion", headers=h,
-                    json={"completed_at": TODAY})
+                    json={"completed_at": TODAY, "no_delivery": True})
     assert ok.status_code == 200, ok.text
 
     after = row()
@@ -1500,3 +1501,66 @@ def test_completed_contract_is_not_still_owing_goods(env, cus) -> None:
     # Màn chi tiết kể cùng câu chuyện.
     det = client.get(f"/api/sales-contracts/{cid}", headers=h).json()
     assert det["remaining_qty"] == 0.0 and det["delivered_qty"] == 0.0
+
+
+def test_completing_single_contract_records_the_delivery(env, cus) -> None:
+    """HĐ giao 1 lần chưa có ngày giao: chốt hoàn thành = ghi nhận ĐÃ GIAO (chốt 27/08/2026).
+
+    Trước đó chốt suông là sản lượng rơi khỏi tiêu thụ mà không ai hay — Thanh Hoá mất 198,66 tấn
+    vì đúng chỗ này. Nay phải khai hình thức tiêu thụ, hoặc nói rõ hợp đồng huỷ.
+    """
+    h = env
+    body = {"company": UNIT, "customer_id": cus, "contract_type": "spot",
+            "delivery_type": "single", "sign_date": TODAY,
+            "lines": [{"grade": "SVR 10 / CSR 10", "qty": 50.0, "price": 40.0, "ccy": "VND"}]}
+    cid = client.put("/api/sales-contracts", headers=h,
+                     json={**body, "code": "HD-DONE-1"}).json()["contract"]["id"]
+
+    # Thiếu hình thức tiêu thụ → CHẶN, không tự chốt hộ.
+    bad = client.put(f"/api/sales-contracts/{cid}/completion", headers=h,
+                     json={"completed_at": TODAY})
+    assert bad.status_code == 400 and "Hình thức tiêu thụ" in bad.json()["detail"]
+
+    ok = client.put(f"/api/sales-contracts/{cid}/completion", headers=h,
+                    json={"completed_at": TODAY, "channel": "domestic"})
+    assert ok.status_code == 200, ok.text
+    c = ok.json()["contract"]
+    # Ngày giao lấy đúng ngày hoàn thành, và sản lượng vào tiêu thụ.
+    assert c["delivered_at"] == TODAY and c["delivered"] and c["channel"] == "domestic"
+    assert c["completed_at"] == TODAY
+
+    det = client.get(f"/api/sales-contracts/{cid}", headers=h).json()
+    assert det["delivered_qty"] == 50.0 and det["remaining_qty"] == 0.0
+
+
+def test_completing_a_cancelled_contract_records_no_delivery(env, cus) -> None:
+    """Hợp đồng HUỶ: tích “không ghi lần giao” → chốt suông, KHÔNG đẻ ra tiêu thụ ảo."""
+    h = env
+    cid = client.put("/api/sales-contracts", headers=h, json={
+        "company": UNIT, "code": "HD-HUY-1", "customer_id": cus, "contract_type": "spot",
+        "delivery_type": "single", "sign_date": TODAY,
+        "lines": [{"grade": "SVR 10 / CSR 10", "qty": 50.0, "price": 40.0, "ccy": "VND"}],
+    }).json()["contract"]["id"]
+
+    ok = client.put(f"/api/sales-contracts/{cid}/completion", headers=h,
+                    json={"completed_at": TODAY, "no_delivery": True})
+    assert ok.status_code == 200, ok.text
+    c = ok.json()["contract"]
+    assert c["completed_at"] == TODAY and c["delivered_at"] is None and not c["delivered"]
+
+    det = client.get(f"/api/sales-contracts/{cid}", headers=h).json()
+    assert det["delivered_qty"] == 0.0 and det["remaining_qty"] == 0.0   # chốt rồi thì hết nợ hàng
+
+
+def test_completing_multi_contract_is_unchanged(env, cus) -> None:
+    """HĐ giao NHIỀU LẦN không hỏi ngày giao: lần giao nằm ở từng đợt, không phải ở hợp đồng."""
+    h = env
+    cid = client.put("/api/sales-contracts", headers=h, json={
+        "company": UNIT, "code": "HD-MULTI-1", "customer_id": cus, "contract_type": "spot",
+        "delivery_type": "multi", "sign_date": TODAY,
+        "lines": [{"grade": "SVR 10 / CSR 10", "qty": 50.0, "price": 40.0, "ccy": "VND"}],
+    }).json()["contract"]["id"]
+    ok = client.put(f"/api/sales-contracts/{cid}/completion", headers=h,
+                    json={"completed_at": TODAY})
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["contract"]["delivered_at"] is None

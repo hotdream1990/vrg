@@ -69,8 +69,17 @@ class ContractIn(BaseModel):
 
 
 class CompletionIn(BaseModel):
-    """Chốt HOÀN THÀNH hợp đồng — `completed_at = None` là MỞ LẠI hợp đồng."""
+    """Chốt HOÀN THÀNH hợp đồng — `completed_at = None` là MỞ LẠI hợp đồng.
+
+    Hợp đồng GIAO 1 LẦN chưa có ngày giao: chốt hoàn thành CHÍNH LÀ ghi nhận đã giao (chốt
+    27/08/2026) nên kèm luôn ngày giao + hình thức tiêu thụ. Trường hợp hợp đồng huỷ/không giao
+    nữa thì gửi `no_delivery = true` — không có ô thoát này thì hợp đồng huỷ sẽ đẻ ra tiêu thụ ảo.
+    """
     completed_at: str | None = None
+    delivered_at: str | None = None    # để trống = lấy đúng ngày hoàn thành
+    channel: str | None = None         # export | domestic | internal
+    to_company: str | None = None      # đơn vị nhận (khi tiêu thụ nội bộ)
+    no_delivery: bool = False          # huỷ / không giao nữa — chốt mà KHÔNG ghi lần giao
 
 
 class DeliveryTypeIn(BaseModel):

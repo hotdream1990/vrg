@@ -325,7 +325,9 @@ def set_completion(contract_id: int, body: CompletionIn, scope: EditScope) -> di
     username, companies = scope
     try:
         return {"contract": sales_contract_lifecycle.set_completion(
-            contract_id, body.completed_at, companies, username)}
+            contract_id, body.completed_at, companies, username,
+            delivery={"delivered_at": body.delivered_at, "channel": body.channel,
+                      "to_company": body.to_company, "no_delivery": body.no_delivery})}
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:

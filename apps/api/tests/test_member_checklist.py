@@ -311,8 +311,10 @@ def test_completed_contract_without_any_delivery_is_flagged() -> None:
         u = client.get("/api/member/checklist", headers=mh).json()["units"][0]
         assert u["completed_no_delivery"] == []
 
+        # Chốt suông (tích "huỷ / không giao nữa") — dữ liệu cũ trên prod cũng ở hình dạng này.
         assert client.put(f"/api/sales-contracts/{cid}/completion", headers=h,
-                          json={"completed_at": today.isoformat()}).status_code == 200
+                          json={"completed_at": today.isoformat(),
+                                "no_delivery": True}).status_code == 200
 
         u = client.get("/api/member/checklist", headers=mh).json()["units"][0]
         flagged = u["completed_no_delivery"]

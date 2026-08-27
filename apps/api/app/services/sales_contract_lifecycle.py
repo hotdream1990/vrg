@@ -58,9 +58,20 @@ def _last_delivery(db, contract: dict[str, Any]) -> str | None:
 
 
 def set_completion(contract_id: int, completed_at: str | None, companies: list[str] | None,
-                   username: str | None) -> dict[str, Any]:
-    """Chốt hoàn thành (`completed_at`) hoặc MỞ LẠI hợp đồng (`completed_at=None`)."""
+                   username: str | None, delivery: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Chốt hoàn thành (`completed_at`) hoặc MỞ LẠI hợp đồng (`completed_at=None`).
+
+    HỢP ĐỒNG GIAO 1 LẦN CHƯA CÓ NGÀY GIAO (chốt 27/08/2026): chốt hoàn thành chính là ghi nhận
+    ĐÃ GIAO — ghi luôn ngày giao (mặc định = ngày hoàn thành) + hình thức tiêu thụ, để đơn vị khỏi
+    phải làm hai bước và khỏi hiểu nhầm "Hoàn thành" là cách khai đã giao. Đơn vị Thanh Hoá từng
+    mất 198,66 tấn khỏi tiêu thụ vì hiểu nhầm đúng chỗ này.
+
+    ⚠ Hợp đồng HUỶ / không giao nữa phải gửi `no_delivery=True`: tự gán ngày giao cho hợp đồng huỷ
+    là đẻ ra tiêu thụ ảo — lỗi ngược lại, cũng sai như nhau. Thiếu cả hai thì BÁO LỖI chứ không tự
+    chọn hộ.
+    """
     before = _load(contract_id, companies)
+    delivery = delivery or {}
     day: date | None = None
     if completed_at:
         try:
@@ -71,6 +82,24 @@ def set_completion(contract_id: int, completed_at: str | None, companies: list[s
             raise ValueError("Ngày hoàn thành không thể ở tương lai — hợp đồng chưa kết thúc.")
         if before["sign_date"] and day.isoformat() < before["sign_date"]:
             raise ValueError("Ngày hoàn thành không thể trước ngày ký hợp đồng.")
+    # Ghi lần giao TRƯỚC khi chốt: hợp đồng đã chốt thì `repo.save` khoá không cho sửa nữa.
+    if (day is not None and before.get("delivery_type") == "single"
+            and not before.get("delivered_at") and not before.get("parent_id")):
+        if delivery.get("no_delivery"):
+            pass                                   # huỷ/không giao — chốt suông, không ghi gì thêm
+        elif not delivery.get("channel"):
+            raise ValueError(
+                "Hợp đồng giao 1 lần chưa có ngày giao. Chọn Hình thức tiêu thụ để chốt hoàn thành "
+                "và ghi nhận đã giao; nếu hợp đồng huỷ / không giao nữa thì tích ô "
+                "“không ghi lần giao”.")
+        else:
+            repo.save({**before,
+                       "delivered_at": delivery.get("delivered_at") or day.isoformat(),
+                       "channel": delivery["channel"],
+                       "to_company": delivery.get("to_company")},
+                      before["company"], username)
+            before = _load(contract_id, companies)
+
     ensure_schema()
     with session_scope() as db:
         if day is not None:
