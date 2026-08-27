@@ -161,15 +161,21 @@ def test_filtering_by_the_old_unit_while_rolled_up_still_returns_numbers() -> No
     assert _by_company(pur.purchase_report(D_BEFORE, D_AFTER, companies=OLD)) == {NEW: 130.0}
 
 
-def test_period_ending_before_the_merge_keeps_the_units_apart() -> None:
-    """Kỳ kết thúc TRƯỚC ngày sáp nhập: lúc ấy hai đơn vị còn độc lập nên vẫn hai dòng."""
+def test_period_ending_before_the_merge_is_still_rolled_up() -> None:
+    """Kỳ kết thúc TRƯỚC ngày sáp nhập vẫn GỘP về đơn vị nhận (luật 27/08/2026).
+
+    Công ty mới xem báo cáo là thấy tổng lũy kế của cả hai từ đầu năm, không phải chỉ từ ngày
+    sáp nhập; muốn xem riêng giai đoạn trước đó thì bật `split_merged`.
+    """
     d0 = (date.fromisoformat(D_BEFORE) - timedelta(days=1)).isoformat()
     _purchase(OLD, D_BEFORE, 100)
     _purchase(NEW, D_BEFORE, 30)
     merge.merge(OLD, NEW, D_MERGE)
 
-    rep = pur.purchase_report(d0, D_BEFORE, companies=f"{OLD},{NEW}")
-    assert _by_company(rep) == {OLD: 100.0, NEW: 30.0}
+    assert _by_company(pur.purchase_report(d0, D_BEFORE, companies=f"{OLD},{NEW}")) == {NEW: 130.0}
+    apart = _by_company(pur.purchase_report(d0, D_BEFORE, companies=f"{OLD},{NEW}",
+                                            split_merged=True))
+    assert apart == {OLD: 100.0, NEW: 30.0}
 
 
 def test_year_plan_of_the_old_unit_counts_in_the_denominator() -> None:
@@ -202,32 +208,49 @@ def test_period_report_rolls_up_and_splits() -> None:
     assert split == {OLD: 100.0, NEW: 30.0}
 
 
-def test_rolled_up_stock_adds_both_units_instead_of_dropping_one() -> None:
-    """Tồn kho gộp = tồn của CẢ HAI đơn vị, kể cả khi hai bên khai cùng một ngày.
+def _stock_of(company: str, d_from: str, d_to: str, key: str = "stock_finished"):
+    from app.services import unit_period_report
+
+    row = next((r for r in unit_period_report.period_report("consumption", d_from, d_to,
+                                                            [company])["rows"]
+                if r["company"] == company), {})
+    return row.get(key)
+
+
+def test_rolled_up_stock_adds_both_units_while_the_warehouses_are_still_separate() -> None:
+    """Hai kho còn khai riêng → tồn gộp là TỔNG, không phải một trong hai.
 
     Bẫy đã xảy ra thật (Chư păh 27/08/2026): tồn kho là số THỜI ĐIỂM nên chỉ lấy một ảnh chụp gần
     nhất — gom hai đơn vị vào một rổ rồi lấy "bản ghi mới nhất" thì tồn của bên kia bay mất, tổng
     tồn toàn hệ thống hụt đúng bằng lô hàng đó.
     """
-    from app.services import unit_period_report
-
-    _stock(OLD, D_BEFORE, 800)                 # đơn vị cũ khai lần cuối trước ngày sáp nhập
-    _stock(NEW, D_AFTER, 400)                  # đơn vị nhận khai sau đó
-    _stock(OLD, D_AFTER, 900)                  # …và cả hai cùng khai một ngày
+    d_prev = (date.fromisoformat(D_MERGE) - timedelta(days=1)).isoformat()
+    _stock(OLD, D_BEFORE, 800)                 # mỗi bên khai lần cuối TRƯỚC ngày sáp nhập…
+    _stock(NEW, d_prev, 400)                   # …nên kho vẫn đang được khai riêng
     merge.merge(OLD, NEW, D_MERGE)
 
-    row = next(r for r in unit_period_report.period_report("consumption", D_BEFORE, D_AFTER,
-                                                           [NEW])["rows"] if r["company"] == NEW)
-    assert row["stock_finished"] == 1300.0, "tồn gộp phải là 900 + 400, không phải một trong hai"
-    assert row["stock_material"] == 130.0    # tồn nguyên liệu cũng cộng theo từng đơn vị
+    assert _stock_of(NEW, D_BEFORE, D_AFTER) == 1200.0
+    assert _stock_of(NEW, D_BEFORE, D_AFTER, "stock_material") == 120.0
 
 
-def test_period_ending_before_the_merge_keeps_the_old_unit_in_the_frame() -> None:
-    """Kỳ kết thúc TRƯỚC ngày sáp nhập: đơn vị cũ vẫn có dòng riêng, số không rơi vào khoảng không.
+def test_rolled_up_stock_stops_adding_once_the_new_unit_declares_the_joint_warehouse() -> None:
+    """Đơn vị nhận đã khai tồn KỂ TỪ ngày sáp nhập → thôi cộng ảnh chụp cũ của đơn vị kia.
 
-    Lúc đó luật gộp chưa có hiệu lực (mốc là ngày cuối kỳ) nên số của đơn vị cũ KHÔNG được cộng
-    vào đơn vị nhận; nếu khung đơn vị cũng bỏ họ ra thì số biến mất khỏi báo cáo (Chư păh 2.896
-    tấn tiêu thụ kỳ 01/01–19/08, phát hiện 27/08/2026).
+    Từ ngày hiệu lực, kho của đơn vị cũ do đơn vị nhận quản lý và khai chung. Cộng thêm ảnh chụp
+    cuối của đơn vị cũ là tính trùng đúng lô hàng đó — số tồn phồng lên gấp rưỡi.
+    """
+    _stock(OLD, D_BEFORE, 800)
+    _stock(NEW, D_AFTER, 1300)                 # khai sau ngày sáp nhập: đã gồm cả kho tiếp quản
+    merge.merge(OLD, NEW, D_MERGE)
+
+    assert _stock_of(NEW, D_BEFORE, D_AFTER) == 1300.0
+
+
+def test_no_number_is_lost_in_a_period_ending_before_the_merge() -> None:
+    """Kỳ kết thúc TRƯỚC ngày sáp nhập: số của đơn vị cũ nằm trong dòng của đơn vị nhận.
+
+    Đã có lúc số rơi vào khoảng không — khung đơn vị bỏ đơn vị cũ ra trong khi luật gộp lại chưa
+    áp dụng cho kỳ đó, nên 2.896 tấn tiêu thụ của Chư păh biến mất khỏi báo cáo (27/08/2026).
     """
     from app.services import unit_period_report
 
@@ -239,7 +262,7 @@ def test_period_ending_before_the_merge_keeps_the_old_unit_in_the_frame() -> Non
     rows = {r["company"]: r["latex_wet"]
             for r in unit_period_report.period_report("purchase", D_BEFORE, d_end)["rows"]
             if r["company"] in UNITS}
-    assert rows == {OLD: 100.0, NEW: 30.0, THIRD: None}
+    assert rows == {NEW: 130.0, THIRD: None}, "đơn vị cũ không đứng riêng, số phải nằm ở đơn vị nhận"
 
 
 def test_stock_and_consumption_reports_run_with_a_merged_unit() -> None:

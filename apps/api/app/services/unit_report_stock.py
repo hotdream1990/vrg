@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services import unit_report_rows
+from app.services import member_unit_merge, unit_report_rows
 from app.services.unit_report_query import (
     dmy, filter_scope, merge_rollup, merge_scope, merge_view, report_units, sort_groups,
     split_csv,
@@ -70,6 +70,21 @@ def _close(g: dict) -> dict[str, Any]:
     return g
 
 
+def _drop_superseded(rows: list[dict]) -> list[dict]:
+    """Bỏ ảnh chụp của đơn vị ĐÃ SÁP NHẬP khi kho đó đã nằm trong số của đơn vị nhận.
+
+    Ảnh chụp tại ngày chốt lấy lần khai gần nhất của từng đơn vị, nên đơn vị cũ (ngừng khai từ
+    ngày sáp nhập) vẫn còn một ảnh chụp cũ. Đơn vị nhận đã khai kể từ ngày đó thì hàng của đơn vị
+    cũ đã được khai chung — cộng thêm ảnh chụp cũ là tính trùng chính lô hàng đó.
+    """
+    latest: dict[str, str] = {}
+    for r in rows:
+        if r["as_of"] > latest.get(r["company"], ""):
+            latest[r["company"]] = r["as_of"]
+    drop = member_unit_merge.stock_superseded(latest)
+    return [r for r in rows if r["company"] not in drop] if drop else rows
+
+
 def _latest_per_company(rows: list[dict]) -> list[dict]:
     """Ảnh chụp tại ngày chốt: giữ các dòng của ngày MỚI NHẤT mà từng đơn vị có số."""
     last: dict[str, str] = {}
@@ -80,8 +95,7 @@ def _latest_per_company(rows: list[dict]) -> list[dict]:
 
 
 def _coverage(snap: list[dict], no_stock: dict[str, str], comps: list[str] | None,
-              regs: list[str] | None, split_merged: bool = False,
-              as_of: str | None = None) -> dict[str, Any]:
+              regs: list[str] | None, split_merged: bool = False) -> dict[str, Any]:
     """Độ phủ của ảnh chụp: bao nhiêu đơn vị có số, đơn vị nào chưa có số.
 
     Thiếu đơn vị là chuyện PHẢI hiện ra: tổng tồn kho toàn Tập đoàn thiếu vài đơn vị mà không báo
@@ -91,7 +105,7 @@ def _coverage(snap: list[dict], no_stock: dict[str, str], comps: list[str] | Non
     Số giữ lại theo cờ "không phát sinh" KHÔNG bị điểm mặt riêng: mỗi dòng đã mang sẵn ngày lấy số
     + số ngày đã cũ, người xem tự thấy — thêm cảnh báo ngưỡng nữa chỉ gây nhiễu.
     """
-    units = report_units(split_merged, as_of)   # đơn vị đã sáp nhập: xem TÁCH, hoặc ngày chốt trước ngày sáp nhập
+    units = report_units(split_merged)   # xem TÁCH thì đơn vị đã sáp nhập cũng nằm trong khung
     if comps:
         keep = set(comps)
         units = [u for u in units if u["name"] in keep]
@@ -142,23 +156,27 @@ def stock_report(as_of: str, days_back: int = 0, *, companies: str | None = None
     comps, regs, grds = split_csv(companies), split_csv(regions), split_csv(grades)
     # Nhóm theo NGÀY = xem diễn biến tồn → giữ mọi ngày trong cửa sổ; các cách nhóm khác chỉ lấy
     # ảnh chụp tại ngày chốt (mỗi đơn vị 1 dòng số mới nhất của mình).
-    raw = unit_report_rows.stock_rows(as_of, merge_scope(comps, split_merged, as_of),
+    raw = unit_report_rows.stock_rows(as_of, merge_scope(comps, split_merged),
                                       all_days=group_by == "day",
                                       days_back=days_back if group_by == "day" else 0)
     rows = raw["rows"]
     # "Số mới nhất của từng đơn vị" phải chọn TRÊN TÊN ĐƠN VỊ GỐC rồi mới gộp: gộp trước thì ảnh
     # chụp của đơn vị cũ và đơn vị mới tranh nhau một chỗ, chỉ một cái sống sót → mất tồn kho.
     snap = _latest_per_company(rows) if group_by == "day" else rows
-    # Tồn kho là số THỜI ĐIỂM: dòng của những ngày TRƯỚC sáp nhập vẫn đứng tên đơn vị cũ (mốc theo
-    # NGÀY CỦA TỪNG DÒNG), nếu không hàng của đơn vị cũ vừa nằm trong tồn của đơn vị mới lại vừa
-    # được cộng thêm một lần nữa dưới tên đơn vị mới.
-    rows = merge_rollup(rows, split_merged, date_key="as_of")
-    snap = merge_rollup(snap, split_merged, date_key="as_of")
-    view = merge_view(comps, split_merged, as_of)
+    # Tồn kho là số THỜI ĐIỂM. Bảng theo NGÀY giữ nguyên mọi dòng (mỗi ngày một ảnh chụp riêng,
+    # cộng hai đơn vị trong cùng ngày là đúng); còn ảnh chụp tại ngày chốt phải bỏ đơn vị đã sáp
+    # nhập mà kho của họ nay do đơn vị nhận khai chung — xem `_drop_superseded`.
+    if not split_merged:
+        snap = _drop_superseded(snap)
+        if group_by != "day":
+            rows = snap
+    rows = merge_rollup(rows, split_merged)
+    snap = merge_rollup(snap, split_merged)
+    view = merge_view(comps, split_merged)
     rows, snap = filter_scope(rows, view, regs), filter_scope(snap, view, regs)
     # Độ phủ tính TRƯỚC khi lọc chủng loại: đơn vị có tồn nhưng không có chủng loại đang lọc thì
     # vẫn là đơn vị "đã nhập", không được đếm thành thiếu số liệu.
-    cov = _coverage(snap, raw["no_stock"], comps, regs, split_merged, as_of)
+    cov = _coverage(snap, raw["no_stock"], comps, regs, split_merged)
     if grds:   # lọc chủng loại: chỉ áp cho 2 khối thành phẩm, tồn nguyên liệu không có chủng loại
         keep = set(grds)
         def _keep(lst: list[dict]) -> list[dict]:

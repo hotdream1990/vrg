@@ -18,7 +18,7 @@ from typing import Any
 
 from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC, UNIT_GRADES
 from app.services import (
-    price_repo, sales_contract_report, unit_daily_repo, unit_report_rows,
+    member_unit_merge, price_repo, sales_contract_report, unit_daily_repo, unit_report_rows,
 )
 from app.services.unit_report_query import merge_scope, merge_view, report_units
 
@@ -97,17 +97,18 @@ def _latest_stock(by_src: dict[str, list[dict]]) -> tuple[list[dict], str | None
 
     ⚠ Đơn vị đã SÁP NHẬP: tồn là số thời điểm nên không cộng dồn theo NGÀY, nhưng phải cộng theo
     ĐƠN VỊ — mỗi pháp nhân một lô hàng thật trong kho. Gom chung rồi lấy một bản ghi gần nhất là
-    làm bay mất tồn của bên kia (Chư păh 862,55 tấn, phát hiện 27/08/2026).
+    làm bay mất tồn của bên kia (Chư păh 862,55 tấn, phát hiện 27/08/2026). Chỉ thôi cộng khi đơn
+    vị nhận đã khai tồn kể từ ngày sáp nhập — lúc đó lô hàng đó đã nằm trong số của họ, xem
+    `member_unit_merge.stock_superseded`.
     """
-    out, day = [], None
-    for entries in by_src.values():
+    latest: dict[str, dict] = {}
+    for company, entries in by_src.items():
         with_stock = [e for e in entries if unit_report_rows.has_stock(e["fields"])]
-        if not with_stock:
-            continue
-        last = max(with_stock, key=lambda e: e["as_of"])
-        out.append(last["fields"])
-        day = max(day or "", last["as_of"])
-    return out, day
+        if with_stock:
+            latest[company] = max(with_stock, key=lambda e: e["as_of"])
+    drop = member_unit_merge.stock_superseded({c: e["as_of"] for c, e in latest.items()})
+    keep = [e for c, e in latest.items() if c not in drop]
+    return [e["fields"] for e in keep], max((e["as_of"] for e in keep), default=None)
 
 
 # ── Biểu (2): Thu mua ──────────────────────────────────────────────────────────
@@ -253,26 +254,18 @@ def _consumption_rows(by_src: dict[str, list[dict]], plan: dict,
     }
 
 
-def _merged_before(as_of: str) -> list[dict[str, Any]]:
-    """Đơn vị đã sáp nhập TÍNH ĐẾN ngày `as_of` — cùng mốc với `merge_rollup` để không lệch nhau."""
-    from app.services import member_unit_merge
-
-    roll = member_unit_merge.rollup_map(as_of)
-    return [{"name": src, "merged_into": dst} for src, dst in roll.items()]
-
-
 def period_report(kind: str, date_from: str, date_to: str,
                   companies: list[str] | None = None,
                   split_merged: bool = False) -> dict[str, Any]:
     """Báo cáo kỳ cho 1 loại biểu — mỗi đơn vị 1 dòng (kèm Khu vực), theo đúng chỉ tiêu của mẫu.
 
-    Đơn vị đã sáp nhập: mặc định GỘP số của họ vào đơn vị hiện hành (mốc xét là NGÀY CUỐI KỲ — kỳ
-    kết thúc trước ngày sáp nhập thì hai đơn vị vẫn đứng riêng). `split_merged=True` để tách hẳn.
+    Đơn vị đã sáp nhập: mặc định GỘP số của họ vào đơn vị hiện hành ở MỌI kỳ, kể cả kỳ kết thúc
+    trước ngày sáp nhập — công ty mới xem là thấy tổng lũy kế của cả hai (luật 27/08/2026).
+    `split_merged=True` để tách hẳn, phục vụ truy xuất riêng số của đơn vị cũ.
     """
     year = int(date_to[:4])
-    scope = merge_scope(companies, split_merged, date_to)
-    roll = {} if split_merged else {u["name"]: u["merged_into"]
-                                    for u in _merged_before(date_to)}
+    scope = merge_scope(companies, split_merged)
+    roll = {} if split_merged else member_unit_merge.rollup_map()
     # `attach_contracts=False`: khối 3 của báo cáo kỳ là chỉ tiêu THỜI ĐIỂM, lấy MỘT lần ở ngày
     # cuối kỳ (`signed_at_close` bên dưới) — gắn thêm khối 3 cho từng ngày là 1 truy vấn/ngày rồi
     # bỏ đi (kỳ 8 tháng đo được ~1,8s mỗi biểu).
@@ -282,9 +275,9 @@ def period_report(kind: str, date_from: str, date_to: str,
     grouped = _by_company(unit_daily_repo.in_range(kind, date_from, date_to, scope,
                                                    attach_contracts=False))
     plans = _roll_dict(unit_daily_repo.year_plan(year, scope), roll)
-    units = report_units(split_merged, date_to)
+    units = report_units(split_merged)
     if companies is not None:
-        keep = set(merge_view(companies, split_merged, date_to) or [])
+        keep = set(merge_view(companies, split_merged) or [])
         units = [u for u in units if u["name"] in keep]
     prices = (price_repo.purchase_prices_in_range(date_from, date_to, UNIT_SRC)
               if kind == "purchase" else {})

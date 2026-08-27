@@ -53,28 +53,21 @@ def region_of_units() -> dict[str, str | None]:
     return {u["name"]: u.get("region") for u in member_unit_repo.list_units()}
 
 
-def report_units(split_merged: bool = False, as_of: str | None = None) -> list[dict]:
-    """Khung đơn vị của báo cáo: đang hoạt động, cộng thêm đơn vị ĐÃ SÁP NHẬP khi cần.
+def report_units(split_merged: bool = False) -> list[dict]:
+    """Khung đơn vị của báo cáo: đang hoạt động, cộng thêm đơn vị ĐÃ SÁP NHẬP khi xem TÁCH.
 
-    Xem tách mà bỏ đơn vị đã sáp nhập ra khỏi khung thì số của họ biến mất khỏi bảng dù vẫn còn
-    trong kho dữ liệu — đúng thứ tính năng sáp nhập cam kết giữ lại.
-
-    `as_of` = NGÀY CUỐI KỲ. Kỳ kết thúc TRƯỚC ngày sáp nhập thì đơn vị lúc đó còn độc lập nên vẫn
-    phải có mặt trong khung, kể cả khi đang xem GỘP: luật gộp cũng lấy mốc là ngày cuối kỳ, bỏ họ
-    khỏi khung mà không gộp vào ai là số của họ rơi vào khoảng không (Chư păh 2.896 tấn tiêu thụ
-    kỳ 01/01–19/08, phát hiện 27/08/2026).
+    Xem GỘP thì đơn vị đã sáp nhập KHÔNG có dòng riêng ở bất kỳ kỳ nào — số của họ nằm trong dòng
+    của đơn vị nhận (luật 27/08/2026). Xem TÁCH thì họ trở lại khung, nếu không số của họ biến mất
+    khỏi bảng dù vẫn còn nguyên trong kho dữ liệu — đúng thứ tính năng sáp nhập cam kết giữ lại.
     """
     units = member_unit_repo.list_units(include_inactive=False)
-    merged = [u for u in member_unit_repo.list_units() if u.get("merged_into")]
-    if not split_merged:
-        merged = [u for u in merged if member_unit_merge.active_on(u["name"], as_of)]
-    if merged:
+    if split_merged:
+        merged = [u for u in member_unit_repo.list_units() if u.get("merged_into")]
         units = sorted(units + merged, key=lambda u: (u.get("sort_order") or 0, u["name"]))
     return units
 
 
-def merge_view(companies: list[str] | None, split_merged: bool,
-               as_of: str | None = None) -> list[str] | None:
+def merge_view(companies: list[str] | None, split_merged: bool) -> list[str] | None:
     """Bộ lọc đơn vị SAU khi đã gộp: tên đơn vị đã sáp nhập quy về đơn vị hiện hành.
 
     Chọn nhầm đơn vị cũ trong lúc đang xem GỘP mà không quy đổi thì bảng trống trơn — dòng của họ
@@ -82,24 +75,25 @@ def merge_view(companies: list[str] | None, split_merged: bool,
     """
     if split_merged or not companies:
         return companies
-    roll = member_unit_merge.rollup_map(as_of)
+    roll = member_unit_merge.rollup_map()
     return list(dict.fromkeys(roll.get(c, c) for c in companies))
 
 
-def merge_scope(companies: list[str] | None, split_merged: bool,
-                as_of: str | None = None) -> list[str] | None:
+def merge_scope(companies: list[str] | None, split_merged: bool) -> list[str] | None:
     """Danh sách đơn vị dùng để TRUY VẤN dữ liệu: khi gộp, chọn B phải kéo theo dữ liệu cũ của A."""
     if split_merged:
         return companies
-    return member_unit_merge.expand(merge_view(companies, split_merged, as_of), as_of)
+    return member_unit_merge.expand(merge_view(companies, split_merged))
 
 
-def merge_rollup(rows: list[dict], split_merged: bool, as_of: str | None = None,
-                 date_key: str | None = None) -> list[dict]:
-    """Quy các dòng của đơn vị đã sáp nhập về đơn vị hiện hành (bỏ qua khi đang xem TÁCH)."""
+def merge_rollup(rows: list[dict], split_merged: bool) -> list[dict]:
+    """Quy các dòng của đơn vị đã sáp nhập về đơn vị hiện hành (bỏ qua khi đang xem TÁCH).
+
+    Không cắt theo ngày: dòng của MỌI kỳ đều mang tên đơn vị hiện hành (luật 27/08/2026).
+    """
     if split_merged:
         return rows
-    return member_unit_merge.rollup_rows(rows, region_of_units(), as_of, date_key=date_key)
+    return member_unit_merge.rollup_rows(rows, region_of_units())
 
 
 def dmy(iso: str | None) -> str:
@@ -139,8 +133,8 @@ PLAN_DIMS = ("company", "region")
 
 
 def year_plan_by_group(plan_key: str, group_by: str, companies: list[str] | None,
-                       regions: list[str] | None, year: int, split_merged: bool = False,
-                       as_of: str | None = None) -> tuple[dict[str, float], float]:
+                       regions: list[str] | None, year: int,
+                       split_merged: bool = False) -> tuple[dict[str, float], float]:
     """Chỉ tiêu NĂM `plan_key` của màn "Kế hoạch năm" → ({khoá nhóm: tấn}, tổng theo bộ lọc).
 
     Mẫu số lấy theo DANH SÁCH ĐƠN VỊ khớp bộ lọc, không phải theo đơn vị có phát sinh số liệu:
@@ -151,11 +145,11 @@ def year_plan_by_group(plan_key: str, group_by: str, companies: list[str] | None
     lượng của đơn vị cũ, mẫu số bỏ chỉ tiêu của họ ra thì % thực hiện tự đẹp lên.
     """
     units = report_units(split_merged=True)     # luôn xét cả đơn vị đã sáp nhập…
-    roll = {} if split_merged else member_unit_merge.rollup_map(as_of)   # …rồi quy về đơn vị hiện hành
+    roll = {} if split_merged else member_unit_merge.rollup_map()   # …rồi quy về đơn vị hiện hành
     if companies:
-        keep = set(merge_scope(companies, split_merged, as_of) or [])
+        keep = set(merge_scope(companies, split_merged) or [])
         units = [u for u in units if u["name"] in keep]
-    view = set(merge_view(companies, split_merged, as_of) or [])
+    view = set(merge_view(companies, split_merged) or [])
     region_of = region_of_units()
     plans = unit_daily_repo.year_plan(year)
     by_key: dict[str, float] = {}

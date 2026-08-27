@@ -89,9 +89,9 @@ def purchase_report(date_from: str, date_to: str, *, companies: str | None = Non
     mats, grds = split_csv(materials), split_csv(grades)
     # Mốc xét sáp nhập là NGÀY CUỐI KỲ: kỳ kết thúc trước ngày sáp nhập thì lúc ấy hai đơn vị còn
     # độc lập nên vẫn đứng riêng, dù bảng đang ở chế độ gộp.
-    data = rows_mod.purchase_rows(date_from, date_to, merge_scope(comps, split_merged, date_to))
-    view = merge_view(comps, split_merged, date_to)
-    rows = filter_scope(merge_rollup(data["rows"], split_merged, date_to), view, regs)
+    data = rows_mod.purchase_rows(date_from, date_to, merge_scope(comps, split_merged))
+    view = merge_view(comps, split_merged)
+    rows = filter_scope(merge_rollup(data["rows"], split_merged), view, regs)
     if mats:
         rows = [r for r in rows if r["material"] in set(mats)]
     if grds:   # chủng loại chỉ áp cho mủ thành phẩm (mủ nước/chén không có chủng loại)
@@ -109,7 +109,7 @@ def purchase_report(date_from: str, date_to: str, *, companies: str | None = Non
     # Ngày không tổ chức thu mua: chỉ đếm được khi nhóm theo đơn vị/khu vực/ngày.
     if group_by in ("company", "region", "day") and not (mats or grds):
         meta = rows_mod.unit_meta()
-        for p in merge_rollup(data["no_purchase"], split_merged, date_to):
+        for p in merge_rollup(data["no_purchase"], split_merged):
             pseudo = {**p, "region": (meta.get(p["company"]) or {}).get("region")}
             if view and p["company"] not in set(view):
                 continue
@@ -133,7 +133,7 @@ def purchase_report(date_from: str, date_to: str, *, companies: str | None = Non
     filtered = bool(mats or grds)
     plan_by_key, plan_total = (({}, 0.0) if filtered
                                else year_plan_by_group(_PLAN_KEY, group_by, comps, regs, year,
-                                                       split_merged, date_to))
+                                                       split_merged))
     _attach_plan(totals, plan_total)
     for row in out_rows:
         _attach_plan(row, plan_by_key.get(row["key"]))   # nhóm khác đơn vị/khu vực → để trống

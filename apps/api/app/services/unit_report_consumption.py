@@ -83,9 +83,9 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
     """
     comps, regs = split_csv(companies), split_csv(regions)
     # Mốc xét sáp nhập là NGÀY CUỐI KỲ (xem `unit_report_purchase.purchase_report`).
-    data = rows_mod.consumption_rows(date_from, date_to, merge_scope(comps, split_merged, date_to))
-    rows = filter_scope(merge_rollup(data["rows"], split_merged, date_to),
-                        merge_view(comps, split_merged, date_to), regs)
+    data = rows_mod.consumption_rows(date_from, date_to, merge_scope(comps, split_merged))
+    rows = filter_scope(merge_rollup(data["rows"], split_merged),
+                        merge_view(comps, split_merged), regs)
     warnings: list[str] = []
     for field, val in (("grade", grades), ("contract", contract), ("channel", channel), ("source", source)):
         if vals := split_csv(val):
@@ -102,7 +102,7 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
     # sản lượng năm trước trong khi mẫu số chỉ là kế hoạch 1 năm → phải nói rõ, đừng để đọc nhầm.
     year = int(date_to[:4])
     plan_by_key, plan_total = year_plan_by_group(_PLAN_KEY, group_by, comps, regs, year,
-                                                 split_merged, date_to)
+                                                 split_merged)
     totals = _close_consumption(total)
     _attach_plan(totals, plan_total)
     if plan_total and date_from[:4] != date_to[:4]:

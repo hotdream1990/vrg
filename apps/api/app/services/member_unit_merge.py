@@ -14,7 +14,14 @@ Từ ngày hiệu lực:
   sẵn bằng `active_names()`), và `assert_can_enter` chặn ghi cho ngày >= ngày hiệu lực với thông
   báo chỉ rõ phải nhập vào đâu. Ngày TRƯỚC đó vẫn sửa được — số liệu cũ còn nguyên quyền chỉnh.
 - Tài khoản đơn vị chuyển hẳn sang đơn vị mới (`app_user.member_units`).
-- Báo cáo mặc định GỘP theo "dòng đời": số của A cộng vào B (xem `rollup_rows` / `expand`).
+
+Luật GỘP của báo cáo (chốt với chủ dự án 27/08/2026): *"toàn bộ số là xem gộp từ Công ty mới; dữ
+liệu công ty bị sáp nhập khoá lại để truy xuất riêng nếu cần"*. Nghĩa là gộp KHÔNG cắt theo ngày
+hiệu lực — sáp nhập từ 20/8 thì báo cáo từ đầu năm của công ty mới đã là tổng của cả hai. Muốn
+xem riêng giai đoạn trước sáp nhập thì bật `split_merged`.
+
+Riêng TỒN KHO là số THỜI ĐIỂM nên không cộng máy móc: xem `stock_superseded` — khi công ty mới đã
+khai tồn kể từ ngày hiệu lực thì lô hàng của công ty cũ đã nằm trong đó, cộng thêm là tính trùng.
 """
 
 from __future__ import annotations
@@ -82,6 +89,23 @@ def rollup_map(as_of: str | None = None) -> dict[str, str]:
     """{đơn vị đã sáp nhập: đơn vị hiện hành} tính đến ngày `as_of` — dùng để GỘP số liệu báo cáo."""
     mm, at, day = merge_map(), _merged_at_map(), _iso(as_of)
     return {n: cur for n in mm if (cur := _walk(n, mm, at, day)) != n}
+
+
+def stock_superseded(latest: dict[str, str]) -> set[str]:
+    """Đơn vị đã sáp nhập mà ảnh chụp TỒN KHO của họ đã nằm trong số của đơn vị nhận → thôi cộng.
+
+    `latest` = {đơn vị: ngày khai tồn gần nhất}. Sau ngày hiệu lực, kho của đơn vị cũ do đơn vị
+    nhận quản lý và khai chung, nên cộng thêm ảnh chụp cuối của đơn vị cũ là tính trùng chính lô
+    hàng đó. Ngược lại, khi đơn vị nhận chưa khai lần nào kể từ ngày hiệu lực thì hai kho vẫn đang
+    được khai riêng — phải cộng cả hai, bỏ bên nào là mất hàng thật.
+    """
+    at = _merged_at_map()
+    out = set()
+    for src, dst in merge_map().items():
+        day, tgt = at.get(src), latest.get(dst)
+        if day and tgt and tgt >= day:
+            out.add(src)
+    return out
 
 
 def lineage(name: str, as_of: str | None = None) -> list[str]:
