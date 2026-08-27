@@ -80,7 +80,8 @@ def _latest_per_company(rows: list[dict]) -> list[dict]:
 
 
 def _coverage(snap: list[dict], no_stock: dict[str, str], comps: list[str] | None,
-              regs: list[str] | None, split_merged: bool = False) -> dict[str, Any]:
+              regs: list[str] | None, split_merged: bool = False,
+              as_of: str | None = None) -> dict[str, Any]:
     """Độ phủ của ảnh chụp: bao nhiêu đơn vị có số, đơn vị nào chưa có số.
 
     Thiếu đơn vị là chuyện PHẢI hiện ra: tổng tồn kho toàn Tập đoàn thiếu vài đơn vị mà không báo
@@ -90,7 +91,7 @@ def _coverage(snap: list[dict], no_stock: dict[str, str], comps: list[str] | Non
     Số giữ lại theo cờ "không phát sinh" KHÔNG bị điểm mặt riêng: mỗi dòng đã mang sẵn ngày lấy số
     + số ngày đã cũ, người xem tự thấy — thêm cảnh báo ngưỡng nữa chỉ gây nhiễu.
     """
-    units = report_units(split_merged)   # xem TÁCH thì đơn vị đã sáp nhập cũng nằm trong khung
+    units = report_units(split_merged, as_of)   # đơn vị đã sáp nhập: xem TÁCH, hoặc ngày chốt trước ngày sáp nhập
     if comps:
         keep = set(comps)
         units = [u for u in units if u["name"] in keep]
@@ -157,7 +158,7 @@ def stock_report(as_of: str, days_back: int = 0, *, companies: str | None = None
     rows, snap = filter_scope(rows, view, regs), filter_scope(snap, view, regs)
     # Độ phủ tính TRƯỚC khi lọc chủng loại: đơn vị có tồn nhưng không có chủng loại đang lọc thì
     # vẫn là đơn vị "đã nhập", không được đếm thành thiếu số liệu.
-    cov = _coverage(snap, raw["no_stock"], comps, regs, split_merged)
+    cov = _coverage(snap, raw["no_stock"], comps, regs, split_merged, as_of)
     if grds:   # lọc chủng loại: chỉ áp cho 2 khối thành phẩm, tồn nguyên liệu không có chủng loại
         keep = set(grds)
         def _keep(lst: list[dict]) -> list[dict]:

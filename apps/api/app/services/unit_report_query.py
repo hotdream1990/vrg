@@ -53,15 +53,22 @@ def region_of_units() -> dict[str, str | None]:
     return {u["name"]: u.get("region") for u in member_unit_repo.list_units()}
 
 
-def report_units(split_merged: bool = False) -> list[dict]:
-    """Khung đơn vị của báo cáo: đang hoạt động, cộng thêm đơn vị ĐÃ SÁP NHẬP khi xem TÁCH.
+def report_units(split_merged: bool = False, as_of: str | None = None) -> list[dict]:
+    """Khung đơn vị của báo cáo: đang hoạt động, cộng thêm đơn vị ĐÃ SÁP NHẬP khi cần.
 
     Xem tách mà bỏ đơn vị đã sáp nhập ra khỏi khung thì số của họ biến mất khỏi bảng dù vẫn còn
     trong kho dữ liệu — đúng thứ tính năng sáp nhập cam kết giữ lại.
+
+    `as_of` = NGÀY CUỐI KỲ. Kỳ kết thúc TRƯỚC ngày sáp nhập thì đơn vị lúc đó còn độc lập nên vẫn
+    phải có mặt trong khung, kể cả khi đang xem GỘP: luật gộp cũng lấy mốc là ngày cuối kỳ, bỏ họ
+    khỏi khung mà không gộp vào ai là số của họ rơi vào khoảng không (Chư păh 2.896 tấn tiêu thụ
+    kỳ 01/01–19/08, phát hiện 27/08/2026).
     """
     units = member_unit_repo.list_units(include_inactive=False)
-    if split_merged:
-        merged = [u for u in member_unit_repo.list_units() if u.get("merged_into")]
+    merged = [u for u in member_unit_repo.list_units() if u.get("merged_into")]
+    if not split_merged:
+        merged = [u for u in merged if member_unit_merge.active_on(u["name"], as_of)]
+    if merged:
         units = sorted(units + merged, key=lambda u: (u.get("sort_order") or 0, u["name"]))
     return units
 

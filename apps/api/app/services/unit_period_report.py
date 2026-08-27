@@ -20,7 +20,7 @@ from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC, UNIT_GRADES
 from app.services import (
     price_repo, sales_contract_report, unit_daily_repo, unit_report_rows,
 )
-from app.services.unit_report_query import merge_rollup, merge_scope, merge_view, report_units
+from app.services.unit_report_query import merge_scope, merge_view, report_units
 
 TY = 1_000_000_000      # 1 tỷ đồng
 TRIEU = 1_000_000       # 1 triệu đồng
@@ -87,19 +87,27 @@ def _by_company(rows: list[dict]) -> dict[str, list[dict]]:
     return out
 
 
-def _latest_stock(entries: list[dict]) -> tuple[dict, str | None]:
-    """Bản ghi CÓ số liệu tồn gần nhất trong kỳ + ĐÚNG ngày của bản ghi đó.
+def _latest_stock(by_src: dict[str, list[dict]]) -> tuple[list[dict], str | None]:
+    """Ảnh chụp tồn của MỖI đơn vị trong dòng đời + ngày mới nhất trong số đó.
 
     KHÔNG lấy bản ghi ngày cuối vô điều kiện: đơn vị thường nhập dòng bán trước và để trống khối
     tồn kho, nên bản ghi cuối kỳ hay có tồn rỗng → báo cáo sẽ hiểu nhầm thành "hết hàng" (tồn = 0)
     thay vì "chưa cập nhật tồn". Dùng chung quy tắc `has_stock` với màn Thống kê tồn kho để hai
     màn luôn khớp; trả kèm ngày để người xem biết số thuộc ngày nào (không mượn số ngày khác).
+
+    ⚠ Đơn vị đã SÁP NHẬP: tồn là số thời điểm nên không cộng dồn theo NGÀY, nhưng phải cộng theo
+    ĐƠN VỊ — mỗi pháp nhân một lô hàng thật trong kho. Gom chung rồi lấy một bản ghi gần nhất là
+    làm bay mất tồn của bên kia (Chư păh 862,55 tấn, phát hiện 27/08/2026).
     """
-    with_stock = [e for e in entries if unit_report_rows.has_stock(e["fields"])]
-    if not with_stock:
-        return {}, None
-    last = max(with_stock, key=lambda e: e["as_of"])
-    return last["fields"], last["as_of"]
+    out, day = [], None
+    for entries in by_src.values():
+        with_stock = [e for e in entries if unit_report_rows.has_stock(e["fields"])]
+        if not with_stock:
+            continue
+        last = max(with_stock, key=lambda e: e["as_of"])
+        out.append(last["fields"])
+        day = max(day or "", last["as_of"])
+    return out, day
 
 
 # ── Biểu (2): Thu mua ──────────────────────────────────────────────────────────
@@ -159,7 +167,8 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
 
 
 # ── Biểu (1): Tiêu thụ – Tồn kho ───────────────────────────────────────────────
-def _consumption_rows(entries: list[dict], plan: dict, signed: dict[str, Any] | None = None,
+def _consumption_rows(by_src: dict[str, list[dict]], plan: dict,
+                      signed: dict[str, Any] | None = None,
                       contract: dict[str, Any] | None = None) -> dict[str, Any]:
     # ── Tiêu thụ CHỈ lấy từ HỢP ĐỒNG (chốt 02/08/2026) ────────────────────────────────────────
     # Hai mảng `sales`/`sales_own` cũ KHÔNG còn được cộng vào báo cáo: chừng nào chưa chạy script
@@ -186,10 +195,11 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: dict[str, Any] | 
     revenue = None if (has_contract and c_revenue is None) else (c_revenue if has_contract else None)
 
     # Tồn kho = THỜI ĐIỂM: lấy lần chốt tồn GẦN NHẤT trong kỳ (KHÔNG cộng dồn các ngày).
-    last, stock_as_of = _latest_stock(entries)
+    lasts, stock_as_of = _latest_stock(by_src)
     tonnes = lambda rows: sum((_num(r.get("qty")) or 0.0) for r in rows)  # noqa: E731
-    not_wh = last.get("stock_not_warehoused") or []      # khối 1: chế biến chưa nhập kho
-    wh = last.get("stock_warehoused") or []              # khối 2: đã nhập kho
+    # Ảnh chụp của cả dòng đời: gộp danh sách của từng đơn vị (mỗi đơn vị một ảnh chụp riêng).
+    not_wh = [r for f in lasts for r in (f.get("stock_not_warehoused") or [])]   # chưa nhập kho
+    wh = [r for f in lasts for r in (f.get("stock_warehoused") or [])]           # đã nhập kho
     # Khối 3 (đã ký HĐ) là bản ghi có vòng đời riêng → lấy các HĐ CÒN TỒN ở NGÀY CUỐI KỲ (nguồn
     # `sales_contract` + `unit_stock_contract` cũ, xem `unit_daily_repo.contracts_on`), không phụ
     # thuộc đơn vị có nhập số liệu ngày đó hay không.
@@ -237,7 +247,7 @@ def _consumption_rows(entries: list[dict], plan: dict, signed: dict[str, Any] | 
         "stock_not_warehoused": t(tonnes(not_wh)),
         "stock_warehoused": t(tonnes(wh)),
         "stock_by_grade": {g: t(v) for g, v in by_grade.items()},
-        "stock_material": t(_num(last.get("stock_material")) or 0.0),
+        "stock_material": t(sum(_num(f.get("stock_material")) or 0.0 for f in lasts)),
         "carry_lt_tonnes": _num(plan.get("carry_lt_tonnes")),
         "carry_spot_tonnes": _num(plan.get("carry_spot_tonnes")),
     }
@@ -266,22 +276,21 @@ def period_report(kind: str, date_from: str, date_to: str,
     # `attach_contracts=False`: khối 3 của báo cáo kỳ là chỉ tiêu THỜI ĐIỂM, lấy MỘT lần ở ngày
     # cuối kỳ (`signed_at_close` bên dưới) — gắn thêm khối 3 cho từng ngày là 1 truy vấn/ngày rồi
     # bỏ đi (kỳ 8 tháng đo được ~1,8s mỗi biểu).
-    entries = merge_rollup(unit_daily_repo.in_range(kind, date_from, date_to, scope,
-                                                    attach_contracts=False),
-                           split_merged, date_to)
-    grouped = _by_company(entries)
+    # Gom theo tên ĐƠN VỊ GỐC (không đổi tên dòng như `merge_rollup`): tồn kho là số thời điểm
+    # của TỪNG pháp nhân, mà giá thu mua bình quân cũng phải tra theo giá của chính đơn vị đó —
+    # đổi tên dòng trước khi tính là đánh mất cả hai. Việc gộp làm ở vòng lặp dưới, theo dòng đời.
+    grouped = _by_company(unit_daily_repo.in_range(kind, date_from, date_to, scope,
+                                                   attach_contracts=False))
     plans = _roll_dict(unit_daily_repo.year_plan(year, scope), roll)
-    units = report_units(split_merged)
+    units = report_units(split_merged, date_to)
     if companies is not None:
         keep = set(merge_view(companies, split_merged, date_to) or [])
         units = [u for u in units if u["name"] in keep]
     prices = (price_repo.purchase_prices_in_range(date_from, date_to, UNIT_SRC)
               if kind == "purchase" else {})
     # Biểu Thu mua cần số tiêu thụ mủ thu mua — nay nằm ở bản ghi 'consumption'.
-    sold_by_company = (_by_company(merge_rollup(
-                           unit_daily_repo.in_range("consumption", date_from, date_to, scope,
-                                                    attach_contracts=False),
-                           split_merged, date_to))
+    sold_by_company = (_by_company(unit_daily_repo.in_range("consumption", date_from, date_to,
+                                                            scope, attach_contracts=False))
                        if kind == "purchase" else {})
     # Tồn kho đã ký HĐ = chỉ tiêu THỜI ĐIỂM: các hợp đồng còn tồn ở NGÀY CUỐI KỲ (sales_contract
     # + unit_stock_contract cũ — xem unit_daily_repo.contracts_on).
@@ -293,14 +302,22 @@ def period_report(kind: str, date_from: str, date_to: str,
                                 sales_contract_report.consumption(date_from, date_to, scope), roll)
                             if kind == "consumption" else {})
 
+    # Dòng đời của mỗi đơn vị hiện hành: chính nó + các đơn vị đã sáp nhập vào nó tính đến cuối kỳ.
+    line: dict[str, list[str]] = {u["name"]: [u["name"]] for u in units}
+    for src, dst in roll.items():
+        if dst in line and src != dst:
+            line[dst].append(src)
+
     rows = []
     for u in units:
         name = u["name"]
-        ent = grouped.get(name, [])
+        by_src = {c: grouped[c] for c in line[name] if grouped.get(c)}
+        ent = [e for v in by_src.values() for e in v]
         plan = plans.get(name, {})
-        data = (_purchase_rows(ent, prices, plan, sold_by_company.get(name, []))
+        sold = [e for c in line[name] for e in sold_by_company.get(c, [])]
+        data = (_purchase_rows(ent, prices, plan, sold)
                 if kind == "purchase"
-                else _consumption_rows(ent, plan, signed_at_close.get(name),
+                else _consumption_rows(by_src, plan, signed_at_close.get(name),
                                        contract_consumption.get(name)))
         rows.append({
             "company": name, "region": u.get("region"),

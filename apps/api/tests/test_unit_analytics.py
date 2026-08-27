@@ -49,8 +49,11 @@ def _customer(h: dict[str, str], company: str) -> int:
     """Khách hàng của đơn vị (tạo nếu chưa có) — hợp đồng mẹ bắt buộc gán khách."""
     made = client.put("/api/customers", json={"company": company, "name": f"KH {company}"},
                       headers=h).json().get("id")
+    # Danh sách khách phân trang ở server → phải LỌC theo đơn vị, không quét trang đầu
+    # (DB dev có sẵn hàng trăm khách, khách của đơn vị test không nằm trong trang 1).
     return made if made is not None else next(
-        c["id"] for c in client.get("/api/customers", headers=h).json()["items"] if c["company"] == company)
+        c["id"] for c in client.get(f"/api/customers?company={company}", headers=h).json()["items"]
+        if c["company"] == company)
 
 
 _MASTERS: dict[str, int] = {}
@@ -284,7 +287,8 @@ def test_internal_channel_is_not_counted_as_domestic(seeded) -> None:
     client.put(f"/api/member-units/{UNIT_B}", headers=h,
                json={"set_parent": True, "parent_company": UNIT_A})
     client.put("/api/customers", json={"company": UNIT_B, "name": f"KH {UNIT_B}"}, headers=h)
-    cus = next(c["id"] for c in client.get("/api/customers", headers=h).json()["items"]
+    cus = next(c["id"] for c in
+               client.get(f"/api/customers?company={UNIT_B}", headers=h).json()["items"]
                if c["company"] == UNIT_B)
     r = client.put("/api/sales-contracts", json={
         "company": UNIT_B, "code": "HD-INT", "customer_id": cus, "delivery_type": "single",
