@@ -32,10 +32,6 @@ export type MasterContract = {
   expiry_date: string | null;
   lines: MasterLine[];
   /** Công thức giá — TEXT tự do (vd "SICOM TSR20 bình quân tuần trước + 30 USD/tấn"). */
-  /** Hàng có chứng chỉ + premium khách trả thêm (26/08/2026). */
-  certs: string[];
-  premium: number | null;
-  premium_ccy: string | null;
   price_formula: string | null;
   files: ContractDoc[];
   note: string | null;

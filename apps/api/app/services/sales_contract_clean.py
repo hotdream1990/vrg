@@ -238,9 +238,12 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         "payment_docs": contract_docs.normalize(row.get("payment_docs"), None, None),
         "files": contract_docs.normalize(row.get("files"), None, None),
         "note": str(row.get("note") or "").strip()[:500] or None,
-        # Hàng có chứng chỉ + premium: chỉ khai ở HỢP ĐỒNG. Đợt giao là một lần giao của chính hợp
-        # đồng đó nên thừa kế — để đợt tự khai thì cùng một lô hàng có 2 câu trả lời khác nhau.
-        **(contract_certs.clean(row) if not is_child
+        # Hàng có chứng chỉ + premium khai ở NGỌN — nơi có SẢN LƯỢNG thật của một lần giao (chốt
+        # 27/08/2026): hợp đồng giao 1 lần (HĐ chuyến / phụ lục) khai ngay trên nó, giao nhiều lần
+        # thì khai ở TỪNG ĐỢT. Premium thoả thuận theo từng chuyến hàng, treo ở cấp hợp đồng thì
+        # mỗi đợt một mức là không ghi nổi, mà thống kê "bán bao nhiêu tấn hàng có chứng chỉ" cũng
+        # phải bám đúng cấp có sản lượng.
+        **(contract_certs.clean(row) if is_batch
            else {"certs": [], "premium": None, "premium_ccy": None}),
     }
 

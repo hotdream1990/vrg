@@ -340,14 +340,21 @@ export default function ContractFormModal({
         </>
       )}
 
-      {/* Hàng có chứng chỉ + premium — CHỈ ở cấp hợp đồng. Đợt giao là một lần giao của chính
-          hợp đồng đó nên thừa kế; cho đợt tự khai thì cùng lô hàng có hai câu trả lời. */}
-      {!isChild && (
+      {/* Hàng có chứng chỉ + premium khai ở NGỌN — nơi có sản lượng của một lần giao (chốt
+          27/08/2026): HĐ chuyến / phụ lục giao 1 lần khai ngay ở đây, giao nhiều lần thì khai
+          trong từng đợt giao. */}
+      {isBatch && (
         <CertPremiumFields
           value={{ certs: c.certs ?? [], premium: c.premium ?? null,
                    premium_ccy: c.premium_ccy ?? null }}
           certs={meta.certs ?? []} currencies={meta.premium_currencies ?? ["USD", "VND"]}
           onChange={(patch) => set(patch)} />
+      )}
+      {!isBatch && (
+        <div className="form-note" style={{ fontSize: 12, marginTop: 12 }}>
+          Hợp đồng giao nhiều lần: <b>hàng có chứng chỉ và premium khai ở từng đợt giao</b> — mỗi
+          chuyến một mức premium riêng.
+        </div>
       )}
 
       {isBatch && <ContractBatchDocs c={c} set={set} />}

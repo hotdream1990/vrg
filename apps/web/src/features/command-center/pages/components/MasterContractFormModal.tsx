@@ -10,7 +10,6 @@ import type { ContractMeta } from "../../../../lib/sales-contract-client";
 import CustomerPicker from "../../sections/CustomerPicker";
 import DateInput from "../../sections/DateInput";
 import ContractAttach from "./ContractAttach";
-import CertPremiumFields from "./CertPremiumFields";
 import MasterLinesTable, { EMPTY_MASTER_LINE } from "./MasterLinesTable";
 
 type Props = {
@@ -24,7 +23,6 @@ type Props = {
 const blank = (company: string): MasterContract => ({
   id: null, company, code: "", master_type: "principle", customer_id: null,
   sign_date: null, expiry_date: null, lines: [{ ...EMPTY_MASTER_LINE }],
-  certs: [], premium: null, premium_ccy: null,
   price_formula: null, files: [], note: null, qty: 0,
 });
 
@@ -140,11 +138,6 @@ export default function MasterContractFormModal({ meta, initial, defaultCompany,
         Tổng sản lượng cam kết: <b>{qty > 0 ? `${t3(qty)} tấn` : "—"}</b>
         {qtyDry > 0 && <> · Quy khô: <b>{t3(qtyDry)} tấn</b></>}
       </div>
-
-      <CertPremiumFields
-        value={{ certs: m.certs ?? [], premium: m.premium ?? null, premium_ccy: m.premium_ccy ?? null }}
-        certs={meta.certs ?? []} currencies={meta.premium_currencies ?? ["USD", "VND"]}
-        onChange={(patch) => set(patch)} />
 
       {/* Chỉ HĐ DÀI HẠN mới có công thức giá — HĐ nguyên tắc không có phần này. */}
       {m.master_type === "long_term" && (

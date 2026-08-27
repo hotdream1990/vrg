@@ -1,10 +1,13 @@
-"""HÀNG CÓ CHỨNG CHỈ + PREMIUM trên hợp đồng gốc và hợp đồng bán (chốt 26/08/2026).
+"""HÀNG CÓ CHỨNG CHỈ + PREMIUM — khai ở NGỌN (chốt 26/08/2026, đổi cấp khai 27/08/2026).
+
+Khai ở nơi có SẢN LƯỢNG của một lần giao: hợp đồng giao 1 lần (HĐ chuyến / phụ lục) khai trên
+chính nó, hợp đồng giao nhiều lần thì khai ở TỪNG ĐỢT GIAO. Hợp đồng mẹ (HĐNT/HĐDH) không khai.
 
 Bốn điều dễ vỡ, khoá lại bằng test:
-  - Chọn nhiều chứng chỉ, lưu rồi đọc lên phải nguyên vẹn (cả 2 loại hợp đồng).
+  - Chọn nhiều chứng chỉ, lưu rồi đọc lên phải nguyên vẹn.
   - Không có premium → để TRỐNG cả số tiền lẫn loại tiền (không đọng loại tiền mồ côi).
   - Chứng chỉ ngoài danh mục / loại tiền ngoài USD-VND phải BÁO LỖI, không lặng lẽ bỏ.
-  - ĐỢT GIAO không mang chứng chỉ riêng — thừa kế của hợp đồng cha.
+  - ĐỢT GIAO khai được của riêng nó; hợp đồng mẹ và HĐ giao nhiều lần thì KHÔNG.
 """
 
 from __future__ import annotations
@@ -75,19 +78,20 @@ def test_meta_offers_the_catalog(env) -> None:
     assert meta["premium_currencies"] == ["USD", "VND"]
 
 
-def test_master_contract_keeps_certs_and_premium(env) -> None:
+def test_master_contract_no_longer_carries_certs(env) -> None:
+    """Hợp đồng mẹ chỉ là hồ sơ liên kết — chứng chỉ/premium thuộc về nơi có sản lượng."""
     h, cus = env
     r = _master(h, cus, certs=["EUDR", "PEFC"], premium=120, premium_ccy="usd")
     assert r.status_code == 200, r.text
     m = r.json()["master"]
-    # Thứ tự theo DANH MỤC (không theo thứ tự người dùng bấm) + loại tiền chuẩn hoá hoa.
-    assert m["certs"] == ["PEFC", "EUDR"] and m["premium"] == 120.0 and m["premium_ccy"] == "USD"
+    assert m["certs"] == [] and m["premium"] is None and m["premium_ccy"] is None
 
     got = client.get(f"/api/master-contracts/{m['id']}", headers=h).json()["master"]
-    assert got["certs"] == ["PEFC", "EUDR"] and got["premium_ccy"] == "USD"
+    assert got["certs"] == [] and got["premium"] is None
 
 
-def test_sales_contract_keeps_certs_and_premium_in_vnd(env) -> None:
+def test_single_delivery_contract_keeps_certs_and_premium_in_vnd(env) -> None:
+    """HĐ chuyến giao 1 lần = một lần giao → khai ngay trên hợp đồng."""
     h, cus = env
     r = _contract(h, cus, certs=["VRG GREEN"], premium=1500000, premium_ccy="VND")
     assert r.status_code == 200, r.text
@@ -124,22 +128,38 @@ def test_bad_cert_or_currency_is_rejected(env) -> None:
     neg = _contract(h, cus, premium=-5, premium_ccy="USD")
     assert neg.status_code == 400 and "không được âm" in neg.json()["detail"]
 
-    m = _master(h, cus, certs=["EUDR", "SAI"])
-    assert m.status_code == 400 and "không có trong danh mục" in m.json()["detail"]
+    # Đợt giao cũng bị soi y hệt — đây mới là nơi khai của hợp đồng giao nhiều lần.
+    parent = _contract(h, cus, code="HD-CERT-M", delivery_type="multi").json()["contract"]
+    dg = client.put("/api/sales-contracts", headers=h, json={
+        "company": UNIT, "parent_id": parent["id"], "code": "DG-X", "customer_id": cus,
+        "delivery_type": "single", "delivered_at": TODAY, "channel": "export",
+        "certs": ["SAI"], "lines": LINE})
+    assert dg.status_code == 400 and "không có trong danh mục" in dg.json()["detail"]
 
 
-def test_delivery_batch_does_not_carry_its_own_certs(env) -> None:
-    """Đợt giao thừa kế của hợp đồng — khai riêng ở đợt là cùng lô hàng có 2 câu trả lời."""
+def test_multi_contract_declares_certs_on_each_delivery(env) -> None:
+    """Giao nhiều lần: mỗi ĐỢT một mức premium riêng; cấp hợp đồng không giữ gì cả."""
     h, cus = env
     parent = _contract(h, cus, code="HD-CERT-MULTI", delivery_type="multi",
+                       lines=[{"grade": "SVR 10 / CSR 10", "qty": 30.0, "price": 40.0, "ccy": "VND"}],
                        certs=["EUDR"], premium=95, premium_ccy="USD").json()["contract"]
+    # Khai ở cấp hợp đồng bị bỏ — nơi khai là từng đợt.
+    assert parent["certs"] == [] and parent["premium"] is None
+
     batch = client.put("/api/sales-contracts", headers=h, json={
         "company": UNIT, "parent_id": parent["id"], "code": "DG-01", "customer_id": cus,
         "delivery_type": "single", "delivered_at": TODAY, "channel": "export",
         "certs": ["PEFC"], "premium": 999, "premium_ccy": "USD", "lines": LINE})
     assert batch.status_code == 200, batch.text
-    assert batch.json()["contract"]["certs"] == []
-    assert batch.json()["contract"]["premium"] is None
-    # Hợp đồng cha giữ nguyên phần đã khai.
-    still = client.get(f"/api/sales-contracts/{parent['id']}", headers=h).json()["contract"]
-    assert still["certs"] == ["EUDR"] and still["premium"] == 95.0
+    assert batch.json()["contract"]["certs"] == ["PEFC"]
+    assert batch.json()["contract"]["premium"] == 999.0
+
+    # Đợt thứ hai khai mức khác — hai đợt không đè lên nhau.
+    b2 = client.put("/api/sales-contracts", headers=h, json={
+        "company": UNIT, "parent_id": parent["id"], "code": "DG-02", "customer_id": cus,
+        "delivery_type": "single", "delivered_at": TODAY, "channel": "export",
+        "certs": ["EUDR"], "premium": 45, "premium_ccy": "USD", "lines": LINE})
+    assert b2.status_code == 200, b2.text
+    assert b2.json()["contract"]["premium"] == 45.0
+    d = client.get(f"/api/sales-contracts/{parent['id']}", headers=h).json()
+    assert sorted((k["premium"] or 0) for k in d["children"]) == [45.0, 999.0]

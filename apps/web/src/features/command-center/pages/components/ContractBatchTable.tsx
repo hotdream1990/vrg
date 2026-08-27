@@ -45,6 +45,23 @@ function DocCell({ no, docs }: { no: string | null; docs: ContractDoc[] }) {
   );
 }
 
+/** Chứng chỉ + premium của MỘT ĐỢT GIAO, gói gọn trong một ô của bảng. */
+function CertCell({ certs, premium, ccy }: {
+  certs?: string[]; premium?: number | null; ccy?: string | null;
+}) {
+  if (!certs?.length && premium == null) return <span style={{ color: "var(--muted)" }}>—</span>;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: 11.5 }}>
+      {(certs ?? []).map((c) => <span key={c} className="chip ok">{c}</span>)}
+      {premium != null && (
+        <span className="chip info" style={{ whiteSpace: "nowrap" }}>
+          +{t3(premium)} {ccy ?? ""}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** Bảng ĐỢT GIAO của một hợp đồng — mỗi dòng là một lần giao (hoá đơn · ngày giao · chi tiết
  *  hàng). Đợt chưa điền ngày giao là đang chờ giao, chưa tính vào tiêu thụ. */
 export default function ContractBatchTable({ rows, meta, canEdit, locked, onEdit, onDelete }: Props) {
@@ -67,6 +84,7 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, onEdit
           <th>Hình thức</th><th>Đơn vị nhận</th>
           <th className="r">SL (tấn)</th><th className="r">Quy khô</th>
           <th className="r">Thành tiền (tr.đ)</th>
+          <th>Chứng chỉ · Premium</th>
           <th>Thanh toán</th><th>Đính kèm khác</th>
           {canEdit && <th className="r" style={{ width: 150 }}>Thao tác</th>}
         </tr></thead>
@@ -85,6 +103,7 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, onEdit
                   đợt này khai thiếu quy khô. */}
               <td className="r">{k.qty_dry > 0 ? t3(k.qty_dry) : "—"}</td>
               <td className="r">{money(k.revenue)}</td>
+              <td><CertCell certs={k.certs} premium={k.premium} ccy={k.premium_ccy} /></td>
               <td style={{ whiteSpace: "nowrap", fontSize: 12.5 }}>
                 {dmy(k.payment_date) || "—"}
                 {k.payment_qty != null && (
@@ -110,7 +129,7 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, onEdit
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr><td colSpan={canEdit ? 11 : 10} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>
+            <tr><td colSpan={canEdit ? 12 : 11} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>
               Chưa có đợt giao nào — hợp đồng chưa giao lần nào.
             </td></tr>
           )}
@@ -131,7 +150,7 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, onEdit
               <td className="r">{t3(sum.qty)}</td>
               <td className="r">{sum.qty_dry > 0 ? t3(sum.qty_dry) : "—"}</td>
               <td className="r">{money(sum.revenue)}</td>
-              <td colSpan={canEdit ? 3 : 2} />
+              <td colSpan={canEdit ? 4 : 3} />
             </tr>
           </tfoot>
         )}

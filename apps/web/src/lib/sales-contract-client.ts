@@ -74,8 +74,8 @@ export type Contract = {
   qty_dry: number;
   /** Thành tiền quy về ĐỒNG. null = có dòng ngoại tệ thiếu tỷ giá (KHÔNG phải 0). */
   revenue: number | null;
-  /** Hàng có chứng chỉ (PEFC · EUDR · VRG GREEN) + khoản premium khách trả thêm. Chỉ khai ở
-   *  HỢP ĐỒNG — đợt giao thừa kế của hợp đồng cha. */
+  /** Hàng có chứng chỉ (PEFC · EUDR · VRG GREEN) + khoản premium khách trả thêm. Khai ở NGỌN:
+   *  hợp đồng giao 1 lần khai trên chính nó, giao nhiều lần thì ở TỪNG ĐỢT GIAO (27/08/2026). */
   certs?: string[];
   premium?: number | null;
   premium_ccy?: string | null;
