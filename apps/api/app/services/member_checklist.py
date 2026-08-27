@@ -56,6 +56,44 @@ _MISSING_FX_SQL = text("""
 """)
 
 
+#: Hợp đồng CHỐT HOÀN THÀNH mà chưa ghi lần giao nào → sản lượng đó không bao giờ vào tiêu thụ.
+#: Gặp thật 27/08/2026: Thanh Hoá xoá ngày giao của một hợp đồng chuyển từ lần bán thật rồi bấm
+#: "Hoàn thành" — 198,66 tấn (9,8 tỷ) rơi khỏi tiêu thụ tháng 4 mà không ai hay. Nhiều khả năng
+#: đơn vị hiểu "Hoàn thành hợp đồng" là cách ghi nhận ĐÃ GIAO XONG.
+#: Rà từ ĐẦU NĂM như nhóm thiếu tỷ giá: đây là sản lượng + tiền, sót là báo cáo hụt cả kỳ.
+_COMPLETED_NO_DELIVERY_SQL = text("""
+    SELECT c.id, c.company, c.code, c.completed_at,
+           COALESCE((SELECT sum(COALESCE(NULLIF(e->>'qty', '')::numeric, 0))
+                       FROM jsonb_array_elements(c.lines) e), 0) AS qty
+      FROM sales_contract c
+     WHERE c.parent_id IS NULL AND c.company = ANY(:units)
+       AND c.completed_at IS NOT NULL AND c.completed_at >= CAST(:a AS date)
+       AND c.delivered_at IS NULL
+       AND NOT EXISTS (SELECT 1 FROM sales_contract k
+                        WHERE k.parent_id = c.id AND k.delivered_at IS NOT NULL)
+     ORDER BY qty DESC
+""")
+
+
+def _completed_no_delivery(units: list[str], year_start: str) -> dict[str, list[dict[str, Any]]]:
+    """Hợp đồng đã chốt hoàn thành nhưng KHÔNG có lần giao nào — sản lượng không vào tiêu thụ.
+
+    Hợp đồng huỷ giữa chừng cũng rơi vào đây, nên chỉ NHẮC chứ không kết luận là sai: đơn vị mở ra
+    xem, nếu hàng đã giao thật thì điền ngày giao, còn huỷ thật thì bỏ qua.
+    """
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(_COMPLETED_NO_DELIVERY_SQL,
+                          {"units": list(units), "a": year_start}).mappings().all()
+    out: dict[str, list[dict[str, Any]]] = {u: [] for u in units}
+    for r in rows:
+        out.setdefault(r["company"], []).append({
+            "id": r["id"], "code": r["code"], "qty": float(r["qty"] or 0),
+            "completed_at": str(r["completed_at"]),
+        })
+    return out
+
+
 def _missing_fx(units: list[str], today: date, editable_from: str) -> dict[str, list[dict[str, Any]]]:
     """Lần giao thiếu tỷ giá từ 01/01 năm nay → doanh thu & giá bán BQ đang thiếu phần này."""
     with session_scope() as db:
@@ -121,8 +159,8 @@ def checklist(units: list[str]) -> dict[str, Any]:
     """Việc còn thiếu của TỪNG đơn vị được gán cho tài khoản.
 
     Ba nhóm: (1) ngày chưa nhập biểu Thu mua · (2) ngày chưa nhập biểu Tồn kho ·
-    (3) nhắc khác — chưa khai Kế hoạch năm, đợt giao quên điền ngày giao, lần giao ngoại tệ thiếu
-    tỷ giá, và **ô số liệu cần soát lại** (nhiều khả năng nhầm đơn vị tính — xem
+    (3) nhắc khác — chưa khai Kế hoạch năm, đợt giao quên điền ngày giao, **hợp đồng đã chốt mà
+    chưa ghi lần giao nào**, lần giao ngoại tệ thiếu tỷ giá, và **ô số liệu cần soát lại** (nhiều khả năng nhầm đơn vị tính — xem
     `member_data_check`). Hai nhóm cuối rà từ ĐẦU NĂM, không giới hạn trong `alert_days`.
 
     Phạm vi rà = `MEMBER_ALERT_DAYS` (admin cấu hình, mặc định 14 ngày, **0 = tắt cảnh báo**).
@@ -150,6 +188,7 @@ def checklist(units: list[str]) -> dict[str, Any]:
     done = {k: _submitted(k, units, days) for k in ("purchase", "consumption")}
     pending = _pending_batches(units, today)
     no_fx = _missing_fx(units, today, editable_from)
+    closed_no_giao = _completed_no_delivery(units, year_start)
 
     rows, total = [], 0
     for u in units:
@@ -163,11 +202,13 @@ def checklist(units: list[str]) -> dict[str, Any]:
         # và KHÔNG hiện phần chi tiết nữa → việc còn thiếu biến mất khỏi màn hình.
         total += (len(miss_p) + len(miss_s) + len(pending.get(u, []))
                   + len(no_fx.get(u, [])) + len(checks.get(u, []))
+                  + len(closed_no_giao.get(u, []))
                   + (1 if plan_missing else 0))
         rows.append({"company": u, "needs_purchase": needs_purchase,
                      "purchase_missing": miss_p, "stock_missing": miss_s,
                      "year_plan_missing": plan_missing, "year": today.year,
                      "pending_batches": pending.get(u, []),
                      "missing_fx": no_fx.get(u, []),
+                     "completed_no_delivery": closed_no_giao.get(u, []),
                      "data_checks": checks.get(u, [])})
     return {**base, "days": days, "units": rows, "total_missing": total}

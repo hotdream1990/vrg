@@ -281,3 +281,65 @@ def test_checklist_needs_member_role() -> None:
     """Chuyên viên/admin không có "đơn vị của mình" → endpoint này không dành cho họ."""
     assert client.get("/api/member/checklist", headers=_admin()).status_code == 403
     assert client.get("/api/member/checklist").status_code == 401
+
+
+def test_completed_contract_without_any_delivery_is_flagged() -> None:
+    """Chốt hoàn thành mà chưa ghi lần giao nào → bảng nhắc việc phải kêu.
+
+    Ca thật 27/08/2026: đơn vị xoá ngày giao của một hợp đồng rồi bấm "Hoàn thành" — 198,66 tấn
+    rơi khỏi tiêu thụ mà không màn nào nhắc. Nhóm này rà từ đầu năm vì đây là sản lượng + tiền.
+    """
+    h = _admin()
+    _cleanup(h)
+    member_unit_repo.add_unit(UNIT)
+    assert client.post("/api/users", json={"username": USER, "password": "pass123",
+                                           "role": "member", "member_units": [UNIT]},
+                       headers=h).status_code == 200
+    mh = _member()
+    today = date.today()
+    try:
+        cus = client.put("/api/customers", json={"company": UNIT, "name": "KH chốt nhầm"},
+                         headers=h).json()["id"]
+        made = client.put("/api/sales-contracts", headers=h, json={
+            "company": UNIT, "code": "HD-CHOT-NHAM", "customer_id": cus, "contract_type": "spot",
+            "delivery_type": "single", "sign_date": today.isoformat(),
+            "lines": [{"grade": "SVR 10 / CSR 10", "qty": 198.66, "price": 40.0, "ccy": "VND"}]})
+        assert made.status_code == 200, made.text
+        cid = made.json()["contract"]["id"]
+
+        # Chưa chốt → chưa nhắc (hợp đồng mới ký, chưa giao là chuyện bình thường).
+        u = client.get("/api/member/checklist", headers=mh).json()["units"][0]
+        assert u["completed_no_delivery"] == []
+
+        assert client.put(f"/api/sales-contracts/{cid}/completion", headers=h,
+                          json={"completed_at": today.isoformat()}).status_code == 200
+
+        u = client.get("/api/member/checklist", headers=mh).json()["units"][0]
+        flagged = u["completed_no_delivery"]
+        assert len(flagged) == 1 and flagged[0]["code"] == "HD-CHOT-NHAM"
+        assert flagged[0]["qty"] == 198.66
+
+        # Sửa được thì phải MỞ LẠI hợp đồng trước — hợp đồng đã chốt bị khoá không cho sửa.
+        assert client.put(f"/api/sales-contracts/{cid}", headers=h, json={
+            "id": cid, "company": UNIT, "code": "HD-CHOT-NHAM", "customer_id": cus,
+            "contract_type": "spot", "delivery_type": "single", "sign_date": today.isoformat(),
+            "delivered_at": today.isoformat(), "channel": "domestic",
+            "lines": [{"grade": "SVR 10 / CSR 10", "qty": 198.66, "price": 40.0, "ccy": "VND"}],
+        }).status_code in (400, 404, 405)   # không sửa thẳng được khi đang ở trạng thái hoàn thành
+        assert client.put(f"/api/sales-contracts/{cid}/completion", headers=h,
+                          json={"completed_at": None}).status_code == 200
+
+        # Mở lại rồi điền ngày giao → hết nhắc (sản lượng đã vào tiêu thụ).
+        assert client.put("/api/sales-contracts", headers=h, json={
+            "id": cid, "company": UNIT, "code": "HD-CHOT-NHAM", "customer_id": cus,
+            "contract_type": "spot", "delivery_type": "single", "sign_date": today.isoformat(),
+            "delivered_at": today.isoformat(), "channel": "domestic",
+            "lines": [{"grade": "SVR 10 / CSR 10", "qty": 198.66, "price": 40.0, "ccy": "VND"}],
+        }).status_code == 200
+        u = client.get("/api/member/checklist", headers=mh).json()["units"][0]
+        assert u["completed_no_delivery"] == []
+    finally:
+        with session_scope() as db:
+            db.execute(text("DELETE FROM sales_contract WHERE company = :c"), {"c": UNIT})
+            db.execute(text("DELETE FROM unit_customer WHERE company = :c"), {"c": UNIT})
+        _cleanup(h)

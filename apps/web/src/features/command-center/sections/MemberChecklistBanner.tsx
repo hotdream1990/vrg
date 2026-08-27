@@ -139,6 +139,22 @@ function UnitRow({ u, today, editableFrom, go }: {
       </div>,
     );
   }
+  if (u.completed_no_delivery?.length) {
+    // Không kết luận là sai (hợp đồng huỷ cũng rơi vào đây) — chỉ nói rõ hệ quả để đơn vị tự soát.
+    const tons = u.completed_no_delivery.reduce((s2, c) => s2 + (c.qty || 0), 0);
+    items.push(
+      <div key="cnd" style={{ marginBottom: 4 }}>
+        <b>{u.completed_no_delivery.length} hợp đồng đã chốt hoàn thành nhưng chưa ghi lần giao nào</b>{" "}
+        ({u.completed_no_delivery.slice(0, 3).map((c) => `${c.code} — ${t3(c.qty)} t`).join(" · ")}
+        {u.completed_no_delivery.length > 3 ? " …" : ""}) — tổng <b>{t3(tons)} tấn</b> này{" "}
+        <b>không vào tiêu thụ</b>. Hàng đã giao thật thì mở hợp đồng, bấm{" "}
+        <b>Mở lại hợp đồng</b>, điền <b>Ngày giao</b> + <b>Hình thức tiêu thụ</b> rồi chốt lại;
+        hợp đồng huỷ thì bỏ qua.{" "}
+        <button className="chip info" style={{ border: 0, cursor: "pointer" }}
+          onClick={() => go("/hop-dong")}>Mở hợp đồng</button>
+      </div>,
+    );
+  }
   if (u.missing_fx.length) {
     // Tiền, không phải số liệu nhập thiếu → nói rõ hệ quả (doanh thu chưa tính) và rà cả năm.
     const fixable = u.missing_fx.filter((d) => d.editable).length;

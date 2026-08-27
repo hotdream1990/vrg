@@ -53,6 +53,17 @@ export default function ContractCompleteModal({ d, onClose, onDone }: Props) {
         {d.over_qty > 1e-9 && <div>Giao vượt: <b>{t3(d.over_qty)}</b> tấn</div>}
       </div>
 
+      {/* CHƯA GIAO GÌ mà đã chốt: gần như luôn là hiểu nhầm "Hoàn thành" = "đã giao xong".
+          Gặp thật 27/08/2026 — một hợp đồng 198,66 tấn rơi khỏi tiêu thụ vì lý do này. */}
+      {d.delivered_qty <= 1e-9 && (
+        <div className="blt-error" style={{ marginTop: 12, fontSize: 12.5 }}>
+          <b>Hợp đồng này chưa ghi lần giao nào.</b> Nếu hàng <b>đã giao</b>, hãy đóng cửa sổ này và
+          điền <b>Ngày giao</b> + <b>Hình thức tiêu thụ</b> trước — bấm <i>Hoàn thành</i> KHÔNG phải
+          là cách ghi nhận đã giao, chốt xong thì <b>{t3(c.qty)} tấn</b> này <b>không vào tiêu thụ</b>.
+          Chỉ chốt luôn khi hợp đồng <b>huỷ / không giao nữa</b>.
+        </div>
+      )}
+
       <label className="form-field" style={{ display: "block", marginTop: 12 }}>Ngày hoàn thành *
         <DateInput value={day} onChange={(v) => setDay(v)} />
       </label>

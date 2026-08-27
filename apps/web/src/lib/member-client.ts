@@ -78,6 +78,8 @@ export type UnitChecklist = {
   year_plan_missing: boolean;
   year: number;
   pending_batches: PendingBatch[];
+  /** Hợp đồng đã chốt hoàn thành mà chưa ghi lần giao nào — sản lượng không vào tiêu thụ. */
+  completed_no_delivery: { id: number; code: string; qty: number; completed_at: string }[];
   missing_fx: MissingFxDelivery[];  // rà từ 01/01 năm nay, KHÔNG giới hạn trong alert_days
   data_checks: DataCheck[];         // ô cần soát lại — cũng rà từ 01/01 năm nay
 };
