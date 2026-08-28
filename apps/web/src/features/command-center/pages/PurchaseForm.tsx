@@ -1,5 +1,8 @@
-/* Form nhập biểu THU MUA (1 đơn vị / 1 ngày): mủ nước · mủ chén · THÀNH PHẨM (mua lại mủ đã chế biến).
-   - Đơn vị nước ngoài: đơn giá mủ nước/mủ chén nhập theo NỘI TỆ (LAK/KHR) + tỷ giá nội tệ→VND
+/* Form nhập biểu THU MUA (1 đơn vị / 1 ngày): mủ nước · mủ chén · MỦ DÂY · THÀNH PHẨM (mua lại mủ
+   đã chế biến).
+   - Cả 3 loại mủ nguyên liệu khai GIỐNG NHAU: một ô sản lượng theo TẤN QUY KHÔ + một ô đơn giá.
+     (Cặp "chưa quy khô / quy khô" chỉ có ở DÒNG HỢP ĐỒNG BÁN, nơi tiền tính trên số chưa quy khô.)
+   - Đơn vị nước ngoài: đơn giá 3 loại mủ nguyên liệu nhập theo NỘI TỆ (LAK/KHR) + tỷ giá nội tệ→VND
      → đơn giá VND tự quy đổi và ghi vào kho "Giá mủ nguyên liệu".
    - Thu mua thành phẩm = BẢNG NHIỀU DÒNG theo CHỦNG LOẠI (mỗi dòng chọn VNĐ hay USD + tỷ giá,
      có nút lấy tỷ giá VCB cho mọi dòng USD) — giống bảng tiêu thụ/tồn kho.
@@ -8,9 +11,9 @@
 import { Checkbox, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
-import { PRICE_CUP, PRICE_LATEX, TONNES_DAILY } from "../../../lib/entry-bounds";
+import { PRICE_CUP, PRICE_LACE, PRICE_LATEX, TONNES_DAILY } from "../../../lib/entry-bounds";
 import {
-  CUP_PRICE_UNIT, DRY_BASIS_HINT, LATEX_PRICE_UNIT,
+  CUP_PRICE_UNIT, DRY_BASIS_HINT, LACE_PRICE_UNIT, LATEX_PRICE_UNIT,
 } from "../../../lib/purchase-price-unit";
 import { fetchVcbRate } from "../../../lib/market-quote-client";
 import { HINT_DAILY_EVENT } from "../../../lib/unit-daily-entry-hints";
@@ -44,17 +47,21 @@ const initFinished = (values: Values): FinishedLine[] => {
 
 /** Dựng nháp ban đầu từ payload đã lưu + đơn giá VND (đơn vị VN prefill đơn giá VND, nước ngoài prefill nội tệ). */
 function initDraft(values: Values, linked: UnitPurchasePrice | null | undefined, foreign: boolean): Values {
-  const base: Values = { latex_wet: values.latex_wet, coagulum: values.coagulum };
+  const base: Values = {
+    latex_wet: values.latex_wet, coagulum: values.coagulum, lace: values.lace,
+  };
   if (foreign) {
     return {
       ...base,
       price_latex_local: values.price_latex_local, price_cup_local: values.price_cup_local,
+      price_lace_local: values.price_lace_local,
       fx_purchase: values.fx_purchase,
     };
   }
   return {
     ...base,
     price_latex_vnd: linked?.latex ?? undefined, price_cup_vnd: linked?.cup ?? undefined,
+    price_lace_vnd: linked?.lace ?? undefined,
   };
 }
 
@@ -80,15 +87,19 @@ export default function PurchaseForm({
   // Quy đổi về VND (base đồng).
   const priceLatexVnd = foreign ? mul(draft.price_latex_local, draft.fx_purchase) : num(draft.price_latex_vnd);
   const priceCupVnd = foreign ? mul(draft.price_cup_local, draft.fx_purchase) : num(draft.price_cup_vnd);
+  const priceLaceVnd = foreign ? mul(draft.price_lace_local, draft.fx_purchase) : num(draft.price_lace_vnd);
 
   const fin = finishedTotals(finished);
 
   // Payload lưu (đồng) + đơn giá VND ghi kho giá.
   const current = useMemo<Values>(() => {
-    const p: Values = { latex_wet: draft.latex_wet, coagulum: draft.coagulum };
+    const p: Values = {
+      latex_wet: draft.latex_wet, coagulum: draft.coagulum, lace: draft.lace,
+    };
     if (foreign) {
       Object.assign(p, {
         price_latex_local: draft.price_latex_local, price_cup_local: draft.price_cup_local,
+        price_lace_local: draft.price_lace_local,
         fx_purchase: draft.fx_purchase,
       });
     }
@@ -96,7 +107,7 @@ export default function PurchaseForm({
     if (noPurchase) (p as Record<string, unknown>).no_purchase = true;
     return p;
   }, [draft, finished, foreign, noPurchase]);
-  const prices: PriceDraft = { latex: priceLatexVnd, cup: priceCupVnd };
+  const prices: PriceDraft = { latex: priceLatexVnd, cup: priceCupVnd, lace: priceLaceVnd };
 
   const dirty = useMemo(() => {
     const orig = initDraft(values, linkedPrice, foreign);
@@ -163,10 +174,10 @@ export default function PurchaseForm({
 
       <div style={{ ...gridStyle, opacity: noPurchase ? 0.5 : 1 }}>
         <div className="form-note" style={{ gridColumn: "1 / -1", fontSize: 11.5 }}>
-          Sản lượng của <b>cả 4 loại mủ nguyên liệu</b> dưới đây nhập theo <b>tấn quy khô</b>{" "}
+          Sản lượng của <b>cả 3 loại mủ nguyên liệu</b> dưới đây nhập theo <b>tấn quy khô</b>{" "}
           (<b>{DRY_BASIS_HINT}</b>), không phải khối lượng mủ tươi cân được. Đơn giá: mủ nước theo{" "}
-          <b>độ TSC</b>, mủ chén theo <b>độ DRC</b>. Riêng <b>Thu mua thành phẩm</b> là số lượng
-          thực mua (hàng đã chế biến, không quy đổi).
+          <b>độ TSC</b>, mủ chén và mủ dây theo <b>độ DRC</b>. Riêng <b>Thu mua thành phẩm</b> là số
+          lượng thực mua (hàng đã chế biến, không quy đổi).
         </div>
         {head("Mủ nước", true, HINT_DAILY_EVENT)}
         {field("Sản lượng thu mua", "tấn quy khô", numInput(num(draft.latex_wet), (v) => set("latex_wet", v), readOnly, undefined, TONNES_DAILY))}
@@ -190,6 +201,17 @@ export default function PurchaseForm({
           field("Đơn giá thu mua", CUP_PRICE_UNIT, numInput(num(draft.price_cup_vnd), (v) => set("price_cup_vnd", v), readOnly, undefined, PRICE_CUP))
         )}
 
+        {/* MỦ DÂY (chốt 28/08/2026) — đặt CUỐI, sau mủ nước và mủ chén, theo đúng thứ tự khách chốt. */}
+        {head("Mủ dây", false, HINT_DAILY_EVENT)}
+        {field("Sản lượng thu mua", "tấn quy khô", numInput(num(draft.lace), (v) => set("lace", v), readOnly, undefined, TONNES_DAILY))}
+        {foreign ? (
+          <>
+            {field("Đơn giá thu mua", `${currency}/độ DRC`, numInput(num(draft.price_lace_local), (v) => set("price_lace_local", v), readOnly))}
+            {field("Đơn giá thu mua", LACE_PRICE_UNIT, readOnlyBox(fmtNum(priceLaceVnd, 0), "tự quy đổi"))}
+          </>
+        ) : (
+          field("Đơn giá thu mua", LACE_PRICE_UNIT, numInput(num(draft.price_lace_vnd), (v) => set("price_lace_vnd", v), readOnly, undefined, PRICE_LACE))
+        )}
         <div className="form-note" style={{ gridColumn: "1 / -1", fontSize: 11.5 }}>
           Đơn giá <b>để trống</b> hoặc <b>bằng 0</b> = ngày đó <b>không có giá thu mua</b>: hệ thống
           không lưu mức giá 0 (mở lại ô sẽ trống), và ngày đó không được tính vào giá bình quân

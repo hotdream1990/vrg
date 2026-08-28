@@ -86,12 +86,13 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
     acc: dict[str, float] = {}
     no_days = 0        # số ngày đơn vị KHÔNG tổ chức thu mua (khác ngày có mua nhưng được 0 tấn)
     # bình quân gia quyền: Σ(giá ngày × sản lượng ngày) ÷ Σ(sản lượng ngày)
-    wsum = {"latex": 0.0, "cup": 0.0}
-    wqty = {"latex": 0.0, "cup": 0.0}
+    wsum = {"latex": 0.0, "cup": 0.0, "lace": 0.0}
+    wqty = {"latex": 0.0, "cup": 0.0, "lace": 0.0}
     for e in entries:
         f = e["fields"]
         _add(acc, "latex_wet", f.get("latex_wet"))
         _add(acc, "coagulum", f.get("coagulum"))
+        _add(acc, "lace", f.get("lace"))
         # Thu mua thành phẩm nhập theo CHỦNG LOẠI (bảng nhiều dòng) → cộng số lượng các dòng.
         for ln in f.get("finished") or []:
             _add(acc, "finished_qty", ln.get("qty"))
@@ -99,7 +100,7 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
         if f.get("no_purchase") is True:
             no_days += 1
         day_px = prices.get((e["company"], e["as_of"]), {})
-        for slot, qty_key in (("latex", "latex_wet"), ("cup", "coagulum")):
+        for slot, qty_key in (("latex", "latex_wet"), ("cup", "coagulum"), ("lace", "lace")):
             px, qty = _num(day_px.get(slot)), _num(f.get(qty_key))
             if px and qty:
                 wsum[slot] += px * qty
@@ -112,20 +113,24 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
         _add(acc, "revenue", f.get("purchased_sold_revenue"))
         _add(acc, "finished_sold_qty", f.get("finished_sold_qty"))
 
-    total = acc.get("latex_wet", 0.0) + acc.get("coagulum", 0.0)
+    # Tổng thu mua = TOÀN BỘ mủ nguyên liệu theo số QUY KHÔ (mủ nước + mủ chén + mủ dây) — cùng
+    # tử số với % kế hoạch ở màn Thống kê thu mua (`unit_report_purchase._PLAN_MATERIALS`).
+    total = acc.get("latex_wet", 0.0) + acc.get("coagulum", 0.0) + acc.get("lace", 0.0)
     revenue = acc.get("revenue")
     consumption = acc.get("consumption")
     plan_tonnes = _num(plan.get("plan_tonnes"))
     return {
         "latex_wet": acc.get("latex_wet"),
         "coagulum": acc.get("coagulum"),
+        "lace": acc.get("lace"),
         # Thu mua thành phẩm (biểu Thu mua) và tiêu thụ thành phẩm (biểu Tiêu thụ) là HAI chỉ tiêu
         # khác nhau — trước đây cột "thu mua thành phẩm" lấy nhầm số tiêu thụ và không được trả về.
         "finished_qty": acc.get("finished_qty"),
         "finished_sold_qty": acc.get("finished_sold_qty"),
         "total_purchase": total or None,
         "price_latex_avg": _ratio(wsum["latex"], wqty["latex"]),   # đồng/độ TSC
-        "price_cup_avg": _ratio(wsum["cup"], wqty["cup"]),
+        "price_cup_avg": _ratio(wsum["cup"], wqty["cup"]),         # đồng/độ DRC
+        "price_lace_avg": _ratio(wsum["lace"], wqty["lace"]),      # đồng/độ DRC
         "plan_tonnes": plan_tonnes,
         "pct_plan": (total / plan_tonnes * 100) if plan_tonnes else None,
         "consumption": consumption,

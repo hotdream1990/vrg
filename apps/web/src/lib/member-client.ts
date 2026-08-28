@@ -4,12 +4,14 @@
 
 import { apiFetch } from "./http";
 
-export type MemberPriceType = "purchase" | "purchase_cup";
+/** Khớp `market_meta.PURCHASE_PRICE_TYPES` ở backend (mủ nước · mủ chén · mủ dây). */
+export type MemberPriceType = "purchase" | "purchase_cup" | "purchase_lace";
 
 export type UnitSheet = {
-  purchase: Record<string, number>;      // {date: giá mủ nước (đồng/độ TSC)}
-  purchase_cup: Record<string, number>;  // {date: giá mủ chén (đồng/độ TSC)}
-  dates: string[];                       // ngày có dữ liệu (mới → cũ)
+  purchase: Record<string, number>;       // {date: giá mủ nước (đồng/độ TSC)}
+  purchase_cup: Record<string, number>;   // {date: giá mủ chén (đồng/độ DRC)}
+  purchase_lace: Record<string, number>;  // {date: giá mủ dây (đồng/độ DRC)}
+  dates: string[];                        // ngày có dữ liệu (mới → cũ)
 };
 
 export type MemberPrices = {

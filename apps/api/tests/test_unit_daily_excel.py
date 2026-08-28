@@ -140,11 +140,15 @@ def test_template_download_then_import_roundtrip() -> None:
     later = (d + timedelta(days=20)).strftime("%d/%m/%Y")   # lịch giao — phải SAU ngày bắt đầu
 
     cases = {
-        # Thu mua thành phẩm theo CHỦNG LOẠI: 2 dòng cho cùng (đơn vị, ngày) — số mủ nước/mủ chén
+        # Thu mua thành phẩm theo CHỦNG LOẠI: 2 dòng cho cùng (đơn vị, ngày) — số mủ nguyên liệu
         # chỉ điền ở dòng đầu, dòng sau để trống (đúng cách hướng dẫn trong file mẫu).
         # Không còn cột "Đơn giá mủ chén tính theo": mủ chén LUÔN theo độ DRC (chốt 17/08/2026).
-        "purchase": [(unit, dmy, 120.0, 50.0, 540, 510, "SVR CV 50", 30, 41.2, "VND"),
-                     (unit, dmy, None, None, None, None, "SVR 3L", 20, 1800, "USD")],
+        # Thứ tự cột: đơn vị · ngày · SL mủ nước · SL mủ chén · SL mủ dây
+        #             · đơn giá nước · đơn giá chén · đơn giá dây · chủng loại TP · SL TP · giá TP · tiền TP
+        "purchase": [(unit, dmy, 120.0, 50.0, 15.0, 540, 510, 260,
+                      "SVR CV 50", 30, 41.2, "VND"),
+                     (unit, dmy, None, None, None, None, None, None,
+                      "SVR 3L", 20, 1800, "USD")],
         # Cột "Nguồn mủ" tách mủ thu mua / mủ khai thác thành 2 bảng lưu riêng.
         # Cột "Số HĐ/PL" = số hợp đồng / phụ lục của dòng bán (và của dòng tồn kho đã ký HĐ).
         "sales": [(unit, dmy, "HĐ-01/2026", "Mủ thu mua", "Dài hạn", "XK / UTXK", "SVR CV 50",
@@ -178,6 +182,12 @@ def test_template_download_then_import_roundtrip() -> None:
     pur = client.get(f"/api/unit-daily/day?kind=purchase&as_of={iso}",
                      headers=h).json()["entries"][unit]["fields"]
     assert pur["latex_wet"] == 120.0 and pur["coagulum"] == 50.0
+    assert pur["lace"] == 15.0
+    with session_scope() as db:
+        lace_px = db.execute(text(
+            "SELECT price FROM fact_price WHERE grade = :g AND price_type = 'purchase_lace' "
+            "AND as_of = CAST(:d AS date)"), {"g": unit, "d": iso}).scalar()
+    assert lace_px is not None and float(lace_px) == 260
     # Nhiều dòng thành phẩm của cùng 1 ngày phải gom vào MẢNG, không đè lẫn nhau.
     assert [(r["grade"], r["qty"], r["ccy"]) for r in pur["finished"]] == [
         ("SVR CV 50", 30, "VND"), ("SVR 3L", 20, "USD")]

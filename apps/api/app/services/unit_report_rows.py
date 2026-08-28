@@ -21,12 +21,21 @@ from app.services import member_unit_repo, price_repo, unit_daily_repo
 
 TRIEU = 1_000_000       # 1 triệu đồng
 
-#: Loại mủ thu mua — 3 nhóm; nhóm `finished` còn tách tiếp theo chủng loại.
-MATERIALS: tuple[str, ...] = ("latex", "cup", "finished")
+#: Loại mủ thu mua — 4 nhóm; nhóm `finished` còn tách tiếp theo chủng loại.
+MATERIALS: tuple[str, ...] = ("latex", "cup", "lace", "finished")
 MATERIAL_LABELS = {
-    "latex": "Mủ nước", "cup": "Mủ chén",
+    "latex": "Mủ nước", "cup": "Mủ chén", "lace": "Mủ dây",
     "finished": "Thành phẩm",
 }
+
+#: Mủ nguyên liệu nhập ô CỐ ĐỊNH ở biểu Thu mua — cả ba loại khai GIỐNG NHAU:
+#: (loại mủ, ô sản lượng, ô đơn giá nội tệ, loại giá trong kho).
+#: `qty` LUÔN là số QUY KHÔ → mọi chỉ tiêu tổng cùng một cơ sở DRC, cộng được với nhau.
+PURCHASE_MATERIALS: tuple[tuple[str, str, str, str], ...] = (
+    ("latex", "latex_wet", "price_latex_local", "purchase"),
+    ("cup", "coagulum", "price_cup_local", "purchase_cup"),
+    ("lace", "lace", "price_lace_local", "purchase_lace"),
+)
 #: Nguồn mủ tiêu thụ (2 bảng nhập tách riêng ở biểu Tiêu thụ).
 # Từ 30/07/2026 tiêu thụ đến từ LẦN GIAO của hợp đồng, không còn tách 2 nguồn mủ. Hai nhãn cũ giữ
 # lại để bản ghi lịch sử (nếu có nơi nào còn đọc) không hiện ra chuỗi thô.
@@ -106,20 +115,16 @@ def purchase_rows(date_from: str, date_to: str,
             no_purchase.append({"company": base["company"], "as_of": base["as_of"]})
         day_px = px.get((base["company"], base["as_of"])) or {}
         fx_local = _num(f.get("fx_purchase"))
-        for material, qty_key, local_key, px_key in (
-            ("latex", "latex_wet", "price_latex_local", "latex"),
-            ("cup", "coagulum", "price_cup_local", "cup"),
-        ):
+        for material, qty_key, local_key, price_type in PURCHASE_MATERIALS:
             qty = _num(f.get(qty_key))
             if qty is None:
                 continue
             # Đơn vị nước ngoài nhập giá nội tệ → quy về VND; còn lại lấy kho "Giá mủ nguyên liệu".
             local = _price(f.get(local_key))
-            price = (local * fx_local) if (local is not None and fx_local) else _price(day_px.get(px_key))
+            price = (local * fx_local) if (local is not None and fx_local) else _price(day_px.get(material))
             rows.append({**base, "material": material, "grade": MATERIAL_LABELS[material],
                          "qty": qty, "price": price, "price_unit": "dong_do",
-                         "price_unit_label": PURCHASE_PRICE_UNIT[
-                             "purchase_cup" if material == "cup" else "purchase"],
+                         "price_unit_label": PURCHASE_PRICE_UNIT[price_type],
                          "ccy": "VND", "fx": None, "revenue_vnd": None,
                          "missing_fx": local is not None and not fx_local})
         for ln in f.get("finished") or []:

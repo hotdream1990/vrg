@@ -82,7 +82,7 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, onEdit
         <thead><tr>
           <th>Số đợt</th><th>Ngày giao</th><th>Hoá đơn</th>
           <th>Hình thức</th><th>Đơn vị nhận</th>
-          <th className="r">SL (tấn)</th><th className="r">Quy khô</th>
+          <th className="r">SL chưa quy khô (tấn)</th><th className="r">Quy khô (tấn)</th>
           <th className="r">Thành tiền (tr.đ)</th>
           <th>Chứng chỉ · Premium</th>
           <th>Thanh toán</th><th>Đính kèm khác</th>

@@ -134,6 +134,7 @@ export default function DataLockConfirmModal({ company, roundId, readOnly, onClo
               hint="Cộng các ngày đơn vị đã nhập ở biểu Thu mua.">
               <Kpi label="Mủ nước (tấn)" value={n3(p.latex_wet)} />
               <Kpi label="Mủ chén (tấn)" value={n3(p.coagulum)} />
+              <Kpi label="Mủ dây (tấn)" value={n3(p.lace)} />
               <Kpi label="Thành phẩm (tấn)" value={n3(p.finished_qty)} />
               <Kpi label="Tổng thu mua (tấn)" value={n3(p.total_purchase)} />
               <Kpi label="% kế hoạch năm" value={n3(p.pct_plan, "%")} />

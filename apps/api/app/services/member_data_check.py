@@ -88,7 +88,9 @@ def _purchase(p: dict) -> list[tuple[str, str]]:
     head = (("Mủ nước · Sản lượng thu mua",
              eb.bound_warning(_num(p.get("latex_wet")), eb.TONNES_DAILY)),
             ("Mủ chén · Sản lượng thu mua",
-             eb.bound_warning(_num(p.get("coagulum")), eb.TONNES_DAILY)))
+             eb.bound_warning(_num(p.get("coagulum")), eb.TONNES_DAILY)),
+            ("Mủ dây · Sản lượng thu mua",
+             eb.bound_warning(_num(p.get("lace")), eb.TONNES_DAILY)))
     return [*[(w, m) for w, m in head if m], *_line_issues(p.get("finished"), "Thu mua thành phẩm")]
 
 

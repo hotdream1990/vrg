@@ -187,7 +187,7 @@ export type ConsumptionSummary = {
   /** Sản lượng tiêu thụ — đã là QUY KHÔ với latex/mủ nguyên liệu (PA1). */
   qty: number;
   qty_dry: number;
-  /** SL mủ nước của riêng các dòng CÓ quy khô — số cân thực tế, không lặp lại `qty`. */
+  /** SL chưa quy khô của riêng các dòng CÓ quy khô — số cân thực tế, không lặp lại `qty`. */
   qty_wet: number;
   revenue: number | null;
   deliveries: number;
@@ -327,7 +327,7 @@ export type DeliveryHistoryRow = {
   grades: string;
   qty: number;                    // đã là QUY KHÔ với latex/mủ nguyên liệu (PA1)
   qty_dry: number;
-  qty_wet: number;                // SL mủ nước của riêng các dòng có quy khô
+  qty_wet: number;                // SL chưa quy khô của riêng các dòng có quy khô
   revenue: number | null;         // null = thiếu tỷ giá, KHÔNG phải bằng 0
   invoice_no: string | null;
 };

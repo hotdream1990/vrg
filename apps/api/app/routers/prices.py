@@ -10,6 +10,7 @@ import tempfile
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.core.market_meta import PURCHASE_PRICE_TYPES
 from app.core.paths import crawlers_dir
 from app.core.permissions import LEVEL_EDIT
 from app.core.security import (
@@ -49,8 +50,8 @@ _CRAWLER_DIR = crawlers_dir()
 
 def _cap_for_record(source: str, price_type: str) -> str:
     """Bản ghi giá thuộc mục nào → đúng quyền cần có (endpoint /records dùng chung 3 màn hình)."""
-    if price_type in ("purchase", "purchase_cup"):
-        return "raw_material"     # giá mủ nguyên liệu (mủ nước/mủ chén)
+    if price_type in PURCHASE_PRICE_TYPES:
+        return "raw_material"     # giá mủ nguyên liệu (mủ nước / mủ chén / mủ dây)
     if price_type == "physical":
         return "physical"         # giá physical
     return "auto_data"            # override giá sàn trong bảng tính giá các sàn

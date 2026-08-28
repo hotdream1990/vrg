@@ -158,12 +158,17 @@ def test_dry_weight_required_from_the_first_save(env, cus) -> None:
     assert good.status_code == 200, good.text
 
 
-def test_dry_weight_required_for_all_three_grades(env, cus) -> None:
-    """Quy khô bắt buộc cho ĐỦ 3 loại (LATEX + 2 loại NL mới) — không chỉ LATEX."""
+def test_dry_weight_required_for_every_wet_grade(env, cus) -> None:
+    """Quy khô bắt buộc cho ĐỦ mọi chủng loại còn nước — không chỉ LATEX.
+
+    Hiện là 4: LATEX + 2 loại mủ nguyên liệu (30/07/2026) + mủ dây (28/08/2026). Con số ở đây CỐ Ý
+    chốt cứng: thêm loại còn nước mà quên khai vào `DRY_REQUIRED_GRADES` thì đơn vị bán loại đó
+    được lưu mà không cần quy khô, và sản lượng tiêu thụ của nó vào báo cáo bằng số cân ướt.
+    """
     from app.core.market_meta import DRY_REQUIRED_GRADES
 
     h = env
-    assert len(DRY_REQUIRED_GRADES) == 3
+    assert len(DRY_REQUIRED_GRADES) == 4
     for i, grade in enumerate(sorted(DRY_REQUIRED_GRADES)):
         # KHÔNG đánh dấu đã giao: luật ép quy khô không phụ thuộc trạng thái giao.
         body = {"company": UNIT, "code": f"HD-DRY{i}", "delivery_type": "single",
@@ -772,13 +777,13 @@ def test_consumption_xlsx_has_detail_sheet(env, cus) -> None:
     rows = [dict(zip(head, [c.value for c in r], strict=True)) for r in ws.iter_rows(min_row=6)]
     assert len(rows) == 2                                   # một dòng bán = một dòng file
     latex = next(r for r in rows if r["Chủng loại"] == "LATEX")
-    assert (latex["SL mủ nước (tấn)"], latex["Quy khô (tấn)"]) == (30.0, 10.0)
+    assert (latex["SL chưa quy khô (tấn)"], latex["Quy khô (tấn)"]) == (30.0, 10.0)
     assert latex["SL tính tiêu thụ (tấn quy khô)"] == pytest.approx(10.0)
     assert latex["Số hợp đồng"] == "HD-XL" and latex["Đợt giao"] == "PL-XL"
     assert latex["Số hoá đơn"] == "HD0001"
     # Thành phẩm không có khái niệm mủ nước → ô trống, KHÔNG lặp lại số lượng ở cột đó.
     finished = next(r for r in rows if r["Chủng loại"] != "LATEX")
-    assert finished["SL mủ nước (tấn)"] is None and finished["Quy khô (tấn)"] is None
+    assert finished["SL chưa quy khô (tấn)"] is None and finished["Quy khô (tấn)"] is None
     assert finished["SL tính tiêu thụ (tấn quy khô)"] == pytest.approx(7.0)
 
     # Tổng chi tiết = số của sheet tổng hợp (và của bảng trên web) — hai sheet không được lệch.
@@ -821,7 +826,7 @@ def test_consumption_xlsx_breaks_each_contract_down_by_grade(env, cus) -> None:
 
     latex = next(r for r in mine if r["Chủng loại"] == "LATEX")
     assert latex["Sản lượng (tấn quy khô)"] == pytest.approx(15.0)    # 10 + 5, lấy số QUY KHÔ
-    assert latex["SL mủ nước (tấn)"] == pytest.approx(45.0)           # 30 + 15, số cân thực tế
+    assert latex["SL chưa quy khô (tấn)"] == pytest.approx(45.0)           # 30 + 15, số cân thực tế
     assert latex["Số lần giao (lần)"] == 2                            # cộng 2 đợt vào một dòng
     finished = next(r for r in mine if r["Chủng loại"] != "LATEX")
     assert finished["Sản lượng (tấn quy khô)"] == pytest.approx(14.0)  # 7 + 7, hàng khô
@@ -1222,7 +1227,7 @@ def test_latex_reports_dry_tonnes_but_bills_wet(env, cus) -> None:
                        f"&company={UNIT}", headers=h).json()["by_company"][UNIT]
     assert cons2["qty"] == pytest.approx(17.0)                   # 10 (quy khô latex) + 7
 
-    # Cột "SL mủ nước" trả lại số cân thực tế của latex; hàng khô KHÔNG cộng vào (cộng vào thì cột
+    # Cột "SL chưa quy khô" trả lại số cân thực tế của latex; hàng khô KHÔNG cộng vào (cộng vào thì cột
     # này chỉ chép lại cột sản lượng, không nói thêm được gì).
     assert cons2["qty_wet"] == pytest.approx(30.0)
 

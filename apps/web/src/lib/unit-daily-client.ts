@@ -31,7 +31,11 @@ export type Role = "member" | "hq";
 
 export type DailyEntry = { fields: Values; updated_at: string; updated_by: string | null };
 /** Đơn giá thu mua ĐÚNG NGÀY (đồng/độ), link từ "Giá mủ nguyên liệu". */
-export type UnitPurchasePrice = { latex: number | null; cup: number | null };
+/** Đơn giá thu mua ĐÚNG NGÀY của 1 đơn vị — một khoá cho mỗi loại mủ nguyên liệu
+    (khớp `price_repo.PURCHASE_TYPE_SLOT` ở backend). */
+export type UnitPurchasePrice = {
+  latex: number | null; cup: number | null; lace: number | null;
+};
 /** Đơn giá VND (mủ nước/mủ chén) do form Thu mua ghi về kho "Giá mủ nguyên liệu".
  *  Cơ sở tính độ KHÔNG còn là lựa chọn: mủ nước = độ TSC, mủ chén = độ DRC
  *  (xem `lib/purchase-price-unit.ts`). */

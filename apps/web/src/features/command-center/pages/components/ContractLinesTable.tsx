@@ -120,9 +120,10 @@ export default function ContractLinesTable({
                   {meta.grades.map((g) => <option key={g} value={g}>{g}</option>)}
                 </select>
               </Field>
-              {/* Latex + 2 loại mủ nguyên liệu bán theo MỦ NƯỚC — ghi thẳng vào nhãn, vì tiền
-                  tính trên số này còn sản lượng tiêu thụ trên báo cáo lại lấy ô Quy khô. */}
-              <Field label={hasDry ? "SL nước (tấn)" : "SL (tấn)"} w={110}>
+              {/* Chủng loại còn nước (latex · mủ nguyên liệu · mủ dây) bán theo SỐ CHƯA QUY KHÔ —
+                  ghi thẳng vào nhãn, vì tiền tính trên số này còn sản lượng tiêu thụ trên báo cáo
+                  lại lấy ô Quy khô. */}
+              <Field label={hasDry ? "SL chưa quy khô (tấn)" : "SL (tấn)"} w={140}>
                 {num(ln.qty, (v) => set(i, { qty: v }), w.qty)}
               </Field>
               {hasDry && (
@@ -183,11 +184,12 @@ export default function ContractLinesTable({
         Đơn giá: bán bằng <b>VNĐ</b> nhập theo <b>triệu đồng/tấn</b>; bán bằng ngoại tệ nhập theo
         <b> ngoại tệ/tấn</b>. <b>Tỷ giá</b> chỉ bắt buộc khi đã điền <b>Ngày giao</b> — lúc ký hợp
         đồng chưa biết tỷ giá ngày giao hàng, để trống thì doanh thu tạm để trống chứ không tính
-        bằng 0. Bán <b>LATEX</b> và 2 loại mủ nguyên liệu mới thì <b>bắt buộc nhập quy khô</b> mới
-        lưu được — cả lúc tạo lẫn lúc sửa, kể cả hợp đồng chưa giao.
+        bằng 0. Bán <b>LATEX</b>, 2 loại mủ nguyên liệu và <b>mủ dây</b> thì{" "}
+        <b>bắt buộc nhập quy khô</b> mới lưu được — cả lúc tạo lẫn lúc sửa, kể cả hợp đồng chưa giao.
         <br />
-        Với 3 chủng loại đó: <b>SL nước</b> là số để tính <b>thành tiền</b> (đơn giá là giá theo tấn
-        mủ nước), còn <b>sản lượng tiêu thụ trên báo cáo lấy theo số quy khô</b>.
+        Với các chủng loại đó: <b>SL chưa quy khô</b> là số để tính <b>thành tiền</b> (đơn giá là giá
+        theo tấn hàng chưa quy khô), còn{" "}
+        <b>sản lượng tiêu thụ trên báo cáo lấy theo số quy khô</b>.
       </div>
     </div>
   );

@@ -26,6 +26,7 @@ type Col = { key: string; label: string; unit: string; note: string; date?: bool
 const PURCHASE_COLS: Col[] = [
   { key: "latex_wet", label: "SL thu mua mủ nước", unit: "tấn", note: "cộng dồn" },
   { key: "coagulum", label: "SL thu mua mủ chén", unit: "tấn", note: "cộng dồn" },
+  { key: "lace", label: "SL thu mua mủ dây", unit: "tấn", note: "cộng dồn" },
   { key: "finished_qty", label: "SL thu mua thành phẩm", unit: "tấn", note: "cộng dồn chủng loại" },
   { key: "total_purchase", label: "Tổng SL thu mua", unit: "tấn", note: "= nước + chén" },
   { key: "price_latex_avg", label: "Giá mủ nước BQ", unit: LATEX_PRICE_UNIT, note: "BQ gia quyền" },

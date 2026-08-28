@@ -23,7 +23,7 @@ import { type Values, fmtNum } from "../../../lib/unit-daily-fields";
 import EntryWarnBanner from "../sections/EntryWarnBanner";
 import { fieldLabel, numInput, readOnlyBox } from "./unit-daily-inputs";
 
-const NO_PRICES: PriceDraft = { latex: null, cup: null };
+const NO_PRICES: PriceDraft = { latex: null, cup: null, lace: null };
 const num = (x: number | null | undefined): number | null => (x == null || Number.isNaN(x) ? null : x);
 
 /** Tab cũ của biểu — giữ kiểu để route/menu không phải đổi chữ ký (chỉ còn "stock" có nghĩa). */

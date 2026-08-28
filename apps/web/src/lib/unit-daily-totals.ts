@@ -10,6 +10,7 @@ import { COLUMNS, type Kind, colValue, isSummable, toDisplay } from "./unit-dail
 const PRICE_WEIGHT: Record<string, string> = {
   price_latex: "latex_wet",
   price_cup: "coagulum",
+  price_lace: "lace",
   finished_price_avg: "finished_qty",
   price_avg: "consumption",
 };

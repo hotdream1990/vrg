@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { deleteRecord, upsertRecord } from "../../../lib/api-client";
 import { dmy } from "../../../lib/date";
 import { type MemberPriceType, clearMyPrice, upsertMyPrice } from "../../../lib/member-client";
-import { CUP_PRICE_UNIT, LATEX_PRICE_UNIT } from "../../../lib/purchase-price-unit";
+import { CUP_PRICE_UNIT, LACE_PRICE_UNIT, LATEX_PRICE_UNIT } from "../../../lib/purchase-price-unit";
 import {
   type DayData, fetchMyDay, fetchDay, saveMyDaily, saveDaily,
 } from "../../../lib/unit-daily-client";
@@ -75,12 +75,15 @@ export default function UnitDailyEditModal(
   const savePrices = async (prices: PriceDraft) => {
     const orig = data?.prices?.[company];
     const jobs: Promise<unknown>[] = [];
-    // Nhãn đơn vị lưu kèm giá: mủ nước = độ TSC, mủ chén = độ DRC (cố định, xem
+    // Nhãn đơn vị lưu kèm giá: mủ nước = độ TSC, mủ chén và mủ dây = độ DRC (cố định, xem
     // `lib/purchase-price-unit.ts`) — server cũng ép lại nhãn này nên hai tầng luôn khớp.
+    const PRICE_UNIT: Record<MemberPriceType, string> = {
+      purchase: LATEX_PRICE_UNIT, purchase_cup: CUP_PRICE_UNIT, purchase_lace: LACE_PRICE_UNIT,
+    };
     const each = (raw: number | null, ov: number | null, pt: MemberPriceType) => {
       const nv = raw === 0 ? null : raw;   // 0 = không có giá → coi như bỏ trống
       if ((nv ?? null) === (ov ?? null)) return;
-      const unit = pt === "purchase_cup" ? CUP_PRICE_UNIT : LATEX_PRICE_UNIT;
+      const unit = PRICE_UNIT[pt];
       if (role === "member") {
         jobs.push(nv == null
           ? clearMyPrice(company, day, pt)
@@ -94,6 +97,7 @@ export default function UnitDailyEditModal(
     };
     each(prices.latex, orig?.latex ?? null, "purchase");
     each(prices.cup, orig?.cup ?? null, "purchase_cup");
+    each(prices.lace, orig?.lace ?? null, "purchase_lace");
     await Promise.all(jobs);
   };
 

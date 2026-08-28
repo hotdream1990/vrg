@@ -656,3 +656,46 @@ def test_mark_no_purchase_only_fills_days_the_unit_left_blank(seeded) -> None:
     assert after[D0] == {"no_purchase": True}   # gộp cờ vào bản ghi rỗng sẵn có (không insert mới)
     for d in (d6, d1, d0):
         assert after[d] == {"no_purchase": True}
+
+
+# ── Mủ dây (chốt 28/08/2026) ───────────────────────────────────────────────────
+def test_lace_counts_like_the_other_two_raw_materials(seeded) -> None:
+    """Mủ dây là loại mủ nguyên liệu THỨ BA — khai và cộng y hệt mủ nước / mủ chén.
+
+    Sản lượng theo TẤN QUY KHÔ nên cộng thẳng vào tổng mủ nguyên liệu (tử số của % kế hoạch);
+    đơn giá bình quân là BQ GIA QUYỀN theo sản lượng, không phải trung bình cộng.
+    """
+    h = seeded
+    _price(UNIT_A, D0, "purchase_lace", 300.0)
+    _price(UNIT_A, D1, "purchase_lace", 200.0)
+    client.put("/api/unit-daily/report", headers=h, json={
+        "kind": "purchase", "company": UNIT_A, "as_of": D0,
+        "fields": {"latex_wet": 100, "coagulum": 10, "lace": 30,
+                   "finished": [{"grade": "SVR 3L", "qty": 5, "price": 40}]}})
+    client.put("/api/unit-daily/report", headers=h, json={
+        "kind": "purchase", "company": UNIT_A, "as_of": D1,
+        "fields": {"latex_wet": 300, "lace": 10,
+                   "finished": [{"grade": "SVR 10", "qty": 5, "price": 2000,
+                                 "ccy": "USD", "fx": None}]}})
+
+    a = _row(_get("purchase", h, companies=UNIT_A), UNIT_A)
+    assert a["qty_lace"] == 40                                  # 30 + 10
+    assert a["qty_material"] == 450                             # 400 nước + 10 chén + 40 dây
+    assert a["qty_total"] == 460                                # + 10 tấn thành phẩm
+    # BQ gia quyền: (300×30 + 200×10) / 40 = 275 đ/độ DRC — TB cộng sẽ ra 250 (sai).
+    assert a["price_lace_avg"] == pytest.approx(275)
+    # Biểu Thu mua KHÔNG có ô "chưa quy khô" (chốt 29/08/2026) — cặp đó chỉ có ở dòng hợp đồng bán.
+    assert "qty_lace_raw" not in a
+
+
+def test_lace_is_a_material_row_and_filter(seeded) -> None:
+    """Mủ dây đứng thành một dòng riêng khi nhóm theo loại mủ, và lọc được như mủ nước/mủ chén."""
+    h = seeded
+    client.put("/api/unit-daily/report", headers=h, json={
+        "kind": "purchase", "company": UNIT_A, "as_of": D1, "fields": {"lace": 10}})
+
+    keys = [r["key"] for r in _get("purchase", h, companies=UNIT_A, group_by="material")["rows"]]
+    assert "Mủ dây" in keys
+
+    only = _row(_get("purchase", h, materials="lace", companies=UNIT_A), UNIT_A)
+    assert only["qty_lace"] == 10 and only["qty_latex"] is None and only["qty_total"] == 10

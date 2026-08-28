@@ -2,7 +2,7 @@
    THỨ TỰ CỘT GIỮ ĐÚNG NHƯ FILE EXCEL, kể cả cột suy ra (compute) nằm XEN GIỮA đúng vị trí.
    Bộ key input PHẢI khớp backend `app/services/unit_daily_fields.py`. */
 
-import { CUP_PRICE_UNIT, LATEX_PRICE_UNIT } from "./purchase-price-unit";
+import { CUP_PRICE_UNIT, LACE_PRICE_UNIT, LATEX_PRICE_UNIT } from "./purchase-price-unit";
 
 export type Kind = "purchase" | "consumption";
 export type Values = Record<string, number | null | undefined>;
@@ -13,7 +13,8 @@ export type Column = {
   group?: string;   // tiêu đề nhóm cột gộp (khớp header gộp của Excel)
   hint?: string;
   compute?: (v: Values, plan?: number | null) => number | null; // có = cột SUY RA (chỉ đọc)
-  linked?: "latex" | "cup"; // đơn giá LINK từ "Giá mủ nguyên liệu" (nhập tay, đồng bộ kho)
+  // đơn giá LINK từ "Giá mủ nguyên liệu" (nhập tay, đồng bộ kho) — khoá khớp `UnitPurchasePrice`
+  linked?: "latex" | "cup" | "lace";
   // Số ĐỒNG cho 1 đơn vị hiển thị. Tiền lưu BASE = đồng, hiển thị/nhập theo đơn vị này.
   // vd Doanh thu lưu đồng, hiển thị "triệu đồng" → scale = 1_000_000. Không set = 1 (không đổi).
   scale?: number;
@@ -35,6 +36,7 @@ const n = (x: number | null | undefined): number | null => (x == null || Number.
 // (đơn vị nước ngoài nhập đơn giá nội tệ + USD + 2 tỷ giá, tự quy về VND). Tiền lưu BASE = đồng.
 const _MU_NUOC = "Mủ nước";
 const _MU_CHEN = "Mủ chén";
+const _MU_DAY = "Mủ dây";
 const _TP = "Thu mua thành phẩm";
 const _TT_TM = "Tiêu thụ mủ thu mua";
 /** Bảng thu mua thành phẩm (nhiều dòng, mỗi dòng 1 chủng loại) → tổng SL + giá trị (đồng). */
@@ -58,6 +60,8 @@ const PURCHASE: Column[] = [
   { key: "price_latex", label: "Đơn giá thu mua", unit: LATEX_PRICE_UNIT, group: _MU_NUOC, linked: "latex" },
   { key: "coagulum", label: "Sản lượng thu mua", unit: "tấn quy khô", group: _MU_CHEN },
   { key: "price_cup", label: "Đơn giá thu mua", unit: CUP_PRICE_UNIT, group: _MU_CHEN, linked: "cup" },
+  { key: "lace", label: "Sản lượng thu mua", unit: "tấn quy khô", group: _MU_DAY },
+  { key: "price_lace", label: "Đơn giá thu mua", unit: LACE_PRICE_UNIT, group: _MU_DAY, linked: "lace" },
   // Thu mua thành phẩm nhập theo CHỦNG LOẠI (bảng nhiều dòng) → bảng tổng hợp chỉ hiện số cộng lại.
   { key: "finished_qty", label: "Sản lượng thu mua", unit: "tấn", group: _TP,
     compute: (v) => finishedQty(v) || null },

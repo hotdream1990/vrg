@@ -825,3 +825,57 @@ def test_year_plan_keeps_revenue_target_in_ty_dong() -> None:
     with session_scope() as db:
         db.execute(text("DELETE FROM unit_purchase_plan WHERE company = :c"), {"c": unit})
     _cleanup(h, [], [unit])
+
+
+def test_lace_purchase_saves_its_tonnage_and_its_own_price_slot() -> None:
+    """MỦ DÂY (chốt 28/08/2026) — loại mủ nguyên liệu thứ ba của biểu Thu mua.
+
+    Khai y hệt mủ nước / mủ chén: MỘT ô sản lượng theo tấn quy khô + một ô đơn giá. Kiểm 3 điều
+    dễ hỏng nhất khi thêm một loại mủ vào biểu:
+      1. ô sản lượng `lace` lọt qua allowlist payload — sót là đơn vị gõ xong, lưu xong, mở lại
+         thấy trống;
+      2. đơn giá đi vào ĐÚNG ô riêng `purchase_lace` của kho "Giá mủ nguyên liệu" với nhãn
+         đồng/độ DRC — dùng nhầm ô của mủ nước/mủ chén là ghi đè giá loại khác;
+      3. báo cáo kỳ cộng sản lượng mủ dây vào tổng thu mua.
+    """
+    h = _admin()
+    unit = "_zz_ud_lace"
+    t_day = date.today().isoformat()
+    client.delete("/api/users/ud_lace", headers=h)
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    client.post("/api/users", json={"username": "ud_lace", "password": "pass123",
+                                    "role": "member", "member_units": [unit]}, headers=h)
+    mh = _bearer("ud_lace", "pass123")
+
+    assert client.put("/api/member/daily-report", headers=mh, json={
+        "kind": "purchase", "company": unit, "as_of": t_day,
+        "fields": {"latex_wet": 20, "lace": 15.5}}).status_code == 200
+    saved = client.get(f"/api/member/daily-report?kind=purchase&as_of={t_day}",
+                       headers=mh).json()["entries"][unit]["fields"]
+    assert saved["lace"] == 15.5
+    # Biểu Thu mua KHÔNG nhận ô "chưa quy khô" (chốt 29/08/2026) — allowlist phải loại nó ra.
+    assert "lace_raw" not in saved
+
+    assert client.put("/api/member/prices", headers=mh, json={
+        "company": unit, "as_of": t_day, "price_type": "purchase_lace",
+        "price": 260}).status_code == 200
+    with session_scope() as db:
+        row = db.execute(text(
+            "SELECT price, unit FROM fact_price WHERE grade = :g AND price_type = 'purchase_lace' "
+            "AND as_of = CAST(:d AS date) ORDER BY ingested_at DESC LIMIT 1"),
+            {"g": unit, "d": t_day}).mappings().first()
+    assert row is not None and float(row["price"]) == 260 and row["unit"] == "đồng/độ DRC"
+    # Đơn giá mủ dây KHÔNG được lọt vào ô của mủ nước — hai loại đọc ra hai con số khác nhau.
+    px = client.get(f"/api/member/daily-report?kind=purchase&as_of={t_day}",
+                    headers=mh).json()["prices"][unit]
+    assert px["lace"] == 260 and px["latex"] is None
+
+    # Báo cáo tổng hợp là màn của chuyên viên (đơn vị thành viên không có endpoint này).
+    pr = client.get(f"/api/unit-daily/period-report?kind=purchase&date_from={t_day}&date_to={t_day}",
+                    headers=h).json()
+    row = next(r for r in pr["rows"] if r["company"] == unit)
+    assert row["lace"] == 15.5
+    assert row["total_purchase"] == pytest.approx(35.5)   # 20 mủ nước + 15,5 mủ dây
+    assert row["price_lace_avg"] == pytest.approx(260)
+
+    _cleanup(h, ["ud_lace"], [unit])

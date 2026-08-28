@@ -77,7 +77,7 @@ export default function ConsumptionDeliveryHistory(p: Props) {
           <thead><tr>
             <th>Ngày giao</th><th>Đơn vị</th><th>Số hợp đồng</th><th>Đợt</th>
             <th>Khách hàng</th><th>Loại HĐ</th><th>Hình thức</th><th>Chủng loại</th>
-            <th className="r">SL (tấn quy khô)</th><th className="r">SL mủ nước</th>
+            <th className="r">Quy khô (tấn)</th><th className="r">SL chưa quy khô (tấn)</th>
             <th className="r">Doanh thu (tỷ đ)</th><th>Số hoá đơn</th>
           </tr></thead>
           <tbody>

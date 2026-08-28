@@ -7,7 +7,7 @@
  */
 
 import {
-  FX_USD_VND, PRICE_CUP,
+  FX_USD_VND, PRICE_CUP, PRICE_LACE,
   PRICE_LATEX, TONNES_DAILY, TONNES_STOCK, TONNES_YEAR,
   boundWarning, fxWarning, priceBound,
 } from "./entry-bounds";
@@ -56,8 +56,10 @@ export function consumptionWarnings(d: ConsumptionData): EntryWarning[] {
 export type PurchaseValues = {
   latex_wet?: number | null;
   coagulum?: number | null;
+  lace?: number | null;             // mủ dây — sản lượng quy khô
   price_latex_vnd?: number | null;
   price_cup_vnd?: number | null;
+  price_lace_vnd?: number | null;
   finished?: { grade?: string; qty?: number | null; price?: number | null;
                ccy?: string; fx?: number | null }[];
 };
@@ -78,6 +80,8 @@ export function purchaseWarnings(d: PurchaseValues): EntryWarning[] {
       { where: "Mủ nước · Đơn giá thu mua", message: boundWarning(d.price_latex_vnd, PRICE_LATEX) },
       { where: "Mủ chén · Sản lượng thu mua", message: boundWarning(d.coagulum, TONNES_DAILY) },
       { where: "Mủ chén · Đơn giá thu mua", message: boundWarning(d.price_cup_vnd, PRICE_CUP) },
+      { where: "Mủ dây · Sản lượng thu mua", message: boundWarning(d.lace, TONNES_DAILY) },
+      { where: "Mủ dây · Đơn giá thu mua", message: boundWarning(d.price_lace_vnd, PRICE_LACE) },
     ]),
     ...finished,
   ];

@@ -19,15 +19,20 @@ _CCY = frozenset(SALE_CURRENCIES)
 # Đơn vị nước ngoài (Lào/Campuchia): thêm đơn giá theo nội tệ + 2 tỷ giá (nội tệ→VND cho đơn giá,
 # USD→VND cho doanh thu); doanh thu quy về VND (đồng) là cột chính.
 PURCHASE_FIELDS: frozenset[str] = frozenset({
-    "latex_wet",         # sản lượng thu mua mủ nước trong ngày (tấn)
-    "coagulum",          # sản lượng thu mua mủ chén trong ngày (tấn)
+    "latex_wet",         # sản lượng thu mua mủ nước trong ngày — QUY KHÔ (tấn)
+    "coagulum",          # sản lượng thu mua mủ chén trong ngày — QUY KHÔ (tấn)
     # ⚠ 2 loại "Mủ NL nước chưa cán vắt (chén)" và "Mủ NL đã cán vắt (RSS)" từng có ô riêng ở đây
     # (chốt 30/07/2026, bỏ 14/08/2026 theo yêu cầu khách: đơn vị KHÔNG thu mua 2 loại này). Hai tên
     # đó VẪN là chủng loại BÁN hợp lệ (`market_meta.RAW_MATERIAL_GRADES`, 39 hợp đồng đang dùng) —
     # đừng nhầm mà xoá luôn bên hợp đồng.
+    # MỦ DÂY (chốt 28/08/2026) — loại mủ nguyên liệu thứ ba, khai y hệt hai loại trên: MỘT ô sản
+    # lượng theo tấn QUY KHÔ. (Cặp "chưa quy khô / quy khô" chỉ có ở DÒNG HỢP ĐỒNG BÁN, nơi tiền
+    # tính trên số chưa quy khô còn sản lượng báo cáo lấy số khô — xem `sales_contract_calc`.)
+    "lace",              # sản lượng thu mua mủ dây trong ngày — QUY KHÔ (tấn)
     # ── Chỉ đơn vị nước ngoài ──
     "price_latex_local",  # đơn giá mủ nước theo nội tệ (vd LAK/độ TSC)
     "price_cup_local",    # đơn giá mủ chén theo nội tệ
+    "price_lace_local",   # đơn giá mủ dây theo nội tệ (vd LAK/độ DRC)
     "fx_purchase",        # tỷ giá nội tệ→VND (quy đơn giá nội tệ ra VND)
 })
 

@@ -11,7 +11,7 @@ import { KIND_LABEL, type Kind } from "../../../lib/unit-daily-fields";
 import DateInput from "../sections/DateInput";
 
 const PRICE_LABEL: Record<string, string> = {
-  purchase: "đơn giá mủ nước", purchase_cup: "đơn giá mủ chén",
+  purchase: "đơn giá mủ nước", purchase_cup: "đơn giá mủ chén", purchase_lace: "đơn giá mủ dây",
 };
 
 const daysBetween = (later: string, earlier: string) =>

@@ -28,6 +28,17 @@ if str(_BULLETIN) not in sys.path:
 
 from bulletin.convert import r1, r2  # noqa: E402 - 1 nguồn làm tròn dùng chung lưới giá/bản tin
 
+#: Mệnh đề SQL lọc NHÓM GIÁ THU MUA, dựng từ `PURCHASE_PRICE_TYPES` thay vì viết tay danh sách.
+#: Thêm loại mủ mới (vd mủ dây 28/08/2026) chỉ phải sửa hằng số ở `market_meta`; viết tay từng chỗ
+#: thì sót một truy vấn là giá loại đó biến mất khỏi báo cáo mà không có lỗi nào báo.
+#: An toàn với SQL injection: các giá trị là hằng số của mã nguồn, không phải đầu vào người dùng.
+_PURCHASE_TYPES_SQL = ", ".join(f"'{t}'" for t in PURCHASE_PRICE_TYPES)
+
+#: price_type → khoá "loại mủ" dùng trong payload báo cáo ngày / chuỗi số liệu.
+PURCHASE_TYPE_SLOT: dict[str, str] = {
+    "purchase": "latex", "purchase_cup": "cup", "purchase_lace": "lace",
+}
+
 _UPSERT = text("""
     INSERT INTO fact_price
         (as_of, source, grade, contract, price_type, price, currency, unit, source_ts, run_id)
@@ -369,10 +380,10 @@ def move_purchase_prices(company: str, as_of: str, to_date: str, source: str) ->
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(
-            text("""
+            text(f"""
                 SELECT as_of, price_type, contract, price, currency, unit
                 FROM fact_price
-                WHERE source = :src AND grade = :g AND price_type IN ('purchase', 'purchase_cup')
+                WHERE source = :src AND grade = :g AND price_type IN ({_PURCHASE_TYPES_SQL})
                   AND as_of IN (CAST(:d AS date), CAST(:new AS date))
             """),
             {"src": source, "g": company, "d": as_of, "new": to_date},
@@ -633,7 +644,7 @@ def purchase_by_company_on_date(as_of: str, price_type: str = "purchase",
 
 def purchase_prices_in_range(date_from: str, date_to: str,
                              source: str = PURCHASE_SOURCE_HQ) -> dict[tuple[str, str], dict[str, float]]:
-    """Đơn giá thu mua trong khoảng → {(công ty, ngày): {latex, cup}}.
+    """Đơn giá thu mua trong khoảng → {(công ty, ngày): {latex, cup, lace}}.
 
     Dùng tính GIÁ BÌNH QUÂN GIA QUYỀN theo sản lượng cho báo cáo kỳ (1 query cho cả khoảng).
     Bỏ giá 0 ("không có giá") — tính vào bình quân là kéo tụt giá của cả kỳ.
@@ -641,10 +652,10 @@ def purchase_prices_in_range(date_from: str, date_to: str,
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(
-            text("""
+            text(f"""
                 SELECT DISTINCT ON (as_of, grade, price_type) as_of, grade, price_type, price
                 FROM fact_price
-                WHERE source = :src AND price_type IN ('purchase', 'purchase_cup')
+                WHERE source = :src AND price_type IN ({_PURCHASE_TYPES_SQL})
                   AND as_of BETWEEN CAST(:a AS date) AND CAST(:b AS date) AND price <> 0
                 ORDER BY as_of, grade, price_type, ingested_at DESC
             """),
@@ -654,32 +665,32 @@ def purchase_prices_in_range(date_from: str, date_to: str,
     for r in rows:
         key = (r["grade"], str(r["as_of"]))
         slot = out.setdefault(key, {})
-        slot["latex" if r["price_type"] == "purchase" else "cup"] = float(r["price"])
+        slot[PURCHASE_TYPE_SLOT[r["price_type"]]] = float(r["price"])
     return out
 
 
 def member_price_history(company: str, days: int = 30,
                          source: str = PURCHASE_SOURCE_UNIT) -> dict[str, Any]:
-    """Lịch sử giá mủ nước + mủ chén của ĐÚNG 1 công ty trong `days` ngày gần nhất (lớp đơn vị tự khai).
+    """Lịch sử giá mủ nguyên liệu của ĐÚNG 1 công ty trong `days` ngày gần nhất (lớp đơn vị tự khai).
 
-    Trả {purchase: {date: giá}, purchase_cup: {date: giá}, dates: [mới→cũ]} — cho tài khoản
-    đơn vị thành viên tự xem/nhập giá của chính họ.
+    Trả {purchase: {date: giá}, purchase_cup: …, purchase_lace: …, dates: [mới→cũ]} — MỘT khoá cho
+    mỗi loại giá ở `PURCHASE_PRICE_TYPES`, cho tài khoản đơn vị thành viên tự xem/nhập giá của
+    chính họ. Loại chưa có số nào vẫn trả về dict rỗng để client khỏi phải kiểm tra khoá thiếu.
     """
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(
-            text("""
+            text(f"""
                 SELECT DISTINCT ON (as_of, price_type) as_of, price_type, price
                 FROM fact_price
                 WHERE source = :src AND grade = :g
-                  AND price_type IN ('purchase', 'purchase_cup')
+                  AND price_type IN ({_PURCHASE_TYPES_SQL})
                   AND as_of >= CURRENT_DATE - CAST(:d AS integer)
                 ORDER BY as_of DESC, price_type, ingested_at DESC
             """),
             {"g": company, "d": days, "src": source},
         ).mappings().all()
-    purchase: dict[str, float] = {}
-    purchase_cup: dict[str, float] = {}
+    sheets: dict[str, dict[str, float]] = {t: {} for t in PURCHASE_PRICE_TYPES}
     dates: list[str] = []
     seen: set[str] = set()
     for r in rows:
@@ -687,8 +698,8 @@ def member_price_history(company: str, days: int = 30,
         if d not in seen:
             seen.add(d)
             dates.append(d)
-        (purchase if r["price_type"] == "purchase" else purchase_cup)[d] = float(r["price"])
-    return {"purchase": purchase, "purchase_cup": purchase_cup, "dates": dates}
+        sheets[r["price_type"]][d] = float(r["price"])
+    return {**sheets, "dates": dates}
 
 
 def latest_two_for_bulletin(as_of_max: str) -> list[dict[str, Any]]:

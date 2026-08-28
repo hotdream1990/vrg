@@ -17,6 +17,7 @@ from app.services.unit_series import days_between, num, series_of
 MATERIALS: dict[str, tuple[str, str]] = {
     "latex": ("latex_wet", "price_latex_local"),
     "cup": ("coagulum", "price_cup_local"),
+    "lace": ("lace", "price_lace_local"),
 }
 
 #: Rổ giá "đơn vị khai đều": đơn vị phải có giá ít nhất ngần này phần số ngày trong kỳ.

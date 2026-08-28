@@ -105,11 +105,18 @@ VRG_DOMESTIC_ONLY_GRADES = {"Skim Block"}
 
 
 # 2 loại MỦ NGUYÊN LIỆU bổ sung (chốt 30/07/2026) — tên giữ NGUYÊN VĂN như khách chốt.
-# Vừa là dòng THU MUA (có đơn giá riêng từng loại), vừa là chủng loại BÁN được trên hợp đồng.
+# Chủng loại BÁN được trên hợp đồng. (Ô THU MUA riêng của 2 loại này đã bỏ 14/08/2026 — đơn vị
+# không thu mua chúng; xem `services/unit_daily_fields.PURCHASE_FIELDS`.)
 RAW_MATERIAL_GRADES = [
     "Mủ nguyên liệu nước chưa cán vắt (chén)",
     "Mủ nguyên liệu đã cán vắt (RSS)",
 ]
+
+# MỦ DÂY (chốt 28/08/2026) — loại mủ nguyên liệu thứ BA mà đơn vị THỰC SỰ thu mua, đứng ngang hàng
+# mủ nước và mủ chén. Khác 2 tên ở `RAW_MATERIAL_GRADES` phía trên (chỉ để bán): mủ dây có mặt ở CẢ
+# ba biểu — thu mua (khối nhập riêng, đơn giá đồng/độ DRC) · tồn kho (chủng loại) · tiêu thụ (dòng
+# hợp đồng, bắt buộc khai quy khô).
+LACE_GRADE = "Mủ dây"
 
 # DANH MỤC CHỦNG LOẠI DÙNG CHUNG cho MỌI màn nhập liệu của đơn vị thành viên — thu mua · tồn kho ·
 # tiêu thụ đều đọc đúng danh sách này (đồng bộ 08/08/2026). Trước đó tồn kho/thu mua thiếu 2 loại
@@ -125,10 +132,11 @@ RAW_MATERIAL_GRADES = [
 # và sẽ đỏ nếu lệch — sửa ở đây thì sửa luôn bên đó.
 UNIT_GRADES = [
     *VRG_FLOOR_GRADES, "SVR 10CV / 20CV", "Chủng loại khác", "Mủ ngoại lệ", *RAW_MATERIAL_GRADES,
+    LACE_GRADE,
 ]
 
-# Bán các loại này BẮT BUỘC nhập quy khô mới cho lưu (chốt Q4 — 30/07/2026).
-DRY_REQUIRED_GRADES = frozenset({"LATEX", *RAW_MATERIAL_GRADES})
+# Bán các loại này BẮT BUỘC nhập quy khô mới cho lưu (chốt Q4 — 30/07/2026; thêm mủ dây 28/08/2026).
+DRY_REQUIRED_GRADES = frozenset({"LATEX", *RAW_MATERIAL_GRADES, LACE_GRADE})
 
 # Hình thức tiêu thụ — dùng "Tiêu thụ nội bộ", KHÔNG dùng "nội tiêu" (chốt 30/07/2026).
 SALE_CHANNELS: dict[str, str] = {
@@ -195,19 +203,24 @@ MARKET_QUOTE_PACKAGING = ["Hàng rời", "Pallet"]
 PURCHASE_SOURCE_HQ = "vrg"
 PURCHASE_SOURCE_UNIT = "vrg_unit"
 PURCHASE_SOURCES = (PURCHASE_SOURCE_HQ, PURCHASE_SOURCE_UNIT)
-#: 2 loại giá của kho "Giá mủ nguyên liệu" (mủ nước · mủ chén).
-PURCHASE_PRICE_TYPES = ("purchase", "purchase_cup")
+#: 3 loại giá của kho "Giá mủ nguyên liệu" (mủ nước · mủ chén · mủ dây).
+#: ⚠ Mọi truy vấn lọc theo nhóm giá thu mua phải dựng mệnh đề IN từ hằng số này, KHÔNG viết tay
+#: `IN ('purchase', 'purchase_cup')` — thêm loại mủ mới mà sót một chỗ là giá loại đó lặng lẽ
+#: biến mất khỏi báo cáo/lưới giá mà không có lỗi nào báo.
+PURCHASE_PRICE_TYPES = ("purchase", "purchase_cup", "purchase_lace")
 
 # CƠ SỞ TÍNH ĐỘ — chốt 17/08/2026, KHÔNG cho chọn nữa (trước đây mủ chén có ô chọn TSC/DRC và
 # mặc định TSC → 3.437 bản ghi bị gán nhầm nhãn). Quy ước của khách:
 #   - đơn giá thu mua MỦ NƯỚC  → đồng/độ **TSC**
 #   - đơn giá thu mua MỦ CHÉN  → đồng/độ **DRC**
+#   - đơn giá thu mua MỦ DÂY   → đồng/độ **DRC** (chốt 28/08/2026)
 #   - MỌI số "quy khô" trong hệ thống (sản lượng thu mua, tồn kho nguyên liệu, quy khô của hợp
 #     đồng bán) đều là **DRC**.
 # Mọi đường ghi giá phải lấy nhãn từ đây, không tự viết chuỗi — hai nơi viết tay sẽ lệch nhau.
 PURCHASE_PRICE_UNIT: dict[str, str] = {
     "purchase": "đồng/độ TSC",
     "purchase_cup": "đồng/độ DRC",
+    "purchase_lace": "đồng/độ DRC",
 }
 #: Nhãn ngắn dùng trong câu tóm tắt/nhận định.
 DRY_BASIS = "DRC"

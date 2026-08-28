@@ -323,30 +323,31 @@ def prev_stock(company: str, before: str) -> dict[str, Any] | None:
 
 
 def attach_purchase_prices(entries: list[dict[str, Any]], kind: str) -> None:
-    """Gắn đơn giá mủ nước/mủ chén (link từ 'Giá mủ nguyên liệu') vào từng dòng timeline (chỉ đọc).
+    """Gắn đơn giá mủ nguyên liệu (link từ 'Giá mủ nguyên liệu') vào từng dòng timeline (chỉ đọc).
 
-    Chỉ áp cho kind='purchase'. Mỗi dòng có `as_of`+`company` → `prices={latex,cup}` đúng ngày dòng đó.
+    Chỉ áp cho kind='purchase'. Mỗi dòng có `as_of`+`company` → `prices={latex,cup,lace}` đúng ngày
+    dòng đó (một khoá cho mỗi loại giá ở `PURCHASE_PRICE_TYPES`).
     """
     if kind != "purchase" or not entries:
         return
     from app.services import price_repo
 
-    cache: dict[str, tuple[dict, dict]] = {}
+    cache: dict[str, dict[str, dict[str, float]]] = {}
     for e in entries:
         d = e["as_of"]
         if d not in cache:
-            cache[d] = (price_repo.purchase_by_company_on_date(d, "purchase", UNIT_SRC),
-                        price_repo.purchase_by_company_on_date(d, "purchase_cup", UNIT_SRC))
-        latex, cup = cache[d]
-        e["prices"] = {"latex": latex.get(e["company"]), "cup": cup.get(e["company"])}
+            cache[d] = {slot: price_repo.purchase_by_company_on_date(d, pt, UNIT_SRC)
+                        for pt, slot in price_repo.PURCHASE_TYPE_SLOT.items()}
+        e["prices"] = {slot: by_company.get(e["company"])
+                       for slot, by_company in cache[d].items()}
 
 
 def day_extras(kind: str, as_of: str, units: list[str]) -> dict[str, Any]:
     """Phụ trợ form Thu mua cho 1 ngày: loại tiền mỗi đơn vị + đơn giá thu mua (link, chỉ đọc).
 
     - currencies: {đơn vị: 'VND'|'LAK'|'KHR'} — ≠VND ⇒ đơn vị nước ngoài, form hiện ô tỷ giá.
-    - prices (chỉ kind='purchase'): {đơn vị: {latex, cup}} đơn giá mủ nước/mủ chén ĐÚNG NGÀY
-      (đồng/độ TSC), lấy từ kho 'Giá mủ nguyên liệu' — hiển thị lại, KHÔNG nhập/lưu trùng.
+    - prices (chỉ kind='purchase'): {đơn vị: {latex, cup, lace}} đơn giá mủ nước/mủ chén/mủ dây
+      ĐÚNG NGÀY, lấy từ kho 'Giá mủ nguyên liệu' — hiển thị lại, KHÔNG nhập/lưu trùng.
     """
     from app.services import member_unit_repo, price_repo
 
@@ -356,9 +357,9 @@ def day_extras(kind: str, as_of: str, units: list[str]) -> dict[str, Any]:
     factories = {u: fac.get(u, True) for u in units}   # có nhà máy? (Tiêu thụ: ẩn/hiện tồn kho nguyên liệu)
     prices: dict[str, dict[str, float | None]] = {}
     if kind == "purchase":
-        latex = price_repo.purchase_by_company_on_date(as_of, "purchase", UNIT_SRC)
-        cup = price_repo.purchase_by_company_on_date(as_of, "purchase_cup", UNIT_SRC)
-        prices = {u: {"latex": latex.get(u), "cup": cup.get(u)} for u in units}
+        by_slot = {slot: price_repo.purchase_by_company_on_date(as_of, pt, UNIT_SRC)
+                   for pt, slot in price_repo.PURCHASE_TYPE_SLOT.items()}
+        prices = {u: {slot: px.get(u) for slot, px in by_slot.items()} for u in units}
     return {"currencies": currencies, "factories": factories, "prices": prices}
 
 

@@ -32,7 +32,7 @@ def purchase(
 
 @router.get("/purchase-volume")
 def purchase_volume(
-    material: str = Query("latex", pattern="^(latex|cup)$"),
+    material: str = Query("latex", pattern="^(latex|cup|lace)$"),
     group_by: str = Query("region", pattern="^(region|company)$"),
     date_from: str | None = Query(None), date_to: str | None = Query(None),
 ) -> dict:

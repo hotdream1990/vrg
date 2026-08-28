@@ -24,10 +24,11 @@ _QTY_MATERIALS: tuple[str, ...] = tuple(m for m in rows_mod.MATERIALS if m != "f
 
 #: Chỉ tiêu kế hoạch thu mua NĂM ở màn "Kế hoạch năm" (cũng là công tắc bật màn Thu mua).
 _PLAN_KEY = "plan_tonnes"
-#: Tử số của % kế hoạch = **sản lượng mủ NGUYÊN LIỆU** (mủ nước + mủ chén), KHÔNG gồm thành phẩm
-#: mua ngoài. Đúng mẫu gốc Ban TTKD ("% Kế hoạch thực hiện thu mua" tính trên sản lượng mủ thu mua)
-#: và khớp cột `total_purchase` của Báo cáo tổng hợp — hai màn phải ra cùng một con số.
-_PLAN_MATERIALS: tuple[str, ...] = ("latex", "cup")
+#: Tử số của % kế hoạch = **sản lượng mủ NGUYÊN LIỆU** (mủ nước + mủ chén + mủ dây, đều là số QUY
+#: KHÔ), KHÔNG gồm thành phẩm mua ngoài. Đúng mẫu gốc Ban TTKD ("% Kế hoạch thực hiện thu mua" tính
+#: trên sản lượng mủ thu mua) và khớp cột `total_purchase` của Báo cáo tổng hợp — hai màn phải ra
+#: cùng một con số, nên thêm loại mủ nguyên liệu ở đây thì phải thêm cả bên `unit_period_report`.
+_PLAN_MATERIALS: tuple[str, ...] = ("latex", "cup", "lace")
 
 
 def _new_purchase(key: str, region: str | None) -> dict[str, Any]:
@@ -44,8 +45,8 @@ def _close_purchase(g: dict) -> dict[str, Any]:
     g["qty_total"] = sum(g[f"qty_{m}"] for m in rows_mod.MATERIALS)
     # Tách riêng phần đem so kế hoạch, để người đọc bảng thấy luôn tử số thay vì phải tự cộng.
     g["qty_material"] = sum(g[f"qty_{m}"] for m in _PLAN_MATERIALS) or None
-    # Đơn giá BQ tách theo ĐƠN VỊ TÍNH, không gộp: mủ nước/chén là đồng/độ, 2 loại nguyên liệu bổ
-    # sung là đồng/kg, thành phẩm là triệu đ/tấn — cộng chung là ra một con số vô nghĩa.
+    # Đơn giá BQ tách theo ĐƠN VỊ TÍNH, không gộp: mủ nước là đồng/độ TSC, mủ chén và mủ dây là
+    # đồng/độ DRC, thành phẩm là triệu đ/tấn — cộng chung là ra một con số vô nghĩa.
     for m in _QTY_MATERIALS:
         g[f"price_{m}_avg"] = avg(*w[m])
     fin_avg = avg(*fin)

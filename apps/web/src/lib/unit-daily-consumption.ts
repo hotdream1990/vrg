@@ -149,6 +149,7 @@ export const GRADES: string[] = [
   "SVR 10 Mix", "SVR 10 / CSR 10", "SVR 20 / CSR 20", "RSS 3", "RSS 1", "LATEX", "Skim Block",
   "SVR 10CV / 20CV", "Chủng loại khác", "Mủ ngoại lệ",
   "Mủ nguyên liệu nước chưa cán vắt (chén)", "Mủ nguyên liệu đã cán vắt (RSS)",
+  "Mủ dây",
 ];
 
 const TY = 1_000_000_000;   // 1 tỷ đồng

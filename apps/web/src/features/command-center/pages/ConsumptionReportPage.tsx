@@ -17,8 +17,9 @@ import ConsumptionDeliveryHistory from "./components/ConsumptionDeliveryHistory"
 import "../../bulletin/bulletin.css";
 
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
-/** Cột "SL mủ nước": chỉ latex/mủ nguyên liệu mới có: 0 = hàng khô, hiện "—" chứ không hiện "0"
-    (số 0 bị đọc thành "bán 0 tấn", trong khi thật ra chủng loại đó không có khái niệm mủ nước). */
+/** Cột "SL chưa quy khô": chỉ chủng loại còn nước (latex · mủ nguyên liệu · mủ dây) mới có;
+    0 = hàng khô → hiện "—" chứ không hiện "0" (số 0 bị đọc thành "bán 0 tấn", trong khi thật ra
+    chủng loại đó không có khái niệm quy khô). */
 const wet = (n: number) => (n ? t3(n) : "—");
 const ty = (n: number | null) =>
   (n == null ? "—" : (n / 1_000_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
@@ -96,8 +97,8 @@ export default function ConsumptionReportPage() {
           <h2><ExportOutlined style={{ marginRight: 8 }} />Báo cáo tiêu thụ</h2>
           <p>
             Tổng hợp từ <b>các lần giao</b> ghi trên hợp đồng &amp; đợt giao — đơn vị không nhập tay
-            số tiêu thụ nữa. Sản lượng tính theo <b>quy khô</b>: latex và mủ nguyên liệu lấy số quy
-            khô, chủng loại chưa khai quy khô thì giữ nguyên số đang có. Cột <b>Chưa giao</b> lấy
+            số tiêu thụ nữa. Sản lượng tính theo <b>quy khô</b>: latex, mủ nguyên liệu và mủ dây
+            lấy số quy khô, chủng loại chưa khai quy khô thì giữ nguyên số đang có. Cột <b>Chưa giao</b> lấy
             tại ngày cuối kỳ. Nút <b>Xuất Excel</b> cho ra 2 sheet: tổng hợp theo đơn vị và{" "}
             <b>chi tiết từng dòng bán</b> (đã bật sẵn bộ lọc để soát/pivot trong Excel).
           </p>
@@ -140,7 +141,7 @@ export default function ConsumptionReportPage() {
 
       <div className="kpi-row">
         <div className="kpi"><div className="label">Sản lượng tiêu thụ (tấn quy khô)</div><div className="value">{t3(totals.qty)}</div></div>
-        <div className="kpi"><div className="label">Trong đó: SL mủ nước (tấn)</div><div className="value">{wet(totals.qty_wet)}</div></div>
+        <div className="kpi"><div className="label">Trong đó: SL chưa quy khô (tấn)</div><div className="value">{wet(totals.qty_wet)}</div></div>
         <div className="kpi"><div className="label">Doanh thu (tỷ đồng)</div><div className="value">{ty(totals.revenue)}</div></div>
         <div className="kpi"><div className="label">Số lần giao</div><div className="value">{totals.deliveries}</div></div>
         <div className="kpi"><div className="label">Đã ký chưa giao (tấn quy khô)</div><div className="value">{t3(totals.remaining)}</div></div>
@@ -149,9 +150,9 @@ export default function ConsumptionReportPage() {
       <div className="card table-scroll" style={{ padding: 0 }}>
         <table>
           <thead><tr>
-            <th>Đơn vị</th><th className="r">Lần giao</th><th className="r">SL (tấn quy khô)</th>
-            {/* Mủ nước để đối chiếu số cân thực tế — chỉ latex/mủ nguyên liệu mới có số ở đây. */}
-            <th className="r">SL mủ nước</th>
+            <th>Đơn vị</th><th className="r">Lần giao</th><th className="r">Quy khô (tấn)</th>
+            {/* Số chưa quy khô để đối chiếu số cân thực tế — chỉ chủng loại còn nước mới có. */}
+            <th className="r">SL chưa quy khô (tấn)</th>
             <th className="r">{meta?.channels.export ?? "Xuất khẩu"}</th>
             <th className="r">{meta?.channels.domestic ?? "Trong nước"}</th>
             <th className="r">{meta?.channels.internal ?? "Nội bộ"}</th>

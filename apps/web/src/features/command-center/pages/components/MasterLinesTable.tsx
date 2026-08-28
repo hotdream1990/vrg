@@ -70,9 +70,9 @@ export default function MasterLinesTable({ lines, grades, dryGrades, readOnly, o
                   {grades.map((g) => <option key={g} value={g}>{g}</option>)}
                 </select>
               </Field>
-              {/* Latex + 2 loại mủ nguyên liệu cam kết theo MỦ NƯỚC — ghi thẳng vào nhãn, giống
+              {/* Chủng loại còn nước cam kết theo SỐ CHƯA QUY KHÔ — ghi thẳng vào nhãn, giống
                   phiếu hợp đồng, để không ai hiểu nhầm đây là sản lượng khô. */}
-              <Field label={hasDry ? "SL nước (tấn)" : "SL (tấn)"} w={130}>
+              <Field label={hasDry ? "SL chưa quy khô (tấn)" : "SL (tấn)"} w={150}>
                 {num(ln.qty, (v) => set(i, { qty: v }), qtyWarn)}
               </Field>
               {hasDry && (
@@ -102,7 +102,7 @@ export default function MasterLinesTable({ lines, grades, dryGrades, readOnly, o
         Mỗi chủng loại một dòng. <b>Số lượng để trống được</b> nếu hợp đồng chưa chốt sản lượng —
         số thật của từng chuyến khai ở phụ lục. Hồ sơ mẹ <b>không nhập đơn giá</b>: giá theo từng
         chuyến ở phụ lục, hoặc ghi ở ô <b>Công thức giá</b> (HĐ dài hạn). Cam kết <b>LATEX</b> và 2
-        loại mủ nguyên liệu thì <b>SL nước</b> phải đi kèm <b>quy khô</b>.
+        loại mủ nguyên liệu, <b>mủ dây</b> thì <b>SL chưa quy khô</b> phải đi kèm <b>quy khô</b>.
       </div>
     </div>
   );

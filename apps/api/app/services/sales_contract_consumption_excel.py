@@ -23,9 +23,9 @@ from app.services.unit_analytics_excel import Col
 SUMMARY_COLS: list[Col] = [
     ("deliveries", "Số lần giao", "lần"),
     # Sản lượng tiêu thụ đã là QUY KHÔ (xem `sales_contract_calc.sale_qty`) → nói rõ ngay ở tiêu đề,
-    # và cột kế bên trả lại số cân mủ nước của latex/mủ nguyên liệu thay vì lặp lại số khô.
+    # và cột kế bên trả lại số cân thực tế của chủng loại còn nước thay vì lặp lại số khô.
     ("qty", "Sản lượng tiêu thụ", "tấn quy khô"),
-    ("qty_wet", "Trong đó: SL mủ nước", "tấn"),
+    ("qty_wet", "Trong đó: SL chưa quy khô", "tấn"),
     ("qty_export", SALE_CHANNELS["export"], "tấn"),
     ("qty_domestic", SALE_CHANNELS["domestic"], "tấn"),
     ("qty_internal", SALE_CHANNELS["internal"], "tấn"),
@@ -45,9 +45,9 @@ DETAIL_COLS: list[Col] = [
     ("channel", "Hình thức tiêu thụ", ""),
     ("to_company", "Đơn vị nhận (nội bộ)", ""),
     ("grade", "Chủng loại", ""),
-    # 3 cột sản lượng đứng cạnh nhau để đọc được ngay quan hệ nước → khô → số vào báo cáo.
+    # 3 cột sản lượng đứng cạnh nhau để đọc được ngay quan hệ chưa-quy-khô → khô → số vào báo cáo.
     # Ô "Quy khô" TRỐNG ở dòng latex/mủ nguyên liệu = đơn vị chưa khai (lọc ra là thấy hết).
-    ("qty_wet", "SL mủ nước", "tấn"),
+    ("qty_wet", "SL chưa quy khô", "tấn"),
     ("qty_dry", "Quy khô", "tấn"),
     ("qty", "SL tính tiêu thụ", "tấn quy khô"),
     ("price", "Đơn giá", "tr.đ/tấn nếu VNĐ · nguyên tệ/tấn nếu ngoại tệ"),
@@ -74,7 +74,7 @@ CONTRACT_COLS: list[Col] = [
     ("deliveries", "Số lần giao", "lần"),
     ("first_at", "Giao từ ngày", ""),
     ("last_at", "Giao đến ngày", ""),
-    ("qty_wet", "SL mủ nước", "tấn"),
+    ("qty_wet", "SL chưa quy khô", "tấn"),
     ("qty", "Sản lượng", "tấn quy khô"),
     ("revenue_vnd", "Doanh thu", "đồng"),
     ("avg_price", "Đơn giá bình quân", "tr.đ/tấn quy khô"),
@@ -131,7 +131,7 @@ def _detail(deliveries: list[dict[str, Any]], names: dict[str, str]) -> list[dic
                 "channel": SALE_CHANNELS.get(r.get("channel") or ""),
                 "to_company": r.get("to_company"),
                 "grade": grade,
-                # Mủ nước chỉ có nghĩa với latex + 2 loại mủ nguyên liệu; thành phẩm bán ra đã là
+                # Số chưa quy khô chỉ có nghĩa với chủng loại còn nước; thành phẩm bán ra đã là
                 # hàng khô nên để trống, hiện lại số lượng ở đây là mời người đọc cộng hai lần.
                 "qty_wet": qty if grade in DRY_REQUIRED_GRADES else None,
                 "qty_dry": dry,

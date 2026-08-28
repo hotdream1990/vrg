@@ -4,7 +4,7 @@ Mỗi loại biểu khai báo cột MỘT chỗ (`SPECS`) rồi dùng chung cho 
 người dùng nộp → mẫu và bộ đọc không bao giờ lệch nhau.
 
 4 loại (`kind`):
-  purchase   — Thu mua: phần mủ nước/mủ chén 1 dòng / (đơn vị, ngày); thu mua THÀNH PHẨM nhiều
+  purchase   — Thu mua: phần mủ nguyên liệu (nước/chén/dây) 1 dòng / (đơn vị, ngày); THÀNH PHẨM nhiều
                dòng (mỗi chủng loại 1 dòng) → gom thành mảng `finished`
   sales      — Tiêu thụ: NHIỀU dòng / (đơn vị, ngày) → tách theo cột "Nguồn mủ" thành 2 mảng
                `sales` (mủ thu mua) và `sales_own` (mủ khai thác)
@@ -87,17 +87,21 @@ _DATE_COL = Col("as_of", "Ngày", "dd/mm/yyyy", required=True, type="date")
 SPECS: dict[str, Spec] = {
     "purchase": Spec(
         "BIỂU NHẬP — THU MUA", "Thu mua",
-        "Mủ nước / mủ chén: mỗi đơn vị 1 dòng / 1 ngày. Đơn giá ghi vào kho 'Giá mủ nguyên liệu'. "
-        "Đơn giá mủ nước theo độ TSC, mủ chén theo độ DRC (cố định, không còn cột chọn). "
+        "Mủ nước / mủ chén / mủ dây: mỗi đơn vị 1 dòng / 1 ngày, sản lượng khai theo TẤN QUY KHÔ. "
+        "Đơn giá ghi vào kho 'Giá mủ nguyên liệu'. Đơn giá mủ nước theo độ TSC, mủ chén và mủ dây "
+        "theo độ DRC (cố định, không còn cột chọn). "
         "THU MUA THÀNH PHẨM tính theo CHỦNG LOẠI: mua mấy chủng loại thì thêm bấy nhiêu dòng cho "
-        "cùng (đơn vị, ngày) — các cột mủ nước/mủ chén chỉ điền ở dòng đầu, dòng sau để trống. "
+        "cùng (đơn vị, ngày) — các cột mủ nước/mủ chén/mủ dây chỉ điền ở dòng đầu, dòng sau để "
+        "trống. "
         "File có dòng thành phẩm sẽ GHI ĐÈ toàn bộ phần thành phẩm của ngày đó; không có dòng nào "
         "thì phần thành phẩm đã nhập trên web được giữ nguyên.",
         [_UNIT_COL, _DATE_COL,
          Col("latex_wet", "SL thu mua mủ nước", "tấn"),
          Col("coagulum", "SL thu mua mủ chén", "tấn"),
+         Col("lace", "SL thu mua mủ dây", "tấn", width=18),
          Col("price_latex", "Đơn giá mủ nước", PURCHASE_PRICE_UNIT["purchase"], width=18),
          Col("price_cup", "Đơn giá mủ chén", PURCHASE_PRICE_UNIT["purchase_cup"], width=18),
+         Col("price_lace", "Đơn giá mủ dây", PURCHASE_PRICE_UNIT["purchase_lace"], width=18),
          Col("finished_grade", "Chủng loại thành phẩm", "chỉ dòng thu mua thành phẩm",
              type="enum", choices={g: g for g in GRADES}, width=22),
          Col("finished_qty", "SL thu mua thành phẩm", "tấn", width=20),
@@ -456,12 +460,14 @@ def _commit_rows(kind: str, rows: list[dict], username: str | None,
             # Mủ nước/mủ chén là số CỦA NGÀY (1 giá trị), thành phẩm là NHIỀU DÒNG theo chủng loại
             # → lấy ô đầu tiên có số cho phần theo ngày, gom mọi dòng có chủng loại cho thành phẩm.
             first = lambda k: next((r.get(k) for r in items if r.get(k) is not None), None)  # noqa: E731
-            it = {k: first(k) for k in ("latex_wet", "coagulum", "price_latex", "price_cup")}
+            it = {k: first(k) for k in ("latex_wet", "coagulum", "lace",
+                                        "price_latex", "price_cup", "price_lace")}
             # MERGE: giữ các ô đã nhập trên web mà file không có (cờ không thu mua, đơn giá nội tệ…).
             cur = unit_daily_repo.entries_on("purchase", as_of).get(company) or {}
             fields = dict(cur.get("fields") or {})
             fields.update({k: v for k, v in it.items()
-                           if v is not None and k in ("latex_wet", "coagulum")})
+                           if v is not None
+                           and k in ("latex_wet", "coagulum", "lace")})
             # Thành phẩm: tỷ giá không có trong file → lấy lại tỷ giá đã nhập trên web (nếu có).
             old_fx = next((r.get("fx") for r in (fields.get(FINISHED_TABLE) or [])
                            if isinstance(r, dict) and r.get("fx")), None)
@@ -477,7 +483,8 @@ def _commit_rows(kind: str, rows: list[dict], username: str | None,
                         f"{company} {as_of}: có dòng thành phẩm bằng USD chưa có tỷ giá "
                         f"(nhập tỷ giá ở màn Thu mua rồi lưu lại).")
             unit_daily_repo.upsert("purchase", as_of, company, fields, username)
-            for key, ptype in (("price_latex", "purchase"), ("price_cup", "purchase_cup")):
+            for key, ptype in (("price_latex", "purchase"), ("price_cup", "purchase_cup"),
+                               ("price_lace", "purchase_lace")):
                 if it.get(key) is not None:
                     # Giá trong biểu Thu mua là số ĐƠN VỊ khai → lớp riêng, không đè giá chuyên viên.
                     price_repo.upsert_record({
