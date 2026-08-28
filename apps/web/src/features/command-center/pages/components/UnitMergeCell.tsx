@@ -7,6 +7,13 @@ import DateInput from "../../sections/DateInput";
 const dmy = (iso: string | null) =>
   iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "";
 
+/** Cộng/trừ ngày cho chuỗi 'YYYY-MM-DD'. */
+const shift = (iso: string, days: number) => {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
 type Props = {
   unit: MemberUnit;
   units: MemberUnit[];                                   // để chọn đơn vị nhận
@@ -15,11 +22,11 @@ type Props = {
 };
 
 /** Hệ quả của việc sáp nhập — bày ra TRƯỚC khi bấm, vì đây là thao tác đổi cách đọc số liệu. */
-function Consequences({ from, into, at }: { from: string; into: string; at: string }) {
+function Consequences({ from, into, last }: { from: string; into: string; last: string }) {
   return (
     <ul style={{ margin: "10px 0 0", paddingLeft: 18, fontSize: 12.5, lineHeight: 1.75 }}>
-      <li>Số liệu <b>trước {dmy(at)}</b> vẫn đứng tên <b>{from}</b> — không mất, không chuyển đi đâu.</li>
-      <li>Từ <b>{dmy(at)}</b>, <b>{from}</b> không nhận số liệu mới — nhập vào <b>{into}</b>.</li>
+      <li>Số liệu <b>đến hết {dmy(last)}</b> vẫn đứng tên <b>{from}</b> — không mất, không chuyển đi đâu.</li>
+      <li>Từ <b>{dmy(shift(last, 1))}</b>, <b>{from}</b> không nhận số liệu mới — nhập vào <b>{into}</b>.</li>
       <li>Tài khoản của <b>{from}</b> chuyển sang <b>{into}</b>.</li>
       <li>Báo cáo mặc định <b>gộp</b> số của <b>{from}</b> vào <b>{into}</b>.</li>
     </ul>
@@ -41,7 +48,10 @@ export default function UnitMergeCell({ unit, units, canEdit, run }: Props) {
   const [open, setOpen] = useState(false);
   const [undoing, setUndoing] = useState(false);
   const [into, setInto] = useState<string | undefined>();
-  const [at, setAt] = useState(new Date().toISOString().slice(0, 10));
+  // Hỏi theo mốc "số liệu đến hết ngày" — cùng cách nói với chức năng Chốt số liệu, thay vì bắt
+  // người dùng tự quy ra ngày đơn vị mới tiếp quản (chốt 27/08/2026: khai 21/8 để chốt hết 20/8
+  // là chỗ ai cũng nhầm). Gửi lên server vẫn là ngày hiệu lực = hôm sau mốc này.
+  const [last, setLast] = useState(shift(new Date().toISOString().slice(0, 10), -1));
 
   if (unit.merged_into) {
     return (
@@ -53,7 +63,7 @@ export default function UnitMergeCell({ unit, units, canEdit, run }: Props) {
           }}>→ {unit.merged_into}</span>
         </Tooltip>
         <span style={{ color: "var(--muted)", fontSize: 12, whiteSpace: "nowrap" }}>
-          từ {dmy(unit.merged_at)}
+          số liệu đến hết {unit.merged_at ? dmy(shift(unit.merged_at, -1)) : "—"}
         </span>
         {canEdit && <button className="btn" onClick={() => setUndoing(true)}>Gỡ</button>}
         {undoing && (
@@ -76,9 +86,9 @@ export default function UnitMergeCell({ unit, units, canEdit, run }: Props) {
   if (!canEdit) return <span style={{ color: "var(--muted)" }}>—</span>;
 
   const submit = () => {
-    if (!into || !at) return;
+    if (!into || !last) return;
     setOpen(false);
-    run(() => mergeUnit(unit.name, into, at));
+    run(() => mergeUnit(unit.name, into, shift(last, 1)));
   };
 
   return (
@@ -88,7 +98,7 @@ export default function UnitMergeCell({ unit, units, canEdit, run }: Props) {
         <Modal open destroyOnHidden width="min(620px, 94vw)"
           title={`Sáp nhập đơn vị — ${unit.name}`}
           okText="Sáp nhập" cancelText="Huỷ"
-          okButtonProps={{ danger: true, disabled: !into || !at }}
+          okButtonProps={{ danger: true, disabled: !into || !last }}
           onCancel={() => { setOpen(false); setInto(undefined); }} onOk={submit}>
           <label className="form-field">Sáp nhập vào đơn vị
             <Select showSearch style={{ width: "100%" }} placeholder="Chọn đơn vị nhận…"
@@ -98,10 +108,11 @@ export default function UnitMergeCell({ unit, units, canEdit, run }: Props) {
                 .map((o) => ({ value: o.name, label: o.name }))}
               filterOption={(i, o) => (o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
           </label>
-          <label className="form-field" style={{ marginTop: 12, alignItems: "start" }}>Ngày hiệu lực
-            <DateInput value={at} onChange={setAt} style={{ width: 180 }} />
+          <label className="form-field" style={{ marginTop: 12, alignItems: "start" }}>
+            Số liệu của <b>{unit.name}</b> tính đến hết ngày
+            <DateInput value={last} onChange={setLast} style={{ width: 180 }} />
           </label>
-          {into && <Consequences from={unit.name} into={into} at={at} />}
+          {into && <Consequences from={unit.name} into={into} last={last} />}
         </Modal>
       )}
     </>
