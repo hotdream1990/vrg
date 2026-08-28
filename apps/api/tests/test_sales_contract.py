@@ -765,7 +765,7 @@ def test_consumption_xlsx_has_detail_sheet(env, cus) -> None:
                      f"&company={UNIT}", headers=h)
     assert xls.status_code == 200
     wb = load_workbook(io.BytesIO(xls.content))
-    assert wb.sheetnames == ["Đơn vị", "Chi tiết lần giao"]
+    assert wb.sheetnames == ["Đơn vị", "Theo hợp đồng", "Chi tiết lần giao"]
 
     ws = wb["Chi tiết lần giao"]
     head = [c.value for c in ws[5]]
@@ -787,6 +787,50 @@ def test_consumption_xlsx_has_detail_sheet(env, cus) -> None:
     assert sum(r["SL tính tiêu thụ (tấn quy khô)"] for r in rows) == pytest.approx(
         rep["by_company"][UNIT]["qty"])
     assert ws.auto_filter.ref, "sheet chi tiết phải bật sẵn bộ lọc của Excel"
+
+
+def test_consumption_xlsx_breaks_each_contract_down_by_grade(env, cus) -> None:
+    """Sheet "Theo hợp đồng": mỗi chủng loại của một hợp đồng là MỘT dòng, kèm sản lượng quy khô.
+
+    Yêu cầu 27/08/2026: cần lấy sản lượng quy khô của từng chủng loại trong hợp đồng mà không
+    phải tự pivot lại sheet chi tiết. Hai lần giao của cùng một hợp đồng phải cộng vào một dòng.
+    """
+    import io
+
+    from openpyxl import load_workbook
+
+    h = env
+    parent = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-GOM", "delivery_type": "multi", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY,
+        "lines": [_line(grade="LATEX", qty=100.0, qty_dry=60.0)]}, headers=h).json()["contract"]
+    for code, qty, dry in (("PL-1", 30.0, 10.0), ("PL-2", 15.0, 5.0)):
+        client.put("/api/sales-contracts", json={
+            "company": UNIT, "parent_id": parent["id"], "code": code, "delivered_at": TODAY,
+            "channel": "export",
+            "lines": [_line(grade="LATEX", qty=qty, qty_dry=dry, price=20.0),
+                      _line(qty=7.0, price=40.0)]}, headers=h)
+
+    xls = client.get(f"/api/sales-contracts/consumption.xlsx?date_from={TODAY}&date_to={TODAY}"
+                     f"&company={UNIT}", headers=h)
+    ws = load_workbook(io.BytesIO(xls.content))["Theo hợp đồng"]
+    head = [c.value for c in ws[5]]
+    rows = [dict(zip(head, [c.value for c in r], strict=True)) for r in ws.iter_rows(min_row=6)]
+    mine = [r for r in rows if r["Số hợp đồng"] == "HD-GOM"]
+    assert len(mine) == 2, "hợp đồng 2 chủng loại → 2 dòng"
+
+    latex = next(r for r in mine if r["Chủng loại"] == "LATEX")
+    assert latex["Sản lượng (tấn quy khô)"] == pytest.approx(15.0)    # 10 + 5, lấy số QUY KHÔ
+    assert latex["SL mủ nước (tấn)"] == pytest.approx(45.0)           # 30 + 15, số cân thực tế
+    assert latex["Số lần giao (lần)"] == 2                            # cộng 2 đợt vào một dòng
+    finished = next(r for r in mine if r["Chủng loại"] != "LATEX")
+    assert finished["Sản lượng (tấn quy khô)"] == pytest.approx(14.0)  # 7 + 7, hàng khô
+
+    # Cộng cả sheet phải ra đúng sản lượng của sheet tổng hợp — ba sheet không được lệch nhau.
+    rep = client.get(f"/api/sales-contracts/consumption?date_from={TODAY}&date_to={TODAY}"
+                     f"&company={UNIT}", headers=h).json()
+    assert sum(r["Sản lượng (tấn quy khô)"] for r in rows) == pytest.approx(
+        rep["by_company"][UNIT]["qty"])
 
 
 def test_meta_reports_currency_per_unit(env) -> None:
