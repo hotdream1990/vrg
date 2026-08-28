@@ -29,6 +29,7 @@ from app.core import security
 from app.core.permissions import LEVEL_EDIT
 from app.core.security import cap_or_member_scope
 from app.schemas.sales_contract import CompletionIn, ContractIn, DeliveryTypeIn
+from app.services.unit_report_query import roll_by_company
 from app.services import (
     contract_files,
     customer_repo,
@@ -71,7 +72,12 @@ def meta(scope: Scope) -> dict:
     """
     _, companies = scope
     units = member_unit_repo.list_units(include_inactive=False)
-    mine = [u["name"] for u in units] if companies is None else list(companies)
+    active = {u["name"] for u in units}
+    # Danh sách chọn khi TẠO MỚI: chỉ đơn vị đang hoạt động. Phạm vi của tài khoản đã gồm cả đơn
+    # vị đã sáp nhập vào mình (để xem/giao nốt hợp đồng cũ) nhưng hợp đồng mới thì ký ở đơn vị
+    # nhận — chốt với chủ dự án 27/08/2026.
+    mine = ([u["name"] for u in units] if companies is None
+            else [c for c in companies if c in active])
     return {
         "units": mine,
         # Nội tệ của từng đơn vị — form chỉ cho chọn VND · USD · nội tệ CỦA ĐƠN VỊ ĐÓ (chốt Q10:
@@ -99,6 +105,18 @@ def meta(scope: Scope) -> dict:
     }
 
 
+def _lineage(companies: list[str] | None, company: str | None) -> list[str] | None:
+    """Bộ lọc đơn vị có tính SÁP NHẬP: chọn đơn vị nhận là lấy luôn phần của đơn vị cũ.
+
+    Chốt với chủ dự án 27/08/2026: hợp đồng đã gộp thì xem chung và tính số liệu tổng — lọc đúng
+    một tên đơn vị thì phần hàng của đơn vị đã sáp nhập vào nó bị rơi ra ngoài.
+    """
+    if not company:
+        return companies
+    _assert_company(companies, company)
+    return member_unit_merge.lineage(company)
+
+
 @router.get("")
 def list_contracts(scope: Scope, company: str | None = Query(None),
                    customer_id: list[int] | None = Query(None, description="Lọc 1 hoặc NHIỀU khách"),
@@ -122,9 +140,7 @@ def list_contracts(scope: Scope, company: str | None = Query(None),
     _, companies = scope
     _check_date(date_from, "Từ ngày")
     _check_date(date_to, "Đến ngày")
-    if company:
-        _assert_company(companies, company)
-        companies = [company]
+    companies = _lineage(companies, company)
     for c in channel or []:
         if c and c not in SALE_CHANNELS:
             raise HTTPException(400, f"Hình thức tiêu thụ “{c}” không hợp lệ.")
@@ -156,12 +172,9 @@ def _consumption(scope_companies: list[str] | None, date_from: str, date_to: str
     """Phần dùng chung của endpoint JSON và endpoint xuất Excel (tránh lệch số giữa 2 nơi)."""
     _check_date(date_from, "Từ ngày")
     _check_date(date_to, "Đến ngày")
-    companies = scope_companies
-    if company:
-        _assert_company(companies, company)
-        companies = [company]
-    by_company = sales_contract_report.consumption(date_from, date_to, companies,
-                                                  customer_ids, grades)
+    companies = _lineage(scope_companies, company)
+    by_company = roll_by_company(
+        sales_contract_report.consumption(date_from, date_to, companies, customer_ids, grades))
     # Bảng "tách theo khách hàng" chỉ cần tên của các khách CÓ trong kỳ ("0" = chưa gán khách).
     shown = sorted({int(k) for c in by_company.values() for k in c["by_customer"] if k != "0"})
     return {
@@ -169,7 +182,8 @@ def _consumption(scope_companies: list[str] | None, date_from: str, date_to: str
         "by_company": by_company,
         # Lọc chủng loại áp cho CẢ cột "đã ký HĐ chưa giao" — không thì bảng có cột đã lọc
         # đứng cạnh cột chưa lọc, người đọc tưởng số vênh nhau.
-        "undelivered": sales_contract_report.undelivered_on(date_to, companies, grades),
+        "undelivered": roll_by_company(
+            sales_contract_report.undelivered_on(date_to, companies, grades)),
         "customers": {str(i): n for i, n in customer_repo.names_by_id(companies, shown).items()},
     }
 
@@ -200,9 +214,7 @@ def consumption_deliveries(scope: Scope, date_from: str = Query(...), date_to: s
     _, companies = scope
     _check_date(date_from, "Từ ngày")
     _check_date(date_to, "Đến ngày")
-    if company:
-        _assert_company(companies, company)
-        companies = [company]
+    companies = _lineage(companies, company)
     return sales_contract_delivery_history.history(
         date_from, date_to, companies, customer_id, grade, page=page, page_size=page_size)
 
@@ -217,9 +229,7 @@ def consumption_xlsx(scope: Scope, date_from: str = Query(...), date_to: str = Q
     Dùng CHUNG số liệu với bảng trên web (`_consumption`) nên file và màn hình không thể lệch.
     """
     _, companies = scope
-    if company:
-        _assert_company(companies, company)
-        companies = [company]
+    companies = _lineage(companies, company)
     rep = _consumption(companies, date_from, date_to, None, customer_id, grade)
     data = sales_contract_consumption_excel.build(date_from, date_to, rep, companies,
                                                  customer_id, grade)
@@ -236,10 +246,9 @@ def undelivered(scope: Scope, as_of: str = Query(..., description="Tính tại n
     """ĐÃ KÝ HĐ CHƯA GIAO (khối 3) tại ngày — SL cam kết trừ tổng đã giao."""
     _, companies = scope
     _check_date(as_of, "Ngày")
-    if company:
-        _assert_company(companies, company)
-        companies = [company]
-    return {"as_of": as_of, "by_company": sales_contract_report.undelivered_on(as_of, companies)}
+    companies = _lineage(companies, company)
+    return {"as_of": as_of,
+            "by_company": roll_by_company(sales_contract_report.undelivered_on(as_of, companies))}
 
 
 @router.get("/{contract_id}")

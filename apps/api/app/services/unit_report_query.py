@@ -10,7 +10,7 @@ Quy tắc số liệu (giữ đúng như biểu mẫu & form nhập):
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Any, Callable
 
 from app.services import member_unit_merge, member_unit_repo, unit_daily_repo
 from app.services.unit_report_rows import MATERIAL_LABELS, SOURCE_LABELS
@@ -65,6 +65,44 @@ def report_units(split_merged: bool = False) -> list[dict]:
         merged = [u for u in member_unit_repo.list_units() if u.get("merged_into")]
         units = sorted(units + merged, key=lambda u: (u.get("sort_order") or 0, u["name"]))
     return units
+
+
+def sum_deep(a: Any, b: Any) -> Any:
+    """Cộng 2 khối số liệu cùng khuôn của 2 đơn vị trong cùng dòng đời (dùng khi GỘP sáp nhập).
+
+    Số cộng lại, dict lồng cộng theo từng khoá, danh sách nối lại, cờ true/false thì OR. Các khối
+    này (`contracts_on`, `sales_contract_report.consumption`, kế hoạch năm) đều là số ở lá nên phép
+    cộng đệ quy giữ đúng nghĩa — cùng một phép cộng mà báo cáo vẫn làm khi cộng nhiều ngày.
+    """
+    if isinstance(a, bool) or isinstance(b, bool):
+        return bool(a) or bool(b)
+    if a is None:
+        return b
+    if b is None:
+        return a
+    if isinstance(a, dict) and isinstance(b, dict):
+        return {k: sum_deep(a.get(k), b.get(k)) for k in {**a, **b}}
+    if isinstance(a, list) and isinstance(b, list):
+        return [*a, *b]
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return a + b
+    return b
+
+
+def roll_by_company(by_company: dict[str, Any], split_merged: bool = False) -> dict[str, Any]:
+    """Gộp các khối {đơn vị: số liệu} của đơn vị đã sáp nhập vào đơn vị hiện hành.
+
+    Dùng cho những bảng trả về theo ĐƠN VỊ chứ không theo dòng (tiêu thụ từ hợp đồng, đã ký chưa
+    giao, kế hoạch năm): xem gộp thì đơn vị nhận phải hiện MỘT dòng gồm cả phần của đơn vị cũ.
+    """
+    roll = {} if split_merged else member_unit_merge.rollup_map()
+    if not roll:
+        return by_company
+    out: dict[str, Any] = {}
+    for name, data in by_company.items():
+        cur = roll.get(name, name)
+        out[cur] = sum_deep(out[cur], data) if cur in out else data
+    return out
 
 
 def merge_view(companies: list[str] | None, split_merged: bool) -> list[str] | None:

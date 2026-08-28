@@ -20,7 +20,9 @@ from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC, UNIT_GRADES
 from app.services import (
     member_unit_merge, price_repo, sales_contract_report, unit_daily_repo, unit_report_rows,
 )
-from app.services.unit_report_query import merge_scope, merge_view, report_units
+from app.services.unit_report_query import (
+    merge_scope, merge_view, report_units, roll_by_company,
+)
 
 TY = 1_000_000_000      # 1 tỷ đồng
 TRIEU = 1_000_000       # 1 triệu đồng
@@ -45,39 +47,6 @@ def _add(acc: dict[str, float], key: str, v: Any) -> None:
 
 def _ratio(num: float | None, den: float | None) -> float | None:
     return None if not den or num is None else num / den
-
-
-def _sum_deep(a: Any, b: Any) -> Any:
-    """Cộng 2 khối số liệu cùng khuôn của 2 đơn vị trong cùng dòng đời (dùng khi GỘP sáp nhập).
-
-    Số cộng lại, dict lồng cộng theo từng khoá, danh sách nối lại, cờ true/false thì OR. Các khối
-    này (`contracts_on`, `sales_contract_report.consumption`, kế hoạch năm) đều là số ở lá nên phép
-    cộng đệ quy giữ đúng nghĩa — cùng một phép cộng mà báo cáo vẫn làm khi cộng nhiều ngày.
-    """
-    if isinstance(a, bool) or isinstance(b, bool):
-        return bool(a) or bool(b)
-    if a is None:
-        return b
-    if b is None:
-        return a
-    if isinstance(a, dict) and isinstance(b, dict):
-        return {k: _sum_deep(a.get(k), b.get(k)) for k in {**a, **b}}
-    if isinstance(a, list) and isinstance(b, list):
-        return [*a, *b]
-    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
-        return a + b
-    return b
-
-
-def _roll_dict(by_company: dict[str, Any], roll: dict[str, str]) -> dict[str, Any]:
-    """Gộp các khối {đơn vị: số liệu} của đơn vị đã sáp nhập vào đơn vị hiện hành."""
-    if not roll:
-        return by_company
-    out: dict[str, Any] = {}
-    for name, data in by_company.items():
-        cur = roll.get(name, name)
-        out[cur] = _sum_deep(out[cur], data) if cur in out else data
-    return out
 
 
 def _by_company(rows: list[dict]) -> dict[str, list[dict]]:
@@ -274,7 +243,7 @@ def period_report(kind: str, date_from: str, date_to: str,
     # đổi tên dòng trước khi tính là đánh mất cả hai. Việc gộp làm ở vòng lặp dưới, theo dòng đời.
     grouped = _by_company(unit_daily_repo.in_range(kind, date_from, date_to, scope,
                                                    attach_contracts=False))
-    plans = _roll_dict(unit_daily_repo.year_plan(year, scope), roll)
+    plans = roll_by_company(unit_daily_repo.year_plan(year, scope), split_merged)
     units = report_units(split_merged)
     if companies is not None:
         keep = set(merge_view(companies, split_merged) or [])
@@ -287,13 +256,13 @@ def period_report(kind: str, date_from: str, date_to: str,
                        if kind == "purchase" else {})
     # Tồn kho đã ký HĐ = chỉ tiêu THỜI ĐIỂM: các hợp đồng còn tồn ở NGÀY CUỐI KỲ (sales_contract
     # + unit_stock_contract cũ — xem unit_daily_repo.contracts_on).
-    signed_at_close = (_roll_dict(unit_daily_repo.contracts_on(date_to, scope), roll)
+    signed_at_close = (roll_by_company(unit_daily_repo.contracts_on(date_to, scope), split_merged)
                        if kind == "consumption" else {})
     # Tiêu thụ từ HỢP ĐỒNG — nguồn DUY NHẤT của biểu Tiêu thụ (chốt 02/08/2026). Hai mảng
     # `sales`/`sales_own` cũ KHÔNG được cộng thêm vào, xem `_consumption_rows`.
-    contract_consumption = (_roll_dict(
-                                sales_contract_report.consumption(date_from, date_to, scope), roll)
-                            if kind == "consumption" else {})
+    contract_consumption = (
+        roll_by_company(sales_contract_report.consumption(date_from, date_to, scope), split_merged)
+        if kind == "consumption" else {})
 
     # Dòng đời của mỗi đơn vị hiện hành: chính nó + các đơn vị đã sáp nhập vào nó tính đến cuối kỳ.
     line: dict[str, list[str]] = {u["name"]: [u["name"]] for u in units}

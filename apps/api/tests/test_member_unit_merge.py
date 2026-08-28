@@ -373,6 +373,46 @@ def test_old_contracts_keep_running_but_no_new_ones() -> None:
     assert NEW in str(exc.value)
 
 
+def test_receiving_unit_account_sees_the_old_units_contracts() -> None:
+    """Tài khoản đơn vị NHẬN phải thấy hợp đồng của đơn vị đã sáp nhập vào mình.
+
+    Chốt với chủ dự án 27/08/2026: "hợp đồng khi đã gộp thì xem chung, họ tiếp tục làm nhưng tính
+    số liệu tổng; tạo mới thì chỉ chọn được đơn vị nhận". Không mở phạm vi thì hợp đồng dở dang
+    của đơn vị cũ không ai thấy để thêm đợt giao — trên prod đã có 3 hợp đồng rơi vào cảnh đó.
+    """
+    from app.core.security import cap_or_member_scope
+    from app.services import user_repo
+
+    merge.merge(OLD, NEW, D_MERGE)
+    user_repo.create_user(ACCOUNT, "matkhau123", None, "member", member_units=[NEW])
+    _, companies = cap_or_member_scope("sales_contract")(ACCOUNT)
+    assert set(companies) == {NEW, OLD}, "phạm vi phải gồm cả đơn vị đã sáp nhập vào mình"
+
+
+def test_contract_screens_sum_the_old_unit_into_the_new_one() -> None:
+    """Màn Hợp đồng: chọn đơn vị nhận thì thấy CHUNG và cộng TỔNG cả phần đơn vị đã sáp nhập.
+
+    Chốt với chủ dự án 27/08/2026: "hợp đồng khi đã gộp thì xem chung, họ tiếp tục làm nhưng tính
+    số liệu tổng". Lọc đúng một tên đơn vị mà không kéo theo dòng đời thì phần hàng của đơn vị cũ
+    rơi ra ngoài bảng.
+    """
+    from app.routers import sales_contracts as sc
+    from app.services import customer_repo, sales_contract_repo
+
+    for unit, qty in ((OLD, 100.0), (NEW, 30.0)):
+        khach = customer_repo.save({"name": f"KH {unit}"}, unit, "test")["id"]
+        sales_contract_repo.save(
+            {"code": f"HD-{unit}", "delivery_type": "single", "contract_type": "spot",
+             "sign_date": D_BEFORE, "start_date": D_BEFORE, "customer_id": khach,
+             "delivered_at": D_BEFORE, "channel": "domestic",
+             "lines": [{"grade": "SVR 3L", "qty": qty, "price": 30}]}, unit, "test")
+    merge.merge(OLD, NEW, D_MERGE)
+
+    rep = sc._consumption([NEW], D_BEFORE, D_AFTER, NEW, None, None)
+    assert set(rep["by_company"]) == {NEW}, "đơn vị cũ không đứng thành dòng riêng"
+    assert rep["by_company"][NEW]["qty"] == 130.0, "phải cộng cả phần của đơn vị đã sáp nhập"
+
+
 def test_unmerge_restores_the_unit_without_touching_data() -> None:
     _purchase(OLD, D_BEFORE, 100)
     merge.merge(OLD, NEW, D_MERGE)

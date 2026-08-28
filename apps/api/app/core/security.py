@@ -221,7 +221,13 @@ def cap_or_member_scope(cap: str, level: str = LEVEL_VIEW):
             units = list(u.get("member_units") or [])
             if not units:
                 raise HTTPException(403, "Tài khoản chưa được gán đơn vị thành viên — liên hệ quản trị.")
-            return username, units
+            # Nhận sáp nhập là nhận cả phần việc dở dang của đơn vị cũ: hợp đồng chưa giao hết,
+            # khách hàng của những hợp đồng đó. Không mở phạm vi thì 3 hợp đồng dở dang của đơn vị
+            # cũ không ai thấy để thêm đợt giao (phát hiện 27/08/2026). Ghi vẫn bị các hàng rào cũ
+            # chặn: không ký hợp đồng MỚI ở đơn vị đã sáp nhập, không ghi số liệu từ ngày hiệu lực.
+            from app.services import member_unit_merge
+
+            return username, member_unit_merge.expand(units) or units
         assert_cap(username, cap, level)
         return username, None
     return dep
