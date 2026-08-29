@@ -148,7 +148,8 @@ def assert_edit_window(username: str, as_of: str) -> None:
     edit_window.assert_editable(as_of, window)
 
 
-def assert_not_data_locked(username: str, company: str | None, *dates) -> None:
+def assert_not_data_locked(username: str, company: str | None, *dates,
+                           safe_fields: str | None = None) -> None:
     """Hàng rào CHỐT SỐ LIỆU cho endpoint dùng chung giữa đơn vị thành viên và chuyên viên.
 
     Chỉ chặn tài khoản `member`: sau khi đơn vị chốt, chuyên viên/quản trị sửa hộ là đường DUY NHẤT
@@ -158,7 +159,7 @@ def assert_not_data_locked(username: str, company: str | None, *dates) -> None:
 
     if not company or _active_user(username).get("role") != "member":
         return
-    data_lock.assert_not_locked(company, *dates)
+    data_lock.assert_not_locked(company, *dates, safe_fields=safe_fields)
 
 
 def get_current_member(username: str = Depends(get_current_user)) -> dict:

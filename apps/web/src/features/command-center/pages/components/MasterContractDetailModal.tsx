@@ -188,7 +188,7 @@ export default function MasterContractDetailModal({ masterId, meta, canEdit, onC
         </>
       )}
       {picking && m && (
-        <MasterAnnexPickerModal master={m} onClose={() => setPicking(false)} onLinked={refresh} />
+        <MasterAnnexPickerModal master={m} meta={meta} onClose={() => setPicking(false)} onLinked={refresh} />
       )}
       {adding && m && (
         <ContractFormModal meta={meta} onClose={() => setAdding(false)} onSaved={refresh}

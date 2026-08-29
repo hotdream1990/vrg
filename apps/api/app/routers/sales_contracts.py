@@ -39,6 +39,7 @@ from app.services import (
     sales_contract_consumption_excel,
     sales_contract_delivery_history,
     sales_contract_lifecycle,
+    sales_contract_lock,
     sales_contract_repo,
     sales_contract_report,
 )
@@ -97,6 +98,10 @@ def meta(scope: Scope) -> dict:
         "channels": SALE_CHANNELS,
         "delivery_types": DELIVERY_TYPES,
         "contract_types": CONTRACT_TYPES,
+        # Ô vẫn sửa được sau khi đơn vị đã chốt số liệu — form hiện đúng danh sách này, không
+        # viết tay lần hai (xem `services/sales_contract_lock.py`).
+        "editable_when_locked": [{"key": k, "label": v}
+                                 for k, v in sales_contract_lock.EDITABLE_WHEN_LOCKED],
         "master_types": MASTER_CONTRACT_TYPES,
         "currencies": list(SALE_CURRENCIES),
         # Hàng có chứng chỉ + premium (26/08/2026) — dùng chung cho form hợp đồng bán và hợp đồng gốc.
@@ -287,7 +292,7 @@ def get_contract(contract_id: int, scope: Scope) -> dict:
 
 
 def _assert_delivery_window(username: str, contract_id: int | None, new_delivered_at: str | None,
-                            company: str | None = None) -> None:
+                            company: str | None = None, old: dict | None = None) -> None:
     """Cửa sổ sửa — chỉ áp cho LẦN GIAO, mốc là NGÀY GIAO (chốt 02/08/2026).
 
     Lần giao là bản ghi tiêu thụ, đúng thứ cửa sổ sửa sinh ra để bảo vệ: giao xong quá N ngày thì
@@ -300,7 +305,7 @@ def _assert_delivery_window(username: str, contract_id: int | None, new_delivere
     Kiểm CẢ HAI đầu: ngày giao ĐANG lưu (không cho sửa/xoá lần giao đã khoá) và ngày giao MỚI gửi
     lên (không cho khai lùi ra ngoài cửa sổ).
     """
-    old = sales_contract_repo.get(contract_id) if contract_id else None
+    old = old if old is not None else (sales_contract_repo.get(contract_id) if contract_id else None)
     days = [old.get("delivered_at") if old else None, new_delivered_at]
     for as_of in days:
         if as_of:
@@ -309,7 +314,8 @@ def _assert_delivery_window(username: str, contract_id: int | None, new_delivere
     # ≤ X phải đứng yên, nếu không con số tiêu thụ vừa xác nhận vẫn đổi được sau lưng (yêu cầu
     # 25/08/2026: "hợp đồng có thể cập nhật nhưng tiêu thụ sẽ bị chốt lại"). Hợp đồng và các đợt
     # giao SAU ngày chốt vẫn thêm/sửa bình thường.
-    security.assert_not_data_locked(username, company or (old or {}).get("company"), *days)
+    security.assert_not_data_locked(username, company or (old or {}).get("company"), *days,
+                                    safe_fields=sales_contract_lock.EDITABLE_LABELS)
 
 
 @router.put("")
@@ -317,9 +323,16 @@ def save_contract(body: ContractIn, scope: EditScope) -> dict:
     """Thêm mới / cập nhật hợp đồng hoặc ĐỢT GIAO (đợt có ngày giao mới tính là đã giao)."""
     username, companies = scope
     _assert_company(companies, body.company)
-    _assert_delivery_window(username, body.id, body.delivered_at, body.company)
+    payload = body.model_dump()
+    old = sales_contract_repo.get(body.id) if body.id else None
+    # SỬA NỘI DUNG KHÔNG DỊCH CON SỐ NÀO thì bỏ qua CẢ HAI hàng rào thời gian (cửa sổ sửa + chốt
+    # số liệu) — chốt 29/08/2026. Đơn vị vẫn phải đính được chứng từ, sửa số hợp đồng, nối hồ sơ mẹ
+    # cho những chuyến đã chốt; hai hàng rào đó sinh ra để giữ CON SỐ. Quyền theo đơn vị
+    # (`_assert_company` ở trên) KHÔNG bao giờ được bỏ qua.
+    if not sales_contract_lock.is_safe_edit(old, payload):
+        _assert_delivery_window(username, body.id, body.delivered_at, body.company, old=old)
     try:
-        return {"contract": sales_contract_repo.save(body.model_dump(), body.company, username)}
+        return {"contract": sales_contract_repo.save(payload, body.company, username)}
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 

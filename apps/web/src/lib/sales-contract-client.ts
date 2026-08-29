@@ -113,6 +113,8 @@ export type ContractMeta = {
   channels: Record<string, string>;
   delivery_types: Record<string, string>;
   contract_types: Record<string, string>;
+  /** Ô vẫn sửa được sau khi đơn vị đã CHỐT số liệu (server quyết, xem `sales_contract_lock.py`). */
+  editable_when_locked: { key: string; label: string }[];
   /** Nhãn loại HỢP ĐỒNG MẸ: principle = HĐ nguyên tắc · long_term = HĐ dài hạn. */
   master_types: Record<string, string>;
   /** {đơn vị: đơn vị được nhận hàng nội bộ} — chỉ trong nhóm công ty mẹ–con. Không có tên trong

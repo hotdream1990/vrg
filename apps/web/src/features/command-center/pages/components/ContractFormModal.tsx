@@ -122,7 +122,7 @@ export default function ContractFormModal({
     if (!c.code.trim()) p.push(isChild ? "Nhập số đợt giao." : "Nhập số hợp đồng.");
     if (!isChild && !c.customer_id) p.push("Chọn khách hàng.");
     if (needMaster && !c.master_id) {
-      p.push("HĐ dài hạn phải chọn hợp đồng mẹ — chưa có hồ sơ thì lập ở màn Hợp đồng mẹ trước, "
+      p.push("Phụ lục hợp đồng mẹ phải chọn hồ sơ mẹ — chưa có thì lập ở màn Hợp đồng mẹ trước, "
              + "rồi quay lại sửa hợp đồng này.");
     }
     if (c.contract_type === "spot" && c.master_id) p.push("HĐ chuyến không có hợp đồng mẹ.");
@@ -197,7 +197,22 @@ export default function ContractFormModal({
         </label>
         {!isChild && (
           <>
-            {/* HỢP ĐỒNG MẸ — chỉ có nghĩa với HĐ DÀI HẠN (nó là phụ lục của một hồ sơ).
+            {/* Loại HỢP ĐỒNG đứng TRƯỚC ô Hợp đồng mẹ vì chính nó quyết định ô kia có hiện hay
+                không — hỏi ngược lại thì người nhập thấy một ô xuất hiện/biến mất sau lưng mình.
+                KHÁC loại GIAO bên dưới: một phụ lục vẫn có thể giao trọn 1 lần. */}
+            <label className="form-field">Loại hợp đồng *
+              <select className="blt-date-input" value={c.contract_type ?? ""}
+                onChange={(e) => {
+                  const t = (e.target.value || null) as ContractType;
+                  // Chuyển sang HĐ chuyến thì XOÁ hồ sơ đang chọn — ô đã khoá, giữ lại thì server
+                  // chặn mà người nhập không thấy ô nào để sửa.
+                  set({ contract_type: t, ...(t === "spot" ? { master_id: null } : {}) });
+                }}>
+                <option value="">— chọn loại hợp đồng —</option>
+                {Object.entries(meta.contract_types).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </label>
+            {/* HỢP ĐỒNG MẸ — chỉ có nghĩa với PHỤ LỤC (nó là phụ lục của một hồ sơ mẹ).
                 HĐ CHUYẾN bán đứt từng chuyến nên ô này KHÔNG hiện luôn, không phải chỉ khoá:
                 một ô mờ nằm đó vẫn khiến người nhập dừng lại tự hỏi có phải mình thiếu gì không. */}
             {c.contract_type !== "spot" && (
@@ -223,21 +238,6 @@ export default function ContractFormModal({
                 value={c.customer_id ? [c.customer_id] : []}
                 onChange={(ids) => set({ customer_id: ids[0] ?? null })} />
             </label>
-            {/* Loại HỢP ĐỒNG là chỉ tiêu của báo cáo (dài hạn/chuyến) — KHÁC loại GIAO bên dưới:
-                một hợp đồng dài hạn vẫn có thể giao trọn 1 lần. Chọn hợp đồng mẹ thì ô này được
-                điền sẵn theo loại của hợp đồng mẹ, vẫn sửa lại được. */}
-            <label className="form-field">Loại hợp đồng *
-              <select className="blt-date-input" value={c.contract_type ?? ""}
-                onChange={(e) => {
-                  const t = (e.target.value || null) as ContractType;
-                  // Chuyển sang HĐ chuyến thì XOÁ hồ sơ đang chọn — ô đã khoá, giữ lại thì server
-                  // chặn mà người nhập không thấy ô nào để sửa.
-                  set({ contract_type: t, ...(t === "spot" ? { master_id: null } : {}) });
-                }}>
-                <option value="">— chọn loại hợp đồng —</option>
-                {Object.entries(meta.contract_types).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </label>
             <label className="form-field">Loại giao
               <select className="blt-date-input" value={c.delivery_type} disabled={!!initial}
                 onChange={(e) => set({ delivery_type: e.target.value as "single" | "multi" })}>
@@ -258,12 +258,26 @@ export default function ContractFormModal({
           chỉ đường tới nơi người dùng đang đứng. */}
       {!isChild && !preset?.master_id && (
         <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
-          <b>HĐ dài hạn</b> là <b>phụ lục</b> của một hợp đồng mẹ — phải chọn hồ sơ ở ô{" "}
-          <b>Hợp đồng mẹ</b> (chưa có thì lập ở màn <b>Hợp đồng mẹ</b> trước). <b>HĐ chuyến</b> bán
-          đứt từng chuyến nên <b>không có hợp đồng mẹ</b> — chọn loại đó thì ô kia không hiện. Nối hồ sơ{" "}
+          Chọn <b>Loại hợp đồng</b> trước — chính nó quyết định ô <b>Hợp đồng mẹ</b> có hiện hay
+          không. <b>Phụ lục hợp đồng mẹ</b> phải chọn hồ sơ ở ô <b>Hợp đồng mẹ</b> (chưa có thì lập
+          ở màn <b>Hợp đồng mẹ</b> trước); hồ sơ mẹ có thể là <b>HĐ nguyên tắc</b> hay{" "}
+          <b>HĐ dài hạn</b> đều được. <b>HĐ chuyến</b> bán đứt từng chuyến nên{" "}
+          <b>không có hợp đồng mẹ</b> — chọn loại đó thì ô kia không hiện. Nối hồ sơ{" "}
           <b>không đổi</b> khách hàng hay bất kỳ số liệu nào của hợp đồng.
           {initial && <> Đổi <b>loại giao</b> bằng nút <b>Chuyển sang giao nhiều lần</b> ở màn chi
             tiết hợp đồng — lần giao đã nhập sẽ tự thành đợt giao đầu tiên, không phải nhập lại.</>}
+        </p>
+      )}
+
+      {/* Sau khi đơn vị CHỐT số liệu, bản ghi KHÔNG đóng băng hoàn toàn: các ô không dịch con số
+          nào vẫn sửa được (chốt 29/08/2026). Nói trước ở đây để đơn vị khỏi đi báo Ban TTKD cho
+          một việc họ tự làm được. Danh sách lấy từ server — không viết tay lần hai. */}
+      {initial && meta.editable_when_locked?.length > 0 && (
+        <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
+          Kể cả khi <b>số liệu đã chốt</b>, các nội dung sau vẫn sửa và lưu được bình thường:{" "}
+          <b>{meta.editable_when_locked.map((f) => f.label).join(" · ")}</b>. Còn sản lượng, đơn
+          giá, ngày giao, hình thức tiêu thụ, khách hàng và loại hợp đồng thì phải nhờ Ban TTKD sửa
+          hộ — đó là các ô làm đổi số đã báo cáo.
         </p>
       )}
 

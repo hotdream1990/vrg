@@ -148,10 +148,12 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         raise ValueError(f"Loại hợp đồng “{raw_ctype}” không hợp lệ.")
     contract_type = None if is_child else raw_ctype or None
     if contract_type is None and not is_child:
-        raise ValueError("Thiếu loại hợp đồng (HĐ dài hạn / HĐ chuyến).")
+        raise ValueError("Thiếu loại hợp đồng (Phụ lục hợp đồng mẹ / HĐ chuyến).")
     # Luật hồ sơ hợp đồng mẹ theo LOẠI HỢP ĐỒNG (chốt 24/08/2026):
     #   - HĐ CHUYẾN bán đứt từng chuyến, không nằm trong hợp đồng khung nào → không có hồ sơ mẹ.
-    #   - HĐ DÀI HẠN luôn là PHỤ LỤC của một hợp đồng mẹ → bắt buộc chọn hồ sơ.
+    #   - `long_term` luôn là PHỤ LỤC của một hợp đồng mẹ → bắt buộc chọn hồ sơ. (Nhãn hiển thị là
+    #     "Phụ lục hợp đồng mẹ" từ 29/08/2026 — hồ sơ mẹ có cả HĐNT lẫn HĐDH nên gọi "dài hạn" là
+    #     sai với phân nửa số hồ sơ; KHOÁ vẫn là `long_term`.)
     # ⚠ Ép ở CẢ tạo mới LẪN sửa (chốt 24/08/2026, khách quyết): prod có 942 hợp đồng dài hạn nhập
     # trước khi có cấp hồ sơ mẹ — mỗi lần đơn vị sửa một cái là phải gắn hồ sơ, coi như dọn dần hồ
     # sơ cũ. Đổi lại, sửa một hợp đồng dài hạn cũ nay bị chặn cho tới khi chọn xong hồ sơ.
@@ -159,9 +161,9 @@ def clean(row: dict, company: str) -> dict[str, Any]:
     # giao, và mọi thao tác trên ĐỢT GIAO (đợt không mang loại hợp đồng).
     if contract_type == "spot" and master_id is not None:
         raise ValueError("HĐ chuyến không thuộc hợp đồng mẹ — bỏ chọn ô Hợp đồng mẹ, hoặc đổi "
-                         "loại sang HĐ dài hạn.")
+                         "loại sang Phụ lục hợp đồng mẹ.")
     if contract_type == "long_term" and master_id is None:
-        raise ValueError("HĐ dài hạn là phụ lục của một hợp đồng mẹ — chọn hồ sơ ở ô Hợp đồng mẹ. "
+        raise ValueError("Phụ lục hợp đồng mẹ phải gắn vào một hồ sơ mẹ — chọn ở ô Hợp đồng mẹ. "
                          "Chưa có hồ sơ thì lập ở màn Hợp đồng mẹ (HĐNT/HĐDH) trước.")
     raw_channel = str(row.get("channel") or "").strip()
     if raw_channel and raw_channel not in SALE_CHANNELS:

@@ -1613,3 +1613,110 @@ def test_completing_multi_contract_is_unchanged(env, cus) -> None:
                     json={"completed_at": TODAY})
     assert ok.status_code == 200, ok.text
     assert ok.json()["contract"]["delivered_at"] is None
+
+
+# ── Sửa nội dung không ảnh hưởng số liệu sau khi đã CHỐT (chốt 29/08/2026) ──────
+def _member_of(h: dict, unit: str, username: str = "zz_sc_mem") -> dict[str, str]:
+    """Tài khoản ĐƠN VỊ THÀNH VIÊN — chỉ vai này mới bị hàng rào chốt số liệu chặn."""
+    client.delete(f"/api/users/{username}", headers=h)
+    client.post("/api/users", json={"username": username, "password": "pass123",
+                                    "role": "member", "member_units": [unit]}, headers=h)
+    tok = client.post("/api/auth/login",
+                      json={"username": username, "password": "pass123"}).json()["access_token"]
+    return {"Authorization": f"Bearer {tok}"}
+
+
+def test_locked_contract_still_accepts_edits_that_move_no_number(env, cus) -> None:
+    """Đã chốt số liệu vẫn phải sửa được chứng từ · số hợp đồng · hồ sơ mẹ (yêu cầu 29/08/2026).
+
+    Hàng rào chốt sinh ra để giữ CON SỐ. Khoá cứng cả bản ghi thì đơn vị không đính nổi bản scan
+    hoá đơn về sau, mà đó là việc bắt buộc của nghiệp vụ chứng từ.
+    """
+    h = env
+    mh = _member_of(h, UNIT)
+    made = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "HD-KHOA", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": TODAY, "delivered_at": TODAY, "channel": "export",
+        "lines": [_line(qty=50.0)]}, headers=mh)
+    assert made.status_code == 200, made.text
+    c = made.json()["contract"]
+
+    # Ban phát đợt chốt "đến hết hôm nay", đơn vị xác nhận → khoá có hiệu lực với chính đơn vị đó.
+    from app.services import data_lock_repo
+
+    rnd = data_lock_repo.save_round(TODAY, "test", "admin")
+    data_lock_repo.confirm(rnd["id"], UNIT, "zz_sc_mem")
+    try:
+
+        body = {**{k: c.get(k) for k in ("id", "company", "code", "customer_id", "delivery_type",
+                                         "contract_type", "sign_date", "delivered_at", "channel")},
+                "lines": [_line(qty=50.0)]}
+
+        # 1) Sửa SỐ HỢP ĐỒNG + SỐ HOÁ ĐƠN + GHI CHÚ + CHỨNG CHỈ → phải cho qua.
+        ok = client.put("/api/sales-contracts", headers=mh, json={
+            **body, "code": "HD-KHOA-B", "invoice_no": "HD0009", "note": "bổ sung chứng từ",
+            "certs": ["PEFC"]})
+        assert ok.status_code == 200, ok.text
+        saved = ok.json()["contract"]
+        assert saved["code"] == "HD-KHOA-B" and saved["invoice_no"] == "HD0009"
+        assert saved["certs"] == ["PEFC"]
+        # Con số phải đứng yên đúng như trước khi chốt.
+        assert saved["qty"] == pytest.approx(50.0)
+
+        # 2) Đổi SẢN LƯỢNG → vẫn bị chặn, và câu báo lỗi phải chỉ ra ô nào còn sửa được.
+        bad = client.put("/api/sales-contracts", headers=mh,
+                         json={**body, "code": "HD-KHOA-B", "lines": [_line(qty=90.0)]})
+        assert bad.status_code == 403
+        detail = bad.json()["detail"]
+        assert "đã được chốt" in detail and "Số hoá đơn" in detail
+
+        # 3) Đổi NGÀY GIAO (dời sản lượng sang kỳ khác) → chặn. Dùng ngày LÙI: ngày tương lai bị
+        #    luật khác chặn trước (400), sẽ không kiểm được đúng hàng rào chốt.
+        moved = client.put("/api/sales-contracts", headers=mh,
+                           json={**body, "delivered_at": YESTERDAY})
+        assert moved.status_code == 403, moved.text
+
+        # 4) Đổi HÌNH THỨC tiêu thụ (đổi cơ cấu XK/nội địa) → chặn.
+        ch = client.put("/api/sales-contracts", headers=mh, json={**body, "channel": "domestic"})
+        assert ch.status_code == 403
+
+        # 5) THÊM MỚI trong vùng đã chốt vẫn chặn — đó là thêm số liệu, không phải sửa nội dung.
+        new = client.put("/api/sales-contracts", headers=mh, json={
+            "company": UNIT, "code": "HD-MOI", "delivery_type": "single", "contract_type": "spot",
+            "customer_id": cus, "sign_date": TODAY, "delivered_at": TODAY, "channel": "export",
+            "lines": [_line(qty=5.0)]})
+        assert new.status_code == 403
+
+    finally:
+        # Gỡ đợt chốt dù test hỏng giữa chừng — để lại là mọi test sau đều bị hàng rào chặn.
+        data_lock_repo.delete_round(rnd["id"])
+        client.delete("/api/users/zz_sc_mem", headers=h)
+
+
+def test_locked_edit_guard_covers_every_number_bearing_field(env) -> None:
+    """`STAT_FIELDS` phải phủ ĐỦ các ô làm dịch số — sót một ô là nó lọt qua hàng rào âm thầm.
+
+    Ảnh chụp so sánh chỉ gồm các ô khai ở `STAT_FIELDS`; ô nào quên khai sẽ mặc định được coi là
+    "an toàn". Test khoá danh sách lại để lần thêm ô mới phải đọc và phân loại có ý thức.
+    """
+    from app.services import sales_contract_lock as lock
+
+    assert set(lock.STAT_FIELDS) == {
+        "company", "parent_id", "delivery_type", "contract_type", "customer_id",
+        "sign_date", "start_date", "delivered_at", "channel", "to_company",
+        "lines", "payment_qty", "premium", "premium_ccy",
+    }
+    # Hai ô KHÔNG được nằm trong danh sách "sửa thoải mái": chúng dịch số thật.
+    safe_keys = {k for k, _ in lock.EDITABLE_WHEN_LOCKED}
+    assert not (safe_keys & set(lock.STAT_FIELDS)), "một ô vừa an toàn vừa ảnh hưởng số liệu"
+
+    base = {"company": UNIT, "lines": [_line(qty=10.0)], "delivered_at": TODAY,
+            "channel": "export", "sign_date": TODAY}
+    assert lock.is_safe_edit(base, {**base, "code": "khác", "note": "x", "files": [{"file": "a"}]})
+    assert not lock.is_safe_edit(base, {**base, "lines": [_line(qty=11.0)]})
+    # Thêm mới (không có bản cũ) KHÔNG bao giờ là sửa an toàn.
+    assert not lock.is_safe_edit(None, base)
+    # 5 và 5.0 phải so ra BẰNG NHAU — jsonb trả float, form gửi int.
+    assert lock.is_safe_edit({**base, "payment_qty": 5}, {**base, "payment_qty": 5.0})
+    # Ô bỏ trống: "" và None là một, nếu không mở form rồi bấm Lưu là bị báo đổi số liệu.
+    assert lock.is_safe_edit({**base, "to_company": None}, {**base, "to_company": ""})

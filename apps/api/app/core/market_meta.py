@@ -151,12 +151,21 @@ DELIVERY_TYPES: dict[str, str] = {
     "multi": "Giao nhiều lần (chia đợt giao)",
 }
 
-# Loại HỢP ĐỒNG — chỉ tiêu báo cáo (mẫu Tiêu thụ – Tồn kho, Kế hoạch năm). ĐỘC LẬP với loại GIAO:
-# một hợp đồng dài hạn vẫn có thể giao trọn 1 lần, nên KHÔNG suy ra từ `DELIVERY_TYPES`.
-# Đơn vị có hợp đồng dài hạn nhập MỖI PHỤ LỤC NHƯ MỘT HỢP ĐỒNG rồi chọn "HĐ dài hạn" ở đây; từ
-# 21/08/2026 phụ lục còn nối được về HỢP ĐỒNG MẸ (`MASTER_CONTRACT_TYPES` bên dưới).
+# Loại HỢP ĐỒNG của TỪNG bản ghi — hợp đồng này là PHỤ LỤC của một hồ sơ mẹ, hay bán đứt từng
+# chuyến. ĐỘC LẬP với loại GIAO: một phụ lục vẫn có thể giao trọn 1 lần, nên KHÔNG suy ra từ
+# `DELIVERY_TYPES`.
+#
+# ⚠ Nhãn `long_term` là "Phụ lục hợp đồng mẹ", KHÔNG phải "HĐ dài hạn" (đổi 29/08/2026): hồ sơ mẹ
+# có CẢ HAI loại — nguyên tắc (HĐNT) và dài hạn (HĐDH), xem `MASTER_CONTRACT_TYPES` — nên gọi phụ
+# lục là "dài hạn" là sai với phân nửa số hồ sơ. Khoá `long_term` GIỮ NGUYÊN (dữ liệu đã lưu theo
+# khoá, không theo nhãn).
+#
+# ⚠ Các CỘT TỔNG HỢP của biểu Ban TTKD vẫn gọi "HĐ dài hạn" (chốt với chủ dự án 29/08/2026):
+# `unit_period_excel` (lt_export/lt_domestic/signed_lt_tonnes/carry_lt_tonnes) và
+# `unit_report_query.CONTRACT_LABELS` của màn Thống kê — đó là TÊN CHỈ TIÊU trên biểu mẫu gốc,
+# đổi đi là chuyên viên đối chiếu với file Excel của họ bị lệch. Đây là khác biệt CỐ Ý.
 CONTRACT_TYPES: dict[str, str] = {
-    "long_term": "HĐ dài hạn",
+    "long_term": "Phụ lục hợp đồng mẹ",
     "spot": "HĐ chuyến",
 }
 

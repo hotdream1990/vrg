@@ -3,13 +3,14 @@ import { useCallback, useEffect, useState } from "react";
 
 import { dmy } from "../../../../lib/date";
 import { type MasterContract, linkMasterAnnexes } from "../../../../lib/master-contract-client";
-import { type ContractRow, listContracts } from "../../../../lib/sales-contract-client";
+import { type ContractMeta, type ContractRow, listContracts } from "../../../../lib/sales-contract-client";
 
 const PAGE_SIZE = 25;
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
 
 type Props = {
   master: MasterContract;
+  meta: ContractMeta;          // để lấy NHÃN loại hợp đồng từ nguồn duy nhất, không viết tay
   onClose: () => void;
   onLinked: () => void;
 };
@@ -20,7 +21,7 @@ type Props = {
  *  cái bằng form hợp đồng thì không ai dọn nổi. Danh sách chỉ bày hợp đồng **của đúng đơn vị** và
  *  **chưa thuộc hồ sơ nào** (`unlinked`), nên không thể lỡ tay kéo phụ lục của hồ sơ khác sang.
  */
-export default function MasterAnnexPickerModal({ master, onClose, onLinked }: Props) {
+export default function MasterAnnexPickerModal({ master, meta, onClose, onLinked }: Props) {
   const [rows, setRows] = useState<ContractRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -106,8 +107,9 @@ export default function MasterAnnexPickerModal({ master, onClose, onLinked }: Pr
                   onChange={() => toggle(r.id as number)} /></td>
                 <td style={{ fontWeight: 500 }}>{r.code}</td>
                 <td>{r.customer_name ?? "—"}</td>
-                <td>{r.contract_type === "long_term" ? "HĐ dài hạn"
-                  : r.contract_type === "spot" ? "HĐ chuyến" : "—"}</td>
+                {/* Nhãn lấy từ `meta.contract_types` (nguồn duy nhất) — viết tay ở đây thì lần
+                    sau đổi tên loại hợp đồng là bảng này lệch mà không ai thấy. */}
+                <td>{meta.contract_types[r.contract_type ?? ""] ?? "—"}</td>
                 <td style={{ whiteSpace: "nowrap" }}>{dmy(r.sign_date) || "—"}</td>
                 <td className="r" style={{ whiteSpace: "nowrap" }}>{t3(r.qty)}</td>
                 <td style={{ fontSize: 12.5 }}>
