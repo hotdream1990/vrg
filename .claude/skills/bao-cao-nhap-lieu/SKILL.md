@@ -52,6 +52,7 @@ Lệnh 2 chạy sau lệnh 1 để **ghi đè ảnh D** bằng bản kỳ dài (
 | `--days N` | 7 | Kỳ xét "đã nộp chưa" = N ngày |
 | `--until NGÀY` | **hôm qua** | Ngày cuối kỳ. Mặc định BỎ hôm nay: hôm nay chưa hết ngày, đơn vị chưa nhập không phải là nợ — kể vào là nhắc oan và làm loãng danh sách thật |
 | `--out DIR` | `plans/visuals` | Thư mục lưu ảnh (có plan đang mở thì trỏ vào `{plan_dir}/visuals/`) |
+| `--stock-days N` | = `--days` | Kỳ RIÊNG cho biểu Tiêu thụ–Tồn kho (cột trong ảnh A + toàn bộ ảnh C). Biểu này chỉ bắt đầu thu thập **24/07/2026** nên kỳ từ đầu năm phải tách, không thì đơn vị nào cũng "nợ hơn 200 ngày" — số đúng mà kết luận sai. Ảnh in rõ kỳ đang áp dụng cho cột đó |
 | `--local` | tắt | Lấy số liệu ở DB local thay vì prod (để thử) |
 | `--only` | `all` | `stock` · `purchase` · `plan` = chỉ dựng ảnh của riêng biểu đó |
 
@@ -124,6 +125,9 @@ USD/tấn bị đọc thành 2.680 triệu đ/tấn → **báo oan các đơn v�
 - HTML/CSS + chụp ảnh: `scripts/make-report.py` (`page_missing`, `page_wrong`,
   `page_stock_missing`, `page_purchase_months`, `page_year_plan`, `CSS`). Bảng nhiều cột thì truyền bề ngang ở tham số thứ 3 của
   mỗi trang trong `shoot()`, không thì tên đơn vị vắt dòng và ảnh cao gấp mấy lần.
+- Bảng phụ **thiếu đơn giá** trong ảnh A: quá **40 dòng** thì tự gom theo đơn vị (số ngày + khoảng
+  ngày) thay vì kể từng ngày — kỳ cả năm ra 174 dòng, ảnh cao 11.000px không ai đọc. Kỳ ngắn vẫn
+  liệt kê từng ngày để đơn vị biết mở đúng phiếu.
 - Đổi ngưỡng phát hiện thì sửa **cả** `collect.sql` lẫn tiêu đề mục trong `page_wrong` cho khớp.
 - Bản Excel: `scripts/make-xlsx.py` — **nạp lại `collect()` của make-report.py**, không tự truy vấn,
   nên ảnh và Excel không bao giờ lệch số. Thêm/bớt cột thì sửa hàm `build()` trong file này.

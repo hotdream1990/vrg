@@ -45,9 +45,15 @@ def run_sql(sql: str, local: bool) -> str:
         e = read_env(DEPLOY_ENV)
         remote = (f"docker exec -i {e['DB_CONTAINER']} "
                   f"psql -U {e['DB_USER']} -d {e['DB_NAME']} -tA -f -")
-        cmd = ["sshpass", "-e", "ssh", "-o", "StrictHostKeyChecking=no",
+        ssh = ["ssh", "-o", "StrictHostKeyChecking=no",
                "-p", e["SSH_PORT"], f"{e['SSH_USER']}@{e['SSH_HOST']}", remote]
-        env = {"SSHPASS": e["SSH_PASSWORD"], "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"}
+        env = {"PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"}
+        # SSH_PASSWORD gỡ 23/08/2026 → mặc định đi bằng SSH key; còn mật khẩu thì vẫn qua sshpass.
+        if e.get("SSH_PASSWORD"):
+            cmd = ["sshpass", "-e", *ssh]
+            env["SSHPASS"] = e["SSH_PASSWORD"]
+        else:
+            cmd = ssh
     res = subprocess.run(cmd, input=sql, capture_output=True, text=True, env=env)
     if res.returncode != 0:
         sys.exit(f"Lỗi chạy SQL:\n{res.stderr.strip()}")
@@ -101,7 +107,8 @@ def mark(v: str) -> str:
             else f'<td class="mark good">✓ {v} ngày</td>')
 
 
-def page_missing(rows_a: list, rows_d: list, days: int, until: date) -> str:
+def page_missing(rows_a: list, rows_d: list, days: int, until: date,
+                 stock_days: int | None = None) -> str:
     """Ảnh A: KHÔNG NỘP GÌ (thiếu mọi biểu áp dụng) và THIẾU MỘT PHẦN (thiếu ít nhất 1 biểu)."""
     def missing(v: str) -> bool:      # '-' = không áp dụng → không tính là thiếu
         return v != "-" and int(v) == 0
@@ -109,6 +116,10 @@ def page_missing(rows_a: list, rows_d: list, days: int, until: date) -> str:
     full = [a for a in rows_a if all(missing(v) or v == "-" for v in a[1:])]
     part = [a for a in rows_a if a not in full and any(missing(v) for v in a[1:])]
     ky = f"{(until - timedelta(days=days - 1)).strftime('%d/%m')} – {until.strftime('%d/%m/%Y')}"
+    # Biểu Tiêu thụ–Tồn kho chỉ bắt đầu thu thập từ 24/07/2026: chạy kỳ từ đầu năm mà đo cả những
+    # ngày trước đó thì đơn vị nào cũng "nợ 200 ngày" — số đúng nhưng đọc ra kết luận sai.
+    stock_ky = (f"{(until - timedelta(days=stock_days - 1)).strftime('%d/%m')} – "
+                f"{until.strftime('%d/%m/%Y')}") if stock_days and stock_days != days else ""
 
     def block(title: str, items: list) -> str:
         out = [f'<tr class="grp"><td colspan="4">{title} — {len(items)} đơn vị</td></tr>']
@@ -118,16 +129,37 @@ def page_missing(rows_a: list, rows_d: list, days: int, until: date) -> str:
 
     # Thiếu đơn giá là lỗi NẰM TRONG biểu Thu mua (nhập sản lượng, bỏ trống ô đơn giá) → bảng riêng,
     # không phải một mục nộp riêng.
-    d = "".join(
-        f'<tr><td class="stt">{i}</td><td>{r[0]}</td>'
-        f'<td class="mark">{r[1][8:10]}/{r[1][5:7]}/{r[1][:4]}</td></tr>'
-        for i, r in enumerate(rows_d, 1))
-    d_table = f"""
+    def dmy(x: str) -> str:
+        return f"{x[8:10]}/{x[5:7]}/{x[:4]}"
+
+    note_d = ("""<div class="note">Đơn giá mủ nước/mủ chén nhập ngay trong biểu Thu mua. Ngày không
+  tổ chức thu mua thì không cần giá — các ngày dưới đây đã có tổ chức mua nhưng ô đơn giá còn
+  trống.</div>""")
+    # Kỳ dài (cả năm) có hàng trăm ngày lẻ: liệt kê từng ngày thì ảnh cao cả chục nghìn pixel và
+    # không ai đọc hết — gom theo đơn vị, giữ nguyên cách liệt kê ngày khi danh sách còn ngắn.
+    if len(rows_d) > 40:
+        by_unit: dict[str, list[str]] = {}
+        for r in rows_d:
+            by_unit.setdefault(r[0], []).append(r[1])
+        d = "".join(
+            f'<tr><td class="stt">{i}</td><td>{name}</td><td class="mark">{len(ds)}</td>'
+            f'<td>{dmy(min(ds))} – {dmy(max(ds))}</td></tr>'
+            for i, (name, ds) in enumerate(sorted(by_unit.items(), key=lambda kv: -len(kv[1])), 1))
+        d_table = f"""
+<h2>Có tổ chức thu mua nhưng chưa nhập đơn giá — {len(rows_d)} ngày · {len(by_unit)} đơn vị</h2>
+<table style="width:auto;min-width:560px"><thead><tr><th>#</th>
+  <th style="text-align:left">Đơn vị</th><th>Số ngày</th><th>Khoảng ngày</th></tr></thead>
+  <tbody>{d}</tbody></table>{note_d}"""
+    else:
+        d = "".join(
+            f'<tr><td class="stt">{i}</td><td>{r[0]}</td>'
+            f'<td class="mark">{dmy(r[1])}</td></tr>'
+            for i, r in enumerate(rows_d, 1))
+        d_table = f"""
 <h2>Có tổ chức thu mua nhưng chưa nhập đơn giá — {len(rows_d)} ngày</h2>
 <table style="width:auto;min-width:420px"><thead><tr><th>#</th>
   <th style="text-align:left">Đơn vị</th><th>Ngày</th></tr></thead><tbody>{d}</tbody></table>
-<div class="note">Đơn giá mủ nước/mủ chén nhập ngay trong biểu Thu mua. Ngày không tổ chức thu mua
-  thì không cần giá — các ngày dưới đây đã có tổ chức mua nhưng ô đơn giá còn trống.</div>""" if d else ""
+{note_d}""" if d else ""
 
     return f"""{CSS}
 <h1>ĐƠN VỊ CHƯA NHẬP LIỆU</h1>
@@ -135,11 +167,11 @@ def page_missing(rows_a: list, rows_d: list, days: int, until: date) -> str:
   nguồn: Hệ thống Dự báo &amp; Quản trị Giá Cao su</div>
 <table>
   <thead><tr><th>#</th><th style="text-align:left">Đơn vị</th>
-    <th>Báo cáo thu mua</th><th>Tiêu thụ – Tồn kho</th></tr></thead>
+    <th>Báo cáo thu mua</th><th>Tiêu thụ – Tồn kho{f'<br><span style="font-weight:400;font-size:11px">kỳ {stock_ky}</span>' if stock_ky else ''}</th></tr></thead>
   <tbody>{block("KHÔNG NỘP GÌ TRONG KỲ", full)}{block("THIẾU MỘT PHẦN", part)}</tbody>
 </table>
 <div class="note">“không áp dụng” = đơn vị không được giao kế hoạch thu mua nên không phải nộp
-  biểu Thu mua.</div>
+  biểu Thu mua.{f" Biểu Tiêu thụ – Tồn kho chỉ bắt đầu thu thập từ 24/07/2026 nên cột này xét kỳ {stock_ky}; những ngày trước đó không đơn vị nào phải nộp." if stock_ky else ""}</div>
 {d_table}
 """
 
@@ -393,6 +425,8 @@ def main() -> None:
     ap.add_argument("--days", type=int, default=7, help="số ngày của kỳ xét đã nộp (mặc định 7)")
     ap.add_argument("--out", default="plans/visuals", help="thư mục lưu ảnh (mặc định plans/visuals)")
     ap.add_argument("--local", action="store_true", help="lấy số liệu ở DB local thay vì prod")
+    ap.add_argument("--stock-days", type=int, default=None,
+                    help="kỳ riêng cho biểu Tiêu thụ–Tồn kho (mặc định: dùng chung --days)")
     ap.add_argument("--only", choices=("all", "stock", "purchase", "plan"), default="all",
                     help="chỉ dựng ảnh của riêng một biểu (mặc định: cả 5 ảnh)")
     # Chốt kỳ tới HÔM QUA là mặc định hợp lý cho báo cáo đốc thúc: hôm nay chưa hết ngày, đơn vị
@@ -403,12 +437,20 @@ def main() -> None:
 
     until = date.fromisoformat(args.until)
     g = collect(args.days, args.local, until)
+    stock_days = args.stock_days or args.days
+    if stock_days != args.days:
+        # Kỳ thu mua (cả năm) và kỳ tồn kho (từ ngày bắt đầu thu thập) khác nhau → hỏi thêm một
+        # lượt rồi thay đúng phần tồn kho, để mỗi biểu được đo trên kỳ của chính nó.
+        gs = collect(stock_days, args.local, until)
+        stock_col = {r[0]: r[2] for r in gs["A"]}
+        g["A"] = [[r[0], r[1], stock_col.get(r[0], r[2])] for r in g["A"]]
+        g["E"] = gs["E"]
     out_dir = pathlib.Path(args.out)
     if not out_dir.is_absolute():
         out_dir = ROOT / out_dir
     # 1500px: đủ cho 14 cột ngày + tên đơn vị nằm gọn 1 dòng (ngày dài hơn thì nới thêm).
     pages = [("C-don-vi-chua-nhap-ton-kho.png",
-              page_stock_missing(g["E"], args.days, until), 1200)]
+              page_stock_missing(g["E"], stock_days, until), 1200)]
     if args.only == "purchase":
         pages = [("D-don-vi-chua-nhap-thu-mua.png",
                   page_purchase_months(g["F"], args.days, until), 1240)]
@@ -419,7 +461,8 @@ def main() -> None:
                       page_purchase_months(g["F"], args.days, until), 1240))
         pages.append(("E-ke-hoach-nam-khai-thieu.png",
                       page_year_plan(g["G"], until.year), 1180))
-        pages = [("A-don-vi-chua-nhap-lieu.png", page_missing(g["A"], g["D"], args.days, until)),
+        pages = [("A-don-vi-chua-nhap-lieu.png",
+                  page_missing(g["A"], g["D"], args.days, until, stock_days)),
                  ("B-don-vi-nhap-sai-don-vi-tinh.png", page_wrong(g["B"], g["C"]))] + pages
     made = shoot(pages, out_dir)
     print(f"{len(g['A'])} đơn vị đang hoạt động · {len(g['D'])} ngày thiếu đơn giá · "
