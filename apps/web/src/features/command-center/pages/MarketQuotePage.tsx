@@ -16,6 +16,7 @@ import {
   saveQuote,
 } from "../../../lib/market-quote-client";
 import { useEditorWindow } from "../../../lib/edit-window";
+import { fetchAutoSync } from "../../../lib/purchase-auto-sync-client";
 import { useAuth } from "../../auth/AuthContext";
 import DataSourceNote from "../sections/DataSourceNote";
 import DateInput from "../sections/DateInput";
@@ -44,6 +45,8 @@ export default function MarketQuotePage() {
   const canEdit = canEditCap("market_quote") || canEditCap("raw_material");
   const [grades, setGrades] = useState<string[]>([]);
   const [units, setUnits] = useState<string[]>([]);
+  // Đơn vị đang lấy số tự động → Mục 6 chỉ xem (backend cũng bỏ qua, không ghi đè số của họ).
+  const [autoUnits, setAutoUnits] = useState<Set<string>>(new Set());
   const [packOpts, setPackOpts] = useState<string[]>([]);
   const [list, setList] = useState<MarketQuoteSummary[]>([]);
   const [from, setFrom] = useState("");
@@ -73,6 +76,9 @@ export default function MarketQuotePage() {
   useEffect(() => {
     fetchQuoteMeta()
       .then((m) => { setGrades(m.grades); setUnits(m.units); setPackOpts(m.packaging); })
+      .catch(() => {});
+    fetchAutoSync()
+      .then((c) => setAutoUnits(new Set(c.enabled ? c.units.filter((u) => u.auto).map((u) => u.name) : [])))
       .catch(() => {});
   }, []);
   const loadList = useCallback(() => {
@@ -342,7 +348,8 @@ export default function MarketQuotePage() {
 
           {canRegion && (
             <RegionLatexTable units={units} regions={draft.regions ?? {}} regionsCup={draft.regions_cup ?? {}}
-              readOnly={!editableRegion} prevRegions={prev?.regions} prevRegionsCup={prev?.regions_cup}
+              readOnly={!editableRegion} autoUnits={autoUnits}
+              prevRegions={prev?.regions} prevRegionsCup={prev?.regions_cup}
               onPrice={setRegion} onPriceCup={setRegionCup} />
           )}
         </>

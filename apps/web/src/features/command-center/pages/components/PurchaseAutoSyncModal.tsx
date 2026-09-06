@@ -105,9 +105,10 @@ export default function PurchaseAutoSyncModal({ onClose, onSaved, readOnly }: Pr
       </div>
 
       <p className="form-note" style={{ fontSize: 12, marginTop: 10 }}>
-        Chỉ chọn đơn vị mà số tự khai đủ tin cậy: từ lúc bật, <b>số của đơn vị là số thắng</b> — ô
-        nào chuyên viên sửa tay cũng sẽ bị ghi đè ở lần đơn vị nộp tiếp theo, và đơn vị xoá giá thì
-        ô bên này cũng trống theo. Muốn giữ số của mình thì bỏ đơn vị đó ra khỏi danh sách.
+        Chỉ chọn đơn vị mà số tự khai đủ tin cậy: từ lúc bật, <b>số của đơn vị là số duy nhất</b> —
+        cột của đơn vị đó trong lưới Giá mủ nguyên liệu chuyển sang <b>chỉ xem</b>, chuyên viên
+        không sửa/xoá tay được nữa (kể cả ở màn Báo giá mủ thị trường), và đơn vị xoá giá thì ô bên
+        này cũng trống theo. Muốn tự nhập lại thì bỏ đơn vị đó ra khỏi danh sách.
         Số của các đơn vị <b>không chọn</b> vẫn nhập tay như cũ.
       </p>
 

@@ -500,23 +500,30 @@ def purchase_recent_for(grade: str, limit: int = 10,
         return [{"as_of": str(r["as_of"]), "price": float(r["price"])} for r in rows]
 
 
-def delete_purchase_date(as_of: str) -> int:
-    """Xoá toàn bộ giá thu mua mủ nước của 1 ngày (source=vrg). Trả số bản ghi đã xoá."""
+def delete_purchase_date(as_of: str, keep: list[str] | None = None) -> int:
+    """Xoá toàn bộ giá thu mua mủ nước của 1 ngày (source=vrg). Trả số bản ghi đã xoá.
+
+    `keep` = các đơn vị KHÔNG được đụng tới (đang lấy số tự động từ đơn vị — ô của họ chỉ xem).
+    Xoá cả ngày là thao tác dọn lưới của chuyên viên, không phải lệnh xoá số của đơn vị: quét sạch
+    cả những ô mình không có quyền sửa thì lần nộp sau đơn vị mới đẩy lại, giữa chừng bản tin mất số.
+    """
     ensure_schema()
+    keep = [c for c in (keep or []) if c]
     with session_scope() as db:
-        before = _rows_snapshot(db, "SELECT grade, price FROM fact_price WHERE source = 'vrg' "
-                                    "AND price_type = 'purchase' AND as_of = CAST(:d AS date)",
-                                {"d": as_of})
-        res = db.execute(
-            text("DELETE FROM fact_price WHERE source = 'vrg' AND price_type = 'purchase' "
-                 "AND as_of = CAST(:d AS date)"),
-            {"d": as_of},
-        )
+        cond = "source = 'vrg' AND price_type = 'purchase' AND as_of = CAST(:d AS date)"
+        args: dict[str, object] = {"d": as_of}
+        if keep:
+            cond += " AND grade <> ALL(:keep)"
+            args["keep"] = keep
+        before = _rows_snapshot(db, f"SELECT grade, price FROM fact_price WHERE {cond}", args)
+        res = db.execute(text(f"DELETE FROM fact_price WHERE {cond}"), args)
         removed = res.rowcount
     if removed:
+        note = f"Xoá cả ngày — {removed} đơn vị"
+        if keep:
+            note += f" (giữ {len(keep)} đơn vị đang lấy số tự động)"
         audit_repo.log("raw_material", "delete", f"{as_of}|vrg|*|purchase",
-                       before=before, as_of=as_of,
-                       note=f"Xoá cả ngày — {removed} đơn vị")
+                       before=before, as_of=as_of, note=note)
     return removed
 
 

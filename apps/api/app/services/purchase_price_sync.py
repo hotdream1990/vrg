@@ -9,10 +9,11 @@ Hai công tắc ĐỘC LẬP, đều do chuyên viên (quyền `raw_material` m�
   2. Cờ TỪNG ĐƠN VỊ (`member_unit.auto_price_sync`) — chỉ đơn vị được chọn mới chảy.
 Mặc định TẮT: không có thao tác cố ý của chuyên viên thì lớp `vrg` không bao giờ tự đổi.
 
-⚠ Cầu chảy MỘT CHIỀU và số đơn vị LÀ số thắng ở các ngày được đồng bộ: chuyên viên sửa tay một ô
-của đơn vị đang bật cầu thì lần nộp sau của đơn vị sẽ ghi đè lại. Muốn giữ số của mình thì tắt
-đơn vị đó ra khỏi danh sách. Chiều ngược lại KHÔNG bao giờ xảy ra — chuyên viên sửa lưới của mình
-không ghi gì vào số đơn vị đã khai.
+⚠ Cầu chảy MỘT CHIỀU và số đơn vị LÀ số DUY NHẤT ở các đơn vị đang bật: ô của họ **khoá hẳn với
+chuyên viên** (chỉ xem) — xem `assert_manual_allowed`. Trước đây chuyên viên vẫn gõ đè được nhưng
+lần đơn vị nộp sau lại ghi đè ngược, thành ra con số nhìn thấy tuỳ thuộc ai ghi sau cùng. Muốn tự
+nhập lại thì bỏ đơn vị đó ra khỏi danh sách. Chiều ngược lại KHÔNG bao giờ xảy ra — chuyên viên
+sửa lưới của mình không ghi gì vào số đơn vị đã khai.
 """
 
 from __future__ import annotations
@@ -53,6 +54,19 @@ def auto_companies() -> list[str]:
 def is_auto(company: str) -> bool:
     """Giá của đơn vị này có được đẩy sang lớp chuyên viên không?"""
     return company in set(auto_companies())
+
+
+def assert_manual_allowed(company: Any, price_type: Any) -> None:
+    """Chặn chuyên viên ghi/xoá tay ô của đơn vị ĐANG lấy số tự động (raise ValueError).
+
+    Khoá ở tầng service chứ không chỉ ẩn nút trên web: cùng một ô còn vào được qua màn Báo giá mủ
+    thị trường (Mục 5) và qua API, mà đã hứa "số của đơn vị là số duy nhất" thì phải đúng ở mọi
+    đường vào — nếu không con số cuối cùng lại tuỳ ai ghi sau.
+    """
+    if price_type in PURCHASE_PRICE_TYPES and isinstance(company, str) and is_auto(company):
+        raise ValueError(
+            f"“{company}” đang bật tự động lấy số từ đơn vị — ô này chỉ xem, số do đơn vị tự khai. "
+            "Muốn nhập tay thì bỏ đơn vị khỏi danh sách ở nút “Tự động lấy số từ đơn vị”.")
 
 
 def config() -> dict[str, Any]:

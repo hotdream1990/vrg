@@ -115,7 +115,8 @@ export default function RawMaterialPage() {
         <div className="chip" style={{ marginBottom: 8 }}>
           <SyncOutlined style={{ marginRight: 6 }} />
           Đang <b>tự động lấy số</b> của {autoNames.size} đơn vị — các đơn vị đó nhập là số vào
-          thẳng lưới này; cột của họ có dấu đồng bộ ở đầu.
+          thẳng lưới này. Cột của họ có dấu đồng bộ ở đầu và <b>chỉ xem</b>; muốn nhập tay thì bỏ
+          đơn vị khỏi danh sách ở nút “Tự động lấy số từ đơn vị”.
         </div>
       )}
 
@@ -145,7 +146,7 @@ export default function RawMaterialPage() {
                 <th key={co} className="r" style={{ whiteSpace: "nowrap" }}>
                   {autoNames.has(co) && (
                     <SyncOutlined style={{ marginRight: 4 }}
-                      title="Đang lấy số tự động từ đơn vị — sửa tay sẽ bị ghi đè ở lần đơn vị nộp sau" />
+                      title="Đang lấy số tự động từ đơn vị — cột này chỉ xem, số do đơn vị tự khai" />
                   )}
                   {co}
                   {mergedAt.has(co) && (
@@ -175,7 +176,8 @@ export default function RawMaterialPage() {
                   <td key={co} className="r">
                     <EditableCell value={sheet?.values[co]?.[d] ?? null} prevValue={prevOf[co]?.[d]}
                       onSave={(n) => saveCell(co, d, n)} onClear={() => clearCell(co, d)}
-                      readOnly={!canEdit || !ed || d >= (mergedAt.get(co) ?? "\uffff")} />
+                      readOnly={!canEdit || !ed || autoNames.has(co)
+                                || d >= (mergedAt.get(co) ?? "\uffff")} />
                   </td>
                 ))}
               </tr>

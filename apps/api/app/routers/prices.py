@@ -10,7 +10,7 @@ import tempfile
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.market_meta import PURCHASE_PRICE_TYPES
+from app.core.market_meta import PURCHASE_PRICE_TYPES, PURCHASE_SOURCE_HQ
 from app.core.paths import crawlers_dir
 from app.core.permissions import LEVEL_EDIT
 from app.core.security import (
@@ -28,7 +28,13 @@ from app.schemas.price import (
     ReutersParseResult,
     ScanResponse,
 )
-from app.services import price_board, price_repo, reuters_physical_parse, scan_service
+from app.services import (
+    price_board,
+    price_repo,
+    purchase_price_sync,
+    reuters_physical_parse,
+    scan_service,
+)
 
 logger = logging.getLogger("vrg.api")
 
@@ -55,6 +61,14 @@ def _cap_for_record(source: str, price_type: str) -> str:
     if price_type == "physical":
         return "physical"         # giá physical
     return "auto_data"            # override giá sàn trong bảng tính giá các sàn
+
+
+def _assert_manual_allowed(company: str, price_type: str) -> None:
+    """Ô của đơn vị đang lấy số tự động là CHỈ XEM với chuyên viên → 409 kèm cách mở khoá."""
+    try:
+        purchase_price_sync.assert_manual_allowed(company, price_type)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 def _crawler_http_error(exc: Exception) -> HTTPException:
@@ -129,9 +143,13 @@ def purchase_sheet(
 @router.delete("/purchase")
 def delete_purchase(as_of: str = Query(..., description="YYYY-MM-DD"),
                     username: str = Depends(require_cap_edit("raw_material"))) -> dict:
-    """Xoá toàn bộ giá thu mua mủ nước của 1 ngày (trong cửa sổ sửa; admin miễn)."""
+    """Xoá toàn bộ giá thu mua mủ nước của 1 ngày (trong cửa sổ sửa; admin miễn).
+
+    Giữ nguyên ô của các đơn vị đang lấy số tự động — số đó thuộc quyền đơn vị, chuyên viên chỉ xem.
+    """
     assert_editor_window(username, as_of)
-    return {"deleted": price_repo.delete_purchase_date(as_of)}
+    kept = purchase_price_sync.auto_companies()
+    return {"deleted": price_repo.delete_purchase_date(as_of, keep=kept), "kept_auto": len(kept)}
 
 
 @router.get("/physical-sheet")
@@ -190,6 +208,8 @@ def upsert_record(rec: PriceRecordEdit, username: str = Depends(get_current_user
     assert_cap(username, cap, LEVEL_EDIT)
     if cap in _WINDOWED_CAPS:
         assert_editor_window(username, rec.as_of)
+    if rec.source == PURCHASE_SOURCE_HQ:
+        _assert_manual_allowed(rec.grade, rec.price_type)
     price_repo.upsert_record(rec.model_dump())
     return {"ok": True}
 
@@ -208,6 +228,8 @@ def delete_record(
     assert_cap(username, cap, LEVEL_EDIT)
     if cap in _WINDOWED_CAPS:
         assert_editor_window(username, as_of)
+    if source == PURCHASE_SOURCE_HQ:
+        _assert_manual_allowed(grade, price_type)
     if not price_repo.delete_record(as_of, source, grade, contract, price_type):
         raise HTTPException(404, "Không tìm thấy bản ghi để xóa")
     return {"deleted": True}

@@ -154,3 +154,87 @@ def test_backfill_copies_prices_entered_before_switch(seeded) -> None:
     assert res.status_code == 200, res.text
     assert res.json()["copied"] >= 1
     assert _hq() == 507
+
+
+# ── Khoá sửa tay: đơn vị đang bật cầu thì ô bên lưới chuyên viên CHỈ XEM ──────────────────────
+def _turn_on(h: dict, companies: list[str] | None = None) -> None:
+    res = client.put("/api/prices/purchase-auto-sync", headers=h,
+                     json={"enabled": True, "companies": companies or [UNIT]})
+    assert res.status_code == 200, res.text
+
+
+def _upsert_hq(h: dict, company: str, price: float, price_type: str = "purchase"):
+    return client.put("/api/prices/records", headers=h,
+                      json={"as_of": DAY, "source": PURCHASE_SOURCE_HQ, "grade": company,
+                            "contract": "", "price_type": price_type, "price": price,
+                            "currency": "VND", "unit": "đồng/độ TSC"})
+
+
+def test_hq_cannot_edit_cell_of_auto_unit(seeded) -> None:
+    """Đơn vị đang lấy số tự động → chuyên viên gõ đè bị chặn 409, số của đơn vị giữ nguyên."""
+    h, mh = seeded
+    _turn_on(h)
+    _member_price(mh, 500)
+    res = _upsert_hq(h, UNIT, 540)
+    assert res.status_code == 409, res.text
+    assert "chỉ xem" in res.json()["detail"]
+    assert _hq() == 500
+
+
+def test_hq_cannot_delete_cell_of_auto_unit(seeded) -> None:
+    """Xoá 1 ô của đơn vị đang bật cầu cũng bị chặn — số đó thuộc quyền đơn vị."""
+    h, mh = seeded
+    _turn_on(h)
+    _member_price(mh, 501)
+    res = client.delete("/api/prices/records", headers=h,
+                        params={"as_of": DAY, "source": PURCHASE_SOURCE_HQ, "grade": UNIT,
+                                "contract": "", "price_type": "purchase"})
+    assert res.status_code == 409, res.text
+    assert _hq() == 501
+
+
+def test_hq_still_edits_units_not_in_list(seeded) -> None:
+    """Đơn vị KHÔNG chọn vẫn nhập tay như cũ (không được siết nhầm cả lưới)."""
+    h, _ = seeded
+    _turn_on(h)
+    assert _upsert_hq(h, OTHER, 480).status_code == 200
+    assert price_repo.purchase_by_company_on_date(DAY, "purchase", PURCHASE_SOURCE_HQ)[OTHER] == 480
+
+
+def test_switch_off_unlocks_manual_edit(seeded) -> None:
+    """Bỏ đơn vị khỏi danh sách → mở khoá, chuyên viên nhập tay lại được."""
+    h, mh = seeded
+    _turn_on(h)
+    _member_price(mh, 502)
+    assert _upsert_hq(h, UNIT, 545).status_code == 409
+    client.put("/api/prices/purchase-auto-sync", headers=h,
+               json={"enabled": True, "companies": []})
+    assert _upsert_hq(h, UNIT, 545).status_code == 200
+    assert _hq() == 545
+
+
+def test_delete_whole_day_keeps_auto_units(seeded) -> None:
+    """Xoá cả ngày chỉ dọn ô mình nhập tay, giữ nguyên số của đơn vị đang lấy tự động."""
+    h, mh = seeded
+    _turn_on(h)
+    _member_price(mh, 503)
+    assert _upsert_hq(h, OTHER, 470).status_code == 200
+    res = client.delete("/api/prices/purchase", headers=h, params={"as_of": DAY})
+    assert res.status_code == 200, res.text
+    assert res.json()["deleted"] == 1                      # chỉ đơn vị nhập tay bị xoá
+    assert _hq() == 503                                    # đơn vị auto còn nguyên
+    assert price_repo.purchase_by_company_on_date(DAY, "purchase",
+                                                  PURCHASE_SOURCE_HQ).get(OTHER) is None
+
+
+def test_market_quote_skips_auto_unit(seeded) -> None:
+    """Cửa sau: Mục 6 màn Báo giá mủ không ghi đè ô của đơn vị đang lấy tự động (phiếu vẫn lưu)."""
+    h, mh = seeded
+    _turn_on(h)
+    _member_price(mh, 504)
+    res = client.put("/api/market-quote", headers=h,
+                     json={"as_of": DAY, "regions": {UNIT: 600, OTHER: 610}})
+    assert res.status_code == 200, res.text
+    assert _hq() == 504                                    # số đơn vị giữ nguyên
+    assert price_repo.purchase_by_company_on_date(DAY, "purchase",
+                                                  PURCHASE_SOURCE_HQ).get(OTHER) == 610

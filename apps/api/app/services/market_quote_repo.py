@@ -16,7 +16,7 @@ from sqlalchemy import text
 from app.core import request_ctx
 from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import MARKET_QUOTE_GRADES, PURCHASE_PRICE_UNIT
-from app.services import audit_repo, member_unit_repo, price_repo
+from app.services import audit_repo, member_unit_repo, price_repo, purchase_price_sync
 
 _MARKET = "market"
 # section key → (price_type, currency, unit) khi mirror sang fact_price source=market
@@ -179,9 +179,15 @@ def save_quote(mq: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _sync_regions(as_of: str, regions: dict[str, Any], mode: dict[str, str]) -> None:
-    """Mục 5 → kho Giá mủ nguyên liệu (đảm bảo đơn vị tồn tại, upsert giá theo `mode`)."""
+    """Mục 5 → kho Giá mủ nguyên liệu (đảm bảo đơn vị tồn tại, upsert giá theo `mode`).
+
+    BỎ QUA đơn vị đang bật "tự động lấy số từ đơn vị": ô của họ ở kho chung là chỉ xem, số do
+    chính đơn vị khai. Bỏ qua chứ không báo lỗi — màn Báo giá mủ TỰ ĐỘNG LƯU sau mỗi lần gõ, ném
+    lỗi ở đây là cả phiếu không lưu được vì một ô không thuộc quyền chuyên viên.
+    """
+    auto = set(purchase_price_sync.auto_companies())
     for unit, price in regions.items():
-        if price is None:
+        if price is None or unit in auto:
             continue
         member_unit_repo.add_unit(unit)  # idempotent (ON CONFLICT DO NOTHING)
         price_repo.upsert_record({"as_of": as_of, "grade": unit, "contract": "",

@@ -4,6 +4,20 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Changed
+- **Đơn vị đang bật "tự động lấy số" thì chuyên viên chỉ xem, không sửa được** (06/09/2026) —
+  trước đây chuyên viên vẫn gõ đè được ô của những đơn vị này, nhưng lần đơn vị nộp sau lại ghi đè
+  ngược, nên con số nhìn thấy tuỳ thuộc ai ghi sau cùng. Nay khoá hẳn:
+  - Lưới **Giá mủ nguyên liệu**: cột của đơn vị đang bật cầu chuyển sang **chỉ xem** (vẫn có dấu
+    đồng bộ ở đầu cột để biết vì sao).
+  - **Xoá cả ngày** chỉ dọn ô chuyên viên tự nhập, **giữ nguyên** số của đơn vị đang lấy tự động —
+    xoá sạch thì bản tin mất số cho tới lần đơn vị nộp kế tiếp.
+  - Bịt luôn **cửa sau**: Mục 6 màn *Báo giá mủ thị trường* cũng khoá dòng của các đơn vị đó (bỏ
+    qua khi lưu, không báo lỗi — màn này tự động lưu, ném lỗi là mất cả phiếu vì một ô).
+  - Chặn ở **tầng dữ liệu** chứ không chỉ ẩn nút: gọi thẳng API cũng bị từ chối, kèm câu chỉ rõ
+    cách mở khoá (bỏ đơn vị khỏi danh sách ở nút *Tự động lấy số từ đơn vị*).
+  - Đơn vị **không chọn** vẫn nhập tay như cũ.
+
+### Changed
 - **Mỗi thẻ hỗ trợ = MỘT trường hợp, khép rồi là khép hẳn** (29/08/2026) — trước đây phản hồi vào
   thẻ đã đóng sẽ **tự mở lại** thẻ, thành ra một thẻ gánh nhiều việc và nhìn vào không còn biết
   trường hợp nào đã xong.
