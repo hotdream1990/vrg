@@ -1,8 +1,9 @@
 /* Thống kê TỒN KHO (để riêng) — trục NGÀY CHỐT, drill-down: Toàn Tập đoàn → Khu vực → Đơn vị →
    Ngày → Chủng loại.
-   Tồn kho là số THỜI ĐIỂM nên không có khái niệm "tổng của một kỳ": chọn 1 ngày chốt, mỗi đơn vị
-   lấy số MỚI NHẤT ≤ ngày đó (cũ tối đa N ngày) — luôn hiện ngày thật ở cột "Ngày lấy số" + "Số cũ",
-   và luôn báo rõ đơn vị nào chưa có số (không lấy số ngày khác đắp vào).
+   Tồn kho là số THỜI ĐIỂM nên không có khái niệm "tổng của một kỳ": chọn 1 ngày chốt, chỉ lấy số
+   của đơn vị KHAI đúng ngày đó — trừ đơn vị tick "không phát sinh tồn kho để khai" thì giữ số lần
+   khai gần nhất (từ 21/08/2026 không còn ô "số ngày được phép lùi", xem `unit_report_rows`).
+   Luôn hiện ngày thật ở cột "Ngày lấy số" + "Số cũ", và luôn báo rõ đơn vị nào chưa có số.
    "Đã ký HĐ chưa giao" + "Tồn có thể giao dịch" là số SUY RA từ hợp đồng (server tính tại đúng
    ngày của số tồn); chi tiết từng hợp đồng vẫn ở màn riêng (Thống kê hợp đồng). */
 
@@ -77,8 +78,9 @@ export default function StockStatsPage() {
           <h2><InboxOutlined style={{ marginRight: 8 }} />Thống kê tồn kho</h2>
           <p>
             Ảnh chụp tại <b>một ngày chốt</b> — tồn kho là số <b>thời điểm</b>, không cộng dồn các
-            ngày. Đơn vị chưa nhập đúng ngày chốt thì lấy số mới nhất trước đó trong giới hạn
-            <b> số cũ tối đa</b>, và <b>hiện rõ ngày thật</b> của số đó; quá hạn coi như chưa có số.
+            ngày. Chỉ lấy số của đơn vị <b>khai đúng ngày chốt</b>; đơn vị tick “không phát sinh tồn
+            kho để khai” thì giữ số của lần khai gần nhất và <b>hiện rõ ngày thật</b> ở cột “Ngày lấy
+            số”; đơn vị không khai gì thì coi như <b>chưa có số</b>, không mượn số ngày khác đắp vào.
             <b> Đã ký HĐ chưa giao</b> là số hệ thống tự tính từ hợp đồng (sản lượng hợp đồng −
             đã giao) tại đúng ngày của số tồn, <b>nằm trong</b> tồn thành phẩm; phần còn bán được
             là <b>tồn có thể giao dịch = tổng tồn − đã ký chưa giao</b> (âm nghĩa là đã ký nhiều

@@ -79,12 +79,16 @@ def meta(scope: Scope) -> dict:
     # nhận — chốt với chủ dự án 27/08/2026.
     mine = ([u["name"] for u in units] if companies is None
             else [c for c in companies if c in active])
+    # Tài khoản của đơn vị chỉ được biết về ĐƠN VỊ CỦA MÌNH: mấy danh mục dùng chung dưới đây trả
+    # nguyên si là lộ danh sách + loại tiền của mọi đơn vị khác trong Tập đoàn.
+    in_scope = (lambda name: True) if companies is None else (lambda name: name in (companies or []))
     return {
         "units": mine,
         # Nội tệ của từng đơn vị — form chỉ cho chọn VND · USD · nội tệ CỦA ĐƠN VỊ ĐÓ (chốt Q10:
         # trong nước bán VND, thêm USD khi xuất khẩu; nước ngoài mới có thêm LAK/KHR).
-        "unit_currency": {u["name"]: (u.get("currency") or "VND") for u in units},
-        "all_units": [u["name"] for u in units],
+        "unit_currency": {u["name"]: (u.get("currency") or "VND")
+                          for u in units if in_scope(u["name"])},
+        "all_units": [u["name"] for u in units if in_scope(u["name"])],
         # Đơn vị ĐÃ SÁP NHẬP: hợp đồng cũ của họ vẫn còn và vẫn chạy tiếp (thêm đợt giao, chốt
         # hoàn thành) nên phải LỌC được; chỉ không mở hợp đồng MỚI ở đó nữa. Danh sách này KHÔNG
         # trộn vào `units` — `units` là danh sách chọn khi tạo hợp đồng.
@@ -92,7 +96,10 @@ def meta(scope: Scope) -> dict:
                          if companies is None or m["name"] in (companies or [])],
         # Đơn vị NHẬN khi tiêu thụ nội bộ — chỉ trong NHÓM công ty mẹ–con. Đơn vị không có tên ở đây
         # là đứng một mình → form ẩn luôn hình thức "Tiêu thụ nội bộ".
-        "internal_targets": member_unit_repo.internal_targets(),
+        # Đơn vị NHẬN khi tiêu thụ nội bộ: chỉ trả cây của ĐƠN VỊ MÌNH (giá trị vẫn là tên các
+        # đơn vị nhận được hàng — đó là thứ form bắt buộc phải cho chọn).
+        "internal_targets": {k: v for k, v in member_unit_repo.internal_targets().items()
+                             if in_scope(k)},
         "grades": list(UNIT_GRADES),
         "dry_required": sorted(DRY_REQUIRED_GRADES),
         "channels": SALE_CHANNELS,

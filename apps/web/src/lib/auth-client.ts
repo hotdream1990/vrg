@@ -5,7 +5,7 @@ import { authHeaders } from "./auth-token";
 import { apiFetch } from "./http";
 
 export type User = {
-  username: string; full_name: string | null; role: string;
+  username: string; full_name: string | null; role: string; email?: string | null;
   permissions?: string[]; member_units?: string[];
   member_has_purchase_plan?: boolean; // role=member: có đơn vị được giao KH thu mua → hiện menu "Báo cáo thu mua"
   impersonated_by?: string | null; // username admin đang đăng nhập hộ (null = phiên bình thường)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.permissions import LEVEL_EDIT, has_cap
-from app.core.security import assert_editor_window, require_any_cap, require_cap_edit, user_caps
+from app.core.security import block_unit_roles, assert_editor_window, require_any_cap, require_cap_edit, user_caps
 from app.schemas.market_quote import (
     MarketQuote,
     MarketQuoteMeta,
@@ -15,6 +15,10 @@ from app.schemas.market_quote import (
 from app.services import market_quote_repo, vcb_rate
 
 router = APIRouter(prefix="/api/market-quote", tags=["market-quote"])
+
+#: Phiếu báo giá có Mục 5 = GIÁ MỦ THEO TỪNG ĐƠN VỊ → tài khoản của đơn vị không được đọc.
+#: Riêng `/vcb-rate` (tỷ giá VCB) vẫn mở: biểu Thu mua của chính đơn vị đang dùng để quy đổi.
+_hq_only = [Depends(block_unit_roles)]
 
 # ghi: cần 1 trong 2 quyền (Mục 1-4 hoặc Mục 5) ở mức Sửa; trả username để áp cửa sổ sửa
 _editor_dep = Depends(require_any_cap("market_quote", "raw_material", level=LEVEL_EDIT))
@@ -45,7 +49,7 @@ def _keep_sections_without_edit_right(data: dict, username: str) -> dict:
     return data
 
 
-@router.get("", response_model=list[MarketQuoteSummary])
+@router.get("", response_model=list[MarketQuoteSummary], dependencies=_hq_only)
 def list_quotes(
     date_from: str | None = Query(None, description="từ ngày YYYY-MM-DD"),
     date_to: str | None = Query(None, description="đến ngày YYYY-MM-DD"),
@@ -58,7 +62,7 @@ def list_quotes(
     return market_quote_repo.list_quotes(date_from, date_to, limit)
 
 
-@router.get("/meta", response_model=MarketQuoteMeta)
+@router.get("/meta", response_model=MarketQuoteMeta, dependencies=_hq_only)
 def meta():
     """Chủng loại SVR cố định + đơn vị thành viên (cột Mục 4) để dựng form."""
     return market_quote_repo.meta()
@@ -73,13 +77,13 @@ def vcb_rate_now(date: str | None = Query(None, description="YYYY-MM-DD (mặc �
         raise HTTPException(502, "Không lấy được tỷ giá VCB (mạng/nguồn) — vui lòng nhập tay.") from exc
 
 
-@router.get("/history")
+@router.get("/history", dependencies=_hq_only)
 def get_price_history(days: int = Query(90, ge=7, le=365)) -> dict:
     """Lịch sử giá SVR thị trường (4 mục) theo ngày × chủng loại — cho biểu đồ xu hướng."""
     return market_quote_repo.price_history(days)
 
 
-@router.get("/{as_of}", response_model=MarketQuote)
+@router.get("/{as_of}", response_model=MarketQuote, dependencies=_hq_only)
 def get_quote(as_of: str):
     """1 phiếu đầy đủ theo ngày (Mục 4 đọc live từ kho Giá mủ nguyên liệu)."""
     quote = market_quote_repo.get_quote(as_of)
@@ -88,14 +92,14 @@ def get_quote(as_of: str):
     return quote
 
 
-@router.put("", response_model=MarketQuote)
+@router.put("", response_model=MarketQuote, dependencies=_hq_only)
 def save_quote(mq: MarketQuote, username: str = _editor_dep):
     """Lưu/ghi đè phiếu theo ngày + đồng bộ Mục 4 sang kho Giá mủ nguyên liệu (trong cửa sổ sửa; admin miễn)."""
     assert_editor_window(username, mq.as_of)
     return market_quote_repo.save_quote(_keep_sections_without_edit_right(mq.model_dump(), username))
 
 
-@router.delete("/{as_of}")
+@router.delete("/{as_of}", dependencies=_hq_only)
 def delete_quote(as_of: str, username: str = Depends(require_cap_edit("market_quote"))) -> dict:
     """Xoá phiếu 1 ngày (giữ nguyên giá mủ nước đã đồng bộ sang kho chung; trong cửa sổ sửa; admin miễn).
 

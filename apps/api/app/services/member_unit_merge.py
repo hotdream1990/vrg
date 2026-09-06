@@ -91,7 +91,17 @@ def rollup_map(as_of: str | None = None) -> dict[str, str]:
     return {n: cur for n in mm if (cur := _walk(n, mm, at, day)) != n}
 
 
-def stock_superseded(latest: dict[str, str]) -> set[str]:
+def merge_pairs() -> list[tuple[str, str, str]]:
+    """[(đơn vị cũ, đơn vị nhận, ngày hiệu lực)] — đọc DB MỘT lần rồi áp cho nhiều ngày.
+
+    Chuỗi tồn kho theo ngày phải hỏi luật sáp nhập cho từng ngày trong cửa sổ (60 ngày); gọi thẳng
+    `stock_superseded` mỗi ngày là 60 lần truy vấn cùng một bảng.
+    """
+    return [(n, u["merged_into"], _iso(u["merged_at"])) for n, u in _units().items()
+            if u.get("merged_into") and u.get("merged_at")]
+
+
+def superseded_in(pairs: list[tuple[str, str, str]], latest: dict[str, str]) -> set[str]:
     """Đơn vị đã sáp nhập mà ảnh chụp TỒN KHO của họ đã nằm trong số của đơn vị nhận → thôi cộng.
 
     `latest` = {đơn vị: ngày khai tồn gần nhất}. Sau ngày hiệu lực, kho của đơn vị cũ do đơn vị
@@ -99,13 +109,13 @@ def stock_superseded(latest: dict[str, str]) -> set[str]:
     hàng đó. Ngược lại, khi đơn vị nhận chưa khai lần nào kể từ ngày hiệu lực thì hai kho vẫn đang
     được khai riêng — phải cộng cả hai, bỏ bên nào là mất hàng thật.
     """
-    at = _merged_at_map()
-    out = set()
-    for src, dst in merge_map().items():
-        day, tgt = at.get(src), latest.get(dst)
-        if day and tgt and tgt >= day:
-            out.add(src)
-    return out
+    return {src for src, dst, day in pairs
+            if day and (tgt := latest.get(dst)) and tgt >= day}
+
+
+def stock_superseded(latest: dict[str, str]) -> set[str]:
+    """Như `superseded_in` nhưng tự đọc danh sách sáp nhập — dùng cho ảnh chụp MỘT ngày chốt."""
+    return superseded_in(merge_pairs(), latest)
 
 
 def lineage(name: str, as_of: str | None = None) -> list[str]:

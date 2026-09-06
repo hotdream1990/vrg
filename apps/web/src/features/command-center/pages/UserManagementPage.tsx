@@ -13,7 +13,7 @@ import {
 } from "../../../lib/user-client";
 import { listUnits } from "../../../lib/member-unit-client";
 import { DATA_CAPS, isSplitCap, parseCap } from "../../../lib/permissions";
-import { ROLE_COLOR, ROLE_LABEL, ROLES } from "../../../lib/roles";
+import { ROLE_COLOR, ROLE_LABEL, ROLES, UNIT_ROLES } from "../../../lib/roles";
 
 import { useAuth } from "../../auth/AuthContext";
 import CapPermissionPicker from "../sections/CapPermissionPicker";
@@ -68,24 +68,26 @@ export default function UserManagementPage() {
   const openEdit = (u: AppUser) => {
     setEditing(u);
     form.resetFields();
-    form.setFieldsValue({ full_name: u.full_name ?? "", role: u.role, is_active: u.is_active,
-      permissions: u.permissions ?? [], member_units: u.member_units ?? [] });
+    form.setFieldsValue({ full_name: u.full_name ?? "", email: u.email ?? "", role: u.role,
+      is_active: u.is_active, permissions: u.permissions ?? [],
+      member_units: u.member_units ?? [] });
     setOpen(true);
   };
 
   const submit = async (v: Record<string, unknown>) => {
-    // Quyền theo mục chỉ áp cho editor; đơn vị chỉ áp cho tài khoản Đơn vị thành viên (member).
+    // Quyền theo mục chỉ áp cho editor; đơn vị áp cho các vai trò gắn đơn vị (đơn vị thành viên + lãnh đạo).
     const perms = v.role === "editor" ? ((v.permissions as string[]) ?? []) : [];
-    const memberUnits = v.role === "member" ? ((v.member_units as string[]) ?? []) : [];
+    const memberUnits = UNIT_ROLES.has(v.role as string) ? ((v.member_units as string[]) ?? []) : [];
+    const email = (v.email as string)?.trim() || null;
     try {
       if (creating) {
         await createUser({ username: (v.username as string).trim(), password: v.password as string,
-          full_name: (v.full_name as string)?.trim() || undefined, role: v.role as string,
-          permissions: perms, member_units: memberUnits });
+          full_name: (v.full_name as string)?.trim() || undefined, email: email ?? undefined,
+          role: v.role as string, permissions: perms, member_units: memberUnits });
         message.success("Đã tạo tài khoản");
       } else if (editing) {
         await updateUser(editing.username, { full_name: (v.full_name as string)?.trim() || null,
-          role: v.role as string, is_active: v.is_active as boolean,
+          email, role: v.role as string, is_active: v.is_active as boolean,
           permissions: perms, member_units: memberUnits });
         message.success("Đã cập nhật");
       }
@@ -123,10 +125,10 @@ export default function UserManagementPage() {
       <Tag color={ROLE_COLOR[v] ?? "default"}>{ROLE_LABEL[v] ?? v}</Tag> },
     { title: "Quyền / Đơn vị", key: "perms", width: 360, render: (_: unknown, u: AppUser) => {
       if (u.role === "admin") return <Tag color="green">Toàn quyền</Tag>;
-      if (u.role === "member")
+      if (UNIT_ROLES.has(u.role))
         return u.member_units?.length
           ? <Space size={[4, 4]} wrap>{u.member_units.map((n) =>
-              <Tag key={n} color="gold">{n}</Tag>)}</Space>
+              <Tag key={n} color={u.role === "leader" ? "purple" : "gold"}>{n}</Tag>)}</Space>
           : <Tag color="warning">Chưa gán đơn vị</Tag>;
       if (u.role !== "editor") return <span style={{ color: "#999" }}>—</span>;
       if (!u.permissions?.length) return <Tag>Chưa cấp quyền</Tag>;
@@ -200,6 +202,10 @@ export default function UserManagementPage() {
             </>
           )}
           <Form.Item label="Họ và tên" name="full_name"><Input placeholder="Họ và tên" maxLength={120} /></Form.Item>
+          <Form.Item label="Email nhận thông báo" name="email"
+            tooltip="Dùng cho mục Hỗ trợ & Thông báo: có tin mới hệ thống gửi email kèm link vào xem. Bỏ trống thì lấy chính tên đăng nhập nếu tên đăng nhập là email.">
+            <Input placeholder="vd: lanhdao@donvi.vrg.vn" maxLength={200} autoComplete="off" />
+          </Form.Item>
           <Form.Item label="Vai trò" name="role"><Select options={ROLES} /></Form.Item>
           <Form.Item noStyle shouldUpdate={(p, c) => p.role !== c.role}>
             {({ getFieldValue }) => {
@@ -210,11 +216,13 @@ export default function UserManagementPage() {
               if (role === "viewer")
                 return <Alert type="info" showIcon style={{ marginBottom: 16 }}
                   message="Người xem không truy cập các mục quản lý số liệu (chỉ xem dashboard/bản tin)." />;
-              if (role === "member")
+              if (UNIT_ROLES.has(role))
                 return (
                   <Form.Item label="Đơn vị thành viên" name="member_units"
-                    rules={[{ required: true, message: "Chọn ít nhất một đơn vị cho tài khoản đơn vị thành viên" }]}
-                    tooltip="Tài khoản này chỉ xem/nhập giá mủ nước & mủ chén của các đơn vị được chọn (có thể chọn nhiều).">
+                    rules={[{ required: true, message: "Chọn ít nhất một đơn vị cho tài khoản này" }]}
+                    tooltip={role === "leader"
+                      ? "Lãnh đạo đơn vị chỉ dùng mục Hỗ trợ & Thông báo, và chỉ thấy tin của các đơn vị được chọn."
+                      : "Tài khoản này chỉ xem/nhập số liệu của các đơn vị được chọn (có thể chọn nhiều)."}>
                     <Select mode="multiple" allowClear showSearch optionFilterProp="label"
                       placeholder="Chọn một hoặc nhiều đơn vị"
                       options={units.map((n) => ({ value: n, label: n }))}

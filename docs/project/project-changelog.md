@@ -3,7 +3,94 @@
 Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/).
 
 ## [Unreleased]
+### Changed
+- **Mỗi thẻ hỗ trợ = MỘT trường hợp, khép rồi là khép hẳn** (29/08/2026) — trước đây phản hồi vào
+  thẻ đã đóng sẽ **tự mở lại** thẻ, thành ra một thẻ gánh nhiều việc và nhìn vào không còn biết
+  trường hợp nào đã xong.
+  - Thẻ đã khép: **không nhận thêm phản hồi** (server chặn), màn chi tiết bỏ luôn ô nhập và mời
+    **mở thẻ mới** ngay tại đó — khỏi gõ xong mới bị báo lỗi.
+  - **Mở lại** chỉ còn ở phía **Tập đoàn** (bên tiếp nhận & xử lý ca) như van sửa sai khi bấm nhầm;
+    phía đơn vị bỏ nút này — để đơn vị tự mở lại là quay về đúng cái vừa bỏ.
+  - Đóng thẻ thì cả hai bên vẫn làm được (đơn vị có quyền nói *"thôi không cần nữa"*).
+
 ### Added
+- **Nút "Hoàn thành" ngay trên danh sách hợp đồng** (29/08/2026) — hợp đồng đã giao **đạt từ 95%**
+  sản lượng ký mà chưa chốt thì hiện luôn nút *Hoàn thành* ở cột Thao tác, bấm là mở hộp thoại
+  chốt; trước đây phải mở từng hợp đồng vào màn chi tiết mới tìm được nút.
+  - Chỉ hiện ở dòng **còn thao tác được** (đứng cạnh Sửa · Xoá). Dòng đã chuyển sang *(chỉ xem)*
+    hoặc đã chốt thì không có nút — chỉ xem thì không mọc thêm nút bấm được.
+  - Ngưỡng 95% là **một hằng số** (`DONE_RATIO`) — muốn chặt/lỏng hơn thì đổi đúng một chỗ.
+
+- **Lãnh đạo đơn vị xem được số liệu của đơn vị mình** (29/08/2026) — vai trò *Lãnh đạo đơn vị
+  thành viên* nay không chỉ có hộp thư, mà **theo dõi được toàn bộ số liệu đơn vị mình** ở chế độ
+  **CHỈ XEM**: Thu mua · Tồn kho · Nhu cầu thị trường · Kế hoạch năm · Khách hàng · Hợp đồng mẹ ·
+  Hợp đồng & đợt giao · Báo cáo tiêu thụ. Menu ghi rõ **"(chỉ xem)"**, mỗi màn có dòng nhắc
+  *"việc nhập/sửa do tài khoản nhập liệu của đơn vị thực hiện"*.
+  - **Chặn ghi ở MỘT chỗ duy nhất** (theo method HTTP tại dependency), không gắn tay từng
+    endpoint: hơn 20 endpoint của `/api/member`, gắn tay là kiểu gì cũng sót — và endpoint thêm
+    sau này cũng tự động được bảo vệ.
+  - Mở được **phiếu số liệu từng ngày** để xem đủ chỉ tiêu (trước đây tài khoản không có quyền
+    sửa thì mất luôn nút mở phiếu, chỉ đọc được vài cột đầu của bảng).
+  - Phiếu ngày nói **đúng lý do khoá**: tài khoản chỉ xem · ngày đã chốt · ngoài cửa sổ nhập là ba
+    chuyện khác nhau, cách xử lý cũng khác.
+
+### Fixed
+- **Bốn màn tồn kho nay nói cùng một con số** (06/09/2026) — biểu đồ *Tồn kho VRG theo ngày*
+  (Dashboard · Bản tin biến động) lệch hẳn so với *Báo cáo tồn kho* và *Thống kê tồn kho*. Đo trên
+  dữ liệu thật ngày 03/09/2026: biểu đồ **56.678 tấn** trong khi dòng lũy kế của Báo cáo tồn kho
+  **74.597 tấn** — chênh **17.919 tấn (+31,6%)**. Ba nguyên nhân, đã xử lý cả ba:
+  - **Định nghĩa**: biểu đồ chỉ cộng khối *"Đã nhập kho"* nhưng nhãn lại ghi *"tồn kho tổng"* (bỏ
+    sót 16-18%, tức 11.400-12.100 tấn mỗi ngày). Nay **tồn kho thành phẩm = chưa nhập kho + đã nhập
+    kho** như mọi màn khác, và biểu đồ mặc định vẽ **cột chồng 2 lớp** *Đã / chưa nhập kho* — vẫn
+    đọc riêng được lớp "đã nhập kho" để đối chiếu số tay Ban TTKD (chuỗi tồn kho tuần giữ nguyên
+    cách tính cũ, có chủ ý).
+  - **Đơn vị đã sáp nhập**: luật "kho của đơn vị cũ đã nằm trong số của đơn vị nhận" trước đây chỉ
+    có ở 2/4 màn; nay biểu đồ theo ngày và dòng lũy kế của Báo cáo tồn kho cũng áp dụng, không còn
+    đếm hai lần cùng một lô hàng.
+  - **Số đã cũ**: dòng lũy kế lấy ảnh chụp mới nhất của từng đơn vị trong cả khoảng (mặc định 90
+    ngày) nhưng chỉ khoe ngày mới nhất. Nay ghi rõ **số đơn vị có số** và cảnh báo đỏ *"N đơn vị số
+    đã cũ hơn 7 ngày (cũ nhất …)"* — vẫn cộng đủ, không bỏ đơn vị chậm nộp ra khỏi tổng.
+  - *Thống kê tồn kho* xem theo **Ngày** trước đây chỉ áp luật sáp nhập cho dòng *Tổng cộng*, còn
+    từng dòng ngày vẫn cộng cả hai đơn vị — chính bảng đó tự cãi nhau. Nay xét theo **từng ngày**:
+    ngày trước ngày hiệu lực vẫn cộng đủ hai kho (lúc đó còn khai riêng thật), từ ngày hiệu lực
+    trở đi chỉ tính đơn vị nhận.
+  - Sửa luôn phần chữ đã lỗi thời ở *Thống kê tồn kho* (còn nhắc ô "số ngày được phép lùi" đã gỡ
+    từ 21/08/2026).
+
+- **`ensure_schema()` không tạo bảng nào trên Postgres không có TimescaleDB** (06/09/2026) — lệnh
+  tạo hypertable nằm chung transaction với `CREATE TABLE`; thiếu extension thì lệnh đó lỗi làm hỏng
+  cả transaction, `except` chỉ biến commit thành rollback nên hàm chạy êm mà DB trống trơn. Nay
+  hypertable chạy ở transaction riêng — dựng DB test trên Postgres thường đã đúng như tài liệu.
+
+- **Bịt lỗ đơn vị đọc được số liệu của đơn vị khác qua API** (29/08/2026) — `/api/series/*` (chuỗi
+  số liệu mức Tập đoàn, **chia được theo từng đơn vị**) trước đây chỉ gác đăng nhập, nên một tài
+  khoản đơn vị gọi thẳng API là xem được sản lượng · tồn kho · tiêu thụ của mọi đơn vị khác. Nay
+  chặn hẳn tài khoản đơn vị ở tầng API. Không ảnh hưởng ai: hai màn dùng chuỗi này (Dashboard,
+  Bản tin biến động) vốn không có trong menu của tài khoản đơn vị.
+
+- **Hỗ trợ & Thông báo + Nhắc lịch cho lãnh đạo đơn vị** (29/08/2026) — hộp thư hai chiều giữa
+  **Tập đoàn** và **lãnh đạo các đơn vị thành viên**, kèm gửi **email** báo tin mới.
+  - **Vai trò mới `Lãnh đạo đơn vị thành viên`**: gán vào một hoặc nhiều đơn vị (như tài khoản đơn
+    vị thành viên), nhưng **chỉ thấy mục Hỗ trợ & Thông báo** — không nhập số liệu. Tài khoản
+    `Đơn vị thành viên` (nhập liệu) **không** vào được hộp thư này.
+  - **Hai chiều**: đơn vị gửi **yêu cầu hỗ trợ** lên Tập đoàn; Tập đoàn gửi **thông báo** xuống
+    **1 đơn vị · một khu vực · tất cả đơn vị**. Mỗi tin có **nội dung · file đính kèm · hình ảnh ·
+    phản hồi qua lại**, đóng/mở lại được.
+  - ⚠ **Các đơn vị không thấy tin và phản hồi của nhau**: gửi cho N đơn vị là tạo **N luồng riêng**
+    (không phải một luồng nhiều người nhận), nên cách ly là tính chất của **dữ liệu** chứ không
+    phải của giao diện. Đơn vị gõ thẳng đường dẫn tin của đơn vị khác vẫn báo *không tìm thấy*;
+    file đính kèm cũng chặn tải chéo đơn vị.
+  - Phía Tập đoàn có 2 khay: **Đơn vị gửi lên** và **Đã gửi đơn vị** (gom 1 dòng cho mỗi đợt gửi,
+    hiện số đơn vị nhận + số phản hồi chưa đọc; bấm vào xem từng đơn vị).
+  - **Nhắc lịch**: hẹn giờ (một lần · hằng ngày · tuần · tháng) cho phạm vi đơn vị đã chọn; tới hạn
+    hệ thống tự gửi thông báo + email. Hệ thống rà 5 phút một lần; máy chủ tắt qua giờ hẹn thì
+    **gửi bù một lần** khi chạy lại. Có nút **Gửi ngay** (không đụng mốc định kỳ).
+  - **Email**: khai SMTP ở *Quản trị → Cấu hình hệ thống → tab **Email*** (máy chủ · cổng · bảo mật ·
+    tài khoản · địa chỉ người gửi · **Địa chỉ hệ thống** để dựng link), kèm nút **Gửi thử**. Địa chỉ
+    nhận lấy ở ô **Email** của tài khoản (bỏ trống thì lấy tên đăng nhập nếu là email). **Chưa khai
+    SMTP thì tính năng vẫn chạy bình thường**, chỉ không gửi mail.
+  - Quyền mới **`Hỗ trợ & Thông báo`** (2 mức Xem/Sửa) cho chuyên viên; quản trị mặc định đủ quyền.
+
 - **Hàng có chứng chỉ + Premium trên hợp đồng** (26/08/2026) — khối mới *Hàng có chứng chỉ* ở **cả
   hợp đồng gốc (HĐNT/HĐDH) lẫn hợp đồng bán (gồm HĐ chuyến)**: chọn **nhiều** chứng chỉ trong danh
   mục **PEFC · EUDR · VRG GREEN**, kèm ô **Premium** khách trả thêm — **tự nhập số tiền**, chọn

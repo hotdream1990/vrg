@@ -85,6 +85,25 @@ def _drop_superseded(rows: list[dict]) -> list[dict]:
     return [r for r in rows if r["company"] not in drop] if drop else rows
 
 
+def _drop_superseded_daily(rows: list[dict]) -> list[dict]:
+    """Bảng theo NGÀY: xét luật sáp nhập cho TỪNG ngày, vì mỗi ngày là một ảnh chụp riêng.
+
+    KHÔNG dùng `_drop_superseded` ở đây: nó chọn "ngày khai gần nhất" trên cả khoảng rồi bỏ đơn vị
+    cũ khỏi MỌI ngày — xoá luôn những ngày TRƯỚC ngày hiệu lực, lúc hai đơn vị còn khai kho riêng.
+    Ngày nào cả hai cùng có số và đã qua ngày hiệu lực thì mới là cộng trùng (bổ sung 06/09/2026:
+    dòng theo ngày trước đây không áp luật này nên vênh với dòng Tổng cộng của chính bảng).
+    """
+    pairs = member_unit_merge.merge_pairs()
+    if not pairs:
+        return rows
+    by_day: dict[str, set[str]] = {}
+    for r in rows:
+        by_day.setdefault(r["as_of"], set()).add(r["company"])
+    drop = {(day, src) for day, comps in by_day.items()
+            for src in member_unit_merge.superseded_in(pairs, dict.fromkeys(comps, day))}
+    return [r for r in rows if (r["as_of"], r["company"]) not in drop] if drop else rows
+
+
 def _latest_per_company(rows: list[dict]) -> list[dict]:
     """Ảnh chụp tại ngày chốt: giữ các dòng của ngày MỚI NHẤT mà từng đơn vị có số."""
     last: dict[str, str] = {}
@@ -168,8 +187,7 @@ def stock_report(as_of: str, days_back: int = 0, *, companies: str | None = None
     # nhập mà kho của họ nay do đơn vị nhận khai chung — xem `_drop_superseded`.
     if not split_merged:
         snap = _drop_superseded(snap)
-        if group_by != "day":
-            rows = snap
+        rows = snap if group_by != "day" else _drop_superseded_daily(rows)
     rows = merge_rollup(rows, split_merged)
     snap = merge_rollup(snap, split_merged)
     view = merge_view(comps, split_merged)

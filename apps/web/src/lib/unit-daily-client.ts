@@ -59,7 +59,11 @@ export type TimelineRow = {
 };
 /** Lũy kế cả khoảng do SERVER cộng (biểu Tiêu thụ – Tồn kho, vì bảng cắt trang nên web không đủ
  *  dữ liệu để tự cộng). Khoá = khoá cột của bảng; `stock_as_of` = ngày ảnh chụp tồn mới nhất. */
-export type TimelineTotals = Record<string, number | null> & { stock_as_of?: string | null };
+export type TimelineTotals = Record<string, number | null> & {
+  stock_as_of?: string | null;
+  /** Ngày của ảnh chụp CŨ NHẤT còn nằm trong dòng tổng (chỉ tính phần cũ quá ngưỡng). */
+  stock_oldest_as_of?: string | null;
+};
 export type Timeline = {
   today: string; edit_window_days: number; locked_until?: Record<string, string>;
   units: string[];

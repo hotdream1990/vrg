@@ -16,8 +16,8 @@ import StockContractHistoryFilters from "./StockContractHistoryFilters";
 import StockContractHistoryTable from "./StockContractHistoryTable";
 
 export default function StockContractHistoryPage() {
-  const { user } = useAuth();
-  const role: Role = user?.role === "member" ? "member" : "hq";
+  const { user, isUnitAccount } = useAuth();
+  const role: Role = isUnitAccount ? "member" : "hq";
   const memberUnits = user?.member_units ?? [];
   const showCompany = role !== "member" || memberUnits.length > 1;
 

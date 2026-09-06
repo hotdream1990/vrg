@@ -11,6 +11,11 @@ type AuthCtx = {
   user: User | null;
   loading: boolean;
   canEdit: boolean; // admin hoặc editor (chuyên viên nhập liệu) — viewer = chỉ xem
+  // Tài khoản GẮN ĐƠN VỊ (nhập liệu `member` + lãnh đạo `leader`): dùng bộ endpoint /api/member/*
+  // và chỉ thấy đơn vị được gán. Khớp `UNIT_ROLES` ở backend.
+  isUnitAccount: boolean;
+  // Trong nhóm trên, chỉ `member` được nhập/sửa; lãnh đạo đơn vị CHỈ XEM (server cũng chặn).
+  canEditUnitData: boolean;
   can: (cap: Cap) => boolean; // TRUY CẬP mục dữ liệu (mức Xem trở lên) — dùng cho menu + gác route
   canEditCap: (cap: Cap) => boolean; // được NHẬP/SỬA mục dữ liệu (mức Sửa) — dùng để khoá form/nút
   login: (username: string, password: string) => Promise<void>;
@@ -44,6 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => { clearToken(); clearAdminToken(); setUser(null); };
   const refreshUser = async () => { setUser(await fetchMe()); };
   const canEdit = user?.role === "admin" || user?.role === "editor";
+  const isUnitAccount = user?.role === "member" || user?.role === "leader";
+  const canEditUnitData = user?.role === "member";
   const caps = useMemo(() => effectiveCaps(user?.role, user?.permissions), [user?.role, user?.permissions]);
   const can = (cap: Cap) => hasCap(caps, cap);
   const canEditCap = (cap: Cap) => hasCap(caps, cap, "edit");
@@ -70,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider value={{
-      user, loading, canEdit, can, canEditCap, login, logout, refreshUser,
+      user, loading, canEdit, isUnitAccount, canEditUnitData, can, canEditCap, login, logout, refreshUser,
       isImpersonating, impersonate, stopImpersonation,
     }}>
       <ImpersonationBanner />

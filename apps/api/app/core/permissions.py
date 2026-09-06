@@ -32,6 +32,7 @@ DATA_CAPS: dict[str, str] = {
     "bulletin_weekly": "Báo cáo tuần",
     "market_movement": "Bản tin biến động",
     "assistant": "Trợ lý AI (hỏi đáp số liệu + tư vấn giá sàn)",
+    "support": "Hỗ trợ & Thông báo (hộp thư với lãnh đạo đơn vị + nhắc lịch)",
     "audit": "Nhật ký hoạt động (xem vết chỉnh sửa số liệu)",
 }
 CAP_KEYS = frozenset(DATA_CAPS)
@@ -40,6 +41,7 @@ CAP_KEYS = frozenset(DATA_CAPS)
 SPLIT_CAPS = frozenset({
     "market_quote", "raw_material", "floor", "physical", "inventory",
     "member_unit", "auto_data", "market_demand", "unit_daily", "sales_contract",
+    "support",
 })
 
 LEVEL_VIEW = "view"

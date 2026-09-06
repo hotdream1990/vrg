@@ -32,8 +32,16 @@ export default function UnitDailyTimelineSummary({ kind, rows, totals, extraCols
           {!own && (
             <div style={{ fontWeight: 400, color: "var(--muted)", fontSize: 11, lineHeight: 1.35 }}>
               {totals?.stock_as_of
-                ? `tồn kho: số mới nhất ${dmy(totals.stock_as_of)}`
+                ? `tồn kho: ${totals.stock_units ?? 0} đơn vị, số mới nhất ${dmy(totals.stock_as_of)}`
                 : "tồn kho: chưa đơn vị nào chốt số trong khoảng"}
+              {/* Ảnh chụp cũ VẪN nằm trong tổng (bỏ ra là mất hàng thật của đơn vị chậm nộp) —
+                  nên phải nói ra, nếu không dòng tổng trông như số của riêng ngày mới nhất. */}
+              {totals?.stock_stale_units ? (
+                <div style={{ color: "var(--danger)" }}>
+                  {totals.stock_stale_units} đơn vị số đã cũ hơn {totals.stock_stale_days} ngày
+                  {totals.stock_oldest_as_of ? ` (cũ nhất ${dmy(totals.stock_oldest_as_of)})` : ""}
+                </div>
+              ) : null}
               {/* Tiêu thụ là DÒNG CHẢY (cộng dồn) còn tồn kho là số THỜI ĐIỂM — nói rõ nguồn để
                   không ai tưởng hai nhóm cột cùng một cách tính. */}
               <br />tiêu thụ: cộng dồn các lần giao trên hợp đồng

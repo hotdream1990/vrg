@@ -1,8 +1,13 @@
-"""Router tài khoản ĐƠN VỊ THÀNH VIÊN — tự xem/nhập giá mủ nước + mủ chén của CÁC đơn vị được gán.
+"""Router SỐ LIỆU CỦA ĐƠN VỊ THÀNH VIÊN — giá mủ, biểu ngày, kế hoạch năm, hợp đồng tồn kho.
 
-Gác bằng `get_current_member` (role=member, đã gán ≥1 đơn vị). Mỗi thao tác ghi phải kèm `company`
-và server kiểm tra company thuộc danh sách gán của tài khoản → không thể đụng đơn vị khác. Chỉ
-nhập/sửa được HÔM NAY + N ngày gần nhất (server ép); ngày cũ hơn chỉ để xem.
+Phục vụ hai vai trò gắn đơn vị (`get_unit_user`), cùng phạm vi dữ liệu nhưng khác quyền ghi:
+  - `member` (nhập liệu): xem + nhập/sửa số liệu của các đơn vị được gán;
+  - `leader` (lãnh đạo đơn vị): CHỈ XEM — mọi method ghi bị chặn ngay ở dependency.
+Tham số `member` của các handler là TÀI KHOẢN đang gọi (một trong hai vai trò trên).
+
+Mỗi thao tác ghi phải kèm `company` và server kiểm tra company thuộc danh sách gán của tài khoản
+→ không thể đụng đơn vị khác. Chỉ nhập/sửa được HÔM NAY + N ngày gần nhất (server ép); ngày cũ
+hơn chỉ để xem.
 """
 
 from __future__ import annotations
@@ -15,7 +20,7 @@ from fastapi.responses import FileResponse
 from app.core import data_lock, edit_window
 from app.core.feature_flags import require_excel_import
 from app.core.market_meta import PURCHASE_PRICE_UNIT, PURCHASE_SOURCE_UNIT, UNIT_GRADES
-from app.core.security import get_current_member
+from app.core.security import get_unit_user
 from app.core.unit_guard import assert_unit_can_enter
 from app.routers.unit_daily import resolve_timeline_range, timeline_page
 from app.schemas.market_demand import MarketDemandEdit
@@ -41,6 +46,16 @@ def _price_unit(price_type: str, basis: str | None = None) -> str:
     return PURCHASE_PRICE_UNIT[price_type]
 
 
+def _plans_of(units: list[str], year: int) -> dict[str, float]:
+    """Chỉ tiêu năm của RIÊNG các đơn vị được gán.
+
+    `plans_for_year` trả kế hoạch của MỌI đơn vị (nguồn dùng chung với màn của Ban). Trả nguyên si
+    ra endpoint của đơn vị là đơn vị này đọc được chỉ tiêu của đơn vị kia — lọc ngay tại đây.
+    """
+    plans = unit_daily_repo.plans_for_year(year)
+    return {u: plans[u] for u in units if u in plans}
+
+
 def _locked(member: dict) -> dict[str, str]:
     """{đơn vị: ngày đã chốt} của riêng tài khoản này — trả kèm mọi payload có `edit_window_days`
     để màn nhập liệu biết ngày nào đã chốt mà chuyển sang "(đã chốt)" thay vì mời bấm rồi báo lỗi."""
@@ -63,14 +78,14 @@ def _assert_company(member: dict, company: str, as_of: str | None = None) -> Non
 
 
 @router.get("/checklist")
-def my_checklist(member: dict = Depends(get_current_member)) -> dict:
+def my_checklist(member: dict = Depends(get_unit_user)) -> dict:
     """Đơn vị còn thiếu gì — hiện ngay trên mọi màn của tài khoản đơn vị (xem `member_checklist`)."""
     return member_checklist.checklist(list(member["member_units"]))
 
 
 @router.get("/prices")
 def my_prices(days: int = Query(30, ge=1, le=180),
-              member: dict = Depends(get_current_member)) -> dict:
+              member: dict = Depends(get_unit_user)) -> dict:
     """Lịch sử giá mủ nước + mủ chén của TỪNG đơn vị được gán (dựng lưới xem/nhập)."""
     units = list(member["member_units"])
     sheets = {u: price_repo.member_price_history(u, days) for u in units}
@@ -81,7 +96,7 @@ def my_prices(days: int = Query(30, ge=1, le=180),
 
 @router.put("/prices")
 def upsert_my_price(body: MemberPriceEdit,
-                    member: dict = Depends(get_current_member)) -> dict:
+                    member: dict = Depends(get_unit_user)) -> dict:
     """Nhập/sửa 1 ô giá (mủ nước hoặc mủ chén) cho 1 đơn vị được gán, trong cửa sổ cho phép.
 
     Giá 0 = "ngày đó không có giá" → `price_repo` xoá ô giá thay vì lưu số 0 (xem `market_meta`).
@@ -104,7 +119,7 @@ def clear_my_price(
     company: str = Query(...),
     as_of: str = Query(..., description="YYYY-MM-DD"),
     price_type: str = Query(..., description="purchase | purchase_cup"),
-    member: dict = Depends(get_current_member),
+    member: dict = Depends(get_unit_user),
 ) -> dict:
     """Xoá 1 ô giá của 1 đơn vị được gán (trong cửa sổ cho phép)."""
     _assert_company(member, company, as_of)
@@ -119,7 +134,7 @@ def clear_my_price(
 # ── Nhu cầu thị trường (free text theo đơn vị / ngày) ──
 @router.get("/market-demand/timeline")
 def my_market_demand_timeline(days: int = Query(90, ge=1, le=730),
-                              member: dict = Depends(get_current_member)) -> dict:
+                              member: dict = Depends(get_unit_user)) -> dict:
     """Timeline nhu cầu — CHỈ các đơn vị được gán của tài khoản (đa đơn vị), ẩn ngày trống."""
     units = list(member["member_units"])
     date_from = (edit_window.today() - timedelta(days=days)).isoformat()
@@ -130,7 +145,7 @@ def my_market_demand_timeline(days: int = Query(90, ge=1, le=730),
 
 @router.get("/market-demand")
 def my_market_demand(as_of: str = Query(..., description="YYYY-MM-DD"),
-                     member: dict = Depends(get_current_member)) -> dict:
+                     member: dict = Depends(get_unit_user)) -> dict:
     """Nhu cầu thị trường của CÁC đơn vị được gán cho 1 ngày (chỉ đơn vị của tài khoản)."""
     units = list(member["member_units"])
     entries = market_demand_repo.entries_on(as_of)
@@ -141,7 +156,7 @@ def my_market_demand(as_of: str = Query(..., description="YYYY-MM-DD"),
 
 @router.put("/market-demand")
 def upsert_my_market_demand(body: MarketDemandEdit,
-                            member: dict = Depends(get_current_member)) -> dict:
+                            member: dict = Depends(get_unit_user)) -> dict:
     """Ghi/sửa nhu cầu 1 đơn vị được gán, trong cửa sổ cho phép. create_only → chống ghi trùng."""
     _assert_company(member, body.company, body.as_of)
     edit_window.assert_editable(body.as_of, edit_window.member_window())
@@ -159,7 +174,7 @@ def my_daily_timeline(kind: str = Query(..., pattern="^(purchase|consumption)$")
                       date_to: str | None = Query(None, description="Đến ngày 'YYYY-MM-DD' — khoảng tự chọn (kèm date_from)"),
                       page: int = Query(1, ge=1),
                       page_size: int = Query(50, ge=1, le=500),
-                      member: dict = Depends(get_current_member)) -> dict:
+                      member: dict = Depends(get_unit_user)) -> dict:
     """Timeline báo cáo — CHỈ các đơn vị được gán (đa đơn vị), ẩn ngày trống.
     Mặc định `days` ngày gần nhất; truyền cả `date_from`+`date_to` → lọc theo khoảng tự chọn.
     Cắt trang giống endpoint chuyên viên (xem `unit_daily.timeline`)."""
@@ -170,14 +185,14 @@ def my_daily_timeline(kind: str = Query(..., pattern="^(purchase|consumption)$")
     unit_daily_repo.attach_purchase_prices(res["entries"], kind)
     return {"today": today.isoformat(), "edit_window_days": edit_window.member_window(),
             "locked_until": _locked(member),
-            "units": units, "plans": unit_daily_repo.plans_for_year(today.year),
+            "units": units, "plans": _plans_of(units, today.year),
             **res, "page": page, "page_size": page_size}
 
 
 @router.get("/daily-report")
 def my_daily(kind: str = Query(..., pattern="^(purchase|consumption)$"),
              as_of: str = Query(..., description="Ngày 'YYYY-MM-DD'"),
-             member: dict = Depends(get_current_member)) -> dict:
+             member: dict = Depends(get_unit_user)) -> dict:
     """Số liệu báo cáo của CÁC đơn vị được gán cho 1 ngày."""
     units = list(member["member_units"])
     try:
@@ -188,7 +203,7 @@ def my_daily(kind: str = Query(..., pattern="^(purchase|consumption)$"),
     return {"as_of": as_of, "today": edit_window.today().isoformat(),
             "edit_window_days": edit_window.member_window(), "locked_until": _locked(member),
             "units": units,
-            "plans": unit_daily_repo.plans_for_year(year),
+            "plans": _plans_of(units, year),
             "entries": {u: entries.get(u) for u in units},
             **unit_daily_repo.day_extras(kind, as_of, units)}
 
@@ -196,7 +211,7 @@ def my_daily(kind: str = Query(..., pattern="^(purchase|consumption)$"),
 # ── Số liệu NĂM (kế hoạch thu mua + HĐ dài hạn đã ký) — nhập 1 lần, cập nhật khi có thay đổi ──
 @router.get("/plan")
 def my_year_plan(year: int = Query(..., ge=2020, le=2100),
-                 member: dict = Depends(get_current_member)) -> dict:
+                 member: dict = Depends(get_unit_user)) -> dict:
     """Số liệu năm của CÁC đơn vị được gán — chỉ đơn vị CÓ giao kế hoạch thu mua."""
     # Màn Kế hoạch năm mở cho MỌI đơn vị của tài khoản (chốt 03/08/2026 — bỏ cờ bật/tắt).
     units = list(member["member_units"])
@@ -205,7 +220,7 @@ def my_year_plan(year: int = Query(..., ge=2020, le=2100),
 
 @router.put("/plan")
 def upsert_my_year_plan(body: PurchasePlanEdit,
-                        member: dict = Depends(get_current_member)) -> dict:
+                        member: dict = Depends(get_unit_user)) -> dict:
     """Đơn vị tự cập nhật số liệu năm của mình (không giới hạn cửa sổ ngày — số liệu năm)."""
     # Chỉ tiêu NĂM: mốc so là 01/01 năm đó — sáp nhập giữa năm vẫn sửa được kế hoạch năm ấy.
     _assert_company(member, body.company, f"{body.year}-01-01")
@@ -218,7 +233,7 @@ def upsert_my_year_plan(body: PurchasePlanEdit,
 # ── Tồn kho ĐÃ KÝ HỢP ĐỒNG của CÁC đơn vị được gán — nhập 1 lần, sau chỉ điền ngày giao ──
 @router.get("/stock-contracts")
 def my_stock_contracts(as_of: str | None = Query(None, description="Chỉ HĐ đang tồn ngày này"),
-                       member: dict = Depends(get_current_member)) -> dict:
+                       member: dict = Depends(get_unit_user)) -> dict:
     """Hợp đồng đã ký của các đơn vị được gán (kèm cả HĐ đã giao để đơn vị tra cứu lại)."""
     if as_of:
         try:
@@ -236,7 +251,7 @@ def my_stock_contract_history(status: str = Query("all", pattern="^(all|undelive
                               date_to: str | None = Query(None, description="Đến ngày 'YYYY-MM-DD'"),
                               grades: str | None = Query(None, description="Chủng loại, phân cách dấu phẩy"),
                               q: str | None = Query(None, max_length=120),
-                              member: dict = Depends(get_current_member)) -> dict:
+                              member: dict = Depends(get_unit_user)) -> dict:
     """Lịch sử TOÀN BỘ hợp đồng đã ký của CÁC đơn vị được gán (kể cả đã giao)."""
     for label, v in (("Từ ngày", date_from), ("Đến ngày", date_to)):
         if v:
@@ -254,7 +269,7 @@ def my_stock_contract_history(status: str = Query("all", pattern="^(all|undelive
 
 @router.put("/stock-contracts")
 def save_my_stock_contract(body: StockContractEdit,
-                           member: dict = Depends(get_current_member)) -> dict:
+                           member: dict = Depends(get_unit_user)) -> dict:
     """Đơn vị thêm HĐ mới hoặc cập nhật NGÀY GIAO khi đã xuất kho."""
     _assert_company(member, body.company, body.start_date)
     # Khoá theo CẢ ngày đang lưu lẫn ngày gửi lên: hợp đồng này nằm trong chỉ tiêu tồn kho đã chốt.
@@ -271,7 +286,7 @@ def save_my_stock_contract(body: StockContractEdit,
 
 @router.delete("/stock-contracts/{contract_id}")
 def delete_my_stock_contract(contract_id: int,
-                             member: dict = Depends(get_current_member)) -> dict:
+                             member: dict = Depends(get_unit_user)) -> dict:
     """Xoá 1 hợp đồng của đơn vị mình (nhập nhầm)."""
     old = unit_stock_contract_repo.get(contract_id) or {}
     if old.get("company"):
@@ -284,7 +299,7 @@ def delete_my_stock_contract(contract_id: int,
 @router.get("/daily-report/prev-stock")
 def my_prev_stock(company: str = Query(...),
                   before: str = Query(..., description="Ngày 'YYYY-MM-DD'"),
-                  member: dict = Depends(get_current_member)) -> dict:
+                  member: dict = Depends(get_unit_user)) -> dict:
     """Tồn kho ngày gần nhất trước `before` của 1 đơn vị được gán (nút 'Lấy tồn ngày trước')."""
     _assert_company(member, company)
     try:
@@ -297,7 +312,7 @@ def my_prev_stock(company: str = Query(...),
 
 @router.put("/daily-report")
 def upsert_my_daily(body: UnitDailyEdit,
-                    member: dict = Depends(get_current_member)) -> dict:
+                    member: dict = Depends(get_unit_user)) -> dict:
     """Ghi/sửa số liệu 1 đơn vị được gán cho 1 ngày, trong cửa sổ cho phép. create_only → chống ghi trùng."""
     _assert_company(member, body.company, body.as_of)
     edit_window.assert_editable(body.as_of, edit_window.member_window())
@@ -310,7 +325,7 @@ def upsert_my_daily(body: UnitDailyEdit,
 
 @router.put("/daily-report/move-date")
 def move_my_daily_date(body: UnitDailyMove,
-                       member: dict = Depends(get_current_member)) -> dict:
+                       member: dict = Depends(get_unit_user)) -> dict:
     """Đổi NGÀY của bản ghi đã nhập (nhập nhầm ngày) — nội dung giữ nguyên.
 
     Ép cửa sổ sửa cho CẢ ngày cũ lẫn ngày mới: không được kéo số liệu ra/vào vùng đã khoá.
@@ -328,13 +343,13 @@ def move_my_daily_date(body: UnitDailyMove,
 
 
 @router.post("/daily-report/contract-file")
-def upload_my_contract_file(file: UploadFile, member: dict = Depends(get_current_member)) -> dict:
+def upload_my_contract_file(file: UploadFile, member: dict = Depends(get_unit_user)) -> dict:
     """Upload file Hợp đồng (PDF/ảnh) cho tồn kho đã có HĐ — trả tên file lưu để gắn vào dòng."""
     return contract_files.save(file)
 
 
 @router.get("/daily-report/contract-file/{name}")
-def get_my_contract_file(name: str, member: dict = Depends(get_current_member)):
+def get_my_contract_file(name: str, member: dict = Depends(get_unit_user)):
     """Tải file Hợp đồng đã upload (tên lưu uuid)."""
     return FileResponse(str(contract_files.path_for(name)))
 
@@ -342,7 +357,7 @@ def get_my_contract_file(name: str, member: dict = Depends(get_current_member)):
 # ── Nhập liệu bằng Excel — CHỈ các đơn vị được gán cho tài khoản (đang TẠM TẮT, xem feature_flags) ──
 @router.get("/import/template", dependencies=_excel)
 def my_import_template(kind: str = Query(..., pattern="^(purchase|sales|stock|plan)$"),
-                       member: dict = Depends(get_current_member)):
+                       member: dict = Depends(get_unit_user)):
     """Tải file Excel MẪU — tài khoản 1 đơn vị thì mẫu bỏ luôn cột 'Đơn vị' (tự gán khi nhập)."""
     data = unit_daily_excel_io.build_template(kind, allowed_units=list(member["member_units"]))
     return Response(
@@ -354,7 +369,7 @@ def my_import_template(kind: str = Query(..., pattern="^(purchase|sales|stock|pl
 @router.post("/import/preview", dependencies=_excel)
 async def my_import_preview(kind: str = Query(..., pattern="^(purchase|sales|stock|plan)$"),
                             file: UploadFile = File(...),
-                            member: dict = Depends(get_current_member)) -> dict:
+                            member: dict = Depends(get_unit_user)) -> dict:
     """Xem trước file nộp — dòng của đơn vị khác bị đánh dấu lỗi."""
     try:
         return unit_daily_excel_io.parse_upload(kind, await file.read(),
@@ -365,7 +380,7 @@ async def my_import_preview(kind: str = Query(..., pattern="^(purchase|sales|sto
 
 @router.post("/import/commit", dependencies=_excel)
 def my_import_commit(body: ExcelImportCommit,
-                     member: dict = Depends(get_current_member)) -> dict:
+                     member: dict = Depends(get_unit_user)) -> dict:
     """Ghi các dòng hợp lệ — server ép lại đơn vị thuộc quyền tài khoản."""
     # File Excel là đường ghi thứ hai vào đúng những bảng đã chốt → phải qua cùng hàng rào.
     for r in body.rows:

@@ -7,8 +7,9 @@ import { AXIS } from "./chart-setup";
 
 const fmt = (n: number, d = 0) => n.toLocaleString("vi-VN", { maximumFractionDigits: d });
 
-/** Bảng màu cột chồng — 2 màu đầu giữ đúng ý nghĩa của tồn kho theo cơ cấu hợp đồng
- *  (xanh lá = đã ký hợp đồng, xanh biển = tồn tự do), các màu sau dùng cho chủng loại/khu vực/… */
+/** Bảng màu cột chồng — 2 màu đầu dành cho các cách nhìn CHỈ CÓ 2 LỚP của tồn kho (xanh lá = lớp
+ *  "phần chắc chắn": đã nhập kho · đã ký hợp đồng; xanh biển = lớp còn lại), các màu sau dùng cho
+ *  chủng loại/khu vực/… Chú giải luôn hiện nên hai cách nhìn dùng chung màu không gây đọc nhầm. */
 const PALETTE = ["#22c55e", "#38bdf8", "#f59e0b", "#a855f7", "#ef4444", "#14b8a6",
                  "#6366f1", "#84cc16", "#f472b6"];
 

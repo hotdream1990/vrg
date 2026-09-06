@@ -25,6 +25,10 @@ import PhysicalSheetPage from "./features/command-center/pages/PhysicalSheetPage
 import PriceSheetPage from "./features/command-center/pages/PriceSheetPage";
 import ProfilePage from "./features/command-center/pages/ProfilePage";
 import RawMaterialPage from "./features/command-center/pages/RawMaterialPage";
+import SupportPage from "./features/command-center/pages/SupportPage";
+import SupportBatchPage from "./features/command-center/pages/SupportBatchPage";
+import SupportThreadPage from "./features/command-center/pages/SupportThreadPage";
+import SupportReminderPage from "./features/command-center/pages/SupportReminderPage";
 import DataLockPage from "./features/command-center/pages/DataLockPage";
 import MasterContractPage from "./features/command-center/pages/MasterContractPage";
 import SalesContractPage from "./features/command-center/pages/SalesContractPage";
@@ -52,30 +56,40 @@ import { vrgTheme } from "./theme";
 /** Trang chủ: đơn vị thành viên → biểu nhập đầu tiên của họ (Thu mua nếu có giao KH, không thì Tồn kho); còn lại → Dashboard. */
 function HomeRoute() {
   const { user } = useAuth();
+  if (user?.role === "leader") return <Navigate to="/ho-tro" replace />;
   if (user?.role === "member") {
     return <Navigate to={user.member_has_purchase_plan ? "/bao-cao-thu-mua" : "/bao-cao-ton-kho"} replace />;
   }
   return <DashboardPage />;
 }
 
-/** Quản lý hợp đồng (khách hàng · hợp đồng & đợt giao): đơn vị thành viên → đơn vị mình; chuyên viên có quyền `sales_contract` → mọi đơn vị. */
+/** Quản lý hợp đồng (khách hàng · hợp đồng & đợt giao): tài khoản đơn vị (nhập liệu + lãnh đạo)
+ *  → đơn vị mình; chuyên viên có quyền `sales_contract` → mọi đơn vị. */
 function ContractRoute({ children }: { children: React.ReactNode }) {
+  const { isUnitAccount, can } = useAuth();
+  if (isUnitAccount || can("sales_contract")) return <>{children}</>;
+  return <Navigate to="/" replace />;
+}
+
+/** Hỗ trợ & Thông báo: lãnh đạo đơn vị (role=leader) hoặc tài khoản có quyền `support`.
+ *  Tài khoản `member` (nhập liệu) KHÔNG vào — hộp thư này chỉ dành cho lãnh đạo đơn vị. */
+function SupportRoute({ children }: { children: React.ReactNode }) {
   const { user, can } = useAuth();
-  if (user?.role === "member" || can("sales_contract")) return <>{children}</>;
+  if (user?.role === "leader" || can("support")) return <>{children}</>;
   return <Navigate to="/" replace />;
 }
 
 /** Nhu cầu thị trường (timeline): đơn vị thành viên → chỉ đơn vị của mình; chuyên viên có quyền → mọi đơn vị. */
 function MarketDemandRoute() {
-  const { user, can } = useAuth();
-  if (user?.role === "member" || can("market_demand")) return <MarketDemandTimelinePage />;
+  const { isUnitAccount, can } = useAuth();
+  if (isUnitAccount || can("market_demand")) return <MarketDemandTimelinePage />;
   return <Navigate to="/" replace />;
 }
 
 /** Báo cáo tiêu thụ–tồn kho theo ngày: đơn vị thành viên nhập của mình; chuyên viên có quyền `unit_daily` → mọi đơn vị. */
 function UnitDailyRoute(props: React.ComponentProps<typeof UnitDailyPage>) {
-  const { user, can } = useAuth();
-  const isMember = user?.role === "member";
+  const { user, can, isUnitAccount } = useAuth();
+  const isMember = isUnitAccount;
   // Đơn vị thành viên KHÔNG được giao kế hoạch thu mua → không vào biểu Thu mua (kể cả gõ URL).
   if (isMember && props.kind === "purchase" && !user?.member_has_purchase_plan) {
     return <Navigate to="/bao-cao-ton-kho" replace />;
@@ -93,8 +107,8 @@ function PeriodReportRoute() {
 
 /** Kế hoạch năm (số liệu nhập 1 lần/năm): đơn vị thành viên → đơn vị mình; chuyên viên có quyền → mọi đơn vị. */
 function YearPlanRoute() {
-  const { user, can } = useAuth();
-  const isMember = user?.role === "member";
+  const { can, isUnitAccount } = useAuth();
+  const isMember = isUnitAccount;
   // Mở cho MỌI đơn vị thành viên, không phụ thuộc kế hoạch thu mua đã khai hay chưa: số khai ở đây
   // mới là công tắc bật màn Thu mua, chặn ở đây thì đơn vị chưa khai bị kẹt không lối ra.
   if (isMember || can("unit_daily")) return <YearPlanPage />;
@@ -103,8 +117,8 @@ function YearPlanRoute() {
 
 /** Thống kê hợp đồng (tra cứu, kể cả đã giao): đơn vị thành viên → đơn vị mình; chuyên viên có quyền → mọi đơn vị. */
 function StockContractHistoryRoute() {
-  const { user, can } = useAuth();
-  if (user?.role === "member" || can("unit_daily")) return <StockContractHistoryPage />;
+  const { isUnitAccount, can } = useAuth();
+  if (isUnitAccount || can("unit_daily")) return <StockContractHistoryPage />;
   return <Navigate to="/" replace />;
 }
 
@@ -145,6 +159,13 @@ export default function App() {
                     <ContractRoute><MasterContractPage /></ContractRoute>} />
                   <Route path="/hop-dong" element={
                     <ContractRoute><SalesContractPage /></ContractRoute>} />
+                  {/* Hỗ trợ & Thông báo — mục con đứng TRƯỚC "/ho-tro/:id" để khỏi bị nuốt mất */}
+                  <Route path="/ho-tro" element={<SupportRoute><SupportPage /></SupportRoute>} />
+                  <Route path="/ho-tro/nhac-lich" element={
+                    <SupportRoute><SupportReminderPage /></SupportRoute>} />
+                  <Route path="/ho-tro/dot/:batchId" element={
+                    <SupportRoute><SupportBatchPage /></SupportRoute>} />
+                  <Route path="/ho-tro/:id" element={<SupportRoute><SupportThreadPage /></SupportRoute>} />
                   <Route path="/ke-hoach-nam" element={<YearPlanRoute />} />
                   <Route path="/bao-cao-tong-hop" element={<PeriodReportRoute />} />
                   <Route path="/thong-ke-hop-dong" element={<StockContractHistoryRoute />} />

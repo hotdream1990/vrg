@@ -879,3 +879,55 @@ def test_lace_purchase_saves_its_tonnage_and_its_own_price_slot() -> None:
     assert row["price_lace_avg"] == pytest.approx(260)
 
     _cleanup(h, ["ud_lace"], [unit])
+
+
+def test_stock_totals_drop_merged_units_and_flag_stale_snapshots() -> None:
+    """Dòng "Lũy kế" của biểu Tồn kho: bỏ đơn vị đã sáp nhập, và nói ra số đã cũ.
+
+    Hai lỗi được khoá lại ở đây (phát hiện 06/09/2026, khi đối chiếu 4 màn tồn kho trên prod):
+
+    1. Luật sáp nhập trước đó chỉ có ở Thống kê tồn kho và Báo cáo tổng hợp — dòng lũy kế này vẫn
+       cộng ảnh chụp cuối của đơn vị cũ, tức đếm hai lần chính lô hàng mà đơn vị nhận đã khai chung.
+    2. Khoảng mặc định của bảng là 90 ngày và mỗi đơn vị lấy ảnh chụp mới nhất của mình, nên trong
+       tổng có thể lẫn số của đơn vị đã lâu không nộp mà nhãn chỉ khoe ngày mới nhất.
+    """
+    from app.services import member_unit_merge, member_unit_repo, unit_daily_repo
+    from app.services import unit_daily_timeline_totals as tt
+
+    old, new = "_zz_ud_merge_cu", "_zz_ud_merge_moi"
+    today = date.today()
+    d_old = (today - timedelta(days=20)).isoformat()      # ảnh chụp CŨ của đơn vị bị sáp nhập
+    d_now = today.isoformat()
+    d_from = (today - timedelta(days=90)).isoformat()
+
+    def _cleanup() -> None:
+        for u in (old, new):
+            _wipe_unit(u)
+        with session_scope() as db:
+            db.execute(text("UPDATE member_unit SET merged_into = NULL, merged_at = NULL "
+                            "WHERE name = ANY(:u)"), {"u": [old, new]})
+            db.execute(text("DELETE FROM member_unit WHERE name = ANY(:u)"), {"u": [old, new]})
+
+    _cleanup()
+    try:
+        for u in (old, new):
+            member_unit_repo.add_unit(u)
+        unit_daily_repo.upsert("consumption", d_old, old,
+                               {"stock_warehoused": [{"grade": "SVR 10", "qty": 60.0}]}, "test")
+        unit_daily_repo.upsert("consumption", d_now, new,
+                               {"stock_warehoused": [{"grade": "SVR 10", "qty": 100.0}]}, "test")
+
+        apart = tt.consumption_totals(d_from, d_now, [old, new])
+        assert apart["stock_finished_t"] == pytest.approx(160.0)   # chưa sáp nhập → cộng cả hai
+        assert apart["stock_units"] == 2
+        assert apart["stock_stale_units"] == 1                     # ảnh chụp 20 ngày > ngưỡng
+        assert apart["stock_oldest_as_of"] == d_old
+        assert apart["stock_as_of"] == d_now                       # nhãn cũ chỉ khoe ngày mới nhất
+
+        member_unit_merge.merge(old, new, (today - timedelta(days=15)).isoformat())
+        after = tt.consumption_totals(d_from, d_now, [old, new])
+        assert after["stock_finished_t"] == pytest.approx(100.0)   # kho cũ đã nằm trong số bên nhận
+        assert after["stock_units"] == 1
+        assert after["stock_stale_units"] is None
+    finally:
+        _cleanup()

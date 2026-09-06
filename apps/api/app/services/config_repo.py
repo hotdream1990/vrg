@@ -16,6 +16,7 @@ from app.services import audit_repo
 CONFIG_GROUPS = [
     {"id": "ai", "label": "AI / LLM"},
     {"id": "public", "label": "Link công khai"},
+    {"id": "email", "label": "Email"},
     {"id": "data_entry", "label": "Cửa sổ nhập liệu"},
 ]
 
@@ -37,6 +38,24 @@ CONFIG_SPEC = [
     # Mật khẩu cho link công khai để đơn vị thành viên tự nhập giá mủ nước (chưa đặt = link bị khoá).
     {"key": "PUBLIC_PURCHASE_PASSWORD", "group": "public", "label": "Mật khẩu nhập giá mủ (link công khai)",
      "secret": True, "placeholder": "Đặt mật khẩu để phát cho các đơn vị (bỏ trống = khoá link)"},
+    # Email thông báo (Hỗ trợ & Thông báo · Nhắc lịch). Chưa khai = hệ thống vẫn chạy, chỉ không
+    # gửi mail — tin vẫn hiện trên trang cho đơn vị (xem app/services/mailer.py).
+    {"key": "SMTP_HOST", "group": "email", "label": "Máy chủ SMTP", "secret": False,
+     "placeholder": "vd smtp.gmail.com — bỏ trống = tắt gửi email"},
+    {"key": "SMTP_PORT", "group": "email", "label": "Cổng SMTP", "secret": False,
+     "placeholder": "587 (STARTTLS) · 465 (SSL)"},
+    {"key": "SMTP_SECURITY", "group": "email", "label": "Bảo mật kết nối", "secret": False,
+     "placeholder": "starttls", "options": ["starttls", "ssl", "none"]},
+    {"key": "SMTP_USER", "group": "email", "label": "Tài khoản SMTP", "secret": False,
+     "placeholder": "địa chỉ email đăng nhập máy chủ mail"},
+    {"key": "SMTP_PASSWORD", "group": "email", "label": "Mật khẩu SMTP", "secret": True,
+     "placeholder": "mật khẩu ứng dụng của hộp thư gửi"},
+    {"key": "SMTP_FROM", "group": "email", "label": "Email người gửi", "secret": False,
+     "placeholder": "vd thongbao@vrg.vn — bỏ trống thì lấy tài khoản SMTP"},
+    {"key": "SMTP_SENDER_NAME", "group": "email", "label": "Tên hiển thị người gửi", "secret": False,
+     "placeholder": "Hệ thống VRG"},
+    {"key": "APP_BASE_URL", "group": "email", "label": "Địa chỉ hệ thống (dùng dựng link trong email)",
+     "secret": False, "placeholder": "vd https://vrg.bizino.vn — thiếu thì email không có link vào xem"},
     # Cửa sổ nhập liệu — số ngày gần nhất được nhập/sửa; ngày cũ hơn chuyển sang chỉ xem. Mặc định 7.
     {"key": "MEMBER_EDIT_WINDOW_DAYS", "group": "data_entry", "secret": False,
      "label": "Số ngày sửa được — Giá mủ đơn vị (tài khoản đơn vị thành viên)",

@@ -201,6 +201,14 @@ export const saveConfig = (updates: Record<string, string>) =>
     body: JSON.stringify(updates),
   });
 
+/** Gửi thử email — để admin xác nhận khai SMTP đúng trước khi dùng thật (trả lý do lỗi nếu hỏng). */
+export const sendTestEmail = (to: string) =>
+  req<{ ok: boolean; detail: string }>("/api/config/test-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ to }),
+  });
+
 export type ScheduleJob = {
   name: string;
   label: string;

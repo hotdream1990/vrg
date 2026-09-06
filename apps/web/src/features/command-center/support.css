@@ -1,0 +1,65 @@
+/* Hộp thư Hỗ trợ & Thông báo — dùng chung cho phía Tập đoàn và phía đơn vị thành viên.
+   Bám biến màu của command-center.css (var(--line), var(--muted), var(--accent)…). */
+
+/* ── Danh sách luồng ── */
+.sp-list { display: flex; flex-direction: column; gap: 10px; }
+
+.sp-item {
+  display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left;
+  padding: 13px 15px; border: 1px solid var(--line); border-radius: 10px;
+  background: #fff; cursor: pointer;
+}
+.sp-item:hover { border-color: #cdd8d0; background: var(--panel-2); }
+.sp-item.unread { border-left: 3px solid var(--accent); background: #16af670a; }
+
+.sp-item-main { flex: 1 1 auto; min-width: 0; }
+.sp-item-title { font-weight: 600; font-size: 14px; color: #16241d; margin-bottom: 3px; }
+.sp-item.unread .sp-item-title::after {
+  content: "Mới"; margin-left: 8px; font-size: 10px; font-weight: 700; padding: 1px 6px;
+  border-radius: 999px; background: var(--accent); color: #fff; vertical-align: middle;
+}
+.sp-item-meta { color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; gap: 10px; }
+.sp-item-excerpt {
+  color: var(--muted); font-size: 12.5px; margin-top: 5px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.sp-item-side { flex: 0 0 auto; text-align: right; color: var(--muted); font-size: 12px; }
+
+/* ── Hội thoại trong 1 luồng ── */
+.sp-thread { display: flex; flex-direction: column; gap: 12px; }
+
+.sp-msg { max-width: 82%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); }
+.sp-msg.hq { align-self: flex-start; background: #fff; }
+.sp-msg.unit { align-self: flex-end; background: #16af670f; border-color: #16af6733; }
+.sp-msg-head {
+  display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+  font-size: 12px; color: var(--muted); margin-bottom: 6px;
+}
+.sp-msg-head b { color: #16241d; font-size: 13px; }
+.sp-msg-body { white-space: pre-wrap; font-size: 14px; line-height: 1.55; color: #16241d; }
+
+/* ── Đính kèm ── */
+.sp-attachments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+.sp-file {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 320px;
+  padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: #fff; color: var(--text); font-size: 12.5px; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sp-file:hover { background: var(--panel-2); border-color: #cdd8d0; }
+
+/* ── Ô soạn tin ── */
+.sp-compose { display: grid; gap: 10px; }
+.sp-textarea {
+  width: 100%; resize: vertical; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid #d9e1dc; font-family: inherit; font-size: 14px; line-height: 1.55; color: #16241d;
+}
+.sp-textarea:focus { outline: none; border-color: var(--accent); }
+.sp-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.sp-label { font-size: 13px; color: var(--muted); }
+
+@media (max-width: 720px) {
+  .sp-msg { max-width: 100%; }
+  .sp-item { flex-direction: column; gap: 6px; }
+  .sp-item-side { text-align: left; }
+}

@@ -6,6 +6,7 @@ import {
   BulbOutlined,
   CheckSquareOutlined,
   ContactsOutlined,
+  CustomerServiceOutlined,
   ExportOutlined,
   ShoppingOutlined,
   ClockCircleOutlined,
@@ -26,6 +27,7 @@ import {
   RobotOutlined,
   SafetyOutlined,
   ProfileOutlined,
+  NotificationOutlined,
   ScheduleOutlined,
   SettingOutlined,
   SolutionOutlined,
@@ -100,6 +102,11 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
     // "Hợp đồng cũ (trước 30/07)" ĐÃ ẨN khỏi menu (20/08/2026) — dữ liệu và route `/thong-ke-hop-dong`
     // vẫn còn để tra cứu bằng đường dẫn, chỉ thôi bày ra cho người dùng thường.
   ]));
+  items.push(...group("support", <CustomerServiceOutlined />, "Hỗ trợ đơn vị thành viên", [
+    can("support") && { key: "/ho-tro", icon: <NotificationOutlined />, label: "Hỗ trợ & Thông báo" },
+    // Xem được hộp thư là xem được lịch nhắc; thao tác tạo/sửa/gửi vẫn cần mức Sửa (server chặn).
+    can("support") && { key: "/ho-tro/nhac-lich", icon: <ScheduleOutlined />, label: "Nhắc lịch" },
+  ]));
   items.push(...group("analysis", <LineChartOutlined />, "Phân tích & Bản tin", [
     can("floor_suggest") && { key: "/goi-y-gia-san", icon: <BulbOutlined />, label: "Gợi ý giá sàn" },
     can("bulletin_daily") && { key: "/ban-tin", icon: <FileTextOutlined />, label: "Bản tin ngày" },
@@ -147,6 +154,29 @@ function buildMemberMenu(hasPurchasePlan: boolean) {
   ];
 }
 
+// Menu tài khoản LÃNH ĐẠO ĐƠN VỊ THÀNH VIÊN: hộp thư với Tập đoàn + XEM số liệu của đơn vị mình.
+// Cùng các màn của tài khoản nhập liệu nhưng ở chế độ CHỈ XEM (server chặn mọi thao tác ghi),
+// nên nhãn nhóm ghi rõ "(chỉ xem)" để lãnh đạo không đi tìm nút Lưu.
+function buildLeaderMenu(hasPurchasePlan: boolean) {
+  return [
+    { key: "/ho-tro", icon: <CustomerServiceOutlined />, label: "Hỗ trợ & Thông báo" },
+    ...group("data-manual", <BarChartOutlined />, "Số liệu đơn vị (chỉ xem)", [
+      hasPurchasePlan && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Thu mua (theo ngày)" },
+      { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Tồn kho (theo ngày)" },
+      { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
+      { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
+    ]),
+    ...group("contracts", <FileProtectOutlined />, "Hợp đồng (chỉ xem)", [
+      { key: "/hop-dong/khach-hang", icon: <ContactsOutlined />, label: "Khách hàng" },
+      { key: "/hop-dong/hop-dong-me", icon: <FileTextOutlined />, label: "Hợp đồng mẹ (HĐNT/HĐDH)" },
+      { key: "/hop-dong", icon: <FileProtectOutlined />, label: "Hợp đồng & đợt giao" },
+    ]),
+    ...group("reports", <BarChartOutlined />, "Báo cáo", [
+      { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Tiêu thụ" },
+    ]),
+  ];
+}
+
 // Mục Hồ sơ cá nhân (đổi mật khẩu) — hiện cuối sidebar cho mọi vai trò.
 const PROFILE_ITEM = { key: "/ho-so", icon: <IdcardOutlined />, label: "Hồ sơ cá nhân" };
 
@@ -164,9 +194,12 @@ export default function AdminLayout() {
 
   const isAdmin = user?.role === "admin";
   const isMember = user?.role === "member";
-  const menuItems = isMember
-    ? [...buildMemberMenu(user?.member_has_purchase_plan ?? false), PROFILE_ITEM]
-    : [...buildMenu(can, isAdmin), ...(isAdmin ? [ADMIN_MENU] : []), PROFILE_ITEM];
+  const isLeader = user?.role === "leader";
+  const menuItems = isLeader
+    ? [...buildLeaderMenu(user?.member_has_purchase_plan ?? false), PROFILE_ITEM]
+    : isMember
+      ? [...buildMemberMenu(user?.member_has_purchase_plan ?? false), PROFILE_ITEM]
+      : [...buildMenu(can, isAdmin), ...(isAdmin ? [ADMIN_MENU] : []), PROFILE_ITEM];
 
   const ROUTE_KEYS = [
     "/quet-da-san",
@@ -178,6 +211,7 @@ export default function AdminLayout() {
     "/hop-dong/khach-hang", "/hop-dong/hop-dong-me", "/hop-dong",
     "/thong-ke-hop-dong", "/ke-hoach-nam", "/bao-cao-tong-hop",
     "/thong-ke/tinh-trang-nop", "/thong-ke/thu-mua", "/thong-ke/tieu-thu", "/thong-ke/ton-kho",
+    "/ho-tro/nhac-lich", "/ho-tro",
     "/goi-y-gia-san", "/ban-tin-bien-dong", "/tro-ly-ai", "/ban-tin/tuan", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
     "/quan-tri/lich-chay", "/quan-tri/nhat-ky", "/ho-so",
   ];
@@ -217,7 +251,7 @@ export default function AdminLayout() {
           theme="dark" mode="inline"
           selectedKeys={[selected]}
           defaultOpenKeys={["data-auto", "data-manual", "data-unit", "contracts", "stats",
-            "reports", "analysis", "admin"]}
+            "reports", "support", "analysis", "admin"]}
           items={menuItems}
           onClick={(e) => { nav(e.key); if (broken) setCollapsed(true); }}
         />

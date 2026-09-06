@@ -32,8 +32,8 @@ export function useEditorWindow() {
  *  Dùng cho màn DÙNG CHUNG (Quản lý hợp đồng): cả hai vai trò vào cùng một bộ endpoint nên không
  *  chọn cứng một thông số được, phải khớp với `security.assert_edit_window` ở server. */
 export function useEditWindow() {
-  const { user } = useAuth();
-  return useWindow(user?.role === "member" ? "member" : "editor");
+  const { isUnitAccount } = useAuth();
+  return useWindow(isUnitAccount ? "member" : "editor");
 }
 
 function useWindow(kind: "member" | "editor") {

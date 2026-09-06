@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.core.security import get_current_user, require_admin, require_cap
+from app.core.security import block_unit_roles, get_current_user, require_admin, require_cap
 from app.web_static import mount_spa
 from app.routers import (
     audit,
@@ -39,6 +39,8 @@ from app.routers import (
     schedules,
     series,
     settings as settings_router,
+    support,
+    support_reminders,
     unit_analytics,
     unit_daily,
     users,
@@ -151,13 +153,17 @@ app.include_router(bulletins.router)
 app.include_router(public_purchase.router)  # CÔNG KHAI: đơn vị nhập giá mủ (gác bằng mật khẩu riêng)
 
 _protected = [Depends(get_current_user)]
-app.include_router(prices.router, dependencies=_protected)
+# Số liệu/danh mục MỨC TẬP ĐOÀN: tài khoản của đơn vị thành viên (nhập liệu + lãnh đạo) không
+# có màn nào dùng, mà nội dung thì có phần chia theo TỪNG đơn vị (giá thu mua từng đơn vị,
+# danh mục đơn vị…) → chặn hẳn, đừng dựa vào việc "menu không có link".
+_hq_only = [Depends(block_unit_roles)]
+app.include_router(prices.router, dependencies=_hq_only)
 app.include_router(purchase_auto_sync.router, dependencies=_protected)  # cầu tự động: giá đơn vị tự khai → lớp chuyên viên
-app.include_router(floor.router, dependencies=_protected)
+app.include_router(floor.router, dependencies=_hq_only)
 # Các màn phân tích/bản tin gác theo quyền (admin=tất cả, editor=được-cấp, viewer=không) — cả đọc lẫn ghi.
 app.include_router(floor_suggest.router, dependencies=[Depends(require_cap("floor_suggest"))])
-app.include_router(member_unit.router, dependencies=_protected)
-app.include_router(member_region.router, dependencies=_protected)
+app.include_router(member_unit.router, dependencies=_hq_only)
+app.include_router(member_region.router, dependencies=_hq_only)
 app.include_router(member_self.router, dependencies=_protected)  # đơn vị thành viên tự nhập giá của mình
 app.include_router(market_demand.router, dependencies=_protected)  # nhu cầu thị trường (editor có quyền: xem/sửa mọi đơn vị)
 app.include_router(data_lock.router, dependencies=_protected)  # chốt số liệu đơn vị (đơn vị xác nhận · Ban theo dõi)
@@ -169,11 +175,17 @@ app.include_router(customers.router, dependencies=_protected)
 app.include_router(master_contracts.router, dependencies=_protected)  # hợp đồng mẹ HĐNT/HĐDH (cùng quyền `sales_contract`)
 app.include_router(sales_contracts.router, dependencies=_protected)
 app.include_router(audit.router)  # Nhật ký hoạt động (tự gác quyền `audit` trong router)
+# Hỗ trợ & Thông báo: DÙNG CHUNG cho lãnh đạo đơn vị (role=leader) và Tập đoàn (quyền `support`)
+# — router tự nhận diện bên nào và ép phạm vi đơn vị, nên không gác cap ở đây.
+app.include_router(support.router)
+app.include_router(support_reminders.router)  # nhắc lịch — cùng phạm vi truy cập (support_scope)
 app.include_router(assistant.router, dependencies=[Depends(require_cap("assistant"))])  # Trợ lý AI (hỏi đáp số liệu + tư vấn giá sàn)
 app.include_router(settings_router.router, dependencies=_protected)  # cài đặt đọc-được (cửa sổ nhập liệu)
-app.include_router(inventory.router, dependencies=_protected)
-# Chuỗi số liệu theo ngày cho dashboard (thu mua · tồn kho · tiêu thụ) — chỉ đọc, chỉ gác đăng nhập.
-app.include_router(series.router, dependencies=_protected)
+app.include_router(inventory.router, dependencies=_hq_only)
+# Chuỗi số liệu theo ngày cho dashboard (thu mua · tồn kho · tiêu thụ) — chỉ đọc. Mở cho mọi tài
+# khoản NỘI BỘ (kể cả Người xem, vì Dashboard hiện cho họ), nhưng CHẶN tài khoản đơn vị: số ở đây
+# chia được theo từng đơn vị nên đơn vị này sẽ đọc được số của đơn vị kia.
+app.include_router(series.router, dependencies=[Depends(block_unit_roles)])
 app.include_router(market_movement.router, dependencies=[Depends(require_cap("market_movement"))])
 app.include_router(market_quote.router, dependencies=_protected)
 app.include_router(weekly_reports.router, dependencies=[Depends(require_cap("bulletin_weekly"))])

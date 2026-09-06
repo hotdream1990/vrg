@@ -8,6 +8,7 @@ import {
   fetchConfig,
   fetchLlmModels,
   saveConfig,
+  sendTestEmail,
 } from "../../../lib/api-client";
 import "../../bulletin/bulletin.css";
 
@@ -32,6 +33,8 @@ export default function SystemConfigPage() {
   const [groups, setGroups] = useState<ConfigGroup[]>([]);
   const [saving, setSaving] = useState(false);
   const [openaiModels, setOpenaiModels] = useState<string[]>([]);
+  const [testTo, setTestTo] = useState("");     // địa chỉ nhận thư kiểm tra SMTP
+  const [testing, setTesting] = useState(false);
   const [form] = Form.useForm();
   // Nhà cung cấp LLM đang chọn → chỉ hiện key + model đúng provider đó.
   const provider = (Form.useWatch("LLM_PROVIDER", form) as string | undefined) || "openai";
@@ -76,6 +79,34 @@ export default function SystemConfigPage() {
     }
   };
 
+  /** Gửi thử email: báo NGUYÊN VĂN lý do lỗi từ máy chủ mail — đoán mò cấu hình SMTP rất mất thời gian. */
+  const onTestEmail = async () => {
+    setTesting(true);
+    try {
+      const r = await sendTestEmail(testTo.trim());
+      if (r.ok) message.success(r.detail);
+      else message.error(r.detail);
+    } catch (e) {
+      message.error(`Gửi thử thất bại: ${e}`);
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  /** Khối "Gửi thử" đặt cuối tab Email — lưu cấu hình xong bấm thử ngay tại chỗ. */
+  const emailTester = (
+    <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12, marginTop: 4 }}>
+      <div style={{ marginBottom: 8, fontSize: 13 }}>
+        Gửi một thư kiểm tra để chắc chắn cấu hình chạy được (lưu cấu hình trước khi gửi thử).
+      </div>
+      <Space.Compact style={{ width: "100%" }}>
+        <Input placeholder="Địa chỉ email nhận thư kiểm tra" value={testTo}
+          onChange={(e) => setTestTo(e.target.value)} />
+        <Button onClick={onTestEmail} loading={testing} disabled={!testTo.trim()}>Gửi thử</Button>
+      </Space.Compact>
+    </div>
+  );
+
   const tabItems = groups.map((g) => ({
     key: g.id,
     label: g.label,
@@ -99,6 +130,7 @@ export default function SystemConfigPage() {
             {fieldInput(c, optionsFor(c))}
           </Form.Item>
         ))}
+        {g.id === "email" && emailTester}
       </div>
     ),
   }));

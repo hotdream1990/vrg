@@ -7,6 +7,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.security import (
+    UNIT_ROLES,
     create_access_token,
     create_impersonation_token,
     get_current_user,
@@ -31,11 +32,12 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 def _user_out(user: dict, **extra) -> UserOut:
     """Bọc dict user → UserOut, kèm cờ `member_has_purchase_plan`.
 
-    Đơn vị thành viên chỉ hiện menu "Báo cáo thu mua" khi có ≥1 đơn vị ĐƯỢC GIAO KẾ HOẠCH thu mua
-    — suy thẳng từ số ở màn "Kế hoạch năm" (chốt 03/08/2026, xem `companies_with_purchase_plan`).
+    Tài khoản gắn đơn vị (nhập liệu + lãnh đạo) chỉ hiện menu "Thu mua" khi có ≥1 đơn vị ĐƯỢC
+    GIAO KẾ HOẠCH thu mua — suy thẳng từ số ở màn "Kế hoạch năm" (chốt 03/08/2026, xem
+    `companies_with_purchase_plan`).
     """
     has_plan = False
-    if user.get("role") == "member":
+    if user.get("role") in UNIT_ROLES:
         plan_units = unit_daily_repo.companies_with_purchase_plan()
         has_plan = any(u in plan_units for u in user.get("member_units") or [])
     return UserOut(**user, member_has_purchase_plan=has_plan, **extra)

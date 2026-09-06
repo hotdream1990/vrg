@@ -5,9 +5,11 @@ import {
   type Contract,
   type ContractFilters,
   type ContractMeta,
+  type ContractDetail,
   type ContractRow,
   type ContractTotals,
   deleteContract,
+  fetchContract,
   fetchContractMeta,
   listContracts,
 } from "../../../lib/sales-contract-client";
@@ -18,6 +20,7 @@ import CustomerPicker from "../sections/CustomerPicker";
 import DateInput from "../sections/DateInput";
 import MasterContractPicker from "../sections/MasterContractPicker";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
+import ContractCompleteModal from "./components/ContractCompleteModal";
 import ContractDetailModal from "./components/ContractDetailModal";
 import ContractFormModal from "./components/ContractFormModal";
 import "../../bulletin/bulletin.css";
@@ -29,6 +32,15 @@ const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 }
 const money = (n: number | null) => (n == null ? "—" : t3(n / 1_000_000));
 /** Đã giao đủ sản lượng hợp đồng (chưa chốt hoàn thành) — cùng luật với bộ lọc "Đã giao đủ". */
 const fullyDelivered = (r: ContractRow) => !r.completed_at && r.remaining_qty <= 1e-9;
+/** Giao tới mức này (so với sản lượng hợp đồng) thì coi như ĐẠT — mời chốt hoàn thành ngay ở
+ *  danh sách, khỏi phải mở từng hợp đồng. 95% là dung sai giao hàng thường gặp; muốn chặt/lỏng
+ *  hơn thì đổi ĐÚNG một số này. */
+const DONE_RATIO = 0.95;
+/** Đã đạt (hoặc gần đạt) chỉ tiêu và chưa chốt → hiện nút "Hoàn thành" ngay trên dòng. */
+const nearlyDone = (r: ContractRow) =>
+  !r.completed_at && r.qty > 0 && r.delivered_qty >= r.qty * DONE_RATIO;
+/** Tỉ lệ đã giao để hiện trên nút (giao vượt vẫn hiện đúng phần trăm thực). */
+const donePct = (r: ContractRow) => (r.qty > 0 ? (r.delivered_qty / r.qty) * 100 : 0);
 /** Số hợp đồng CHƯA vào được tổng tiền (thiếu đơn giá, hoặc bán ngoại tệ mà chưa có tỷ giá vì
  *  chưa tới ngày giao). Phải nói ra: tổng thiếu mà im lặng thì bị đọc là tổng đủ. */
 const missingNote = (n: number) => (n === 0 ? null : (
@@ -43,9 +55,9 @@ const overdue = (r: ContractRow) =>
 
 /** Quản lý hợp đồng → Hợp đồng & đợt giao: danh sách HỢP ĐỒNG + tiến độ giao. */
 export default function SalesContractPage() {
-  const { canEditCap, user } = useAuth();
-  const isMember = user?.role === "member";
-  const canEdit = isMember || canEditCap("sales_contract");
+  const { canEditCap, isUnitAccount, canEditUnitData } = useAuth();
+  const isMember = isUnitAccount;   // nhập liệu + lãnh đạo: chỉ thấy đơn vị của mình
+  const canEdit = canEditUnitData || canEditCap("sales_contract");
   // Cửa sổ sửa CHỈ áp cho lần giao, mốc là ngày giao (khớp `security.assert_edit_window` ở server).
   const { isEditable } = useEditWindow();
   const locked = (deliveredAt: string | null) => !!deliveredAt && !isEditable(deliveredAt);
@@ -62,6 +74,10 @@ export default function SalesContractPage() {
   const [f, setF] = useState<ContractFilters>({ status: "all" });
   const [openId, setOpenId] = useState<number | null>(null);
   const [form, setForm] = useState<{ initial: Contract | null } | null>(null);
+  // Chốt hoàn thành NGAY TỪ DANH SÁCH: hộp thoại cần bản chi tiết (sản lượng đã giao, phần chênh,
+  // đợt giao) nên tải đúng lúc bấm — dòng trong bảng không đủ dữ liệu để chốt cho an toàn.
+  const [completing, setCompleting] = useState<ContractDetail | null>(null);
+  const [completeId, setCompleteId] = useState<number | null>(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -74,6 +90,17 @@ export default function SalesContractPage() {
   }, [f, page]);
 
   useEffect(() => { fetchContractMeta().then(setMeta).catch((e) => setErr(e.message)); }, []);
+
+  /** Mở hộp thoại "Hoàn thành hợp đồng" cho 1 dòng (tải chi tiết trước rồi mới mở). */
+  const openComplete = (r: ContractRow) => {
+    const id = r.id as number;
+    setCompleteId(id);
+    setErr("");
+    fetchContract(id)
+      .then(setCompleting)
+      .catch((e) => setErr(e.message))
+      .finally(() => setCompleteId(null));
+  };
   useEffect(() => { load(); }, [load]);
   // Đổi bộ lọc thì về trang 1 — nếu không, đang ở trang 7 mà lọc còn 2 trang sẽ ra bảng trống.
   const setFilter = (next: ContractFilters) => { setPage(1); setF(next); };
@@ -104,7 +131,7 @@ export default function SalesContractPage() {
         )}
       </div>
 
-      {!isMember && <ReadOnlyNotice cap="sales_contract" />}
+      {!canEdit && <ReadOnlyNotice cap="sales_contract" />}
 
       {meta && (
         <div className="blt-toolbar">
@@ -270,11 +297,12 @@ export default function SalesContractPage() {
                     : fullyDelivered(r)
                       ? <span className="chip info" title={"Đã giao đủ sản lượng hợp đồng"
                           + (r.delivered_at ? ` (ngày ${dmy(r.delivered_at)})` : "")
-                          + " — mở hợp đồng bấm “Hoàn thành hợp đồng” để chốt."}>Đã giao đủ</span>
+                          + " — bấm “Hoàn thành” ở cột thao tác để chốt."}>Đã giao đủ</span>
                       : <span style={{ color: "var(--muted)" }}>Đang thực hiện</span>}
                 </td>
                 <td className="r" style={{ whiteSpace: "nowrap" }}>
                   <button className="btn" onClick={() => setOpenId(r.id as number)}>Xem</button>{" "}
+
                   {/* HĐ giao-1-lần ĐÃ GIAO là một lần giao → quá cửa sổ sửa thì chỉ còn xem.
                       HĐ giao-nhiều-lần không bị khoá: còn phải thêm đợt giao suốt vòng đời. */}
                   {/* Hợp đồng đã chốt hoàn thành thì khoá — mở lại ở màn chi tiết mới sửa được. */}
@@ -283,6 +311,21 @@ export default function SalesContractPage() {
                     : r.completed_at
                       ? <span style={{ color: "var(--muted)", fontSize: 11 }}>(đã chốt)</span>
                       : <>
+                          {/* Giao xong (hoặc gần xong) mà chưa chốt thì phần chênh vẫn nằm ở
+                              "đã ký HĐ chưa giao" — mời chốt ngay tại dòng, khỏi phải mở từng
+                              hợp đồng ra tìm nút. Chỉ hiện ở nhánh CÒN THAO TÁC ĐƯỢC: dòng đã
+                              chuyển sang chỉ xem thì không mọc thêm nút bấm được. */}
+                          {nearlyDone(r) && (
+                            <>
+                              <button className="btn btn-primary" disabled={completeId === r.id}
+                                title={`Đã giao ${donePct(r).toFixed(1)}% sản lượng hợp đồng`
+                                  + (r.remaining_qty > 1e-9 ? ` — còn ${t3(r.remaining_qty)} tấn` : "")
+                                  + ". Bấm để chốt hoàn thành."}
+                                onClick={() => openComplete(r)}>
+                                {completeId === r.id ? "Đang mở…" : "Hoàn thành"}
+                              </button>{" "}
+                            </>
+                          )}
                           <button className="btn" onClick={() => setForm({ initial: r })}>Sửa</button>{" "}
                           <button className="btn" onClick={() => remove(r)}>Xoá</button>
                         </>)}
@@ -344,6 +387,10 @@ export default function SalesContractPage() {
       {meta && openId != null && (
         <ContractDetailModal contractId={openId} meta={meta} canEdit={canEdit}
           onClose={() => setOpenId(null)} onChanged={load} />
+      )}
+      {meta && completing && (
+        <ContractCompleteModal d={completing} meta={meta}
+          onClose={() => setCompleting(null)} onDone={load} />
       )}
       {meta && form && (
         <ContractFormModal meta={meta} initial={form.initial}

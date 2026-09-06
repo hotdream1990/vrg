@@ -12,7 +12,7 @@ export type Cap =
   | "inventory" | "member_unit" | "auto_data" | "market_demand" | "unit_daily"
   | "sales_contract"
   | "floor_suggest" | "bulletin_daily" | "bulletin_weekly" | "market_movement" | "assistant"
-  | "audit";
+  | "support" | "audit";
 
 export type CapLevel = "view" | "edit";
 
@@ -33,6 +33,7 @@ export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
   { key: "bulletin_weekly", label: "Báo cáo tuần", hint: "màn phân tích" },
   { key: "market_movement", label: "Bản tin biến động", hint: "màn phân tích" },
   { key: "assistant", label: "Trợ lý AI", hint: "hỏi đáp số liệu + tư vấn giá sàn" },
+  { key: "support", label: "Hỗ trợ & Thông báo", hint: "hộp thư với lãnh đạo đơn vị + nhắc lịch" },
   { key: "audit", label: "Nhật ký hoạt động", hint: "xem vết chỉnh sửa số liệu của mọi người dùng" },
 ];
 
@@ -42,7 +43,7 @@ const CAP_SET = new Set<string>(CAP_KEYS);
 /** Các mục nhập liệu có tách 2 cấp Xem/Sửa (khớp SPLIT_CAPS ở backend). */
 export const SPLIT_CAPS = new Set<Cap>([
   "market_quote", "raw_material", "floor", "physical", "inventory",
-  "member_unit", "auto_data", "market_demand", "unit_daily", "sales_contract",
+  "member_unit", "auto_data", "market_demand", "unit_daily", "sales_contract", "support",
 ]);
 
 /** Mục này có cho chọn mức Xem riêng không (false = chỉ 1 cấp, luôn là Sửa). */
@@ -55,6 +56,7 @@ export const CAP_GROUPS: { title: string; keys: Cap[] }[] = [
   { title: "Số liệu đơn vị thành viên", keys: ["member_unit", "unit_daily", "market_demand"] },
   { title: "Quản lý hợp đồng", keys: ["sales_contract"] },
   { title: "Phân tích & Bản tin", keys: ["floor_suggest", "bulletin_daily", "bulletin_weekly", "market_movement", "assistant"] },
+  { title: "Hỗ trợ đơn vị thành viên", keys: ["support"] },
   { title: "Giám sát", keys: ["audit"] },
 ];
 

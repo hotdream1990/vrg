@@ -61,7 +61,7 @@ export const fetchPurchaseVolume = (
 
 /* ── Tồn kho ────────────────────────────────────────────────────────────────── */
 
-export type StockGroupBy = "structure" | "grade" | "region" | "free_grade";
+export type StockGroupBy = "warehouse" | "structure" | "grade" | "region" | "free_grade";
 
 export type StockSeries = {
   group_by: StockGroupBy;

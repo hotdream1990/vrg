@@ -29,8 +29,8 @@ const monthStart = () => `${new Date().toISOString().slice(0, 7)}-01`;
 
 /** Báo cáo → Tiêu thụ: số TÍNH TỪ HỢP ĐỒNG (các lần giao), KHÔNG còn biểu nhập tay. */
 export default function ConsumptionReportPage() {
-  const { user } = useAuth();
-  const isMember = user?.role === "member";
+  const { isUnitAccount } = useAuth();
+  const isMember = isUnitAccount;   // nhập liệu + lãnh đạo: chỉ thấy đơn vị của mình
 
   const [meta, setMeta] = useState<ContractMeta | null>(null);
   const [from, setFrom] = useState(monthStart());

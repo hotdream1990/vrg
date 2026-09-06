@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from app.services import inventory_auto, scan_service, schedule_repo
+from app.services import inventory_auto, scan_service, schedule_repo, support_reminder_repo
 
 logger = logging.getLogger("vrg.scheduler")
 
@@ -69,6 +69,10 @@ JOB_REGISTRY[inventory_auto.WEEKLY_JOB_NAME] = {
     "catch_up": True,
     "run": inventory_auto.run_weekly_job,
 }
+
+#: Nhịp rà NHẮC LỊCH (phút). Cố tình KHÔNG đưa vào `JOB_REGISTRY`/trang Lịch chạy: đây không phải
+#: một mốc chạy trong ngày mà là vòng rà nền — giờ phát do từng lịch nhắc tự quyết (`next_at`).
+_REMINDER_INTERVAL_MINUTES = 5
 
 _scheduler: BackgroundScheduler | None = None
 
@@ -134,6 +138,32 @@ def start() -> None:
     _scheduler.start()
     sync()
     _schedule_catch_up()
+    _schedule_reminders()
+
+
+def _run_reminders() -> None:
+    """Rà các lịch nhắc đã tới hạn → phát thông báo + email (xem `support_reminder_repo`)."""
+    try:
+        result = support_reminder_repo.run_due()
+        if result["reminders"]:
+            logger.info("[nhắc lịch] phát %s lịch → %s tin", result["reminders"], result["threads"])
+    except Exception as exc:  # noqa: BLE001 - lỗi rà không được làm chết scheduler
+        logger.warning("[nhắc lịch] lỗi khi rà: %s", exc)
+
+
+def _schedule_reminders() -> None:
+    """Vòng rà nhắc lịch, chạy ngay khi khởi động rồi lặp lại mỗi `_REMINDER_INTERVAL_MINUTES` phút.
+
+    Chạy ngay lần đầu chính là cơ chế PHÁT BÙ: máy chủ tắt qua giờ hẹn thì lịch vẫn còn tới hạn,
+    khởi động lại là phát.
+    """
+    if _scheduler is None:
+        return
+    _scheduler.add_job(
+        _run_reminders, "interval", minutes=_REMINDER_INTERVAL_MINUTES,
+        next_run_time=datetime.now(_ZONE) + timedelta(seconds=_CATCHUP_DELAY_SECONDS),
+        id="job:support-reminders", replace_existing=True, misfire_grace_time=_MISFIRE_GRACE,
+    )
 
 
 def sync() -> None:

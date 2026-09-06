@@ -16,9 +16,15 @@ không dòng tổng sẽ cãi nhau với chính các dòng phía trên. Khoá c�
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
-from app.services import unit_daily_repo, unit_report_rows
+from app.services import member_unit_merge, unit_daily_repo, unit_report_rows
+
+#: Ảnh chụp cũ hơn ngần này ngày so với cuối khoảng thì ĐẾM RIÊNG và nói ra. KHÔNG loại khỏi tổng:
+#: bỏ đơn vị chậm nộp là mất hàng thật của họ; giấu chuyện số đã cũ mới là cái sai (khoảng mặc định
+#: của bảng là 90 ngày, đo prod 06/09/2026 có đơn vị ảnh chụp cũ 37 ngày vẫn nằm im trong dòng tổng).
+STALE_DAYS = 7
 
 
 def _num(v: Any) -> float:
@@ -55,6 +61,13 @@ def consumption_totals(date_from: str, date_to: str,
     entries = unit_daily_repo.in_range("consumption", date_from, date_to, companies,
                                        attach_contracts=False)
     latest = _latest_stock_per_company(entries)
+    # Đơn vị đã SÁP NHẬP mà đơn vị nhận đã khai tồn kể từ ngày hiệu lực → lô hàng đó đã nằm trong
+    # số của bên nhận, cộng thêm ảnh chụp cuối của bên cũ là tính trùng (cùng luật với Thống kê
+    # tồn kho và Báo cáo tổng hợp — bổ sung 06/09/2026, trước đó chỉ 2/4 màn áp luật này).
+    for dead in member_unit_merge.stock_superseded({c: e["as_of"] for c, e in latest.items()}):
+        latest.pop(dead, None)
+    stale = [e["as_of"] for e in latest.values()
+             if (date.fromisoformat(date_to) - date.fromisoformat(e["as_of"])).days > STALE_DAYS]
     not_wh = sum(_tonnes(e["fields"], "stock_not_warehoused") for e in latest.values())
     wh = sum(_tonnes(e["fields"], "stock_warehoused") for e in latest.values())
     material = sum(_num(e["fields"].get("stock_material")) for e in latest.values())
@@ -74,4 +87,10 @@ def consumption_totals(date_from: str, date_to: str,
         "stock_material": z(material),
         # Ngày của ảnh chụp tồn mới nhất — web ghi ra cạnh nhãn để không ai tưởng là số cộng dồn.
         "stock_as_of": max((e["as_of"] for e in latest.values()), default=None),
+        # …và độ cũ của phần còn lại: `stock_as_of` một mình chỉ khoe đơn vị nộp sớm nhất, che mất
+        # việc trong tổng còn số của đơn vị đã lâu không nộp.
+        "stock_units": len(latest) or None,
+        "stock_stale_units": len(stale) or None,
+        "stock_stale_days": STALE_DAYS,          # web ghi đúng ngưỡng đang dùng, không gõ lại số
+        "stock_oldest_as_of": min(stale, default=None),
     }

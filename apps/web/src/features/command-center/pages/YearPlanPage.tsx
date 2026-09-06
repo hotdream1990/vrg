@@ -7,6 +7,7 @@ import { Select, Spin, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../../auth/AuthContext";
+import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import { type Role, type YearPlanRow, fetchYearPlan, saveYearPlan } from "../../../lib/unit-daily-client";
 import { fmtNum } from "../../../lib/unit-daily-fields";
 import ExcelImportBar from "./components/ExcelImportBar";
@@ -16,10 +17,11 @@ import "../../bulletin/bulletin.css";
 const YEARS = 6; // năm hiện tại + 2 năm trước/sau để chọn
 
 export default function YearPlanPage() {
-  const { user, canEditCap } = useAuth();
-  const role: Role = user?.role === "member" ? "member" : "hq";
+  const { isUnitAccount, canEditUnitData, canEditCap } = useAuth();
+  const role: Role = isUnitAccount ? "member" : "hq";
   // Chuyên viên chỉ được cấp mức Xem → khoá ô nhập (đơn vị thành viên không xét cap).
-  const canEdit = role === "member" || canEditCap("unit_daily");
+  // Lãnh đạo đơn vị: chỉ xem.
+  const canEdit = canEditUnitData || canEditCap("unit_daily");
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(thisYear);
   const [units, setUnits] = useState<string[]>([]);
@@ -81,6 +83,8 @@ export default function YearPlanPage() {
           </p>
         </div>
       </div>
+
+      <ReadOnlyNotice cap="unit_daily" />
 
       <div className="blt-toolbar" style={{ marginBottom: 12 }}>
         <span style={{ fontSize: 13, color: "var(--muted)" }}>Năm:</span>

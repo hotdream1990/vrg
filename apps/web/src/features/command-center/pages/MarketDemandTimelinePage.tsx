@@ -13,6 +13,7 @@ import {
 import { dmy, todayISO } from "../../../lib/date";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
+import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import "../../bulletin/bulletin.css";
 
 const daysBetween = (later: string, earlier: string) =>
@@ -28,9 +29,9 @@ const taStyle: React.CSSProperties = {
  *  Chuyên viên/admin: mọi đơn vị (cửa sổ editor, admin miễn). Đơn vị thành viên: CHỈ đơn vị được gán
  *  (đa đơn vị/1 tài khoản), cửa sổ member — dùng chung 1 component, đổi nguồn dữ liệu theo vai trò. */
 export default function MarketDemandTimelinePage() {
-  const { user, canEditCap } = useAuth();
+  const { user, canEditCap, isUnitAccount, canEditUnitData } = useAuth();
   const isAdmin = user?.role === "admin";
-  const isMember = user?.role === "member";
+  const isMember = isUnitAccount;   // nhập liệu + lãnh đạo: cùng nguồn dữ liệu của đơn vị
 
   const [days, setDays] = useState(90);
   const [data, setData] = useState<DemandTimeline | null>(null);
@@ -51,7 +52,8 @@ export default function MarketDemandTimelinePage() {
   useEffect(() => { load(); }, [load]);
 
   // Chuyên viên chỉ được cấp mức Xem → khoá ghi ở mọi ngày (đơn vị thành viên không xét cap).
-  const mayEdit = isMember || canEditCap("market_demand");
+  // Lãnh đạo đơn vị: chỉ xem.
+  const mayEdit = canEditUnitData || canEditCap("market_demand");
   const canEdit = (as_of: string) =>
     mayEdit
     && (isAdmin || (!!data && as_of <= data.today && daysBetween(data.today, as_of) <= data.edit_window_days));
@@ -95,6 +97,8 @@ export default function MarketDemandTimelinePage() {
         </div>
       </div>
       {err && <div className="blt-error">{err}</div>}
+
+      <ReadOnlyNotice cap="market_demand" />
 
       <div className="card" style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
         <label className="blt-date-label">Khoảng thời gian:

@@ -4,9 +4,12 @@ Ràng buộc phải khoá lại:
 1. Thu mua: sản lượng và đơn giá cùng gốc "đơn vị tự khai"; đơn vị có giá mà chưa khai sản lượng
    vẫn nằm trong dải giá của ngày (và ngược lại).
 2. Đơn vị nước ngoài khai giá nội tệ → quy ra VND bằng tỷ giá của chính bản ghi ngày đó.
-3. Tồn kho: mỗi ngày là ẢNH CHỤP độc lập — số cũ dùng lại tối đa `MAX_AGE_DAYS` ngày rồi rơi ra,
-   KHÔNG cộng dồn giữa các ngày.
-4. Phần "đã ký hợp đồng" bị CẮT TRẦN theo tồn kho của TỪNG đơn vị (giống `inventory_auto`).
+3. Tồn kho: mỗi ngày là ẢNH CHỤP độc lập, KHÔNG cộng dồn giữa các ngày; số chỉ được giữ sang ngày
+   sau khi chính đơn vị tick "không phát sinh tồn kho để khai".
+4. Tồn kho thành phẩm = CẢ HAI khối "chưa nhập kho" + "đã nhập kho" — cùng định nghĩa với Thống kê
+   tồn kho / Báo cáo tồn kho; cách nhìn `warehouse` tách đúng 2 lớp đó.
+5. Phần "đã ký hợp đồng" bị CẮT TRẦN theo tồn kho của TỪNG đơn vị (giống `inventory_auto`).
+6. Đơn vị đã SÁP NHẬP thôi được cộng riêng kể từ ngày đơn vị nhận cũng khai tồn.
 """
 
 from __future__ import annotations
@@ -18,7 +21,7 @@ from sqlalchemy import text
 
 from app.core.db import db_healthy, session_scope
 from app.core.market_meta import PURCHASE_SOURCE_HQ, PURCHASE_SOURCE_UNIT
-from app.services import price_repo, unit_daily_repo, unit_series
+from app.services import member_unit_merge, member_unit_repo, price_repo, unit_daily_repo, unit_series
 from app.services import unit_series_purchase as pur
 from app.services import unit_series_consumption as con
 from app.services import unit_series_stock as st
@@ -27,6 +30,7 @@ pytestmark = pytest.mark.skipif(not db_healthy(), reason="DB không sẵn sàng"
 
 UNIT = "_zz_series_unit"
 LAO = "_zz_series_lao"          # đơn vị nước ngoài: khai giá nội tệ + tỷ giá
+MERGED = "_zz_series_cu"        # đơn vị đã sáp nhập vào UNIT (test luật cộng trùng tồn kho)
 DAY = (date.today() - timedelta(days=1)).isoformat()
 PREV = (date.today() - timedelta(days=2)).isoformat()
 
@@ -47,9 +51,13 @@ def clean():
 
 def _wipe() -> None:
     with session_scope() as db:
-        for g in (UNIT, LAO):
+        for g in (UNIT, LAO, MERGED):
             db.execute(text("DELETE FROM fact_price WHERE grade = :g"), {"g": g})
             db.execute(text("DELETE FROM unit_daily_report WHERE company = :g"), {"g": g})
+        db.execute(text("UPDATE member_unit SET merged_into = NULL, merged_at = NULL "
+                        "WHERE name = ANY(:u)"), {"u": [UNIT, LAO, MERGED]})
+        db.execute(text("DELETE FROM member_unit WHERE name = ANY(:u)"),
+                   {"u": [UNIT, LAO, MERGED]})
 
 
 def _row(series: dict, as_of: str) -> dict:
@@ -95,10 +103,13 @@ def test_foreign_unit_local_price_converted(clean) -> None:
 
 
 # ── Tồn kho ────────────────────────────────────────────────────────────────────
+NOT_WH = 40.0                   # mỗi lần khai: `warehoused` tấn đã nhập kho + 40 tấn chưa nhập kho
+
+
 def _stock(as_of: str, company: str = UNIT, warehoused: float = 100.0) -> None:
     unit_daily_repo.upsert("consumption", as_of, company, {
         "stock_warehoused": [{"grade": "SVR 10", "qty": warehoused}],
-        "stock_not_warehoused": [{"grade": "SVR 10", "qty": 40.0}],
+        "stock_not_warehoused": [{"grade": "SVR 10", "qty": NOT_WH}],
     }, "test")
 
 
@@ -120,12 +131,12 @@ def test_stock_carries_only_when_unit_declares_no_change(clean) -> None:
 
     _stock(d0)                                   # khai 100 tấn ngày d0, im lặng ngày d1
     quiet = _totals(d0, DAY)
-    assert round(quiet[d0] - before[d0], 3) == 100.0
+    assert round(quiet[d0] - before[d0], 3) == 100.0 + NOT_WH
     assert round(quiet[d1] - before[d1], 3) == 0.0        # im lặng → KHÔNG đắp số ngày trước
 
     unit_daily_repo.upsert("consumption", d1, UNIT, {"no_stock": True}, "test")
     declared = _totals(d0, DAY)
-    assert round(declared[d1] - before[d1], 3) == 100.0   # tick "không phát sinh" → giữ số d0
+    assert round(declared[d1] - before[d1], 3) == 100.0 + NOT_WH   # tick "không phát sinh" → giữ số d0
 
 
 def test_stock_never_accumulates_across_days(clean) -> None:
@@ -134,8 +145,8 @@ def test_stock_never_accumulates_across_days(clean) -> None:
     _stock(PREV, warehoused=100.0)
     _stock(DAY, warehoused=100.0)
     now = _totals(PREV, DAY)
-    assert round(now[PREV] - before[PREV], 3) == 100.0
-    assert round(now[DAY] - before[DAY], 3) == 100.0          # KHÔNG phải 200
+    assert round(now[PREV] - before[PREV], 3) == 100.0 + NOT_WH
+    assert round(now[DAY] - before[DAY], 3) == 100.0 + NOT_WH   # KHÔNG phải 280
 
 
 def test_structure_splits_signed_and_free(clean) -> None:
@@ -143,6 +154,45 @@ def test_structure_splits_signed_and_free(clean) -> None:
     _stock(DAY)
     row = _row(st.stock_series(DAY, DAY, "structure"), DAY)
     assert round(row["values"]["signed"] + row["values"]["free"], 3) == row["total"]
+
+
+def test_total_counts_both_stock_blocks(clean) -> None:
+    """Tổng tồn = chưa nhập kho + đã nhập kho; cách nhìn `warehouse` tách đúng 2 lớp đó.
+
+    Trước 06/09/2026 chuỗi này chỉ cộng khối "đã nhập kho" nên thấp hơn Thống kê tồn kho /
+    Báo cáo tồn kho 16-18% trong khi nhãn vẫn ghi "tồn kho tổng" (đo prod: 56.678 vs 68.540 tấn
+    ngày 03/09/2026).
+    """
+    before = _row(st.stock_series(DAY, DAY, "warehouse"), DAY)
+    base_total, base = before["total"] or 0.0, before["values"]
+    _stock(DAY, warehoused=100.0)
+    row = _row(st.stock_series(DAY, DAY, "warehouse"), DAY)
+
+    assert round(row["total"] - base_total, 3) == 100.0 + NOT_WH
+    assert round(row["values"]["warehoused"] - (base.get("warehoused") or 0.0), 3) == 100.0
+    assert round(row["values"]["not_warehoused"] - (base.get("not_warehoused") or 0.0), 3) == NOT_WH
+    # Hai lớp luôn cộng đúng bằng dòng tổng — nếu không, cột chồng nói khác tooltip.
+    assert round(sum(row["values"].values()), 3) == row["total"]
+
+
+def test_merged_unit_is_not_counted_twice(clean) -> None:
+    """Đơn vị đã sáp nhập thôi được cộng riêng kể từ ngày đơn vị nhận cũng có số.
+
+    Cùng luật với Thống kê tồn kho (`member_unit_merge.stock_superseded`): sau ngày hiệu lực, kho
+    của đơn vị cũ do đơn vị nhận khai chung, cộng cả hai là đếm hai lần chính lô hàng đó.
+    """
+    for n in (MERGED, UNIT):
+        member_unit_repo.add_unit(n)
+    before = _totals(DAY, DAY)
+
+    _stock(DAY, MERGED, warehoused=60.0)
+    _stock(DAY, UNIT, warehoused=100.0)
+    apart = _totals(DAY, DAY)
+    assert round(apart[DAY] - before[DAY], 3) == 160.0 + 2 * NOT_WH      # chưa sáp nhập: cộng cả hai
+
+    member_unit_merge.merge(MERGED, UNIT, (date.fromisoformat(DAY) - timedelta(days=1)).isoformat())
+    after = _totals(DAY, DAY)
+    assert round(after[DAY] - before[DAY], 3) == 100.0 + NOT_WH          # chỉ còn số đơn vị nhận
 
 
 def test_stock_reports_only_units_that_actually_have_stock(clean) -> None:
@@ -162,7 +212,8 @@ def test_grade_and_region_cover_the_same_total(clean) -> None:
     _stock(DAY)
     totals = {g: sum(_row(st.stock_series(DAY, DAY, g), DAY)["values"].values())
               for g in st.GROUPS}
-    assert round(totals["grade"], 3) == round(totals["region"], 3) == round(totals["structure"], 3)
+    assert (round(totals["grade"], 3) == round(totals["region"], 3)
+            == round(totals["structure"], 3) == round(totals["warehouse"], 3))
 
 
 # ── Cửa sổ ngày ────────────────────────────────────────────────────────────────

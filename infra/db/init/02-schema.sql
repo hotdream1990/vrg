@@ -77,3 +77,54 @@ CREATE TABLE IF NOT EXISTS market_quote (
     payload     jsonb NOT NULL,
     updated_at  timestamptz NOT NULL DEFAULT now()
 );
+
+-- ─── Hỗ trợ & Thông báo · Nhắc lịch (29/08/2026) ───
+-- ⚠ Mỗi luồng thuộc ĐÚNG MỘT đơn vị: gửi nhiều đơn vị = nhiều luồng cùng batch_id, nhờ vậy
+-- "đơn vị không thấy tin/phản hồi của nhau" là tính chất của dữ liệu (xem app/core/db.py).
+CREATE TABLE IF NOT EXISTS support_thread (
+    id          bigserial PRIMARY KEY,
+    company     text NOT NULL,
+    kind        text NOT NULL,          -- request | announce | reminder
+    subject     text NOT NULL,
+    status      text NOT NULL DEFAULT 'open',
+    batch_id    text,
+    reminder_id bigint,
+    created_by  text,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    last_at     timestamptz NOT NULL DEFAULT now(),
+    last_side   text NOT NULL DEFAULT 'hq',
+    hq_read_at   timestamptz,
+    unit_read_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS ix_support_thread_company ON support_thread (company, last_at DESC);
+CREATE INDEX IF NOT EXISTS ix_support_thread_last ON support_thread (kind, last_at DESC);
+CREATE INDEX IF NOT EXISTS ix_support_thread_batch ON support_thread (batch_id);
+
+CREATE TABLE IF NOT EXISTS support_message (
+    id          bigserial PRIMARY KEY,
+    thread_id   bigint NOT NULL,
+    side        text NOT NULL,          -- hq | unit
+    author      text NOT NULL,
+    author_name text,
+    body        text NOT NULL DEFAULT '',
+    files       jsonb NOT NULL DEFAULT '[]'::jsonb,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_support_message_thread ON support_message (thread_id, id);
+
+CREATE TABLE IF NOT EXISTS support_reminder (
+    id           bigserial PRIMARY KEY,
+    title        text NOT NULL,
+    body         text NOT NULL DEFAULT '',
+    files        jsonb NOT NULL DEFAULT '[]'::jsonb,
+    scope        text NOT NULL DEFAULT 'all',   -- all | units | region
+    units        jsonb NOT NULL DEFAULT '[]'::jsonb,
+    region       text,
+    repeat_rule  text NOT NULL DEFAULT 'once',  -- once | daily | weekly | monthly
+    next_at      timestamptz NOT NULL,
+    enabled      boolean NOT NULL DEFAULT true,
+    last_sent_at timestamptz,
+    created_by   text,
+    created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_support_reminder_next ON support_reminder (enabled, next_at);

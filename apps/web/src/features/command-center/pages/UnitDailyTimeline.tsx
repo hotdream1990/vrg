@@ -92,8 +92,18 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
           <span style={{ fontSize: 12 }}>{dmy(r.updated_at)}</span>
         </Tooltip>
       ) },
-    ...(canEdit ? [{ title: "", key: "act", fixed: "right" as const, width: 96, align: "center" as const,
+    { title: "", key: "act", fixed: "right" as const, width: 96, align: "center" as const,
       render: (_: unknown, r: Row) => {
+        // Không được sửa (chuyên viên mức Xem · lãnh đạo đơn vị) vẫn phải MỞ được phiếu ngày:
+        // bảng này chỉ có vài cột đầu, muốn xem đủ chỉ tiêu của một ngày thì phải mở phiếu ra.
+        if (!canEdit) {
+          return (
+            <Tooltip title="Xem số liệu ngày này">
+              <Button size="small" type="link" icon={<EyeOutlined />}
+                      onClick={() => onEdit(r.as_of, r.company)} />
+            </Tooltip>
+          );
+        }
         // Ngoài cửa sổ sửa: vẫn hiện nút nhưng khoá + nói rõ lý do (đừng để user bấm rồi mới báo lỗi).
         const lockedUntil = data?.locked_until?.[r.company] ?? null;
         const closed = !isAdmin && !!lockedUntil && r.as_of <= lockedUntil;   // đã chốt số liệu
@@ -120,14 +130,13 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
             </Tooltip>
           </>
         );
-      } }] : []),
+      } },
   ];
 
   // Dòng lũy kế cuối bảng (cột "Cập nhật" + cột thao tác để trống — `extraCols`).
   const renderSummary = useCallback(() => (
-    <UnitDailyTimelineSummary kind={kind} rows={rows} totals={data?.totals}
-                              extraCols={canEdit ? 2 : 1} />
-  ), [kind, rows, data?.totals, canEdit]);
+    <UnitDailyTimelineSummary kind={kind} rows={rows} totals={data?.totals} extraCols={2} />
+  ), [kind, rows, data?.totals]);
 
   return (
     <div>

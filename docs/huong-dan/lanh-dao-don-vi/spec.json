@@ -1,0 +1,381 @@
+{
+  "output": "Huong-dan-lanh-dao-don-vi.docx",
+  "page": "a4",
+  "colors": {
+    "h1": "1F7A4D",
+    "h2": "C2410C"
+  },
+  "header": {
+    "logo": "logo-vrg.png",
+    "logoW": 846,
+    "logoH": 774,
+    "title": "HƯỚNG DẪN CHO LÃNH ĐẠO ĐƠN VỊ",
+    "subtitle": "·  Hệ thống Dự báo & Quản trị Giá Cao su — VRG"
+  },
+  "cover": {
+    "title": "Hướng dẫn sử dụng — Lãnh đạo đơn vị thành viên",
+    "intro": "Tài liệu dành cho lãnh đạo các đơn vị thành viên VRG. Tài khoản lãnh đạo có hai việc chính: (1) trao đổi hai chiều với Tập đoàn qua mục Hỗ trợ & Thông báo — nhận thông báo, nhận nhắc lịch, gửi yêu cầu hỗ trợ, có báo qua email; (2) theo dõi toàn bộ số liệu của đơn vị mình — thu mua, tồn kho, kế hoạch năm, khách hàng, hợp đồng và báo cáo tiêu thụ. Tài khoản lãnh đạo chỉ XEM số liệu; việc nhập/sửa do tài khoản nhập liệu của đơn vị thực hiện."
+  },
+  "readme_head": {
+    "intro": [
+      "Tài liệu dành cho **lãnh đạo đơn vị thành viên** VRG trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản lãnh đạo chỉ thấy dữ liệu của chính đơn vị mình.",
+      "Hai phần chính: **Hỗ trợ & Thông báo** — nhận và gửi thông tin với Tập đoàn (có báo qua email); và **theo dõi số liệu đơn vị** — thu mua, tồn kho, nhu cầu thị trường, kế hoạch năm, khách hàng, hợp đồng, báo cáo tiêu thụ. Lãnh đạo **chỉ xem**, không nhập/sửa số liệu."
+    ],
+    "links": [
+      "Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-lanh-dao-don-vi.docx](./Huong-dan-lanh-dao-don-vi.docx)",
+      "Sửa nội dung: chỉ sửa `spec.json` rồi chạy `python3 render_readme.py` (dựng lại README) và `node build_guide.js spec.json` (dựng lại bản Word).",
+      "Chụp lại bộ ảnh khi giao diện đổi: chạy `./scripts/dev.sh` rồi `uv run --directory apps/api --with playwright python ../../docs/huong-dan/lanh-dao-don-vi/shoot.py`."
+    ]
+  },
+  "sections": [
+    {
+      "title": "1. Tài khoản lãnh đạo đơn vị làm được gì",
+      "location": "Đăng nhập tại địa chỉ hệ thống, bằng tài khoản Tập đoàn cấp",
+      "intro": "Sau khi đăng nhập, menu bên trái gồm bốn phần. Chữ “(chỉ xem)” trên tên nhóm nghĩa là phần đó chỉ để theo dõi, không có nút nhập hay sửa.",
+      "image": {
+        "path": "img/01-menu.png",
+        "w": 3000,
+        "h": 1720
+      },
+      "caption": "Hình 1. Menu của tài khoản lãnh đạo đơn vị",
+      "steps": [
+        "**Hỗ trợ & Thông báo** — hộp thư trao đổi hai chiều với Tập đoàn: nhận thông báo, nhận tin nhắc lịch và gửi yêu cầu hỗ trợ.",
+        "**Số liệu đơn vị (chỉ xem)** — Thu mua theo ngày, Tồn kho theo ngày, Nhu cầu thị trường, Kế hoạch năm.",
+        "**Hợp đồng (chỉ xem)** — Khách hàng, Hợp đồng mẹ (HĐNT/HĐDH), Hợp đồng & đợt giao.",
+        "**Báo cáo** — Báo cáo tiêu thụ của đơn vị, có xuất Excel.",
+        "Cuối menu là **Hồ sơ cá nhân** để đổi mật khẩu."
+      ],
+      "notes": [
+        "Lãnh đạo chỉ thấy số liệu của đơn vị mình. Nếu được giao phụ trách nhiều đơn vị, các màn hình có thêm ô chọn đơn vị.",
+        "Số liệu hằng ngày do tài khoản nhập liệu của đơn vị nhập. Thấy số sai hoặc còn thiếu, báo bộ phận nhập liệu sửa, hoặc gửi yêu cầu lên Tập đoàn theo mục 4."
+      ]
+    },
+    {
+      "title": "2. Hộp thư trao đổi với Tập đoàn",
+      "location": "Menu ▸ Hỗ trợ & Thông báo",
+      "intro": "Đây là nơi Tập đoàn gửi thông báo xuống đơn vị và đơn vị gửi yêu cầu lên Tập đoàn. Mỗi trao đổi là một “thẻ” riêng. Chỉ đơn vị của bạn và Tập đoàn đọc được các thẻ này — đơn vị khác không thấy.",
+      "image": {
+        "path": "img/02-hop-thu.png",
+        "w": 3000,
+        "h": 1720
+      },
+      "caption": "Hình 2. Danh sách hộp thư",
+      "steps": [
+        "**Gửi yêu cầu hỗ trợ** — mở form soạn tin gửi lên Tập đoàn (xem mục 4).",
+        "**Lọc trạng thái** — xem tất cả, chỉ tin “Đang mở”, hoặc chỉ tin “Đã đóng”.",
+        "**Tìm theo tiêu đề** — gõ vài chữ trong tiêu đề để tìm nhanh thẻ cũ.",
+        "**Một dòng là một thẻ** — bấm vào để mở. Thẻ nền vàng kèm nhãn **Mới** là có tin chưa đọc."
+      ],
+      "notes": [
+        "Nhãn màu cho biết loại tin: **Thông báo** (Tập đoàn gửi xuống), **Yêu cầu hỗ trợ** (đơn vị gửi lên), **Nhắc lịch** (hệ thống tự phát theo lịch của Tập đoàn).",
+        "Con số “2 tin” là số lượt trao đổi trong thẻ đó; bên phải là thời điểm của tin mới nhất."
+      ]
+    },
+    {
+      "title": "3. Đọc thông báo Tập đoàn gửi xuống",
+      "location": "Hỗ trợ & Thông báo ▸ bấm vào một thẻ",
+      "intro": "Bấm vào tiêu đề thẻ để mở toàn bộ nội dung. Thẻ được đánh dấu đã đọc ngay khi mở.",
+      "image": {
+        "path": "img/03-nhan-thong-bao.png",
+        "w": 3000,
+        "h": 1720
+      },
+      "caption": "Hình 3. Nội dung một thông báo và chỗ trả lời",
+      "steps": [
+        "**Nội dung tin** — người gửi, bên gửi (Tập đoàn hoặc tên đơn vị), thời điểm gửi và nội dung. Nếu có tệp đính kèm, tệp nằm ngay dưới nội dung: ảnh xem trực tiếp, tệp khác bấm để tải về.",
+        "**Ô Phản hồi** — gõ nội dung trả lời Tập đoàn.",
+        "**Đính kèm file / hình ảnh** — gửi kèm văn bản, bảng tính hoặc ảnh chụp (ngay dưới ô phản hồi).",
+        "**Gửi phản hồi** — gửi trả lời. Tập đoàn nhận được ngay trong thẻ này.",
+        "**Đánh dấu đã xong** — khép thẻ khi việc đã giải quyết xong (xem mục 6)."
+      ],
+      "notes": [
+        "Trả lời ngay trong thẻ, đừng mở thẻ mới cho cùng một việc — mọi trao đổi của một việc nằm gọn một chỗ để hai bên dễ theo dõi."
+      ]
+    },
+    {
+      "title": "4. Gửi yêu cầu hỗ trợ lên Tập đoàn",
+      "location": "Hỗ trợ & Thông báo ▸ nút “Gửi yêu cầu hỗ trợ”",
+      "intro": "Dùng khi đơn vị cần Tập đoàn xử lý một việc: mở lại kỳ nhập liệu, cấp thêm tài khoản, hỏi về giá sàn, báo sai sót số liệu…",
+      "image": {
+        "path": "img/04-gui-yeu-cau.png",
+        "w": 3000,
+        "h": 1720
+      },
+      "caption": "Hình 4. Form gửi yêu cầu hỗ trợ",
+      "steps": [
+        "**Tiêu đề** (bắt buộc) — nói gọn việc cần xử lý, tối đa 200 ký tự. Tiêu đề này cũng hiện trong email báo tin.",
+        "**Nội dung** — mô tả rõ việc: ngày nào, số liệu nào, cần Tập đoàn làm gì.",
+        "**Đính kèm file / hình ảnh** — kèm văn bản hoặc ảnh chụp màn hình nếu có. Nhận PDF · Word · Excel · XML · ảnh (JPG, PNG, HEIC, WEBP, TIFF) · ZIP, tối đa 25 MB mỗi tệp và 10 tệp mỗi tin.",
+        "**Gửi yêu cầu** — gửi lên Tập đoàn. Hệ thống mở luôn thẻ vừa tạo để bạn theo dõi."
+      ],
+      "notes": [
+        "Lãnh đạo phụ trách nhiều đơn vị: chọn đúng đơn vị ở ô trên cùng trước khi gửi.",
+        "Mỗi việc một thẻ. Việc mới thì gửi yêu cầu mới, không nối tiếp vào thẻ của việc cũ."
+      ]
+    },
+    {
+      "title": "5. Theo dõi Tập đoàn trả lời",
+      "location": "Hỗ trợ & Thông báo ▸ thẻ đã gửi",
+      "intro": "Tập đoàn trả lời ngay trong thẻ. Tin của đơn vị nằm bên phải, tin của Tập đoàn nằm bên trái, xếp theo thời gian.",
+      "image": {
+        "path": "img/05-tap-doan-tra-loi.png",
+        "w": 3000,
+        "h": 1720
+      },
+      "caption": "Hình 5. Trao đổi qua lại trong một thẻ",
+      "steps": [
+        "Đọc trả lời của Tập đoàn ở phần trên.",
+        "Cần nói thêm thì gõ vào ô **Phản hồi** rồi bấm **Gửi phản hồi**.",
+        "Việc đã xong thì bấm **Đánh dấu đã xong** để khép thẻ."
+      ],
+      "notes": [
+        "Có tin mới, hệ thống gửi email báo về hòm thư của bạn (xem mục 8) và thẻ hiện nhãn **Mới** trong hộp thư."
+      ]
+    },
+    {
+      "title": "6. Khép một trường hợp",
+      "location": "Trong thẻ ▸ nút “Đánh dấu đã xong”",
+      "intro": "Mỗi thẻ theo dõi đúng một việc. Việc xong thì khép thẻ lại để hộp thư chỉ còn những việc đang chờ xử lý.",
+      "image": {
+        "path": "img/06-the-da-dong.png",
+        "w": 3000,
+        "h": 1720
+      },
+      "caption": "Hình 6. Thẻ đã khép",
+      "steps": [
+        "Thẻ đã khép mang nhãn **Đã đóng**; nội dung trao đổi vẫn giữ nguyên để tra cứu.",
+        "Thẻ đã khép **không nhận thêm phản hồi**.",
+        "Có việc mới, bấm **Gửi yêu cầu mới** ngay tại đây."
+      ],
+      "notes": [
+        "Bấm nhầm nút khép? Đơn vị không tự mở lại được — nhờ Tập đoàn mở lại hộ, hoặc gửi một yêu cầu mới."
+      ]
+    },
+    {
+      "title": "7. Tin nhắc lịch",
+      "location": "Hỗ trợ & Thông báo ▸ thẻ mang nhãn “Nhắc lịch”",
+      "intro": "Tập đoàn đặt lịch nhắc các việc định kỳ (ví dụ nhắc nộp báo cáo trong ngày). Đến giờ, hệ thống tự gửi tin nhắc vào hộp thư của đơn vị và gửi email báo.",
+      "image": {
+        "path": "img/07-nhac-lich.png",
+        "w": 3000,
+        "h": 1720
+      },
+      "caption": "Hình 7. Một tin nhắc lịch",
+      "steps": [
+        "Mở tin nhắc để xem Tập đoàn yêu cầu việc gì, hạn khi nào.",
+        "Cần báo lại tình hình thì trả lời ngay trong thẻ như tin thường.",
+        "Đã làm xong việc được nhắc thì bấm **Đánh dấu đã xong**."
+      ],
+      "notes": [
+        "Lịch nhắc do Tập đoàn đặt và điều chỉnh; đơn vị chỉ nhận tin, không cần cấu hình gì."
+      ]
+    },
+    {
+      "title": "8. Email báo có tin mới",
+      "location": "Hòm thư điện tử của lãnh đạo đơn vị",
+      "intro": "Không cần mở hệ thống suốt ngày: mỗi khi có thông báo mới, có trả lời của Tập đoàn hoặc có tin nhắc lịch, hệ thống gửi một email báo tới địa chỉ đã khai cho tài khoản của bạn.",
+      "steps": [
+        "Tiêu đề email có dạng **[VRG] + tiêu đề tin**, nên nhìn tiêu đề là biết việc gì.",
+        "Thân email ghi tóm tắt nội dung tin.",
+        "Cuối email có đường dẫn mở thẳng thẻ đó trên hệ thống — bấm vào, đăng nhập là xem và trả lời được ngay.",
+        "Ở chiều ngược lại, khi đơn vị gửi yêu cầu hoặc phản hồi, Tập đoàn cũng nhận được email báo tương tự."
+      ],
+      "notes": [
+        "Đây là email tự động, **không trả lời trực tiếp vào email** — phản hồi phải gõ trong thẻ trên hệ thống thì Tập đoàn mới nhận được.",
+        "Không nhận được email: kiểm tra hộp thư rác, sau đó báo Tập đoàn kiểm tra lại địa chỉ email gắn với tài khoản của bạn."
+      ]
+    },
+    {
+      "title": "9. Xem số liệu thu mua theo ngày",
+      "location": "Menu ▸ Số liệu đơn vị (chỉ xem) ▸ Thu mua (theo ngày)",
+      "intro": "Sản lượng và đơn giá thu mua mủ nguyên liệu của đơn vị, theo từng ngày.",
+      "image": {
+        "path": "img/08-thu-mua.png",
+        "w": 3800,
+        "h": 1720
+      },
+      "caption": "Hình 8. Báo cáo thu mua theo ngày",
+      "steps": [
+        "Dòng thông báo **“Chế độ chỉ xem”** nhắc rằng màn này chỉ để theo dõi.",
+        "**Khoảng thời gian** — chọn 30 / 60 / 90 / 180 ngày gần nhất, hoặc tự chọn khoảng ngày.",
+        "**Biểu tượng con mắt** ở cuối mỗi dòng — mở phiếu của đúng ngày đó để xem chi tiết.",
+        "Dòng **Lũy kế (khoảng đang xem)** ở cuối bảng cộng toàn bộ khoảng đang chọn."
+      ],
+      "notes": [
+        "Mục này chỉ hiện với đơn vị được giao kế hoạch thu mua. Đơn vị không tổ chức thu mua sẽ không thấy mục này trong menu.",
+        "Sản lượng ghi theo **tấn quy khô**; đơn giá mủ nước theo đồng/độ TSC, mủ chén theo đồng/độ DRC."
+      ]
+    },
+    {
+      "title": "10. Xem tồn kho theo ngày",
+      "location": "Menu ▸ Số liệu đơn vị (chỉ xem) ▸ Tồn kho (theo ngày)",
+      "intro": "Ảnh chụp kho của đơn vị theo từng ngày, kèm số tiêu thụ cộng dồn từ các lần giao trên hợp đồng.",
+      "image": {
+        "path": "img/09-ton-kho.png",
+        "w": 3800,
+        "h": 1720
+      },
+      "caption": "Hình 9. Báo cáo tồn kho theo ngày",
+      "steps": [
+        "Chọn **Khoảng thời gian** muốn xem.",
+        "Nhóm cột **Tiêu thụ (theo hợp đồng)** — tổng tiêu thụ, xuất khẩu, trong nước, nội bộ, doanh thu và giá bán bình quân.",
+        "Hai cột tồn kho — **Chế biến chưa nhập kho** và **Đã nhập kho** (tấn).",
+        "Bấm **biểu tượng con mắt** để mở phiếu chi tiết của ngày đó, xem tồn theo từng chủng loại."
+      ],
+      "notes": [
+        "Tồn kho là số tại thời điểm, nên dòng Lũy kế lấy **số mới nhất** của đơn vị, không cộng dồn các ngày.",
+        "Số tiêu thụ không nhập tay: hệ thống cộng từ các **đợt giao** ghi trên hợp đồng."
+      ]
+    },
+    {
+      "title": "11. Nhu cầu thị trường",
+      "location": "Menu ▸ Số liệu đơn vị (chỉ xem) ▸ Nhu cầu thị trường",
+      "intro": "Các lời chào hàng, hỏi mua mà đơn vị nắm được, ghi theo ngày. Đây là phần thông tin thị trường đơn vị báo về Tập đoàn.",
+      "image": {
+        "path": "img/10-nhu-cau-thi-truong.png",
+        "w": 3000,
+        "h": 1720
+      },
+      "caption": "Hình 10. Nhu cầu thị trường theo ngày",
+      "steps": [
+        "Dòng thông báo chế độ chỉ xem.",
+        "**Khoảng thời gian** — 30 / 60 / 90 / 180 / 365 ngày gần nhất.",
+        "Nội dung xếp theo ngày, mới nhất lên trên; mỗi dòng ghi tên đơn vị và nội dung nhu cầu."
+      ],
+      "notes": [
+        "Chỉ những ngày có nhập mới hiện. Ngày trống nghĩa là hôm đó đơn vị không ghi nhận nhu cầu nào."
+      ]
+    },
+    {
+      "title": "12. Kế hoạch năm",
+      "location": "Menu ▸ Số liệu đơn vị (chỉ xem) ▸ Kế hoạch năm",
+      "intro": "Chỉ tiêu cả năm của đơn vị — cơ sở để hệ thống tính phần trăm thực hiện trên các báo cáo.",
+      "image": {
+        "path": "img/11-ke-hoach-nam.png",
+        "w": 3800,
+        "h": 1720
+      },
+      "caption": "Hình 11. Kế hoạch năm của đơn vị",
+      "steps": [
+        "Dòng thông báo chế độ chỉ xem.",
+        "**Năm** — chọn năm muốn xem.",
+        "Bảng chỉ tiêu: kế hoạch thu mua, kế hoạch tiêu thụ hợp đồng chuyến, hợp đồng dài hạn đã ký, phần chuyển sang từ năm trước và kế hoạch doanh thu (tỷ đồng)."
+      ],
+      "notes": [
+        "Số hiện mờ là do màn hình ở chế độ chỉ xem — đó vẫn là số thật đơn vị đã khai.",
+        "Chỉ tiêu sai hoặc chưa khai: báo tài khoản nhập liệu của đơn vị cập nhật."
+      ]
+    },
+    {
+      "title": "13. Danh mục khách hàng",
+      "location": "Menu ▸ Hợp đồng (chỉ xem) ▸ Khách hàng",
+      "intro": "Danh sách khách hàng riêng của đơn vị. Mỗi hợp đồng đều gắn với một khách hàng ở danh mục này, nhờ đó báo cáo tách được sản lượng và doanh thu theo từng khách.",
+      "image": {
+        "path": "img/12-khach-hang.png",
+        "w": 3800,
+        "h": 1720
+      },
+      "caption": "Hình 12. Danh mục khách hàng của đơn vị",
+      "steps": [
+        "Dòng thông báo chế độ chỉ xem.",
+        "**Ô tìm kiếm** — tìm theo tên khách, mã khách hoặc mã số thuế.",
+        "Bảng danh sách: mã khách, tên khách hàng, mã số thuế, trạng thái, ghi chú. Danh sách dài thì chuyển trang ở cuối bảng."
+      ]
+    },
+    {
+      "title": "14. Hợp đồng mẹ (HĐNT/HĐDH)",
+      "location": "Menu ▸ Hợp đồng (chỉ xem) ▸ Hợp đồng mẹ (HĐNT/HĐDH)",
+      "intro": "Hồ sơ hợp đồng nguyên tắc / hợp đồng dài hạn ký với khách: sản lượng cam kết, công thức giá, thời hạn. Các hợp đồng bán cụ thể là phụ lục thuộc hồ sơ này.",
+      "image": {
+        "path": "img/13-hop-dong-me.png",
+        "w": 3800,
+        "h": 1720
+      },
+      "caption": "Hình 13. Danh sách hợp đồng mẹ",
+      "steps": [
+        "Dòng thông báo chế độ chỉ xem.",
+        "Khối bộ lọc — chọn **Loại** hồ sơ (HĐ nguyên tắc / HĐ dài hạn) hoặc gõ số hợp đồng vào ô tìm.",
+        "Bảng hồ sơ: số hợp đồng, loại, khách hàng, chủng loại, **SL cam kết**, số phụ lục **đã ký** và **hiệu lực** đến ngày nào. Bấm **Xem** để mở chi tiết hồ sơ."
+      ],
+      "notes": [
+        "Hồ sơ mẹ chỉ ghi cam kết, không tính vào sản lượng tiêu thụ. Sản lượng thật nằm ở các hợp đồng và đợt giao (mục 15)."
+      ]
+    },
+    {
+      "title": "15. Hợp đồng & đợt giao",
+      "location": "Menu ▸ Hợp đồng (chỉ xem) ▸ Hợp đồng & đợt giao",
+      "intro": "Toàn bộ hợp đồng bán của đơn vị và tiến độ giao hàng của từng hợp đồng.",
+      "image": {
+        "path": "img/14-hop-dong-dot-giao.png",
+        "w": 3800,
+        "h": 1720
+      },
+      "caption": "Hình 14. Hợp đồng và tiến độ giao hàng",
+      "steps": [
+        "Dòng thông báo chế độ chỉ xem.",
+        "Khối bộ lọc — khách hàng, hồ sơ hợp đồng mẹ, trạng thái, hình thức tiêu thụ, ngày ký, số hợp đồng.",
+        "Bảng hợp đồng: sản lượng, thành tiền, phần đã giao, còn phải giao, số đợt giao và trạng thái. Dòng **Tổng cộng** tính trên toàn bộ hợp đồng khớp bộ lọc, không chỉ trang đang xem.",
+        "Bấm **Xem** ở cuối dòng để mở chi tiết hợp đồng và danh sách các đợt giao."
+      ],
+      "notes": [
+        "Trạng thái thường gặp: **Đã giao đủ**, **Đang thực hiện**. Cột *Còn phải giao* là phần đã ký nhưng chưa giao."
+      ]
+    },
+    {
+      "title": "16. Báo cáo tiêu thụ",
+      "location": "Menu ▸ Báo cáo ▸ Tiêu thụ",
+      "intro": "Bức tranh tiêu thụ của đơn vị theo kỳ: giao bao nhiêu, cho ai, doanh thu bao nhiêu, còn phải giao bao nhiêu. Số liệu cộng từ các lần giao ghi trên hợp đồng.",
+      "image": {
+        "path": "img/15-bao-cao-tieu-thu.png",
+        "w": 3800,
+        "h": 1720
+      },
+      "caption": "Hình 15. Báo cáo tiêu thụ theo kỳ",
+      "steps": [
+        "Chọn kỳ ở **Từ ngày** – **Đến ngày** (mặc định từ đầu tháng đến hôm nay), lọc thêm theo khách hàng hoặc chủng loại nếu cần.",
+        "**Xuất Excel** — tải file gồm 2 sheet: tổng hợp theo đơn vị và chi tiết từng dòng bán.",
+        "Các ô số lớn ở giữa: sản lượng tiêu thụ, doanh thu, số lần giao và phần **đã ký chưa giao** tại ngày cuối kỳ.",
+        "Bảng bên dưới tách theo hình thức: xuất khẩu, trong nước, nội bộ; kèm dòng lũy kế cả kỳ."
+      ],
+      "notes": [
+        "Sản lượng tính theo **quy khô**. Doanh thu tính theo tỷ đồng.",
+        "Số ở đây luôn khớp với mục *Hợp đồng & đợt giao* vì cùng lấy từ các lần giao."
+      ]
+    },
+    {
+      "title": "17. Đổi mật khẩu",
+      "location": "Menu ▸ Hồ sơ cá nhân",
+      "intro": "Nên đổi mật khẩu ngay sau lần đăng nhập đầu tiên.",
+      "image": {
+        "path": "img/16-ho-so.png",
+        "w": 3000,
+        "h": 1720
+      },
+      "caption": "Hình 16. Đổi mật khẩu",
+      "steps": [
+        "Nhập **Mật khẩu hiện tại**.",
+        "Nhập **Mật khẩu mới** (tối thiểu 6 ký tự).",
+        "Nhập lại ở ô **Xác nhận mật khẩu mới**.",
+        "Bấm **Đổi mật khẩu**."
+      ],
+      "notes": [
+        "Khối bên trái là **Thông tin cá nhân** — sửa họ tên hiển thị rồi bấm *Lưu thông tin*. Tên đăng nhập do Tập đoàn cấp, không tự đổi được.",
+        "Quên mật khẩu: liên hệ quản trị hệ thống của Tập đoàn để được cấp lại."
+      ]
+    },
+    {
+      "title": "18. Những tình huống hay gặp",
+      "intro": "Các câu hỏi lãnh đạo đơn vị hay gặp khi mới dùng hệ thống.",
+      "notes_as_table": true,
+      "notes": [
+        "Không thấy nút Lưu / Sửa ở màn số liệu → Đúng thiết kế: tài khoản lãnh đạo chỉ theo dõi. Việc nhập/sửa do tài khoản nhập liệu của đơn vị thực hiện.",
+        "Số liệu của ngày hôm nay còn trống → Đơn vị chưa nhập. Nhắc bộ phận nhập liệu; hạn nhập trong ngày theo quy định của Tập đoàn.",
+        "Muốn sửa số đã nhập nhưng kỳ đã khoá → Gửi yêu cầu hỗ trợ lên Tập đoàn (mục 4), nêu rõ ngày và số cần sửa.",
+        "Không nhận được email báo tin mới → Xem hộp thư rác trước; vẫn không có thì báo Tập đoàn kiểm tra địa chỉ email gắn với tài khoản.",
+        "Lỡ bấm “Đánh dấu đã xong” khi việc chưa xong → Đơn vị không tự mở lại được; nhờ Tập đoàn mở lại hoặc gửi yêu cầu mới.",
+        "Không thấy mục Thu mua trong menu → Đơn vị không được giao kế hoạch thu mua nên hệ thống ẩn mục này.",
+        "Đơn vị vừa sáp nhập, muốn xem số cũ → Số liệu trước sáp nhập vẫn còn trong hệ thống và được gộp vào đơn vị nhận; cần bóc tách riêng thì đề nghị Tập đoàn hỗ trợ."
+      ]
+    }
+  ]
+}

@@ -122,25 +122,31 @@ export default function UnitDailyEditModal(
   return (
     <Modal open={open} onCancel={onClose} footer={null}
            width={width} destroyOnHidden
-           title={`Nhập số liệu — ${KIND_LABEL[kind]}`}>
+           title={`${editable ? "Nhập số liệu" : "Xem số liệu"} — ${KIND_LABEL[kind]}`}>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
         <DateInput value={day} onChange={setDay} noFuture style={{ width: 190 }} />
         <Select value={company} onChange={setCompany} showSearch style={{ minWidth: 220 }}
                 options={units.map((u) => ({ value: u, label: u }))}
                 filterOption={(i, o) => (o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
-        {exists
-          ? <Tag color="blue">Đang sửa số đã có</Tag>
-          : <Tag color="green">Tạo mới cho ngày này</Tag>}
+        {!canEdit
+          ? <Tag color="default">{exists ? "Số liệu đã nhập" : "Ngày này chưa có số liệu"}</Tag>
+          : exists
+            ? <Tag color="blue">Đang sửa số đã có</Tag>
+            : <Tag color="green">Tạo mới cho ngày này</Tag>}
       </div>
-      {/* Nói ĐÚNG lý do khoá: ngày đã chốt và ngày ngoài cửa sổ nhập là hai chuyện khác nhau, và
-          cách xử lý cũng khác (chốt rồi thì phải nhờ Ban TTKD sửa hộ). Ghi nhầm lý do là người
-          nhập ngồi chờ hết cửa sổ trong khi thực ra phải gọi điện cho Ban. */}
+      {/* Nói ĐÚNG lý do khoá — ba lý do khác hẳn nhau và cách xử lý cũng khác:
+          tài khoản chỉ xem (không bao giờ sửa được, đừng chờ) · ngày đã chốt (phải nhờ Ban TTKD
+          sửa hộ) · ngoài cửa sổ nhập (hết hạn tự sửa). Ghi nhầm lý do là người dùng ngồi chờ hết
+          cửa sổ trong khi thực ra phải gọi cho Ban, hoặc đi xin quyền mà vai trò vốn không có. */}
       {!editable && (
         <Alert type="info" showIcon style={{ marginBottom: 12 }}
-               message={closed
-                 ? `Số liệu đến hết ngày ${dmy(lockedUntil ?? "")} đã được chốt — đơn vị không tự `
-                   + "sửa được nữa. Cần điều chỉnh, đề nghị báo Ban TTKD để chuyên viên sửa hộ."
-                 : "Ngày này ở chế độ chỉ xem — ngoài cửa sổ nhập cho phép."} />
+               message={!canEdit
+                 ? "Tài khoản của bạn chỉ xem số liệu — việc nhập/sửa do tài khoản nhập liệu "
+                   + "của đơn vị thực hiện."
+                 : closed
+                   ? `Số liệu đến hết ngày ${dmy(lockedUntil ?? "")} đã được chốt — đơn vị không tự `
+                     + "sửa được nữa. Cần điều chỉnh, đề nghị báo Ban TTKD để chuyên viên sửa hộ."
+                   : "Ngày này ở chế độ chỉ xem — ngoài cửa sổ nhập cho phép."} />
       )}
       <Spin spinning={loading}>
         {data && (

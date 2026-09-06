@@ -43,10 +43,10 @@ def purchase_volume(
 
 @router.get("/stock")
 def stock(
-    group_by: str = Query("structure", pattern="^(structure|grade|region|free_grade)$"),
+    group_by: str = Query("warehouse", pattern="^(warehouse|structure|grade|region|free_grade)$"),
     date_from: str | None = Query(None), date_to: str | None = Query(None),
 ) -> dict:
-    """Tồn kho theo ngày: cơ cấu hợp đồng · chủng loại · khu vực · tồn tự do theo chủng loại.
+    """Tồn kho theo ngày: kho · cơ cấu hợp đồng · chủng loại · khu vực · tồn tự do theo chủng loại.
 
     Chuỗi bắt đầu từ `unit_series_stock.STOCK_START` — trước mốc đó chưa đủ đơn vị nhập để cộng
     thành số của Tập đoàn.

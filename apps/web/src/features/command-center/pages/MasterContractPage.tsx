@@ -25,9 +25,9 @@ const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 }
  *  ⚠ Màn này KHÔNG có số tiêu thụ: mọi báo cáo sản lượng vẫn tính trên hợp đồng/đợt giao.
  */
 export default function MasterContractPage() {
-  const { canEditCap, user } = useAuth();
-  const isMember = user?.role === "member";
-  const canEdit = isMember || canEditCap("sales_contract");
+  const { canEditCap, isUnitAccount, canEditUnitData } = useAuth();
+  const isMember = isUnitAccount;   // nhập liệu + lãnh đạo: chỉ thấy đơn vị của mình
+  const canEdit = canEditUnitData || canEditCap("sales_contract");
 
   const [meta, setMeta] = useState<ContractMeta | null>(null);
   const [rows, setRows] = useState<MasterContract[]>([]);
@@ -88,7 +88,7 @@ export default function MasterContractPage() {
         )}
       </div>
 
-      {!isMember && <ReadOnlyNotice cap="sales_contract" />}
+      {!canEdit && <ReadOnlyNotice cap="sales_contract" />}
 
       {meta && (
         <div className="blt-toolbar">

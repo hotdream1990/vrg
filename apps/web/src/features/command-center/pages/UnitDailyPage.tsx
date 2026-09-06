@@ -20,6 +20,7 @@ import type { ConsumptionTab } from "./ConsumptionForm";
 import UnitDailyEditModal from "./UnitDailyEditModal";
 import UnitDailyOverview from "./UnitDailyOverview";
 import UnitDailyTimeline from "./UnitDailyTimeline";
+import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import { MultiSelect } from "./analytics/AnalyticsFilters";
 import { filterDayByGrades, gradesOf } from "../../../lib/unit-daily-stock-filter";
 import "../../bulletin/bulletin.css";
@@ -37,8 +38,10 @@ type Props = {
 };
 
 export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Props) {
-  const { user, canEditCap } = useAuth();
-  const isMember = user?.role === "member";
+  const { user, canEditCap, isUnitAccount, canEditUnitData } = useAuth();
+  // `isMember` ở màn này = "tài khoản của đơn vị" (nhập liệu HOẶC lãnh đạo): cùng bố cục, cùng
+  // bộ endpoint /api/member/*. Khác nhau ở quyền sửa — xem `mayEdit` bên dưới.
+  const isMember = isUnitAccount;
   const isAdmin = user?.role === "admin";
   const role: Role = isMember ? "member" : "hq";
 
@@ -75,7 +78,8 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
   const importKind: ImportKind = kind === "purchase" ? "purchase" : (defaultTab ?? "sales");
 
   // Chuyên viên chỉ được cấp mức Xem → luôn "Xem" dù ngày còn trong cửa sổ sửa.
-  const mayEdit = isMember || canEditCap("unit_daily");
+  // Lãnh đạo đơn vị cũng rơi vào nhánh này: xem được đúng số liệu đơn vị mình, không sửa.
+  const mayEdit = canEditUnitData || canEditCap("unit_daily");
   const showImport = mayEdit && EXCEL_IMPORT_ENABLED;
   // Danh mục chủng loại lấy từ CHÍNH số liệu đang xem — không cần gọi thêm API, và chỉ hiện những
   // chủng loại thật sự có tồn kho trong ngày đó.
@@ -94,6 +98,8 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
         <h2 style={{ margin: 0 }}>{title}</h2>
         <p style={{ margin: "4px 0 0" }}>{subtitle}</p>
       </div>
+
+      <ReadOnlyNotice cap="unit_daily" />
 
       {/* Thanh công cụ chỉ dựng khi thật sự có nút — không thì để lại một card trống. */}
       {(!isMember || showImport) && (

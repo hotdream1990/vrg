@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
@@ -162,16 +162,59 @@ def assert_not_data_locked(username: str, company: str | None, *dates,
     data_lock.assert_not_locked(company, *dates, safe_fields=safe_fields)
 
 
-def get_current_member(username: str = Depends(get_current_user)) -> dict:
-    """Dependency cho tài khoản đơn vị thành viên — trả user dict (có `member_units`).
+#: Các vai trò ĐƯỢC GÁN đơn vị thành viên (`member_units`) — cùng phạm vi dữ liệu, khác quyền ghi:
+#: `member` nhập số liệu của đơn vị; `leader` (lãnh đạo đơn vị) CHỈ XEM số liệu của đơn vị mình
+#: và dùng hộp thư Hỗ trợ & Thông báo (hộp thư thì ngược lại: chỉ lãnh đạo vào được).
+UNIT_ROLES = {"member", "leader"}
 
-    403 nếu không phải role=member; 403 nếu chưa được gán đơn vị nào. Token member chỉ mở
-    đúng các endpoint /api/member và chỉ với các đơn vị được gán — không đụng số liệu đơn vị
-    khác hay mục nội bộ.
+#: Vai trò gắn đơn vị nhưng KHÔNG được ghi bất cứ thứ gì.
+UNIT_VIEW_ROLES = {"leader"}
+
+#: Method HTTP không làm thay đổi dữ liệu — lãnh đạo đơn vị chỉ đi được các method này.
+_READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+def get_unit_user(request: Request, username: str = Depends(get_current_user)) -> dict:
+    """Dependency cho MỌI tài khoản gắn đơn vị (`member` nhập liệu · `leader` chỉ xem).
+
+    Chặn ghi của lãnh đạo đơn vị ngay ở ĐÂY, theo method HTTP, thay vì gắn tay từng endpoint:
+    router `/api/member` có hơn 20 endpoint, gắn tay là kiểu gì cũng sót một cái — và cái sót đó
+    là một lỗ cho phép lãnh đạo sửa số liệu. Endpoint mới thêm sau này tự động được bảo vệ.
     """
     u = _active_user(username)
-    if u.get("role") != "member":
-        raise HTTPException(403, "Chỉ dành cho tài khoản đơn vị thành viên")
+    role = u.get("role")
+    if role not in UNIT_ROLES:
+        raise HTTPException(403, "Chỉ dành cho tài khoản của đơn vị thành viên")
+    if not (u.get("member_units") or []):
+        raise HTTPException(403, "Tài khoản chưa được gán đơn vị thành viên — liên hệ quản trị.")
+    if role in UNIT_VIEW_ROLES and request.method.upper() not in _READ_METHODS:
+        raise HTTPException(403, "Tài khoản lãnh đạo đơn vị chỉ được XEM số liệu — "
+                                 "việc nhập/sửa do tài khoản nhập liệu của đơn vị thực hiện.")
+    return u
+
+
+def block_unit_roles(username: str = Depends(get_current_user)) -> str:
+    """Chặn tài khoản GẮN ĐƠN VỊ khỏi các endpoint số liệu MỨC TẬP ĐOÀN (vd `/api/series`).
+
+    Những endpoint đó trả số liệu gộp và có kiểu chia theo TỪNG ĐƠN VỊ, tức đơn vị này đọc được
+    số của đơn vị kia. Chúng chỉ phục vụ Dashboard và Bản tin biến động — hai màn mà tài khoản
+    đơn vị không có trong menu — nên chặn hẳn ở tầng API, đừng dựa vào việc "menu không có link".
+    """
+    if _active_user(username).get("role") in UNIT_ROLES:
+        raise HTTPException(403, "Số liệu mức Tập đoàn — tài khoản đơn vị chỉ xem số liệu "
+                                 "của đơn vị mình.")
+    return username
+
+
+def get_current_leader(username: str = Depends(get_current_user)) -> dict:
+    """Dependency cho tài khoản LÃNH ĐẠO ĐƠN VỊ — trả user dict (có `member_units`).
+
+    403 nếu không phải role=leader; 403 nếu chưa được gán đơn vị nào. Dùng cho phía đơn vị của
+    hộp thư Hỗ trợ & Thông báo; mọi thao tác vẫn bị ép về đúng các đơn vị được gán.
+    """
+    u = _active_user(username)
+    if u.get("role") != "leader":
+        raise HTTPException(403, "Chỉ dành cho tài khoản lãnh đạo đơn vị thành viên")
     if not (u.get("member_units") or []):
         raise HTTPException(403, "Tài khoản chưa được gán đơn vị thành viên — liên hệ quản trị.")
     return u
@@ -212,13 +255,18 @@ def cap_or_member_scope(cap: str, level: str = LEVEL_VIEW):
     """Factory dependency cho màn hình dùng CHUNG giữa đơn vị thành viên và chuyên viên.
 
     Trả `(username, companies)`:
-      - role=member  → danh sách đơn vị ĐƯỢC GÁN (server tự ép phạm vi, không tin client gửi lên);
-      - còn lại      → `None` = mọi đơn vị, sau khi kiểm quyền `cap` ở mức `level`.
+      - tài khoản gắn đơn vị (`UNIT_ROLES`) → danh sách đơn vị ĐƯỢC GÁN (server tự ép phạm vi,
+        không tin client gửi lên); riêng lãnh đạo đơn vị bị chặn ở mức Sửa — chỉ xem;
+      - còn lại → `None` = mọi đơn vị, sau khi kiểm quyền `cap` ở mức `level`.
     Nhờ vậy phần Hợp đồng & Khách hàng chỉ có MỘT bộ endpoint thay vì nhân đôi /api/member/*.
     """
     def dep(username: str = Depends(get_current_user)) -> tuple[str, list[str] | None]:
         u = _active_user(username)
-        if u.get("role") == "member":
+        if u.get("role") in UNIT_ROLES:
+            # Lãnh đạo đơn vị CHỈ XEM: mọi endpoint đòi mức Sửa đều chặn ngay tại đây.
+            if u.get("role") in UNIT_VIEW_ROLES and level == LEVEL_EDIT:
+                raise HTTPException(403, "Tài khoản lãnh đạo đơn vị chỉ được XEM số liệu — "
+                                         "việc nhập/sửa do tài khoản nhập liệu của đơn vị thực hiện.")
             units = list(u.get("member_units") or [])
             if not units:
                 raise HTTPException(403, "Tài khoản chưa được gán đơn vị thành viên — liên hệ quản trị.")

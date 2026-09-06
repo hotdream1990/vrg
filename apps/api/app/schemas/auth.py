@@ -13,10 +13,11 @@ class LoginRequest(BaseModel):
 class UserOut(BaseModel):
     username: str
     full_name: str | None = None
+    email: str | None = None  # địa chỉ nhận thông báo (Hỗ trợ & Thông báo)
     role: str = "admin"
     is_active: bool = True
     permissions: list[str] = Field(default_factory=list)  # quyền theo mục (editor)
-    member_units: list[str] = Field(default_factory=list)  # các đơn vị gắn với tài khoản (role=member)
+    member_units: list[str] = Field(default_factory=list)  # đơn vị gắn với tài khoản (member/leader)
     # role=member: có ≥1 đơn vị được giao kế hoạch thu mua → mới hiện menu "Báo cáo thu mua".
     member_has_purchase_plan: bool = False
     impersonated_by: str | None = None  # username admin đang đăng nhập hộ (None = phiên bình thường)
@@ -43,13 +44,15 @@ class UserCreate(BaseModel):
     username: str = Field(min_length=3)
     password: str = Field(min_length=6)
     full_name: str | None = None
+    email: str | None = None
     role: str = "admin"
     permissions: list[str] = Field(default_factory=list)
-    member_units: list[str] = Field(default_factory=list)  # bắt buộc ≥1 khi role=member
+    member_units: list[str] = Field(default_factory=list)  # bắt buộc ≥1 khi role=member/leader
 
 
 class UserUpdate(BaseModel):
     full_name: str | None = None
+    email: str | None = None
     role: str | None = None
     is_active: bool | None = None
     permissions: list[str] | None = None

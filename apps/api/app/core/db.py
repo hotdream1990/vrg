@@ -335,6 +335,64 @@ CREATE TABLE IF NOT EXISTS unit_data_lock (
 CREATE UNIQUE INDEX IF NOT EXISTS ux_unit_data_lock ON unit_data_lock (round_id, company);
 CREATE INDEX IF NOT EXISTS ix_unit_data_lock_company ON unit_data_lock (company);
 
+-- HỖ TRỢ & THÔNG BÁO giữa Tập đoàn và đơn vị thành viên (chốt 29/08/2026).
+-- ⚠ CÁCH LY: mỗi LUỒNG thuộc về ĐÚNG MỘT đơn vị. Tập đoàn gửi cho nhiều đơn vị = tạo NHIỀU luồng
+-- (cùng `batch_id`), KHÔNG phải một luồng nhiều người nhận. Nhờ vậy "đơn vị này không thấy tin và
+-- phản hồi của đơn vị kia" là tính chất của DỮ LIỆU, không phải của giao diện — không có truy vấn
+-- nào lỡ tay là lộ chéo được.
+CREATE TABLE IF NOT EXISTS support_thread (
+    id          bigserial PRIMARY KEY,
+    company     text NOT NULL,          -- đơn vị của luồng (khớp member_unit) — khoá cách ly
+    kind        text NOT NULL,          -- request (đơn vị gửi lên) | announce (Tập đoàn gửi xuống) | reminder
+    subject     text NOT NULL,
+    status      text NOT NULL DEFAULT 'open',   -- open | closed
+    batch_id    text,                   -- gom các luồng sinh ra từ CÙNG một lần gửi (thông báo nhiều đơn vị)
+    reminder_id bigint,                 -- luồng do lịch nhắc nào sinh ra (NULL = người gửi tay)
+    created_by  text,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    last_at     timestamptz NOT NULL DEFAULT now(),  -- mốc tin cuối (sắp xếp hộp thư)
+    last_side   text NOT NULL DEFAULT 'hq',          -- hq | unit — bên nhắn cuối cùng
+    hq_read_at   timestamptz,           -- Tập đoàn đã đọc tới lúc nào (NULL = chưa đọc)
+    unit_read_at timestamptz            -- Đơn vị đã đọc tới lúc nào
+);
+CREATE INDEX IF NOT EXISTS ix_support_thread_company ON support_thread (company, last_at DESC);
+CREATE INDEX IF NOT EXISTS ix_support_thread_last ON support_thread (kind, last_at DESC);
+CREATE INDEX IF NOT EXISTS ix_support_thread_batch ON support_thread (batch_id);
+
+-- Từng tin trong luồng: tin ĐẦU là nội dung gốc, các tin sau là phản hồi qua lại.
+CREATE TABLE IF NOT EXISTS support_message (
+    id          bigserial PRIMARY KEY,
+    thread_id   bigint NOT NULL,
+    side        text NOT NULL,          -- hq | unit — bên gửi
+    author      text NOT NULL,          -- username ('system' = lịch nhắc tự phát)
+    author_name text,
+    body        text NOT NULL DEFAULT '',
+    files       jsonb NOT NULL DEFAULT '[]'::jsonb,  -- đính kèm: [{file, filename, size}]
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_support_message_thread ON support_message (thread_id, id);
+
+-- NHẮC LỊCH: đến giờ thì tự phát thông báo tới các đơn vị đã chọn (đi đúng đường thông báo ở trên,
+-- nên cũng gửi email và cũng cách ly theo đơn vị). `next_at` là mốc phát KẾ TIẾP — job so mốc này
+-- với hiện tại, phát xong mới dời sang chu kỳ sau; lưu mốc thay vì tính lại từ lịch để lỡ giờ
+-- (máy chủ tắt/deploy) vẫn phát bù đúng một lần.
+CREATE TABLE IF NOT EXISTS support_reminder (
+    id           bigserial PRIMARY KEY,
+    title        text NOT NULL,
+    body         text NOT NULL DEFAULT '',
+    files        jsonb NOT NULL DEFAULT '[]'::jsonb,
+    scope        text NOT NULL DEFAULT 'all',   -- all | units | region
+    units        jsonb NOT NULL DEFAULT '[]'::jsonb,
+    region       text,
+    repeat_rule  text NOT NULL DEFAULT 'once',  -- once | daily | weekly | monthly
+    next_at      timestamptz NOT NULL,
+    enabled      boolean NOT NULL DEFAULT true,
+    last_sent_at timestamptz,
+    created_by   text,
+    created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_support_reminder_next ON support_reminder (enabled, next_at);
+
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
 -- Job chạy theo NGÀY TRONG TUẦN (rỗng/NULL = chạy hằng ngày như trước). Vd 'fri' = tối thứ Sáu
 -- cho job chốt tồn kho Tập đoàn theo tuần.
@@ -417,6 +475,8 @@ UPDATE unit_stock_contract SET files = jsonb_build_array(
          jsonb_build_object('file', file, 'filename', COALESCE(filename, file)))
  WHERE files = '[]'::jsonb AND file IS NOT NULL AND file <> '';
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS permissions jsonb NOT NULL DEFAULT '[]'::jsonb;
+-- Email nhận thông báo (Hỗ trợ & Thông báo). Trống → lấy chính username nếu username là email.
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS email text;
 -- Các đơn vị gắn với tài khoản (chỉ dùng cho role=member) — 1 tài khoản có thể gán NHIỀU đơn vị.
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS member_units jsonb NOT NULL DEFAULT '[]'::jsonb;
 -- Migrate cột đơn cũ member_unit → mảng member_units rồi bỏ cột cũ (idempotent).
@@ -480,10 +540,15 @@ def ensure_schema() -> None:
     engine = get_engine()
     with engine.begin() as conn:
         conn.execute(text(_DDL_TABLES))
-        try:
+    # Hypertable phải ở TRANSACTION RIÊNG: thiếu extension timescaledb thì lệnh này lỗi, mà một
+    # lệnh lỗi làm hỏng cả transaction đang mở — bắt exception rồi commit tiếp chỉ đổi commit thành
+    # rollback, nuốt luôn phần CREATE TABLE ở trên. Triệu chứng: `ensure_schema()` chạy êm và báo
+    # xong, nhưng DB không có bảng nào (đúng cảnh Postgres thường dùng để chạy test).
+    try:
+        with engine.begin() as conn:
             conn.execute(text(_DDL_HYPERTABLE))
-        except Exception:  # noqa: BLE001 - thiếu timescaledb thì bỏ qua, bảng thường vẫn chạy
-            pass
+    except Exception:  # noqa: BLE001 - thiếu timescaledb thì bỏ qua, bảng thường vẫn chạy
+        pass
     _schema_ready = True
 
 

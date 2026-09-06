@@ -1,4 +1,4 @@
-"""Danh sách định dạng chứng từ được nhận (bộ Hợp đồng · phiếu xuất kho · hoá đơn).
+"""Danh sách định dạng file đính kèm được nhận (chứng từ hợp đồng · Hỗ trợ & Thông báo).
 
 Đây là ALLOWLIST có yếu tố bảo mật: file được phục vụ lại cho trình duyệt, nên SVG/HTML (chèn
 được JavaScript, chạy dưới chính tên miền hệ thống) phải bị từ chối. Test khoá cả 2 chiều.
@@ -12,6 +12,7 @@ import pytest
 from fastapi import HTTPException, UploadFile
 from starlette.datastructures import Headers
 
+from app.services import attachment_store as store
 from app.services import contract_files as cf
 
 
@@ -38,7 +39,7 @@ def _up(filename: str, content_type: str) -> UploadFile:
     ("hop-dong.docx", "application/octet-stream", ".docx"),
 ])
 def test_nhan_dung_dinh_dang_chung_tu(name: str, ct: str, ext: str) -> None:
-    assert cf._ext_of(_up(name, ct)) == ext
+    assert store.ext_of(_up(name, ct)) == ext
 
 
 @pytest.mark.parametrize(("name", "ct"), [
@@ -48,7 +49,7 @@ def test_nhan_dung_dinh_dang_chung_tu(name: str, ct: str, ext: str) -> None:
     ("khong-duoi", "application/octet-stream"),
 ])
 def test_tu_choi_dinh_dang_ngoai_danh_sach(name: str, ct: str) -> None:
-    assert cf._ext_of(_up(name, ct)) is None
+    assert store.ext_of(_up(name, ct)) is None
     with pytest.raises(HTTPException) as e:
         cf.save(_up(name, ct))
     assert e.value.status_code == 400
@@ -56,7 +57,7 @@ def test_tu_choi_dinh_dang_ngoai_danh_sach(name: str, ct: str) -> None:
 
 def test_loai_khong_xem_thang_thi_ep_tai_ve() -> None:
     """Chỉ PDF/ảnh thường mới mở thẳng trong trình duyệt; còn lại phải tải về (chống đoán kiểu)."""
-    assert cf._TYPES[".pdf"][1] is True
-    assert cf._TYPES[".jpg"][1] is True
+    assert store.TYPES[".pdf"][1] is True
+    assert store.TYPES[".jpg"][1] is True
     for ext in (".zip", ".docx", ".xml", ".heic"):
-        assert cf._TYPES[ext][1] is False
+        assert store.TYPES[ext][1] is False

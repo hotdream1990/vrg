@@ -430,3 +430,24 @@ def test_deleting_the_target_unit_frees_the_merged_one() -> None:
     member_unit_repo.delete_unit(NEW)
     units = {u["name"]: u for u in member_unit_repo.list_units()}
     assert units[OLD]["merged_into"] is None and units[OLD]["is_active"] is True
+
+
+def test_daily_stock_rows_stop_double_counting_after_the_merge_date() -> None:
+    """Bảng tồn kho xem theo NGÀY: ngày cả hai cùng khai sau ngày hiệu lực chỉ tính đơn vị nhận.
+
+    Trước 06/09/2026 luật sáp nhập chỉ áp cho dòng Tổng cộng, còn từng dòng ngày vẫn cộng cả hai —
+    nên chính bảng đó tự cãi nhau, và lệch luôn với biểu đồ tồn kho theo ngày ở Bản tin biến động.
+    Ngày TRƯỚC ngày hiệu lực phải giữ nguyên cả hai: lúc đó hai kho còn khai riêng thật.
+    """
+    from app.services import unit_report_stock as st
+
+    d_before = (date.fromisoformat(D_MERGE) - timedelta(days=1)).isoformat()
+    for day, old_qty, new_qty in ((d_before, 800.0, 400.0), (D_AFTER, 800.0, 1300.0)):
+        _stock(OLD, day, old_qty)
+        _stock(NEW, day, new_qty)
+    merge.merge(OLD, NEW, D_MERGE)
+
+    days = st.stock_report(D_AFTER, days_back=30, companies=f"{OLD},{NEW}", group_by="day")
+    by_day = {r["key"]: r["warehoused"] for r in days["rows"]}
+    assert by_day[d_before] == 1200.0, "ngày trước sáp nhập: hai kho còn riêng, phải cộng cả hai"
+    assert by_day[D_AFTER] == 1300.0, "sau ngày hiệu lực: kho cũ đã nằm trong số của đơn vị nhận"

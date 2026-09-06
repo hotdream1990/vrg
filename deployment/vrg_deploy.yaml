@@ -28,6 +28,8 @@ services:
       # cập nhật được.
       # ★ Chứng từ đơn vị upload (hợp đồng · phiếu xuất kho · hoá đơn) — KHÔNG tái tạo được.
       - contract-files:/app/data/unit-daily-contracts
+      # ★ File/hình đính kèm trong Hỗ trợ & Thông báo — cũng KHÔNG tái tạo được.
+      - support-files:/app/data/support-files
       - bulletin-out:/app/data/bulletins
       - bulletin-custom:/app/data/bulletin-assets/custom
       - weekly-out:/app/data/weekly-reports
@@ -35,7 +37,7 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ['CMD-SHELL', 'python -c "import urllib.request;urllib.request.urlopen(''http://localhost:8000/health'')"']
+      test: ['CMD-SHELL', 'python -c "import urllib.request;urllib.request.urlopen(''http://127.0.0.1:8000/health'')"']
       interval: 15s
       timeout: 5s
       retries: 5
@@ -60,6 +62,7 @@ services:
 volumes:
   db-data:
   contract-files:
+  support-files:
   bulletin-out:
   bulletin-custom:
   weekly-out:

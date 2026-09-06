@@ -17,9 +17,8 @@ const PAGE_SIZE = 50;
 
 /** Quản lý hợp đồng → Khách hàng: danh mục RIÊNG của từng đơn vị (không dùng chung Tập đoàn). */
 export default function CustomerPage() {
-  const { canEditCap, user } = useAuth();
-  const isMember = user?.role === "member";
-  const canEdit = isMember || canEditCap("sales_contract");
+  const { canEditCap, canEditUnitData } = useAuth();
+  const canEdit = canEditUnitData || canEditCap("sales_contract");
 
   const [units, setUnits] = useState<string[]>([]);
   const [rows, setRows] = useState<Customer[]>([]);
@@ -77,7 +76,7 @@ export default function CustomerPage() {
         </div>
       </div>
 
-      {!isMember && <ReadOnlyNotice cap="sales_contract" />}
+      {!canEdit && <ReadOnlyNotice cap="sales_contract" />}
 
       {err && <div className="blt-error">{err}</div>}
 
