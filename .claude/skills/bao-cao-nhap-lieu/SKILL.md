@@ -121,6 +121,11 @@ USD/tấn bị đọc thành 2.680 triệu đ/tấn → **báo oan các đơn v�
 ## Sửa nội dung/bố cục
 
 - Truy vấn: `scripts/collect.sql` — 7 nhóm **A** tình trạng nộp · **D** thiếu đơn giá · **B** giá mủ
+- ⚠ Nhóm **D** KHÔNG tính ngày đơn vị đã khai rõ *"không có đơn giá"* (gõ 0 — hay gặp ở sản lượng
+  chênh lệch sau chế biến cuối tháng): dấu vết là cờ `no_price_*` trong phiếu, hoặc ô đơn giá nội
+  tệ `price_*_local` = 0 với đơn vị nước ngoài. Trước 07/09/2026 vẫn kêu những ngày này (đơn vị
+  Bà Rịa - Kampong Thom phản ánh) vì đơn giá 0 không được lưu thành một mức giá nên không còn dấu
+  vết nào để phân biệt với "quên khai".
   sai đơn vị · **C** giá bán sai đơn vị (nguồn: `sales_contract`) · **E** tồn kho theo ngày · **F** thu mua theo tháng · **G** kế hoạch năm; mỗi dòng ra là chuỗi ngăn bằng `|`, ký tự đầu là tên nhóm.
 - HTML/CSS + chụp ảnh: `scripts/make-report.py` (`page_missing`, `page_wrong`,
   `page_stock_missing`, `page_purchase_months`, `page_year_plan`, `CSS`). Bảng nhiều cột thì truyền bề ngang ở tham số thứ 3 của

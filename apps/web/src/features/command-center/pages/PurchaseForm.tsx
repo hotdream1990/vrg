@@ -58,10 +58,16 @@ function initDraft(values: Values, linked: UnitPurchasePrice | null | undefined,
       fx_purchase: values.fx_purchase,
     };
   }
+  // Kho giá KHÔNG lưu số 0 (0 = không có giá), nên đơn vị đã khai 0 mà mở lại thấy ô trắng thì
+  // tưởng hệ thống nuốt mất số. Cờ `no_price_*` giữ đúng lời khai → hiện lại đúng số 0.
+  const declared0 = (flag: unknown, saved: number | null | undefined) =>
+    saved != null ? saved : (flag === true ? 0 : undefined);
+  const v = values as unknown as Record<string, unknown>;
   return {
     ...base,
-    price_latex_vnd: linked?.latex ?? undefined, price_cup_vnd: linked?.cup ?? undefined,
-    price_lace_vnd: linked?.lace ?? undefined,
+    price_latex_vnd: declared0(v.no_price_latex, linked?.latex),
+    price_cup_vnd: declared0(v.no_price_cup, linked?.cup),
+    price_lace_vnd: declared0(v.no_price_lace, linked?.lace),
   };
 }
 
@@ -105,8 +111,14 @@ export default function PurchaseForm({
     }
     (p as Record<string, unknown>).finished = finished;
     if (noPurchase) (p as Record<string, unknown>).no_purchase = true;
+    // Gõ 0 vào ô đơn giá = "ngày này KHÔNG CÓ GIÁ" (hay gặp ở sản lượng chênh lệch sau chế biến).
+    // Số 0 không được lưu thành một mức giá, nên phải ghi lại chính lời khai đó — nếu không, mở
+    // phiếu ra lại thấy ô trắng và các bảng soát cứ nhắc "chưa nhập đơn giá".
+    if (priceLatexVnd === 0) (p as Record<string, unknown>).no_price_latex = true;
+    if (priceCupVnd === 0) (p as Record<string, unknown>).no_price_cup = true;
+    if (priceLaceVnd === 0) (p as Record<string, unknown>).no_price_lace = true;
     return p;
-  }, [draft, finished, foreign, noPurchase]);
+  }, [draft, finished, foreign, noPurchase, priceLatexVnd, priceCupVnd, priceLaceVnd]);
   const prices: PriceDraft = { latex: priceLatexVnd, cup: priceCupVnd, lace: priceLaceVnd };
 
   const dirty = useMemo(() => {

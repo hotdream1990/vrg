@@ -49,6 +49,22 @@ FINISHED_TABLE = "finished"
 #   - hôm đó KHÔNG tổ chức thu mua                        → bật cờ này, không có giá nào cả
 PURCHASE_FLAGS: frozenset[str] = frozenset({"no_purchase"})
 
+# Cờ "loại mủ này ngày đó KHÔNG CÓ ĐƠN GIÁ" — đơn vị gõ 0 vào ô đơn giá.
+# Vì sao cần: đơn giá 0 KHÔNG được lưu thành một mức giá (xem `core/market_meta`), nên sau khi lưu
+# không còn dấu vết nào để phân biệt "đơn vị quên khai" với "đơn vị đã khai là không có giá" —
+# các bảng soát vì thế cứ nhắc "chưa nhập đơn giá" cho những ngày sản lượng chênh lệch sau chế
+# biến (đơn vị Bà Rịa - Kampong Thom phản ánh 07/09/2026). Cờ này giữ đúng lời khai đó.
+#: {loại mủ: khoá cờ trong payload}
+NO_PRICE_FLAGS: dict[str, str] = {
+    "latex": "no_price_latex", "cup": "no_price_cup", "lace": "no_price_lace",
+}
+#: {loại mủ: (ô sản lượng, ô đơn giá nội tệ của đơn vị nước ngoài)} — dùng để đọc lời khai.
+_NO_PRICE_SOURCES: dict[str, tuple[str, str]] = {
+    "latex": ("latex_wet", "price_latex_local"),
+    "cup": ("coagulum", "price_cup_local"),
+    "lace": ("lace", "price_lace_local"),
+}
+
 # Biểu mẫu Tiêu thụ – Tồn kho — TIÊU THỤ = 2 BẢNG NHIỀU DÒNG nhập tách riêng: `sales` (mủ THU MUA)
 # và `sales_own` (mủ KHAI THÁC); tổng doanh thu của CẢ HAI (VND, base=đồng) gộp chung ở `revenue`.
 # TỒN KHO (chỉ tiêu THỜI ĐIỂM, đơn vị TẤN) chia 4 khối theo yêu cầu nghiệp vụ:
@@ -263,7 +279,26 @@ def clean_fields(kind: str, fields: dict) -> dict:
     if kind == "purchase":
         if FINISHED_TABLE in fields:
             out[FINISHED_TABLE] = _clean_finished(fields.get(FINISHED_TABLE))
-        for k in PURCHASE_FLAGS:
+        for k in PURCHASE_FLAGS | frozenset(NO_PRICE_FLAGS.values()):
             if fields.get(k) is True:
                 out[k] = True
     return out
+
+
+def declared_no_price(fields: dict) -> set[str]:
+    """Loại mủ mà đơn vị ĐÃ KHAI RÕ là ngày đó không có đơn giá (khác hẳn "quên khai").
+
+    Đọc cả bản ghi CŨ chưa có cờ: đơn vị nước ngoài nhập đơn giá theo nội tệ nên số 0 họ gõ vẫn
+    còn nguyên trong payload (`price_*_local` = 0) — đó chính là lời khai, đừng bắt họ nhập lại.
+    """
+    out = {mat for mat, key in NO_PRICE_FLAGS.items() if fields.get(key) is True}
+    out |= {mat for mat, (_, local) in _NO_PRICE_SOURCES.items()
+            if _to_float(fields.get(local)) == 0}
+    return out
+
+
+def missing_price_materials(fields: dict) -> set[str]:
+    """Loại mủ CÓ sản lượng mà chưa có lời khai nào về đơn giá — tức nhắc là đúng."""
+    declared = declared_no_price(fields)
+    return {mat for mat, (qty_key, _) in _NO_PRICE_SOURCES.items()
+            if mat not in declared and (_to_float(fields.get(qty_key)) or 0) > 0}

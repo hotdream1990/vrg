@@ -153,6 +153,11 @@ def _purchase_warnings(rows: list[dict]) -> list[str]:
     out = []
     if (n := sum(1 for r in rows if r.get("missing_fx"))):
         out.append(f"{n} dòng nhập ngoại tệ nhưng thiếu tỷ giá — không tính vào giá bình quân.")
-    if (n := sum(1 for r in rows if r["material"] != "finished" and r["price"] is None and r["qty"])):
+    # Ngày đơn vị ĐÃ KHAI RÕ "không có giá" (sản lượng chênh lệch sau chế biến) không phải lỗi —
+    # đếm cả những ngày đó là nhắc oan, đơn vị đã làm đúng phần việc của mình.
+    if (n := sum(1 for r in rows if r["material"] != "finished" and r["price"] is None and r["qty"]
+                 and not r.get("price_declared_none"))):
         out.append(f"{n} ngày có sản lượng thu mua nhưng chưa có đơn giá — không tính vào giá bình quân.")
+    if (n := sum(1 for r in rows if r.get("price_declared_none") and r["qty"])):
+        out.append(f"{n} ngày đơn vị khai không có đơn giá (sản lượng vẫn tính, giá không vào bình quân).")
     return out

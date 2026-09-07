@@ -50,6 +50,10 @@ SELECT 'A|' || u.name || '|' ||
 -- Lỗi thật của biểu Thu mua: đã nhập sản lượng mà bỏ trống ô đơn giá.
 -- ⚠ Ngày bật cờ `no_purchase` (không tổ chức thu mua) thì KHÔNG có giá là ĐÚNG → loại ra.
 --   Ngày có tổ chức mà mua được 0 tấn thì VẪN phải có giá đã công bố → giữ lại.
+-- ⚠ Đơn vị KHAI RÕ "không có giá" (gõ 0 — thường là sản lượng chênh lệch sau chế biến cuối tháng)
+--   cũng KHÔNG phải lỗi: đơn giá 0 không được lưu thành một mức giá, dấu vết nằm ở cờ
+--   `no_price_*` (bản ghi mới) hoặc ô đơn giá nội tệ `price_*_local` = 0 (đơn vị nước ngoài).
+--   Chỉ còn nhắc khi CÒN loại mủ có sản lượng mà chưa khai gì về giá.
 SELECT 'D|' || r.company || '|' || r.as_of::text
   FROM unit_daily_report r
  WHERE r.kind = 'purchase' AND r.payload <> '{}'::jsonb
@@ -58,6 +62,14 @@ SELECT 'D|' || r.company || '|' || r.as_of::text
    AND NOT EXISTS (SELECT 1 FROM fact_price f
                     WHERE f.source = 'vrg_unit' AND f.grade = r.company AND f.as_of = r.as_of
                       AND f.price_type IN ('purchase', 'purchase_cup'))
+   AND EXISTS (
+        SELECT 1 FROM (VALUES ('latex_wet', 'no_price_latex', 'price_latex_local'),
+                              ('coagulum',  'no_price_cup',   'price_cup_local'),
+                              ('lace',      'no_price_lace',  'price_lace_local'))
+                   AS m(qty_key, flag_key, local_key)
+         WHERE COALESCE((r.payload->>m.qty_key)::numeric, 0) > 0
+           AND COALESCE((r.payload->>m.flag_key)::bool, false) = false
+           AND COALESCE((r.payload->>m.local_key)::numeric, -1) <> 0)
  ORDER BY r.company, r.as_of;
 
 -- ── B) Giá mủ nguyên liệu SAI ĐƠN VỊ TÍNH: B|đơn vị|loại mủ|giá lớn nhất|số ô sai ──────────

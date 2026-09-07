@@ -3,6 +3,22 @@
 Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/).
 
 ## [Unreleased]
+### Fixed
+- **Thôi nhắc "chưa nhập đơn giá" với ngày đơn vị đã khai là KHÔNG CÓ GIÁ** (07/09/2026) — đơn vị
+  báo: những ngày chỉ có *sản lượng chênh lệch sau chế biến* thì không có giá, Ban đã thống nhất
+  nhập 0, vậy mà ảnh đốc thúc vẫn ghi "chưa nhập đơn giá".
+  - Gốc vấn đề: đơn giá 0 **không được lưu thành một mức giá** (để không kéo tụt giá bình quân và
+    không lọt vào bản tin) nên sau khi lưu không còn dấu vết — hệ thống không phân biệt được "quên
+    khai" với "đã khai là không có giá".
+  - Nay lời khai được giữ lại bằng cờ trong phiếu; mở phiếu ra **ô đơn giá hiện lại số 0** thay vì
+    trắng trơn như trước. Bản ghi CŨ của đơn vị nước ngoài (đơn giá nội tệ = 0) cũng được đọc như
+    một lời khai nên **không phải nhập lại**.
+  - Ảnh đốc thúc và cảnh báo trong báo cáo Thu mua thôi nhắc những ngày đó, chuyển sang câu ghi
+    nhận đúng bản chất: *"N ngày đơn vị khai không có đơn giá"*. Ngày chưa nói gì về giá thì vẫn
+    nhắc như cũ.
+  - Đo trên dữ liệu thật: 11 ngày bị nhắc oan ở 5 đơn vị → còn 6 ngày (những ngày thật sự chưa
+    khai gì). Giá bình quân · bản tin · báo cáo **không đổi** — số 0 vẫn không vào kho giá.
+
 ### Changed
 - **Đơn vị đang bật "tự động lấy số" thì chuyên viên chỉ xem, không sửa được** (06/09/2026) —
   trước đây chuyên viên vẫn gõ đè được ô của những đơn vị này, nhưng lần đơn vị nộp sau lại ghi đè

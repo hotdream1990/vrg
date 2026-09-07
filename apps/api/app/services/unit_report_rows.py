@@ -17,7 +17,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from app.core.market_meta import PURCHASE_PRICE_UNIT, PURCHASE_SOURCE_UNIT as UNIT_SRC
-from app.services import member_unit_repo, price_repo, unit_daily_repo
+from app.services import member_unit_repo, price_repo, unit_daily_fields, unit_daily_repo
 
 TRIEU = 1_000_000       # 1 triệu đồng
 
@@ -115,6 +115,9 @@ def purchase_rows(date_from: str, date_to: str,
             no_purchase.append({"company": base["company"], "as_of": base["as_of"]})
         day_px = px.get((base["company"], base["as_of"])) or {}
         fx_local = _num(f.get("fx_purchase"))
+        # Loại mủ đơn vị đã khai rõ "ngày này không có giá" — vẫn để `price = None` (không kéo giá
+        # bình quân) nhưng KHÔNG được đếm vào cảnh báo "chưa nhập đơn giá".
+        no_price = unit_daily_fields.declared_no_price(f)
         for material, qty_key, local_key, price_type in PURCHASE_MATERIALS:
             qty = _num(f.get(qty_key))
             if qty is None:
@@ -126,6 +129,7 @@ def purchase_rows(date_from: str, date_to: str,
                          "qty": qty, "price": price, "price_unit": "dong_do",
                          "price_unit_label": PURCHASE_PRICE_UNIT[price_type],
                          "ccy": "VND", "fx": None, "revenue_vnd": None,
+                         "price_declared_none": material in no_price,
                          "missing_fx": local is not None and not fx_local})
         for ln in f.get("finished") or []:
             qty = _num(ln.get("qty"))
@@ -136,7 +140,7 @@ def purchase_rows(date_from: str, date_to: str,
             rows.append({**base, "material": "finished", "grade": str(ln.get("grade") or "").strip() or "—",
                          "qty": qty, "price": price, "price_unit": "per_tonne",
                          "price_unit_label": None, "ccy": ln.get("ccy") or "VND", "fx": _num(ln.get("fx")),
-                         "revenue_vnd": rev,
+                         "revenue_vnd": rev, "price_declared_none": False,
                          "missing_fx": (ln.get("ccy") == "USD" and _num(ln.get("fx")) is None)})
     return {"rows": rows, "no_purchase": no_purchase}
 
