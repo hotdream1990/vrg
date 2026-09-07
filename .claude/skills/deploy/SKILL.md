@@ -50,9 +50,15 @@ git add -A apps/ && git commit -m "chore(release): bump version to 0.2.72"
 
 # ② Build + push (~10–15 phút: image có Playwright Firefox [crawler] + Chromium [xuất PDF])
 #    Chạy nền bằng nohup để không chết theo phiên; ĐỪNG pipe qua `tail` (che mất exit code của buildx).
+#    ⚠ LUÔN kèm 2 cờ cache: bước `playwright install --with-deps firefox` tải >150 gói .deb — hôm
+#    mạng chậm (27 kB/s, 06/09/2026) build mất 70 phút thay vì 17. Cache đẩy lên registry để lần
+#    sau tái dùng; `--cache-to type=inline` nhúng luôn vào image, không tạo tag rác.
 source .claude/skills/deploy/dokploy-target.local.env
 nohup docker buildx build --platform linux/amd64 -f Dockerfile \
-  -t "$IMAGE_BASE:0.2.72" --push . > /tmp/vrg-build.log 2>&1 &
+  -t "$IMAGE_BASE:0.2.72" \
+  --cache-from "type=registry,ref=$IMAGE_BASE:buildcache" \
+  --cache-to "type=inline" \
+  --push . > /tmp/vrg-build.log 2>&1 &
 
 # ③ Deploy (script tự kiểm image đã lên registry chưa)
 ./.claude/skills/deploy/dokploy-redeploy.local.sh 0.2.72
