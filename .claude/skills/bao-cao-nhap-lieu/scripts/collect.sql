@@ -83,7 +83,13 @@ SELECT 'B|' || grade || '|' || price_type || '|' || max(price)::bigint || '|' ||
 -- ── C) Giá bán ở HỢP ĐỒNG TIÊU THỤ sai đơn vị tính ─────────────────────────────────────────
 -- C|đơn vị|số dòng|từ ngày|đến ngày|giá lớn nhất|tiền|thiếu tỷ giá|mã hợp đồng
 -- VND phải nhập TRIỆU ĐỒNG/TẤN (mặt bằng 40–70) → > 200 là đã gõ nghìn/đồng trên tấn.
--- USD nhập USD/TẤN (mặt bằng 1.400–2.200) → > 10.000 là sai đơn vị.
+-- ⚠ NGOẠI TỆ: quy về triệu đ/tấn bằng CHÍNH TỶ GIÁ CỦA DÒNG rồi mới soi mặt bằng — KHÔNG áp ngưỡng
+--   theo từng loại tiền. Bản cũ chỉ biết VND/USD nên ép mọi loại tiền khác thành 'USD' rồi so
+--   > 10.000: đơn vị Lào nhập ĐÚNG 26.300.000 LAK/tấn (kèm tỷ giá 1,11) bị nêu tên oan 37 hợp đồng
+--   và ảnh in nhầm nhãn "26.300.000 USD" (Hà Tĩnh - Bolikhamxai phản ánh 07/09/2026). Hệ thống có
+--   4 loại tiền: VND · USD · LAK (Lào) · KHR (Campuchia) — xem `market_meta.SALE_CURRENCIES`.
+-- USD THIẾU tỷ giá thì không quy đổi được → giữ ngưỡng USD/TẤN (mặt bằng 1.400–2.200) > 10.000.
+--   LAK/KHR thiếu tỷ giá thì KHÔNG đoán: cột "thiếu tỷ giá" của chính nhóm này đã báo rồi.
 -- ⚠ ĐỌC `sales_contract`, KHÔNG đọc mảng `sales`/`sales_own` trong `unit_daily_report` nữa.
 --   Cơ chế khai tiêu thụ theo NGÀY đã bỏ: toàn bộ dòng bán cũ được chuyển sang hợp đồng (cờ
 --   `sales_migrated` trên bản ghi ngày), mảng cũ chỉ còn nằm lại để tra cứu và KHÔNG có ô nào
@@ -102,16 +108,21 @@ SELECT 'C|' || company || '|' || count(*) || '|' || COALESCE(min(d)::text, '')
     SELECT c.company,
            COALESCE(NULLIF(c.code, ''), '(chưa có mã)') AS code,
            COALESCE(c.delivered_at, c.start_date, c.sign_date, c.completed_at) AS d,
-           CASE WHEN ln->>'ccy' IN ('VND', 'USD') THEN ln->>'ccy'
-                WHEN COALESCE(u.currency, 'VND') = 'VND' THEN 'VND' ELSE 'USD' END AS ccy,
+           COALESCE(NULLIF(ln->>'ccy', ''),
+                    CASE WHEN COALESCE(u.currency, 'VND') = 'VND' THEN 'VND'
+                         ELSE COALESCE(u.currency, 'USD') END) AS ccy,
            (ln->>'price')::numeric AS price,
+           NULLIF(ln->>'fx', '')::numeric AS fx,
            (ln->>'fx' IS NULL) AS no_fx
       FROM sales_contract c
       LEFT JOIN member_unit u ON u.name = c.company
       CROSS JOIN LATERAL jsonb_array_elements(COALESCE(c.lines, '[]'::jsonb)) AS ln
      WHERE (ln->>'price') ~ '^[0-9.]+$'
   ) t
- WHERE (ccy = 'VND' AND price > 200) OR (ccy = 'USD' AND price > 10000)
+ WHERE CASE WHEN ccy = 'VND'      THEN price > 200                 -- đã là triệu đ/tấn
+            WHEN fx IS NOT NULL   THEN price * fx / 1e6 > 200      -- quy về triệu đ/tấn rồi soi
+            WHEN ccy = 'USD'      THEN price > 10000               -- USD thiếu tỷ giá: mặt bằng USD/tấn
+            ELSE false END                                          -- LAK/KHR thiếu tỷ giá: không đoán
  GROUP BY company ORDER BY count(*) DESC, company;
 
 -- ── E) TỒN KHO theo NGÀY: E|đơn vị|khu vực|các ngày ĐÃ nộp (YYYY-MM-DD, ngăn bằng dấu phẩy) ──

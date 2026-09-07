@@ -99,7 +99,8 @@ thu mua mà ô đơn giá còn trống. Ngày `no_purchase = true` được lo�
 |---|---|---|---|
 | Giá mủ nguyên liệu | đồng/độ TSC | 100 – 1.500 | `> 1.500` (gõ nhầm đồng/kg hoặc đồng/tấn) |
 | Giá bán (VND) | triệu đồng/tấn | 40 – 70 | `> 200` (gõ nhầm nghìn/đồng trên tấn) |
-| Giá bán (USD) | USD/tấn | 1.400 – 2.200 | `> 10.000` |
+| Giá bán (USD) | USD/tấn | 1.400 – 2.200 | `> 10.000` (chỉ khi thiếu tỷ giá) |
+| Giá bán ngoại tệ có tỷ giá | quy về triệu đ/tấn | 40 – 70 | `giá × tỷ giá > 200 triệu đ/tấn` |
 
 ⚠ **Giá bán đọc ở `sales_contract.lines`, KHÔNG đọc mảng `sales`/`sales_own` trong
 `unit_daily_report`.** Cơ chế khai tiêu thụ theo NGÀY đã bỏ, chuyển sang hợp đồng: script
@@ -110,6 +111,11 @@ sang hợp đồng đã được chuẩn hoá đơn vị. Quét mảng cũ là *
 21/08/2026 từng nêu tên 3 đơn vị (Dầu Tiếng · Phước Hoà · Đồng Nai–Kratie) chỉ vì bản sao đã chết,
 trong khi 2 đơn vị sai thật ở hợp đồng (Hà Tĩnh · Dầu Tiếng) thì không ai biết.
 Cùng lý do này, `unit_daily_fields.py` cũng CỐ Ý bỏ `sales`/`sales_own` khỏi luật "đã nộp".
+
+⚠ Hệ thống có **4 loại tiền**: VND · USD · **LAK** (Lào) · **KHR** (Campuchia). Ngoại tệ nào
+cũng phải quy về triệu đ/tấn **bằng tỷ giá của chính dòng đó** rồi mới soi mặt bằng — áp ngưỡng
+USD cho LAK là báo oan (07/09/2026: Hà Tĩnh - Bolikhamxai nhập đúng 26,3 triệu LAK/tấn bị nêu tên
+37 hợp đồng, ảnh còn in nhầm nhãn "USD").
 
 ⚠ **Loại tiền lấy ngay ở dòng hợp đồng** (`lines[].ccy`, prod đã có đủ ở 7.246/7.246 dòng); dòng nào
 trống mới suy theo mặc định của đơn vị (trong nước VND · nước ngoài USD). Bỏ bước này thì 2.680
