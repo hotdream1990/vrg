@@ -116,7 +116,7 @@ futures (MRB SMR20 · SGX TSR20 · SHFE RU · OSE RSS3) ra khỏi cả hai vế 
 
 ## 3. Hiện trạng SAU đợt mở rộng (09/2026)
 
-Từ **6 công cụ trong 1 file** → **19 công cụ chia 4 gói kỹ năng bật/tắt được**
+Từ **6 công cụ trong 1 file** → **24 công cụ chia 5 gói kỹ năng bật/tắt được**
 (`apps/api/app/services/assistant_tools/`).
 
 ### Gói "Thị trường thế giới" (`market`) — gói nền, luôn bật
@@ -157,6 +157,20 @@ Từ **6 công cụ trong 1 file** → **19 công cụ chia 4 gói kỹ năng b�
 | `get_unit_stock` | Tồn kho tại ngày chốt + số đơn vị thật sự có số |
 | `get_unit_plan_progress` | Kế hoạch năm & % thực hiện |
 | `get_submission_status` | Đơn vị nào chưa nộp / thiếu ô |
+
+### Gói "Hợp đồng & khách hàng" (`contract`) — cần quyền `sales_contract`
+
+| Công cụ | Trả về |
+|---|---|
+| `get_undelivered_volume` | **Đã ký hợp đồng chưa giao** tại một ngày (tấn) — áp lực bán còn treo |
+| `get_contract_deliveries` | Các đợt giao trong kỳ: sản lượng · doanh thu · đơn giá bình quân |
+| `get_contract_summary` | Hợp đồng ký trong kỳ: số HĐ · cam kết · đã giao · còn lại |
+| `get_top_customers` | Khách hàng lớn theo sản lượng/doanh thu |
+| `get_master_contracts` | Hợp đồng mẹ (HĐNT/HĐDH) + tiến độ thực hiện |
+
+⚠ Ba bẫy đã xử lý trong gói này: hợp đồng **mẹ không vào tổng sản lượng** (tránh đếm trùng 2 cấp);
+doanh thu thiếu đơn giá hoặc tỷ giá ở bất kỳ dòng nào ⇒ trả **KHÔNG BIẾT** thay vì cộng phần còn
+lại; nhóm theo đơn vị **gộp đơn vị đã sáp nhập**.
 
 ### Khả năng suy luận được bổ sung
 
@@ -207,6 +221,14 @@ hơn một ngày chọn trước.
 | Số liệu theo đơn vị lấy từ **nguồn thô**, không qua chuỗi vẽ biểu đồ | Chuỗi biểu đồ gộp mọi đơn vị ngoài top 8 vào "Khác" — hỏi đơn vị nhỏ sẽ bị trả lời "chưa có số liệu" dù số có thật |
 | Tổng theo đơn vị **cộng gộp đơn vị đã sáp nhập**; hỏi tên cũ vẫn ra kết quả kèm ghi chú | Hỏi "Chư Sê" mà thiếu phần Mang Yang là hụt ~9% |
 
+### Bảng "Trợ lý làm được gì?"
+
+Ngay trên màn chat có nút mở bảng liệt kê **tất cả 5 gói và từng công cụ bên trong**, kèm trạng thái
+của mỗi gói với tài khoản đang dùng: *đang bật* · *đã tắt trong phiên này* · *cần quyền `unit_daily`
+/ `sales_contract`*. Gói không đủ quyền vẫn được liệt kê (để biết là CÓ tính năng đó, chỉ chưa dùng
+được), kèm phần **"Chưa làm được"** — mục đích là người dùng không kỳ vọng nhầm rồi tưởng hệ thống
+trả lời sai. Danh sách giới hạn lấy từ `assistant_tools.LIMITS`, **cập nhật khi mở thêm khả năng mới**.
+
 ### Ba tầng lọc công cụ
 
 1. Gói admin bật ở **Cấu hình hệ thống → AI** (`ASSISTANT_PACKS`; bỏ trống = bật tất cả).
@@ -216,7 +238,6 @@ hơn một ngày chọn trước.
 
 ### Giới hạn còn lại (chưa làm đợt này)
 
-- **Hợp đồng & khách hàng** (cam kết · đã giao · **đã ký chưa giao** · doanh thu): chưa có công cụ.
 - **Tri thức nội bộ (RAG)**: Trợ lý trả lời được số, chưa trả lời được câu hỏi quy trình/nghiệp vụ.
 - `get_latest_bulletin` chỉ đọc bản tin **đã lưu**; bản dựng tạm trên UI mà chưa bấm lưu thì không thấy.
 - Trợ lý **chỉ đọc** — không tạo nháp, không gửi nhắc (theo quyết định 10/09/2026).
