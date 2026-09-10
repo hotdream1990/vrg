@@ -196,6 +196,17 @@ gian xử lý) để xem lại ở trang **Lịch sử hỏi đáp**. **Không l
 liệu gốc, và đó là thứ làm log phình nhanh nhất). Admin xoá được theo phiên hoặc xoá toàn bộ log cũ
 hơn một ngày chọn trước.
 
+### Hàng rào kỹ thuật (không chỉ dặn trong prompt)
+
+| Hàng rào | Vì sao |
+|---|---|
+| Mức "Chỉ tra số" **gỡ hẳn** 3 công cụ khuyến nghị khỏi lượt hỏi | Chỉ dặn trong prompt thì một câu "bỏ qua hướng dẫn trên" là vượt được |
+| Cấu hình `ASSISTANT_PACKS` gõ sai mã gói ⇒ **chỉ còn gói nền** | Gõ nhầm mà lại bật thêm gói cho mọi người là đảo ngược ý định của admin |
+| Trần tra cứu **400 ngày** cho mọi công cụ | Câu hỏi "so từ 2020 tới nay" nhân với 8 vòng gọi tool mỗi lượt |
+| Nhật ký: phiên đã có chủ, người khác ghi vào ⇒ **từ chối** | Mã phiên do client sinh; trùng mã là chèn được câu hỏi vào hội thoại người khác |
+| Số liệu theo đơn vị lấy từ **nguồn thô**, không qua chuỗi vẽ biểu đồ | Chuỗi biểu đồ gộp mọi đơn vị ngoài top 8 vào "Khác" — hỏi đơn vị nhỏ sẽ bị trả lời "chưa có số liệu" dù số có thật |
+| Tổng theo đơn vị **cộng gộp đơn vị đã sáp nhập**; hỏi tên cũ vẫn ra kết quả kèm ghi chú | Hỏi "Chư Sê" mà thiếu phần Mang Yang là hụt ~9% |
+
 ### Ba tầng lọc công cụ
 
 1. Gói admin bật ở **Cấu hình hệ thống → AI** (`ASSISTANT_PACKS`; bỏ trống = bật tất cả).
