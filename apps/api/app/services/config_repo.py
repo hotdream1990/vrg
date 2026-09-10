@@ -35,6 +35,11 @@ CONFIG_SPEC = [
     {"key": "ANTHROPIC_MODEL", "group": "ai", "provider": "anthropic", "label": "Model Anthropic",
      "secret": False, "placeholder": "Chọn model",
      "options": ["claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-8"]},
+    # Nhóm dữ liệu Trợ lý AI được phép tra cứu (CSV mã gói, vd "internal,unit"). Bỏ trống = bật
+    # tất cả. Hai gói nền (thị trường thế giới · giá sàn) luôn bật, không tắt được.
+    {"key": "ASSISTANT_PACKS", "group": "ai", "label": "Trợ lý AI — nhóm dữ liệu bật thêm",
+     "secret": False,
+     "placeholder": "Bỏ trống = bật tất cả. Mã gói: internal (số liệu nội bộ) · unit (đơn vị thành viên)"},
     # Mật khẩu cho link công khai để đơn vị thành viên tự nhập giá mủ nước (chưa đặt = link bị khoá).
     {"key": "PUBLIC_PURCHASE_PASSWORD", "group": "public", "label": "Mật khẩu nhập giá mủ (link công khai)",
      "secret": True, "placeholder": "Đặt mật khẩu để phát cho các đơn vị (bỏ trống = khoá link)"},

@@ -17,6 +17,7 @@ from app.routers import (
     audit,
     auth,
     assistant,
+    assistant_history,
     bulletins,
     config,
     customers,
@@ -180,6 +181,7 @@ app.include_router(audit.router)  # Nhật ký hoạt động (tự gác quyền
 app.include_router(support.router)
 app.include_router(support_reminders.router)  # nhắc lịch — cùng phạm vi truy cập (support_scope)
 app.include_router(assistant.router, dependencies=[Depends(require_cap("assistant"))])  # Trợ lý AI (hỏi đáp số liệu + tư vấn giá sàn)
+app.include_router(assistant_history.router, dependencies=[Depends(require_cap("assistant"))])  # Lịch sử hỏi–đáp Trợ lý AI (xem lại + dọn log)
 app.include_router(settings_router.router, dependencies=_protected)  # cài đặt đọc-được (cửa sổ nhập liệu)
 app.include_router(inventory.router, dependencies=_hq_only)
 # Chuỗi số liệu theo ngày cho dashboard (thu mua · tồn kho · tiêu thụ) — chỉ đọc. Mở cho mọi tài

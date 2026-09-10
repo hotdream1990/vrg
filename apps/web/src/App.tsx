@@ -4,6 +4,7 @@ import "dayjs/locale/vi";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import AdminLayout from "./features/command-center/AdminLayout";
+import AssistantHistoryPage from "./features/command-center/pages/AssistantHistoryPage";
 import AssistantPage from "./features/command-center/pages/AssistantPage";
 import AuditLogPage from "./features/command-center/pages/AuditLogPage";
 import BulletinDetailPage from "./features/command-center/pages/BulletinDetailPage";
@@ -219,6 +220,7 @@ export default function App() {
                     <Route path="/ban-tin-bien-dong" element={<MarketMovementPage />} />
                   </Route>
                   <Route element={<RequireCap caps={["assistant"]} />}>
+                    <Route path="/tro-ly-ai/lich-su" element={<AssistantHistoryPage />} />
                     <Route path="/tro-ly-ai" element={<AssistantPage />} />
                   </Route>
                   {/* Nhật ký hoạt động — admin (mặc định đủ quyền) hoặc tài khoản được cấp quyền `audit` */}

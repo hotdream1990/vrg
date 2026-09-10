@@ -17,6 +17,7 @@ import {
   FileProtectOutlined,
   FileTextOutlined,
   FundOutlined,
+  HistoryOutlined,
   IdcardOutlined,
   InboxOutlined,
   LineChartOutlined,
@@ -113,6 +114,7 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
     can("bulletin_weekly") && { key: "/ban-tin/tuan", icon: <FileDoneOutlined />, label: "Báo cáo tuần" },
     can("market_movement") && { key: "/ban-tin-bien-dong", icon: <LineChartOutlined />, label: "Bản tin biến động" },
     can("assistant") && { key: "/tro-ly-ai", icon: <RobotOutlined />, label: "Trợ lý AI" },
+    can("assistant") && { key: "/tro-ly-ai/lich-su", icon: <HistoryOutlined />, label: "Lịch sử hỏi đáp" },
     // Admin đã có mục này trong nhóm Quản trị → chỉ hiện ở đây cho tài khoản được CẤP quyền.
     !isAdmin && can("audit") && { key: "/quan-tri/nhat-ky", icon: <AuditOutlined />, label: "Nhật ký hoạt động" },
   ]));
@@ -212,7 +214,8 @@ export default function AdminLayout() {
     "/thong-ke-hop-dong", "/ke-hoach-nam", "/bao-cao-tong-hop",
     "/thong-ke/tinh-trang-nop", "/thong-ke/thu-mua", "/thong-ke/tieu-thu", "/thong-ke/ton-kho",
     "/ho-tro/nhac-lich", "/ho-tro",
-    "/goi-y-gia-san", "/ban-tin-bien-dong", "/tro-ly-ai", "/ban-tin/tuan", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
+    "/goi-y-gia-san", "/ban-tin-bien-dong", "/tro-ly-ai/lich-su", "/tro-ly-ai",
+    "/ban-tin/tuan", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
     "/quan-tri/lich-chay", "/quan-tri/nhat-ky", "/ho-so",
   ];
   const selected = pathname === "/"
