@@ -21,17 +21,30 @@ export type ChatArtifact = TableArtifact | LineArtifact;
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 export type ChatReply = { answer: string; artifacts: ChatArtifact[]; sources: string[] };
 
+/** Một công cụ trong gói. `name` là tên hàm kỹ thuật (chỉ dùng làm khoá, KHÔNG hiện cho người
+ *  dùng nghiệp vụ); `desc` là mô tả tiếng Việt "công cụ này tra ra cái gì". */
+export type SkillTool = { name: string; label: string; desc: string };
+
 /** Gói kỹ năng — nhóm công cụ Trợ lý được phép tra cứu.
  *  `core`   = gói nền, luôn bật, người dùng không tắt được.
- *  `active` = tài khoản có quyền dùng VÀ admin chưa tắt trong Cấu hình hệ thống. */
+ *  `active` = tài khoản có quyền dùng VÀ admin chưa tắt trong Cấu hình hệ thống.
+ *  `cap`    = mã quyền tối thiểu để dùng gói (null = ai vào được Trợ lý cũng dùng được).
+ *  `items`  = danh sách công cụ, trả về cả với gói đang tắt/không đủ quyền — để người dùng biết
+ *             hệ thống CÓ khả năng đó, chỉ là chưa dùng được. */
 export type SkillPack = {
   key: string;
   label: string;
   desc: string;
   core: boolean;
   active: boolean;
+  cap: string | null;
   tools: number;
+  items: SkillTool[];
 };
+
+/** `limits` = những việc Trợ lý CHƯA làm được, hiện thẳng lên giao diện để người dùng không kỳ
+ *  vọng nhầm rồi tưởng hệ thống trả lời sai. */
+export type PacksReply = { packs: SkillPack[]; limits: string[] };
 
 /** Mức tư vấn — Trợ lý được phép khuyên tới đâu.
  *  `data`     = chỉ trả số liệu, không khuyến nghị nâng/giữ/hạ.
@@ -39,7 +52,7 @@ export type SkillPack = {
  *  `adjusted` = được lệch khỏi mức mô hình theo bối cảnh, phải giải trình. */
 export type AdviceLevel = "data" | "model" | "adjusted";
 
-export const fetchPacks = () => apiFetch<{ packs: SkillPack[] }>("/api/assistant/packs");
+export const fetchPacks = () => apiFetch<PacksReply>("/api/assistant/packs");
 
 /** Gửi câu hỏi kèm phạm vi tra cứu (`packs`) + mức tư vấn (`advice`) + mã phiên (`sessionId`).
  *  Bỏ trống `packs` = backend dùng TẤT CẢ gói khả dụng — nên khi rỗng ta không gửi trường này,

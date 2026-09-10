@@ -50,6 +50,8 @@ _REASONING = (
     "(b) đối chiếu với diễn biến sàn/physical và tỷ giá; "
     "(c) đối chiếu với tồn kho và số liệu đơn vị thành viên (thu mua · tiêu thụ · tồn kho) nếu "
     "được phép truy cập — tồn kho tăng hoặc tiêu thụ chậm là lý do NGƯỢC lại với rổ futures đang tăng; "
+    "(c2) nếu được phép, xem thêm sản lượng ĐÃ KÝ HỢP ĐỒNG CHƯA GIAO: đã ký nhiều mà chưa giao là "
+    "áp lực bán còn treo (nghiêng GIỮ/HẠ), đã ký ít so với tồn kho tự do cũng vậy; "
     "(d) nói rõ khi các nguồn MÂU THUẪN nhau và nghiêng về bên nào, vì sao. "
     "Với số liệu đơn vị: người hỏi có thể muốn xem theo TỔNG toàn Tập đoàn, theo KHU VỰC hoặc theo "
     "từng ĐƠN VỊ — chọn mức phù hợp với câu hỏi, mặc định theo khu vực khi hỏi chung."

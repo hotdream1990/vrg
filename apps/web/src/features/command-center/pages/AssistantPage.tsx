@@ -14,6 +14,7 @@ import {
   type AdviceLevel, type ChatArtifact, type ChatMessage, type SkillPack, fetchPacks, sendChat,
 } from "../../../lib/assistant-client";
 import AssistantArtifact from "./AssistantArtifact";
+import { CapabilityButton } from "./AssistantCapabilities";
 
 type UiMsg = { role: "user" | "assistant"; content: string; artifacts?: ChatArtifact[]; sources?: string[] };
 
@@ -49,6 +50,10 @@ const PACK_SUGGESTIONS: Record<string, string[]> = {
   unit: [
     "Tồn kho các đơn vị theo khu vực hiện thế nào?",
     "Đơn vị nào chưa nộp báo cáo tuần này?",
+  ],
+  contract: [
+    "Sản lượng đã ký hợp đồng chưa giao hiện là bao nhiêu?",
+    "Khách hàng nào mua nhiều nhất tháng qua?",
   ],
 };
 
@@ -250,9 +255,12 @@ function tipOptions<T extends string>(opts: { value: T; label: string; hint: str
   }));
 }
 
-/** Hai công tắc + lối vào lớp nâng cao (chi tiết từng gói kỹ năng). */
-function AssistantControls({ packs, scope, advice, selected, onScope, onAdvice, onToggle }: {
+/** Hai công tắc + lối vào lớp nâng cao (chi tiết từng gói kỹ năng) + bảng năng lực. */
+function AssistantControls({ packs, limits, packsFailed, scope, advice, selected,
+                             onScope, onAdvice, onToggle }: {
   packs: SkillPack[];
+  limits: string[];
+  packsFailed: boolean;
   scope: Scope;
   advice: AdviceLevel;
   selected: string[];
@@ -297,6 +305,7 @@ function AssistantControls({ packs, scope, advice, selected, onScope, onAdvice, 
             </Button>
           </Popover>
         )}
+        <CapabilityButton packs={packs} limits={limits} selected={selected} failed={packsFailed} />
       </div>
       <div style={{ fontSize: 12, opacity: 0.65, marginTop: 6 }}>
         <InfoCircleOutlined style={{ marginRight: 6 }} />{note}
@@ -310,6 +319,8 @@ export default function AssistantPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [packs, setPacks] = useState<SkillPack[]>([]);
+  const [limits, setLimits] = useState<string[]>([]);
+  const [packsFailed, setPacksFailed] = useState(false);
   const [scope, setScope] = useState<Scope>(readScope);
   const [advice, setAdvice] = useState<AdviceLevel>(readAdvice);
   const [offPacks, setOffPacks] = useState<string[]>(readOffPacks);
@@ -327,8 +338,14 @@ export default function AssistantPage() {
   useEffect(() => {
     let cancelled = false;
     fetchPacks()
-      .then((r) => { if (!cancelled) setPacks(r.packs ?? []); })
-      .catch(() => { /* không lấy được danh sách gói → ẩn lớp nâng cao, chat vẫn chạy bình thường */ });
+      .then((r) => {
+        if (cancelled) return;
+        setPacks(r.packs ?? []);
+        setLimits(r.limits ?? []);
+      })
+      // Không lấy được danh sách gói → ẩn lớp nâng cao, chat vẫn chạy bình thường; bảng năng lực
+      // vẫn mở được nhưng báo rõ là chưa lấy được, thay vì hiện một khung trống khó hiểu.
+      .catch(() => { if (!cancelled) setPacksFailed(true); });
     return () => { cancelled = true; };
   }, []);
 
@@ -381,6 +398,8 @@ export default function AssistantPage() {
         </p>
         <AssistantControls
           packs={packs}
+          limits={limits}
+          packsFailed={packsFailed}
           scope={scope}
           advice={advice}
           selected={selected}

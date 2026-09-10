@@ -19,7 +19,7 @@ from app.services import unit_series_consumption as usc
 from app.services import unit_series_purchase as usp
 from app.services import unit_series_stock as uss
 
-from ._common import clamp_from, cols, days_ago, dmy, err, num, table, today
+from ._common import clamp_from, cols, days_ago, dmy, err, num, safe_date, table, today
 
 #: Đơn vị "độ" của giá thu mua: mủ nước tính theo TSC, mủ chén/mủ dây theo DRC (unit_report_query).
 _DO_TYPE = {"latex": "TSC", "cup": "DRC", "lace": "DRC"}
@@ -119,8 +119,11 @@ def _pick_company(totals: dict[str, float], wanted: str) -> tuple[str, float, st
 
 # ── 1. Thu mua ────────────────────────────────────────────────────────────────
 def _unit_purchase(args: dict) -> dict:
-    date_from = str(args.get("date_from") or days_ago(29))
-    date_to = str(args.get("date_to") or today())
+    bad = next((v for v in (args.get("date_from"), args.get("date_to")) if v and not safe_date(v)), None)
+    if bad:  # ngày hỏng thả xuống SQL sẽ ném lỗi kèm nguyên văn câu truy vấn vào khung chat
+        return err(f"Ngày '{bad}' không đúng định dạng YYYY-MM-DD.")
+    date_from = safe_date(args.get("date_from")) or days_ago(29)
+    date_to = safe_date(args.get("date_to")) or today()
     date_from = clamp_from(date_from, date_to)   # chặn câu hỏi kiểu "từ 2020 tới nay"
     material = args.get("material") if args.get("material") in usp.MATERIALS else "latex"
     group_by = args.get("group_by") if args.get("group_by") in ("total", "region", "company") else "region"
@@ -171,8 +174,11 @@ def _unit_purchase(args: dict) -> dict:
 
 # ── 2. Tiêu thụ ───────────────────────────────────────────────────────────────
 def _unit_consumption(args: dict) -> dict:
-    date_from = str(args.get("date_from") or days_ago(29))
-    date_to = str(args.get("date_to") or today())
+    bad = next((v for v in (args.get("date_from"), args.get("date_to")) if v and not safe_date(v)), None)
+    if bad:  # ngày hỏng thả xuống SQL sẽ ném lỗi kèm nguyên văn câu truy vấn vào khung chat
+        return err(f"Ngày '{bad}' không đúng định dạng YYYY-MM-DD.")
+    date_from = safe_date(args.get("date_from")) or days_ago(29)
+    date_to = safe_date(args.get("date_to")) or today()
     date_from = clamp_from(date_from, date_to)   # chặn câu hỏi kiểu "từ 2020 tới nay"
     group_by = args.get("group_by") if args.get("group_by") in ("total", "region", "company", "grade") else "region"
 
@@ -219,7 +225,9 @@ def _unit_consumption(args: dict) -> dict:
 
 # ── 3. Tồn kho ────────────────────────────────────────────────────────────────
 def _unit_stock(args: dict) -> dict:
-    as_of = str(args.get("as_of") or today())
+    if args.get("as_of") and not safe_date(args.get("as_of")):
+        return err(f"Ngày '{args.get('as_of')}' không đúng định dạng YYYY-MM-DD.")
+    as_of = safe_date(args.get("as_of")) or today()
     group_by = args.get("group_by") if args.get("group_by") in _STOCK_GROUPS else "structure"
 
     rep = uss.stock_series(as_of, as_of, group_by)
@@ -306,8 +314,11 @@ def _unit_plan_progress(args: dict) -> dict:
 # ── 5. Tình trạng nộp báo cáo ─────────────────────────────────────────────────
 def _submission_status(args: dict) -> dict:
     kind = args.get("kind") if args.get("kind") in ("purchase", "consumption") else "purchase"
-    date_from = str(args.get("date_from") or days_ago(6))
-    date_to = str(args.get("date_to") or today())
+    bad = next((v for v in (args.get("date_from"), args.get("date_to")) if v and not safe_date(v)), None)
+    if bad:
+        return err(f"Ngày '{bad}' không đúng định dạng YYYY-MM-DD.")
+    date_from = safe_date(args.get("date_from")) or days_ago(6)
+    date_to = safe_date(args.get("date_to")) or today()
 
     rep = urs.status_report(kind, date_from, date_to)
     totals = rep["totals"]

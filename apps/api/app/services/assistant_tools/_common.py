@@ -95,6 +95,22 @@ def clamp_days(days: int | None, default: int) -> int:
     return max(1, min(n, MAX_LOOKBACK_DAYS))
 
 
+def safe_date(value: str | None) -> str | None:
+    """`'2026-09-10'` → chính nó; chuỗi hỏng → None.
+
+    Vì sao cần: LLM tự dựng ngày từ câu nói ("từ Tết tới giờ", "quý vừa rồi") nên chuỗi hỏng là
+    chuyện thường. Thả xuống SQL thì Postgres ném lỗi kèm NGUYÊN VĂN câu truy vấn — cả tên cột nội
+    bộ lẫn comment nghiệp vụ — rồi lọt vào khung chat của người dùng.
+    """
+    from datetime import date
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(str(value)[:10]).isoformat()
+    except ValueError:
+        return None
+
+
 def clamp_from(date_from: str, date_to: str) -> str:
     """Kéo `date_from` lên nếu khoảng vượt trần (giữ nguyên `date_to` — người dùng quan tâm gần đây)."""
     from datetime import date, timedelta

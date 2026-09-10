@@ -20,6 +20,8 @@ NO_ARG_TOOLS = (
     "get_exchange_prices", "get_physical_prices", "get_fx_rates",
     "get_floor_prices", "get_floor_history", "simulate_floor_scenarios",
     "get_inventory_trend", "get_market_quote", "get_data_freshness",
+    "get_undelivered_volume", "get_contract_deliveries", "get_contract_summary",
+    "get_top_customers", "get_master_contracts",
 )
 
 
@@ -61,6 +63,9 @@ def test_pack_gating_by_cap_and_selection() -> None:
     with_cap = {"unit_daily": LEVEL_EDIT}
     assert "unit" not in assistant_tools.allowed_packs(no_cap)
     assert "unit" in assistant_tools.allowed_packs(with_cap)
+    # Gói hợp đồng cũng gác riêng bằng cap `sales_contract`.
+    assert "contract" not in assistant_tools.allowed_packs(no_cap)
+    assert "contract" in assistant_tools.allowed_packs({"sales_contract": LEVEL_EDIT})
     # Không có cap → tool của gói unit bị chặn ở tầng thực thi (phòng khi LLM gọi bừa).
     unit_tools = [n for n, t in assistant_tools.TOOLS.items() if t["pack"] == "unit"]
     if unit_tools:
@@ -92,8 +97,15 @@ def test_packs_endpoint_and_cap_gating() -> None:
 
     # Editor CÓ cap `assistant` nhưng KHÔNG có `unit_daily` → gói unit hiện nhưng không active.
     eh = _bearer("ast_ed", "pass123")
-    packs = client.get("/api/assistant/packs", headers=eh).json()["packs"]
+    body = client.get("/api/assistant/packs", headers=eh).json()
+    packs = body["packs"]
     by_key = {p["key"]: p for p in packs}
+    # Bảng "Trợ lý làm được gì": liệt kê đủ công cụ từng gói + những việc chưa làm được.
+    assert body["limits"] and all(isinstance(x, str) for x in body["limits"])
+    assert all(len(p["items"]) == p["tools"] for p in packs)
+    assert all(it["desc"] for p in packs for it in p["items"])
+    # Gói không đủ quyền vẫn LIỆT KÊ (để người dùng biết có tính năng đó) nhưng phải nói rõ cần cap gì.
+    assert by_key["unit"]["cap"] == "unit_daily" and by_key["unit"]["items"]
     assert by_key["market"]["core"] and by_key["market"]["active"]
     assert by_key["unit"]["active"] is False
     # Admin có mọi cap → gói unit active.
@@ -112,3 +124,35 @@ def test_system_prompt_carries_ranking_and_rules() -> None:
     assert "KHÔNG bịa số liệu" in p and "No Trading" in p
     assert "MRB SMR20" in p and "tồn kho" in p.lower()
     assert "Ban lãnh đạo" in p
+
+
+def test_tools_match_source_services_and_reject_bad_dates() -> None:
+    """Số của công cụ phải TRÙNG service gốc, và ngày hỏng không được lọt xuống SQL.
+
+    Hai lớp lỗi đắt nhất của gói này: (1) tool tự cộng lại rồi lệch số với màn hình, (2) chuỗi ngày
+    hỏng thả xuống Postgres khiến nguyên văn câu truy vấn lọt vào khung chat người dùng.
+    """
+    from app.services import sales_contract_report
+
+    caps = _admin_caps()
+
+    # (1) Đã ký chưa giao: tool bọc đúng service, không cộng thêm/bớt tầng nào.
+    tool = assistant_tools.run_tool("get_undelivered_volume", {}, caps)["summary"]
+    if "error" not in tool:
+        raw = sales_contract_report.undelivered_on(assistant_service.edit_window.today().isoformat())
+        assert tool["tong_khoi_luong_chua_giao_tan"] == round(sum(v["qty"] for v in raw.values()), 3)
+
+    # (2) Ngày hỏng → câu báo lỗi gọn bằng tiếng Việt, TUYỆT ĐỐI không kèm SQL.
+    for name, args in (("get_undelivered_volume", {"as_of": "banana"}),
+                       ("get_contract_summary", {"date_from": "not-a-date"}),
+                       ("get_contract_deliveries", {"date_from": "2026-13-40"}),
+                       ("get_unit_stock", {"as_of": "hôm qua"})):
+        msg = assistant_tools.run_tool(name, args, caps)["summary"].get("error", "")
+        assert "không đúng định dạng" in msg, f"{name} chưa chặn ngày hỏng: {msg[:80]}"
+        assert "SELECT" not in msg.upper(), f"{name} để lộ câu SQL ra ngoài"
+
+
+def test_tool_labels_cover_every_tool() -> None:
+    """Bảng "Trợ lý làm được gì?" phải có nhãn tiếng Việt cho MỌI công cụ — thêm tool mà quên nhãn
+    thì người dùng nhìn thấy tên hàm."""
+    assert set(assistant_tools.TOOL_LABELS) == set(assistant_tools.TOOLS)

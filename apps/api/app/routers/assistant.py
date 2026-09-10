@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.security import require_cap, user_caps
 from app.schemas.assistant import ChatRequest
-from app.services import assistant_service, llm
+from app.services import assistant_service, assistant_tools, llm
 
 logger = logging.getLogger("app.assistant")
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
@@ -20,8 +20,12 @@ router = APIRouter(prefix="/api/assistant", tags=["assistant"])
 
 @router.get("/packs")
 def packs(username: str = Depends(require_cap("assistant"))) -> dict:
-    """Các nhóm dữ liệu Trợ lý được phép tra cứu với tài khoản này (chip chọn trên UI)."""
-    return {"packs": assistant_service.packs_for(user_caps(username))}
+    """Nhóm dữ liệu Trợ lý được phép tra cứu + danh sách công cụ + những việc chưa làm được.
+
+    Dùng cho cả chip chọn nhóm lẫn bảng "Trợ lý làm được gì" trên màn chat.
+    """
+    return {"packs": assistant_service.packs_for(user_caps(username)),
+            "limits": assistant_tools.LIMITS}
 
 
 @router.post("/chat")
