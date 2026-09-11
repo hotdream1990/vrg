@@ -11,6 +11,7 @@ from sqlalchemy import text
 from app.core.config import settings
 from app.core.db import ensure_schema, session_scope
 from app.services import audit_repo
+from app.services.anomaly_types import THRESHOLDS as _ANOMALY_THRESHOLDS
 
 # Nhóm cấu hình → mỗi nhóm là 1 tab trên UI (thêm nhóm mới = thêm tab). Thứ tự = thứ tự tab.
 CONFIG_GROUPS = [
@@ -18,6 +19,7 @@ CONFIG_GROUPS = [
     {"id": "public", "label": "Link công khai"},
     {"id": "email", "label": "Email"},
     {"id": "data_entry", "label": "Cửa sổ nhập liệu"},
+    {"id": "anomaly", "label": "Cảnh báo bất thường"},
 ]
 
 # Khóa hiển thị trên trang Cấu hình. secret=True → API mask, không lộ giá trị.
@@ -73,6 +75,13 @@ CONFIG_SPEC = [
     {"key": "MEMBER_ALERT_DAYS", "group": "data_entry", "secret": False,
      "label": "Cảnh báo thiếu số liệu — rà bao nhiêu ngày gần nhất (đơn vị thành viên)",
      "placeholder": "Mặc định 14 — tính cả hôm nay (vd 30, 300). Đặt 0 = TẮT cảnh báo"},
+    # Ngưỡng "Cảnh báo bất thường" — SINH TỪ anomaly_types.THRESHOLDS (không chép tay): thêm/sửa
+    # ngưỡng chỉ cần sửa MỘT nơi (anomaly_types.py), khỏi phải nhớ sửa thêm form admin ở đây.
+    *(
+        {"key": key, "group": "anomaly", "secret": False,
+         "label": spec["label"], "placeholder": spec["hint"]}
+        for key, spec in _ANOMALY_THRESHOLDS.items()
+    ),
 ]
 
 # Model OpenAI gợi ý khi chưa có key (sau khi đặt key → lấy danh sách thật từ tài khoản).

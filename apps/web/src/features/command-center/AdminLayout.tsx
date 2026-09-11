@@ -11,6 +11,7 @@ import {
   ShoppingOutlined,
   ClockCircleOutlined,
   DashboardOutlined,
+  DeleteOutlined,
   EditOutlined,
   ExperimentOutlined,
   FileDoneOutlined,
@@ -38,6 +39,7 @@ import {
   ThunderboltOutlined,
   UsergroupAddOutlined,
   UserOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
 import { Avatar, Dropdown, Layout, Menu, Typography } from "antd";
 import { useState } from "react";
@@ -75,9 +77,8 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
     (can("market_quote") || can("raw_material")) &&
       { key: "/quan-ly-so-lieu/bao-gia-mu", icon: <SolutionOutlined />, label: "Báo giá mủ thị trường" },
     can("floor") && { key: "/quan-ly-so-lieu/gia-san-tap-doan", icon: <BankOutlined />, label: "Giá sàn Tập đoàn" },
-    can("raw_material") && { key: "/quan-ly-so-lieu/gia-mu-nguyen-lieu", icon: <ExperimentOutlined />, label: "Giá mủ nguyên liệu" },
     can("physical") && { key: "/quan-ly-so-lieu/gia-physical", icon: <FundOutlined />, label: "Giá Physical" },
-    can("inventory") && { key: "/quan-ly-so-lieu/ton-kho", icon: <InboxOutlined />, label: "Tồn kho Tập đoàn" },
+    // "Giá mủ nguyên liệu" + "Tồn kho Tập đoàn" đã chuyển xuống nhóm RETIRED_MENU (chỉ admin thấy).
   ]));
   items.push(...group("data-unit", <TeamOutlined />, "Số liệu đơn vị thành viên", [
     can("member_unit") && { key: "/quan-ly-so-lieu/don-vi-thanh-vien", icon: <TeamOutlined />, label: "Đơn vị thành viên" },
@@ -126,6 +127,7 @@ const ADMIN_MENU = {
   key: "admin", icon: <SafetyOutlined />, label: "Quản trị",
   children: [
     { key: "/quan-tri/nguoi-dung", icon: <UsergroupAddOutlined />, label: "Người dùng" },
+    { key: "/canh-bao-bat-thuong", icon: <WarningOutlined />, label: "Cảnh báo bất thường" },
     { key: "/quan-tri/nhat-ky", icon: <AuditOutlined />, label: "Nhật ký hoạt động" },
     { key: "/quan-tri/cau-hinh", icon: <SettingOutlined />, label: "Cấu hình hệ thống" },
     { key: "/quan-tri/lich-chay", icon: <ClockCircleOutlined />, label: "Lịch chạy" },
@@ -179,6 +181,19 @@ function buildLeaderMenu(hasPurchasePlan: boolean) {
   ];
 }
 
+// Menu ĐÃ BỎ khỏi trục chính (chốt 11/09/2026) — chỉ admin thấy, nhãn gạch ngang.
+// Route vẫn sống để tra cứu dữ liệu cũ; người dùng thường không còn thấy lối vào.
+const strike = (text: string) => (
+  <span style={{ textDecoration: "line-through", opacity: 0.65 }}>{text}</span>
+);
+const RETIRED_MENU = {
+  key: "retired", icon: <DeleteOutlined />, label: strike("Menu đã bỏ"),
+  children: [
+    { key: "/quan-ly-so-lieu/gia-mu-nguyen-lieu", icon: <ExperimentOutlined />, label: strike("Giá mủ nguyên liệu") },
+    { key: "/quan-ly-so-lieu/ton-kho", icon: <InboxOutlined />, label: strike("Tồn kho Tập đoàn") },
+  ],
+};
+
 // Mục Hồ sơ cá nhân (đổi mật khẩu) — hiện cuối sidebar cho mọi vai trò.
 const PROFILE_ITEM = { key: "/ho-so", icon: <IdcardOutlined />, label: "Hồ sơ cá nhân" };
 
@@ -201,7 +216,8 @@ export default function AdminLayout() {
     ? [...buildLeaderMenu(user?.member_has_purchase_plan ?? false), PROFILE_ITEM]
     : isMember
       ? [...buildMemberMenu(user?.member_has_purchase_plan ?? false), PROFILE_ITEM]
-      : [...buildMenu(can, isAdmin), ...(isAdmin ? [ADMIN_MENU] : []), PROFILE_ITEM];
+      : [...buildMenu(can, isAdmin), ...(isAdmin ? [ADMIN_MENU] : []), PROFILE_ITEM,
+         ...(isAdmin ? [RETIRED_MENU] : [])];
 
   const ROUTE_KEYS = [
     "/quet-da-san",
@@ -216,7 +232,7 @@ export default function AdminLayout() {
     "/ho-tro/nhac-lich", "/ho-tro",
     "/goi-y-gia-san", "/ban-tin-bien-dong", "/tro-ly-ai/lich-su", "/tro-ly-ai",
     "/ban-tin/tuan", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
-    "/quan-tri/lich-chay", "/quan-tri/nhat-ky", "/ho-so",
+    "/quan-tri/lich-chay", "/quan-tri/nhat-ky", "/canh-bao-bat-thuong", "/ho-so",
   ];
   const selected = pathname === "/"
     ? "/"

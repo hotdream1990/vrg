@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.security import block_unit_roles, get_current_user, require_admin, require_cap
 from app.web_static import mount_spa
 from app.routers import (
+    anomalies,
     audit,
     auth,
     assistant,
@@ -194,6 +195,7 @@ app.include_router(weekly_reports.router, dependencies=[Depends(require_cap("bul
 app.include_router(users.router, dependencies=[Depends(require_admin)])  # quản trị: chỉ admin
 app.include_router(config.router, dependencies=[Depends(require_admin)])  # cấu hình: chỉ admin
 app.include_router(schedules.router, dependencies=[Depends(require_admin)])  # lịch chạy: chỉ admin
+app.include_router(anomalies.router, dependencies=[Depends(require_admin)])  # cảnh báo bất thường: chỉ admin
 
 # Phục vụ web tĩnh (image gộp) ở "/" — phải đặt SAU khi include hết router API.
 # Dev/API thuần (không có WEB_DIST_DIR): "/" trả thông tin service dạng JSON.

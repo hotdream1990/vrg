@@ -4,6 +4,7 @@ import "dayjs/locale/vi";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import AdminLayout from "./features/command-center/AdminLayout";
+import AnomalyPage from "./features/command-center/pages/AnomalyPage";
 import AssistantHistoryPage from "./features/command-center/pages/AssistantHistoryPage";
 import AssistantPage from "./features/command-center/pages/AssistantPage";
 import AuditLogPage from "./features/command-center/pages/AuditLogPage";
@@ -235,6 +236,7 @@ export default function App() {
                     <Route path="/quan-tri/nguoi-dung" element={<UserManagementPage />} />
                     <Route path="/quan-tri/cau-hinh" element={<SystemConfigPage />} />
                     <Route path="/quan-tri/lich-chay" element={<SchedulePage />} />
+                    <Route path="/canh-bao-bat-thuong" element={<AnomalyPage />} />
                   </Route>
                   <Route path="/ho-so" element={<ProfilePage />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
