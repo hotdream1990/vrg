@@ -205,8 +205,12 @@ export default function AnomalyPage() {
     try {
       const r = await fetchAnomalies(range[0].format(ISO_DATE), range[1].format(ISO_DATE));
       setReport(r);
-      // Mặc định BUNG các nhóm nghiêm trọng, gấp lại phần còn lại — mở trang là thấy ngay việc gấp.
-      setActiveKeys(r.groups.filter((g) => g.severity === "high").map((g) => g.key));
+      // Mặc định bung nhóm CÓ cảnh báo (ưu tiên nghiêm trọng), KHÔNG bung nhóm rỗng: ngày hệ
+      // thống sạch mà bung sẵn ba bảng "Nghiêm trọng · 0 dòng" thì người mở trang tưởng báo động đỏ,
+      // còn việc thật ở mức thấp hơn lại bị gấp mất.
+      const open = r.groups.filter((g) => g.count > 0);
+      const high = open.filter((g) => g.severity === "high");
+      setActiveKeys((high.length > 0 ? high : open).map((g) => g.key));
     } catch (e) {
       setErr(errText(e));
       setReport(null);
@@ -277,8 +281,13 @@ export default function AnomalyPage() {
       {!loading && report && (
         <>
           <SummaryCards s={report.summary} />
-          {groups.length === 0 ? (
-            <Alert type="success" showIcon message="Không phát hiện bất thường nào trong khoảng đã chọn." />
+          {report.summary.total === 0 ? (
+            /* Máy chủ LUÔN trả đủ 8 nhóm (kể cả nhóm rỗng) nên phải xét tổng số dòng, không xét
+               số nhóm — nếu không, ngày hệ thống sạch admin sẽ thấy 8 bảng "Không có cảnh báo"
+               thay vì một câu xác nhận. */
+            <Alert type="success" showIcon
+                   message="Không phát hiện bất thường nào trong khoảng đã chọn."
+                   description="Số liệu đơn vị thành viên trong kỳ này đạt mọi luật kiểm tra." />
           ) : (
             <Collapse
               activeKey={activeKeys}

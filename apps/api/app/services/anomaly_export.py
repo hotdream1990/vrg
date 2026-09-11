@@ -20,7 +20,8 @@ _SEV_FILL = {
     "medium": PatternFill("solid", fgColor="FFF3CD"),
     "low": PatternFill("solid", fgColor="D1ECF1"),
 }
-_SEV_LABEL = {"high": "Nghiêm trọng", "medium": "Trung bình", "low": "Nhẹ"}
+#: Phải khớp nhãn trên web (AnomalyPage) — hai nơi gọi khác tên thì người đọc tưởng 2 thang đo.
+_SEV_LABEL = {"high": "Nghiêm trọng", "medium": "Cần xem", "low": "Ghi nhận"}
 _THIN = Side(style="thin", color="9AA5A0")
 _BORDER = Border(left=_THIN, right=_THIN, top=_THIN, bottom=_THIN)
 _NUM = "#,##0.00"

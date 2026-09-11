@@ -140,7 +140,7 @@ def _wrong_sale_price(date_from: str, date_to: str, thresholds: dict[str, float]
                 f"Giá bán quy đổi vượt {vnd_ceiling:,.0f} triệu đ/tấn (mặt bằng 40–70) — nguồn "
                 "sales_contract.lines, quy đổi bằng tỷ giá của chính dòng.", HIGH,
                 [("don_vi", "Đơn vị"), ("so_dong", "Số dòng sai"), ("tu_ngay", "Từ ngày"),
-                 ("den_ngay", "Đến ngày"), ("gia_lon_nhat", "Giá lớn nhất"),
+                 ("den_ngay", "Đến ngày"), ("gia_lon_nhat", "Giá lớn nhất (đang nhập, triệu đ/tấn)"),
                  ("loai_tien", "Loại tiền"), ("thieu_ty_gia", "Thiếu tỷ giá"),
                  ("ma_hop_dong", "Mã hợp đồng")], out)
 
@@ -423,8 +423,11 @@ def scan(date_from: str, date_to: str, thresholds: dict[str, float]) -> dict[str
         _run(_silent_unit, date_from, date_to, thresholds, submitted),
         _run(_plan_missing, date_from, date_to, thresholds),
     ]
+    # Sắp theo mức nghiêm trọng, nhưng trong cùng mức thì nhóm CÓ cảnh báo lên trước nhóm rỗng:
+    # ngày hệ thống sạch, ba nhóm "Nghiêm trọng" 0 dòng chiếm hết đầu trang trong khi việc thật
+    # (chưa nộp · thiếu đơn giá) bị đẩy xuống dưới — người mở trang đọc ngược hẳn thông điệp.
     sev_rank = {HIGH: 0, MEDIUM: 1, LOW: 2}
-    groups.sort(key=lambda g: sev_rank.get(g["severity"], 9))
+    groups.sort(key=lambda g: (sev_rank.get(g["severity"], 9), 0 if g["count"] else 1))
     all_units: set[str] = set()
     counts = {HIGH: 0, MEDIUM: 0, LOW: 0}
     total = 0
