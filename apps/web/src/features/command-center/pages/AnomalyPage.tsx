@@ -75,10 +75,13 @@ function SummaryCards({ s }: { s: AnomalySummary }) {
 /** Tiêu đề một nhóm cảnh báo: tên · thẻ mức · số dòng · số đơn vị · mô tả luật. */
 function GroupHeader({ g }: { g: AnomalyGroup }) {
   const sev = SEVERITY[g.severity] ?? SEVERITY.low;
+  // Nhóm KHÔNG có cảnh báo: gạch ngang + làm mờ tiêu đề để mắt lướt qua ngay, khỏi phải đọc
+  // "0 dòng" mới biết là sạch (cùng ý với việc đẩy các nhóm này xuống cuối trang).
+  const clean = g.count === 0;
   return (
-    <div>
+    <div style={clean ? { opacity: 0.55 } : undefined}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <b>{g.label}</b>
+        <b style={clean ? { textDecoration: "line-through" } : undefined}>{g.label}</b>
         <Tag color={sev.tag}>{sev.label}</Tag>
         <span style={{ color: "var(--muted)", fontSize: 12.5 }}>
           {formatViNumber(g.count)} dòng · {formatViNumber(g.units)} đơn vị
@@ -205,12 +208,9 @@ export default function AnomalyPage() {
     try {
       const r = await fetchAnomalies(range[0].format(ISO_DATE), range[1].format(ISO_DATE));
       setReport(r);
-      // Mặc định bung nhóm CÓ cảnh báo (ưu tiên nghiêm trọng), KHÔNG bung nhóm rỗng: ngày hệ
-      // thống sạch mà bung sẵn ba bảng "Nghiêm trọng · 0 dòng" thì người mở trang tưởng báo động đỏ,
-      // còn việc thật ở mức thấp hơn lại bị gấp mất.
-      const open = r.groups.filter((g) => g.count > 0);
-      const high = open.filter((g) => g.severity === "high");
-      setActiveKeys((high.length > 0 ? high : open).map((g) => g.key));
+      // Bung sẵn TẤT CẢ nhóm có cảnh báo (máy chủ đã xếp chúng lên đầu), để lên trang là đọc
+      // được ngay mọi việc cần làm mà không phải bấm từng nhóm. Nhóm rỗng vẫn gấp.
+      setActiveKeys(r.groups.filter((g) => g.count > 0).map((g) => g.key));
     } catch (e) {
       setErr(errText(e));
       setReport(null);
