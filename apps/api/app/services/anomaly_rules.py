@@ -15,6 +15,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
+from app.core.market_meta import PURCHASE_PRICE_TYPES, PURCHASE_SOURCE_UNIT
 from app.services import member_unit_repo, unit_daily_fields, unit_daily_repo, unit_report_rows
 from app.services.anomaly_types import HIGH, LOW, MEDIUM, THRESHOLDS, group
 
@@ -26,6 +27,11 @@ TY = 1_000_000_000
 MERGE_STOCK_GAP_PCT = 10.0
 #: Loại mủ nguyên liệu thu mua — dùng chung nhãn với `unit_report_rows` (DRY, khỏi định nghĩa lại).
 _MATERIALS = unit_report_rows.MATERIAL_LABELS
+#: (loại mủ, ô sản lượng, loại giá trong kho) — dựng từ hằng số dùng chung để thêm loại mủ mới
+#: KHÔNG phải sửa ở đây. Viết tay `IN ('purchase', 'purchase_cup')` là bỏ quên MỦ DÂY: luật
+#: thiếu-đơn-giá từng nêu oan Chưmomray 09/09/2026 (đã khai `purchase_lace` = 520,5 đ/độ).
+_MATS = tuple((mat, qty_key, ptype) for mat, qty_key, _price_key, ptype
+              in unit_report_rows.PURCHASE_MATERIALS)
 
 
 def _th(thresholds: dict[str, float], key: str) -> float:
@@ -71,15 +77,16 @@ def _wrong_raw_price(date_from: str, date_to: str, thresholds: dict[str, float])
     (đúng ý `collect.sql` nhóm B) — chỉ chặn trên bởi `date_to` (không tính lỗi "trong tương lai").
     """
     ceiling = _th(thresholds, "ANOMALY_RAW_PRICE_MAX")
-    label_of = {"purchase": "Mủ nước", "purchase_cup": "Mủ chén"}
+    label_of = {ptype: _MATERIALS[mat] for mat, _qty_key, ptype in _MATS}
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(text(
             "SELECT grade AS company, price_type, max(price) AS max_price, count(*) AS n "
-            "FROM fact_price WHERE source = 'vrg_unit' AND price_type IN ('purchase', 'purchase_cup') "
+            "FROM fact_price WHERE source = :src AND price_type = ANY(:ptypes) "
             "AND price > :ceiling AND as_of <= CAST(:dt AS date) "
             "GROUP BY grade, price_type ORDER BY grade, price_type"),
-            {"ceiling": ceiling, "dt": date_to}).mappings().all()
+            {"ceiling": ceiling, "dt": date_to, "src": PURCHASE_SOURCE_UNIT,
+             "ptypes": list(PURCHASE_PRICE_TYPES)}).mappings().all()
     out = [{"don_vi": r["company"], "loai_mu": label_of.get(r["price_type"], r["price_type"]),
             "gia_lon_nhat_dong_do": round(r["max_price"]), "so_o_sai": r["n"]} for r in rows]
     return group("wrong_raw_price", "Giá mủ nguyên liệu sai đơn vị tính",
@@ -317,27 +324,44 @@ def _missing_price(date_from: str, date_to: str, thresholds: dict[str, float]) -
 
     Bỏ qua loại mủ đơn vị đã KHAI RÕ "không có giá" (`unit_daily_fields.declared_no_price` — cờ
     `no_price_*` hoặc đơn giá nội tệ = 0), khác hẳn "quên khai" (chốt 07/09/2026).
+
+    Đối chiếu THEO TỪNG LOẠI MỦ (mủ nước ↔ `purchase` · mủ chén ↔ `purchase_cup` · mủ dây ↔
+    `purchase_lace`). Xét chung "ngày đó có giá nào không" như trước vừa nêu oan vừa bỏ lọt:
+    ngày chỉ mua mủ dây mà đã khai giá vẫn bị nêu (Chưmomray 09/09/2026), còn ngày có giá mủ
+    nước nhưng quên giá mủ chén thì lọt lưới.
     """
     ensure_schema()
+    # Ô sản lượng đọc qua CASE có chốt chặn regex: payload là jsonb tự do, ép kiểu thẳng sẽ ném
+    # lỗi nếu có bản ghi lỡ lưu chuỗi. Mệnh đề dựng từ `_MATS` nên thêm loại mủ là tự có mặt.
+    lacks = " OR ".join(
+        f"(CASE WHEN r.payload->>'{qty_key}' ~ '^[0-9.]+$' "
+        f"      THEN (r.payload->>'{qty_key}')::numeric ELSE 0 END > 0 "
+        f" AND NOT EXISTS (SELECT 1 FROM fact_price f WHERE f.source = :src "
+        f"   AND f.grade = r.company AND f.as_of = r.as_of AND f.price_type = '{ptype}'))"
+        for _mat, qty_key, ptype in _MATS)
     with session_scope() as db:
         rows = db.execute(text(
-            "SELECT r.as_of, r.company, r.payload FROM unit_daily_report r "
+            "SELECT r.as_of, r.company, r.payload, "
+            "  COALESCE((SELECT array_agg(DISTINCT f.price_type) FROM fact_price f "
+            "     WHERE f.source = :src AND f.grade = r.company AND f.as_of = r.as_of "
+            "       AND f.price_type = ANY(:ptypes)), ARRAY[]::text[]) AS have "
+            "FROM unit_daily_report r "
             "WHERE r.kind = 'purchase' AND r.payload <> '{}'::jsonb "
             "AND r.as_of BETWEEN CAST(:a AS date) AND CAST(:b AS date) "
             "AND COALESCE((r.payload->>'no_purchase')::bool, false) = false "
-            "AND NOT EXISTS (SELECT 1 FROM fact_price f WHERE f.source = 'vrg_unit' "
-            "  AND f.grade = r.company AND f.as_of = r.as_of "
-            "  AND f.price_type IN ('purchase', 'purchase_cup')) "
+            f"AND ({lacks}) "
             "ORDER BY r.company, r.as_of"),
-            {"a": date_from, "b": date_to}).mappings().all()
-    qty_key_of = {"latex": "latex_wet", "cup": "coagulum", "lace": "lace"}
+            {"a": date_from, "b": date_to, "src": PURCHASE_SOURCE_UNIT,
+             "ptypes": list(PURCHASE_PRICE_TYPES)}).mappings().all()
     out = []
     for r in rows:
         payload = dict(r["payload"] or {})
         declared = unit_daily_fields.declared_no_price(payload)
+        have = set(r["have"] or [])
         missing = {mat: _num(payload.get(qty_key)) or 0.0
-                  for mat, qty_key in qty_key_of.items()
-                  if mat not in declared and (_num(payload.get(qty_key)) or 0) > 0}
+                  for mat, qty_key, ptype in _MATS
+                  if mat not in declared and ptype not in have
+                  and (_num(payload.get(qty_key)) or 0) > 0}
         if not missing:
             continue
         out.append({"don_vi": r["company"], "ngay": str(r["as_of"]),
@@ -345,7 +369,7 @@ def _missing_price(date_from: str, date_to: str, thresholds: dict[str, float]) -
                     "san_luong_tan": round(sum(missing.values()), 2)})
     return group("missing_price", "Có thu mua nhưng thiếu đơn giá",
                 "Ngày có tổ chức thu mua (sản lượng > 0, không bật cờ \"không tổ chức\") nhưng "
-                "kho giá chưa có đơn giá tương ứng, và đơn vị chưa khai rõ là không có giá.",
+                "kho giá chưa có đơn giá ĐÚNG LOẠI MỦ đó, và đơn vị chưa khai rõ là không có giá.",
                 MEDIUM, [("don_vi", "Đơn vị"), ("ngay", "Ngày"), ("loai_mu", "Loại mủ thiếu giá"),
                         ("san_luong_tan", "Sản lượng (tấn)")], out)
 
