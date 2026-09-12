@@ -6,7 +6,8 @@
    web hiện được ngay, không phải sửa file này. */
 
 import {
-  CheckCircleOutlined, FileExcelOutlined, ReloadOutlined, SlidersOutlined, WarningOutlined,
+  CameraOutlined, CheckCircleOutlined, CloseOutlined, FileExcelOutlined, ReloadOutlined,
+  SlidersOutlined, WarningOutlined,
 } from "@ant-design/icons";
 import {
   Alert, App, Button, Collapse, DatePicker, Drawer, InputNumber, Space, Spin, Table, Tag, Typography,
@@ -22,6 +23,7 @@ import {
 } from "../../../lib/anomaly-client";
 import { dmy } from "../../../lib/date";
 import { formatViNumber } from "../../../lib/number-format";
+import UnitLoginButton from "./components/UnitLoginButton";
 
 const { RangePicker } = DatePicker;
 
@@ -107,6 +109,15 @@ function GroupTable({ group }: { group: AnomalyGroup }) {
     key: c.key,
     render: (v: unknown) => cellText(v),
   }));
+  // Thấy lỗi là vào thẳng tài khoản đơn vị đó kiểm chứng, khỏi sang màn Tài khoản dò theo email.
+  // Nút tự ẩn với người không phải admin và với đơn vị chưa có tài khoản (xem UnitLoginButton).
+  if (group.rows.some((r) => r.don_vi)) {
+    columns.push({
+      title: "Đăng nhập hộ", key: "_login", width: 170,
+      render: (_: unknown, r: AnomalyRow) =>
+        r.don_vi ? <UnitLoginButton unit={String(r.don_vi)} /> : null,
+    });
+  }
   return (
     <Table<AnomalyRow>
       size="small" columns={columns} dataSource={group.rows}
@@ -201,7 +212,20 @@ export default function AnomalyPage() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [cfgOpen, setCfgOpen] = useState(false);
+  const [shot, setShot] = useState(false);   // chế độ chụp: ẩn khung ứng dụng, chỉ còn bảng
   const [err, setErr] = useState("");
+
+  // Ẩn/hiện khung bằng một lớp trên <body> (CSS `.shot-mode` ở command-center.css) thay vì truyền
+  // cờ xuyên qua AdminLayout — màn khác muốn dùng lại chỉ cần bật đúng lớp này.
+  useEffect(() => {
+    document.body.classList.toggle("shot-mode", shot);
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setShot(false); };
+    window.addEventListener("keydown", esc);
+    return () => {
+      document.body.classList.remove("shot-mode");   // rời trang giữa chừng không được kẹt chế độ
+      window.removeEventListener("keydown", esc);
+    };
+  }, [shot]);
 
   const scan = useCallback(async () => {
     setLoading(true); setErr("");
@@ -253,7 +277,7 @@ export default function AnomalyPage() {
       </div>
       {err && <Alert type="error" showIcon message={err} style={{ marginBottom: 12 }} />}
 
-      <div className="card" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
+      <div className="card shot-hide" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
         <RangePicker
           format={DATE_DISPLAY} allowClear={false} value={range} disabled={loading}
           placeholder={["Từ ngày", "Đến ngày"]}
@@ -264,9 +288,19 @@ export default function AnomalyPage() {
         <Button icon={<FileExcelOutlined />} loading={exporting}
           disabled={loading || !report || report.summary.total === 0}
           onClick={() => void exportXlsx()}>Xuất Excel</Button>
+        <Button icon={<CameraOutlined />} disabled={loading || !report}
+          onClick={() => setShot(true)}>Chế độ chụp</Button>
         <Button icon={<SlidersOutlined />} style={{ marginLeft: "auto" }} disabled={loading}
           onClick={() => setCfgOpen(true)}>Cấu hình ngưỡng</Button>
       </div>
+
+      {/* Lối ra của chế độ chụp: nút nổi góc dưới phải (ngoài vùng hay chụp) + phím Esc. */}
+      {shot && (
+        <Button size="small" icon={<CloseOutlined />} onClick={() => setShot(false)}
+          style={{ position: "fixed", right: 16, bottom: 16, zIndex: 1000 }}>
+          Thoát chế độ chụp (Esc)
+        </Button>
+      )}
 
       {loading && (
         <div className="card" style={{ textAlign: "center", padding: 40 }}>

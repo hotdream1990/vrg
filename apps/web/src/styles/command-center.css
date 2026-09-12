@@ -326,3 +326,15 @@ td.flat{color:#64748b}
 .entry-warn-sub{font-weight:400;font-size:12px;color:var(--muted)}
 .entry-warn-list{margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:3px;font-size:12.5px}
 .entry-warn-more{margin-top:8px;font-size:12px}
+
+/* ── Chế độ chụp ảnh ────────────────────────────────────────────────────────────────────────
+   Bật bằng `document.body.classList.add("shot-mode")` (xem AnomalyPage). Ẩn khung ứng dụng để
+   ảnh chụp gửi đơn vị chỉ còn tiêu đề + bảng, không lộ menu quản trị. `!important` là cố ý:
+   AdminLayout khoá chiều cao khung bằng style nội tuyến, không đè được bằng luật thường. */
+body.shot-mode .ant-layout-sider,
+body.shot-mode .ant-layout-header,
+body.shot-mode .ant-layout-footer,
+body.shot-mode .shot-hide { display: none !important; }
+/* Bỏ khoá chiều cao + cuộn trong khung để ảnh chụp lấy được cả bảng dài. */
+body.shot-mode .ant-layout { height: auto !important; margin-top: 0 !important; overflow: visible !important; }
+body.shot-mode .ant-layout-content { overflow: visible !important; }
