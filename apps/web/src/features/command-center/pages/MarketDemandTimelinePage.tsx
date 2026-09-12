@@ -54,8 +54,11 @@ export default function MarketDemandTimelinePage() {
   // Chuyên viên chỉ được cấp mức Xem → khoá ghi ở mọi ngày (đơn vị thành viên không xét cap).
   // Lãnh đạo đơn vị: chỉ xem.
   const mayEdit = canEditUnitData || canEditCap("market_demand");
-  const canEdit = (as_of: string) =>
-    mayEdit
+  // Đơn vị đã SÁP NHẬP vào đơn vị của tài khoản: nội dung cũ vẫn hiện để tra cứu nhưng không sửa
+  // được (server chặn) và cũng không cho chọn khi thêm mới.
+  const viewOnly = useMemo(() => new Set(data?.view_only_units ?? []), [data]);
+  const canEdit = (as_of: string, company: string) =>
+    mayEdit && !viewOnly.has(company)
     && (isAdmin || (!!data && as_of <= data.today && daysBetween(data.today, as_of) <= data.edit_window_days));
 
   // Gom entries theo ngày (đã sort DESC ở backend).
@@ -124,7 +127,8 @@ export default function MarketDemandTimelinePage() {
             <Select showSearch placeholder="Chọn đơn vị" style={{ minWidth: 240 }}
               value={addForm.company || undefined}
               onChange={(v) => setAddForm((f) => ({ ...f, company: v }))}
-              options={(data?.units ?? []).map((u) => ({ value: u, label: u }))}
+              options={(data?.units ?? []).filter((u) => !viewOnly.has(u))
+                .map((u) => ({ value: u, label: u }))}
               filterOption={(i, o) => (o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
           </div>
           {dupExists && (
@@ -183,7 +187,7 @@ export default function MarketDemandTimelinePage() {
                           <div style={{ flex: 1, fontSize: 14, lineHeight: 1.5, color: "#16241d" }}>
                             <b style={{ color: "#0a9e48" }}>{e.company}:</b> {e.content}
                           </div>
-                          {canEdit(e.as_of) && (
+                          {canEdit(e.as_of, e.company) && (
                             <button onClick={() => { setEditing(key); setDraft(e.content); }} title="Sửa"
                               style={{ flex: "0 0 auto", border: "none", background: "none", cursor: "pointer",
                                 color: "var(--muted)", padding: 2, fontSize: 14, lineHeight: 1 }}>

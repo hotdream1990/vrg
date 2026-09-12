@@ -15,7 +15,8 @@ export type UnitSheet = {
 };
 
 export type MemberPrices = {
-  units: string[];                       // các đơn vị được gán
+  units: string[];                       // các đơn vị được gán + đơn vị đã sáp nhập vào (chỉ xem)
+  view_only_units?: string[];            // phần CHỈ XEM trong `units` (đơn vị đã sáp nhập)
   today: string;                         // YYYY-MM-DD (giờ VN, để tính cửa sổ sửa)
   edit_window_days: number;              // sửa được: hôm nay + N ngày gần nhất
   sheets: Record<string, UnitSheet>;     // {đơn vị: lịch sử giá}

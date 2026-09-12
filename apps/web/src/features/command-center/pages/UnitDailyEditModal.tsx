@@ -53,6 +53,9 @@ export default function UnitDailyEditModal(
   useEffect(() => { if (open && day) load(day); }, [open, day, load]);
 
   const units = data?.units ?? [];
+  // Đơn vị đã SÁP NHẬP vào đơn vị của tài khoản: mở phiếu ra xem lại số cũ được, sửa thì không
+  // (server chặn) — khoá ngay ở đây để form mở thẳng ở chế độ chỉ xem.
+  const mergedUnit = (data?.view_only_units ?? []).includes(company);
 
   const entry = data?.entries[company] ?? null;
   const exists = !!entry;
@@ -61,11 +64,11 @@ export default function UnitDailyEditModal(
   const lockedUntil = data?.locked_until?.[company] ?? null;
   const closed = !isAdmin && !!lockedUntil && !!day && day <= lockedUntil;   // đã chốt số liệu
   const editable = useMemo(() => {
-    if (!canEdit || !day || day > today) return false;
+    if (!canEdit || !day || day > today || mergedUnit) return false;
     if (isAdmin) return true;
     if (lockedUntil && day <= lockedUntil) return false;
     return daysBetween(today, day) <= (data?.edit_window_days ?? 7);
-  }, [canEdit, isAdmin, day, today, data, lockedUntil]);
+  }, [canEdit, isAdmin, day, today, data, lockedUntil, mergedUnit]);
 
   // Đơn giá mủ nước/mủ chén → ghi thẳng kho "Giá mủ nguyên liệu" (đúng đơn vị + ngày), chỉ khi đổi.
   //
@@ -128,11 +131,13 @@ export default function UnitDailyEditModal(
         <Select value={company} onChange={setCompany} showSearch style={{ minWidth: 220 }}
                 options={units.map((u) => ({ value: u, label: u }))}
                 filterOption={(i, o) => (o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
-        {!canEdit
-          ? <Tag color="default">{exists ? "Số liệu đã nhập" : "Ngày này chưa có số liệu"}</Tag>
-          : exists
-            ? <Tag color="blue">Đang sửa số đã có</Tag>
-            : <Tag color="green">Tạo mới cho ngày này</Tag>}
+        {mergedUnit
+          ? <Tag color="default">Đơn vị đã sáp nhập — chỉ tra cứu</Tag>
+          : !canEdit
+            ? <Tag color="default">{exists ? "Số liệu đã nhập" : "Ngày này chưa có số liệu"}</Tag>
+            : exists
+              ? <Tag color="blue">Đang sửa số đã có</Tag>
+              : <Tag color="green">Tạo mới cho ngày này</Tag>}
       </div>
       {/* Nói ĐÚNG lý do khoá — ba lý do khác hẳn nhau và cách xử lý cũng khác:
           tài khoản chỉ xem (không bao giờ sửa được, đừng chờ) · ngày đã chốt (phải nhờ Ban TTKD
@@ -140,7 +145,10 @@ export default function UnitDailyEditModal(
           cửa sổ trong khi thực ra phải gọi cho Ban, hoặc đi xin quyền mà vai trò vốn không có. */}
       {!editable && (
         <Alert type="info" showIcon style={{ marginBottom: 12 }}
-               message={!canEdit
+               message={mergedUnit
+                 ? `${company} đã sáp nhập vào đơn vị của bạn — số liệu trước ngày sáp nhập giữ `
+                   + "nguyên để tra cứu và vẫn được cộng vào báo cáo, nhưng không sửa được nữa."
+                 : !canEdit
                  ? "Tài khoản của bạn chỉ xem số liệu — việc nhập/sửa do tài khoản nhập liệu "
                    + "của đơn vị thực hiện."
                  : closed

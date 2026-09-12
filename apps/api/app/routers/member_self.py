@@ -8,6 +8,9 @@ Tham số `member` của các handler là TÀI KHOẢN đang gọi (một trong 
 Mỗi thao tác ghi phải kèm `company` và server kiểm tra company thuộc danh sách gán của tài khoản
 → không thể đụng đơn vị khác. Chỉ nhập/sửa được HÔM NAY + N ngày gần nhất (server ép); ngày cũ
 hơn chỉ để xem.
+
+Phạm vi ĐỌC rộng hơn phạm vi GHI: các màn tra cứu mở thêm những đơn vị đã SÁP NHẬP vào đơn vị được
+gán (xem `_scope`), và trả kèm `view_only_units` để web khoá nút sửa cho phần đó.
 """
 
 from __future__ import annotations
@@ -29,8 +32,8 @@ from app.schemas.unit_daily import (
     ExcelImportCommit, PurchasePlanEdit, StockContractEdit, UnitDailyEdit, UnitDailyMove,
 )
 from app.services import (
-    contract_files, market_demand_repo, member_checklist, price_repo, unit_daily_excel_io,
-    unit_daily_repo, unit_stock_contract_repo,
+    contract_files, market_demand_repo, member_checklist, member_unit_merge, price_repo,
+    unit_daily_excel_io, unit_daily_repo, unit_stock_contract_repo,
 )
 from app.services.unit_report_query import split_csv
 
@@ -56,13 +59,35 @@ def _plans_of(units: list[str], year: int) -> dict[str, float]:
     return {u: plans[u] for u in units if u in plans}
 
 
-def _locked(member: dict) -> dict[str, str]:
-    """{đơn vị: ngày đã chốt} của riêng tài khoản này — trả kèm mọi payload có `edit_window_days`
+def _units(member: dict) -> list[str]:
+    """Đơn vị tài khoản được NHẬP/SỬA — đúng danh sách được gán."""
+    return list(member.get("member_units") or [])
+
+
+def _scope(member: dict) -> tuple[list[str], list[str]]:
+    """(đơn vị HIỆN TRÊN MÀN, đơn vị CHỈ XEM trong số đó) — mở phạm vi ĐỌC theo dòng đời sáp nhập.
+
+    Sáp nhập không đổi tên dữ liệu cũ (bản ghi trước ngày hiệu lực vẫn đứng tên đơn vị cũ) nhưng
+    tài khoản thì chuyển hẳn sang đơn vị nhận. Không mở vế đọc này thì số liệu trước sáp nhập biến
+    mất khỏi mọi màn của đơn vị nhận — lũy kế thiếu hẳn một mảng (phản ánh 11/09/2026: tài khoản
+    Chư Sê không còn thấy phần Mang Yang kỳ 01/01–23/07, dù báo cáo của Ban đã gộp đủ).
+
+    GHI thì KHÔNG mở: `_assert_company` vẫn chỉ nhận đơn vị được gán, nên đơn vị đã sáp nhập chỉ
+    xem. Web đọc `view_only_units` để khoá sẵn nút sửa thay vì để người dùng bấm rồi mới báo lỗi.
+    """
+    own = _units(member)
+    view = member_unit_merge.expand(own) or own
+    keep = set(own)
+    return view, [u for u in view if u not in keep]
+
+
+def _locked(units: list[str]) -> dict[str, str]:
+    """{đơn vị: ngày đã chốt} của riêng các đơn vị này — trả kèm mọi payload có `edit_window_days`
     để màn nhập liệu biết ngày nào đã chốt mà chuyển sang "(đã chốt)" thay vì mời bấm rồi báo lỗi."""
     from app.services import data_lock_repo
 
     got = data_lock_repo.locked_map()
-    return {u: got[u] for u in (member.get("member_units") or []) if u in got}
+    return {u: got[u] for u in units if u in got}
 
 
 def _assert_company(member: dict, company: str, as_of: str | None = None) -> None:
@@ -72,7 +97,8 @@ def _assert_company(member: dict, company: str, as_of: str | None = None) -> Non
     gán tay lại đơn vị cũ thì đây là lớp chặn cuối: `as_of` = NGÀY SỐ LIỆU, ngày trước ngày sáp
     nhập vẫn sửa được.
     """
-    if company not in (member.get("member_units") or []):
+    if company not in _units(member):
+        # Đơn vị đã sáp nhập nằm trong phạm vi ĐỌC (`_scope`) nhưng không bao giờ được ghi.
         raise HTTPException(403, "Đơn vị không thuộc quyền quản lý của tài khoản.")
     assert_unit_can_enter(company, as_of, require_known=False)
 
@@ -80,17 +106,19 @@ def _assert_company(member: dict, company: str, as_of: str | None = None) -> Non
 @router.get("/checklist")
 def my_checklist(member: dict = Depends(get_unit_user)) -> dict:
     """Đơn vị còn thiếu gì — hiện ngay trên mọi màn của tài khoản đơn vị (xem `member_checklist`)."""
-    return member_checklist.checklist(list(member["member_units"]))
+    return member_checklist.checklist(_units(member))
 
 
 @router.get("/prices")
 def my_prices(days: int = Query(30, ge=1, le=180),
               member: dict = Depends(get_unit_user)) -> dict:
-    """Lịch sử giá mủ nước + mủ chén của TỪNG đơn vị được gán (dựng lưới xem/nhập)."""
-    units = list(member["member_units"])
+    """Lịch sử giá mủ nước + mủ chén của TỪNG đơn vị được gán (dựng lưới xem/nhập).
+
+    Kèm cả đơn vị đã sáp nhập vào (chỉ xem — `view_only_units`)."""
+    units, view_only = _scope(member)
     sheets = {u: price_repo.member_price_history(u, days) for u in units}
-    return {"units": units, "today": edit_window.today().isoformat(),
-            "edit_window_days": edit_window.member_window(), "locked_until": _locked(member),
+    return {"units": units, "view_only_units": view_only, "today": edit_window.today().isoformat(),
+            "edit_window_days": edit_window.member_window(), "locked_until": _locked(units),
             "sheets": sheets}
 
 
@@ -135,10 +163,10 @@ def clear_my_price(
 @router.get("/market-demand/timeline")
 def my_market_demand_timeline(days: int = Query(90, ge=1, le=730),
                               member: dict = Depends(get_unit_user)) -> dict:
-    """Timeline nhu cầu — CHỈ các đơn vị được gán của tài khoản (đa đơn vị), ẩn ngày trống."""
-    units = list(member["member_units"])
+    """Timeline nhu cầu — các đơn vị được gán + đơn vị đã sáp nhập vào (chỉ xem), ẩn ngày trống."""
+    units, view_only = _scope(member)
     date_from = (edit_window.today() - timedelta(days=days)).isoformat()
-    return {"units": units, "today": edit_window.today().isoformat(),
+    return {"units": units, "view_only_units": view_only, "today": edit_window.today().isoformat(),
             "edit_window_days": edit_window.member_window(),
             "entries": market_demand_repo.recent(date_from, companies=units)}
 
@@ -147,7 +175,7 @@ def my_market_demand_timeline(days: int = Query(90, ge=1, le=730),
 def my_market_demand(as_of: str = Query(..., description="YYYY-MM-DD"),
                      member: dict = Depends(get_unit_user)) -> dict:
     """Nhu cầu thị trường của CÁC đơn vị được gán cho 1 ngày (chỉ đơn vị của tài khoản)."""
-    units = list(member["member_units"])
+    units = _units(member)   # phiếu NHẬP → chỉ đơn vị được gán (đơn vị đã sáp nhập xem ở timeline)
     entries = market_demand_repo.entries_on(as_of)
     return {"units": units, "today": edit_window.today().isoformat(),
             "edit_window_days": edit_window.member_window(),
@@ -175,17 +203,20 @@ def my_daily_timeline(kind: str = Query(..., pattern="^(purchase|consumption)$")
                       page: int = Query(1, ge=1),
                       page_size: int = Query(50, ge=1, le=500),
                       member: dict = Depends(get_unit_user)) -> dict:
-    """Timeline báo cáo — CHỈ các đơn vị được gán (đa đơn vị), ẩn ngày trống.
+    """Timeline báo cáo — các đơn vị được gán + đơn vị đã SÁP NHẬP vào (chỉ xem), ẩn ngày trống.
     Mặc định `days` ngày gần nhất; truyền cả `date_from`+`date_to` → lọc theo khoảng tự chọn.
-    Cắt trang giống endpoint chuyên viên (xem `unit_daily.timeline`)."""
-    units = list(member["member_units"])
+    Cắt trang giống endpoint chuyên viên (xem `unit_daily.timeline`).
+
+    Có phần của đơn vị đã sáp nhập thì dòng "Lũy kế (khoảng đang xem)" mới đủ — trước đây kỳ đầu
+    năm của đơn vị cũ rơi ra ngoài, đơn vị nhận đối chiếu với sổ của mình là lệch (xem `_scope`)."""
+    units, view_only = _scope(member)
     today = edit_window.today()
     d_from, d_to = resolve_timeline_range(days, date_from, date_to, today)
     res = timeline_page(kind, d_from, d_to, units, page, page_size)
     unit_daily_repo.attach_purchase_prices(res["entries"], kind)
     return {"today": today.isoformat(), "edit_window_days": edit_window.member_window(),
-            "locked_until": _locked(member),
-            "units": units, "plans": _plans_of(units, today.year),
+            "locked_until": _locked(units),
+            "units": units, "view_only_units": view_only, "plans": _plans_of(units, today.year),
             **res, "page": page, "page_size": page_size}
 
 
@@ -193,16 +224,16 @@ def my_daily_timeline(kind: str = Query(..., pattern="^(purchase|consumption)$")
 def my_daily(kind: str = Query(..., pattern="^(purchase|consumption)$"),
              as_of: str = Query(..., description="Ngày 'YYYY-MM-DD'"),
              member: dict = Depends(get_unit_user)) -> dict:
-    """Số liệu báo cáo của CÁC đơn vị được gán cho 1 ngày."""
-    units = list(member["member_units"])
+    """Số liệu báo cáo cho 1 ngày — đơn vị được gán + đơn vị đã sáp nhập vào (chỉ xem)."""
+    units, view_only = _scope(member)
     try:
         year = date.fromisoformat(as_of).year
     except ValueError as exc:
         raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
     entries = unit_daily_repo.entries_on(kind, as_of)
     return {"as_of": as_of, "today": edit_window.today().isoformat(),
-            "edit_window_days": edit_window.member_window(), "locked_until": _locked(member),
-            "units": units,
+            "edit_window_days": edit_window.member_window(), "locked_until": _locked(units),
+            "units": units, "view_only_units": view_only,
             "plans": _plans_of(units, year),
             "entries": {u: entries.get(u) for u in units},
             **unit_daily_repo.day_extras(kind, as_of, units)}
@@ -214,7 +245,7 @@ def my_year_plan(year: int = Query(..., ge=2020, le=2100),
                  member: dict = Depends(get_unit_user)) -> dict:
     """Số liệu năm của CÁC đơn vị được gán — chỉ đơn vị CÓ giao kế hoạch thu mua."""
     # Màn Kế hoạch năm mở cho MỌI đơn vị của tài khoản (chốt 03/08/2026 — bỏ cờ bật/tắt).
-    units = list(member["member_units"])
+    units = _units(member)   # form NHẬP 1 lần → chỉ đơn vị được gán
     return {"year": year, "units": units, "plans": unit_daily_repo.year_plan(year, companies=units)}
 
 
@@ -234,13 +265,13 @@ def upsert_my_year_plan(body: PurchasePlanEdit,
 @router.get("/stock-contracts")
 def my_stock_contracts(as_of: str | None = Query(None, description="Chỉ HĐ đang tồn ngày này"),
                        member: dict = Depends(get_unit_user)) -> dict:
-    """Hợp đồng đã ký của các đơn vị được gán (kèm cả HĐ đã giao để đơn vị tra cứu lại)."""
+    """Hợp đồng đã ký của các đơn vị được gán + đơn vị đã sáp nhập vào (kèm cả HĐ đã giao)."""
     if as_of:
         try:
             date.fromisoformat(as_of)
         except ValueError as exc:
             raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
-    units = list(member["member_units"])
+    units, _ = _scope(member)
     return {"as_of": as_of,
             "contracts": unit_stock_contract_repo.list_contracts(companies=units, as_of=as_of)}
 
@@ -252,19 +283,20 @@ def my_stock_contract_history(status: str = Query("all", pattern="^(all|undelive
                               grades: str | None = Query(None, description="Chủng loại, phân cách dấu phẩy"),
                               q: str | None = Query(None, max_length=120),
                               member: dict = Depends(get_unit_user)) -> dict:
-    """Lịch sử TOÀN BỘ hợp đồng đã ký của CÁC đơn vị được gán (kể cả đã giao)."""
+    """Lịch sử TOÀN BỘ hợp đồng đã ký — đơn vị được gán + đơn vị đã sáp nhập vào (kể cả đã giao)."""
     for label, v in (("Từ ngày", date_from), ("Đến ngày", date_to)):
         if v:
             try:
                 date.fromisoformat(v)
             except ValueError as exc:
                 raise HTTPException(400, f"{label} không hợp lệ (YYYY-MM-DD).") from exc
-    units = list(member["member_units"])
+    units, view_only = _scope(member)
     contracts = unit_stock_contract_repo.list_contracts(
         companies=units, status=None if status == "all" else status,
         date_from=date_from, date_to=date_to, q=q, grades=split_csv(grades))
     contracts.sort(key=lambda c: (c["start_date"] or "", c["id"] or 0), reverse=True)
-    return {"units": units, "grades": list(UNIT_GRADES), "contracts": contracts}
+    return {"units": units, "view_only_units": view_only, "grades": list(UNIT_GRADES),
+            "contracts": contracts}
 
 
 @router.put("/stock-contracts")
@@ -291,7 +323,7 @@ def delete_my_stock_contract(contract_id: int,
     old = unit_stock_contract_repo.get(contract_id) or {}
     if old.get("company"):
         data_lock.assert_not_locked(old["company"], old.get("start_date"), old.get("delivered_date"))
-    if not unit_stock_contract_repo.delete(contract_id, list(member["member_units"])):
+    if not unit_stock_contract_repo.delete(contract_id, _units(member)):
         raise HTTPException(404, "Không tìm thấy hợp đồng này.")
     return {"ok": True}
 
@@ -359,7 +391,7 @@ def get_my_contract_file(name: str, member: dict = Depends(get_unit_user)):
 def my_import_template(kind: str = Query(..., pattern="^(purchase|sales|stock|plan)$"),
                        member: dict = Depends(get_unit_user)):
     """Tải file Excel MẪU — tài khoản 1 đơn vị thì mẫu bỏ luôn cột 'Đơn vị' (tự gán khi nhập)."""
-    data = unit_daily_excel_io.build_template(kind, allowed_units=list(member["member_units"]))
+    data = unit_daily_excel_io.build_template(kind, allowed_units=_units(member))
     return Response(
         content=data,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -373,7 +405,7 @@ async def my_import_preview(kind: str = Query(..., pattern="^(purchase|sales|sto
     """Xem trước file nộp — dòng của đơn vị khác bị đánh dấu lỗi."""
     try:
         return unit_daily_excel_io.parse_upload(kind, await file.read(),
-                                                allowed_units=list(member["member_units"]))
+                                                allowed_units=_units(member))
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -387,5 +419,5 @@ def my_import_commit(body: ExcelImportCommit,
         if r.get("company") and r.get("as_of"):
             data_lock.assert_not_locked(str(r["company"]), str(r["as_of"]))
     return unit_daily_excel_io.commit_rows(body.kind, body.rows, member.get("username"),
-                                           allowed_units=list(member["member_units"]))
+                                           allowed_units=_units(member))
 

@@ -36,6 +36,8 @@ export type DemandEntry = {
 };
 export type DemandTimeline = {
   today: string; edit_window_days: number; units: string[]; entries: DemandEntry[];
+  /** Đơn vị CHỈ XEM trong `units` — đã sáp nhập vào đơn vị của tài khoản (chỉ có ở role=member). */
+  view_only_units?: string[];
 };
 
 export const fetchDemandTimeline = (days = 90) =>

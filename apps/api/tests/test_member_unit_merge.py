@@ -451,3 +451,50 @@ def test_daily_stock_rows_stop_double_counting_after_the_merge_date() -> None:
     by_day = {r["key"]: r["warehoused"] for r in days["rows"]}
     assert by_day[d_before] == 1200.0, "ngày trước sáp nhập: hai kho còn riêng, phải cộng cả hai"
     assert by_day[D_AFTER] == 1300.0, "sau ngày hiệu lực: kho cũ đã nằm trong số của đơn vị nhận"
+
+
+def test_receiving_unit_account_sees_the_old_units_daily_rows() -> None:
+    """Màn của ĐƠN VỊ: tài khoản đơn vị nhận phải thấy cả số liệu ngày của đơn vị đã sáp nhập.
+
+    Phản ánh thật 11/09/2026 (Chư Sê nhận Mang Yang): sáp nhập giữ nguyên tên đơn vị cũ trên dữ
+    liệu cũ, còn tài khoản thì chuyển hẳn sang đơn vị nhận — nên phần số liệu đầu năm của đơn vị cũ
+    biến mất khỏi màn của họ và dòng "Lũy kế (khoảng đang xem)" thiếu hẳn một mảng, dù báo cáo của
+    Ban đã gộp đủ. Đơn vị đối chiếu với sổ của mình là lệch, tưởng mất số liệu.
+    """
+    from app.routers import member_self
+
+    _purchase(OLD, D_BEFORE, 7.0)
+    _purchase(NEW, D_BEFORE, 3.0)
+    merge.merge(OLD, NEW, D_MERGE)
+
+    got = member_self.my_daily_timeline(
+        kind="purchase", days=90, date_from=None, date_to=None, page=1, page_size=500,
+        member={"username": ACCOUNT, "member_units": [NEW]})
+    assert {e["company"] for e in got["entries"]} == {NEW, OLD}
+    assert sum(e["fields"]["latex_wet"] for e in got["entries"]) == 10.0, "lũy kế phải gồm cả hai"
+    assert got["view_only_units"] == [OLD], "phần của đơn vị đã sáp nhập chỉ được XEM"
+    assert OLD in got["units"], "vẫn nằm trong danh sách đơn vị của màn (để mở phiếu xem lại)"
+
+
+def test_receiving_unit_account_still_cannot_write_for_the_merged_unit() -> None:
+    """Mở phạm vi ĐỌC không được kéo theo quyền GHI: đơn vị đã sáp nhập vẫn chỉ để tra cứu."""
+    from fastapi import HTTPException
+
+    from app.routers import member_self
+    from app.schemas.unit_daily import UnitDailyEdit
+
+    merge.merge(OLD, NEW, D_MERGE)
+    body = UnitDailyEdit(kind="purchase", company=OLD, as_of=D_BEFORE, fields={"latex_wet": 1.0})
+    with pytest.raises(HTTPException) as err:
+        member_self.upsert_my_daily(body, member={"username": ACCOUNT, "member_units": [NEW]})
+    assert err.value.status_code == 403
+
+
+def test_member_entry_forms_keep_only_the_units_the_account_can_write() -> None:
+    """Các form NHẬP (kế hoạch năm · nhu cầu 1 ngày) không được mời chọn đơn vị đã sáp nhập."""
+    from app.routers import member_self
+
+    merge.merge(OLD, NEW, D_MERGE)
+    member = {"username": ACCOUNT, "member_units": [NEW]}
+    assert member_self.my_year_plan(year=date.today().year, member=member)["units"] == [NEW]
+    assert member_self.my_market_demand(as_of=D_BEFORE, member=member)["units"] == [NEW]

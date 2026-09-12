@@ -47,6 +47,8 @@ export type DayData = {
   /** {đơn vị: ngày đã CHỐT SỐ LIỆU} — ngày ≤ mốc này đơn vị hết tự sửa. */
   locked_until?: Record<string, string>;
   units: string[];
+  /** Đơn vị CHỈ XEM trong `units` — đã sáp nhập vào đơn vị của tài khoản (xem `member_self._scope`). */
+  view_only_units?: string[];
   plans: Record<string, number>;            // chỉ tiêu kế hoạch thu mua năm (đơn vị: tấn)
   entries: Record<string, DailyEntry | null>;
   currencies?: Record<string, string>;      // {đơn vị: VND/LAK/KHR} — ≠VND ⇒ hiện ô tỷ giá
@@ -67,6 +69,8 @@ export type TimelineTotals = Record<string, number | null> & {
 export type Timeline = {
   today: string; edit_window_days: number; locked_until?: Record<string, string>;
   units: string[];
+  /** Đơn vị CHỈ XEM trong `units` — đã sáp nhập vào đơn vị của tài khoản (chỉ có ở role=member). */
+  view_only_units?: string[];
   plans: Record<string, number>; entries: TimelineRow[];
   /** Tổng số dòng khớp khoảng ngày (server cắt trang, `entries` chỉ là trang đang xem). */
   total: number;
@@ -200,6 +204,8 @@ export type ContractHistoryFilters = {
 };
 export type ContractHistoryData = {
   units: string[]; regions?: string[]; grades?: string[]; contracts: StockContract[];
+  /** Đơn vị CHỈ XEM trong `units` — đã sáp nhập vào đơn vị của tài khoản. */
+  view_only_units?: string[];
 };
 
 export function fetchStockContractHistory(role: Role, f: ContractHistoryFilters = {}): Promise<ContractHistoryData> {

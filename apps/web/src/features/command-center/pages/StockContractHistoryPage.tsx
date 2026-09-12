@@ -19,7 +19,6 @@ export default function StockContractHistoryPage() {
   const { user, isUnitAccount } = useAuth();
   const role: Role = isUnitAccount ? "member" : "hq";
   const memberUnits = user?.member_units ?? [];
-  const showCompany = role !== "member" || memberUnits.length > 1;
 
   const [filters, setFilters] = useState<ContractHistoryFilters>({ status: "all" });
   const [units, setUnits] = useState<string[]>([]);
@@ -27,6 +26,9 @@ export default function StockContractHistoryPage() {
   const [grades, setGrades] = useState<string[]>([]);
   const [rows, setRows] = useState<StockContract[]>([]);
   const [loading, setLoading] = useState(false);
+  // Cột "Đơn vị" phải hiện theo SỐ ĐƠN VỊ CÓ TRONG BẢNG, không theo số đơn vị được gán: tài khoản
+  // một đơn vị nhưng đã nhận sáp nhập thì bảng có hợp đồng của cả hai, giấu cột là đọc nhầm chủ.
+  const showCompany = role !== "member" || memberUnits.length > 1 || units.length > 1;
 
   const load = () => {
     setLoading(true);

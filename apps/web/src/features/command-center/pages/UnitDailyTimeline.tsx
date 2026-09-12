@@ -47,6 +47,9 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  // Đơn vị đã SÁP NHẬP vào đơn vị của tài khoản: số liệu cũ vẫn hiện (để lũy kế đủ) nhưng chỉ tra
+  // cứu — server cũng chặn ghi, khoá sẵn ở đây để không mời bấm rồi mới báo lỗi.
+  const viewOnly = useMemo(() => new Set(data?.view_only_units ?? []), [data]);
 
   const load = useCallback(() => {
     setLoading(true); setErr("");
@@ -106,25 +109,30 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
         }
         // Ngoài cửa sổ sửa: vẫn hiện nút nhưng khoá + nói rõ lý do (đừng để user bấm rồi mới báo lỗi).
         const lockedUntil = data?.locked_until?.[r.company] ?? null;
+        const merged = viewOnly.has(r.company);                               // đơn vị đã sáp nhập
         const closed = !isAdmin && !!lockedUntil && r.as_of <= lockedUntil;   // đã chốt số liệu
-        const locked = closed
+        const locked = merged || closed
           || (!isAdmin && daysBetween(data?.today ?? todayISO(), r.as_of) > (data?.edit_window_days ?? 7));
         return (
           <>
             {/* Icon phải nói đúng việc bấm vào sẽ làm được: ngày đã CHỐT thì mở ra cũng chỉ xem,
                 để nguyên cây bút là hứa hão (chốt 27/08/2026). Vẫn cho bấm để xem lại số. */}
-            <Tooltip title={closed
-              ? "Số liệu ngày này đã chốt — mở ra chỉ xem, cần sửa thì báo Ban TTKD"
-              : locked ? "Ngày này đã ngoài cửa sổ nhập — mở ra chỉ xem"
-                       : "Sửa số liệu"}>
+            <Tooltip title={merged
+              ? "Đơn vị đã sáp nhập — số liệu cũ chỉ để tra cứu"
+              : closed
+                ? "Số liệu ngày này đã chốt — mở ra chỉ xem, cần sửa thì báo Ban TTKD"
+                : locked ? "Ngày này đã ngoài cửa sổ nhập — mở ra chỉ xem"
+                         : "Sửa số liệu"}>
               <Button size="small" type="link"
                       icon={closed ? <LockOutlined /> : locked ? <EyeOutlined /> : <EditOutlined />}
                       onClick={() => onEdit(r.as_of, r.company)} />
             </Tooltip>
-            <Tooltip title={closed
-              ? "Số liệu ngày này đã chốt — báo Ban TTKD nếu cần sửa"
-              : locked ? "Ngày này đã ngoài cửa sổ nhập — chỉ xem"
-                       : "Đổi ngày bản ghi (nhập nhầm ngày)"}>
+            <Tooltip title={merged
+              ? "Đơn vị đã sáp nhập — số liệu cũ chỉ để tra cứu"
+              : closed
+                ? "Số liệu ngày này đã chốt — báo Ban TTKD nếu cần sửa"
+                : locked ? "Ngày này đã ngoài cửa sổ nhập — chỉ xem"
+                         : "Đổi ngày bản ghi (nhập nhầm ngày)"}>
               <Button size="small" type="link" icon={<CalendarOutlined />} disabled={locked}
                       onClick={() => setMoving({ as_of: r.as_of, company: r.company })} />
             </Tooltip>
