@@ -13,6 +13,7 @@ from typing import Any
 
 from app.services import llm, weekly_report_service
 from app.services import weekly_ai_compose as compose
+from app.services import weekly_ai_polish as polish
 from app.services import weekly_ai_prompts as prompts
 from app.services.weekly_ai_context import build_context
 from app.services.weekly_number_check import absolute_words, unverified_numbers
@@ -29,6 +30,8 @@ SUMMARY_SOURCE_MAX_CHARS = 60_000
 _BULLET_RE = re.compile(r"^\s*(?:•\s*|\*\s+)")          # '• ' / '* ' — không đụng '**đậm**'
 _LABEL_RE = re.compile(r"^#{2,}\s*([IVX]+(?:\.\d+)?)\b")
 # Kỳ nhiều tuần: AI hay dồn các tuần vào 1 dòng → tách trước 'Trong Tuần 35…' / 'Sang Tuần 36…'.
+# Câu nhận định giao ngay hợp lệ khi hệ thống không có giá: phải nói về chủng loại/giá physical.
+_PHYSICAL_LINE_RE = re.compile(r"RSS\s?3|STR\s?20|SMR\s?20|SIR\s?20|SVR\s?20|Latex|FOB|giao ngay|physical", re.I)
 _WEEK_PARA_RE = re.compile(r"(?<=[.;!?])\s+(?=(?:Trong|Sang|Bước sang|Đến|Tới) Tuần \d)")
 
 
@@ -98,8 +101,10 @@ def _finalize(field: str, lines: list[str], rep: dict[str, Any]) -> list[str]:
     if field == "exchange_notes":
         return compose.exchange_notes(rep, compose.parse_causes(lines))
     if field == "physical_notes":
-        intro = [s for s in _strip_lead_dash(lines) if not s.startswith("**")][:2]
-        return intro + compose.physical_lines(rep)
+        intro = [s for s in _strip_lead_dash(lines) if not s.startswith("**")]
+        if not compose.physical_lines(rep):  # không có giá giao ngay → chỉ giữ câu dẫn giá physical (vd ANRPC)
+            return [s for s in intro if _PHYSICAL_LINE_RE.search(s) and re.search(r"\d", s)][:1]
+        return intro[:2] + compose.physical_lines(rep)
     if field == "forecast":
         return _forecast_lines(lines)
     if field == "movement" and len(rep.get("weeks") or []) > 2:
@@ -129,6 +134,7 @@ def assist(week_key: str, section: str) -> dict[str, Any]:
         paras = _macro_bullets(lines, titles[idx])
     else:
         paras = _finalize(section, lines, rep)
+    paras = polish.polish_sections({"x": paras})["x"]
     warnings, absolute = _checks(paras, ctx)
     return {"paragraphs": paras, "source_urls": urls, "warnings": warnings, "absolute_words": absolute}
 
@@ -144,8 +150,10 @@ def assist_all(week_key: str) -> dict[str, Any]:
         raise RuntimeError("AI trả về sai khung nhãn '### …' — thử lại.")
     sections: dict[str, Any] = {field: _finalize(field, parsed.get(label, []), rep)
                                 for field, label in prompts.FIELD_LABEL.items()}
-    sections["macro"] = [{"title": title, "bullets": _macro_bullets(parsed.get(f"IV.{i + 1}", []), title)}
-                         for i, title in enumerate(prompts.macro_titles(rep))]
+    macro = [{"title": title, "bullets": _macro_bullets(parsed.get(f"IV.{i + 1}", []), title)}
+             for i, title in enumerate(prompts.macro_titles(rep))]
+    sections["macro"], polished = polish.polish_macro(macro, {f: sections[f] for f in prompts.FIELD_LABEL})
+    sections.update(polished)
     warnings: dict[str, list[str]] = {}
     absolute: dict[str, list[str]] = {}
     checked = [(f, sections[f]) for f in prompts.FIELD_LABEL]

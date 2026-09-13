@@ -19,6 +19,10 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Iterable
 
 ABSOLUTE_WORDS = ["hoàn toàn", "100%", "đương nhiên", "chắc chắn", "tuyệt đối"]
+# Từ tiếng Anh AI hay để sót khi đọc tài liệu ANRPC/tin quốc tế (tên riêng, mã sàn/chủng loại không tính).
+ENGLISH_WORDS = ["firm", "outlook", "deficit", "surplus", "bullish", "bearish", "supply", "demand",
+                 "market", "sentiment", "rally", "rebound", "downturn", "short-term", "long-term",
+                 "y-o-y", "yoy", "m-o-m", "mom", "weak", "strong", "tight", "volatile", "resilient"]
 
 _MAX_DECIMALS = 6
 
@@ -137,3 +141,12 @@ def absolute_words(lines: Iterable[str]) -> list[str]:
     """Từ ngữ tuyệt đối xuất hiện trong văn (theo ranh giới từ, không phân biệt hoa thường)."""
     text = "\n".join(s for s in (lines or []) if s)
     return [w for w, rx in _ABS_RES if rx.search(text)]
+
+
+_EN_RES = [(w, re.compile(rf"(?<![\w-]){re.escape(w)}(?![\w-])", re.IGNORECASE)) for w in ENGLISH_WORDS]
+
+
+def english_words(lines: Iterable[str]) -> list[str]:
+    """Từ tiếng Anh thông dụng còn sót trong văn tiếng Việt (vd 'firm', 'outlook')."""
+    text = "\n".join(s for s in (lines or []) if s)
+    return [w for w, rx in _EN_RES if rx.search(text)]

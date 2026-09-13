@@ -15,7 +15,8 @@ _SUPPLY_WITH_DOCS = (
     "Cung – Cầu (số liệu ANRPC): dòng 1 = đoạn mở nêu trạng thái cán cân cao su thiên nhiên toàn cầu (thâm "
     "hụt/dư cung, khối lượng, năm/kỳ số liệu) theo báo cáo ANRPC; tiếp theo gạch '**Sản lượng sản xuất toàn "
     "cầu:** …' và '**Nhu cầu tiêu thụ toàn cầu:** …' (số dự báo + % so cùng kỳ YoY), dưới mỗi gạch 1–3 dòng "
-    "chi tiết MỞ ĐẦU '> ' (quốc gia chủ lực, khối ANRPC/ngoài ANRPC, thời tiết/El Niño, Trung Quốc…); có thể "
+    "chi tiết MỞ ĐẦU '> ' (ưu tiên số theo khối ANRPC/ngoài ANRPC và quốc gia nổi bật như Thái Lan, Côte "
+    "d'Ivoire nếu tài liệu có; thời tiết/El Niño; Trung Quốc…); có thể "
     "thêm 1 dòng nhận định ngắn hạn (Short-term Market Outlook) của ANRPC. Logic: sản lượng tăng → nguồn cung "
     "dồi dào → giảm áp lực thiếu hụt → giá điều chỉnh xuống; thâm hụt kéo dài → bệ đỡ trung hạn. Mọi số CHỈ "
     "từ TÀI LIỆU ĐÍNH KÈM."
@@ -30,7 +31,9 @@ _GUIDES = {
         "Thị trường năng lượng, địa chính trị & cao su tổng hợp (Butadien): 1–2 đoạn. Logic: giá dầu WTI/Brent "
         "tăng (vd rủi ro địa chính trị, nguồn cung dầu gián đoạn) → chi phí sản xuất Butadien tăng → cao su tổng "
         "hợp đắt hơn → nhà máy lốp xe ưu tiên cao su tự nhiên → hỗ trợ giá; dầu giảm → ngược lại. Nêu số dầu "
-        "(TB tuần, % thay đổi) từ khối CHỈ SỐ; Butadien và sự kiện địa chính trị chỉ nêu khi tin/tài liệu có."),
+        "(TB tuần, % thay đổi) từ khối CHỈ SỐ. BẮT BUỘC có ý về Butadien/cao su tổng hợp (giá Butadien Trung Quốc, "
+        "SBR/BR: tăng/giảm và nguyên nhân) và sự kiện địa chính trị năng lượng (vd eo biển Hormuz, Trung Đông) "
+        "NẾU tài liệu đính kèm hoặc tin trong kỳ có nhắc; không có thì không bịa."),
     "finance": (
         "Tỷ giá và tài chính Nhật Bản: 1–2 đoạn. Logic: USD/JPY tăng (Yên yếu) → cao su OSE hấp dẫn nhà đầu tư "
         "nước ngoài → hỗ trợ sàn OSE; Yên phục hồi → áp lực lên OSE. DXY tăng (USD mạnh lên) hoặc FED duy trì "
