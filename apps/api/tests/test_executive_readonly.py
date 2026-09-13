@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.db import db_healthy
+from app.core.executive_readonly_guard import EXECUTIVE_WRITE_ALLOW
 from app.core.permissions import EXECUTIVE_CAPS, LEVEL_EDIT, effective_caps, has_cap
 from app.main import app
 from app.services import user_repo
@@ -30,6 +31,13 @@ def test_quyen_hieu_luc_chi_o_muc_xem() -> None:
     for technical in ("member_unit", "support", "audit"):
         assert technical not in caps
     assert not has_cap(caps, "physical", LEVEL_EDIT)
+
+
+def test_danh_sach_cho_phep_khop_route_that() -> None:
+    """Đổi đường dẫn một endpoint trong danh sách mà quên sửa theo → lãnh đạo mất tính năng đó."""
+    paths = app.openapi()["paths"]
+    for method, path in EXECUTIVE_WRITE_ALLOW:
+        assert method.lower() in paths.get(path, {}), f"{method} {path} không còn tồn tại"
 
 
 def _bearer(username: str, password: str) -> dict[str, str]:
@@ -106,6 +114,10 @@ def test_van_dung_duoc_ho_so_doi_mat_khau_va_ai(env) -> None:
     for url in ("/api/assistant/chat", "/api/market-movement/assessment"):
         r = client.post(url, headers=h, json={"messages": "x", "groups": "x"})
         assert r.status_code == 422, f"{url} → {r.status_code} {r.text[:200]}"
+    # Xuất PDF báo cáo tuần: tuần sai định dạng thì lỗi ngay khi dựng báo cáo (không chạy trình
+    # duyệt in PDF) — miễn KHÔNG phải 403 là đã qua hàng rào.
+    r = client.post("/api/weekly-reports/khong-phai-tuan/generate-pdf", headers=h)
+    assert r.status_code != 403, r.text[:200]
 
 
 @_db

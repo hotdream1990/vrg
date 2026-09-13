@@ -6,7 +6,7 @@ import {
   CheckCircleFilled, CloseCircleFilled, MinusCircleFilled, ReloadOutlined, StopOutlined,
 } from "@ant-design/icons";
 import { Button, Segmented, Spin, message } from "antd";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { dm, isoDate } from "../../../../lib/date";
 import {
@@ -58,6 +58,7 @@ export default function SubmissionStatusPage() {
   const [data, setData] = useState<StatusReport | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const latest = useRef(0);
   const reload = useCallback(() => {
     if (filters.from > filters.to) { message.warning("Khoảng ngày không hợp lệ."); return; }
     const days = Math.floor((new Date(`${filters.to}T00:00:00`).getTime() -
@@ -66,9 +67,14 @@ export default function SubmissionStatusPage() {
       message.warning(`Chỉ có thể theo dõi tối đa ${MAX_STATUS_DAYS} ngày trong một lần xem.`);
       return;
     }
+    // Chỉ nhận lượt gọi mới nhất — đổi kỳ/biểu nhanh thì lượt cũ về sau không được đè lên.
+    const seq = ++latest.current;
+    const current = () => seq === latest.current;
     setLoading(true);
     fetchSubmissionStatus(kind, filters)
-      .then(setData).catch((e: Error) => message.error(e.message)).finally(() => setLoading(false));
+      .then((d) => { if (current()) setData(d); })
+      .catch((e: Error) => { if (current()) message.error(e.message); })
+      .finally(() => { if (current()) setLoading(false); });
   }, [kind, filters]);
   useEffect(() => { reload(); }, [reload]);
 

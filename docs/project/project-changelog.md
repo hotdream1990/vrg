@@ -14,8 +14,16 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
   - Vẫn dùng được: hỏi Trợ lý AI, bấm "Tạo nhận định bằng AI", đổi mật khẩu, sửa hồ sơ. Mọi thao
     tác nhập/sửa/xoá khác bị chặn ở máy chủ, kể cả khi gọi thẳng API.
   - Tạo ở Quản trị → Người dùng, chọn vai trò "Lãnh đạo Tập đoàn" — không cần tích quyền.
+- **Sổ tay Lãnh đạo Tập đoàn** (13/09/2026) — `docs/huong-dan/lanh-dao-tap-doan/`, 21 mục, 20 ảnh
+  chú thích, bản Word.
 
 ### Fixed
+- **Người chỉ xem tải được PDF Báo cáo tuần** (13/09/2026) — trước đây nút "Xuất PDF" lưu báo cáo
+  rồi mới xuất, nên tài khoản chỉ xem (Lãnh đạo Tập đoàn…) bấm là báo lỗi. Nay xuất thẳng bản đã lưu.
+- **Màn Thống kê và Theo dõi nộp báo cáo hiện đúng kỳ vừa chọn** (13/09/2026) — đổi kỳ nhanh trong
+  lúc bảng đang tải thì kết quả của kỳ cũ về sau đè lên: nút ghi "Tháng trước" mà số liệu là của
+  "Tuần này". Nay chỉ hiện kết quả của lần chọn mới nhất.
+- **Giá sàn Tập đoàn**: người chỉ xem thấy tiêu đề "Biểu giá" thay vì "Sửa biểu giá".
 - **Thôi nhắc "chưa nhập đơn giá" với ngày đơn vị đã khai là KHÔNG CÓ GIÁ** (07/09/2026) — đơn vị
   báo: những ngày chỉ có *sản lượng chênh lệch sau chế biến* thì không có giá, Ban đã thống nhất
   nhập 0, vậy mà ảnh đốc thúc vẫn ghi "chưa nhập đơn giá".

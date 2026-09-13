@@ -89,9 +89,13 @@ def ai_assist_all(week_key: str):
         raise HTTPException(502, "Lỗi tạo nội dung AI — kiểm tra cấu hình LLM hoặc log máy chủ.") from exc
 
 
-@router.post("/{week_key}/generate-pdf", dependencies=_editor)
+@router.post("/{week_key}/generate-pdf")
 def generate_pdf(week_key: str):
-    """Xuất PDF báo cáo tuần."""
+    """Xuất PDF báo cáo tuần từ bản ĐÃ LƯU.
+
+    Không sửa số liệu nên chỉ cần quyền xem màn (`bulletin_weekly`, gác ở main) — người chỉ xem
+    (vd Lãnh đạo Tập đoàn) cũng tải được PDF.
+    """
     try:
         path = weekly_report_service.generate_pdf(week_key)
     except Exception as exc:  # noqa: BLE001

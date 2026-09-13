@@ -6,7 +6,7 @@ trông vào từng endpoint: hệ thống có hơn 100 endpoint ghi, rải rác 
 được số liệu; endpoint thêm sau này cũng tự được bảo vệ.
 
 Ngoại lệ là vài thao tác "gửi đi" nhưng không ghi số liệu nghiệp vụ: hồ sơ cá nhân, đổi mật khẩu,
-hỏi Trợ lý AI, bấm AI nhận định ở Bản tin biến động (bấm-tạo, không lưu).
+hỏi Trợ lý AI, bấm AI nhận định ở Bản tin biến động (bấm-tạo, không lưu), xuất PDF báo cáo tuần.
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ EXECUTIVE_WRITE_ALLOW = frozenset({
     ("POST", "/api/auth/change-password"),
     ("POST", "/api/assistant/chat"),
     ("POST", "/api/market-movement/assessment"),
+    ("POST", "/api/weekly-reports/{week_key}/generate-pdf"),
 })
 
 

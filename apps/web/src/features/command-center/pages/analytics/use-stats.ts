@@ -1,7 +1,7 @@
 /* Hook dùng chung cho các màn Thống kê: nạp danh mục bộ lọc + gọi báo cáo theo bộ lọc hiện tại. */
 
 import { message } from "antd";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { rangeOf } from "../../../../lib/date-presets";
 import {
@@ -29,6 +29,9 @@ export function useStatsReport<T, F extends object = StatsFilters>(
 ) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
+  // Chỉ nhận kết quả của lượt gọi MỚI NHẤT: đổi kỳ khi lượt trước chưa về thì lượt cũ về sau sẽ
+  // đè lên → nút kỳ ghi "Tháng trước" mà bảng hiện số của "Tuần này".
+  const latest = useRef(0);
 
   const reload = useCallback(() => {
     const range = filters as { from?: string; to?: string };
@@ -36,8 +39,13 @@ export function useStatsReport<T, F extends object = StatsFilters>(
       message.warning("Khoảng ngày không hợp lệ: từ ngày sau đến ngày.");
       return;
     }
+    const seq = ++latest.current;
+    const current = () => seq === latest.current;
     setLoading(true);
-    load(filters).then(setData).catch((e: Error) => message.error(e.message)).finally(() => setLoading(false));
+    load(filters)
+      .then((d) => { if (current()) setData(d); })
+      .catch((e: Error) => { if (current()) message.error(e.message); })
+      .finally(() => { if (current()) setLoading(false); });
   }, [load, filters]);
 
   useEffect(() => { reload(); }, [reload]);

@@ -156,7 +156,7 @@ export default function VrgFloorPage() {
       {draft && (
         <div className="card blt-section blt-editable">
           <div className="blt-section-header">
-            <h3>{isNew ? "Biểu giá mới" : "Sửa biểu giá"}</h3>
+            <h3>{isNew ? "Biểu giá mới" : canEdit ? "Sửa biểu giá" : "Biểu giá"}</h3>
             <div className="blt-section-meta" style={{ alignItems: "center" }}>
               <label className="blt-date-label">Tiêu đề:
                 <input type="text" className="blt-date-input" style={{ width: 130 }}

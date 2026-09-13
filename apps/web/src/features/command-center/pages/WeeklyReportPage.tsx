@@ -132,8 +132,9 @@ export default function WeeklyReportPage() {
     if (!draft) return;
     setBusy(true); setErr("");
     try {
-      // Lưu trước để PDF dùng nội dung mới nhất
-      await saveWeeklyReport(draft.week_key, draft.narrative);
+      // Lưu trước để PDF dùng nội dung mới nhất. Người chỉ xem không sửa được gì nên xuất thẳng
+      // bản đã lưu — gọi lưu sẽ bị máy chủ từ chối và nút Xuất PDF hỏng theo.
+      if (canEdit) await saveWeeklyReport(draft.week_key, draft.narrative);
       await generateWeeklyPdf(draft.week_key, `Bao-cao-tuan-${draft.week_no}-${draft.year}.pdf`);
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi xuất PDF"); }
     finally { setBusy(false); }
