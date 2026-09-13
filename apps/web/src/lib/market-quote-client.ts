@@ -16,6 +16,10 @@ export type ProposalSection = {
   note: string;
 };
 
+/** Mục 6 — giá mủ 1 đơn vị tư nhân: một giá, hoặc khoảng giá `price`–`price_max`. */
+export type PrivatePrice = { price: number | null; price_max: number | null };
+export type PrivateUnit = { id: number; name: string };
+
 export type MarketQuote = {
   as_of: string;
   fx: VcbRate;
@@ -24,13 +28,13 @@ export type MarketQuote = {
   export_vrg: Section;
   domestic_vrg: Section;
   customer_proposal: ProposalSection;
-  regions: Record<string, number | null>; // mủ nước (đồng/độ TSC)
-  regions_cup: Record<string, number | null>; // mủ chén (đồng/độ TSC)
+  private_prices: Record<string, PrivatePrice>; // Mục 6 — tên đơn vị tư nhân -> giá
+  private_processing_cost?: number | null; // Mục 6 — chi phí gia công SVR 3L (đồng/tấn), null = mặc định
   footer: string;
 };
 
 export type MarketQuoteSummary = { as_of: string; filled: number; updated: string | null };
-export type MarketQuoteMeta = { grades: string[]; units: string[]; packaging: string[] };
+export type MarketQuoteMeta = { grades: string[]; packaging: string[]; private_units: PrivateUnit[] };
 export type VcbRateResult = VcbRate & { date: string };
 
 /** Gợi ý tình trạng giao dịch (chọn nhanh; vẫn cho tự nhập tuỳ ý). */
@@ -59,6 +63,36 @@ export const saveQuote = (mq: MarketQuote) =>
 export const deleteQuote = (as_of: string) =>
   req<{ deleted: string }>(`/api/market-quote/${as_of}`, { method: "DELETE" });
 
+/** Giá mới nhất của 1 đơn vị tư nhân (khối Dashboard) — mỗi dòng có ngày giá riêng. */
+export type PrivateUnitPrice = PrivatePrice & {
+  name: string;
+  as_of: string;
+  processing_cost?: number | null;
+  prev: (PrivatePrice & { as_of: string }) | null; // lần báo giá liền trước của chính đơn vị này
+};
+export type PrivateLatest = {
+  window_days: number;
+  rows: PrivateUnitPrice[];
+  rule: { floor_premium_min: number; floor_premium_max: number }; // giá sàn hợp lý = giá thành + khoảng này
+};
+
+/** Giá mủ tư nhân mới nhất của từng đơn vị trong cửa sổ ngày (kèm lần báo liền trước). */
+export const fetchPrivateLatest = () => req<PrivateLatest>(`/api/market-quote/private-latest`);
+
+/** Thêm đơn vị tư nhân vào danh mục Mục 6 → danh mục mới. */
+export const addPrivateUnit = (name: string) =>
+  req<PrivateUnit[]>(`/api/market-quote/private-units`, { method: "POST", body: JSON.stringify({ name }) });
+
+/** Xoá đơn vị tư nhân khỏi danh mục (chỉ quản trị viên) → danh mục mới. */
+export const deletePrivateUnit = (id: number) =>
+  req<PrivateUnit[]>(`/api/market-quote/private-units/${id}`, { method: "DELETE" });
+
+/** Tên các dòng Mục 6 có Giá max nhỏ hơn Giá (khoảng giá ngược) — khớp kiểm tra ở máy chủ. */
+export const invalidPrivateRows = (m: Record<string, PrivatePrice> | undefined): string[] =>
+  Object.entries(m ?? {})
+    .filter(([, r]) => r?.price != null && r?.price_max != null && r.price_max < r.price)
+    .map(([name]) => name);
+
 /** Lấy tỷ giá USD của Vietcombank realtime (mặc định hôm nay). */
 export const fetchVcbRate = (date?: string) =>
   req<VcbRateResult>(`/api/market-quote/vcb-rate${date ? `?date=${date}` : ""}`);
@@ -84,6 +118,9 @@ export const LATEX_PACKAGING_OPTIONS = ["Đã có bao bì", "Chưa có bao bì"]
 const textMapEmpty = (m: Record<string, string>) => Object.values(m).every((v) => !v?.trim());
 const numMapEmpty = (m: Record<string, number | null>) => Object.values(m).every((v) => v == null);
 
+const privateEmpty = (m?: Record<string, PrivatePrice>) =>
+  Object.values(m ?? {}).every((r) => r?.price == null && r?.price_max == null);
+
 /** Phiếu "trống" (chưa có gì để lưu) — dùng để bỏ qua auto-save khi chưa nhập. */
 export const isEmptyQuote = (q: MarketQuote): boolean => {
   const secEmpty = (s?: Section) =>
@@ -95,7 +132,7 @@ export const isEmptyQuote = (q: MarketQuote): boolean => {
     && !q.customer_proposal.note.trim();
   return fxEmpty && secEmpty(q.domestic_private) && secEmpty(q.domestic_export)
     && secEmpty(q.export_vrg) && secEmpty(q.domestic_vrg) && propEmpty
-    && numMapEmpty(q.regions) && numMapEmpty(q.regions_cup) && !q.footer.trim();
+    && privateEmpty(q.private_prices) && !q.footer.trim();
 };
 
 // ── Lấy số liệu từ phiếu ngày trước (điền nhanh phiếu mới) ──
@@ -120,6 +157,19 @@ const fillTexts = (dst: TxtMap, src?: TxtMap): [TxtMap, number] => {
 const fillNote = (dst?: string, src?: string): [string, number] =>
   dst?.trim() ? [dst, 0] : src?.trim() ? [src, 1] : [dst ?? "", 0];
 
+/** Điền giá mủ tư nhân cho đơn vị CHƯA có giá nào (không đè dòng đã nhập). */
+const fillPrivate = (
+  dst: Record<string, PrivatePrice>, src?: Record<string, PrivatePrice>,
+): [Record<string, PrivatePrice>, number] => {
+  const out = { ...dst };
+  let n = 0;
+  for (const [k, v] of Object.entries(src ?? {})) {
+    const cur = out[k];
+    if (v?.price != null && cur?.price == null && cur?.price_max == null) { out[k] = { ...v }; n++; }
+  }
+  return [out, n];
+};
+
 const fillSection = (dst: Section, src?: Section): [Section, number] => {
   const [prices, a] = fillNums(dst.prices ?? {}, src?.prices);
   const [packaging, b] = fillTexts(dst.packaging ?? {}, src?.packaging);
@@ -130,9 +180,7 @@ const fillSection = (dst: Section, src?: Section): [Section, number] => {
 };
 
 /** Chép số liệu phiếu ngày trước sang phiếu đang mở — CHỈ điền ô còn TRỐNG (không đè số đã nhập).
- *  KHÔNG chép 2 nhóm là số riêng của từng ngày:
- *  · tỷ giá VCB — bấm "Lấy tỷ giá VCB" để lấy đúng ngày;
- *  · giá mủ khu vực (mủ nước/mủ chén) — chép sang ngày khác là dựng dữ liệu sai ngày.
+ *  KHÔNG chép tỷ giá VCB — bấm "Lấy tỷ giá VCB" để lấy đúng ngày.
  *  → [phiếu sau khi điền, số ô đã điền] */
 export const copyFromPrevQuote = (draft: MarketQuote, prev: MarketQuote): [MarketQuote, number] => {
   const [domestic_private, a] = fillSection(draft.domestic_private, prev.domestic_private);
@@ -143,13 +191,17 @@ export const copyFromPrevQuote = (draft: MarketQuote, prev: MarketQuote): [Marke
   const [prices, f] = fillNums(draft.customer_proposal?.prices ?? {}, prev.customer_proposal?.prices);
   const [propNote, g] = fillNote(draft.customer_proposal?.note, prev.customer_proposal?.note);
   const [footer, h] = fillNote(draft.footer, prev.footer);
+  const [private_prices, i] = fillPrivate(draft.private_prices ?? {}, prev.private_prices);
+  const copyCost = draft.private_processing_cost == null && prev.private_processing_cost != null;
   return [{
     ...draft,
     domestic_private, domestic_export, export_vrg, domestic_vrg,
     customer_proposal: { ...draft.customer_proposal, qty, prices, note: propNote },
+    private_prices,
+    private_processing_cost: copyCost ? prev.private_processing_cost : draft.private_processing_cost,
     footer,
-    // fx / regions / regions_cup: giữ nguyên phiếu đang mở — KHÔNG lấy từ ngày khác.
-  }, a + b + c + d + e + f + g + h];
+    // fx: giữ nguyên phiếu đang mở — KHÔNG lấy từ ngày khác.
+  }, a + b + c + d + e + f + g + h + i + (copyCost ? 1 : 0)];
 };
 
 /** Phiếu rỗng để tạo mới (giá theo chủng loại = null). */
@@ -163,8 +215,8 @@ export const emptyQuote = (as_of: string, grades: string[]): MarketQuote => {
     export_vrg: { prices: blankNum(), packaging: {}, shipping: {}, status: {}, note: "" },
     domestic_vrg: { prices: blankNum(), packaging: {}, shipping: {}, status: {}, note: "" },
     customer_proposal: { qty: blankNum(), prices: blankNum(), note: "" },
-    regions: {},
-    regions_cup: {},
+    private_prices: {},
+    private_processing_cost: null,
     footer: "",
   };
 };

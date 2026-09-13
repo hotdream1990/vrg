@@ -4,6 +4,22 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Giá mủ tư nhân** (13/09/2026) — Báo giá mủ thị trường bỏ mục 6 "Giá mủ khu vực" (số mủ nước/mủ
+  chén của đơn vị nay lấy thẳng từ đơn vị), thay bằng mục 6 **"Giá mủ tư nhân"**:
+  - Mỗi đơn vị tư nhân nhập **một giá** hoặc **khoảng giá** (Giá – Giá max, đồng/độ TSC). Giá max nhỏ
+    hơn Giá thì báo đỏ và tạm không lưu.
+  - Danh mục đơn vị tư nhân dùng chung mọi phiếu: chuyên viên **thêm** được, chỉ quản trị viên **xoá**
+    được; xoá khỏi danh mục không mất giá ở phiếu cũ.
+  - Cột **Giá thành SVR 3L** tự tính = giá mủ × 1,08 × 100.000 + chi phí gia công chế biến (mặc định
+    2.000.000 đồng/tấn, sửa theo phiếu) — theo công thức chuyên viên.
+  - Tài khoản chỉ có quyền "Giá mủ nguyên liệu" không còn vào màn Báo giá.
+- **Dashboard: khối "Giá mủ tư nhân"** (13/09/2026) — giá mới nhất của từng đơn vị trong 14 ngày (có
+  ngày giá), so với lần báo trước, giá thành SVR 3L, vùng giá sàn hợp lý (giá thành + 700.000–1.000.000)
+  và chênh lệch với giá sàn nội địa SVR 3L hiện hành.
+- **Trợ lý AI tư vấn giá sàn theo giá mủ tư nhân + tồn kho** (13/09/2026) — theo chuyên viên, giá sàn
+  nội địa SVR 3L hợp lý khi cao hơn giá thành tư nhân 700.000–1.000.000 đồng/tấn; tồn kho tăng chọn
+  mép dưới, giảm chọn mép trên. Mức "Có điều chỉnh" được kéo mức mô hình về vùng này; mức "Theo mô
+  hình" giữ nguyên số mô hình, chỉ ghi chú vị trí; mức "Chỉ tra số" liệt kê giá tư nhân từng đơn vị.
 - **Vai trò "Lãnh đạo Tập đoàn"** (13/09/2026) — tài khoản cho lãnh đạo cấp Tập đoàn: xem được mọi
   báo cáo, thống kê, số liệu, hợp đồng và dùng Trợ lý AI như quản trị viên, nhưng **chỉ xem**.
   - Menu riêng, xếp phần hay dùng lên đầu: Phân tích & Bản tin (Trợ lý AI, Gợi ý giá sàn, Bản tin

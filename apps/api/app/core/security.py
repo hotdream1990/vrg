@@ -283,7 +283,7 @@ def cap_or_member_scope(cap: str, level: str = LEVEL_VIEW):
 
 
 def require_any_cap(*caps: str, level: str = LEVEL_VIEW):
-    """Factory dependency: cho qua nếu đạt mức `level` với ÍT NHẤT MỘT quyền (vd Báo giá: market_quote|raw_material)."""
+    """Factory dependency: cho qua nếu đạt mức `level` với ÍT NHẤT MỘT quyền (vd cần ít nhất một trong vài mục)."""
     def dep(username: str = Depends(get_current_user)) -> str:
         got = user_caps(username)
         if not any(has_cap(got, c, level) for c in caps):

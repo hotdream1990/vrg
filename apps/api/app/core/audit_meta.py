@@ -14,6 +14,7 @@ ENTITIES: dict[str, str] = {
     "floor": "Giá sàn Tập đoàn",
     "inventory": "Tồn kho",
     "market_quote": "Báo giá mủ thị trường",
+    "market_private_unit": "Đơn vị tư nhân (Báo giá mủ)",
     "unit_daily": "Báo cáo đơn vị theo ngày",
     "stock_contract": "Hợp đồng tồn kho (dữ liệu cũ)",
     "customer": "Khách hàng",

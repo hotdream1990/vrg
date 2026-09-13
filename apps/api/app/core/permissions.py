@@ -17,8 +17,8 @@ from __future__ import annotations
 
 # key quyền → nhãn hiển thị (dùng cho trang Quản trị người dùng)
 DATA_CAPS: dict[str, str] = {
-    "market_quote": "Báo giá mủ thị trường (Mục 1–4)",
-    "raw_material": "Giá mủ nguyên liệu (+ Mục 5 giá mủ khu vực)",
+    "market_quote": "Báo giá mủ thị trường (gồm giá mủ tư nhân)",
+    "raw_material": "Giá mủ nguyên liệu",
     "floor": "Giá sàn Tập đoàn",
     "physical": "Giá Physical",
     "inventory": "Tồn kho",

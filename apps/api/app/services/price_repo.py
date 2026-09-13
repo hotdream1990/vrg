@@ -299,11 +299,11 @@ def upsert_record(rec: dict[str, Any], note: str | None = None) -> None:
     """Thêm/sửa 1 bản ghi giá thủ công. Khóa: (as_of, source, grade, price_type).
 
     Ghi Nhật ký hoạt động kèm giá trị trước/sau. `note` để nơi gọi ghi rõ nguồn thao tác
-    (vd 'nhập từ text Reuters', 'từ Báo giá mủ — Mục 5').
+    (vd 'nhập từ text Reuters', 'từ link nhập giá công khai').
 
     **Đơn giá thu mua = 0 → XOÁ bản ghi thay vì lưu số 0** (0 = "không có giá", xem
     `market_meta`). Đặt chặn ở đây vì mọi đường ghi giá đều đi qua hàm này — biểu Thu mua,
-    lưới Giá mủ nguyên liệu, Báo giá mủ Mục 5, nhập Excel, link công khai.
+    lưới Giá mủ nguyên liệu, nhập Excel, link công khai.
     """
     ensure_schema()
     as_of, source = rec["as_of"], rec["source"]

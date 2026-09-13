@@ -19,8 +19,8 @@ export type CapLevel = "view" | "edit";
 
 /** Danh sách quyền + nhãn hiển thị (trang Quản trị người dùng, theo thứ tự này). */
 export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
-  { key: "market_quote", label: "Báo giá mủ thị trường", hint: "Mục 1–4 (không gồm giá mủ khu vực)" },
-  { key: "raw_material", label: "Giá mủ nguyên liệu", hint: "gồm cả Mục 5 (giá mủ khu vực) trong Báo giá" },
+  { key: "market_quote", label: "Báo giá mủ thị trường", hint: "gồm Mục 6 giá mủ tư nhân" },
+  { key: "raw_material", label: "Giá mủ nguyên liệu" },
   { key: "floor", label: "Giá sàn Tập đoàn" },
   { key: "physical", label: "Giá Physical" },
   { key: "inventory", label: "Tồn kho" },

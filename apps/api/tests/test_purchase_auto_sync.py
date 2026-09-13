@@ -225,16 +225,3 @@ def test_delete_whole_day_keeps_auto_units(seeded) -> None:
     assert _hq() == 503                                    # đơn vị auto còn nguyên
     assert price_repo.purchase_by_company_on_date(DAY, "purchase",
                                                   PURCHASE_SOURCE_HQ).get(OTHER) is None
-
-
-def test_market_quote_skips_auto_unit(seeded) -> None:
-    """Cửa sau: Mục 6 màn Báo giá mủ không ghi đè ô của đơn vị đang lấy tự động (phiếu vẫn lưu)."""
-    h, mh = seeded
-    _turn_on(h)
-    _member_price(mh, 504)
-    res = client.put("/api/market-quote", headers=h,
-                     json={"as_of": DAY, "regions": {UNIT: 600, OTHER: 610}})
-    assert res.status_code == 200, res.text
-    assert _hq() == 504                                    # số đơn vị giữ nguyên
-    assert price_repo.purchase_by_company_on_date(DAY, "purchase",
-                                                  PURCHASE_SOURCE_HQ).get(OTHER) == 610

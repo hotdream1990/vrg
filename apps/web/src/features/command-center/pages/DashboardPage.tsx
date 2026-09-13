@@ -7,6 +7,7 @@ import ConvergenceAndAlerts from "../sections/ConvergenceAndAlerts";
 import HeatmapAndVrg from "../sections/HeatmapAndVrg";
 import InventoryBalanceSection from "../sections/InventoryBalanceSection";
 import KpiRow from "../sections/KpiRow";
+import PrivateLatexPriceCard from "../sections/PrivateLatexPriceCard";
 
 /** Trang Dashboard — KPI/giá/heatmap/tồn kho dùng dữ liệu thật. Hỏi-đáp AI ở mục "Trợ lý AI". */
 export default function DashboardPage() {
@@ -34,6 +35,7 @@ export default function DashboardPage() {
       <KpiRow />
       <ConvergenceAndAlerts />
       <HeatmapAndVrg />
+      <PrivateLatexPriceCard />
       <InventoryBalanceSection />
     </>
   );

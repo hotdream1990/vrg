@@ -204,8 +204,7 @@ export default function App() {
                   <Route element={<RequireCap caps={["inventory"]} />}>
                     <Route path="/quan-ly-so-lieu/ton-kho" element={<InventoryPage />} />
                   </Route>
-                  {/* Báo giá: cần Mục 1-4 (market_quote) HOẶC Mục 5 (raw_material) */}
-                  <Route element={<RequireCap caps={["market_quote", "raw_material"]} />}>
+                  <Route element={<RequireCap caps={["market_quote"]} />}>
                     <Route path="/quan-ly-so-lieu/bao-gia-mu" element={<MarketQuotePage />} />
                   </Route>
                   <Route element={<RequireCap caps={["member_unit"]} />}>

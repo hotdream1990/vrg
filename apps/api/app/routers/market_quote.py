@@ -1,52 +1,28 @@
-"""Router Báo giá mủ thị trường — 1 phiếu/ngày (nhập tay, đồng bộ kho Giá mủ nguyên liệu)."""
+"""Router Báo giá mủ thị trường — 1 phiếu/ngày (nhập tay) + danh mục đơn vị tư nhân (Mục 6)."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.permissions import LEVEL_EDIT, has_cap
-from app.core.security import block_unit_roles, assert_editor_window, require_any_cap, require_cap_edit, user_caps
+from app.core.security import assert_editor_window, block_unit_roles, require_admin, require_cap_edit
 from app.schemas.market_quote import (
     MarketQuote,
     MarketQuoteMeta,
     MarketQuoteSummary,
+    PrivateUnit,
+    PrivateUnitCreate,
     VcbRateResult,
 )
-from app.services import market_quote_repo, vcb_rate
+from app.services import market_private_unit_repo, market_quote_repo, vcb_rate
 
 router = APIRouter(prefix="/api/market-quote", tags=["market-quote"])
 
-#: Phiếu báo giá có Mục 5 = GIÁ MỦ THEO TỪNG ĐƠN VỊ → tài khoản của đơn vị không được đọc.
+#: Phiếu báo giá là số liệu mức Tập đoàn → tài khoản của đơn vị không được đọc.
 #: Riêng `/vcb-rate` (tỷ giá VCB) vẫn mở: biểu Thu mua của chính đơn vị đang dùng để quy đổi.
 _hq_only = [Depends(block_unit_roles)]
 
-# ghi: cần 1 trong 2 quyền (Mục 1-4 hoặc Mục 5) ở mức Sửa; trả username để áp cửa sổ sửa
-_editor_dep = Depends(require_any_cap("market_quote", "raw_material", level=LEVEL_EDIT))
-
-_REGION_FIELDS = ("regions", "regions_cup")  # Mục 5 — thuộc quyền 'raw_material'
-
-
-def _keep_sections_without_edit_right(data: dict, username: str) -> dict:
-    """Phiếu gồm 2 khối thuộc 2 quyền khác nhau, nhưng dùng CHUNG 1 endpoint ghi.
-
-    Khối nào người dùng không có mức Sửa thì bỏ qua giá trị gửi lên và giữ nguyên bản đã lưu
-    (phiếu mới → giữ giá trị rỗng). Chặn ghi chéo, vd `market_quote:edit` + `raw_material:view`
-    vẫn sửa được Mục 5 (giá mủ khu vực đồng bộ thẳng sang kho Giá mủ nguyên liệu).
-    """
-    caps = user_caps(username)
-    may_region = has_cap(caps, "raw_material", LEVEL_EDIT)
-    may_basic = has_cap(caps, "market_quote", LEVEL_EDIT)
-    if may_region and may_basic:
-        return data
-
-    stored = market_quote_repo.get_quote(data["as_of"]) or {}
-    blank = MarketQuote(as_of=data["as_of"]).model_dump()
-    for field in data:
-        if field == "as_of":
-            continue
-        if not (may_region if field in _REGION_FIELDS else may_basic):
-            data[field] = stored.get(field, blank[field])
-    return data
+# ghi phiếu: quyền Báo giá mức Sửa; trả username để áp cửa sổ sửa
+_editor_dep = Depends(require_cap_edit("market_quote"))
 
 
 @router.get("", response_model=list[MarketQuoteSummary], dependencies=_hq_only)
@@ -64,7 +40,7 @@ def list_quotes(
 
 @router.get("/meta", response_model=MarketQuoteMeta, dependencies=_hq_only)
 def meta():
-    """Chủng loại SVR cố định + đơn vị thành viên (cột Mục 4) để dựng form."""
+    """Chủng loại SVR cố định + gợi ý bao bì + danh mục đơn vị tư nhân (Mục 6) để dựng form."""
     return market_quote_repo.meta()
 
 
@@ -83,9 +59,38 @@ def get_price_history(days: int = Query(90, ge=7, le=365)) -> dict:
     return market_quote_repo.price_history(days)
 
 
+@router.get("/private-latest", dependencies=_hq_only)
+def private_latest() -> dict:
+    """Giá mủ tư nhân mới nhất của TỪNG đơn vị (kèm lần báo liền trước) — cho khối trên Dashboard."""
+    from app.services import private_price_benchmark as pb
+
+    return {"window_days": market_quote_repo.PRIVATE_PRICE_WINDOW_DAYS,
+            "rows": market_quote_repo.private_prices_by_unit(),
+            # Quy tắc chuyên viên (một nguồn ở backend) để khối Dashboard dựng vùng giá sàn hợp lý.
+            "rule": {"floor_premium_min": pb.FLOOR_PREMIUM_MIN, "floor_premium_max": pb.FLOOR_PREMIUM_MAX}}
+
+
+@router.post("/private-units", response_model=list[PrivateUnit], dependencies=_hq_only)
+def add_private_unit(body: PrivateUnitCreate, username: str = _editor_dep):
+    """Thêm đơn vị tư nhân vào danh mục Mục 6 (chuyên viên có quyền Báo giá). Trả danh mục mới."""
+    try:
+        market_private_unit_repo.add_unit(body.name, username)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return market_private_unit_repo.list_units()
+
+
+@router.delete("/private-units/{unit_id}", response_model=list[PrivateUnit], dependencies=_hq_only)
+def delete_private_unit(unit_id: int, _admin: str = Depends(require_admin)):
+    """Xoá đơn vị tư nhân khỏi danh mục — CHỈ admin. Giá đã nhập ở các phiếu cũ giữ nguyên."""
+    if not market_private_unit_repo.delete_unit(unit_id):
+        raise HTTPException(404, "Không tìm thấy đơn vị tư nhân này")
+    return market_private_unit_repo.list_units()
+
+
 @router.get("/{as_of}", response_model=MarketQuote, dependencies=_hq_only)
 def get_quote(as_of: str):
-    """1 phiếu đầy đủ theo ngày (Mục 4 đọc live từ kho Giá mủ nguyên liệu)."""
+    """1 phiếu đầy đủ theo ngày."""
     quote = market_quote_repo.get_quote(as_of)
     if not quote:
         raise HTTPException(404, f"Chưa có báo giá ngày {as_of}")
@@ -94,18 +99,18 @@ def get_quote(as_of: str):
 
 @router.put("", response_model=MarketQuote, dependencies=_hq_only)
 def save_quote(mq: MarketQuote, username: str = _editor_dep):
-    """Lưu/ghi đè phiếu theo ngày + đồng bộ Mục 4 sang kho Giá mủ nguyên liệu (trong cửa sổ sửa; admin miễn)."""
+    """Lưu/ghi đè phiếu theo ngày (trong cửa sổ sửa; admin miễn)."""
     assert_editor_window(username, mq.as_of)
-    return market_quote_repo.save_quote(_keep_sections_without_edit_right(mq.model_dump(), username))
+    data = mq.model_dump()
+    bad = market_quote_repo.invalid_private_rows(data.get("private_prices"))
+    if bad:
+        raise HTTPException(400, "Giá mủ tư nhân: Giá max phải lớn hơn Giá — " + ", ".join(bad))
+    return market_quote_repo.save_quote(data)
 
 
 @router.delete("/{as_of}", dependencies=_hq_only)
 def delete_quote(as_of: str, username: str = Depends(require_cap_edit("market_quote"))) -> dict:
-    """Xoá phiếu 1 ngày (giữ nguyên giá mủ nước đã đồng bộ sang kho chung; trong cửa sổ sửa; admin miễn).
-
-    Xoá bỏ TOÀN BỘ phần Mục 1-4 (payload + chuỗi market) — dữ liệu của quyền `market_quote`,
-    nên bắt buộc mức Sửa của đúng quyền đó; `raw_material` (Mục 5) không đủ để xoá phiếu.
-    """
+    """Xoá phiếu 1 ngày (payload + chuỗi market; trong cửa sổ sửa; admin miễn)."""
     assert_editor_window(username, as_of)
     if not market_quote_repo.delete_quote(as_of):
         raise HTTPException(404, f"Không có báo giá ngày {as_of}")

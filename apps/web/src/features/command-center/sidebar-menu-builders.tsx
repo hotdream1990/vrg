@@ -95,7 +95,7 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
     can("auto_data") && ITEM.fxRate,
   ]));
   items.push(...group("data-manual", <EditOutlined />, "Số liệu thị trường (thủ công)", [
-    (can("market_quote") || can("raw_material")) && ITEM.marketQuote,
+    can("market_quote") && ITEM.marketQuote,
     can("floor") && ITEM.floor,
     can("physical") && ITEM.physical,
     // "Giá mủ nguyên liệu" + "Tồn kho Tập đoàn" đã chuyển xuống nhóm RETIRED_MENU (chỉ admin thấy).
@@ -167,7 +167,7 @@ function buildExecutiveMenu(can: (cap: Cap) => boolean) {
     ...group("data-market", <FundOutlined />, "Số liệu thị trường (chỉ xem)", [
       can("auto_data") && ITEM.priceBoard,
       can("auto_data") && ITEM.fxRate,
-      (can("market_quote") || can("raw_material")) && ITEM.marketQuote,
+      can("market_quote") && ITEM.marketQuote,
       can("floor") && ITEM.floor,
       can("physical") && ITEM.physical,
     ]),

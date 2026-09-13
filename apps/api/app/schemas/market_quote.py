@@ -1,4 +1,4 @@
-"""Schema Báo giá mủ thị trường — 1 phiếu/ngày (tỷ giá VCB + Mục 1-3 SVR + Mục 4 mủ nước)."""
+"""Schema Báo giá mủ thị trường — 1 phiếu/ngày (tỷ giá VCB + Mục 1-4 SVR + Mục 5 đề xuất KH + Mục 6 giá mủ tư nhân)."""
 
 from __future__ import annotations
 
@@ -31,8 +31,15 @@ class ProposalSection(BaseModel):
     note: str = ""
 
 
+class PrivatePrice(BaseModel):
+    """Mục 6 — giá mủ của 1 đơn vị tư nhân: một giá (`price`) hoặc khoảng giá (`price`–`price_max`)."""
+
+    price: float | None = None
+    price_max: float | None = None
+
+
 class MarketQuote(BaseModel):
-    """Phiếu báo giá mủ 1 ngày. `regions`/`regions_cup` (Mục 5) đồng bộ kho Giá mủ nguyên liệu."""
+    """Phiếu báo giá mủ 1 ngày — toàn bộ lưu trong payload của phiếu."""
 
     as_of: str
     fx: VcbRate = Field(default_factory=VcbRate)
@@ -41,8 +48,10 @@ class MarketQuote(BaseModel):
     export_vrg: Section = Field(default_factory=Section)  # Mục 3 — giá XK VRG (USD/tấn)
     domestic_vrg: Section = Field(default_factory=Section)  # Mục 4 (VNĐ/tấn)
     customer_proposal: ProposalSection = Field(default_factory=ProposalSection)  # Mục 5 — đề xuất KH hàng VRG
-    regions: dict[str, float | None] = Field(default_factory=dict)  # Mục 5 — mủ nước (đồng/độ TSC)
-    regions_cup: dict[str, float | None] = Field(default_factory=dict)  # Mục 5 — mủ chén (đồng/độ DRC)
+    private_prices: dict[str, PrivatePrice] = Field(default_factory=dict)  # Mục 6 — tên đơn vị tư nhân -> giá
+    # Mục 6 — chi phí gia công chế biến SVR 3L (đồng/tấn) dùng quy giá mủ tư nhân ra giá thành SVR 3L.
+    # None = dùng mức mặc định trên giao diện (2.000.000).
+    private_processing_cost: float | None = None
     footer: str = ""
 
 
@@ -54,12 +63,23 @@ class MarketQuoteSummary(BaseModel):
     updated: str | None = None
 
 
+class PrivateUnit(BaseModel):
+    """1 đơn vị tư nhân trong danh mục Mục 6."""
+
+    id: int
+    name: str
+
+
+class PrivateUnitCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+
 class MarketQuoteMeta(BaseModel):
-    """Metadata dựng form: chủng loại SVR + đơn vị thành viên (Mục 5) + gợi ý bao bì."""
+    """Metadata dựng form: chủng loại SVR + gợi ý bao bì + danh mục đơn vị tư nhân (Mục 6)."""
 
     grades: list[str]
-    units: list[str]
     packaging: list[str]
+    private_units: list[PrivateUnit]
 
 
 class VcbRateResult(VcbRate):

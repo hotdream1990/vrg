@@ -241,6 +241,22 @@ th.r, td.r {
   background: rgba(245, 158, 11, 0.10);
 }
 /* Bọc ô số + icon cảnh báo, giữ canh phải trong bảng */
+/* Mục 6 Báo giá mủ — dòng công thức giá thành SVR 3L + cột kết quả */
+.private-cost-formula {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+  margin: 4px 0 10px; padding: 8px 12px; border-radius: 8px;
+  background: rgba(10, 158, 72, 0.07); border: 1px dashed rgba(10, 158, 72, 0.35); font-size: 13px;
+}
+.private-cost-formula label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.private-cost-input { display: inline-block; width: 130px; }
+.private-cost-cell { font-weight: 600; color: var(--primary, #0a9e48); white-space: nowrap; }
+
+/* Ô số nhập sai ràng buộc (vd Giá max < Giá) — viền đỏ, khác cảnh báo lệch kỳ trước (vàng). */
+.blt-cell-input.num-invalid {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 1px var(--danger);
+}
+
 .num-warn-wrap {
   display: inline-flex;
   align-items: center;

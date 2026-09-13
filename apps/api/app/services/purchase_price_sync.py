@@ -59,8 +59,8 @@ def is_auto(company: str) -> bool:
 def assert_manual_allowed(company: Any, price_type: Any) -> None:
     """Chặn chuyên viên ghi/xoá tay ô của đơn vị ĐANG lấy số tự động (raise ValueError).
 
-    Khoá ở tầng service chứ không chỉ ẩn nút trên web: cùng một ô còn vào được qua màn Báo giá mủ
-    thị trường (Mục 5) và qua API, mà đã hứa "số của đơn vị là số duy nhất" thì phải đúng ở mọi
+    Khoá ở tầng service chứ không chỉ ẩn nút trên web: cùng một ô còn vào được qua nhiều màn và
+    qua API, mà đã hứa "số của đơn vị là số duy nhất" thì phải đúng ở mọi
     đường vào — nếu không con số cuối cùng lại tuỳ ai ghi sau.
     """
     if price_type in PURCHASE_PRICE_TYPES and isinstance(company, str) and is_auto(company):

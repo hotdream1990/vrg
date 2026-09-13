@@ -107,32 +107,47 @@ def test_view_only_editor_reads_but_cannot_write() -> None:
 
 
 @_db
-def test_market_quote_cannot_write_section_without_edit_right() -> None:
-    """Phiếu báo giá dùng chung 1 endpoint cho 2 quyền — khối thiếu mức Sửa phải bị bỏ qua."""
+def test_private_units_editor_adds_only_admin_deletes() -> None:
+    """Danh mục đơn vị tư nhân (Mục 6 Báo giá): chuyên viên có quyền Báo giá THÊM được, không XOÁ
+    được; chỉ-Xem không thêm được; admin xoá được."""
     h = _bearer("admin", "admin")
-    client.delete("/api/users/cap_mq", headers=h)
-    # Mục 1–4 được Sửa, Mục 5 (giá mủ khu vực) chỉ được Xem.
-    client.post("/api/users", json={"username": "cap_mq", "password": "pass123", "role": "editor",
-                                    "permissions": ["market_quote", "raw_material:view"]}, headers=h)
-    qh = _bearer("cap_mq", "pass123")
+    for u in ("cap_pu_edit", "cap_pu_view"):
+        client.delete(f"/api/users/{u}", headers=h)
+    client.post("/api/users", json={"username": "cap_pu_edit", "password": "pass123", "role": "editor",
+                                    "permissions": ["market_quote"]}, headers=h)
+    client.post("/api/users", json={"username": "cap_pu_view", "password": "pass123", "role": "editor",
+                                    "permissions": ["market_quote:view"]}, headers=h)
+    eh, vh = _bearer("cap_pu_edit", "pass123"), _bearer("cap_pu_view", "pass123")
+    name = "_zz_cap Tư nhân thử"
+
+    assert client.post("/api/market-quote/private-units", json={"name": name}, headers=vh).status_code == 403
+    res = client.post("/api/market-quote/private-units", json={"name": name}, headers=eh)
+    assert res.status_code == 200, res.text
+    unit = next(u for u in res.json() if u["name"] == name)
+    assert client.post("/api/market-quote/private-units", json={"name": name}, headers=eh).status_code == 400
+    assert client.delete(f"/api/market-quote/private-units/{unit['id']}", headers=eh).status_code == 403
+    res = client.delete(f"/api/market-quote/private-units/{unit['id']}", headers=h)
+    assert res.status_code == 200 and all(u["id"] != unit["id"] for u in res.json())
+
+    for u in ("cap_pu_edit", "cap_pu_view"):
+        client.delete(f"/api/users/{u}", headers=h)
+
+
+@_db
+def test_quote_rejects_reversed_private_range() -> None:
+    """Giá max nhỏ hơn Giá → 400, phiếu không lưu."""
+    h = _bearer("admin", "admin")
     today = date.today().isoformat()
     client.delete(f"/api/market-quote/{today}", headers=h)
-
-    body = {"as_of": today, "footer": "ghi chu muc 1-4",
-            "regions": {"_zz_cap_unit": 999.0}, "regions_cup": {}}
-    assert client.put("/api/market-quote", json=body, headers=qh).status_code == 200
-
-    saved = client.get(f"/api/market-quote/{today}", headers=qh).json()
-    assert saved["footer"] == "ghi chu muc 1-4"   # khối được cấp Sửa → ghi bình thường
-    assert not saved["regions"]                    # khối chỉ-Xem → bị bỏ qua, không ghi
-
-    client.delete(f"/api/market-quote/{today}", headers=h)
-    client.delete("/api/users/cap_mq", headers=h)
+    body = {"as_of": today, "private_prices": {"_zz_cap ngược": {"price": 563, "price_max": 560}}}
+    res = client.put("/api/market-quote", json=body, headers=h)
+    assert res.status_code == 400 and "Giá max" in res.json()["detail"]
+    assert client.get(f"/api/market-quote/{today}", headers=h).status_code == 404
 
 
 @_db
 def test_delete_quote_needs_market_quote_edit_not_raw_material() -> None:
-    """Xoá phiếu huỷ toàn bộ Mục 1-4 → quyền `raw_material` (Mục 5) không được phép xoá."""
+    """Phiếu báo giá chỉ thuộc quyền `market_quote` → quyền `raw_material` không ghi/xoá được."""
     h = _bearer("admin", "admin")
     client.delete("/api/users/cap_del", headers=h)
     client.post("/api/users", json={"username": "cap_del", "password": "pass123", "role": "editor",
@@ -142,6 +157,7 @@ def test_delete_quote_needs_market_quote_edit_not_raw_material() -> None:
     client.put("/api/market-quote", json={"as_of": today, "footer": "khong duoc xoa"}, headers=h)
 
     assert client.delete(f"/api/market-quote/{today}", headers=dh).status_code == 403
+    assert client.put("/api/market-quote", json={"as_of": today, "footer": "x"}, headers=dh).status_code == 403
     assert client.get(f"/api/market-quote/{today}", headers=h).status_code == 200  # vẫn còn nguyên
 
     client.delete(f"/api/market-quote/{today}", headers=h)

@@ -1,22 +1,25 @@
 """Repository Báo giá mủ thị trường (market_quote) — 1 phiếu/ngày (nhập tay).
 
-Payload jsonb giữ tỷ giá VCB + Mục 1-3 (giá SVR + bao bì + vận chuyển + ghi chú) + Mục 4
-(đề xuất mua từ khách hàng). Mục 5 (giá mủ nước + mủ chén theo đơn vị) KHÔNG lưu trong
-payload mà đồng bộ thẳng kho Giá mủ nguyên liệu (fact_price source=vrg, purchase/purchase_cup).
-Mục 1-3 còn được mirror sang fact_price source=market để dùng như chuỗi thời gian cho Bản tin/dự báo.
+Payload jsonb giữ tỷ giá VCB + Mục 1-4 (giá SVR + bao bì + vận chuyển + tình trạng + ghi chú) +
+Mục 5 (đề xuất mua từ khách hàng) + Mục 6 (giá mủ tư nhân theo danh mục đơn vị tư nhân).
+Mục 1-4 còn được mirror sang fact_price source=market để dùng như chuỗi thời gian cho Bản tin/dự báo.
+
+Mục "Giá mủ khu vực" (mủ nước/mủ chén theo đơn vị thành viên, ghi thẳng kho Giá mủ nguyên liệu) đã
+BỎ khỏi phiếu 13/09/2026 — số đó nay lấy trực tiếp từ đơn vị.
 """
 
 from __future__ import annotations
 
 import json
+from datetime import date, timedelta
 from typing import Any
 
 from sqlalchemy import text
 
 from app.core import request_ctx
 from app.core.db import ensure_schema, session_scope
-from app.core.market_meta import MARKET_QUOTE_GRADES, PURCHASE_PRICE_UNIT
-from app.services import audit_repo, member_unit_repo, price_repo, purchase_price_sync
+from app.core.market_meta import MARKET_QUOTE_GRADES
+from app.services import audit_repo, market_private_unit_repo, price_repo
 
 _MARKET = "market"
 # section key → (price_type, currency, unit) khi mirror sang fact_price source=market
@@ -26,18 +29,14 @@ _SECTION_MODES = {
     "export_vrg": ("market_export_vrg", "USD", "USD/tấn"),
     "domestic_vrg": ("market_domestic_vrg", "VND", "đồng/tấn"),
 }
-_PURCHASE = {"source": "vrg", "price_type": "purchase", "currency": "VND",
-             "unit": PURCHASE_PRICE_UNIT["purchase"]}
-_PURCHASE_CUP = {"source": "vrg", "price_type": "purchase_cup", "currency": "VND",
-                 "unit": PURCHASE_PRICE_UNIT["purchase_cup"]}
 
 
 def meta() -> dict[str, Any]:
-    """Chủng loại SVR + đơn vị thành viên active (cột Mục 5) + gợi ý bao bì (Mục 1-3)."""
+    """Chủng loại SVR + gợi ý bao bì (Mục 1-4) + danh mục đơn vị tư nhân (Mục 6)."""
     from app.core.market_meta import MARKET_QUOTE_PACKAGING
 
-    return {"grades": MARKET_QUOTE_GRADES, "units": member_unit_repo.active_names(),
-            "packaging": MARKET_QUOTE_PACKAGING}
+    return {"grades": MARKET_QUOTE_GRADES, "packaging": MARKET_QUOTE_PACKAGING,
+            "private_units": market_private_unit_repo.list_units()}
 
 
 # price_type mirror → (section key, nhãn, đơn vị) cho biểu đồ lịch sử
@@ -74,8 +73,27 @@ def price_history(days: int = 90) -> dict[str, Any]:
     return {"sections": sections, "dates": dates}
 
 
+def _clean_private(prices: dict[str, Any] | None) -> dict[str, dict[str, float | None]]:
+    """Mục 6: bỏ dòng trống; chỉ nhập Giá max thì coi đó là giá; Giá max = Giá thì là một giá."""
+    out: dict[str, dict[str, float | None]] = {}
+    for name, row in (prices or {}).items():
+        lo, hi = (row or {}).get("price"), (row or {}).get("price_max")
+        if lo is None:
+            lo, hi = hi, None
+        if lo is None:
+            continue
+        out[name] = {"price": lo, "price_max": hi if hi is not None and hi != lo else None}
+    return out
+
+
+def invalid_private_rows(prices: dict[str, Any] | None) -> list[str]:
+    """Tên các dòng Mục 6 có Giá max NHỎ HƠN Giá (khoảng giá ngược)."""
+    return [name for name, row in _clean_private(prices).items()
+            if row["price_max"] is not None and row["price_max"] < row["price"]]
+
+
 def _payload_of(mq: dict[str, Any]) -> dict[str, Any]:
-    """Phần lưu trong market_quote.payload (bỏ regions/regions_cup — chúng đi vào fact_price)."""
+    """Phần lưu trong market_quote.payload."""
     return {
         "fx": mq.get("fx") or {},
         "domestic_private": mq.get("domestic_private") or {},
@@ -83,6 +101,8 @@ def _payload_of(mq: dict[str, Any]) -> dict[str, Any]:
         "export_vrg": mq.get("export_vrg") or {},
         "domestic_vrg": mq.get("domestic_vrg") or {},
         "customer_proposal": mq.get("customer_proposal") or {},
+        "private_prices": _clean_private(mq.get("private_prices")),
+        "private_processing_cost": mq.get("private_processing_cost"),
         "footer": mq.get("footer") or "",
     }
 
@@ -97,7 +117,7 @@ def _count_filled(payload: dict[str, Any]) -> int:
         for v in (payload.get(key, {}) or {}).get("prices", {}).values():
             if v is not None:
                 total += 1
-    return total
+    return total + len(payload.get("private_prices") or {})
 
 
 def list_quotes(date_from: str | None = None, date_to: str | None = None,
@@ -129,17 +149,15 @@ def list_quotes(date_from: str | None = None, date_to: str | None = None,
 
 
 def get_quote(as_of: str) -> dict[str, Any] | None:
-    """1 phiếu đầy đủ. Mục 5 (mủ nước + mủ chén) đọc live từ kho Giá mủ nguyên liệu theo ngày."""
+    """1 phiếu đầy đủ theo ngày (None nếu ngày đó chưa có phiếu)."""
     ensure_schema()
     with session_scope() as db:
         row = db.execute(text(
             "SELECT payload FROM market_quote WHERE as_of = CAST(:d AS date)"
         ), {"d": as_of}).mappings().first()
-    regions = price_repo.purchase_by_company_on_date(as_of)
-    regions_cup = price_repo.purchase_by_company_on_date(as_of, "purchase_cup")
-    if not row and not regions and not regions_cup:
+    if not row:
         return None
-    p = _as_payload(row["payload"]) if row else {}
+    p = _as_payload(row["payload"])
     return {
         "as_of": as_of,
         "fx": p.get("fx") or {},
@@ -149,14 +167,53 @@ def get_quote(as_of: str) -> dict[str, Any] | None:
         "export_vrg": p.get("export_vrg") or {"prices": {}, "note": ""},
         "domestic_vrg": p.get("domestic_vrg") or {"prices": {}, "status": {}, "note": ""},
         "customer_proposal": p.get("customer_proposal") or {"qty": {}, "prices": {}, "note": ""},
-        "regions": regions,
-        "regions_cup": regions_cup,
+        "private_prices": p.get("private_prices") or {},
+        "private_processing_cost": p.get("private_processing_cost"),
         "footer": p.get("footer") or "",
     }
 
 
+#: Giá mủ tư nhân mỗi đơn vị báo vào những ngày khác nhau → lấy giá MỚI NHẤT của từng đơn vị trong
+#: cửa sổ này (mỗi dòng ghi rõ ngày giá của chính nó — không gán giá ngày này cho ngày khác).
+PRIVATE_PRICE_WINDOW_DAYS = 14
+
+
+def private_prices_by_unit(as_of: str | None = None,
+                           days: int = PRIVATE_PRICE_WINDOW_DAYS) -> list[dict[str, Any]]:
+    """Giá mủ tư nhân MỚI NHẤT của từng đơn vị trong `days` ngày tính tới `as_of` (mặc định hôm nay).
+
+    Mỗi dòng: tên · giá · giá max · ngày giá · chi phí gia công của phiếu đó · `prev` = lần báo giá
+    liền trước của CHÍNH đơn vị đó (tìm lùi thêm một cửa sổ nữa) để so tăng/giảm.
+    """
+    from app.core import edit_window
+
+    end = as_of or edit_window.today().isoformat()
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(text(
+            "SELECT as_of, payload FROM market_quote "
+            "WHERE as_of <= CAST(:d AS date) AND as_of > CAST(:d AS date) - CAST(:w AS integer) "
+            "AND COALESCE(payload->'private_prices', '{}'::jsonb) <> '{}'::jsonb "
+            "ORDER BY as_of DESC"), {"d": end, "w": days * 2}).mappings().all()
+    start = (date.fromisoformat(end) - timedelta(days=days)).isoformat()
+    latest: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        day, p = str(r["as_of"]), _as_payload(r["payload"])
+        for name, v in (p.get("private_prices") or {}).items():
+            if (v or {}).get("price") is None:
+                continue
+            entry = {"price": v["price"], "price_max": v.get("price_max"), "as_of": day}
+            if name not in latest:
+                if day > start:
+                    latest[name] = {"name": name, **entry,
+                                    "processing_cost": p.get("private_processing_cost"), "prev": None}
+            elif latest[name]["prev"] is None:
+                latest[name]["prev"] = entry
+    return list(latest.values())
+
+
 def save_quote(mq: dict[str, Any]) -> dict[str, Any] | None:
-    """Lưu phiếu: payload jsonb + sync Mục 4 (kho mủ nước) + mirror Mục 1-3 (chuỗi market)."""
+    """Lưu phiếu: payload jsonb + mirror Mục 1-4 (chuỗi market)."""
     ensure_schema()
     as_of = mq["as_of"]
     payload = _payload_of(mq)
@@ -172,31 +229,12 @@ def save_quote(mq: dict[str, Any]) -> dict[str, Any] | None:
     # Màn này TỰ ĐỘNG LƯU sau mỗi ~0.9s → gộp các lần lưu liên tiếp của cùng người vào 1 dòng.
     audit_repo.log("market_quote", "update" if before else "create", as_of,
                    before=before, after=payload, as_of=as_of, coalesce=True)
-    _sync_regions(as_of, mq.get("regions") or {}, _PURCHASE)
-    _sync_regions(as_of, mq.get("regions_cup") or {}, _PURCHASE_CUP)
     _mirror_market_series(as_of, mq)
     return get_quote(as_of)
 
 
-def _sync_regions(as_of: str, regions: dict[str, Any], mode: dict[str, str]) -> None:
-    """Mục 5 → kho Giá mủ nguyên liệu (đảm bảo đơn vị tồn tại, upsert giá theo `mode`).
-
-    BỎ QUA đơn vị đang bật "tự động lấy số từ đơn vị": ô của họ ở kho chung là chỉ xem, số do
-    chính đơn vị khai. Bỏ qua chứ không báo lỗi — màn Báo giá mủ TỰ ĐỘNG LƯU sau mỗi lần gõ, ném
-    lỗi ở đây là cả phiếu không lưu được vì một ô không thuộc quyền chuyên viên.
-    """
-    auto = set(purchase_price_sync.auto_companies())
-    for unit, price in regions.items():
-        if price is None or unit in auto:
-            continue
-        member_unit_repo.add_unit(unit)  # idempotent (ON CONFLICT DO NOTHING)
-        price_repo.upsert_record({"as_of": as_of, "grade": unit, "contract": "",
-                                  "price": float(price), **mode},
-                                 note="Từ Báo giá mủ thị trường (Mục 5)")
-
-
 def _mirror_market_series(as_of: str, mq: dict[str, Any]) -> None:
-    """Mục 1-3 → fact_price source=market (xoá cũ theo ngày rồi ghi lại).
+    """Mục 1-4 → fact_price source=market (xoá cũ theo ngày rồi ghi lại).
 
     Đây là bản SAO PHÁI SINH của payload phiếu (đã ghi nhật ký ở `save_quote`) nên tạm tắt
     nhật ký để không sinh hàng chục dòng trùng cho mỗi lần tự động lưu.
@@ -215,7 +253,7 @@ def _mirror_market_series(as_of: str, mq: dict[str, Any]) -> None:
 
 
 def delete_quote(as_of: str) -> bool:
-    """Xoá phiếu + chuỗi market của ngày (GIỮ nguyên giá mủ nước đã đồng bộ sang kho chung)."""
+    """Xoá phiếu + chuỗi market của ngày."""
     ensure_schema()
     with session_scope() as db:
         row = db.execute(text("SELECT payload FROM market_quote WHERE as_of = CAST(:d AS date)"),

@@ -1,52 +1,48 @@
 import { CheckCircleOutlined, CopyOutlined, SolutionOutlined } from "@ant-design/icons";
+import { message } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { dmy, todayISO } from "../../../lib/date";
 import {
   type MarketQuote,
   type MarketQuoteSummary,
+  type PrivatePrice,
+  type PrivateUnit,
   type Section,
+  addPrivateUnit,
   copyFromPrevQuote,
+  deletePrivateUnit,
   deleteQuote,
   emptyQuote,
   fetchQuoteMeta,
   getQuote,
+  invalidPrivateRows,
   isEmptyQuote,
   listQuotes,
   saveQuote,
 } from "../../../lib/market-quote-client";
 import { useEditorWindow } from "../../../lib/edit-window";
-import { fetchAutoSync } from "../../../lib/purchase-auto-sync-client";
 import { useAuth } from "../../auth/AuthContext";
 import DataSourceNote from "../sections/DataSourceNote";
 import DateInput from "../sections/DateInput";
 import DateRangeBar from "../sections/DateRangeBar";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import GradePriceTable from "./components/GradePriceTable";
+import PrivatePriceTable from "./components/PrivatePriceTable";
 import ProposalTable from "./components/ProposalTable";
-import RegionLatexTable from "./components/RegionLatexTable";
 import VcbRateBar from "./components/VcbRateBar";
 import "../../bulletin/bulletin.css";
 
 type SectKey = "domestic_private" | "domestic_export" | "export_vrg" | "domestic_vrg";
 
-/** Chỉ giữ các ô người dùng đã sửa trong phiên — để phiếu KHÔNG ghi đè kho "Giá mủ nguyên liệu"
- *  bằng ảnh chụp cũ/số của ngày khác (chống carry-forward mủ nước). */
-const pickEdited = (m: Record<string, number | null>, keys: Set<string>): Record<string, number | null> =>
-  Object.fromEntries(Object.entries(m).filter(([k]) => keys.has(k)));
-
 /** Quản lý số liệu → Báo giá mủ thị trường: 1 phiếu/ngày, TỰ LƯU (auto-save) khi nhập. */
 export default function MarketQuotePage() {
-  const { can, canEditCap } = useAuth();
+  const { user, canEditCap } = useAuth();
   const ew = useEditorWindow();            // cửa sổ sửa: phiếu ngày cũ hơn N ngày → chỉ xem (admin miễn)
-  const canBasic = can("market_quote");   // Mục 1–4 + tỷ giá + đề xuất KH
-  const canRegion = can("raw_material");  // Mục 5 — giá mủ khu vực
-  // Ghi được nếu ÍT NHẤT MỘT trong 2 mục ở mức Sửa (khớp require_any_cap ở backend).
-  const canEdit = canEditCap("market_quote") || canEditCap("raw_material");
+  const canEdit = canEditCap("market_quote");
+  const isAdmin = user?.role === "admin";  // chỉ quản trị viên xoá được đơn vị tư nhân khỏi danh mục
   const [grades, setGrades] = useState<string[]>([]);
-  const [units, setUnits] = useState<string[]>([]);
-  // Đơn vị đang lấy số tự động → Mục 6 chỉ xem (backend cũng bỏ qua, không ghi đè số của họ).
-  const [autoUnits, setAutoUnits] = useState<Set<string>>(new Set());
+  const [privateUnits, setPrivateUnits] = useState<PrivateUnit[]>([]);
   const [packOpts, setPackOpts] = useState<string[]>([]);
   const [list, setList] = useState<MarketQuoteSummary[]>([]);
   const [from, setFrom] = useState("");
@@ -62,23 +58,15 @@ export default function MarketQuotePage() {
   const [createDate, setCreateDate] = useState(todayISO());
   const lastSaved = useRef("");
   const timer = useRef<number | null>(null);
-  const editedR = useRef<Set<string>>(new Set()); // ô mủ nước user đã sửa phiên này
-  const editedRc = useRef<Set<string>>(new Set()); // ô mủ chén user đã sửa phiên này
-  const resetEdits = () => { editedR.current = new Set(); editedRc.current = new Set(); };
 
   // Phiếu của ngày ngoài cửa sổ sửa → chỉ xem (khoá toàn bộ form + tự-lưu). Admin miễn.
   const outOfWindow = !!draft && !ew.isEditable(draft.as_of);
-  // Hai khối thuộc hai quyền khác nhau → khoá riêng (backend cũng bỏ qua khối không đủ quyền).
-  const editableBasic = canEditCap("market_quote") && !outOfWindow;   // Mục 1–4 + tỷ giá + đề xuất KH
-  const editableRegion = canEditCap("raw_material") && !outOfWindow;  // Mục 5 — giá mủ khu vực
-  const editable = editableBasic || editableRegion; // tạo/xoá phiếu + tự-lưu: cần ít nhất 1 khối
+  const editable = canEdit && !outOfWindow;
+  const invalidPrivate = invalidPrivateRows(draft?.private_prices);
 
   useEffect(() => {
     fetchQuoteMeta()
-      .then((m) => { setGrades(m.grades); setUnits(m.units); setPackOpts(m.packaging); })
-      .catch(() => {});
-    fetchAutoSync()
-      .then((c) => setAutoUnits(new Set(c.enabled ? c.units.filter((u) => u.auto).map((u) => u.name) : [])))
+      .then((m) => { setGrades(m.grades); setPackOpts(m.packaging); setPrivateUnits(m.private_units ?? []); })
       .catch(() => {});
   }, []);
   const loadList = useCallback(() => {
@@ -91,16 +79,12 @@ export default function MarketQuotePage() {
     if (!draft || !editable) return; // ngoài cửa sổ sửa → không tự lưu (backend cũng chặn)
     const json = JSON.stringify(draft);
     if (json === lastSaved.current || isEmptyQuote(draft)) return;
+    // Khoảng giá ngược (Giá max < Giá) → chờ sửa rồi mới lưu; bảng Mục 6 báo đỏ ngay tại chỗ.
+    if (invalidPrivateRows(draft.private_prices).length > 0) return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
       setSaveState("saving"); setErr("");
-      // Chỉ đồng bộ ô mủ nước/mủ chén user vừa sửa (không đẩy cả snapshot → không đè kho bằng số cũ/ngày khác).
-      const payload = {
-        ...draft,
-        regions: pickEdited(draft.regions ?? {}, editedR.current),
-        regions_cup: pickEdited(draft.regions_cup ?? {}, editedRc.current),
-      };
-      saveQuote(payload).then(() => {
+      saveQuote(draft).then(() => {
         lastSaved.current = json;
         setSaveState("saved"); setSavedAt(new Date().toLocaleTimeString("vi-VN"));
         setIsNew(false); loadList();
@@ -122,7 +106,6 @@ export default function MarketQuotePage() {
     try {
       const q = await getQuote(as_of);
       lastSaved.current = JSON.stringify(q); setSaveState("idle"); setSavedAt("");
-      resetEdits(); // mở phiếu = số từ kho, chưa có ô nào user sửa → không tự đồng bộ lại
       setIsNew(false); setDraft(q); void loadPrev(as_of);
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
   };
@@ -138,14 +121,8 @@ export default function MarketQuotePage() {
         return;
       }
       lastSaved.current = ""; setSaveState("idle"); setSavedAt(""); setIsNew(true);
-      resetEdits();
       if (keepData) {
-        // Đổi ngày: giữ phần đang nhập (tỷ giá/SVR/đề xuất) nhưng MỦ NƯỚC phải theo NGÀY —
-        // đọc lại từ kho theo ngày mới, TUYỆT ĐỐI không mang số mủ nước ngày cũ (chống carry-forward).
-        const fresh = await getQuote(as_of).catch(() => null);
-        setDraft((d) => (d
-          ? { ...d, as_of, regions: fresh?.regions ?? {}, regions_cup: fresh?.regions_cup ?? {} }
-          : emptyQuote(as_of, grades)));
+        setDraft((d) => (d ? { ...d, as_of } : emptyQuote(as_of, grades))); // đổi ngày: giữ phần đang nhập
       } else {
         setDraft(emptyQuote(as_of, grades));
       }
@@ -170,13 +147,21 @@ export default function MarketQuotePage() {
     setDraft((d) => d && { ...d, [k]: { ...d[k], shipping: { ...d[k].shipping, [g]: v } } });
   const setStatus = (k: SectKey, g: string, v: string) =>
     setDraft((d) => d && { ...d, [k]: { ...d[k], status: { ...(d[k].status ?? {}), [g]: v } } });
-  const setRegion = (u: string, v: number | null) => {
-    editedR.current.add(u); // đánh dấu ô user sửa → mới đồng bộ ô này xuống kho
-    setDraft((d) => d && { ...d, regions: { ...d.regions, [u]: v } });
+  const setPrivate = (name: string, field: keyof PrivatePrice, v: number | null) =>
+    setDraft((d) => d && {
+      ...d,
+      private_prices: {
+        ...(d.private_prices ?? {}),
+        [name]: { ...((d.private_prices ?? {})[name] ?? { price: null, price_max: null }), [field]: v },
+      },
+    });
+  const addPrivate = async (name: string) => {
+    try { setPrivateUnits(await addPrivateUnit(name)); }
+    catch (e) { message.error(e instanceof Error ? e.message : "Không thêm được đơn vị"); throw e; }
   };
-  const setRegionCup = (u: string, v: number | null) => {
-    editedRc.current.add(u);
-    setDraft((d) => d && { ...d, regions_cup: { ...d.regions_cup, [u]: v } });
+  const removePrivate = async (unit: PrivateUnit) => {
+    try { setPrivateUnits(await deletePrivateUnit(unit.id)); message.success(`Đã xoá “${unit.name}” khỏi danh mục`); }
+    catch (e) { message.error(e instanceof Error ? e.message : "Không xoá được đơn vị"); }
   };
   const setProp = (patch: Partial<MarketQuote["customer_proposal"]>) =>
     setDraft((d) => d && { ...d, customer_proposal: { ...d.customer_proposal, ...patch } });
@@ -186,13 +171,13 @@ export default function MarketQuotePage() {
     setDraft((d) => d && { ...d, customer_proposal: { ...d.customer_proposal, prices: { ...d.customer_proposal.prices, [g]: v } } });
 
   /** Lấy số liệu phiếu gần nhất trước đó điền vào các ô CÒN TRỐNG (không đè số đã nhập).
-   *  Không lấy tỷ giá VCB và giá mủ khu vực — 2 nhóm này là số riêng của từng ngày. */
+   *  Không lấy tỷ giá VCB — số riêng của từng ngày. */
   const copyPrev = () => {
     if (!draft || !prev) return;
     const ok = confirm(
       `Lấy số liệu phiếu ngày ${dmy(prev.as_of)} điền vào phiếu ngày ${dmy(draft.as_of)}?\n\n`
       + "• Chỉ điền các ô đang TRỐNG — không đè số anh/chị đã nhập.\n"
-      + "• KHÔNG lấy: tỷ giá VCB (bấm \"Lấy tỷ giá VCB\") và giá mủ khu vực (mủ nước/mủ chén).\n\n"
+      + "• KHÔNG lấy tỷ giá VCB (bấm \"Lấy tỷ giá VCB\").\n\n"
       + "Phiếu TỰ LƯU sau khi điền — hãy soát lại số trước khi rời trang.");
     if (!ok) return;
     const [merged, n] = copyFromPrevQuote(draft, prev);
@@ -200,11 +185,11 @@ export default function MarketQuotePage() {
     if (n === 0) { setInfo(`Phiếu ngày ${dmy(prev.as_of)} không có số nào để điền thêm (các ô đã có dữ liệu).`); return; }
     setDraft(merged);
     setInfo(`Đã điền ${n} ô từ phiếu ngày ${dmy(prev.as_of)} — hãy SOÁT LẠI và sửa cho đúng ngày ${dmy(draft.as_of)} `
-      + "trước khi phiếu tự lưu. Tỷ giá VCB và giá mủ khu vực không được lấy sang.");
+      + "trước khi phiếu tự lưu. Tỷ giá VCB không được lấy sang.");
   };
 
   const remove = async () => {
-    if (!draft || !confirm(`Xoá phiếu báo giá ngày ${dmy(draft.as_of)}? (Giá mủ nước đã đồng bộ vẫn giữ)`)) return;
+    if (!draft || !confirm(`Xoá phiếu báo giá ngày ${dmy(draft.as_of)}?`)) return;
     setBusy(true);
     try { await deleteQuote(draft.as_of); setDraft(null); loadList(); }
     catch (e) { setErr(e instanceof Error ? e.message : "Lỗi xoá"); }
@@ -220,7 +205,7 @@ export default function MarketQuotePage() {
       <div className="page-title">
         <div>
           <h2><SolutionOutlined style={{ marginRight: 8 }} />Báo giá mủ thị trường</h2>
-          <p>Phiếu báo giá theo ngày: tỷ giá VCB · giá SVR (NĐ tư nhân/NĐ hàng XK/VRG XK/VRG nội địa) · đề xuất mua từ khách hàng · giá mủ khu vực (nước + chén). Tự lưu khi nhập.</p>
+          <p>Phiếu báo giá theo ngày: tỷ giá VCB · giá SVR (NĐ tư nhân/NĐ hàng XK/VRG XK/VRG nội địa) · đề xuất mua từ khách hàng · giá mủ tư nhân. Tự lưu khi nhập.</p>
         </div>
         {canEdit && (
           <div className="actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -233,7 +218,7 @@ export default function MarketQuotePage() {
         )}
       </div>
 
-      <ReadOnlyNotice cap={["market_quote", "raw_material"]} />
+      <ReadOnlyNotice cap="market_quote" />
       <DataSourceNote page="market-quote" />
 
       <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo} info={`${list.length} phiếu`} />
@@ -276,27 +261,24 @@ export default function MarketQuotePage() {
                     Chỉ xem — ngoài cửa sổ sửa {ew.days ?? 7} ngày
                   </span>
                 )}
-                {/* Điền nhanh từ phiếu gần nhất trước đó (Mục 1–4 + đề xuất KH). */}
-                {editableBasic && prev && (
+                {/* Điền nhanh từ phiếu gần nhất trước đó (Mục 1–6, trừ tỷ giá VCB). */}
+                {editable && prev && (
                   <button className="btn" onClick={copyPrev} disabled={busy}
                     title={`Điền các ô còn trống bằng số của phiếu ngày ${dmy(prev.as_of)} `
-                      + "(không lấy tỷ giá VCB và giá mủ khu vực)"}>
+                      + "(không lấy tỷ giá VCB)"}>
                     <CopyOutlined style={{ marginRight: 6 }} />Lấy số liệu phiếu ngày {dmy(prev.as_of)}
                   </button>
                 )}
-                {/* Xoá phiếu = xoá Mục 1-4 → cần đúng quyền 'market_quote' mức Sửa (khớp backend). */}
-                {editableBasic && <button className="btn" onClick={remove} disabled={busy}>Xoá phiếu</button>}
+                {editable && <button className="btn" onClick={remove} disabled={busy}>Xoá phiếu</button>}
               </div>
             </div>
           </div>
 
-          {canBasic && (
-          <>
-          <VcbRateBar fx={draft.fx} date={draft.as_of} readOnly={!editableBasic} prevFx={prev?.fx}
+          <VcbRateBar fx={draft.fx} date={draft.as_of} readOnly={!editable} prevFx={prev?.fx}
             onChange={(fx) => setDraft((d) => d && { ...d, fx })} />
 
           <GradePriceTable title="1. Giá nội địa — hàng tư nhân" subtitle="VNĐ/tấn + tình trạng" grades={grades}
-            section={draft.domestic_private} unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editableBasic}
+            section={draft.domestic_private} unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editable}
             prevPrices={prev?.domestic_private?.prices}
             onPrice={(g, v) => setPrice("domestic_private", g, v)}
             onPackaging={(g, v) => setPackaging("domestic_private", g, v)}
@@ -306,7 +288,7 @@ export default function MarketQuotePage() {
 
           <GradePriceTable title="2. Giá xuất khẩu — hàng tư nhân" subtitle="VNĐ/tấn + tình trạng" grades={grades}
             section={draft.domestic_export ?? { prices: {}, packaging: {}, shipping: {}, status: {}, note: "" }}
-            unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editableBasic}
+            unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editable}
             prevPrices={prev?.domestic_export?.prices}
             onPrice={(g, v) => setPrice("domestic_export", g, v)}
             onPackaging={(g, v) => setPackaging("domestic_export", g, v)}
@@ -315,7 +297,7 @@ export default function MarketQuotePage() {
             onNote={(v) => setSect("domestic_export", { note: v })} />
 
           <GradePriceTable title="3. Giá xuất khẩu — hàng VRG" subtitle="USD/tấn (FOB) + tình trạng" grades={grades}
-            section={draft.export_vrg} unitLabel="USD/tấn" packagingOptions={packOpts} withStatus readOnly={!editableBasic}
+            section={draft.export_vrg} unitLabel="USD/tấn" packagingOptions={packOpts} withStatus readOnly={!editable}
             prevPrices={prev?.export_vrg?.prices}
             onPrice={(g, v) => setPrice("export_vrg", g, v)}
             onPackaging={(g, v) => setPackaging("export_vrg", g, v)}
@@ -324,7 +306,7 @@ export default function MarketQuotePage() {
             onNote={(v) => setSect("export_vrg", { note: v })} />
 
           <GradePriceTable title="4. Giá nội địa — hàng VRG" subtitle="VNĐ/tấn + tình trạng" grades={grades}
-            section={draft.domestic_vrg} unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editableBasic}
+            section={draft.domestic_vrg} unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editable}
             prevPrices={prev?.domestic_vrg?.prices}
             onPrice={(g, v) => setPrice("domestic_vrg", g, v)}
             onPackaging={(g, v) => setPackaging("domestic_vrg", g, v)}
@@ -333,25 +315,22 @@ export default function MarketQuotePage() {
             onNote={(v) => setSect("domestic_vrg", { note: v })} />
 
           <ProposalTable grades={grades} section={draft.customer_proposal ?? { qty: {}, prices: {}, note: "" }}
-            readOnly={!editableBasic} prevQty={prev?.customer_proposal?.qty} prevPrices={prev?.customer_proposal?.prices}
+            readOnly={!editable} prevQty={prev?.customer_proposal?.qty} prevPrices={prev?.customer_proposal?.prices}
             onQty={setPropQty} onPrice={setPropPrice} onNote={(v) => setProp({ note: v })} />
+
+          <PrivatePriceTable units={privateUnits} prices={draft.private_prices ?? {}}
+            prevPrices={prev?.private_prices} readOnly={!editable} invalid={invalidPrivate}
+            canAdd={canEdit} canDelete={isAdmin} processingCost={draft.private_processing_cost}
+            onProcessingCost={(v) => setDraft((d) => d && { ...d, private_processing_cost: v })}
+            onPrice={setPrivate} onAdd={addPrivate} onDelete={removePrivate} />
 
           <div className="card blt-section" style={{ marginBottom: 16 }}>
             <label className="blt-date-label" style={{ display: "block" }}>Ghi chú chung / Cảnh báo
               <textarea className="blt-date-input" style={{ width: "100%", minHeight: 52, resize: "vertical" }}
-                value={draft.footer} readOnly={!editableBasic} placeholder="Ghi chú cuối phiếu…"
+                value={draft.footer} readOnly={!editable} placeholder="Ghi chú cuối phiếu…"
                 onChange={(e) => setDraft((d) => d && { ...d, footer: e.target.value })} />
             </label>
           </div>
-          </>
-          )}
-
-          {canRegion && (
-            <RegionLatexTable units={units} regions={draft.regions ?? {}} regionsCup={draft.regions_cup ?? {}}
-              readOnly={!editableRegion} autoUnits={autoUnits}
-              prevRegions={prev?.regions} prevRegionsCup={prev?.regions_cup}
-              onPrice={setRegion} onPriceCup={setRegionCup} />
-          )}
         </>
       )}
     </div>

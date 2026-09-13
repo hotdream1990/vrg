@@ -338,3 +338,10 @@ body.shot-mode .shot-hide { display: none !important; }
 /* Bỏ khoá chiều cao + cuộn trong khung để ảnh chụp lấy được cả bảng dài. */
 body.shot-mode .ant-layout { height: auto !important; margin-top: 0 !important; overflow: visible !important; }
 body.shot-mode .ant-layout-content { overflow: visible !important; }
+
+/* Dashboard — dòng tóm tắt vùng giá sàn hợp lý theo giá tư nhân */
+.private-band {
+  display: flex; flex-wrap: wrap; gap: 6px 24px; align-items: center;
+  margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px;
+  background: rgba(10, 158, 72, 0.07); border: 1px dashed rgba(10, 158, 72, 0.35);
+}
