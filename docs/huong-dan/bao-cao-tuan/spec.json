@@ -1,0 +1,230 @@
+{
+ "output": "Huong-dan-bao-cao-tuan.docx",
+ "page": "a4",
+ "colors": {
+  "h1": "1F7A4D",
+  "h2": "C2410C"
+ },
+ "header": {
+  "logo": "logo-vrg.png",
+  "logoW": 846,
+  "logoH": 774,
+  "title": "HƯỚNG DẪN BÁO CÁO PHÂN TÍCH THỊ TRƯỜNG TUẦN",
+  "subtitle": "·  Hệ thống Dự báo & Quản trị Giá Cao su — VRG"
+ },
+ "cover": {
+  "title": "Hướng dẫn sử dụng — Báo cáo phân tích thị trường tuần",
+  "intro": "Tài liệu dành cho chuyên viên Ban Thị trường – Kinh doanh soạn báo cáo phân tích thị trường cao su hằng tuần. Hệ thống tự tính bảng giá theo tuần, gom tỷ giá, chỉ số dầu – DXY và tin trong kỳ; AI viết nháp các phần theo logic báo cáo tuần; chuyên viên soát, sửa rồi xuất PDF theo mẫu."
+ },
+ "readme_head": {
+  "intro": [
+   "Tài liệu dành cho **chuyên viên Ban Thị trường – Kinh doanh** soạn **Báo cáo phân tích thị trường cao su tuần**.",
+   "Quy trình gọn: **mở tuần** → (gộp tuần nếu có lễ) → **tải báo cáo ANRPC** → **AI hỗ trợ toàn bộ** → soát, sửa → **Soát số liệu** → **Xuất PDF**."
+  ],
+  "links": [
+   "Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-bao-cao-tuan.docx](./Huong-dan-bao-cao-tuan.docx)",
+   "Sửa nội dung: chỉ sửa `spec.json` rồi chạy `python3 render_readme.py` (dựng lại README) và `node build_guide.js spec.json` (dựng lại bản Word)."
+  ]
+ },
+ "sections": [
+  {
+   "title": "1. Mở hoặc tạo báo cáo tuần",
+   "location": "Menu **Phân tích & Bản tin** → **Báo cáo tuần**",
+   "intro": "Mỗi báo cáo gắn với một tuần (Thứ Hai – Thứ Sáu). Bảng giá được hệ thống tự tính, không cần nhập.",
+   "image": {
+    "path": "img/01-mo-tuan.png",
+    "w": 3000,
+    "h": 1800
+   },
+   "caption": "Hình 1. Mở báo cáo tuần",
+   "steps": [
+    "Chọn **một ngày bất kỳ** trong tuần cần làm.",
+    "Bấm **Mở / Tạo tuần**.",
+    "Muốn làm tiếp báo cáo cũ thì bấm tên tuần trong **Báo cáo đã lưu**."
+   ],
+   "notes": [
+    "Hệ thống tự lưu khi gõ. Không có nút Lưu."
+   ]
+  },
+  {
+   "title": "2. Gộp tuần và ghi chú đầu báo cáo",
+   "location": "Menu **Phân tích & Bản tin** → **Báo cáo tuần**",
+   "intro": "Tuần có lễ có thể gộp 2–3 tuần vào một báo cáo, như Tuần 35–36 dịp Quốc khánh.",
+   "image": {
+    "path": "img/02-gop-tuan-ghi-chu.png",
+    "w": 3000,
+    "h": 1800
+   },
+   "caption": "Hình 2. Chọn số tuần gộp và ghi chú",
+   "steps": [
+    "Chọn **Số tuần gộp**: 1, 2 hoặc 3 tuần. Bảng giá tự đổi sang nhiều cột tuần.",
+    "Bấm **Gợi ý ghi chú gộp tuần** để chèn câu mẫu.",
+    "Sửa lý do gộp trong ô **Ghi chú đầu báo cáo** (vd nghỉ lễ Quốc khánh 02/09)."
+   ],
+   "notes": [
+    "Ghi chú này in ngay dưới tiêu đề báo cáo PDF.",
+    "Báo cáo 1 tuần thì để trống ô ghi chú."
+   ]
+  },
+  {
+   "title": "3. Tải báo cáo ANRPC và cho AI tóm tắt",
+   "location": "Menu **Phân tích & Bản tin** → **Báo cáo tuần** → khối **Tài liệu đính kèm**",
+   "intro": "AI chỉ lấy số cung – cầu (sản lượng, tiêu thụ, cán cân) từ tài liệu đính kèm. Nên tải báo cáo ANRPC mới nhất trước khi cho AI viết.",
+   "image": {
+    "path": "img/03-dinh-kem-anrpc.png",
+    "w": 3000,
+    "h": 1800
+   },
+   "caption": "Hình 3. Tải tài liệu và tóm tắt số liệu chính",
+   "steps": [
+    "Chọn loại tài liệu: **ANRPC** hoặc **Khác**.",
+    "Bấm **Tải tài liệu (PDF/DOCX)** và chọn file.",
+    "Bấm **AI tóm tắt số liệu chính**. Chờ khoảng 10 giây.",
+    "Đọc lại phần **Tóm tắt số liệu chính**, sửa nếu thấy sai. Rời ô là tự lưu."
+   ],
+   "notes": [
+    "Chỉ nhận file PDF hoặc Word (.docx), tối đa 25 MB.",
+    "File scan dạng ảnh không đọc được chữ. Hệ thống sẽ báo đỏ ngay dưới file.",
+    "Dòng vàng dưới phần tóm tắt là số AI chưa tìm thấy nguyên văn trong file. Kiểm lại số đó trước khi dùng.",
+    "Mỗi tuần tải lại file ANRPC nếu muốn AI dùng."
+   ]
+  },
+  {
+   "title": "4. Xem chỉ số tài chính và tin trong kỳ",
+   "location": "Menu **Phân tích & Bản tin** → **Báo cáo tuần** → khối **Chỉ số tài chính & tỷ giá** và **Tin vietnambiz trong kỳ**",
+   "intro": "Hai khối này giúp nắm nhanh bối cảnh tuần trước khi viết. AI cũng đọc các số và tin này.",
+   "image": {
+    "path": "img/04-chi-so-tin-trong-ky.png",
+    "w": 3000,
+    "h": 1800
+   },
+   "caption": "Hình 4. Chỉ số tài chính, tỷ giá và tin trong kỳ",
+   "steps": [
+    "Xem bảng **DXY, dầu WTI, dầu Brent** và **tỷ giá USD/JPY, CNY, MYR, THB**: trung bình từng tuần, tăng/giảm, cao/thấp trong kỳ.",
+    "Bấm **Investing.com** nếu cần đối chiếu số.",
+    "Bấm tiêu đề bài trong **Tin vietnambiz trong kỳ** để đọc bài gốc."
+   ],
+   "notes": [
+    "USD/JPY tăng nghĩa là đồng Yên yếu đi. USD/THB, USD/MYR giảm nghĩa là Baht, Ringgit mạnh lên."
+   ]
+  },
+  {
+   "title": "5. Nguồn tham khảo",
+   "location": "Menu **Phân tích & Bản tin** → **Báo cáo tuần** → khối **Nguồn tham khảo**",
+   "intro": "Danh mục nguồn theo logic viết báo cáo tuần: giá sàn, giá giao ngay, tỷ giá – dầu, tin tức, ANRPC, EUDR, vĩ mô Việt Nam.",
+   "image": {
+    "path": "img/05-nguon-tham-khao.png",
+    "w": 3000,
+    "h": 1800
+   },
+   "caption": "Hình 5. Danh mục nguồn tham khảo",
+   "steps": [
+    "Bấm **Nguồn tham khảo** để mở danh mục.",
+    "Bấm **Quản lý nguồn** để thêm, sửa, tắt nguồn hoặc khôi phục mặc định.",
+    "Bấm tên nguồn để mở trang gốc. Mục **Hướng dẫn lấy số liệu** ghi cách lấy từng nguồn."
+   ],
+   "notes": [
+    "Nguồn nào gắn với phần nào thì hiện thành nút nhỏ ngay dưới ô viết phần đó."
+   ]
+  },
+  {
+   "title": "6. Thanh công cụ của báo cáo",
+   "location": "Menu **Phân tích & Bản tin** → **Báo cáo tuần**",
+   "image": {
+    "path": "img/06-thanh-cong-cu.png",
+    "w": 3000,
+    "h": 1800
+   },
+   "caption": "Hình 6. Các nút chính",
+   "steps": [
+    "**AI hỗ trợ toàn bộ**: AI viết nháp mọi phần một lượt, các phần kể cùng một diễn biến. Chờ khoảng 20–30 giây.",
+    "**Soát số liệu**: đối chiếu chữ đã viết với số mới nhất (xem mục 9).",
+    "**Xuất PDF**: tải báo cáo theo mẫu. Còn chỗ lệch thì hệ thống hỏi lại trước khi xuất."
+   ],
+   "notes": [
+    "Bấm AI hỗ trợ toàn bộ sẽ **thay** nội dung đang có ở các phần viết. Hệ thống hỏi xác nhận trước."
+   ]
+  },
+  {
+   "title": "7. Viết và sửa từng phần",
+   "location": "Menu **Phân tích & Bản tin** → **Báo cáo tuần** → các phần I đến VI",
+   "intro": "Mỗi phần có ô viết riêng. AI chỉ viết nháp; chuyên viên đọc lại và sửa.",
+   "image": {
+    "path": "img/07-o-viet-ai-tung-phan.png",
+    "w": 3000,
+    "h": 1800
+   },
+   "caption": "Hình 7. Ô viết của một phần",
+   "steps": [
+    "Bấm **AI hỗ trợ** để AI viết lại riêng phần đó.",
+    "Bấm nút **nguồn tham khảo** dưới tên phần để mở nguồn gợi ý.",
+    "Sửa trực tiếp trong ô. Mỗi dòng là một đoạn hoặc một gạch đầu dòng."
+   ],
+   "notes": [
+    "Cách trình bày: dòng bắt đầu bằng **>** là gạch cấp 2, **>>** là gạch cấp 3; chữ đậm viết giữa hai cặp dấu sao.",
+    "Dòng đỏ báo **từ tuyệt đối** (hoàn toàn, chắc chắn, 100%…): nên thay bằng từ trung lập.",
+    "Dòng vàng báo **số chưa đối chiếu được**: kiểm lại số đó với bảng hoặc tài liệu.",
+    "Nên thêm chi tiết riêng của tuần mà AI chưa có (vd mức cao/thấp nhiều tuần, số lốp xe Trung Quốc)."
+   ]
+  },
+  {
+   "title": "8. Bảng giá và ghi chú tự động",
+   "location": "Menu **Phân tích & Bản tin** → **Báo cáo tuần** → phần **III. Diễn biến giá**",
+   "intro": "Bảng giá sàn, giá giao ngay, mủ nước được tính tự động từ số liệu hệ thống.",
+   "image": {
+    "path": "img/08-bang-ghi-chu-tu-dong.png",
+    "w": 3000,
+    "h": 1800
+   },
+   "caption": "Hình 8. Bảng giá, ghi chú và cao/thấp trong kỳ",
+   "steps": [
+    "Xem **bảng giá sàn**: trung bình từng tuần và tăng/giảm từng cặp tuần.",
+    "Đọc **Ghi chú (tự động)**: ngày sàn không có giá, hoặc chưa quy đổi được USD do thiếu tỷ giá.",
+    "Nhập thêm ghi chú nếu cần vào ô **Ghi chú thêm dưới bảng** (vd \"Giá physical tuần này tham khảo theo ANRPC.\").",
+    "Dùng bảng **Cao/Thấp trong kỳ** (kèm giá JPY/kg, CNY/tấn, US cent/kg) để đối chiếu khi viết nhận định."
+   ],
+   "notes": [
+    "Số trong bảng không sửa tay được. Số sai thì sửa ở màn nhập giá tương ứng, bảng tự cập nhật.",
+    "Riêng biên độ mủ nước sửa tay được. Nút **Dùng số tự tính** đưa về số của hệ thống."
+   ]
+  },
+  {
+   "title": "9. Soát số liệu trước khi xuất PDF",
+   "location": "Menu **Phân tích & Bản tin** → **Báo cáo tuần** → nút **Soát số liệu**",
+   "intro": "Báo cáo viết giữa tuần có thể lệch khi số liệu cả tuần về đủ. Luôn soát trước khi xuất.",
+   "image": [
+    {
+     "path": "img/09-soat-so-lieu.png",
+     "w": 3000,
+     "h": 1800
+    },
+    {
+     "path": "img/10-canh-bao-lech-trong-o.png",
+     "w": 3000,
+     "h": 1800
+    }
+   ],
+   "caption": [
+    "Hình 9. Kết quả soát số liệu",
+    "Hình 10. Chỗ lệch hiện ngay dưới ô viết"
+   ],
+   "steps": [
+    "Bấm **Soát số liệu**.",
+    "Đọc dòng tóm tắt: số chỗ cần soát ở từng phần.",
+    "Kéo xuống từng ô có khung vàng **Lệch dữ liệu hiện tại** (vd \"Nhận định ghi SGX RSS3 -0,92% nhưng bảng hiện +1,30%\").",
+    "Sửa tay theo số trong bảng, hoặc bấm **AI hỗ trợ** để viết lại phần đó.",
+    "Bấm **Soát số liệu** lại đến khi báo \"Không thấy chỗ lệch\", rồi **Xuất PDF**."
+   ]
+  },
+  {
+   "title": "10. Những tình huống hay gặp",
+   "notes": [
+    "Bảng giá giao ngay toàn N/A → Chưa có giá giao ngay trong kỳ. Nhập ở màn Giá Physical, hoặc ghi \"tham khảo theo ANRPC\" ở ghi chú dưới bảng.",
+    "Ghi chú báo \"chưa quy đổi được USD do thiếu tỷ giá\" → Sàn vẫn có giao dịch nhưng thiếu tỷ giá ngày đó. Báo quản trị kiểm tra màn Tỷ giá.",
+    "AI không nhắc số ANRPC → Chưa tải tài liệu đính kèm, hoặc chưa bấm AI tóm tắt số liệu chính.",
+    "Chỉ số DXY/dầu báo lỗi → Nguồn tạm thời không truy cập được. Thử lại sau vài phút; vẫn viết được báo cáo.",
+    "Lỡ bấm AI hỗ trợ toàn bộ làm mất chữ đã sửa → Phần đã thay không tự khôi phục được. Sửa lại từng phần; lần sau đọc kỹ hộp xác nhận."
+   ]
+  }
+ ]
+}
