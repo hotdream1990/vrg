@@ -1347,7 +1347,7 @@ wheels = [
 
 [[package]]
 name = "vrg-caosu-api"
-version = "0.4.68"
+version = "0.4.69"
 source = { virtual = "." }
 dependencies = [
     { name = "anthropic" },
