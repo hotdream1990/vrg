@@ -39,6 +39,11 @@ RUN cd services/crawlers && uv sync --no-dev --frozen \
 # Chromium bundled cho XUẤT PDF bản tin (Playwright render HTML→PDF — chỉ Chromium hỗ trợ page.pdf).
 RUN /app/.venv/bin/python -m playwright install --with-deps chromium
 
+# poppler-utils: `pdftotext -layout` trích chữ tài liệu đính kèm Báo cáo tuần (giữ được bảng số ANRPC).
+# Đặt SAU các bước cài trình duyệt để không làm vỡ cache tầng Firefox/Chromium (tải rất lâu).
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
+
 # Mã nguồn: app + package bulletin + package crawler + web build
 COPY apps/api/app ./app
 COPY services/bulletin/bulletin ./services/bulletin/bulletin

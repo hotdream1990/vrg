@@ -143,6 +143,43 @@ CREATE TABLE IF NOT EXISTS weekly_report (
     updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- Danh mục nguồn tham khảo của Báo cáo tuần (cấu hình được; seed mặc định khi bảng rỗng).
+-- mode quyết định cách hệ thống dùng nguồn: internal · market_feed (tự lấy theo feed_symbol) ·
+-- vietnambiz (tự đọc bài trong kỳ) · attachment (chuyên viên tải file) · manual (chỉ là link).
+CREATE TABLE IF NOT EXISTS weekly_source (
+    id          serial PRIMARY KEY,
+    category    text NOT NULL,             -- futures|physical|financial|news|macro
+    name        text NOT NULL,
+    role        text NOT NULL DEFAULT '',  -- vai trò trong phân tích
+    url         text NOT NULL DEFAULT '',
+    sections    jsonb NOT NULL DEFAULT '[]'::jsonb,  -- mục báo cáo dùng nguồn: ["III.1","IV.3"]
+    guide       text NOT NULL DEFAULT '',  -- cách lấy/đọc số liệu (AI + chuyên viên đọc)
+    mode        text NOT NULL DEFAULT 'manual',
+    feed_symbol text,                      -- mã chỉ số khi mode=market_feed (kiểu Yahoo DX-Y.NYB hoặc CNBC @LCO.1)
+    enabled     boolean NOT NULL DEFAULT true,
+    sort_order  integer NOT NULL DEFAULT 0,
+    updated_by  text,
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- Tài liệu đính kèm của từng báo cáo tuần (PDF/DOCX, vd báo cáo ANRPC) + chữ trích ra để AI đọc.
+-- Không ràng FK với weekly_report: chuyên viên có thể tải file lên trước khi lưu báo cáo.
+CREATE TABLE IF NOT EXISTS weekly_report_attachment (
+    id           serial PRIMARY KEY,
+    week_key     text NOT NULL,            -- Thứ 2 ISO của tuần đầu kỳ (khoá báo cáo tuần)
+    file         text NOT NULL,            -- tên lưu (uuid) trong data_dir()/weekly-reports/attachments
+    filename     text NOT NULL,            -- tên gốc
+    size         bigint NOT NULL DEFAULT 0,
+    kind         text NOT NULL DEFAULT 'other',  -- 'anrpc' | 'other'
+    pages        integer,                  -- số trang PDF (DOCX: NULL)
+    text_content text NOT NULL DEFAULT '', -- chữ trích (đã chuẩn hoá, cắt 200.000 ký tự)
+    summary      text,                     -- AI/chuyên viên tóm tắt số liệu chính
+    uploaded_by  text,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    updated_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_weekly_report_attachment_week ON weekly_report_attachment (week_key, id);
+
 -- Nhu cầu thị trường: free text theo (đơn vị thành viên, ngày). Đơn vị tự nhập của mình;
 -- chuyên viên có quyền market_demand xem/sửa mọi đơn vị. `company` khớp tên đơn vị (member_unit).
 CREATE TABLE IF NOT EXISTS market_demand (

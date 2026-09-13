@@ -1,4 +1,7 @@
-"""Router Báo cáo phân tích thị trường TUẦN — bảng auto + narrative (AI/sửa tay) + xuất PDF."""
+"""Router Báo cáo phân tích thị trường TUẦN — bảng auto + narrative (AI/sửa tay) + xuất PDF.
+
+Đọc: gác chung `require_cap("bulletin_weekly")` ở main. Ghi: mức Sửa của cùng quyền.
+"""
 
 from __future__ import annotations
 
@@ -8,20 +11,29 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
-from app.core.security import require_editor
+from app.core.security import require_cap_edit
 from app.schemas.weekly_report import (
     AiAssistAllResult,
     AiAssistRequest,
     AiAssistResult,
+    WeeklyConsistencyResult,
     WeeklyNarrative,
     WeeklyReport,
     WeeklyReportSummary,
 )
-from app.services import weekly_report_service
+from app.services import weekly_period, weekly_report_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/weekly-reports", tags=["weekly-reports"])
-_editor = [Depends(require_editor)]
+_editor = [Depends(require_cap_edit("bulletin_weekly"))]
+
+
+def week_key_or_400(week_key: str) -> str:
+    """Khoá tuần chuẩn = Thứ 2 ISO của ngày gửi lên (gửi Thứ 4 vẫn mở/lưu/xoá đúng báo cáo). 400 nếu sai."""
+    try:
+        return weekly_period.week_key_for(date.fromisoformat(week_key))
+    except ValueError as exc:
+        raise HTTPException(400, "Khoá tuần không hợp lệ (YYYY-MM-DD).") from exc
 
 
 @router.get("", response_model=list[WeeklyReportSummary])
@@ -42,7 +54,8 @@ def resolve(date_str: str = Query(..., alias="date", description="YYYY-MM-DD b�
 
 @router.get("/{week_key}", response_model=WeeklyReport)
 def get_report(week_key: str):
-    """Dựng báo cáo tuần: bảng tự tính từ giá + narrative đã lưu (seed nếu trống)."""
+    """Dựng báo cáo: kỳ theo số tuần gộp đã lưu + bảng tự tính từ giá + narrative đã lưu."""
+    week_key = week_key_or_400(week_key)
     try:
         return weekly_report_service.build_report(week_key)
     except Exception as exc:  # noqa: BLE001
@@ -50,14 +63,28 @@ def get_report(week_key: str):
         raise HTTPException(500, "Không dựng được báo cáo tuần — kiểm tra dữ liệu giá/log.") from exc
 
 
+@router.get("/{week_key}/check", response_model=WeeklyConsistencyResult)
+def check_report(week_key: str):
+    """Soát chữ nhận định ĐÃ LƯU với bảng số hiện tại (không ghi gì — ai xem được màn đều dùng được)."""
+    from app.services import weekly_consistency_check
+    week_key = week_key_or_400(week_key)
+    try:
+        return weekly_consistency_check.check_week(week_key)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Soát báo cáo tuần %s lỗi", week_key, exc_info=exc)
+        raise HTTPException(500, "Không soát được báo cáo tuần — kiểm tra dữ liệu giá/log.") from exc
+
+
 @router.put("/{week_key}", response_model=WeeklyReport, dependencies=_editor)
 def save_report(week_key: str, narrative: WeeklyNarrative):
-    """Lưu narrative (+ override biên độ III.3) → trả báo cáo dựng lại."""
-    return weekly_report_service.save_narrative(week_key, narrative.model_dump())
+    """Lưu narrative (+ số tuần gộp, ghi đè III.3) → trả báo cáo dựng lại."""
+    return weekly_report_service.save_narrative(week_key_or_400(week_key), narrative.model_dump())
 
 
 @router.delete("/{week_key}", dependencies=_editor)
 def delete_report(week_key: str) -> dict:
+    """Xoá báo cáo + tài liệu đính kèm của kỳ (theo khoá đã chuẩn hoá)."""
+    week_key = week_key_or_400(week_key)
     if not weekly_report_service.delete_report(week_key):
         raise HTTPException(404, f"Không có báo cáo tuần {week_key}")
     return {"deleted": week_key}
@@ -67,6 +94,7 @@ def delete_report(week_key: str) -> dict:
 def ai_assist(week_key: str, body: AiAssistRequest):
     """AI dựng nháp 1 phần viết (I/II/III-nhận định/IV/V/VI)."""
     from app.services import llm, weekly_ai
+    week_key = week_key_or_400(week_key)
     try:
         return weekly_ai.assist(week_key, body.section)
     except llm.LLMNotConfigured as exc:
@@ -80,6 +108,7 @@ def ai_assist(week_key: str, body: AiAssistRequest):
 def ai_assist_all(week_key: str):
     """AI dựng nháp TẤT CẢ phần viết trong 1 lượt (nhất quán với nhau)."""
     from app.services import llm, weekly_ai
+    week_key = week_key_or_400(week_key)
     try:
         return weekly_ai.assist_all(week_key)
     except llm.LLMNotConfigured as exc:
@@ -96,6 +125,7 @@ def generate_pdf(week_key: str):
     Không sửa số liệu nên chỉ cần quyền xem màn (`bulletin_weekly`, gác ở main) — người chỉ xem
     (vd Lãnh đạo Tập đoàn) cũng tải được PDF.
     """
+    week_key = week_key_or_400(week_key)
     try:
         path = weekly_report_service.generate_pdf(week_key)
     except Exception as exc:  # noqa: BLE001

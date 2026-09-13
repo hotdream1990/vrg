@@ -456,10 +456,115 @@ th.r, td.r {
 .wk-table td.c { text-align: center; }
 .wk-table td.r { text-align: right; font-variant-numeric: tabular-nums; }
 .wk-field { margin: 12px 0; }
-.wk-field-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
-.wk-field-head label { font-weight: 600; color: var(--text); }
-.wk-hint { font-size: 12px; color: var(--danger); margin-bottom: 4px; font-style: italic; }
+.wk-field-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+.wk-field-head label { font-weight: 600; color: var(--text); flex: 1; min-width: 240px; }
+.wk-field-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+/* Lời dặn trong form: màu đỏ lấy từ .form-note dùng chung — ở đây chỉ chỉnh cỡ chữ */
+.wk-hint { font-size: 12px; margin-bottom: 4px; font-style: italic; }
 .btn-sm { padding: 2px 10px; font-size: 12px; }
+
+/* Báo cáo tuần v2 — khung chung */
+.wk-card { margin-bottom: 16px; }
+.wk-textarea { width: 100%; resize: vertical; cursor: text; line-height: 1.5; font-family: inherit; }
+.wk-muted { color: var(--muted); font-size: 12px; }
+.wk-strong { font-weight: 600; }
+.wk-nowrap { white-space: nowrap; }
+.wk-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 360px; }
+.wk-scroll { width: 100%; overflow-x: auto; }
+.wk-table-sm th, .wk-table-sm td { padding: 5px 8px; font-size: 12px; }
+.wk-table td.wk-chg { font-weight: 700; }
+.wk-row-off > td { opacity: .55; }
+.wk-subtle-title { font-size: 12px; font-weight: 600; color: var(--muted); margin: 4px 0; display: flex; align-items: center; gap: 6px; }
+.wk-pre { white-space: pre-wrap; font-family: inherit; font-size: 13px; line-height: 1.5; margin: 0; }
+.wk-saved-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.wk-inline-btn { margin-left: 8px; }
+.wk-title-input { width: 100%; font-weight: 600; }
+
+/* Thanh đầu: tiêu đề kỳ + số tuần gộp */
+.wk-head-title { display: flex; flex-direction: column; gap: 6px; }
+.wk-span { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Cảnh báo dưới ô viết: đỏ = từ tuyệt đối · vàng = số AI chưa đối chiếu được (giống cảnh báo lệch kỳ trước) */
+.wk-abs { margin-top: 4px; font-size: 12px; color: var(--danger); display: flex; align-items: center; gap: 6px; }
+.wk-ai-warn {
+  margin-top: 4px; font-size: 12px; color: #a96a00; background: #f59e0b14;
+  border: 1px solid var(--warn); border-radius: 6px; padding: 4px 8px; display: flex; align-items: center; gap: 6px;
+}
+.wk-ai-warn.wk-inline { display: inline-flex; padding: 1px 6px; }
+/* Soát số liệu: chữ đã lưu lệch bảng số hiện tại (danh sách dưới ô) + dòng tóm tắt dưới thanh đầu */
+.wk-check-warn { align-items: flex-start; }
+.wk-check-list { margin: 2px 0 0; padding-left: 18px; }
+.wk-check-banner { margin: 0 0 12px; font-size: 13px; padding: 8px 12px; align-items: flex-start; }
+.wk-check-banner > span { flex: 1; }
+.wk-check-ok {
+  display: flex; gap: 6px; color: var(--accent-2); background: #16af6714;
+  border: 1px solid var(--accent); border-radius: 6px;
+}
+.wk-check-close { padding: 0 6px; }
+
+/* Chip nguồn tham khảo dưới nhãn ô viết */
+.wk-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 6px; }
+.wk-chips-label { font-size: 11px; color: var(--muted); }
+.wk-chip { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; cursor: default; }
+a.wk-chip { cursor: pointer; }
+a.wk-chip:hover { text-decoration: underline; }
+
+/* Ghi chú dưới bảng + Cao/Thấp trong kỳ */
+.wk-notes { margin: -4px 0 10px; padding: 8px 12px; border: 1px dashed var(--line); border-radius: 8px; }
+.wk-notes .wk-field { margin: 6px 0 0; }
+.wk-gap-list { margin: 2px 0 4px; padding-left: 18px; font-size: 12px; font-style: italic; color: var(--text); }
+.wk-gap-empty { margin-bottom: 4px; }
+.wk-range { margin: 0 0 10px; }
+.wk-range .wk-table { margin-top: 2px; }
+
+/* III.3 mủ nước — ô đã sửa tay */
+.wk-latex-input { text-align: center; }
+.blt-cell-input.wk-ov { border-color: var(--info); background: rgba(14, 165, 233, .08); font-weight: 600; }
+
+/* Khối gập/mở (nguồn · đính kèm · chỉ số · tin) */
+.wk-inputs { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.card.wk-collapse { padding: 0; }
+.wk-collapse-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; }
+.wk-collapse-toggle {
+  display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0;
+  font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer;
+}
+.wk-collapse-extra { display: flex; gap: 6px; }
+.wk-collapse-body { padding: 0 14px 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+
+/* Nguồn tham khảo */
+.wk-src { display: flex; flex-direction: column; gap: 12px; }
+.wk-src-group { display: flex; flex-direction: column; gap: 6px; }
+.wk-src-item { padding: 6px 10px; border-left: 3px solid var(--line); }
+.wk-src-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.wk-src-line a { color: var(--accent-2); text-decoration: none; }
+.wk-src-line a:hover { text-decoration: underline; }
+.wk-src-role { font-size: 12px; color: var(--text); margin-top: 2px; }
+.wk-src-guide summary { cursor: pointer; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.wk-src-guide .wk-pre { font-size: 12px; padding: 6px 0 0 14px; }
+.wk-src-form { display: flex; flex-direction: column; gap: 10px; }
+.wk-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.wk-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.wk-form-actions-top { margin-bottom: 10px; }
+
+/* Tài liệu đính kèm */
+.wk-atts { display: flex; flex-direction: column; gap: 10px; }
+.wk-att-upload { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wk-att { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.wk-att-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wk-att-icon { font-size: 20px; color: var(--muted); }
+.wk-att-meta { flex: 1; min-width: 200px; }
+.wk-att-summary { margin-top: 8px; }
+.wk-att-summary .blt-textarea { margin-bottom: 2px; }
+.wk-text-view { max-height: 65vh; overflow: auto; background: var(--bg); padding: 10px; border-radius: 6px; }
+
+/* Chỉ số tài chính & tin trong kỳ */
+.wk-source-line { margin-top: 4px; line-height: 1.5; }
+.wk-news { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.wk-news li { display: flex; gap: 10px; align-items: baseline; font-size: 13px; }
+.wk-news-date { color: var(--muted); font-size: 12px; min-width: 78px; font-variant-numeric: tabular-nums; }
+.wk-news a { color: var(--text); text-decoration: none; }
+.wk-news a:hover { color: var(--accent-2); text-decoration: underline; }
 
 /* Dòng lỗi trong bảng xem trước khi nhập Excel */
 .blt-row-error > td { background: rgba(207, 19, 34, .06) !important; }

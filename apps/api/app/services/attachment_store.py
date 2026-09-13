@@ -13,7 +13,6 @@ này chèn được JavaScript và sẽ chạy dưới chính tên miền của 
 
 from __future__ import annotations
 
-import shutil
 import uuid
 from pathlib import Path
 
@@ -21,6 +20,7 @@ from fastapi import HTTPException, UploadFile
 
 from app.core.paths import data_dir
 
+_CHUNK_BYTES = 1024 * 1024
 DEFAULT_MAX_BYTES = 25 * 1024 * 1024  # 25 MB — đủ cho bản scan nhiều trang hoặc 1 gói ZIP
 
 # đuôi file → (kiểu MIME khi trả về, có cho XEM THẲNG trong trình duyệt không)
@@ -91,9 +91,13 @@ class AttachmentStore:
         folder.mkdir(parents=True, exist_ok=True)
         name = f"{uuid.uuid4().hex}{ext}"
         dest = folder / name
-        with dest.open("wb") as f:
-            shutil.copyfileobj(file.file, f)
-        size = dest.stat().st_size
+        size = 0
+        with dest.open("wb") as f:  # đếm dung lượng TRONG LÚC ghi — file khổng lồ không kịp làm đầy ổ đĩa
+            while chunk := file.file.read(_CHUNK_BYTES):
+                size += len(chunk)
+                if size > self.max_bytes:
+                    break
+                f.write(chunk)
         if size > self.max_bytes:
             dest.unlink(missing_ok=True)
             raise HTTPException(400, f"File quá lớn (tối đa {self.max_bytes // (1024 * 1024)} MB).")

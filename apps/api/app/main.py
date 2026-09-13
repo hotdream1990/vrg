@@ -47,7 +47,9 @@ from app.routers import (
     unit_analytics,
     unit_daily,
     users,
+    weekly_report_inputs,
     weekly_reports,
+    weekly_sources,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
@@ -195,6 +197,10 @@ app.include_router(series.router, dependencies=[Depends(block_unit_roles)])
 app.include_router(market_movement.router, dependencies=[Depends(require_cap("market_movement"))])
 app.include_router(market_quote.router, dependencies=_protected)
 app.include_router(weekly_reports.router, dependencies=[Depends(require_cap("bulletin_weekly"))])
+# Đầu vào báo cáo tuần (đính kèm · chỉ số thị trường · tin trong kỳ) + danh mục nguồn tham khảo:
+# cùng quyền xem màn; endpoint ghi tự gác thêm mức Sửa trong router.
+app.include_router(weekly_report_inputs.router, dependencies=[Depends(require_cap("bulletin_weekly"))])
+app.include_router(weekly_sources.router, dependencies=[Depends(require_cap("bulletin_weekly"))])
 app.include_router(users.router, dependencies=[Depends(require_admin)])  # quản trị: chỉ admin
 app.include_router(config.router, dependencies=[Depends(require_admin)])  # cấu hình: chỉ admin
 app.include_router(schedules.router, dependencies=[Depends(require_admin)])  # lịch chạy: chỉ admin

@@ -1,226 +1,179 @@
-"""AI dựng nháp các phần viết cho Báo cáo tuần (I, II, III-nhận định, IV, V, VI).
+"""AI dựng nháp các phần viết Báo cáo tuần v2 (I, II, III nhận định, IV, V, VI) + tóm tắt đính kèm.
 
-Ngữ cảnh = số liệu tuần THẬT (bảng III + ĐỈNH/ĐÁY tuần từ data + tỷ giá TB tuần) + bài
-'Giá cao su hôm nay' mới nhất vietnambiz. Prompt bám khung logic (Logic viết Bản tin tuần.docx)
-và CHỐNG BỊA cứng: chỉ dùng số/sự kiện có trong ngữ cảnh/nguồn; yếu tố vĩ mô không có dữ liệu →
-viết định tính, KHÔNG bịa số. User sửa lại sau.
+Ngữ cảnh = dữ liệu THẬT của kỳ (`weekly_ai_context`); prompt theo logic 16.7 (`weekly_ai_prompts`);
+phần số III.1/III.2 dựng bằng code (`weekly_ai_compose`). Mỗi kết quả kèm cảnh báo: số AI viết không
+đối chiếu được với ngữ cảnh + từ ngữ tuyệt đối (`weekly_number_check`). Chuyên viên soát & sửa sau.
 """
 
 from __future__ import annotations
 
+import logging
 import re
+from typing import Any
 
-from app.services import llm, market_analysis, weekly_report_service
+from app.services import llm, weekly_report_service
+from app.services import weekly_ai_compose as compose
+from app.services import weekly_ai_prompts as prompts
+from app.services.weekly_ai_context import build_context
+from app.services.weekly_number_check import absolute_words, unverified_numbers
 
-_SYSTEM = (
-    "Bạn là chuyên viên Ban Thị trường Kinh doanh của Tập đoàn Công nghiệp Cao su Việt Nam (VRG), "
-    "viết Báo cáo phân tích thị trường cao su TUẦN. Văn phong: báo cáo nội bộ trang trọng, khách "
-    "quan, tiếng Việt, phân tích nhân–quả và quy về hàm ý cho giá cao su tự nhiên."
-)
+logger = logging.getLogger(__name__)
 
-# Luật chống bịa — chèn vào MỌI prompt.
-_ANTIFAB = (
-    "QUY TẮC CHỐNG BỊA (BẮT BUỘC): CHỈ dùng con số/sự kiện có trong NGỮ CẢNH SỐ LIỆU hoặc NGUỒN TIN "
-    "bên dưới. Số 'Cao nhất/Thấp nhất tuần' phải lấy ĐÚNG từ mục 'Đỉnh/đáy tuần' trong ngữ cảnh (kèm "
-    "ngày), TUYỆT ĐỐI không tự tính hay ước số khác. Các yếu tố vĩ mô (giá dầu Brent/WTI, chỉ số DXY, "
-    "cán cân cung–cầu ANRPC/IRSG, quyết định lãi suất FED/BoJ, mốc thời hạn EUDR, sắc thuế…) CHỈ nêu "
-    "khi NGUỒN TIN có đề cập; nếu KHÔNG có dữ liệu thì viết định tính dựa trên diễn biến giá/tỷ giá đã "
-    "cho, KHÔNG bịa con số, mốc thời gian hay sự kiện. Không nêu lịch sự kiện tương lai cụ thể nếu "
-    "nguồn không có. QUAN TRỌNG: khi thiếu dữ liệu cho một ý, viết định tính ngắn gọn, tự nhiên như "
-    "văn bản chính thức; TUYỆT ĐỐI KHÔNG viết câu nhận xét về việc thiếu/không có dữ liệu (không dùng "
-    "'nguồn không đề cập', 'không có dữ liệu', 'trong ngữ cảnh không có', 'chưa có số liệu'…)."
-)
+MAX_TOKENS_ALL = 5000
+MAX_TOKENS_SUMMARY = 2500
+MAX_TOKENS_SECTION = {"exchange_notes": 1500, "movement": 1200, "forecast": 1200}
+MAX_TOKENS_MACRO = 1400
+MAX_TOKENS_DEFAULT = 900
+SUMMARY_SOURCE_MAX_CHARS = 60_000
 
-# Văn phong bám mẫu báo cáo VRG — chèn vào MỌI prompt để nhận định giàu hình ảnh + số đúng VN.
-_STYLE = (
-    "VĂN PHONG (bám mẫu Ban Thị trường VRG): phân tích thị trường trang trọng, GIÀU HÌNH ẢNH tài "
-    "chính; ưu tiên các cụm quen thuộc khi KHỚP với số liệu: 'bứt phá lập đỉnh', 'đảo chiều đi xuống', "
-    "'đánh mất gần X% giá trị', 'chịu sức ép nặng nề', 'giữ vững sắc xanh', 'sắc đỏ lan rộng', 'phân "
-    "hóa trái chiều', 'lực đỡ/lực kéo', 'suy yếu/hồi phục'. ĐỊNH DẠNG SỐ kiểu Việt: nghìn dấu CHẤM, "
-    "thập phân dấu PHẨY, % có dấu (vd -3,04% / +2,66%), giá kèm 'USD/tấn'. TUYỆT ĐỐI không viết % kiểu "
-    "'2.66%' (dấu chấm). KHÔNG lặp lại nguyên cặp giá tuần-trước→tuần-này của bảng (đã có trong bảng); "
-    "thay vào đó phân tích ĐỊNH TÍNH nguyên nhân & hàm ý."
-)
+_BULLET_RE = re.compile(r"^\s*(?:•\s*|\*\s+)")          # '• ' / '* ' — không đụng '**đậm**'
+_LABEL_RE = re.compile(r"^#{2,}\s*([IVX]+(?:\.\d+)?)\b")
+# Kỳ nhiều tuần: AI hay dồn các tuần vào 1 dòng → tách trước 'Trong Tuần 35…' / 'Sang Tuần 36…'.
+_WEEK_PARA_RE = re.compile(r"(?<=[.;!?])\s+(?=(?:Trong|Sang|Bước sang|Đến|Tới) Tuần \d)")
 
 
-def _vn(x: float | None, dec: int = 1) -> str:
-    """Số kiểu VN có dấu: 2.657,2 / -3,04. None → 'N/A'."""
-    if x is None:
-        return "N/A"
-    s = f"{abs(x):,.{dec}f}".replace(",", "\x00").replace(".", ",").replace("\x00", ".")
-    return ("-" if x < 0 else "") + s
-
-
-def _pct(x: float | None) -> str:
-    """% kiểu VN có dấu +/-: +0,67% / -3,04%. None → 'N/A'."""
-    return "N/A" if x is None else ("+" if x >= 0 else "") + _vn(x, 2) + "%"
-
-
-# section key → (mô tả yêu cầu, số đoạn cắt; 0 = giữ hết dòng)
-_PROMPTS = {
-    "summary_prev": ("Viết Phần I – TÓM TẮT TUẦN TRƯỚC: 1 đoạn tái hiện ngắn gọn bối cảnh & xu hướng "
-                     "giá TUẦN LIỀN TRƯỚC để làm nền so sánh.", 1),
-    "movement": ("Viết Phần II – DIỄN BIẾN TUẦN BÁO CÁO: 2 đoạn phác họa 'hình thái' chuyển động giá "
-                 "cả tuần (tăng/giảm đầu–cuối tuần, phân hóa hay bứt phá) và nguyên nhân chính.", 2),
-    "exchange_notes": (
-        "Viết Nhận định bảng giá sàn quốc tế (III.1). MỖI SÀN 1 gạch chính theo ĐÚNG mẫu: "
-        "'Sàn {TÊN} ({±%}): {nhận định định tính}' — KHÔNG nêu lại cặp giá tuần trước→tuần này (bảng đã "
-        "có). Góc phân tích (chỉ khẳng định khi nguồn có): OSE↔đồng Yên (USD/JPY) & giá dầu; SHANGHAI↔"
-        "tồn kho Thanh Đảo & nhà máy lốp xe; SGX/MRE↔nguồn cung găng tay & cấu trúc chi phí sàn Malaysia. "
-        "Dưới mỗi sàn thêm 2 gạch phụ MỞ ĐẦU bằng '>' đúng mẫu: '> Cao nhất tuần: Đạt {số} USD/tấn (ngày "
-        "d/m)' và '> Thấp nhất tuần: {số} USD/tấn (ngày d/m)' — lấy ĐÚNG số & ngày từ mục Đỉnh/đáy trong "
-        "ngữ cảnh, số định dạng VN (2.657,2).", 0),
-    "physical_notes": ("Viết Nhận định bảng giá giao ngay (III.2): 1 đoạn phân tích định tính mức hạ "
-                       "nhiệt/tăng & biên độ % của RSS3/STR20/SMR20/Latex (% kiểu VN, vd -3,9%); có thể "
-                       "dẫn đỉnh/đáy tuần (đúng số ngữ cảnh, kèm 'USD/tấn' và ngày) và diễn biến nguồn "
-                       "cung mủ Đông Nam Á nếu nguồn đề cập.", 1),
-    "latex_notes": ("Viết Nhận định giá thu mua mủ nước nội địa (III.3): 1 đoạn so sánh biên độ giá "
-                    "tuần này với tuần trước và lý do (cầu nội địa, nguồn cung cục bộ).", 1),
-    "forecast": ("Viết Phần V – DỰ BÁO XU HƯỚNG TUẦN TIẾP THEO: 1 đoạn mở + 2 gạch MỞ ĐẦU bằng '-': "
-                 "'- Xu hướng chủ đạo: …' (dựa quán tính kỹ thuật các phiên cuối tuần) và '- Tiêu điểm "
-                 "quan sát: …' (định hướng theo dõi sự kiện tài chính tuần tới, dữ liệu PMI lốp xe "
-                 "Trung Quốc — nêu định hướng, KHÔNG bịa lịch/số cụ thể).", 0),
-    "conclusion": ("Viết Phần VI – KẾT LUẬN VÀ KHUYẾN NGHỊ: 1 đoạn chốt trạng thái thị trường và "
-                   "khuyến nghị hành động quản trị rủi ro cho các đơn vị thành viên (thận trọng/theo "
-                   "dõi ngưỡng hỗ trợ, hoặc tận dụng nhịp điều chỉnh cân đối nguồn hàng).", 1),
-}
-_MACRO_PROMPTS = [
-    "Viết tiểu mục IV.1 – Thị trường Năng lượng và giá cao su tổng hợp (Butadien): 2 gạch ('Giá dầu "
-    "thô', 'Giá cao su tổng hợp (Butadien)'). Chỉ nêu số giá dầu/Butadien nếu nguồn có; liên kết "
-    "nhân–quả dầu→chi phí cao su tổng hợp→giá cao su tự nhiên.",
-    "Viết tiểu mục IV.2 – Cung – Cầu cơ bản: 2 gạch ('Nguồn cung mùa vụ', 'Yếu tố thời tiết'). Nếu "
-    "nguồn có số cán cân cung–cầu ANRPC (vd thâm hụt toàn cầu) thì trích để nói 'bệ đỡ trung hạn'; "
-    "KHÔNG có thì viết định tính về mùa vụ/thời tiết Đông Nam Á.",
-    "Viết tiểu mục IV.3 – Tỷ giá và Tài chính Nhật Bản: 1 gạch ('Đồng Yên và Chỉ số Nikkei'). Dùng "
-    "USD/JPY trong ngữ cảnh; chỉ nêu Nikkei/BoJ/FED nếu nguồn có.",
-    "Viết tiểu mục IV.4 – Các thông tin kinh tế Trung Quốc và dữ liệu khác: 1–2 gạch ('Thị trường "
-    "tiêu thụ' và nếu nguồn có: tin chính sách/địa chính trị như thuế quan, EUDR).",
-]
-
-
-def _stats_lines(stats: dict, key: str, title: str) -> list[str]:
-    out = []
-    d = stats.get(key, {})
-    if d:
-        out.append(title)
-        for k, s in d.items():
-            out.append(f"- {k}: Cao nhất {_vn(s['high'])} USD/tấn (ngày {s['high_date']}); "
-                       f"Thấp nhất {_vn(s['low'])} USD/tấn (ngày {s['low_date']})")
-    return out
-
-
-def _context(week_key: str) -> str:
-    rep = weekly_report_service.build_report(week_key)
-    stats = weekly_report_service.weekly_stats(week_key)
-    lines = [
-        f"BÁO CÁO TUẦN {rep['week_no']}/{rep['year']} ({rep['date_range']}). "
-        f"Cột: {rep['prev_col_label']} → {rep['curr_col_label']}.",
-        "Giá sàn quốc tế (TB tuần USD/tấn — tuần trước → tuần này [+/- ; %]):",
-    ]
-    for r in rep["exchange_rows"]:
-        lines.append(f"- Sàn {r['exchange']} {r['grade']}: {_vn(r['prev'])} → {_vn(r['curr'])} USD/tấn "
-                     f"(+/- {_vn(r['change_abs'])}; {_pct(r['change_pct'])})")
-    lines += _stats_lines(stats, "exchange", "Đỉnh/đáy tuần theo sàn (USD/tấn) — DÙNG ĐÚNG cho Cao/Thấp nhất tuần:")
-    lines.append("Giá giao ngay (TB tuần USD/tấn):")
-    for r in rep["physical_rows"]:
-        lines.append(f"- {r['grade']}: {_vn(r['prev'])} → {_vn(r['curr'])} USD/tấn "
-                     f"(+/- {_vn(r['change_abs'])}; {_pct(r['change_pct'])})")
-    lines += _stats_lines(stats, "physical", "Đỉnh/đáy tuần giao ngay (USD/tấn):")
-    lines.append(f"Mủ nước nội địa (VNĐ/độ TSC): {rep['latex_prev']} → {rep['latex_curr']} "
-                 f"(biến động {rep['latex_change']}).")
-    if stats.get("fx"):
-        lines.append("Tỷ giá TB tuần: " + ", ".join(f"{p}={_vn(v, 2)}" for p, v in stats["fx"].items()) + ".")
-    return "\n".join(lines)
-
-
-def _split(out: str, limit: int = 0) -> list[str]:
-    paras = [re.sub(r"^\s*[•*]\s*", "", p).strip() for p in out.split("\n") if p.strip()]
-    paras = [p for p in paras if p]
-    return paras[:limit] if limit else paras
+def _lines(out: str) -> list[str]:
+    lines = [_BULLET_RE.sub("", s).strip() for s in (out or "").splitlines()]
+    return [s for s in lines if s and s.strip("'\"") != prompts.SKIP_MARK]
 
 
 def _strip_lead_dash(lines: list[str]) -> list[str]:
-    """Bỏ tiền tố '-' thừa đầu dòng (giữ nguyên '>' của gạch phụ). Dùng cho mọi phần TRỪ Phần V,
-    nơi '-' là gạch đầu dòng có ý nghĩa (Xu hướng chủ đạo / Tiêu điểm quan sát)."""
+    """Bỏ tiền tố '-' thừa đầu dòng (giữ nguyên '>'/'>>' của gạch cấp 2/3). Dùng cho mọi phần TRỪ
+    Phần V, nơi '-' là gạch đầu dòng có ý nghĩa (Hỗ trợ giá / Kìm hãm đà tăng)."""
     return [re.sub(r"^\s*-\s*", "", s) for s in lines]
 
 
-def _prompt(ctx: str, article: str, ask: str) -> str:
-    return (
-        f"NGỮ CẢNH SỐ LIỆU TUẦN:\n{ctx}\n\n"
-        f"NGUỒN TIN (bài 'Giá cao su hôm nay' mới nhất, vietnambiz.vn):\n\"\"\"\n{article}\n\"\"\"\n\n"
-        f"{_ANTIFAB}\n\n{_STYLE}\n\n{ask}"
-    )
-
-
-_ALL_TEMPLATE = (
-    "### I\n### II\n### III.1\n### III.2\n### III.3\n"
-    "### IV.1\n### IV.2\n### IV.3\n### IV.4\n### V\n### VI"
-)
-_ALL_GUIDE = (
-    "Viết TOÀN BỘ các phần theo KHUNG NHÃN dưới. Giữ NGUYÊN các dòng nhãn '### ...', đặt nội dung ở "
-    "các dòng ngay dưới mỗi nhãn (mỗi ý 1 dòng, KHÔNG đánh số, KHÔNG markdown).\n"
-    + "\n".join(
-        f"- {lbl}: {_PROMPTS[field][0]}"
-        for lbl, field in [("I", "summary_prev"), ("II", "movement"), ("III.1", "exchange_notes"),
-                           ("III.2", "physical_notes"), ("III.3", "latex_notes")]
-    )
-    + "\n- IV.1..IV.4: " + " | ".join(m.split(":", 1)[0] for m in _MACRO_PROMPTS)
-    + " (theo hướng dẫn từng tiểu mục: dầu/Butadien; cung–cầu mùa vụ + ANRPC nếu nguồn có; đồng Yên/"
-    "USD-JPY; tiêu thụ TQ + chính sách/EUDR nếu nguồn có).\n"
-    f"- V: {_PROMPTS['forecast'][0]}\n- VI: {_PROMPTS['conclusion'][0]}\n"
-    "YÊU CẦU NHẤT QUÁN: mọi phần kể CÙNG MỘT câu chuyện thị trường tuần — xu hướng ở II khớp số liệu "
-    "bảng, nhận định III, phân tích IV, dự báo V, kết luận VI; không mâu thuẫn và không lặp y nguyên "
-    "câu chữ giữa các phần."
-)
-_LABEL_FIELD = {
-    "I": "summary_prev", "II": "movement", "III.1": "exchange_notes",
-    "III.2": "physical_notes", "III.3": "latex_notes", "V": "forecast", "VI": "conclusion",
-}
-
-
 def _parse_sections(out: str) -> dict[str, list[str]]:
+    """Văn theo khung '### I' … '### VI' → {nhãn: [dòng]}."""
     buckets: dict[str, list[str]] = {}
-    cur = None
-    for line in out.splitlines():
-        s = line.strip()
-        if s.startswith("###"):
-            cur = s.lstrip("#").strip()
+    cur: str | None = None
+    for line in (out or "").splitlines():
+        m = _LABEL_RE.match(line.strip())
+        if m:
+            cur = m.group(1)
             buckets.setdefault(cur, [])
-        elif cur is not None and s:
-            buckets[cur].append(re.sub(r"^\s*[•*]\s*", "", s).strip())
+        elif cur is not None:
+            buckets[cur] += _lines(line)
     return buckets
 
 
-def assist_all(week_key: str) -> dict:
-    """1 lượt AI sinh TẤT CẢ phần viết (nhất quán + chống bịa). Trả {sections, source_urls}."""
-    article, url = market_analysis._fetch()
-    ask = f"{_ALL_GUIDE}\n\nKHUNG NHÃN:\n{_ALL_TEMPLATE}"
-    out = llm.complete(_SYSTEM, _prompt(_context(week_key), article, ask), max_tokens=3200)
-    parsed = _parse_sections(out)
-    sections: dict = {
-        field: (parsed.get(label, []) if field == "forecast" else _strip_lead_dash(parsed.get(label, [])))
-        for label, field in _LABEL_FIELD.items()
-    }
-    sections["macro"] = [
-        {"title": weekly_report_service._MACRO_TITLES[i],
-         "bullets": _strip_lead_dash(parsed.get(f"IV.{i + 1}", []))}
-        for i in range(4)
-    ]
-    return {"sections": sections, "source_urls": [url]}
+def _norm_title(s: str) -> str:
+    return re.sub(r"[*\s:]+", " ", s or "").strip().lower()
 
 
-def assist(week_key: str, section: str) -> dict:
-    """AI dựng nháp 1 phần. section ∈ _PROMPTS hoặc 'macro:<idx>'. Trả {paragraphs, source_urls}."""
-    article, url = market_analysis._fetch()
-    if section.startswith("macro:"):
-        ask, limit = _MACRO_PROMPTS[int(section.split(":", 1)[1])], 0
+def _drop_title_prefix(line: str, title: str) -> str:
+    """'**1. Cung – Cầu …:** Thị trường …' → 'Thị trường …' (AI hay mở đoạn bằng chính tiêu đề in đậm)."""
+    m = re.match(r"^\*\*(.+?)\*\*\s*(.*)$", line)
+    if m and m.group(2) and _norm_title(m.group(1)) == _norm_title(title):
+        return m.group(2)
+    return line
+
+
+def _macro_bullets(lines: list[str], title: str) -> list[str]:
+    """Bỏ '-' thừa + dòng/tiền tố AI lặp lại tiêu đề tiểu mục (tiêu đề đã có ở field title)."""
+    return [_drop_title_prefix(s, title) for s in _strip_lead_dash(lines)
+            if _norm_title(s) != _norm_title(title)]
+
+
+def _complete(prompt: str, max_tokens: int, what: str) -> str:
+    out = llm.complete(prompts.SYSTEM, prompt, max_tokens=max_tokens)
+    logger.info("[weekly-ai] %s: prompt %d ký tự → trả %d ký tự", what, len(prompt), len(out or ""))
+    if not (out or "").strip():
+        raise RuntimeError(f"AI trả về rỗng ({what}) — thử lại hoặc tăng giới hạn token.")
+    return out
+
+
+def _forecast_lines(lines: list[str]) -> list[str]:
+    """Phần V = 1 đoạn mở (dòng ngay trước gạch đầu tiên) + các gạch '- '. AI viết lan sang phần khác
+    (hay gặp khi gọi riêng Phần V) thì chỉ giữ khung này."""
+    first = next((i for i, s in enumerate(lines) if s.startswith("-")), None)
+    if first is None:
+        return lines[:1]
+    opener = [re.sub(r"^[>\s]+", "", lines[first - 1])] if first > 0 else []
+    return opener + [s for s in lines[first:] if s.startswith("-")]
+
+
+def _finalize(field: str, lines: list[str], rep: dict[str, Any]) -> list[str]:
+    """Hậu xử lý theo phần: III.1 ghép số từ bảng; III.2 câu mở + gạch cao/thấp; V giữ '-'."""
+    if field == "exchange_notes":
+        return compose.exchange_notes(rep, compose.parse_causes(lines))
+    if field == "physical_notes":
+        intro = [s for s in _strip_lead_dash(lines) if not s.startswith("**")][:2]
+        return intro + compose.physical_lines(rep)
+    if field == "forecast":
+        return _forecast_lines(lines)
+    if field == "movement" and len(rep.get("weeks") or []) > 2:
+        lines = [p for s in lines for p in _WEEK_PARA_RE.split(s) if p.strip()]
+    return _strip_lead_dash(lines)
+
+
+def _checks(lines: list[str], ctx: str) -> tuple[list[str], list[str]]:
+    return unverified_numbers(lines, ctx, locale="vi"), absolute_words(lines)
+
+
+def assist(week_key: str, section: str) -> dict[str, Any]:
+    """AI dựng nháp 1 phần. section ∈ summary_prev|movement|exchange_notes|physical_notes|latex_notes|
+    forecast|conclusion|macro:<i> → {paragraphs, source_urls, warnings, absolute_words}."""
+    label = prompts.label_of(section)
+    rep = weekly_report_service.build_report(week_key)
+    is_macro = section.startswith("macro:")
+    titles = prompts.macro_titles(rep)
+    idx = int(section.split(":", 1)[1]) if is_macro else 0
+    if is_macro and idx >= len(titles):  # kiểm trước khi dựng ngữ cảnh (tốn ~8 giây mạng)
+        raise ValueError(f"Báo cáo không có tiểu mục {label}")
+    ctx, urls = build_context(week_key, rep=rep, section_keys=[label])
+    tokens = MAX_TOKENS_MACRO if is_macro else MAX_TOKENS_SECTION.get(section, MAX_TOKENS_DEFAULT)
+    out = _complete(prompts.section_prompt(ctx, rep, section), tokens, f"{week_key}/{section}")
+    lines = _lines(out)
+    if is_macro:
+        paras = _macro_bullets(lines, titles[idx])
     else:
-        ask, limit = _PROMPTS[section]
-    ask += ("\nCHỈ trả về các đoạn/gạch đầu dòng, mỗi ý 1 dòng, KHÔNG đánh số, KHÔNG markdown, "
-            "KHÔNG tiêu đề.")
-    out = llm.complete(_SYSTEM, _prompt(_context(week_key), article, ask), max_tokens=900)
-    paras = _split(out, limit)
-    if section != "forecast":  # mọi phần trừ Phần V: bỏ tiền tố '-' thừa (Phần V dùng '-' làm gạch)
-        paras = _strip_lead_dash(paras)
-    return {"paragraphs": paras, "source_urls": [url]}
+        paras = _finalize(section, lines, rep)
+    warnings, absolute = _checks(paras, ctx)
+    return {"paragraphs": paras, "source_urls": urls, "warnings": warnings, "absolute_words": absolute}
+
+
+def assist_all(week_key: str) -> dict[str, Any]:
+    """1 lượt AI sinh TẤT CẢ phần viết (nhất quán) → {sections, source_urls, warnings, absolute_words}.
+    macro giữ tiêu đề hiện có của báo cáo; warnings/absolute_words chỉ gồm phần có cảnh báo."""
+    rep = weekly_report_service.build_report(week_key)
+    ctx, urls = build_context(week_key, rep=rep)
+    out = _complete(prompts.all_prompt(ctx, rep), MAX_TOKENS_ALL, f"{week_key}/toàn bộ")
+    parsed = _parse_sections(out)
+    if not parsed:
+        raise RuntimeError("AI trả về sai khung nhãn '### …' — thử lại.")
+    sections: dict[str, Any] = {field: _finalize(field, parsed.get(label, []), rep)
+                                for field, label in prompts.FIELD_LABEL.items()}
+    sections["macro"] = [{"title": title, "bullets": _macro_bullets(parsed.get(f"IV.{i + 1}", []), title)}
+                         for i, title in enumerate(prompts.macro_titles(rep))]
+    warnings: dict[str, list[str]] = {}
+    absolute: dict[str, list[str]] = {}
+    checked = [(f, sections[f]) for f in prompts.FIELD_LABEL]
+    checked += [(f"macro:{i}", m["bullets"]) for i, m in enumerate(sections["macro"])]
+    for key, lines in checked:
+        w, a = _checks(lines, ctx)
+        if w:
+            warnings[key] = w
+        if a:
+            absolute[key] = a
+    return {"sections": sections, "source_urls": urls, "warnings": warnings, "absolute_words": absolute}
+
+
+def summarize_attachment(week_key: str, att_id: int) -> dict[str, Any]:
+    """AI trích số liệu chính của 1 tài liệu đính kèm → lưu `summary` → {summary, warnings}."""
+    from app.services import weekly_attachment_service as att_svc
+
+    att = att_svc.get_attachment(week_key, att_id, with_text=True)
+    if not att:
+        raise LookupError("Không tìm thấy tài liệu đính kèm.")
+    text = (att.get("text_content") or "").strip()
+    if not text:
+        raise ValueError("Tài liệu không trích được chữ (có thể là bản scan) — hãy tự nhập tóm tắt.")
+    src = text[:SUMMARY_SOURCE_MAX_CHARS]
+    out = _complete(prompts.summary_prompt(att["filename"], att["kind"], src), MAX_TOKENS_SUMMARY,
+                    f"{week_key}/đính kèm #{att_id}")
+    lines = [s.rstrip() for s in out.splitlines() if s.strip()]
+    summary = "\n".join(lines)
+    att_svc.set_summary(week_key, att_id, summary)
+    # Tóm tắt có thể giữ số kiểu Anh của tài liệu → đọc cả 2 kiểu (văn báo cáo chỉ đọc kiểu Việt).
+    return {"summary": summary, "warnings": unverified_numbers(lines, src, locale="any")}
