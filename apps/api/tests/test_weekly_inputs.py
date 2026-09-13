@@ -174,3 +174,9 @@ def test_attachment_api_flow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
         assert client.get("/api/weekly-reports/abc/attachments", headers=h).status_code == 400
     finally:
         att_svc.delete_all(_WK)
+        # Tải tài liệu tự tạo bản ghi báo cáo rỗng cho tuần (để hiện trong danh sách) → dọn luôn.
+        from sqlalchemy import text
+
+        from app.core.db import session_scope
+        with session_scope() as db:
+            db.execute(text("DELETE FROM weekly_report WHERE week_key = :k"), {"k": _WK})
