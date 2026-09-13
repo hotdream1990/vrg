@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
-from app.core.security import require_editor
 from app.schemas.market_movement import AssessmentRequest, AssessmentResult
 from app.services import llm, market_movement_service
 
@@ -15,9 +14,13 @@ logger = logging.getLogger("vrg.api")
 router = APIRouter(prefix="/api/market-movement", tags=["market-movement"])
 
 
-@router.post("/assessment", response_model=AssessmentResult, dependencies=[Depends(require_editor)])
+@router.post("/assessment", response_model=AssessmentResult)
 def generate_assessment(payload: AssessmentRequest) -> AssessmentResult:
-    """Nhận tóm tắt số liệu các nhóm → AI viết nhận định từng nhóm + tổng thể."""
+    """Nhận tóm tắt số liệu các nhóm → AI viết nhận định từng nhóm + tổng thể.
+
+    Không lưu gì nên chỉ cần quyền xem màn (`market_movement`, gác ở main) — Lãnh đạo Tập đoàn
+    cũng bấm được.
+    """
     groups = [g.model_dump() for g in payload.groups]
     try:
         return AssessmentResult(**market_movement_service.generate(groups))

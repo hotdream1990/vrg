@@ -3,6 +3,18 @@
 Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/).
 
 ## [Unreleased]
+### Added
+- **Vai trò "Lãnh đạo Tập đoàn"** (13/09/2026) — tài khoản cho lãnh đạo cấp Tập đoàn: xem được mọi
+  báo cáo, thống kê, số liệu, hợp đồng và dùng Trợ lý AI như quản trị viên, nhưng **chỉ xem**.
+  - Menu riêng, xếp phần hay dùng lên đầu: Phân tích & Bản tin (Trợ lý AI, Gợi ý giá sàn, Bản tin
+    biến động, Bản tin ngày, Báo cáo tuần) → Báo cáo & Thống kê → Số liệu thị trường / đơn vị /
+    hợp đồng (ghi rõ "chỉ xem").
+  - Không có phần kỹ thuật & vận hành: Quét đa sàn, Chốt số liệu, danh mục Đơn vị thành viên,
+    Hỗ trợ & Thông báo, Nhật ký hoạt động, Quản trị.
+  - Vẫn dùng được: hỏi Trợ lý AI, bấm "Tạo nhận định bằng AI", đổi mật khẩu, sửa hồ sơ. Mọi thao
+    tác nhập/sửa/xoá khác bị chặn ở máy chủ, kể cả khi gọi thẳng API.
+  - Tạo ở Quản trị → Người dùng, chọn vai trò "Lãnh đạo Tập đoàn" — không cần tích quyền.
+
 ### Fixed
 - **Thôi nhắc "chưa nhập đơn giá" với ngày đơn vị đã khai là KHÔNG CÓ GIÁ** (07/09/2026) — đơn vị
   báo: những ngày chỉ có *sản lượng chênh lệch sau chế biến* thì không có giá, Ban đã thống nhất

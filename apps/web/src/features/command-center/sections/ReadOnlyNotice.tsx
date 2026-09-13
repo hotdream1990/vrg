@@ -18,7 +18,9 @@ export default function ReadOnlyNotice({ cap }: { cap?: Cap | Cap[] } = {}) {
   // và chỉ luôn ai là người nhập, tránh lãnh đạo đi hỏi quản trị cấp thêm quyền.
   const message = user?.role === "leader"
     ? "Chế độ chỉ xem — tài khoản lãnh đạo đơn vị theo dõi số liệu; việc nhập/sửa do tài khoản nhập liệu của đơn vị thực hiện."
-    : "Chế độ chỉ xem — tài khoản của bạn không có quyền nhập/sửa số liệu.";
+    : user?.role === "executive"
+      ? "Chế độ chỉ xem — tài khoản Lãnh đạo Tập đoàn theo dõi số liệu; việc nhập/sửa do chuyên viên thực hiện."
+      : "Chế độ chỉ xem — tài khoản của bạn không có quyền nhập/sửa số liệu.";
   return (
     <Alert
       type="info" showIcon icon={<EyeOutlined />}

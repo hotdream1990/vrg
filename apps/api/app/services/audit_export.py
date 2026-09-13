@@ -18,7 +18,7 @@ _HEADERS = [
 ]
 _ROLE_LABEL = {"admin": "Quản trị viên", "editor": "Chuyên viên nhập liệu",
                "viewer": "Người xem", "member": "Đơn vị thành viên",
-               "leader": "Lãnh đạo đơn vị thành viên"}
+               "leader": "Lãnh đạo đơn vị thành viên", "executive": "Lãnh đạo Tập đoàn"}
 
 
 def _flatten(value: Any, prefix: str = "", out: dict[str, Any] | None = None) -> dict[str, Any]:

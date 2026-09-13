@@ -1,5 +1,6 @@
 /* Quyền theo mục dữ liệu (phân quyền chuyên viên nhập liệu). Khớp backend app/core/permissions.py.
-   admin = tất cả (mức Sửa) · editor = theo danh sách · viewer (Người xem) = không có mục nào.
+   admin = tất cả (mức Sửa) · executive (Lãnh đạo Tập đoàn) = EXECUTIVE_CAPS mức Xem ·
+   editor = theo danh sách · viewer (Người xem) = không có mục nào.
 
    Hai cấp: các mục NHẬP LIỆU (SPLIT_CAPS) tách Xem / Sửa. Dạng lưu trong `permissions`:
      "physical"       → mức Sửa (xem + nhập/sửa/xoá)
@@ -46,6 +47,14 @@ export const SPLIT_CAPS = new Set<Cap>([
   "member_unit", "auto_data", "market_demand", "unit_daily", "sales_contract", "support",
 ]);
 
+/** Lãnh đạo Tập đoàn: mọi mục nghiệp vụ ở mức Xem — bỏ danh mục đơn vị, hộp thư, nhật ký
+ *  (khớp EXECUTIVE_CAPS ở backend). */
+export const EXECUTIVE_CAPS = new Set<Cap>([
+  "market_quote", "raw_material", "floor", "physical", "inventory", "auto_data",
+  "market_demand", "unit_daily", "sales_contract",
+  "floor_suggest", "bulletin_daily", "bulletin_weekly", "market_movement", "assistant",
+]);
+
 /** Mục này có cho chọn mức Xem riêng không (false = chỉ 1 cấp, luôn là Sửa). */
 export const isSplitCap = (key: Cap): boolean => SPLIT_CAPS.has(key);
 
@@ -76,11 +85,16 @@ export function parseCap(entry: string): [Cap, CapLevel] | null {
 /** Chuẩn hoá về dạng lưu: mức Sửa = key trần, mức Xem = `key:view`. */
 export const formatCap = (key: Cap, level: CapLevel): string => (level === "edit" ? key : `${key}:${level}`);
 
-/** Quyền THỰC của tài khoản dạng `{key: level}`: admin→tất cả (Sửa), editor→theo list, còn lại→rỗng. */
+/** Quyền THỰC của tài khoản dạng `{key: level}`: admin→tất cả (Sửa), executive→EXECUTIVE_CAPS (Xem),
+ *  editor→theo list, còn lại→rỗng. */
 export function effectiveCaps(role: string | undefined, permissions: string[] | undefined): Map<Cap, CapLevel> {
   const out = new Map<Cap, CapLevel>();
   if (role === "admin") {
     for (const k of CAP_KEYS) out.set(k, "edit");
+    return out;
+  }
+  if (role === "executive") {
+    for (const k of CAP_KEYS) if (EXECUTIVE_CAPS.has(k)) out.set(k, "view");
     return out;
   }
   if (role !== "editor") return out;

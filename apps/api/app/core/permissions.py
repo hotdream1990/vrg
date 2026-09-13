@@ -1,6 +1,7 @@
 """Quyền theo mục dữ liệu — phân quyền chuyên viên nhập liệu (editor).
 
 Nguyên tắc: admin = TẤT CẢ (mức Sửa); editor = theo danh sách `permissions` của tài khoản;
+executive (Lãnh đạo Tập đoàn) = mọi mục NGHIỆP VỤ ở mức Xem (`EXECUTIVE_CAPS`);
 viewer (Người xem) = KHÔNG có mục số liệu nào (chỉ xem dashboard/bản tin ở tầng UI).
 
 Hai cấp quyền — các mục NHẬP LIỆU (`SPLIT_CAPS`) tách riêng Xem và Sửa:
@@ -44,6 +45,15 @@ SPLIT_CAPS = frozenset({
     "support",
 })
 
+#: Lãnh đạo Tập đoàn xem được mọi báo cáo · thống kê · AI, KHÔNG gồm các mục thiên về vận hành/kỹ
+#: thuật: `member_unit` (danh mục cấu hình đơn vị), `support` (hộp thư nghiệp vụ của Ban với đơn vị),
+#: `audit` (nhật ký thao tác). Thêm mục nghiệp vụ mới thì cân nhắc thêm vào đây.
+EXECUTIVE_CAPS = frozenset({
+    "market_quote", "raw_material", "floor", "physical", "inventory", "auto_data",
+    "market_demand", "unit_daily", "sales_contract",
+    "floor_suggest", "bulletin_daily", "bulletin_weekly", "market_movement", "assistant",
+})
+
 LEVEL_VIEW = "view"
 LEVEL_EDIT = "edit"
 _RANK = {LEVEL_VIEW: 1, LEVEL_EDIT: 2}
@@ -83,9 +93,15 @@ def clean_caps(permissions: list[str] | None) -> list[str]:
 
 
 def effective_caps(role: str, permissions: list[str] | None) -> dict[str, str]:
-    """Quyền THỰC của 1 tài khoản: `{key: level}`. admin→tất cả (Sửa), editor→theo list, còn lại→rỗng."""
+    """Quyền THỰC của 1 tài khoản: `{key: level}`.
+
+    admin→tất cả (Sửa) · executive→`EXECUTIVE_CAPS` (Xem, bỏ qua `permissions`) · editor→theo list ·
+    còn lại→rỗng.
+    """
     if role == "admin":
         return {k: LEVEL_EDIT for k in DATA_CAPS}
+    if role == "executive":
+        return {k: LEVEL_VIEW for k in DATA_CAPS if k in EXECUTIVE_CAPS}
     if role != "editor":
         return {}
     caps: dict[str, str] = {}

@@ -9,8 +9,9 @@ type Cap = { key: string; label: string; allow: Record<string, Allow> };
 // Ma trận phản ánh ĐÚNG RBAC backend: require_admin (users/config/schedules) ·
 // các mục SỐ LIỆU nay phân quyền theo TỪNG chuyên viên ("grant" = tuỳ mục được cấp ở trên).
 const CAPS: Cap[] = [
-  { key: "view", label: "Xem dashboard, bảng giá, biểu đồ, bản tin", allow: { viewer: true, editor: true, admin: true } },
-  { key: "profile", label: "Đổi mật khẩu & hồ sơ cá nhân", allow: { viewer: true, editor: true, admin: true, member: true } },
+  { key: "view", label: "Xem dashboard, bảng giá, biểu đồ, bản tin", allow: { viewer: true, editor: true, admin: true, executive: true } },
+  { key: "view_all", label: "Xem mọi báo cáo, thống kê, số liệu, hợp đồng · dùng Trợ lý AI (chỉ xem)", allow: { viewer: false, editor: "grant", admin: true, executive: true } },
+  { key: "profile", label: "Đổi mật khẩu & hồ sơ cá nhân", allow: { viewer: true, editor: true, admin: true, member: true, executive: true } },
   { key: "member_price", label: "Tự nhập giá mủ nước / mủ chén của đơn vị mình (hôm nay + 7 ngày)", allow: { member: true, admin: true } },
   { key: "scan", label: "Quét giá đa sàn & bảng tính giá các sàn (auto_data)", allow: { viewer: false, editor: "grant", admin: true } },
   { key: "data", label: "Nhập / sửa số liệu theo mục (Báo giá · mủ nguyên liệu · Physical · Tồn kho)", allow: { viewer: false, editor: "grant", admin: true } },

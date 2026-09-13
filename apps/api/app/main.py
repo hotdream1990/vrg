@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
+from app.core.executive_readonly_guard import block_executive_writes
 from app.core.security import block_unit_roles, get_current_user, require_admin, require_cap
 from app.web_static import mount_spa
 from app.routers import (
@@ -94,6 +95,8 @@ app = FastAPI(
     version=_app_version(),
     description="Backend gateway: Dashboard · Forecast · Command Center",
     lifespan=lifespan,
+    # Lãnh đạo Tập đoàn chỉ xem: chặn method ghi ở tầng app để không endpoint nào lọt.
+    dependencies=[Depends(block_executive_writes)],
 )
 
 app.add_middleware(

@@ -1,201 +1,22 @@
 import {
-  ApartmentOutlined,
-  AuditOutlined,
-  BankOutlined,
-  BarChartOutlined,
-  BulbOutlined,
-  CheckSquareOutlined,
-  ContactsOutlined,
-  CustomerServiceOutlined,
-  ExportOutlined,
-  ShoppingOutlined,
-  ClockCircleOutlined,
-  DashboardOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  ExperimentOutlined,
-  FileDoneOutlined,
-  FileProtectOutlined,
-  FileTextOutlined,
-  FundOutlined,
-  HistoryOutlined,
   IdcardOutlined,
-  InboxOutlined,
-  LineChartOutlined,
-  LockOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  RobotOutlined,
-  SafetyOutlined,
-  ProfileOutlined,
-  NotificationOutlined,
-  ScheduleOutlined,
-  SettingOutlined,
-  SolutionOutlined,
-  SwapOutlined,
-  TableOutlined,
-  TeamOutlined,
-  ThunderboltOutlined,
-  UsergroupAddOutlined,
   UserOutlined,
-  WarningOutlined,
 } from "@ant-design/icons";
 import { Avatar, Dropdown, Layout, Menu, Typography } from "antd";
 import { useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
-import type { Cap } from "../../lib/permissions";
 import { VRG } from "../../theme";
 import { useAuth } from "../auth/AuthContext";
 import { IMPERSONATION_BANNER_HEIGHT } from "../auth/ImpersonationBanner";
 import MemberChecklistBanner from "./sections/MemberChecklistBanner";
 import MemberDataLockBanner from "./sections/MemberDataLockBanner";
+import { DEFAULT_OPEN_KEYS, buildSidebarMenu } from "./sidebar-menu-builders";
 
 const { Header, Sider, Content, Footer } = Layout;
-
-type MenuItems = NonNullable<Parameters<typeof Menu>[0]["items"]>;
-
-/** Gom một nhóm menu, tự bỏ qua khi tài khoản không được cấp mục con nào. */
-function group(key: string, icon: JSX.Element, label: string, children: unknown[]): MenuItems {
-  const kids = children.filter(Boolean) as MenuItems;
-  return kids.length ? [{ key, icon, label, children: kids }] : [];
-}
-
-/** Menu động theo quyền — trục mới (chốt 30/07/2026): số liệu thị trường · số liệu đơn vị ·
- *  quản lý hợp đồng · báo cáo & thống kê · phân tích & bản tin. */
-function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
-  const items: MenuItems = [{ key: "/", icon: <DashboardOutlined />, label: "Dashboard" }];
-  if (can("auto_data")) {
-    items.push({ key: "/quet-da-san", icon: <ThunderboltOutlined />, label: "Quét Đa sàn" });
-  }
-  items.push(...group("data-auto", <RobotOutlined />, "Số liệu thị trường (tự động)", [
-    can("auto_data") && { key: "/quan-ly-so-lieu/bang-gia-san", icon: <TableOutlined />, label: "Bảng tính giá các sàn" },
-    can("auto_data") && { key: "/quan-ly-so-lieu/ty-gia", icon: <SwapOutlined />, label: "Tỷ giá" },
-  ]));
-  items.push(...group("data-manual", <EditOutlined />, "Số liệu thị trường (thủ công)", [
-    (can("market_quote") || can("raw_material")) &&
-      { key: "/quan-ly-so-lieu/bao-gia-mu", icon: <SolutionOutlined />, label: "Báo giá mủ thị trường" },
-    can("floor") && { key: "/quan-ly-so-lieu/gia-san-tap-doan", icon: <BankOutlined />, label: "Giá sàn Tập đoàn" },
-    can("physical") && { key: "/quan-ly-so-lieu/gia-physical", icon: <FundOutlined />, label: "Giá Physical" },
-    // "Giá mủ nguyên liệu" + "Tồn kho Tập đoàn" đã chuyển xuống nhóm RETIRED_MENU (chỉ admin thấy).
-  ]));
-  items.push(...group("data-unit", <TeamOutlined />, "Số liệu đơn vị thành viên", [
-    can("member_unit") && { key: "/quan-ly-so-lieu/don-vi-thanh-vien", icon: <TeamOutlined />, label: "Đơn vị thành viên" },
-    can("unit_daily") && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Thu mua" },
-    can("unit_daily") && { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Tồn kho" },
-    can("market_demand") && { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
-    can("unit_daily") && { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
-  ]));
-  items.push(...group("contracts", <FileProtectOutlined />, "Quản lý hợp đồng", [
-    can("sales_contract") && { key: "/hop-dong/khach-hang", icon: <ContactsOutlined />, label: "Khách hàng" },
-    can("sales_contract") && { key: "/hop-dong/hop-dong-me", icon: <FileTextOutlined />, label: "Hợp đồng mẹ (HĐNT/HĐDH)" },
-    can("sales_contract") && { key: "/hop-dong", icon: <FileProtectOutlined />, label: "Hợp đồng & đợt giao" },
-  ]));
-  items.push(...group("stats", <BarChartOutlined />, "Báo cáo & Thống kê", [
-    can("sales_contract") && { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Báo cáo tiêu thụ" },
-    can("unit_daily") && { key: "/bao-cao-tong-hop", icon: <FileDoneOutlined />, label: "Báo cáo tổng hợp" },
-    can("unit_daily") && { key: "/thong-ke/tinh-trang-nop", icon: <CheckSquareOutlined />, label: "Theo dõi nộp báo cáo" },
-    can("unit_daily") && { key: "/chot-so-lieu", icon: <LockOutlined />, label: "Chốt số liệu đơn vị" },
-    // Xếp theo dòng chảy nghiệp vụ: mua vào → giữ kho → bán ra.
-    can("unit_daily") && { key: "/thong-ke/thu-mua", icon: <ShoppingOutlined />, label: "Thống kê thu mua" },
-    can("unit_daily") && { key: "/thong-ke/ton-kho", icon: <InboxOutlined />, label: "Thống kê tồn kho" },
-    can("unit_daily") && { key: "/thong-ke/tieu-thu", icon: <ExportOutlined />, label: "Thống kê tiêu thụ" },
-    // "Hợp đồng cũ (trước 30/07)" ĐÃ ẨN khỏi menu (20/08/2026) — dữ liệu và route `/thong-ke-hop-dong`
-    // vẫn còn để tra cứu bằng đường dẫn, chỉ thôi bày ra cho người dùng thường.
-  ]));
-  items.push(...group("support", <CustomerServiceOutlined />, "Hỗ trợ đơn vị thành viên", [
-    can("support") && { key: "/ho-tro", icon: <NotificationOutlined />, label: "Hỗ trợ & Thông báo" },
-    // Xem được hộp thư là xem được lịch nhắc; thao tác tạo/sửa/gửi vẫn cần mức Sửa (server chặn).
-    can("support") && { key: "/ho-tro/nhac-lich", icon: <ScheduleOutlined />, label: "Nhắc lịch" },
-  ]));
-  items.push(...group("analysis", <LineChartOutlined />, "Phân tích & Bản tin", [
-    can("floor_suggest") && { key: "/goi-y-gia-san", icon: <BulbOutlined />, label: "Gợi ý giá sàn" },
-    can("bulletin_daily") && { key: "/ban-tin", icon: <FileTextOutlined />, label: "Bản tin ngày" },
-    can("bulletin_weekly") && { key: "/ban-tin/tuan", icon: <FileDoneOutlined />, label: "Báo cáo tuần" },
-    can("market_movement") && { key: "/ban-tin-bien-dong", icon: <LineChartOutlined />, label: "Bản tin biến động" },
-    can("assistant") && { key: "/tro-ly-ai", icon: <RobotOutlined />, label: "Trợ lý AI" },
-    can("assistant") && { key: "/tro-ly-ai/lich-su", icon: <HistoryOutlined />, label: "Lịch sử hỏi đáp" },
-    // Admin đã có mục này trong nhóm Quản trị → chỉ hiện ở đây cho tài khoản được CẤP quyền.
-    !isAdmin && can("audit") && { key: "/quan-tri/nhat-ky", icon: <AuditOutlined />, label: "Nhật ký hoạt động" },
-  ]));
-  return items;
-}
-
-// Mục Quản trị chỉ hiện với role=admin.
-const ADMIN_MENU = {
-  key: "admin", icon: <SafetyOutlined />, label: "Quản trị",
-  children: [
-    { key: "/quan-tri/nguoi-dung", icon: <UsergroupAddOutlined />, label: "Người dùng" },
-    { key: "/canh-bao-bat-thuong", icon: <WarningOutlined />, label: "Cảnh báo bất thường" },
-    { key: "/quan-tri/nhat-ky", icon: <AuditOutlined />, label: "Nhật ký hoạt động" },
-    { key: "/quan-tri/cau-hinh", icon: <SettingOutlined />, label: "Cấu hình hệ thống" },
-    { key: "/quan-tri/lich-chay", icon: <ClockCircleOutlined />, label: "Lịch chạy" },
-  ],
-};
-
-// Menu cho tài khoản Đơn vị thành viên — trục mới: chỉ còn 2 biểu nhập theo ngày (Thu mua · Tồn kho),
-// TIÊU THỤ chuyển sang tính từ hợp đồng nên nằm ở nhóm Báo cáo (chỉ xem).
-// "Thu mua" + "Kế hoạch năm" chỉ hiện khi đơn vị được giao kế hoạch thu mua.
-function buildMemberMenu(hasPurchasePlan: boolean) {
-  return [
-    ...group("data-manual", <EditOutlined />, "Nhập liệu số liệu", [
-      hasPurchasePlan && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Thu mua (theo ngày)" },
-      { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Tồn kho (theo ngày)" },
-      { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
-      // Kế hoạch năm mở cho MỌI đơn vị, kể cả đơn vị chưa khai số nào: chính con số ở màn này là
-      // công tắc bật màn Thu mua, khoá màn lại thì đơn vị chưa khai lần nào không bao giờ tự khai được.
-      { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
-    ]),
-    ...group("contracts", <FileProtectOutlined />, "Quản lý hợp đồng", [
-      { key: "/hop-dong/khach-hang", icon: <ContactsOutlined />, label: "Khách hàng" },
-      { key: "/hop-dong/hop-dong-me", icon: <FileTextOutlined />, label: "Hợp đồng mẹ (HĐNT/HĐDH)" },
-      { key: "/hop-dong", icon: <FileProtectOutlined />, label: "Hợp đồng & đợt giao" },
-    ]),
-    ...group("reports", <BarChartOutlined />, "Báo cáo", [
-      { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Tiêu thụ" },
-    ]),
-  ];
-}
-
-// Menu tài khoản LÃNH ĐẠO ĐƠN VỊ THÀNH VIÊN: hộp thư với Tập đoàn + XEM số liệu của đơn vị mình.
-// Cùng các màn của tài khoản nhập liệu nhưng ở chế độ CHỈ XEM (server chặn mọi thao tác ghi),
-// nên nhãn nhóm ghi rõ "(chỉ xem)" để lãnh đạo không đi tìm nút Lưu.
-function buildLeaderMenu(hasPurchasePlan: boolean) {
-  return [
-    { key: "/ho-tro", icon: <CustomerServiceOutlined />, label: "Hỗ trợ & Thông báo" },
-    ...group("data-manual", <BarChartOutlined />, "Số liệu đơn vị (chỉ xem)", [
-      hasPurchasePlan && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Thu mua (theo ngày)" },
-      { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Tồn kho (theo ngày)" },
-      { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
-      { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
-    ]),
-    ...group("contracts", <FileProtectOutlined />, "Hợp đồng (chỉ xem)", [
-      { key: "/hop-dong/khach-hang", icon: <ContactsOutlined />, label: "Khách hàng" },
-      { key: "/hop-dong/hop-dong-me", icon: <FileTextOutlined />, label: "Hợp đồng mẹ (HĐNT/HĐDH)" },
-      { key: "/hop-dong", icon: <FileProtectOutlined />, label: "Hợp đồng & đợt giao" },
-    ]),
-    ...group("reports", <BarChartOutlined />, "Báo cáo", [
-      { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Tiêu thụ" },
-    ]),
-  ];
-}
-
-// Menu ĐÃ BỎ khỏi trục chính (chốt 11/09/2026) — chỉ admin thấy, nhãn gạch ngang.
-// Route vẫn sống để tra cứu dữ liệu cũ; người dùng thường không còn thấy lối vào.
-const strike = (text: string) => (
-  <span style={{ textDecoration: "line-through", opacity: 0.65 }}>{text}</span>
-);
-const RETIRED_MENU = {
-  key: "retired", icon: <DeleteOutlined />, label: strike("Menu đã bỏ"),
-  children: [
-    { key: "/quan-ly-so-lieu/gia-mu-nguyen-lieu", icon: <ExperimentOutlined />, label: strike("Giá mủ nguyên liệu") },
-    { key: "/quan-ly-so-lieu/ton-kho", icon: <InboxOutlined />, label: strike("Tồn kho Tập đoàn") },
-  ],
-};
-
-// Mục Hồ sơ cá nhân (đổi mật khẩu) — hiện cuối sidebar cho mọi vai trò.
-const PROFILE_ITEM = { key: "/ho-so", icon: <IdcardOutlined />, label: "Hồ sơ cá nhân" };
 
 /** Khung admin: Sider thu gọn + Menu icon vector + Header (user/logout) + nội dung route. */
 export default function AdminLayout() {
@@ -209,15 +30,8 @@ export default function AdminLayout() {
   const bannerH = isImpersonating ? IMPERSONATION_BANNER_HEIGHT : 0;
   const frameHeight = `calc(100vh - ${bannerH}px)`;
 
-  const isAdmin = user?.role === "admin";
   const isMember = user?.role === "member";
-  const isLeader = user?.role === "leader";
-  const menuItems = isLeader
-    ? [...buildLeaderMenu(user?.member_has_purchase_plan ?? false), PROFILE_ITEM]
-    : isMember
-      ? [...buildMemberMenu(user?.member_has_purchase_plan ?? false), PROFILE_ITEM]
-      : [...buildMenu(can, isAdmin), ...(isAdmin ? [ADMIN_MENU] : []), PROFILE_ITEM,
-         ...(isAdmin ? [RETIRED_MENU] : [])];
+  const menuItems = buildSidebarMenu(user, can);
 
   const ROUTE_KEYS = [
     "/quet-da-san",
@@ -269,8 +83,7 @@ export default function AdminLayout() {
         <Menu
           theme="dark" mode="inline"
           selectedKeys={[selected]}
-          defaultOpenKeys={["data-auto", "data-manual", "data-unit", "contracts", "stats",
-            "reports", "support", "analysis", "admin"]}
+          defaultOpenKeys={DEFAULT_OPEN_KEYS}
           items={menuItems}
           onClick={(e) => { nav(e.key); if (broken) setCollapsed(true); }}
         />

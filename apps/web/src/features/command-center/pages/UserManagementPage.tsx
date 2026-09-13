@@ -125,6 +125,7 @@ export default function UserManagementPage() {
       <Tag color={ROLE_COLOR[v] ?? "default"}>{ROLE_LABEL[v] ?? v}</Tag> },
     { title: "Quyền / Đơn vị", key: "perms", width: 360, render: (_: unknown, u: AppUser) => {
       if (u.role === "admin") return <Tag color="green">Toàn quyền</Tag>;
+      if (u.role === "executive") return <Tag color="volcano">Xem toàn bộ báo cáo · thống kê · AI</Tag>;
       if (UNIT_ROLES.has(u.role))
         return u.member_units?.length
           ? <Space size={[4, 4]} wrap>{u.member_units.map((n) =>
@@ -213,6 +214,9 @@ export default function UserManagementPage() {
               if (role === "admin")
                 return <Alert type="success" showIcon style={{ marginBottom: 16 }}
                   message="Quản trị viên có toàn quyền — không cần chọn mục." />;
+              if (role === "executive")
+                return <Alert type="info" showIcon style={{ marginBottom: 16 }}
+                  message="Lãnh đạo Tập đoàn xem được mọi báo cáo, thống kê, số liệu, hợp đồng và dùng Trợ lý AI — chỉ xem, không sửa. Không có phần kỹ thuật (Quét đa sàn, Quản trị, Nhật ký, Hỗ trợ). Không cần chọn mục." />;
               if (role === "viewer")
                 return <Alert type="info" showIcon style={{ marginBottom: 16 }}
                   message="Người xem không truy cập các mục quản lý số liệu (chỉ xem dashboard/bản tin)." />;
