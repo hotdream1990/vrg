@@ -1,38 +1,27 @@
-"""Tỷ giá USD — Close hằng ngày: CNY/JPY/THB (x-rates) · VND (Vietcombank) · MYR (BNM).
+"""Tỷ giá USD — Close hằng ngày: CNY/JPY/THB (exchangerates, dự phòng x-rates) · VND (VCB) · MYR (BNM).
 
-CNY/JPY/THB — x-rates.com, trang "Historical Rates" theo ngày (HTTP thường, không Cloudflare).
-  Trước 03/09/2026 lấy từ exchangerates.org.uk (nguồn Ban TTKD dùng) nhưng trang đó đã đổi giao
-  diện: trang conversion KHÔNG còn bảng "Exchange Rate History" có ngày; trang lịch sử + API biểu
-  đồ nằm sau Cloudflare (thách thức/chặn hẳn) → bỏ, không lách chặn bot.
-  GOTCHA ngày: trang x-rates ngày X là ẢNH CHỤP lúc ~00:00 UTC ngày X = giá đóng cửa ngày X-1
-  (đo khớp giờ với Yahoo). Vì vậy Close ngày D = trang ngày D+1. Đối chiếu 43 phiên 06/07–02/09
-  với số exchangerates đã lưu: lệch trung vị JPY 1,2 · CNY 0,8 · THB 2,4 bps.
-  GOTCHA "hôm nay": trang của ngày chưa chốt trả tỷ giá LIVE (nhãn giờ = giờ hiện tại) → chỉ nhận
-  ngày X < hôm nay (UTC) VÀ nhãn giờ đúng nhãn ảnh chụp đã chốt; sai → bỏ, không đoán.
-  Chỉ phát hành Thứ 2–6 (sàn không giao dịch cuối tuần; không nhân bản giá thứ Sáu sang thứ Bảy).
+CNY/JPY/THB — NGUỒN CHÍNH exchangerates.org.uk (đúng nguồn Ban TTKD dùng), xem `fx_exchangerates`.
+  Đồng nào nguồn chính không ra phiên nào → lấy từ x-rates.com (`fx_xrates`, lệch vài bps) và GHI
+  CHÚ rõ trong kết quả quét (lượt quét thành "cảnh báo") để chuyên viên biết số không cùng nguồn Excel.
+  Mỗi lần quét lấp lại 7 ngày gần nhất → tự lành khi lỡ vài lần quét. Chỉ Thứ 2–6.
 VND: TỪ VIETCOMBANK (API công khai có date param) — "USD/VND (Mua)" (chuyển khoản) và
   "USD/VND (Bán)", đồng bộ với phiếu Báo giá mủ.
 MYR: TỪ BNM (Ngân hàng TW Malaysia) API — buying_rate phiên 12:00 (đúng nguồn chuyên viên,
   rateType=BR, quote=rm); dùng quy đổi Latex LGM (Sen ÷ USD/MYR × 10). API theo tháng.
-LÀM TRÒN: crawler giữ 4 số lẻ như nguồn cũ (CNY 4 · THB 4 · MYR 4); chuẩn hoá riêng khi LƯU
+LÀM TRÒN: crawler giữ 4 số lẻ (CNY 4 · THB 4 · MYR 4); chuẩn hoá riêng khi LƯU
 (USD/JPY 2 số lẻ theo file gốc Ban TTKD) nằm ở 1 chỗ duy nhất — `app.services.price_repo`.
 """
 
 from __future__ import annotations
 
-import re
 from datetime import date, datetime, timedelta, timezone
 
-from ..base.fetcher import fetch_json, fetch_text
+from ..base.fetcher import fetch_json
 from ..base.models import CrawlResult, PriceRecord, Source, Status
+from . import fx_exchangerates, fx_xrates
 
-_XR_URL = "https://www.x-rates.com/historical/?from=USD&amount=1&date={d}"
-_XR_CODES = ("CNY", "JPY", "THB")  # CNY/JPY quy futures→USD · THB quy physical Thái
-_XR_LOOKBACK_DAYS = 7  # mỗi lần quét lấp lại 7 ngày gần nhất → tự lành khi lỡ vài lần quét
-# Nhãn giờ của trang ngày ĐÃ CHỐT (mọi ngày quá khứ đều in đúng nhãn này); trang live in giờ hiện tại.
-_XR_SNAPSHOT_STAMP = "16:00 UTC"
-_XR_STAMP = re.compile(r'class="ratesTimestamp">([^<]+)<')
-_XR_RATE = re.compile(r"from=USD&amp;to=([A-Z]{3})'>([\d.]+)<")
+_CODES = ("CNY", "JPY", "THB")  # CNY/JPY quy futures→USD · THB quy physical Thái
+_LOOKBACK_DAYS = 7  # mỗi lần quét lấp lại 7 ngày gần nhất
 
 _VCB_URL = "https://www.vietcombank.com.vn/api/exchangerates?date={d}"  # VND: nguồn Vietcombank
 # BNM (Malaysia) — buying_rate phiên 12:00, quote=rm (đúng nguồn chuyên viên). {path}='' hoặc '/year/Y/month/M'.
@@ -47,38 +36,28 @@ def _rec(code: str, as_of: date, rate: float) -> PriceRecord:
                        unit=f"{code} per USD", price_type="fx", as_of=as_of)
 
 
-def _parse_xrates(html: str) -> dict[str, float]:
-    """{mã: tỷ giá} từ 1 trang lịch sử x-rates ĐÃ CHỐT. Trang live/lạ/bị chặn → {}. Offline-testable."""
-    stamp = _XR_STAMP.search(html)
-    if not stamp or not stamp.group(1).strip().endswith(_XR_SNAPSHOT_STAMP):
-        return {}
-    rates: dict[str, float] = {}
-    for code, value in _XR_RATE.findall(html):  # bảng xuất hiện 2 lần (top-10 + đầy đủ) → giữ lần đầu
-        if code in _XR_CODES and code not in rates:
-            rates[code] = round(float(value), 4)
-    return rates
+def _asia_closes(since: date, today: date) -> tuple[list[PriceRecord], list[str]]:
+    """Close CNY/JPY/THB since..hôm qua: exchangerates trước, đồng nào trống → x-rates. (records, ghi chú).
 
-
-def _xrates_closes(first: date, last: date, today: date | None = None) -> list[PriceRecord]:
-    """Close CNY/JPY/THB các ngày Thứ 2–6 trong [first, last]. Close ngày D = ảnh chụp ngày D+1.
-
-    Chỉ nhận ảnh chụp của ngày < hôm nay (UTC). Lỗi mạng → dừng luôn (không kéo dài cả lượt quét).
+    Dự phòng xét THEO ĐỒNG: exchangerates không ra phiên nào của đồng đó mới gọi x-rates. Đồng có số
+    nhưng hụt vài ngày giữa khoảng thì KHÔNG bù bằng x-rates (tránh trộn 2 nguồn trong 1 chuỗi) — lượt
+    quét sau tự lấp, còn thiếu kéo dài thì `fx_freshness` cảnh báo.
     """
-    today = today or datetime.now(timezone.utc).date()
-    out: list[PriceRecord] = []
-    d = first
-    while d <= last:
-        snap = d + timedelta(days=1)
-        if snap >= today:
-            break
-        if d.weekday() < 5:
-            try:
-                html = fetch_text(_XR_URL.format(d=snap.isoformat()), retries=2)
-            except Exception:  # noqa: BLE001 - nguồn sập → dừng, crawl() ghi chú thiếu cặp nào
-                break
-            out.extend(_rec(code, d, rate) for code, rate in _parse_xrates(html).items())
-        d += timedelta(days=1)
-    return out
+    records, errors = fx_exchangerates.closes(since, today, _CODES, _rec)
+    missing = tuple(c for c in _CODES if not any(r.grade == f"USD/{c}" for r in records))
+    if not missing:
+        return records, []
+    backup = fx_xrates.closes(since, today, today, missing, _rec)
+    records.extend(backup)
+    rescued = [c for c in missing if any(r.grade == f"USD/{c}" for r in backup)]
+    lost = [c for c in missing if c not in rescued]
+    notes = []
+    if rescued:
+        why = ", ".join(f"{c}: {errors.get(c, '?')}" for c in rescued)
+        notes.append(f"exchangerates lỗi ({why}) → dùng x-rates dự phòng")
+    if lost:
+        notes.append("tỷ giá thiếu: " + ",".join(lost))
+    return records, notes
 
 
 def _vcb_usd(day: date | None = None) -> tuple[date, float | None, float | None] | None:
@@ -149,13 +128,9 @@ def _bnm_myr(day: date | None = None) -> list[PriceRecord]:
 
 
 def crawl() -> CrawlResult:
-    """Quét tỷ giá: CNY/JPY/THB (x-rates, lấp 7 ngày) + VND (VCB) + MYR (BNM). Cô lập lỗi từng nguồn."""
-    notes: list[str] = []
+    """Quét tỷ giá: CNY/JPY/THB (lấp 7 ngày) + VND (VCB) + MYR (BNM). Cô lập lỗi từng nguồn."""
     today = datetime.now(timezone.utc).date()
-    records = _xrates_closes(today - timedelta(days=_XR_LOOKBACK_DAYS), today, today)
-    missing = [c for c in _XR_CODES if not any(r.grade == f"USD/{c}" for r in records)]
-    if missing:
-        notes.append("x-rates thiếu: " + ",".join(missing))
+    records, notes = _asia_closes(today - timedelta(days=_LOOKBACK_DAYS), today)
     vnd = _vnd_records()
     if vnd:
         records.extend(vnd)
@@ -173,13 +148,14 @@ def crawl() -> CrawlResult:
 
 
 def history(days: int) -> list[PriceRecord]:
-    """Backfill `days` ngày gần nhất: CNY/JPY/THB (x-rates) · VND (VCB từng ngày) · MYR (BNM theo tháng).
+    """Backfill `days` ngày gần nhất: CNY/JPY/THB · VND (VCB từng ngày) · MYR (BNM theo tháng).
 
-    ⚠ Khoảng lùi chạm ≤ 02/09/2026 sẽ GHI ĐÈ số exchangerates cũ bằng số x-rates (lệch vài bps).
+    exchangerates chỉ giữ ~10 phiên nên CNY/JPY/THB chỉ lấp được trong khoảng đó. ⚠ Nếu nguồn chính
+    lỗi, dự phòng x-rates lùi bao xa cũng được → có thể GHI ĐÈ số exchangerates đã lưu (lệch vài bps).
     """
     today = datetime.now(timezone.utc).date()
     since = today - timedelta(days=days)
-    records = _xrates_closes(since, today, today)
+    records, _ = _asia_closes(since, today)
 
     # VND (Mua/Bán) từ VCB — API có date param nên backfill được từng ngày trong khoảng.
     day = today
