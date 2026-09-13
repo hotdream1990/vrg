@@ -336,16 +336,22 @@ def _missing_price(date_from: str, date_to: str, thresholds: dict[str, float]) -
     lacks = " OR ".join(
         f"(CASE WHEN r.payload->>'{qty_key}' ~ '^[0-9.]+$' "
         f"      THEN (r.payload->>'{qty_key}')::numeric ELSE 0 END > 0 "
-        f" AND NOT EXISTS (SELECT 1 FROM fact_price f WHERE f.source = :src "
-        f"   AND f.grade = r.company AND f.as_of = r.as_of AND f.price_type = '{ptype}'))"
+        f" AND NOT ('{ptype}' = ANY(COALESCE(p.have, ARRAY[]::text[]))))"
         for _mat, qty_key, ptype in _MATS)
+    # Giá gom MỘT LẦN theo khoảng ngày cố định rồi LEFT JOIN — KHÔNG hỏi `fact_price` bằng truy vấn
+    # con theo từng dòng. `fact_price` là hypertable (~140 chunk): truy vấn con tương quan không
+    # loại được chunk lúc lập kế hoạch → chi phí ước lượng vượt ngưỡng JIT, Postgres bỏ ~5 giây
+    # BIÊN DỊCH trong khi chạy thật chỉ ~20ms (đo 13/09/2026, cả trang chờ vì luật này).
     with session_scope() as db:
         rows = db.execute(text(
-            "SELECT r.as_of, r.company, r.payload, "
-            "  COALESCE((SELECT array_agg(DISTINCT f.price_type) FROM fact_price f "
-            "     WHERE f.source = :src AND f.grade = r.company AND f.as_of = r.as_of "
-            "       AND f.price_type = ANY(:ptypes)), ARRAY[]::text[]) AS have "
+            "WITH p AS ("
+            "  SELECT grade AS company, as_of, array_agg(DISTINCT price_type) AS have "
+            "  FROM fact_price WHERE source = :src AND price_type = ANY(:ptypes) "
+            "  AND as_of BETWEEN CAST(:a AS date) AND CAST(:b AS date) "
+            "  GROUP BY grade, as_of) "
+            "SELECT r.as_of, r.company, r.payload, COALESCE(p.have, ARRAY[]::text[]) AS have "
             "FROM unit_daily_report r "
+            "LEFT JOIN p ON p.company = r.company AND p.as_of = r.as_of "
             "WHERE r.kind = 'purchase' AND r.payload <> '{}'::jsonb "
             "AND r.as_of BETWEEN CAST(:a AS date) AND CAST(:b AS date) "
             "AND COALESCE((r.payload->>'no_purchase')::bool, false) = false "
