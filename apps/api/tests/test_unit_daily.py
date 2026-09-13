@@ -778,6 +778,8 @@ def test_grade_catalog_is_one_list_shared_by_every_entry_screen() -> None:
     # "Mủ ngoại lệ" nằm NGAY DƯỚI "Chủng loại khác" (khách chốt 08/08/2026) — thứ tự là thứ tự
     # hiện trên ô chọn, đổi chỗ là đổi trải nghiệm nhập liệu nên phải khoá lại.
     assert UNIT_GRADES[UNIT_GRADES.index("Chủng loại khác") + 1] == "Mủ ngoại lệ"
+    # "RSS 5" ngay dưới "RSS 1" (thêm 13/09/2026) — chỉ ở danh mục nhập liệu, không có giá sàn.
+    assert UNIT_GRADES[UNIT_GRADES.index("RSS 1") + 1] == "RSS 5"
     assert len(UNIT_GRADES) == len(set(UNIT_GRADES)), "Danh mục chủng loại có mục trùng."
 
     # Mọi nơi phía backend dùng đúng danh sách đó (biểu Excel, báo cáo kỳ).

@@ -127,11 +127,15 @@ LACE_GRADE = "Mủ dây"
 #   - "SVR 10CV / 20CV": dòng 13.2 của biểu mẫu tuần.
 #   - "Chủng loại khác": gom phần còn lại (dòng 13.8).
 #   - "Mủ ngoại lệ": hàng không xếp được vào loại nào ở trên (chốt 08/08/2026).
+#   - "RSS 5" (thêm 13/09/2026): đơn vị có sản xuất/bán nhưng Tập đoàn KHÔNG ra giá sàn loại này →
+#     chèn ngay dưới "RSS 1" cho các loại RSS đứng liền nhau, không đụng bảng giá sàn/bản tin.
 # ⚠ THỨ TỰ là thứ tự hiện trên ô chọn của người nhập — đổi chỗ là đổi trải nghiệm nhập liệu.
 # Web giữ một bản sao ở `apps/web/src/lib/unit-daily-consumption.ts`; `test_unit_daily.py` so 2 bên
 # và sẽ đỏ nếu lệch — sửa ở đây thì sửa luôn bên đó.
+_AFTER_RSS1 = VRG_FLOOR_GRADES.index("RSS 1") + 1
 UNIT_GRADES = [
-    *VRG_FLOOR_GRADES, "SVR 10CV / 20CV", "Chủng loại khác", "Mủ ngoại lệ", *RAW_MATERIAL_GRADES,
+    *VRG_FLOOR_GRADES[:_AFTER_RSS1], "RSS 5", *VRG_FLOOR_GRADES[_AFTER_RSS1:],
+    "SVR 10CV / 20CV", "Chủng loại khác", "Mủ ngoại lệ", *RAW_MATERIAL_GRADES,
     LACE_GRADE,
 ]
 

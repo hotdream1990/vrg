@@ -146,8 +146,8 @@ export const CHANNELS: { value: SaleChannel; label: string }[] = [
     Thứ tự ở đây chính là thứ tự hiện trên ô chọn của người nhập. */
 export const GRADES: string[] = [
   "SVR CV 50", "SVR CV60", "SVR L", "SVR 3L Mix", "SVR 3L", "SVR 5S", "SVR 5",
-  "SVR 10 Mix", "SVR 10 / CSR 10", "SVR 20 / CSR 20", "RSS 3", "RSS 1", "LATEX", "Skim Block",
-  "SVR 10CV / 20CV", "Chủng loại khác", "Mủ ngoại lệ",
+  "SVR 10 Mix", "SVR 10 / CSR 10", "SVR 20 / CSR 20", "RSS 3", "RSS 1", "RSS 5", "LATEX",
+  "Skim Block", "SVR 10CV / 20CV", "Chủng loại khác", "Mủ ngoại lệ",
   "Mủ nguyên liệu nước chưa cán vắt (chén)", "Mủ nguyên liệu đã cán vắt (RSS)",
   "Mủ dây",
 ];
