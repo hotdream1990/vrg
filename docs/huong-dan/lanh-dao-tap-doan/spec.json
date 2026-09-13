@@ -1,0 +1,452 @@
+{
+ "output": "Huong-dan-lanh-dao-tap-doan.docx",
+ "page": "a4",
+ "colors": {
+  "h1": "1F7A4D",
+  "h2": "C2410C"
+ },
+ "header": {
+  "logo": "logo-vrg.png",
+  "logoW": 846,
+  "logoH": 774,
+  "title": "HƯỚNG DẪN CHO LÃNH ĐẠO TẬP ĐOÀN",
+  "subtitle": "·  Hệ thống Dự báo & Quản trị Giá Cao su — VRG"
+ },
+ "cover": {
+  "title": "Hướng dẫn sử dụng — Lãnh đạo Tập đoàn",
+  "intro": "Tài liệu dành cho lãnh đạo Tập đoàn Công nghiệp Cao su Việt Nam trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản Lãnh đạo Tập đoàn xem được toàn bộ báo cáo, thống kê, số liệu và dùng Trợ lý AI để hỏi đáp số liệu. Tài khoản chỉ để XEM; việc nhập, sửa số liệu do chuyên viên Ban TTKD thực hiện."
+ },
+ "readme_head": {
+  "intro": [
+   "Tài liệu dành cho **lãnh đạo Tập đoàn** trên Hệ thống Dự báo & Quản trị Giá Cao su (https://price.vrg.vn).",
+   "Tài khoản Lãnh đạo Tập đoàn xem được toàn bộ **báo cáo, thống kê, số liệu thị trường, số liệu đơn vị, hợp đồng** và dùng **Trợ lý AI**. Tài khoản **chỉ xem**, không nhập/sửa số liệu."
+  ],
+  "links": [
+   "Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-lanh-dao-tap-doan.docx](./Huong-dan-lanh-dao-tap-doan.docx)",
+   "Sửa nội dung: chỉ sửa `spec.json` rồi chạy `python3 render_readme.py` (dựng lại README) và `node build_guide.js spec.json` (dựng lại bản Word).",
+   "Chụp lại bộ ảnh khi giao diện đổi: chạy `./scripts/dev.sh` rồi `uv run --directory apps/api --with playwright python ../../docs/huong-dan/lanh-dao-tap-doan/shoot.py`."
+  ]
+ },
+ "sections": [
+  {
+   "title": "1. Tài khoản Lãnh đạo Tập đoàn làm được gì",
+   "location": "Đăng nhập tại https://price.vrg.vn bằng tài khoản được cấp",
+   "intro": "Tài khoản xem được toàn bộ báo cáo, thống kê, số liệu thị trường, số liệu đơn vị, hợp đồng và dùng Trợ lý AI. Tài khoản chỉ để xem: không nhập, sửa hay xoá số liệu. Menu bên trái gồm các phần sau.",
+   "image": {
+    "path": "img/01-menu.png",
+    "w": 3000,
+    "h": 2960
+   },
+   "caption": "Hình 1. Menu của tài khoản Lãnh đạo Tập đoàn",
+   "steps": [
+    "**Dashboard** — bức tranh thị trường và tồn kho trong một màn.",
+    "**Phân tích & Bản tin** — Trợ lý AI, Gợi ý giá sàn, Bản tin biến động, Bản tin ngày, Báo cáo tuần, Lịch sử hỏi đáp.",
+    "**Báo cáo & Thống kê** — báo cáo tổng hợp, báo cáo tiêu thụ, thống kê thu mua · tồn kho · tiêu thụ, theo dõi nộp báo cáo.",
+    "**Số liệu thị trường (chỉ xem)** — giá các sàn, tỷ giá, báo giá mủ, giá sàn Tập đoàn, giá physical.",
+    "**Số liệu đơn vị (chỉ xem)** — thu mua, tồn kho, nhu cầu thị trường, kế hoạch năm của các đơn vị.",
+    "**Hợp đồng (chỉ xem)** — khách hàng, hợp đồng mẹ, hợp đồng và đợt giao.",
+    "**Hồ sơ cá nhân** — đổi mật khẩu."
+   ],
+   "notes": [
+    "Chữ “(chỉ xem)” trên tên nhóm nghĩa là màn đó không có nút nhập hay sửa.",
+    "Thấy số liệu sai hoặc thiếu: báo chuyên viên Ban TTKD phụ trách mục đó."
+   ]
+  },
+  {
+   "title": "2. Dashboard — xem nhanh thị trường",
+   "location": "Menu ▸ Dashboard (màn mở ra ngay sau khi đăng nhập)",
+   "intro": "Một màn gom giá quốc tế, giá sàn so với thị trường và tồn kho Tập đoàn.",
+   "image": {
+    "path": "img/02-dashboard.png",
+    "w": 3000,
+    "h": 3000
+   },
+   "caption": "Hình 2. Dashboard",
+   "steps": [
+    "**Cập nhật** — tải lại trang để lấy số mới nhất.",
+    "**Bốn thẻ giá chính** — giá, mức tăng/giảm so với phiên trước và ngày cập nhật.",
+    "**Diễn biến giá 30 ngày** — rê chuột lên đường giá để xem số từng ngày.",
+    "**% tăng/giảm theo sàn** (ô xanh = tăng, đỏ = giảm) và **So sánh giá sàn Tập đoàn với thị trường** — cột Nhận định ghi “Sàn cao hơn TT”, “Sàn thấp hơn TT” hoặc “Sát thị trường”.",
+    "**Tồn kho theo ngày** — chọn cách xem: đã/chưa nhập kho, cơ cấu hợp đồng, chủng loại, tồn tự do, khu vực."
+   ],
+   "notes": [
+    "Nhãn “Dữ liệu thật” nghĩa là số lấy từ hệ thống, không phải số minh hoạ.",
+    "Dấu “—” trong bảng % nghĩa là sàn đó không giao dịch chủng loại này."
+   ]
+  },
+  {
+   "title": "3. Hỏi Trợ lý AI",
+   "location": "Menu ▸ Phân tích & Bản tin ▸ Trợ lý AI",
+   "intro": "Hỏi bằng tiếng Việt về giá, tồn kho, thu mua, hợp đồng, giá sàn. Trợ lý trả lời từ số liệu thật trong hệ thống, kèm bảng hoặc biểu đồ.",
+   "image": {
+    "path": "img/03-tro-ly-ai.png",
+    "w": 3000,
+    "h": 1720
+   },
+   "caption": "Hình 3. Màn Trợ lý AI trước khi hỏi",
+   "steps": [
+    "**Nguồn tham chiếu** — “Cơ bản”: chỉ tra thị trường thế giới và giá sàn. “Mở rộng” (mặc định): thêm số liệu nội bộ, đơn vị thành viên, hợp đồng.",
+    "**Mức tư vấn** — “Chỉ tra số”: chỉ trả số liệu. “Theo mô hình” (mặc định): nêu đúng đề xuất nâng/giữ/hạ của mô hình. “Có điều chỉnh”: được đề xuất khác mô hình nhưng phải nêu lý do.",
+    "**Trợ lý làm được gì?** — xem trợ lý tra được những gì và chưa làm được gì.",
+    "**Gợi ý câu hỏi** — bấm một câu để hỏi ngay.",
+    "**Ô hỏi** — gõ câu hỏi. Bấm Enter để gửi, Shift+Enter để xuống dòng.",
+    "**Gửi** — gửi câu hỏi. Chờ vài giây đến vài chục giây để trợ lý tra số liệu."
+   ],
+   "notes": [
+    "Mọi khuyến nghị của trợ lý chỉ để tham khảo, không làm thay đổi biểu giá sàn.",
+    "Muốn bắt đầu cuộc hỏi mới: tải lại trang."
+   ]
+  },
+  {
+   "title": "4. Đọc câu trả lời của Trợ lý AI",
+   "location": "Trợ lý AI ▸ sau khi gửi câu hỏi",
+   "intro": "Câu hỏi nằm bên phải, câu trả lời nằm bên trái. Hỏi tiếp ngay bên dưới, trợ lý nhớ nội dung đang trao đổi.",
+   "image": {
+    "path": "img/04-tro-ly-ai-tra-loi.png",
+    "w": 3000,
+    "h": 2200
+   },
+   "caption": "Hình 4. Câu trả lời có biểu đồ và nguồn số liệu",
+   "steps": [
+    "**Câu hỏi** bạn đã gửi.",
+    "**Phần trả lời** — con số chính được in đậm.",
+    "**Biểu đồ hoặc bảng** trợ lý dựng từ số liệu thật.",
+    "**Nguồn** — nhóm số liệu trợ lý đã dùng để trả lời."
+   ],
+   "notes": [
+    "Trợ lý không dự báo giá tương lai và không đọc tin tức vĩ mô ngoài hệ thống.",
+    "Mỗi câu hỏi tra tối đa khoảng 400 ngày số liệu."
+   ]
+  },
+  {
+   "title": "5. Xem lại lịch sử hỏi đáp",
+   "location": "Menu ▸ Phân tích & Bản tin ▸ Lịch sử hỏi đáp",
+   "intro": "Lưu lại các phiên bạn đã hỏi Trợ lý AI. Chỉ bạn xem được lịch sử của mình.",
+   "image": {
+    "path": "img/05-lich-su-hoi-dap.png",
+    "w": 3000,
+    "h": 1720
+   },
+   "caption": "Hình 5. Lịch sử hỏi đáp",
+   "steps": [
+    "**Khoảng ngày** — lọc các phiên trong khoảng thời gian cần xem.",
+    "**Tìm theo câu hỏi** — gõ vài chữ trong câu hỏi để tìm.",
+    "**Một dòng là một phiên** — bấm vào để đọc lại toàn bộ câu hỏi và câu trả lời."
+   ],
+   "notes": [
+    "Khi đọc lại, câu trả lời hiện dạng chữ, không kèm biểu đồ."
+   ]
+  },
+  {
+   "title": "6. Gợi ý giá sàn",
+   "location": "Menu ▸ Phân tích & Bản tin ▸ Gợi ý giá sàn",
+   "intro": "Mô hình so giá sàn với rổ giá thị trường (MRB SMR20 · SGX TSR20 · SHFE · OSE RSS3) để đề xuất nâng, giữ hay hạ giá sàn từng chủng loại, kèm lý do và độ tin cậy.",
+   "image": {
+    "path": "img/06-goi-y-gia-san.png",
+    "w": 3000,
+    "h": 2200
+   },
+   "caption": "Hình 6. Gợi ý điều chỉnh giá sàn",
+   "steps": [
+    "**Thanh chọn** — “Chế độ”: xem lại một lần đã ban hành, hoặc chọn một ngày bất kỳ để có gợi ý mới. “Mô hình”: nên để “Rổ 4 futures (khuyến nghị)”.",
+    "**Xem & xuất tờ trình** — mở bản tờ trình điều chỉnh giá sàn; bấm “In / Xuất PDF” để in hoặc lưu file.",
+    "**Bảng gợi ý** — mỗi dòng một chủng loại: giá sàn lần trước, mức mô hình gợi ý, đề xuất điều chỉnh, **Hành động** (nâng/giữ/hạ) và **Độ tin cậy**."
+   ],
+   "notes": [
+    "Bấm vào một dòng trong bảng để xem diễn giải chi tiết của chủng loại đó ở phía dưới.",
+    "Kéo xuống dưới có: ma trận kịch bản Giảm/Cơ sở/Tăng, kiểm định mô hình trên các lần đã ban hành (sai số MAPE ≤ 6% là tốt) và biểu đồ tương quan giá sàn với các sàn.",
+    "Gợi ý chỉ để tham khảo, không tự thay đổi giá sàn."
+   ]
+  },
+  {
+   "title": "7. Bản tin biến động và nhận định AI",
+   "location": "Menu ▸ Phân tích & Bản tin ▸ Bản tin biến động",
+   "intro": "Một màn gom mọi nhóm số liệu (giá sàn, physical, tỷ giá, thu mua, tồn kho, tiêu thụ) dạng biểu đồ. Trên cùng là ô nhận định do AI viết.",
+   "image": {
+    "path": "img/07-ban-tin-bien-dong.png",
+    "w": 3000,
+    "h": 2200
+   },
+   "caption": "Hình 7. Nhận định chung do AI tổng hợp",
+   "steps": [
+    "**Tạo nhận định bằng AI** — bấm để AI đọc số liệu và viết nhận định (sau lần đầu nút đổi thành “Tạo lại”).",
+    "**Tổng thể** — đánh giá chung toàn bộ các nhóm số liệu.",
+    "**Gợi ý xu hướng** — hướng đi ngắn hạn 1–2 tuần và các điểm cần theo dõi. Bên dưới là nhận định từng nhóm số liệu."
+   ],
+   "notes": [
+    "Nhận định KHÔNG được lưu: rời trang là mất, lần sau bấm tạo lại.",
+    "AI tổng hợp từ số liệu hệ thống — cần rà soát trước khi đưa vào văn bản trình."
+   ]
+  },
+  {
+   "title": "8. Bản tin ngày — danh sách",
+   "location": "Menu ▸ Phân tích & Bản tin ▸ Bản tin ngày",
+   "intro": "Danh sách các bản tin ngày Ban TTKD đã xuất bản, mới nhất ở trên.",
+   "image": {
+    "path": "img/08-ban-tin-ngay.png",
+    "w": 3000,
+    "h": 1720
+   },
+   "caption": "Hình 8. Danh sách bản tin đã xuất bản",
+   "steps": [
+    "**Ngày bản tin** — bấm để mở bản tin.",
+    "**Xem** — đọc bản tin ngay trên màn hình.",
+    "**Tải** — tải file PDF về máy."
+   ]
+  },
+  {
+   "title": "9. Đọc một bản tin ngày",
+   "location": "Bản tin ngày ▸ bấm Xem",
+   "intro": "Bản tin gồm bốn phần: giá cao su thế giới, giá vật chất (Reuters), giá sàn VRG và thông tin thị trường.",
+   "image": {
+    "path": "img/09-ban-tin-chi-tiet.png",
+    "w": 3000,
+    "h": 1720
+   },
+   "caption": "Hình 9. Nội dung một bản tin ngày",
+   "steps": [
+    "**Danh sách bản tin** — quay lại danh sách.",
+    "**Tải** — tải file PDF của bản tin này.",
+    "**Nội dung** — kéo xuống để đọc lần lượt từng phần."
+   ]
+  },
+  {
+   "title": "10. Báo cáo phân tích thị trường tuần",
+   "location": "Menu ▸ Phân tích & Bản tin ▸ Báo cáo tuần",
+   "intro": "Báo cáo tuần do chuyên viên soạn: tóm tắt, diễn biến giá, yếu tố vĩ mô, dự báo và khuyến nghị.",
+   "image": {
+    "path": "img/10-bao-cao-tuan.png",
+    "w": 3000,
+    "h": 2000
+   },
+   "caption": "Hình 10. Báo cáo tuần",
+   "steps": [
+    "**Báo cáo đã lưu** — bấm vào tuần cần xem.",
+    "**Xuất PDF** — tải báo cáo tuần đang mở thành file PDF.",
+    "**Nội dung** — kéo xuống để đọc các phần I đến VI."
+   ],
+   "notes": [
+    "Chỉ các tuần chuyên viên đã soạn và lưu mới hiện trong danh sách."
+   ]
+  },
+  {
+   "title": "11. Báo cáo tổng hợp",
+   "location": "Menu ▸ Báo cáo & Thống kê ▸ Báo cáo tổng hợp",
+   "intro": "Cộng số liệu hằng ngày của các đơn vị theo tuần, tháng, năm hoặc khoảng tự chọn. Mỗi dòng một đơn vị, cuối bảng là dòng Tổng cộng.",
+   "image": {
+    "path": "img/11-bao-cao-tong-hop.png",
+    "w": 3800,
+    "h": 2000
+   },
+   "caption": "Hình 11. Báo cáo tổng hợp",
+   "steps": [
+    "**Loại báo cáo** — Thu mua, hoặc Tiêu thụ – Tồn kho.",
+    "**Kỳ báo cáo** — Tuần này, Tuần trước, Tháng này, Tháng trước, Năm nay, hoặc Tự chọn rồi nhập từ ngày – đến ngày.",
+    "**Xuất Excel** — tải báo cáo đúng kỳ đang xem.",
+    "**Tiêu đề cột** — ghi đơn vị tính và cách tính: “cộng dồn” (cộng cả kỳ), “BQ gia quyền” (bình quân theo sản lượng), “thời điểm” (số tại ngày chốt)."
+   ],
+   "notes": [
+    "Dòng mờ là đơn vị chưa có số liệu trong kỳ.",
+    "Cột “Ngày lấy số tồn” tô vàng: đơn vị đã nhập số ngày mới hơn nhưng chưa cập nhật tồn kho."
+   ]
+  },
+  {
+   "title": "12. Báo cáo tiêu thụ",
+   "location": "Menu ▸ Báo cáo & Thống kê ▸ Báo cáo tiêu thụ",
+   "intro": "Sản lượng và doanh thu bán ra, tính từ các lần giao hàng ghi trên hợp đồng.",
+   "image": {
+    "path": "img/12-bao-cao-tieu-thu.png",
+    "w": 3400,
+    "h": 1720
+   },
+   "caption": "Hình 12. Báo cáo tiêu thụ",
+   "steps": [
+    "**Bộ lọc** — Từ ngày, Đến ngày, Đơn vị, Khách hàng, Chủng loại; bấm “Tải lại” sau khi đổi.",
+    "**Thẻ tổng** — sản lượng tiêu thụ (tấn quy khô), doanh thu (tỷ đồng), số lần giao, sản lượng đã ký chưa giao.",
+    "**Xuất Excel** — file gồm 2 sheet: tổng hợp theo đơn vị và chi tiết từng dòng bán."
+   ],
+   "notes": [
+    "Kéo xuống có thêm bảng theo đơn vị, theo khách hàng và lịch sử từng đợt giao.",
+    "Doanh thu hiện “—” khi hợp đồng bán bằng ngoại tệ chưa có tỷ giá."
+   ]
+  },
+  {
+   "title": "13. Thống kê thu mua (và thống kê tiêu thụ)",
+   "location": "Menu ▸ Báo cáo & Thống kê ▸ Thống kê thu mua",
+   "intro": "Xem sản lượng và giá thu mua theo tầng: Toàn Tập đoàn → khu vực → đơn vị → ngày → loại mủ. Màn Thống kê tiêu thụ dùng cùng cách.",
+   "image": {
+    "path": "img/13-thong-ke-thu-mua.png",
+    "w": 3000,
+    "h": 2600
+   },
+   "caption": "Hình 13. Thống kê thu mua",
+   "steps": [
+    "**Bộ lọc** — chọn kỳ, khu vực, đơn vị, loại mủ và “Nhóm theo” (khu vực, đơn vị, ngày, loại mủ, chủng loại); bấm “Làm mới”.",
+    "**Đường dẫn** — cho biết đang xem ở tầng nào; bấm “Toàn Tập đoàn” để quay về tầng đầu.",
+    "**Bấm vào một dòng** (hoặc một cột biểu đồ) để xem chi tiết tầng dưới.",
+    "**Xuất Excel** — tải bảng đang xem."
+   ],
+   "notes": [
+    "Mủ nguyên liệu tính theo tấn quy khô. Giá mủ nước đồng/độ TSC, mủ chén và mủ dây đồng/độ DRC.",
+    "“% KH năm” so sản lượng trong kỳ với kế hoạch cả năm, nên kỳ ngắn sẽ ra số nhỏ.",
+    "Thống kê tiêu thụ có thêm lọc theo loại hợp đồng, hình thức, và các cột kế hoạch, doanh thu, giá bán bình quân."
+   ]
+  },
+  {
+   "title": "14. Thống kê tồn kho",
+   "location": "Menu ▸ Báo cáo & Thống kê ▸ Thống kê tồn kho",
+   "intro": "Ảnh chụp tồn kho tại MỘT ngày chốt. Tồn kho là số thời điểm, không cộng dồn các ngày.",
+   "image": {
+    "path": "img/14-thong-ke-ton-kho.png",
+    "w": 3000,
+    "h": 2600
+   },
+   "caption": "Hình 14. Thống kê tồn kho tại ngày chốt",
+   "steps": [
+    "**Thanh độ phủ** — ngày chốt đang xem, số đơn vị đã có số và số đơn vị chưa có số (rê chuột lên chữ đỏ để xem tên).",
+    "**Bấm vào một dòng** để xem chi tiết từng đơn vị trong khu vực.",
+    "**Xuất Excel** — tải bảng đang xem."
+   ],
+   "notes": [
+    "Đổi ô “Ngày chốt” để xem ngày khác. Số hôm nay có thể chưa đủ vì đơn vị chưa nhập — nên xem ngày hôm trước.",
+    "“Tồn có thể giao dịch” = tổng tồn − đã ký hợp đồng chưa giao. Số âm nghĩa là đã ký bán nhiều hơn lượng đang có trong kho."
+   ]
+  },
+  {
+   "title": "15. Theo dõi nộp báo cáo",
+   "location": "Menu ▸ Báo cáo & Thống kê ▸ Theo dõi nộp báo cáo",
+   "intro": "Bảng đơn vị × ngày cho biết đơn vị nào chưa nhập số liệu ngày nào.",
+   "image": {
+    "path": "img/15-theo-doi-nop-bao-cao.png",
+    "w": 3800,
+    "h": 2000
+   },
+   "caption": "Hình 15. Theo dõi nộp báo cáo",
+   "steps": [
+    "**Biểu cần theo dõi** — Thu mua hoặc Tồn kho. Bên cạnh là chọn nhanh 7 đến 365 ngày, hoặc nhập khoảng ngày.",
+    "**Thẻ tổng** — số lượt cần nhập, đã nhập, không tổ chức thu mua, chưa nhập.",
+    "**Mỗi ô là một ngày của một đơn vị** — dấu tích xanh: đã nhập · dấu gạch xám: đã báo không tổ chức thu mua · dấu X đỏ: chưa nhập."
+   ],
+   "notes": [
+    "Rê chuột lên ô để xem ý nghĩa.",
+    "Biểu Thu mua chỉ tính các đơn vị được giao kế hoạch thu mua."
+   ]
+  },
+  {
+   "title": "16. Số liệu thị trường — Bảng tính giá các sàn",
+   "location": "Menu ▸ Số liệu thị trường (chỉ xem) ▸ Bảng tính giá các sàn",
+   "intro": "Giá hằng ngày trên các sàn OSE · SHANGHAI · SGX · MRB theo tiền gốc, tỷ giá và quy về USD/tấn. Màn Tỷ giá, Báo giá mủ thị trường và Giá Physical xem theo cùng cách.",
+   "image": {
+    "path": "img/16-bang-gia-cac-san.png",
+    "w": 3400,
+    "h": 1720
+   },
+   "caption": "Hình 16. Bảng tính giá các sàn",
+   "steps": [
+    "**Dòng chỉ xem** — nhắc màn này chỉ để theo dõi.",
+    "**Cách lấy số liệu** — bấm để xem số liệu lấy từ đâu và tính thế nào.",
+    "**Từ ngày / Đến ngày** — để trống là 30 ngày gần nhất.",
+    "**Bảng giá** — mỗi dòng một ngày."
+   ],
+   "notes": [
+    "Giá “NT” (No Trading) nghĩa là phiên đó sàn không giao dịch.",
+    "Ở màn Báo giá mủ thị trường: bấm vào một ngày trong “Các phiếu đã có” để mở phiếu báo giá của ngày đó."
+   ]
+  },
+  {
+   "title": "17. Số liệu thị trường — Giá sàn Tập đoàn",
+   "location": "Menu ▸ Số liệu thị trường (chỉ xem) ▸ Giá sàn Tập đoàn",
+   "intro": "Các biểu giá sàn Tập đoàn đã ban hành, mỗi “lần” một công văn.",
+   "image": {
+    "path": "img/17-gia-san-tap-doan.png",
+    "w": 3000,
+    "h": 2200
+   },
+   "caption": "Hình 17. Giá sàn Tập đoàn",
+   "steps": [
+    "**Các lần đã có** — bấm vào lần cần xem (ghi số lần, số công văn, ngày áp dụng). Có thể lọc theo ngày ở ô phía trên.",
+    "**Biểu giá** — giá xuất khẩu FOB/FCA (USD/tấn) và giá nội địa (VNĐ/tấn) từng chủng loại."
+   ]
+  },
+  {
+   "title": "18. Số liệu đơn vị (chỉ xem)",
+   "location": "Menu ▸ Số liệu đơn vị (chỉ xem) ▸ Thu mua · Tồn kho · Nhu cầu thị trường · Kế hoạch năm",
+   "intro": "Xem số liệu các đơn vị thành viên tự nhập hằng ngày. Hình dưới là màn Tồn kho; màn Thu mua dùng cùng cách.",
+   "image": {
+    "path": "img/18-so-lieu-don-vi.png",
+    "w": 3800,
+    "h": 1720
+   },
+   "caption": "Hình 18. Báo cáo tồn kho của các đơn vị",
+   "steps": [
+    "**Dòng chỉ xem** — số liệu do đơn vị nhập, lãnh đạo chỉ theo dõi.",
+    "**Cách xem** — “Tổng hợp toàn đơn vị”: mỗi dòng một đơn vị tại một ngày. “Danh sách theo ngày”: từng ngày đã nhập.",
+    "**Ngày** — chọn ngày cần xem.",
+    "**Xem** — mở chi tiết số liệu của đơn vị trong ngày đó."
+   ],
+   "notes": [
+    "Nhu cầu thị trường: xem nhu cầu các đơn vị báo lên theo từng ngày, chọn khoảng 30–365 ngày.",
+    "Kế hoạch năm: chọn năm để xem kế hoạch thu mua, tiêu thụ, doanh thu của từng đơn vị."
+   ]
+  },
+  {
+   "title": "19. Hợp đồng (chỉ xem)",
+   "location": "Menu ▸ Hợp đồng (chỉ xem) ▸ Khách hàng · Hợp đồng mẹ · Hợp đồng & đợt giao",
+   "intro": "Xem hợp đồng bán hàng của các đơn vị và tiến độ giao hàng.",
+   "image": {
+    "path": "img/19-hop-dong.png",
+    "w": 4600,
+    "h": 2000
+   },
+   "caption": "Hình 19. Hợp đồng & đợt giao",
+   "steps": [
+    "**Dòng chỉ xem** — hợp đồng do đơn vị và chuyên viên nhập.",
+    "**Bộ lọc** — đơn vị, khách hàng, hợp đồng mẹ, trạng thái, hình thức, ngày ký, số hợp đồng.",
+    "**Một dòng là một hợp đồng** — sản lượng, thành tiền, đã giao, còn phải giao. Dòng Tổng cộng cuối bảng tính cho mọi hợp đồng khớp bộ lọc.",
+    "**Xem** — mở chi tiết hợp đồng: dòng hàng và các đợt giao."
+   ],
+   "notes": [
+    "Màn Khách hàng: tìm theo tên, mã hoặc mã số thuế.",
+    "Màn Hợp đồng mẹ: bấm Xem để mở hồ sơ hợp đồng mẹ, bản scan đã ký và các phụ lục."
+   ]
+  },
+  {
+   "title": "20. Đổi mật khẩu",
+   "location": "Menu ▸ Hồ sơ cá nhân",
+   "intro": "Nên đổi mật khẩu ngay lần đăng nhập đầu tiên.",
+   "image": {
+    "path": "img/20-ho-so.png",
+    "w": 3000,
+    "h": 1720
+   },
+   "caption": "Hình 20. Đổi mật khẩu",
+   "steps": [
+    "**Mật khẩu hiện tại** — mật khẩu đang dùng.",
+    "**Mật khẩu mới** — tối thiểu 6 ký tự.",
+    "**Xác nhận mật khẩu mới** — gõ lại mật khẩu mới.",
+    "**Đổi mật khẩu** — lưu. Lần đăng nhập sau dùng mật khẩu mới."
+   ],
+   "notes": [
+    "Quên mật khẩu: liên hệ quản trị hệ thống để đặt lại."
+   ]
+  },
+  {
+   "title": "21. Những tình huống hay gặp",
+   "location": "",
+   "intro": "",
+   "steps": [],
+   "notes": [
+    "Không thấy nút Thêm, Lưu, Xoá → Tài khoản Lãnh đạo Tập đoàn chỉ để xem. Việc nhập, sửa số liệu do chuyên viên Ban TTKD thực hiện.",
+    "Thấy số liệu sai hoặc còn thiếu → Báo chuyên viên Ban TTKD phụ trách mục đó để kiểm tra, sửa.",
+    "Ô số liệu hiện “—” → Ngày hoặc kỳ đó chưa có số liệu. Thử chọn ngày hôm trước hoặc kỳ dài hơn.",
+    "Giá hiện “NT” → Sàn không giao dịch phiên đó (No Trading).",
+    "Trợ lý AI báo “Xin lỗi, có lỗi khi xử lý câu hỏi” → Hỏi lại ngắn gọn hơn. Vẫn lỗi thì báo quản trị hệ thống.",
+    "Trợ lý AI không trả lời được → Trợ lý chỉ tra số liệu có trong hệ thống. Bấm “Trợ lý làm được gì?” để xem phạm vi.",
+    "Báo cáo tuần chưa có tuần mới nhất → Chuyên viên chưa soạn xong tuần đó.",
+    "Giao diện vẫn như cũ sau khi hệ thống cập nhật → Bấm Ctrl+Shift+R (máy Mac: Cmd+Shift+R) để tải lại trang.",
+    "Đang xem thì bị đưa về trang đăng nhập → Phiên đăng nhập đã hết hạn. Đăng nhập lại."
+   ],
+   "notes_as_table": true
+  }
+ ]
+}
