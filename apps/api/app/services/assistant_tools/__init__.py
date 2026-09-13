@@ -12,7 +12,7 @@ from typing import Any, Callable
 
 from app.core.permissions import has_cap
 from app.services.assistant_tools import (
-    contract_tools, floor_tools, internal_tools, market_tools, unit_tools,
+    contract_tools, floor_tools, internal_tools, market_tools, private_price_tools, unit_tools,
 )
 
 #: Gói kỹ năng. `cap` = quyền tối thiểu để dùng gói (None = ai vào được Trợ lý cũng dùng được);
@@ -21,7 +21,7 @@ PACKS: dict[str, dict[str, Any]] = {
     "market": {"label": "Thị trường thế giới", "cap": None, "core": True,
                "desc": "Sàn quốc tế · giá physical · tỷ giá · diễn biến"},
     "floor": {"label": "Giá sàn & tư vấn điều chỉnh", "cap": None, "core": True,
-              "desc": "Giá sàn hiện hành · lịch sử ban hành · gợi ý NÂNG/GIỮ/HẠ · kịch bản"},
+              "desc": "Giá sàn hiện hành · lịch sử ban hành · gợi ý NÂNG/GIỮ/HẠ · kịch bản · so với giá mủ tư nhân"},
     "internal": {"label": "Số liệu nội bộ Tập đoàn", "cap": None, "core": False,
                  "desc": "Giá mủ nguyên liệu · báo giá mủ · tồn kho · bản tin · độ tươi dữ liệu"},
     "unit": {"label": "Đơn vị thành viên", "cap": "unit_daily", "core": False,
@@ -30,14 +30,15 @@ PACKS: dict[str, dict[str, Any]] = {
                  "desc": "Cam kết · đã giao · đã ký chưa giao · doanh thu · khách hàng · hợp đồng mẹ"},
 }
 
-_MODULES = {"market": market_tools, "floor": floor_tools, "internal": internal_tools,
-            "unit": unit_tools, "contract": contract_tools}
+_MODULES = {"market": [market_tools], "floor": [floor_tools, private_price_tools],
+            "internal": [internal_tools], "unit": [unit_tools], "contract": [contract_tools]}
 
 #: {tên tool: {run, schema, pack}} — gộp từ các module gói.
 TOOLS: dict[str, dict[str, Any]] = {}
-for _pack, _mod in _MODULES.items():
-    for _name, _spec in _mod.TOOLS.items():
-        TOOLS[_name] = {**_spec, "pack": _pack}
+for _pack, _mods in _MODULES.items():
+    for _mod in _mods:
+        for _name, _spec in _mod.TOOLS.items():
+            TOOLS[_name] = {**_spec, "pack": _pack}
 
 
 def allowed_packs(caps: dict[str, str] | None = None,
@@ -92,6 +93,7 @@ TOOL_LABELS: dict[str, str] = {
     "suggest_floor_adjustment": "Gợi ý nâng/giữ/hạ giá sàn",
     "simulate_floor_scenarios": "Kịch bản giá sàn khi thị trường biến động",
     "get_floor_context": "Tín hiệu bối cảnh quanh quyết định giá sàn",
+    "get_private_price_benchmark": "So giá sàn SVR 3L với giá mủ tư nhân (kèm tồn kho)",
     # Nội bộ Tập đoàn
     "get_inventory_trend": "Tồn kho thành phẩm theo tuần",
     "get_market_quote": "Báo giá mủ thị trường",

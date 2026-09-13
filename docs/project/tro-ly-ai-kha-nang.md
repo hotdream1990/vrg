@@ -236,6 +236,13 @@ trả lời sai. Danh sách giới hạn lấy từ `assistant_tools.LIMITS`, **
    chặn lại khi thực thi phòng LLM gọi bừa).
 3. **Lựa chọn của người dùng** trong phiên chat (chip "Nhóm dữ liệu Trợ lý được phép tra cứu").
 
+### Neo giá nội địa theo giá mủ tư nhân (13/09/2026)
+
+- **Quy tắc chuyên viên Ban TTKD:** giá sàn nội địa SVR 3L hợp lý nhất khi **cao hơn giá thành SVR 3L của tư nhân 700.000–1.000.000 đồng/tấn**. Giá thành tư nhân = giá mủ tư nhân (Mục 6 phiếu Báo giá mủ, đồng/độ TSC) × 1,08 × 100.000 + chi phí gia công chế biến.
+- **Kết hợp tồn kho** để chọn điểm trong vùng: tồn kho tăng → mép dưới (+700.000); giảm → mép trên (+1.000.000); đi ngang → giữa vùng.
+- Công cụ `get_private_price_benchmark` (gói Giá sàn & tư vấn) tính sẵn vùng hợp lý, vị trí giá sàn hiện hành, vị trí mức mô hình và **mức đề xuất cuối** — mô hình đã nằm trong vùng thì giữ, ngoài vùng thì kéo về điểm theo tồn kho. Trợ lý chỉ đọc kết luận, không tự so số.
+- Đây là **quy tắc kinh nghiệm**, chưa đo tương quan trên lịch sử như rổ futures; giá tư nhân cũ hơn 7 ngày thì Trợ lý phải cảnh báo.
+
 ### Giới hạn còn lại (chưa làm đợt này)
 
 - **Tri thức nội bộ (RAG)**: Trợ lý trả lời được số, chưa trả lời được câu hỏi quy trình/nghiệp vụ.

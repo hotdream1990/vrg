@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services import floor_repo, floor_suggest, inventory_repo, price_repo
+from app.services import floor_repo, floor_suggest, inventory_repo, price_repo, private_price_benchmark
 from app.services.assistant_tools._common import (
     clamp_days, cols, days_ago, dm, dmy, err, line, pct, table, today,
 )
@@ -226,6 +226,24 @@ def _floor_context(args: dict) -> dict:
             _W_EXTRA, -1,  # tồn TĂNG ⇒ áp lực bán ⇒ hỗ trợ HẠ
             f"tồn {inv['ton_kho']:,.0f} tấn · tự do (chưa có HĐ) {inv.get('ton_free')} tấn"))
 
+    # Giá sàn SVR 3L so với vùng hợp lý theo giá mủ tư nhân — hướng tính theo VỊ TRÍ giá sàn trong vùng
+    # (không phải % thay đổi), nên dựng dòng tín hiệu trực tiếp thay vì qua `_signal`.
+    fob_3l = next((it.get("suggested") for it in s.get("items", [])
+                   if private_price_benchmark.is_svr3l(it.get("grade", ""))), None)
+    try:
+        bench = private_price_benchmark.benchmark(as_of, inv or None, fob_3l)
+    except Exception:  # noqa: BLE001 - thiếu dữ liệu giá tư nhân không được làm hỏng cả bảng tín hiệu
+        bench = None
+    if bench:
+        signals.append({
+            "tin_hieu": f"Giá sàn SVR 3L so với vùng giá tư nhân (giá tới {dmy(bench['ngay_gia_moi_nhat'])})",
+            "thay_doi_pct": bench["dieu_chinh_pct"], "trong_so": _W_EXTRA,
+            "huong_tac_dong": bench["huong_tac_dong"], "quan_he": "neo giá nội địa",
+            "ghi_chu": f"{bench['gia_san_hien_hanh_so_voi_vung']}; vùng {bench['vung_gia_san_hop_ly']['tu']:,.0f}–"
+                       f"{bench['vung_gia_san_hop_ly']['den']:,.0f} đồng/tấn".replace(",", ".")
+                       + "; thay_doi_pct = mức cần chỉnh để vào vùng"
+                       + (f"; {bench['canh_bao_do_tuoi']}" if bench.get("canh_bao_do_tuoi") else "")})
+
     # Cán cân CHỈ tính trên tín hiệu trọng số "bổ sung" — đó là phần duy nhất được phép làm lệch
     # mức mô hình (tín hiệu "mạnh" đã nằm trong mô hình, tín hiệu "nền" không nói về biên độ).
     extra = [g for g in signals if g["trong_so"] == _W_EXTRA]
@@ -240,14 +258,14 @@ def _floor_context(args: dict) -> dict:
         "can_can_tin_hieu_bo_sung": {"ho_tro_nang": up, "ho_tro_ha": down, "ket_luan": balance},
         "tin_hieu": signals, "so_tuan_ton_kho_co_du_lieu": weeks,
         "huong_dan": "Mức của engine đã tính từ rổ futures. Chỉ dùng tín hiệu trọng số 'bổ sung' "
-                     "(giá mủ chén, tồn kho) và số liệu đơn vị thành viên để LỆCH khỏi mức đó; "
+                     "(giá mủ chén, tồn kho, vùng giá tư nhân) và số liệu đơn vị thành viên để LỆCH khỏi mức đó; "
                      "tín hiệu 'mạnh' đã nằm trong mô hình rồi, đừng cộng thêm lần nữa. "
                      "Tín hiệu 'nền' chỉ dùng để nói giá đang ở vùng nào."},
         "artifact": table(f"Tín hiệu bối cảnh điều chỉnh giá sàn ({dmy(as_of)})",
                           cols(("tin_hieu", "Tín hiệu"), ("thay_doi_pct", "Thay đổi %"),
                                ("huong_tac_dong", "Hướng tác động"), ("trong_so", "Trọng số"),
                                ("ghi_chu", "Ghi chú")), signals),
-        "source": f"engine drivers · fact_price (giá mủ NL) · fact_inventory · {dmy(as_of)}"}
+        "source": f"engine drivers · fact_price (giá mủ NL) · fact_inventory · giá mủ tư nhân · {dmy(as_of)}"}
 
 
 TOOLS: dict[str, dict[str, Any]] = {

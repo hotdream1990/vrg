@@ -28,7 +28,14 @@ DEFAULT_ADVICE = "model"
 
 #: Ở mức "Chỉ tra số", các công cụ SINH RA KHUYẾN NGHỊ bị gỡ khỏi lượt hỏi — hàng rào kỹ thuật,
 #: không chỉ dặn trong prompt (một câu "bỏ qua hướng dẫn trên" là model có thể vượt lời dặn).
-_ADVICE_TOOLS = {"suggest_floor_adjustment", "simulate_floor_scenarios", "get_floor_context"}
+_ADVICE_TOOLS = {"suggest_floor_adjustment", "simulate_floor_scenarios", "get_floor_context",
+                 "get_private_price_benchmark"}
+
+#: Ở mức "Theo mô hình", công cụ có sẵn MỨC ĐIỀU CHỈNH được lọc bớt trước khi đưa cho LLM — cùng lý
+#: do như trên: dặn "giữ số mô hình" trong prompt là chưa đủ khi kết quả công cụ bày sẵn một mức khác.
+_MODEL_MODE_FILTERS = {
+    "get_private_price_benchmark": assistant_tools.private_price_tools.for_model_mode,
+}
 
 # Trọng số các yếu tố — đo trên 80 lần ban hành 2024→2026 (xem docs/project/tro-ly-ai-kha-nang.md).
 # Đưa vào prompt để LLM biết nhìn cái gì TRƯỚC khi kết luận, thay vì liệt kê đều tay mọi chỉ số.
@@ -41,7 +48,10 @@ _FACTOR_RANKING = (
     "động chỉ 0,14) — dùng nó để nói 'giá đang ở vùng nào', đừng dùng để giải thích 'lần này chỉnh "
     "bao nhiêu'. PHANH: tồn kho Tập đoàn (r mức=−0,50) và tồn kho đơn vị (r biến động=−0,52, n=18) "
     "— tồn cao thì nghiêng về GIỮ/HẠ dù rổ futures tăng. CƠ HỌC: tỷ giá USD/VND nhân trực tiếp vào "
-    "giá nội địa VNĐ/tấn."
+    "giá nội địa VNĐ/tấn. "
+    "NEO GIÁ NỘI ĐỊA theo TƯ NHÂN (quy tắc chuyên viên Ban TTKD, chưa đo trên lịch sử): giá sàn nội "
+    "địa SVR 3L hợp lý nhất khi CAO HƠN giá thành SVR 3L quy từ giá mủ tư nhân 700.000–1.000.000 "
+    "đồng/tấn — lấy qua get_private_price_benchmark, tool đã tính sẵn vùng, vị trí giá sàn và mức gợi ý."
 )
 
 _REASONING = (
@@ -52,6 +62,11 @@ _REASONING = (
     "được phép truy cập — tồn kho tăng hoặc tiêu thụ chậm là lý do NGƯỢC lại với rổ futures đang tăng; "
     "(c2) nếu được phép, xem thêm sản lượng ĐÃ KÝ HỢP ĐỒNG CHƯA GIAO: đã ký nhiều mà chưa giao là "
     "áp lực bán còn treo (nghiêng GIỮ/HẠ), đã ký ít so với tồn kho tự do cũng vậy; "
+    "(c3) gọi get_private_price_benchmark để đối chiếu giá sàn nội địa SVR 3L với VÙNG HỢP LÝ theo giá "
+    "mủ tư nhân (giá thành tư nhân + 700.000–1.000.000 đồng/tấn); tool đã kết hợp xu hướng tồn kho để "
+    "chọn điểm trong vùng — đọc NGUYÊN VĂN trường ket_luan và các trường gia_san_hien_hanh_so_voi_vung, "
+    "muc_mo_hinh_so_voi_vung, muc_de_xuat_noi_dia_svr3l; TUYỆT ĐỐI không tự so sánh số với vùng; "
+    "nếu có canh_bao_do_tuoi thì phải nói ra; "
     "(d) nói rõ khi các nguồn MÂU THUẪN nhau và nghiêng về bên nào, vì sao. "
     "Với số liệu đơn vị: người hỏi có thể muốn xem theo TỔNG toàn Tập đoàn, theo KHU VỰC hoặc theo "
     "từng ĐƠN VỊ — chọn mức phù hợp với câu hỏi, mặc định theo khu vực khi hỏi chung."
@@ -70,14 +85,21 @@ _ADVICE_RULES = {
         "MỨC TƯ VẤN = THEO MÔ HÌNH. Khi được hỏi về điều chỉnh giá sàn, gọi suggest_floor_adjustment "
         "và trình bày ĐÚNG mức đề xuất của mô hình — KHÔNG tự cộng/trừ ra một mức khác. Bạn giải "
         "thích vì sao mô hình đề xuất như vậy dựa trên các chỉ số dẫn hướng, và nêu những yếu tố "
-        "bối cảnh đáng lưu ý (tồn kho, tiêu thụ) như GHI CHÚ tham khảo, không đổi con số."
+        "bối cảnh đáng lưu ý (tồn kho, tiêu thụ, vị trí giá sàn SVR 3L so với vùng giá tư nhân qua "
+        "get_private_price_benchmark) như GHI CHÚ tham khảo, không đổi con số."
     ),
     # Có điều chỉnh — mức xa nhất: được lệch khỏi engine nhưng phải giải trình bằng số.
     "adjusted": (
         "MỨC TƯ VẤN = CÓ ĐIỀU CHỈNH. Bạn được phép đề xuất mức KHÁC mức của mô hình, theo đúng trình tự: "
         "(1) gọi suggest_floor_adjustment để lấy MỨC NỀN; "
         "(2) gọi get_floor_context để lấy tín hiệu bối cảnh đã lượng hoá; "
-        "(3) nếu được phép, gọi thêm các tool số liệu đơn vị thành viên (tồn kho · thu mua · tiêu thụ). "
+        "(3) nếu được phép, gọi thêm các tool số liệu đơn vị thành viên (tồn kho · thu mua · tiêu thụ); "
+        "(4) gọi get_private_price_benchmark để biết giá sàn nội địa SVR 3L đang thấp/trong/cao hơn vùng "
+        "hợp lý theo giá mủ tư nhân. "
+        "VỚI GIÁ NỘI ĐỊA SVR 3L: 'Mức mô hình' = muc_mo_hinh_noi_dia_uoc_tinh, 'Điều chỉnh' = "
+        "dieu_chinh_so_voi_mo_hinh (dieu_chinh_so_voi_mo_hinh_pct %), 'Mức đề xuất' = muc_de_xuat_noi_dia_svr3l "
+        "— ghi ĐÚNG từng đồng như tool trả, KHÔNG làm tròn — và nêu nguyên văn ket_luan làm căn cứ (tool đã so mức mô hình với vùng "
+        "giá tư nhân và chọn điểm theo tồn kho — KHÔNG tự so lại). "
         "QUY TẮC ĐIỀU CHỈNH: chỉ dùng tín hiệu có trọng số 'bổ sung' (giá mủ chén, tồn kho) và số "
         "liệu đơn vị để lệch khỏi mức nền — tín hiệu trọng số 'mạnh' (rổ futures) ĐÃ nằm trong mô "
         "hình, cộng thêm lần nữa là tính hai lần. Tín hiệu 'nền' (giá mủ nước) chỉ dùng để nói giá "
@@ -221,6 +243,8 @@ def chat(messages: list[dict[str, str]], caps: dict[str, str] | None = None,
             else:
                 res = assistant_tools.run_tool(tc.function.name, _parse_args(tc.function.arguments),
                                                caps, scope)
+                if advice == "model" and tc.function.name in _MODEL_MODE_FILTERS:
+                    res = _MODEL_MODE_FILTERS[tc.function.name](res)
             if res.get("artifact"):
                 artifacts.append(res["artifact"])
             if res.get("source"):

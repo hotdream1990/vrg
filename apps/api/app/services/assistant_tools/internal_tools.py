@@ -69,9 +69,21 @@ def _market_quote(args: dict) -> dict:
     columns = cols(("grade", "Chủng loại"),
                    *[(key, f"{label} ({unit})") for key, label, unit in _QUOTE_GROUPS])
     art = table(f"Báo giá mủ thị trường · {dmy(as_of)}", columns, rows)
+    # Mục 6 — giá mủ tư nhân: một giá hoặc khoảng giá "min–max" theo từng đơn vị tư nhân.
+    num = lambda v: f"{v:.0f}" if float(v).is_integer() else f"{v}"  # noqa: E731
+    private = {name: (f"{num(p['price'])}–{num(p['price_max'])}" if p.get("price_max") is not None
+                      else num(p["price"]))
+               for name, p in (q.get("private_prices") or {}).items() if p.get("price") is not None}
+    # Đơn vị tư nhân báo giá vào ngày khác nhau → kèm giá MỚI NHẤT của từng đơn vị (ngày giá riêng),
+    # để câu hỏi "giá mủ tư nhân hiện nay" không chỉ thấy các đơn vị có trong đúng phiếu ngày này.
+    latest = [{"don_vi": r["name"], "ngay_gia": dmy(r["as_of"]),
+               "gia": (f"{num(r['price'])}–{num(r['price_max'])}" if r.get("price_max") is not None
+                       else num(r["price"]))}
+              for r in sorted(market_quote_repo.private_prices_by_unit(as_of), key=lambda x: x["name"])]
     return {"summary": {"as_of": as_of, "gia_theo_nhom": rows,
-                        "so_don_vi_bao_gia_mu_nuoc": len(q.get("regions") or {}),
-                        "so_don_vi_bao_gia_mu_chen": len(q.get("regions_cup") or {}),
+                        "gia_mu_tu_nhan": private,
+                        "gia_mu_tu_nhan_moi_nhat_tung_don_vi": latest,
+                        "don_vi_gia_mu_tu_nhan": "đồng/độ TSC",
                         "ghi_chu": q.get("footer") or ""},
             "artifact": art, "source": f"market_quote · phiếu ngày {dmy(as_of)}"}
 
@@ -230,7 +242,7 @@ TOOLS: dict[str, dict[str, Any]] = {
     "get_market_quote": {
         "run": _market_quote,
         "schema": {"name": "get_market_quote",
-                   "description": "Báo giá mủ thị trường 1 ngày: so sánh 4 nhóm giá theo chủng loại SVR — xuất khẩu VRG (USD/tấn), nội địa VRG (đồng/tấn), nội địa tư nhân (đồng/tấn), xuất khẩu hàng tư nhân (đồng/tấn). as_of tùy chọn (YYYY-MM-DD, mặc định phiếu mới nhất).",
+                   "description": "Báo giá mủ thị trường 1 ngày: so sánh 4 nhóm giá theo chủng loại SVR — xuất khẩu VRG (USD/tấn), nội địa VRG (đồng/tấn), nội địa tư nhân (đồng/tấn), xuất khẩu hàng tư nhân (đồng/tấn); kèm giá mủ tư nhân của phiếu và giá mủ tư nhân MỚI NHẤT của từng đơn vị trong 14 ngày (đồng/độ TSC, một giá hoặc khoảng giá, có ngày giá). as_of tùy chọn (YYYY-MM-DD, mặc định phiếu mới nhất).",
                    "parameters": {"type": "object", "properties": {
                        "as_of": {"type": "string", "description": "ngày phiếu YYYY-MM-DD (mặc định mới nhất)"}}}}},
     "get_raw_material_prices": {
