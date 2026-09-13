@@ -60,8 +60,8 @@ def render(results: list[CrawlResult]) -> str:
     return "\n".join(lines)
 
 
-# Nguồn hỗ trợ nạp lịch sử → backfill chart thật. SHFE/TOCOM theo ngày; FX đọc bảng lịch sử
-# (~7 phiên) trên exchangerates → khớp tuyệt đối data live (lấp khi lỡ quên quét vài phiên).
+# Nguồn hỗ trợ nạp lịch sử → backfill chart thật. SHFE/TOCOM theo ngày; FX theo ngày: CNY/JPY/THB
+# x-rates (ảnh chụp theo ngày, lùi bao xa cũng được), VND từ VCB, MYR từ BNM — cùng nguồn với data live.
 HISTORY = {Source.SHFE: shfe.history, Source.TOCOM: tocom.history, Source.FX: fx.history}
 
 

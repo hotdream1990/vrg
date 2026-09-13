@@ -1,16 +1,21 @@
-"""Tỷ giá USD — Close hằng ngày từ exchangerates.org.uk (đúng nguồn Ban TTKD dùng).
+"""Tỷ giá USD — Close hằng ngày: CNY/JPY/THB (x-rates) · VND (Vietcombank) · MYR (BNM).
 
-exchangerates.org.uk đứng sau Cloudflare → httpx bị 403; phải dùng trình duyệt thật (Playwright).
-GOTCHA: CF chỉ cho qua lần tải ĐẦU của mỗi BrowserContext → mỗi đồng tiền dùng 1 context MỚI
-(điều hướng nhiều trang trong cùng context bị WAF chặn 403). Lấy dòng Close mới nhất ("DD Month
-YYYY  1 USD = <rate> <CUR>") trong bảng "Exchange Rate History" của trang conversion.
-VND: lấy TỪ VIETCOMBANK (API công khai có date param) — 2 giá "USD/VND (Mua)" (chuyển khoản)
-và "USD/VND (Bán)", đồng bộ với phiếu Báo giá mủ. Backfill VND theo từng ngày qua VCB.
-MYR: lấy TỪ BNM (Ngân hàng TW Malaysia) API — buying_rate phiên 12:00 (đúng nguồn chuyên viên,
-rateType=BR, quote=rm); dùng quy đổi Latex LGM (Sen ÷ USD/MYR × 10). Backfill MYR qua API theo tháng.
-Backfill CNY/JPY/THB: history() đọc bảng lịch sử exchangerates (~7 phiên) → khớp data live.
-LÀM TRÒN: crawler trả nguyên số của nguồn; việc chuẩn hoá số lẻ khi LƯU (USD/JPY 2 số lẻ theo
-file gốc Ban TTKD) nằm ở 1 chỗ duy nhất — `app.services.price_repo`, để sửa tay cũng cùng quy tắc.
+CNY/JPY/THB — x-rates.com, trang "Historical Rates" theo ngày (HTTP thường, không Cloudflare).
+  Trước 03/09/2026 lấy từ exchangerates.org.uk (nguồn Ban TTKD dùng) nhưng trang đó đã đổi giao
+  diện: trang conversion KHÔNG còn bảng "Exchange Rate History" có ngày; trang lịch sử + API biểu
+  đồ nằm sau Cloudflare (thách thức/chặn hẳn) → bỏ, không lách chặn bot.
+  GOTCHA ngày: trang x-rates ngày X là ẢNH CHỤP lúc ~00:00 UTC ngày X = giá đóng cửa ngày X-1
+  (đo khớp giờ với Yahoo). Vì vậy Close ngày D = trang ngày D+1. Đối chiếu 43 phiên 06/07–02/09
+  với số exchangerates đã lưu: lệch trung vị JPY 1,2 · CNY 0,8 · THB 2,4 bps.
+  GOTCHA "hôm nay": trang của ngày chưa chốt trả tỷ giá LIVE (nhãn giờ = giờ hiện tại) → chỉ nhận
+  ngày X < hôm nay (UTC) VÀ nhãn giờ đúng nhãn ảnh chụp đã chốt; sai → bỏ, không đoán.
+  Chỉ phát hành Thứ 2–6 (sàn không giao dịch cuối tuần; không nhân bản giá thứ Sáu sang thứ Bảy).
+VND: TỪ VIETCOMBANK (API công khai có date param) — "USD/VND (Mua)" (chuyển khoản) và
+  "USD/VND (Bán)", đồng bộ với phiếu Báo giá mủ.
+MYR: TỪ BNM (Ngân hàng TW Malaysia) API — buying_rate phiên 12:00 (đúng nguồn chuyên viên,
+  rateType=BR, quote=rm); dùng quy đổi Latex LGM (Sen ÷ USD/MYR × 10). API theo tháng.
+LÀM TRÒN: crawler giữ 4 số lẻ như nguồn cũ (CNY 4 · THB 4 · MYR 4); chuẩn hoá riêng khi LƯU
+(USD/JPY 2 số lẻ theo file gốc Ban TTKD) nằm ở 1 chỗ duy nhất — `app.services.price_repo`.
 """
 
 from __future__ import annotations
@@ -18,40 +23,23 @@ from __future__ import annotations
 import re
 from datetime import date, datetime, timedelta, timezone
 
-from ..base.fetcher import fetch_json
+from ..base.fetcher import fetch_json, fetch_text
 from ..base.models import CrawlResult, PriceRecord, Source, Status
 
-# CNY/JPY (quy futures→USD) + THB (physical Thái) từ exchangerates. MYR từ BNM, VND từ VCB (riêng).
-_PAGES = {
-    "CNY": "https://www.exchangerates.org.uk/Dollars-to-Yuan-currency-conversion-page.html",
-    "JPY": "https://www.exchangerates.org.uk/Dollars-to-YEN-currency-conversion-page.html",
-    "THB": "https://www.exchangerates.org.uk/Dollars-to-Baht-currency-conversion-page.html",
-}
+_XR_URL = "https://www.x-rates.com/historical/?from=USD&amount=1&date={d}"
+_XR_CODES = ("CNY", "JPY", "THB")  # CNY/JPY quy futures→USD · THB quy physical Thái
+_XR_LOOKBACK_DAYS = 7  # mỗi lần quét lấp lại 7 ngày gần nhất → tự lành khi lỡ vài lần quét
+# Nhãn giờ của trang ngày ĐÃ CHỐT (mọi ngày quá khứ đều in đúng nhãn này); trang live in giờ hiện tại.
+_XR_SNAPSHOT_STAMP = "16:00 UTC"
+_XR_STAMP = re.compile(r'class="ratesTimestamp">([^<]+)<')
+_XR_RATE = re.compile(r"from=USD&amp;to=([A-Z]{3})'>([\d.]+)<")
+
 _VCB_URL = "https://www.vietcombank.com.vn/api/exchangerates?date={d}"  # VND: nguồn Vietcombank
 # BNM (Malaysia) — buying_rate phiên 12:00, quote=rm (đúng nguồn chuyên viên). {path}='' hoặc '/year/Y/month/M'.
 _BNM_URL = "https://api.bnm.gov.my/public/exchange-rate/USD{path}?session=1200&quote=rm"
 _BNM_HEADERS = {"Accept": "application/vnd.BNM.API.v1+json"}
 _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
-# 1 dòng lịch sử: "23 June 2026  1 USD = 6.7908 CNY" (bỏ qua thứ đứng trước số ngày).
-_ROW = re.compile(r"(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})\s+1 USD = ([\d.]+)\s+([A-Z]{3})")
-
-
-def _parse_latest(text: str, code: str) -> tuple[date, float] | None:
-    """Dòng Close MỚI NHẤT cho `code` trong bảng lịch sử (newest-first). Offline-testable.
-
-    Bỏ qua dòng spot không có ngày (vd 'Live: 1 USD = ...') vì regex bắt buộc có ngày đứng trước.
-    """
-    for m in _ROW.finditer(text):
-        d, mon, yr, rate, cur = m.groups()
-        if cur != code:
-            continue
-        try:
-            as_of = datetime.strptime(f"{d} {mon} {yr}", "%d %B %Y").date()
-        except ValueError:
-            continue
-        return as_of, float(rate)
-    return None
 
 
 def _rec(code: str, as_of: date, rate: float) -> PriceRecord:
@@ -59,43 +47,38 @@ def _rec(code: str, as_of: date, rate: float) -> PriceRecord:
                        unit=f"{code} per USD", price_type="fx", as_of=as_of)
 
 
-def _cf_wait(page, sec: int = 15) -> None:
-    """Chờ Cloudflare giải JS challenge (title rời 'Just a moment'/'Attention Required')."""
-    for _ in range(sec):
-        title = page.title().lower()
-        if "just a moment" not in title and "attention" not in title:
-            page.wait_for_timeout(2000)  # để bảng lịch sử render xong
-            return
-        page.wait_for_timeout(1000)
+def _parse_xrates(html: str) -> dict[str, float]:
+    """{mã: tỷ giá} từ 1 trang lịch sử x-rates ĐÃ CHỐT. Trang live/lạ/bị chặn → {}. Offline-testable."""
+    stamp = _XR_STAMP.search(html)
+    if not stamp or not stamp.group(1).strip().endswith(_XR_SNAPSHOT_STAMP):
+        return {}
+    rates: dict[str, float] = {}
+    for code, value in _XR_RATE.findall(html):  # bảng xuất hiện 2 lần (top-10 + đầy đủ) → giữ lần đầu
+        if code in _XR_CODES and code not in rates:
+            rates[code] = round(float(value), 4)
+    return rates
 
 
-def _scrape(pages: dict[str, str]) -> tuple[list[PriceRecord], list[str]]:
-    """Scrape Close từng đồng bằng 1 context riêng. Trả (records, danh sách đồng lỗi)."""
-    from playwright.sync_api import sync_playwright
+def _xrates_closes(first: date, last: date, today: date | None = None) -> list[PriceRecord]:
+    """Close CNY/JPY/THB các ngày Thứ 2–6 trong [first, last]. Close ngày D = ảnh chụp ngày D+1.
 
-    records: list[PriceRecord] = []
-    failed: list[str] = []
-    with sync_playwright() as p:
-        browser = p.firefox.launch(headless=True)
-        try:
-            for code, url in pages.items():
-                ctx = browser.new_context(user_agent=_UA, locale="en-US")
-                try:
-                    page = ctx.new_page()
-                    page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                    _cf_wait(page)
-                    parsed = _parse_latest(page.inner_text("body"), code)
-                    if parsed:
-                        records.append(_rec(code, *parsed))
-                    else:
-                        failed.append(code)
-                except Exception:  # noqa: BLE001 - cô lập từng đồng (CF chặn 1 ≠ chặn cả)
-                    failed.append(code)
-                finally:
-                    ctx.close()
-        finally:
-            browser.close()
-    return records, failed
+    Chỉ nhận ảnh chụp của ngày < hôm nay (UTC). Lỗi mạng → dừng luôn (không kéo dài cả lượt quét).
+    """
+    today = today or datetime.now(timezone.utc).date()
+    out: list[PriceRecord] = []
+    d = first
+    while d <= last:
+        snap = d + timedelta(days=1)
+        if snap >= today:
+            break
+        if d.weekday() < 5:
+            try:
+                html = fetch_text(_XR_URL.format(d=snap.isoformat()), retries=2)
+            except Exception:  # noqa: BLE001 - nguồn sập → dừng, crawl() ghi chú thiếu cặp nào
+                break
+            out.extend(_rec(code, d, rate) for code, rate in _parse_xrates(html).items())
+        d += timedelta(days=1)
+    return out
 
 
 def _vcb_usd(day: date | None = None) -> tuple[date, float | None, float | None] | None:
@@ -166,14 +149,13 @@ def _bnm_myr(day: date | None = None) -> list[PriceRecord]:
 
 
 def crawl() -> CrawlResult:
-    """Quét tỷ giá: CNY/JPY/THB (Playwright) + VND (VCB) + MYR (BNM API). Cô lập lỗi từng nguồn."""
+    """Quét tỷ giá: CNY/JPY/THB (x-rates, lấp 7 ngày) + VND (VCB) + MYR (BNM). Cô lập lỗi từng nguồn."""
     notes: list[str] = []
-    try:
-        records, failed = _scrape(_PAGES)
-        if failed:
-            notes.append("Cloudflare/parse chặn: " + ",".join(failed))
-    except Exception as exc:  # noqa: BLE001 - Playwright/Firefox hỏng → cả nhóm scrape fail
-        records, notes = [], [f"scrape lỗi: {str(exc)[:100]}"]
+    today = datetime.now(timezone.utc).date()
+    records = _xrates_closes(today - timedelta(days=_XR_LOOKBACK_DAYS), today, today)
+    missing = [c for c in _XR_CODES if not any(r.grade == f"USD/{c}" for r in records)]
+    if missing:
+        notes.append("x-rates thiếu: " + ",".join(missing))
     vnd = _vnd_records()
     if vnd:
         records.extend(vnd)
@@ -190,60 +172,24 @@ def crawl() -> CrawlResult:
     return CrawlResult(source=Source.FX, status=Status.BLOCKED, note=note or "Không lấy được tỷ giá")
 
 
-def _parse_history(text: str, code: str, since: date) -> list[tuple[date, float]]:
-    """Mọi dòng Close cho `code` (bảng lịch sử) từ ngày >= since. Offline-testable."""
-    out: list[tuple[date, float]] = []
-    for m in _ROW.finditer(text):
-        d, mon, yr, rate, cur = m.groups()
-        if cur != code:
-            continue
-        try:
-            as_of = datetime.strptime(f"{d} {mon} {yr}", "%d %B %Y").date()
-        except ValueError:
-            continue
-        if as_of >= since:
-            out.append((as_of, float(rate)))
-    return out
-
-
 def history(days: int) -> list[PriceRecord]:
-    """Backfill Close CNY/JPY/THB/MYR các phiên gần đây từ CHÍNH exchangerates (bảng lịch sử).
+    """Backfill `days` ngày gần nhất: CNY/JPY/THB (x-rates) · VND (VCB từng ngày) · MYR (BNM theo tháng).
 
-    Cùng nguồn với crawl() → giá trị KHỚP TUYỆT ĐỐI với data live. Bảng chỉ giữ ~7 phiên gần
-    nhất nên chỉ lấp được lỗ trong khoảng đó (đủ khi lỡ quên quét vài phiên). VND: bỏ qua
-    (exchangerates không có). Mỗi đồng dùng 1 context mới (CF chặn điều hướng nhiều trang).
+    ⚠ Khoảng lùi chạm ≤ 02/09/2026 sẽ GHI ĐÈ số exchangerates cũ bằng số x-rates (lệch vài bps).
     """
-    from playwright.sync_api import sync_playwright
-
-    since = datetime.now(timezone.utc).date() - timedelta(days=days)
-    records: list[PriceRecord] = []
-    with sync_playwright() as p:
-        browser = p.firefox.launch(headless=True)
-        try:
-            for code, url in _PAGES.items():
-                ctx = browser.new_context(user_agent=_UA, locale="en-US")
-                try:
-                    page = ctx.new_page()
-                    page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                    _cf_wait(page)
-                    for as_of, rate in _parse_history(page.inner_text("body"), code, since):
-                        records.append(_rec(code, as_of, rate))
-                except Exception:  # noqa: BLE001 - cô lập từng đồng (CF chặn 1 ≠ chặn cả)
-                    pass
-                finally:
-                    ctx.close()
-        finally:
-            browser.close()
+    today = datetime.now(timezone.utc).date()
+    since = today - timedelta(days=days)
+    records = _xrates_closes(since, today, today)
 
     # VND (Mua/Bán) từ VCB — API có date param nên backfill được từng ngày trong khoảng.
-    day = datetime.now(timezone.utc).date()
+    day = today
     for _ in range(days + 1):
         records.extend(_vnd_records(day))
         day -= timedelta(days=1)
 
     # MYR từ BNM — API trả theo tháng; quét các tháng phủ khoảng [since, hôm nay].
     seen_months: set[tuple[int, int]] = set()
-    day = datetime.now(timezone.utc).date()
+    day = today
     for _ in range(days + 1):
         key = (day.year, day.month)
         if key not in seen_months:
