@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuth } from "../../auth/AuthContext";
 import DataSourceNote from "../sections/DataSourceNote";
 import DateRangeBar from "../sections/DateRangeBar";
+import FxStaleBanner from "../sections/FxStaleBanner";
 import PriceSheetGrid from "../sections/PriceSheetGrid";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import ScanNowButton from "../sections/ScanNowButton";
@@ -27,6 +28,7 @@ export default function PriceSheetPage() {
       </div>
 
       <ReadOnlyNotice cap="auto_data" />
+      <FxStaleBanner reloadKey={reloadKey} />
       <DataSourceNote page="price-sheet" />
       <DateRangeBar from={from} to={to} onFrom={setFrom} onTo={setTo}>
         {canEdit && (

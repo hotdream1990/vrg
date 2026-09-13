@@ -68,14 +68,34 @@ class SourceStatus(BaseModel):
     note: str | None = None
 
 
+class FxStaleItem(BaseModel):
+    """1 cặp tỷ giá quá cũ (xem services/fx_freshness.py)."""
+
+    pair: str                    # vd USD/JPY
+    latest: date | None = None   # ngày mới nhất có giá; None = chưa có dữ liệu
+    lag: int | None = None       # số ngày làm việc (T2–T6) đã trễ tính tới hôm nay
+
+
+class FxHealth(BaseModel):
+    """GET /api/prices/fx-health — tỷ giá nào đang quá cũ."""
+
+    stale: list[FxStaleItem]
+    checked_at: str
+    threshold: int               # ngưỡng ngày làm việc (app_config FX_STALE_BUSINESS_DAYS)
+
+
 class ScanResponse(BaseModel):
-    """Kết quả quét: bản ghi + trạng thái nguồn + thông tin ghi DB."""
+    """Kết quả quét: bản ghi + trạng thái nguồn + thông tin ghi DB + trạng thái tổng của lượt quét."""
 
     records: list[PriceRow]
     sources: list[SourceStatus]
     persisted: int          # số bản ghi ghi vào DB (0 nếu DB down)
     run_id: int | None = None
     db: str                 # "ok" | "skipped:<lý do>"
+    # Thêm 09/2026 — có mặc định để client/nguồn gọi cũ không vỡ.
+    status: str = "ok"      # "ok" | "warning" (nguồn lỗi / tỷ giá quá cũ) | "error" (ghi DB hỏng)
+    warnings: list[str] = []
+    stale_fx: list[FxStaleItem] = []
 
 
 class ExchangeComponent(BaseModel):

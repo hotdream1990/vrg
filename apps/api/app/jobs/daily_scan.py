@@ -15,7 +15,7 @@ from app.services import scan_service
 
 def main() -> int:
     try:
-        result = scan_service.scan_and_persist("all")
+        result = scan_service.scheduled_scan("all")
     except Exception as exc:  # noqa: BLE001 - log & thoát mã lỗi để cron biết
         print(f"daily-scan: CRAWL FAILED — {type(exc).__name__}: {exc}")
         return 1
@@ -23,8 +23,12 @@ def main() -> int:
     oks = sum(1 for s in result["sources"] if s["status"] == "ok")
     print(
         f"daily-scan: {len(result['records'])} records · persisted={result['persisted']} "
-        f"· db={result['db']} · run={result['run_id']} · sources_ok={oks}/{len(result['sources'])}"
+        f"· db={result['db']} · run={result['run_id']} · sources_ok={oks}/{len(result['sources'])} "
+        f"· status={result['status']}"
     )
+    for w in result["warnings"]:
+        print(f"daily-scan: CẢNH BÁO — {w}")
+    print(f"daily-scan: email cảnh báo = {result['alert_email']}")
     return 0 if result["db"] == "ok" else 2
 
 

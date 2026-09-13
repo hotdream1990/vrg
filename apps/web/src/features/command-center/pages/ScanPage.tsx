@@ -1,4 +1,5 @@
-import { DatabaseOutlined, ReloadOutlined, SyncOutlined, ThunderboltOutlined } from "@ant-design/icons";
+import { DatabaseOutlined, ReloadOutlined, SyncOutlined, ThunderboltOutlined, WarningOutlined } from "@ant-design/icons";
+import { Alert } from "antd";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -13,6 +14,7 @@ import {
 import { useAuth } from "../../auth/AuthContext";
 import CrawlRunLog from "../sections/CrawlRunLog";
 import ExchangeBoard from "../sections/ExchangeBoard";
+import FxStaleBanner from "../sections/FxStaleBanner";
 import LiveCharts from "../sections/LiveCharts";
 import LiveKpis from "../sections/LiveKpis";
 import LiveScanTable from "../sections/LiveScanTable";
@@ -104,6 +106,7 @@ export default function ScanPage() {
   const missing = EXPECTED.filter((s) => !new Set(latest.map((r) => r.source)).has(s));
   const updatedAt = latest.map((r) => r.ingested_at).filter(Boolean).sort().at(-1);
   const dbOk = scanInfo?.db === "ok";
+  const scanWarn = dbOk && scanInfo?.status === "warning";
 
   return (
     <>
@@ -128,6 +131,14 @@ export default function ScanPage() {
       </div>
 
       <ReadOnlyNotice cap="auto_data" />
+      <FxStaleBanner reloadKey={boardKey} />
+      {scanInfo?.status === "warning" && !!scanInfo.warnings?.length && (
+        <Alert
+          type="warning" showIcon icon={<WarningOutlined />} style={{ marginBottom: 14 }}
+          title={`Lượt quét #${scanInfo.run_id ?? "—"} ghi được ${scanInfo.persisted} bản ghi nhưng có cảnh báo:`}
+          description={<ul style={{ margin: 0, paddingLeft: 18 }}>{scanInfo.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
+        />
+      )}
 
       {error && <div className="scan-err" style={{ marginBottom: 12 }}>Lỗi: {error} — kiểm tra API (8390) &amp; DB.</div>}
 
@@ -157,8 +168,8 @@ export default function ScanPage() {
             </div>
           </div>
           {scanInfo && (
-            <span className={`db-badge ${dbOk ? "ok" : "warn"}`}>
-              {dbOk ? `✓ Vừa ghi DB: ${scanInfo.persisted}` : `⚠ DB ${scanInfo.db}`}
+            <span className={`db-badge ${dbOk && !scanWarn ? "ok" : "warn"}`}>
+              {dbOk ? `Vừa ghi DB: ${scanInfo.persisted}${scanWarn ? " · có cảnh báo" : ""}` : `DB ${scanInfo.db}`}
               {scanInfo.run_id != null && ` · run #${scanInfo.run_id}`}
             </span>
           )}

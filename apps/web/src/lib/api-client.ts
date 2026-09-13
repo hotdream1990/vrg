@@ -1,5 +1,6 @@
 /* Client gọi API FastAPI (cổng VRG 8390). Bọc fetch + types dùng chung cho UI. */
 
+import type { FxStaleItem } from "./fx-health-client";
 import { API, apiFetch } from "./http";
 
 export type PriceRow = {
@@ -23,6 +24,11 @@ export type ScanResult = {
   persisted: number;
   run_id: number | null;
   db: string;
+  /** Trạng thái tổng của lượt quét: ok · warning (nguồn lỗi / tỷ giá quá cũ) · error (ghi DB hỏng). */
+  status?: "ok" | "warning" | "error" | string;
+  /** Lý do cảnh báo (tiếng Việt), vd "Tỷ giá: x-rates thiếu: JPY,CNY,THB". */
+  warnings?: string[];
+  stale_fx?: FxStaleItem[];
 };
 
 export type HistorySeries = {

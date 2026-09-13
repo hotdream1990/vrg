@@ -4,6 +4,8 @@ import { type CrawlRun, fetchCrawlRuns } from "../../../lib/api-client";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   ok: { label: "Thành công", cls: "ok" },
+  // Ghi DB được nhưng có nguồn lỗi / tỷ giá quá cũ — lý do nằm ở cột Ghi chú (meta_crawl_run.error).
+  warning: { label: "Có cảnh báo", cls: "warn" },
   error: { label: "Lỗi", cls: "err" },
   empty: { label: "Không có dữ liệu", cls: "warn" },
   running: { label: "Đang chạy", cls: "warn" },
@@ -62,8 +64,11 @@ export default function CrawlRunLog({ reloadKey }: { reloadKey?: number }) {
                   <td><span className={`db-badge ${st.cls}`}>{st.label}</span></td>
                   <td style={{ textAlign: "right" }}>{r.rows}</td>
                   <td>{duration(r.started_at, r.finished_at)}</td>
-                  <td style={{ color: "var(--muted)", fontSize: 12 }} title={r.error ?? ""}>
-                    {r.error ? r.error.slice(0, 70) : ""}
+                  <td
+                    style={{ color: r.status === "ok" ? "var(--muted)" : "#a96a00", fontSize: 12, maxWidth: 420 }}
+                    title={r.error ?? ""}
+                  >
+                    {r.error ? (r.error.length > 160 ? `${r.error.slice(0, 160)}…` : r.error) : ""}
                   </td>
                 </tr>
               );

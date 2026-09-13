@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 
 import { pageTitle } from "../../../data/sample-data";
 import ConvergenceAndAlerts from "../sections/ConvergenceAndAlerts";
+import FxStaleBanner from "../sections/FxStaleBanner";
 import HeatmapAndVrg from "../sections/HeatmapAndVrg";
 import InventoryBalanceSection from "../sections/InventoryBalanceSection";
 import KpiRow from "../sections/KpiRow";
@@ -32,6 +33,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <FxStaleBanner />
       <KpiRow />
       <ConvergenceAndAlerts />
       <HeatmapAndVrg />

@@ -51,7 +51,7 @@ def _scan_meta(hm: tuple[int, int]) -> dict:
         "purpose": "Quét giá các sàn + tỷ giá → lưu DB (tích lũy lịch sử)",
         "source": "all",
         "default": (hm[0], hm[1], None),        # (giờ, phút, thứ) — None = hằng ngày
-        "run": lambda: scan_service.scan_and_persist("all"),
+        "run": scan_service.scheduled_scan,  # quét + email cảnh báo nếu có vấn đề
     }
 
 

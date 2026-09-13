@@ -21,6 +21,7 @@ from app.core.security import (
     require_cap_edit,
 )
 from app.schemas.price import (
+    FxHealth,
     HistorySeries,
     PriceBoard,
     PriceRecordEdit,
@@ -29,6 +30,7 @@ from app.schemas.price import (
     ScanResponse,
 )
 from app.services import (
+    fx_freshness,
     price_board,
     price_repo,
     purchase_price_sync,
@@ -123,6 +125,12 @@ def latest() -> dict:
 def crawl_runs(limit: int = Query(20, ge=1, le=100)) -> dict:
     """Nhật ký các lần quét gần nhất (manual + cron) từ meta_crawl_run."""
     return {"runs": price_repo.recent_runs(limit)}
+
+
+@router.get("/fx-health", response_model=FxHealth, dependencies=_auto_view)
+def fx_health() -> dict:
+    """Tỷ giá tự động nào đang quá cũ (kiểm thẳng kho giá, độc lập trạng thái crawler) — cho banner."""
+    return fx_freshness.health()
 
 
 @router.get("/board", response_model=PriceBoard)

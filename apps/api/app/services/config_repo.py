@@ -20,6 +20,7 @@ CONFIG_GROUPS = [
     {"id": "email", "label": "Email"},
     {"id": "data_entry", "label": "Cửa sổ nhập liệu"},
     {"id": "anomaly", "label": "Cảnh báo bất thường"},
+    {"id": "scan_monitor", "label": "Giám sát quét giá"},
 ]
 
 # Khóa hiển thị trên trang Cấu hình. secret=True → API mask, không lộ giá trị.
@@ -82,6 +83,14 @@ CONFIG_SPEC = [
          "label": spec["label"], "placeholder": spec["hint"]}
         for key, spec in _ANOMALY_THRESHOLDS.items()
     ),
+    # Giám sát quét giá (xem services/fx_freshness.py + services/scan_alert_email.py). Trạng thái
+    # chống spam email lưu ở khoá nội bộ SYSTEM_ALERT_LAST — cố ý KHÔNG khai ở đây (không lên UI).
+    {"key": "FX_STALE_BUSINESS_DAYS", "group": "scan_monitor", "secret": False,
+     "label": "Tỷ giá quá cũ sau bao nhiêu ngày làm việc (Thứ 2–6)",
+     "placeholder": "Mặc định 3 — sáng thứ Hai mới có số thứ Sáu là bình thường (trễ 1)"},
+    {"key": "SYSTEM_ALERT_EMAILS", "group": "scan_monitor", "secret": False,
+     "label": "Email nhận cảnh báo quét giá (cách nhau dấu phẩy)",
+     "placeholder": "vd it@vrg.vn, ttkd@vrg.vn — bỏ trống = không gửi; cần khai SMTP ở tab Email"},
 ]
 
 # Model OpenAI gợi ý khi chưa có key (sau khi đặt key → lấy danh sách thật từ tài khoản).

@@ -7,6 +7,8 @@ import "../../bulletin/bulletin.css";
 
 const STATUS: Record<string, { label: string; color: string }> = {
   ok: { label: "Thành công", color: "green" },
+  // Chạy xong nhưng có nguồn lỗi / tỷ giá quá cũ — lý do hiện ngay dưới (meta_crawl_run.error).
+  warning: { label: "Có cảnh báo", color: "gold" },
   error: { label: "Lỗi", color: "red" },
   empty: { label: "Không có dữ liệu", color: "default" },
   running: { label: "Đang chạy", color: "blue" },
@@ -56,6 +58,7 @@ export default function SchedulePage() {
       const r = await runSchedule(name);
       const err = r.sources?.find((s) => s.status === "error");
       if (err) message.error(err.note || "Chạy thất bại");
+      else if (r.warnings?.length) message.warning(`Đã ghi ${r.persisted} bản ghi — cảnh báo: ${r.warnings.join(" · ")}`);
       // Job không phải quét giá tự mô tả kết quả trong `note` (vd chốt tồn kho: mấy tuần được ghi).
       else message.success(r.sources?.[0]?.note || `Đã ghi ${r.persisted} bản ghi`);
       load();
@@ -93,10 +96,17 @@ export default function SchedulePage() {
     {
       title: "Lần chạy gần nhất", key: "last",
       render: (_: unknown, j: ScheduleJob) => j.last_run ? (
-        <Space size={6}>
-          <Tag color={STATUS[j.last_run.status]?.color}>{STATUS[j.last_run.status]?.label ?? j.last_run.status}</Tag>
-          <span style={{ fontSize: 12 }}>{dt(j.last_run.started_at)}</span>
-        </Space>
+        <div>
+          <Space size={6}>
+            <Tag color={STATUS[j.last_run.status]?.color}>{STATUS[j.last_run.status]?.label ?? j.last_run.status}</Tag>
+            <span style={{ fontSize: 12 }}>{dt(j.last_run.started_at)}</span>
+          </Space>
+          {j.last_run.status !== "ok" && j.last_run.error && (
+            <div style={{ fontSize: 11, color: "#a96a00", maxWidth: 360 }} title={j.last_run.error}>
+              {j.last_run.error.length > 140 ? `${j.last_run.error.slice(0, 140)}…` : j.last_run.error}
+            </div>
+          )}
+        </div>
       ) : <span style={{ color: "var(--muted)" }}>Chưa chạy</span>,
     },
     {
