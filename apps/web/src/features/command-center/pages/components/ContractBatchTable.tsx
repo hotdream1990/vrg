@@ -1,4 +1,4 @@
-import { PaperClipOutlined } from "@ant-design/icons";
+import { DeleteOutlined, FormOutlined, PaperClipOutlined } from "@ant-design/icons";
 
 import type { Contract, ContractDoc, ContractMeta } from "../../../../lib/sales-contract-client";
 import { openContractFile } from "../../../../lib/sales-contract-client";
@@ -10,8 +10,11 @@ type Props = {
   canEdit: boolean;
   /** Đợt đã giao quá cửa sổ sửa → chỉ xem (server cũng chặn). */
   locked: (deliveredAt: string | null) => boolean;
-  onEdit: (batch: Contract) => void;
-  onDelete: (batch: Contract) => void;
+  /** Tài khoản đơn vị: đợt đã khoá vẫn gửi được đề nghị sửa/xoá để Ban duyệt. */
+  canRequest?: boolean;
+  /** `request` = mở ở chế độ đề nghị (đợt đang khoá). */
+  onEdit: (batch: Contract, request?: boolean) => void;
+  onDelete: (batch: Contract, request?: boolean) => void;
 };
 
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
@@ -64,7 +67,7 @@ function CertCell({ certs, premium, ccy }: {
 
 /** Bảng ĐỢT GIAO của một hợp đồng — mỗi dòng là một lần giao (hoá đơn · ngày giao · chi tiết
  *  hàng). Đợt chưa điền ngày giao là đang chờ giao, chưa tính vào tiêu thụ. */
-export default function ContractBatchTable({ rows, meta, canEdit, locked, onEdit, onDelete }: Props) {
+export default function ContractBatchTable({ rows, meta, canEdit, locked, canRequest, onEdit, onDelete }: Props) {
   // Thành tiền để null khi CÓ đợt thiếu tỷ giá — cộng tiếp là ra một tổng thiếu mà trông như đủ.
   const sum = rows.reduce(
     (a, k) => ({
@@ -117,7 +120,15 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, onEdit
                   {/* Lần giao quá cửa sổ sửa → chỉ xem. Server cũng chặn (403), nhưng báo trước ở
                       đây để người dùng khỏi điền xong mới biết không lưu được. */}
                   {locked(k.delivered_at) ? (
-                    <span style={{ color: "var(--muted)", fontSize: 11 }}>(chỉ xem)</span>
+                    <>
+                      <span style={{ color: "var(--muted)", fontSize: 11 }}>(chỉ xem)</span>
+                      {canRequest && (
+                        <>
+                          {" "}<button className="btn" onClick={() => onEdit(k, true)}><FormOutlined /> Đề nghị sửa</button>
+                          {" "}<button className="btn" onClick={() => onDelete(k, true)}><DeleteOutlined /> Đề nghị xoá</button>
+                        </>
+                      )}
+                    </>
                   ) : (
                     <>
                       <button className="btn" onClick={() => onEdit(k)}>Sửa</button>{" "}

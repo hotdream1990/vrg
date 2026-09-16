@@ -1,4 +1,4 @@
-import { FileProtectOutlined, PlusOutlined } from "@ant-design/icons";
+import { DeleteOutlined, FileProtectOutlined, FormOutlined, PlusOutlined } from "@ant-design/icons";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -15,6 +15,7 @@ import {
 } from "../../../lib/sales-contract-client";
 import { dmy } from "../../../lib/date";
 import { useEditWindow } from "../../../lib/edit-window";
+import { useEditRequest } from "../../../lib/use-edit-request";
 import { useAuth } from "../../auth/AuthContext";
 import CustomerPicker from "../sections/CustomerPicker";
 import DateInput from "../sections/DateInput";
@@ -23,6 +24,7 @@ import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import ContractCompleteModal from "./components/ContractCompleteModal";
 import ContractDetailModal from "./components/ContractDetailModal";
 import ContractFormModal from "./components/ContractFormModal";
+import { contractDeleteDraft, deleteConfirmText } from "./components/contract-edit-request";
 import "../../bulletin/bulletin.css";
 
 const PAGE_SIZE = 25;
@@ -61,6 +63,7 @@ export default function SalesContractPage() {
   // Cửa sổ sửa CHỈ áp cho lần giao, mốc là ngày giao (khớp `security.assert_edit_window` ở server).
   const { isEditable } = useEditWindow();
   const locked = (deliveredAt: string | null) => !!deliveredAt && !isEditable(deliveredAt);
+  const { saveOrRequest, modal } = useEditRequest();
 
   const [meta, setMeta] = useState<ContractMeta | null>(null);
   const [rows, setRows] = useState<ContractRow[]>([]);
@@ -73,7 +76,8 @@ export default function SalesContractPage() {
   const [totals, setTotals] = useState<ContractTotals | null>(null);
   const [f, setF] = useState<ContractFilters>({ status: "all" });
   const [openId, setOpenId] = useState<number | null>(null);
-  const [form, setForm] = useState<{ initial: Contract | null } | null>(null);
+  // `request` = mở form ở chế độ ĐỀ NGHỊ SỬA (dòng đã quá hạn sửa, tài khoản đơn vị).
+  const [form, setForm] = useState<{ initial: Contract | null; request?: boolean } | null>(null);
   // Chốt hoàn thành NGAY TỪ DANH SÁCH: hộp thoại cần bản chi tiết (sản lượng đã giao, phần chênh,
   // đợt giao) nên tải đúng lúc bấm — dòng trong bảng không đủ dữ liệu để chốt cho an toàn.
   const [completing, setCompleting] = useState<ContractDetail | null>(null);
@@ -105,11 +109,17 @@ export default function SalesContractPage() {
   // Đổi bộ lọc thì về trang 1 — nếu không, đang ở trang 7 mà lọc còn 2 trang sẽ ra bảng trống.
   const setFilter = (next: ContractFilters) => { setPage(1); setF(next); };
 
-  const remove = async (r: ContractRow) => {
-    if (!confirm(`Xoá hợp đồng ${r.code} của ${r.company}?`)) return;
-    try { await deleteContract(r.id as number); load(); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
+  // Xoá thẳng khi server cho; quá hạn sửa/đã chốt thì popup gửi đề nghị xoá (chưa xoá nên không tải lại).
+  const remove = async (r: ContractRow, request = false) => {
+    if (!confirm(deleteConfirmText(`hợp đồng ${r.code} của ${r.company}`, request))) return;
+    try {
+      if (await saveOrRequest(() => deleteContract(r.id as number), contractDeleteDraft(r)) === "saved") load();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
   };
+  // Tài khoản đơn vị gửi được đề nghị cho dòng quá hạn sửa — trừ đơn vị đã sáp nhập và hợp đồng đã
+  // hoàn thành (hoàn thành không phải hàng rào thời gian).
+  const canRequest = (r: ContractRow) =>
+    canEditUnitData && !r.completed_at && !(meta?.merged_units ?? []).includes(r.company);
 
   return (
     <div className="main">
@@ -307,7 +317,17 @@ export default function SalesContractPage() {
                       HĐ giao-nhiều-lần không bị khoá: còn phải thêm đợt giao suốt vòng đời. */}
                   {/* Hợp đồng đã chốt hoàn thành thì khoá — mở lại ở màn chi tiết mới sửa được. */}
                   {canEdit && (locked(r.delivered_at)
-                    ? <span style={{ color: "var(--muted)", fontSize: 11 }}>(chỉ xem)</span>
+                    ? <>
+                        <span style={{ color: "var(--muted)", fontSize: 11 }}>(chỉ xem)</span>
+                        {canRequest(r) && (
+                          <>
+                            {" "}<button className="btn" onClick={() => setForm({ initial: r, request: true })}>
+                              <FormOutlined /> Đề nghị sửa
+                            </button>
+                            {" "}<button className="btn" onClick={() => remove(r, true)}><DeleteOutlined /> Đề nghị xoá</button>
+                          </>
+                        )}
+                      </>
                     : r.completed_at
                       ? <span style={{ color: "var(--muted)", fontSize: 11 }}>(đã chốt)</span>
                       : <>
@@ -393,9 +413,10 @@ export default function SalesContractPage() {
           onClose={() => setCompleting(null)} onDone={load} />
       )}
       {meta && form && (
-        <ContractFormModal meta={meta} initial={form.initial}
+        <ContractFormModal meta={meta} initial={form.initial} requestMode={form.request}
           onClose={() => setForm(null)} onSaved={load} />
       )}
+      {modal}
     </div>
   );
 }

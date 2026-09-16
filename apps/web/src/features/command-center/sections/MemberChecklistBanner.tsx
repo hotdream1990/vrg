@@ -3,7 +3,7 @@
    nợ số liệu ngày nào, thay vì phải tự đi soi từng biểu. Chỉ nhắc phần CÒN SỬA ĐƯỢC (server lọc
    theo cửa sổ nhập liệu) — nhắc ngày đã khoá thì người dùng bỏ qua cả bảng. Riêng nhóm THIẾU TỶ
    GIÁ và nhóm Ô CẦN KIỂM TRA rà cả năm và hiện cả bản ghi đã khoá (chữ xám): đó là doanh thu bị
-   hụt / số nhầm đơn vị tính, đơn vị phải biết để nhờ Ban TTKD sửa hộ.
+   hụt / số nhầm đơn vị tính, đơn vị phải biết để mở ra rồi gửi Đề nghị sửa cho Ban duyệt.
 
    Nhóm "ô cần kiểm tra" là cảnh báo vốn CHỈ chạy trong form lúc đang nhập — lưu xong đóng form là
    không ai thấy nữa. Server rà lại số đã lưu (`member_data_check`) rồi đưa lên đây. */
@@ -19,11 +19,17 @@ import { type DataCheck, type MemberChecklist, type MissingFxDelivery, type Unit
 const COLLAPSE_KEY = "vrg_checklist_collapsed";
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
 
+/** Ô xám = quá hạn tự sửa: vẫn bấm được để mở đúng bản ghi, rồi bấm "Đề nghị sửa" gửi Ban duyệt. */
+const LOCKED_CHIP: React.CSSProperties = {
+  border: 0, cursor: "pointer", marginRight: 6, background: "var(--panel-2, #eef1ef)", color: "var(--muted)",
+};
+const LOCKED_TITLE = "Quá hạn sửa — bấm để mở, rồi bấm “Đề nghị sửa” để gửi Ban duyệt";
+
 /** Nhãn ngày ngắn gọn — "hôm nay" đọc nhanh hơn ngày tháng khi đang nhắc việc. */
 const dayLabel = (d: string, today: string) => (d === today ? "hôm nay" : dmy(d));
 
-/** Ngày cũ hơn `editableFrom` thì đơn vị KHÔNG tự sửa được nữa — vẫn phải hiện (để biết mình còn
- *  nợ) nhưng để dạng chữ xám, không bấm được: mời bấm rồi chặn ở form là hứa hão. */
+/** Ngày cũ hơn `editableFrom` thì đơn vị KHÔNG tự sửa được nữa — vẫn hiện (để biết mình còn nợ)
+ *  dạng chữ xám; bấm vào mở phiếu ở chế độ xem, trong đó có nút "Đề nghị sửa". */
 function DayChips({ days, today, editableFrom, onPick }: {
   days: string[]; today: string; editableFrom: string; onPick: (d: string) => void;
 }) {
@@ -36,10 +42,9 @@ function DayChips({ days, today, editableFrom, onPick }: {
           {dayLabel(d, today)}
         </button>
       ) : (
-        <span key={d} className="chip" style={{ background: "var(--panel-2, #eef1ef)", color: "var(--muted)", marginRight: 6 }}
-          title="Quá hạn sửa — báo Ban TTKD nhập hộ">
+        <button key={d} className="chip" style={LOCKED_CHIP} onClick={() => onPick(d)} title={LOCKED_TITLE}>
           {dayLabel(d, today)}
-        </span>
+        </button>
       )))}
     </>
   );
@@ -50,10 +55,9 @@ function FxChip({ d, onPick }: { d: MissingFxDelivery; onPick: () => void }) {
   const label = `${d.contract_code}${d.code && d.code !== d.contract_code ? ` · ${d.code}` : ""} — ${t3(d.qty)} t ${d.ccy}, giao ${dmy(d.delivered_at)}`;
   if (!d.editable) {
     return (
-      <span className="chip" style={{ background: "var(--panel-2, #eef1ef)", color: "var(--muted)", marginRight: 6 }}
-        title="Quá hạn sửa — báo Ban TTKD điền tỷ giá hộ">
+      <button className="chip" style={LOCKED_CHIP} onClick={onPick} title={LOCKED_TITLE}>
         {label}
-      </span>
+      </button>
     );
   }
   return (
@@ -86,10 +90,9 @@ function CheckRow({ c, onPick }: { c: DataCheck; onPick: () => void }) {
           {label}
         </button>
       ) : (
-        <span className="chip" style={{ background: "var(--panel-2, #eef1ef)", color: "var(--muted)", marginRight: 6 }}
-          title="Quá hạn sửa — báo Ban TTKD sửa hộ">
+        <button className="chip" style={LOCKED_CHIP} onClick={onPick} title={LOCKED_TITLE}>
           {label}
-        </span>
+        </button>
       )}
       <span style={{ color: "var(--muted)" }}>{c.message}</span>
     </li>
@@ -168,7 +171,7 @@ function UnitRow({ u, today, editableFrom, go }: {
         {u.missing_fx.length > 3 ? <span style={{ color: "var(--muted)" }}>…</span> : null}
         {fixable < u.missing_fx.length ? (
           <div style={{ color: "var(--muted)", marginTop: 2 }}>
-            {u.missing_fx.length - fixable} lần giao đã quá hạn sửa (chữ xám) — báo Ban TTKD điền hộ.
+            {u.missing_fx.length - fixable} lần giao đã quá hạn sửa (chữ xám) — mở hợp đồng, bấm “Đề nghị sửa” để gửi Ban duyệt.
           </div>
         ) : null}
       </div>,
@@ -193,7 +196,7 @@ function UnitRow({ u, today, editableFrom, go }: {
         ) : null}
         {fixable < u.data_checks.length ? (
           <div style={{ color: "var(--muted)", marginTop: 2 }}>
-            {u.data_checks.length - fixable} ô đã quá hạn sửa (chữ xám) — báo Ban TTKD sửa hộ.
+            {u.data_checks.length - fixable} ô đã quá hạn sửa (chữ xám) — bấm để mở, rồi bấm “Đề nghị sửa” để gửi Ban duyệt.
           </div>
         ) : null}
       </div>,
@@ -261,8 +264,8 @@ export default function MemberChecklistBanner() {
         <span className="dsn-tagline">
           Đơn vị chưa nhập đủ số liệu trong {data.alert_days} ngày gần nhất, hoặc có ô đã nhập
           cần kiểm tra lại (phần <b>thiếu tỷ giá</b> và <b>ô cần kiểm tra</b> rà cả năm). Ô{" "}
-          <b>màu cam</b> bấm vào là sửa được ngay; ô <b>xám</b> đã quá hạn sửa — báo Ban TTKD
-          nhập hộ.
+          <b>màu cam</b> bấm vào là sửa được ngay; ô <b>xám</b> đã quá hạn sửa — bấm vào để mở, rồi
+          bấm <b>Đề nghị sửa</b> để gửi Ban duyệt.
         </span>
         <span className="dsn-toggle">{open ? <>Thu gọn <UpOutlined /></> : <>Xem chi tiết <DownOutlined /></>}</span>
       </button>

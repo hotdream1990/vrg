@@ -1,7 +1,8 @@
 /* Modal nhập/sửa số liệu 1 đơn vị / 1 ngày — DÙNG CHUNG cho timeline (danh sách theo ngày) và
    trang tổng hợp. Chọn ngày + đơn vị → nạp số đã có (nếu có) → sửa → lưu (upsert). Role-aware. */
 
-import { Alert, Modal, Select, Spin, Tag, message } from "antd";
+import { FormOutlined, SendOutlined } from "@ant-design/icons";
+import { Alert, Button, Modal, Select, Spin, Tag, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { deleteRecord, upsertRecord } from "../../../lib/api-client";
@@ -12,9 +13,18 @@ import {
   type DayData, fetchMyDay, fetchDay, saveMyDaily, saveDaily,
 } from "../../../lib/unit-daily-client";
 import { KIND_LABEL, type Kind, type Values } from "../../../lib/unit-daily-fields";
+import { DIRECT_SAVED_IN_REQUEST_MODE, useEditRequest } from "../../../lib/use-edit-request";
+import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
 import type { ConsumptionTab } from "./ConsumptionForm";
 import UnitDailyForm, { type PriceDraft } from "./UnitDailyForm";
+import { type PriceChanges, dailyReportDraft, priceChanges } from "./unit-daily-edit-request";
+
+// Nhãn đơn vị lưu kèm giá: mủ nước = độ TSC, mủ chén và mủ dây = độ DRC (cố định, xem
+// `lib/purchase-price-unit.ts`) — server cũng ép lại nhãn này nên hai tầng luôn khớp.
+const PRICE_UNIT: Record<MemberPriceType, string> = {
+  purchase: LATEX_PRICE_UNIT, purchase_cup: CUP_PRICE_UNIT, purchase_lace: LACE_PRICE_UNIT,
+};
 
 const daysBetween = (later: string, earlier: string) =>
   Math.round((new Date(later + "T00:00:00").getTime() - new Date(earlier + "T00:00:00").getTime()) / 86_400_000);
@@ -29,20 +39,27 @@ type Props = {
   initialDay: string;
   initialCompany: string;
   today: string;
+  /** Mở từ nút "Thêm số liệu ngày" → ngày chưa có số thì lưu kèm `create_only` (chống ghi trùng). */
+  adding?: boolean;
   onClose: () => void;
   onSaved: () => void;
 };
 
 export default function UnitDailyEditModal(
-  { open, kind, defaultTab, role, isAdmin, canEdit, initialDay, initialCompany, today, onClose, onSaved }: Props,
+  { open, kind, defaultTab, role, isAdmin, canEdit, initialDay, initialCompany, today, adding, onClose, onSaved }: Props,
 ) {
   const [day, setDay] = useState(initialDay);
   const [company, setCompany] = useState(initialCompany);
   const [data, setData] = useState<DayData | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { canEditUnitData } = useAuth();
+  const { saveOrRequest, modal } = useEditRequest();
+  // Chế độ ĐỀ NGHỊ SỬA: ngày đang khoá nhưng đơn vị bấm "Đề nghị sửa" → form mở cho sửa, lưu = gửi đề nghị.
+  const [requestMode, setRequestMode] = useState(false);
 
   useEffect(() => { if (open) { setDay(initialDay); setCompany(initialCompany); } }, [open, initialDay, initialCompany]);
+  useEffect(() => { setRequestMode(false); }, [open, day, company]);
 
   const load = useCallback((asOf: string) => {
     setLoading(true);
@@ -69,49 +86,42 @@ export default function UnitDailyEditModal(
     if (lockedUntil && day <= lockedUntil) return false;
     return daysBetween(today, day) <= (data?.edit_window_days ?? 7);
   }, [canEdit, isAdmin, day, today, data, lockedUntil, mergedUnit]);
+  // Chỉ khoá vì HÀNG RÀO THỜI GIAN (chốt số liệu · ngoài cửa sổ) mới gửi đề nghị được — sáp nhập,
+  // ngày tương lai, tài khoản chỉ xem thì không phải chuyện Ban duyệt.
+  const canRequest = canEditUnitData && canEdit && !editable && !mergedUnit && !!day && day <= today;
+  const writable = editable || requestMode;
 
   // Đơn giá mủ nước/mủ chén → ghi thẳng kho "Giá mủ nguyên liệu" (đúng đơn vị + ngày), chỉ khi đổi.
   //
   // ĐƠN GIÁ 0 = "ngày đó không có giá": xoá ô giá, KHÔNG lưu số 0 (quy ước dùng chung — xem
   // `app/core/market_meta.py`). Lưu số 0 thì bản tin in ra khoảng "0-550 đồng/độ" cho cả khu vực
   // và giá bình quân gia quyền bị kéo tụt. Server chặn lần hai nên hai tầng luôn khớp.
-  const savePrices = async (prices: PriceDraft) => {
-    const orig = data?.prices?.[company];
-    const jobs: Promise<unknown>[] = [];
-    // Nhãn đơn vị lưu kèm giá: mủ nước = độ TSC, mủ chén và mủ dây = độ DRC (cố định, xem
-    // `lib/purchase-price-unit.ts`) — server cũng ép lại nhãn này nên hai tầng luôn khớp.
-    const PRICE_UNIT: Record<MemberPriceType, string> = {
-      purchase: LATEX_PRICE_UNIT, purchase_cup: CUP_PRICE_UNIT, purchase_lace: LACE_PRICE_UNIT,
-    };
-    const each = (raw: number | null, ov: number | null, pt: MemberPriceType) => {
-      const nv = raw === 0 ? null : raw;   // 0 = không có giá → coi như bỏ trống
-      if ((nv ?? null) === (ov ?? null)) return;
-      const unit = PRICE_UNIT[pt];
-      if (role === "member") {
-        jobs.push(nv == null
-          ? clearMyPrice(company, day, pt)
-          : upsertMyPrice(company, day, pt, nv));
-      } else {
-        jobs.push(nv == null
-          ? deleteRecord({ as_of: day, source: "vrg", grade: company, contract: "", price_type: pt })
-          : upsertRecord({ as_of: day, source: "vrg", grade: company, contract: "",
-                           price_type: pt, price: nv, currency: "VND", unit }));
-      }
-    };
-    each(prices.latex, orig?.latex ?? null, "purchase");
-    each(prices.cup, orig?.cup ?? null, "purchase_cup");
-    each(prices.lace, orig?.lace ?? null, "purchase_lace");
-    await Promise.all(jobs);
-  };
+  const savePrices = (changed: PriceChanges) => Promise.all(
+    (Object.entries(changed) as [MemberPriceType, number][]).map(([pt, v]) => {
+      if (role === "member") return v === 0 ? clearMyPrice(company, day, pt) : upsertMyPrice(company, day, pt, v);
+      return v === 0
+        ? deleteRecord({ as_of: day, source: "vrg", grade: company, contract: "", price_type: pt })
+        : upsertRecord({ as_of: day, source: "vrg", grade: company, contract: "",
+                         price_type: pt, price: v, currency: "VND", unit: PRICE_UNIT[pt] });
+    }));
 
+  // Lưu thẳng khi server cho; bị hàng rào thời gian chặn thì popup gửi đề nghị (gồm cả biểu lẫn giá).
   const save = async (fields: Values, prices: PriceDraft) => {
     setSaving(true);
     try {
-      await (role === "member" ? saveMyDaily : saveDaily)(kind, company, day, fields);
-      if (kind === "purchase") await savePrices(prices);
-      message.success("Đã lưu số liệu ngày");
-      onSaved();
-      onClose();
+      const changed = kind === "purchase" ? priceChanges(prices, data?.prices?.[company]) : undefined;
+      // Thêm mới vào ngày CHƯA có số → chống ghi trùng; ngày đã có số (form nạp sẵn) thì là sửa.
+      const createOnly = !!adding && !exists;
+      const result = await saveOrRequest(async () => {
+        await (role === "member" ? saveMyDaily : saveDaily)(kind, company, day, fields, createOnly);
+        if (changed) await savePrices(changed);
+      }, dailyReportDraft(kind, company, day, fields, changed, createOnly));
+      if (result === "cancelled") return;
+      if (result === "saved") {
+        message.success(requestMode ? DIRECT_SAVED_IN_REQUEST_MODE : "Đã lưu số liệu ngày");
+        onSaved();
+      }
+      onClose();   // "requested": popup đã báo, số liệu chưa đổi nên không tải lại
     } catch (e) {
       message.error((e as Error).message);
     } finally {
@@ -125,7 +135,7 @@ export default function UnitDailyEditModal(
   return (
     <Modal open={open} onCancel={onClose} footer={null}
            width={width} destroyOnHidden
-           title={`${editable ? "Nhập số liệu" : "Xem số liệu"} — ${KIND_LABEL[kind]}`}>
+           title={`${requestMode ? "Đề nghị sửa số liệu" : editable ? "Nhập số liệu" : "Xem số liệu"} — ${KIND_LABEL[kind]}`}>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
         <DateInput value={day} onChange={setDay} noFuture style={{ width: 190 }} />
         <Select value={company} onChange={setCompany} showSearch style={{ minWidth: 220 }}
@@ -143,8 +153,17 @@ export default function UnitDailyEditModal(
           tài khoản chỉ xem (không bao giờ sửa được, đừng chờ) · ngày đã chốt (phải nhờ Ban TTKD
           sửa hộ) · ngoài cửa sổ nhập (hết hạn tự sửa). Ghi nhầm lý do là người dùng ngồi chờ hết
           cửa sổ trong khi thực ra phải gọi cho Ban, hoặc đi xin quyền mà vai trò vốn không có. */}
-      {!editable && (
+      {requestMode && (
+        <Alert type="warning" showIcon style={{ marginBottom: 12 }}
+               message="Bạn đang soạn đề nghị sửa — số liệu chỉ thay đổi sau khi Ban duyệt." />
+      )}
+      {!writable && (
         <Alert type="info" showIcon style={{ marginBottom: 12 }}
+               action={canRequest && (
+                 <Button size="small" icon={<FormOutlined />} onClick={() => setRequestMode(true)}>
+                   Đề nghị sửa
+                 </Button>
+               )}
                message={mergedUnit
                  ? `${company} đã sáp nhập vào đơn vị của bạn — số liệu trước ngày sáp nhập giữ `
                    + "nguyên để tra cứu và vẫn được cộng vào báo cáo, nhưng không sửa được nữa."
@@ -153,8 +172,11 @@ export default function UnitDailyEditModal(
                    + "của đơn vị thực hiện."
                  : closed
                    ? `Số liệu đến hết ngày ${dmy(lockedUntil ?? "")} đã được chốt — đơn vị không tự `
-                     + "sửa được nữa. Cần điều chỉnh, đề nghị báo Ban TTKD để chuyên viên sửa hộ."
-                   : "Ngày này ở chế độ chỉ xem — ngoài cửa sổ nhập cho phép."} />
+                     + "sửa được nữa. " + (canRequest
+                       ? "Cần điều chỉnh thì bấm “Đề nghị sửa” để gửi Ban duyệt."
+                       : "Cần điều chỉnh, đề nghị báo Ban TTKD để chuyên viên sửa hộ.")
+                   : "Ngày này ở chế độ chỉ xem — ngoài cửa sổ nhập cho phép."
+                     + (canRequest ? " Cần điều chỉnh thì bấm “Đề nghị sửa” để gửi Ban duyệt." : "")} />
       )}
       <Spin spinning={loading}>
         {data && (
@@ -169,18 +191,20 @@ export default function UnitDailyEditModal(
             day={day}
             defaultTab={defaultTab}
             linkedPrice={data.prices?.[company] ?? null}
-            readOnly={!editable}
+            readOnly={!writable}
             footer={(dirty, current, prices) => (
               <div style={{ marginTop: 14, textAlign: "right" }}>
                 <button className="btn btn-primary" disabled={!dirty || saving}
                         onClick={() => save(current, prices)}>
-                  {saving ? "Đang lưu…" : "Lưu số liệu"}
+                  {saving ? (requestMode ? "Đang gửi đề nghị…" : "Đang lưu…")
+                    : requestMode ? <><SendOutlined /> Gửi đề nghị sửa</> : "Lưu số liệu"}
                 </button>
               </div>
             )}
           />
         )}
       </Spin>
+      {modal}
     </Modal>
   );
 }

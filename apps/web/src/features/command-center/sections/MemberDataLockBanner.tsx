@@ -1,6 +1,6 @@
 import { CheckCircleFilled, LockFilled, WarningFilled } from "@ant-design/icons";
 import { useCallback, useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { type LockCurrent, fetchLockCurrent } from "../../../lib/data-lock-client";
 import { DATA_SAVED_EVENT } from "../../../lib/http";
@@ -15,7 +15,7 @@ const dmy = (iso?: string | null) => (iso ? iso.split("-").reverse().join("/") :
  * Ban TTKD đang yêu cầu chốt đến ngày nào. Ba trạng thái:
  *   - chưa có đợt chốt         → không hiện gì
  *   - có đợt, chưa xác nhận    → hàng ĐỎ + nút "Xem số liệu & xác nhận chốt"
- *   - đã xác nhận              → hàng xám gọn, nhắc muốn sửa thì báo Ban TTKD (kèm nút xem lại số)
+ *   - đã xác nhận              → hàng xám gọn, nhắc muốn sửa thì gửi Đề nghị sửa (kèm nút xem lại số)
  */
 export default function MemberDataLockBanner() {
   const { pathname } = useLocation();
@@ -80,7 +80,9 @@ export default function MemberDataLockBanner() {
                   </a>
                 </span>
               ))}
-              — cần điều chỉnh số liệu đã chốt, đề nghị <b>báo Ban TTKD</b> để chuyên viên sửa hộ.
+              — cần điều chỉnh số liệu đã chốt, mở đúng bản ghi cần sửa và bấm <b>Đề nghị sửa</b> để gửi
+              Ban duyệt (theo dõi ở{" "}
+              <Link to="/de-nghi-sua" style={{ textDecoration: "underline" }}>Đề nghị sửa số liệu</Link>).
             </span>
           </div>
         </div>

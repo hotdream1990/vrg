@@ -47,7 +47,7 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
 
   const [view, setView] = useState<"list" | "overview">(isMember ? "list" : "overview");
   const [refreshKey, setRefreshKey] = useState(0);
-  const [edit, setEdit] = useState<{ day: string; company: string } | null>(null);
+  const [edit, setEdit] = useState<{ day: string; company: string; adding?: boolean } | null>(null);
 
   // `?ngay=&don-vi=` — bảng nhắc việc bấm thẳng vào ngày còn thiếu thì mở luôn phiếu của ngày đó.
   // Xoá tham số ngay sau khi mở: để lại thì bấm F5 hay quay lại trang là form tự bật lần nữa.
@@ -133,7 +133,7 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
         <UnitDailyTimeline
           kind={kind} role={role} isAdmin={isAdmin} canEdit={mayEdit} refreshKey={refreshKey}
           onEdit={(day, company) => setEdit({ day, company })}
-          onAdd={() => setEdit({ day: todayISO(), company: "" })}
+          onAdd={() => setEdit({ day: todayISO(), company: "", adding: true })}
         />
       ) : (
         <div className="card">
@@ -146,7 +146,7 @@ export default function UnitDailyPage({ kind, title, subtitle, defaultTab }: Pro
       {edit && (
         <UnitDailyEditModal
           open kind={kind} role={role} isAdmin={isAdmin} canEdit={mayEdit} defaultTab={defaultTab}
-          initialDay={edit.day} initialCompany={edit.company}
+          initialDay={edit.day} initialCompany={edit.company} adding={edit.adding}
           today={todayISO()}
           onClose={() => setEdit(null)}
           onSaved={reload}

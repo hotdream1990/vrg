@@ -1,0 +1,179 @@
+/* So sánh 3 phía của một ĐỀ NGHỊ SỬA SỐ LIỆU: lúc gửi (`before`) · hiện tại (`current`) · đề nghị (`payload`).
+
+   `before`/`current` và `payload` KHÁC hình dạng theo op (api-contract §2) nên trước hết chiếu cả ba
+   về cùng một khuôn, rồi làm phẳng thành đường dẫn (`fields.finished[1].qty`) để so từng ô.
+   Nhãn tiếng Việt tái dùng bảng nhãn của Nhật ký hoạt động (`audit-diff`) — thiếu thì hiện khoá gốc. */
+
+import { fieldLabel, fmtValue } from "./audit-diff";
+import { dmy } from "./date";
+import type { EditRequest, EditRequestOp } from "./edit-request-client";
+import { SALE_DATES, SALE_DOCS } from "./unit-daily-consumption";
+import { CUP_PRICE_UNIT, LACE_PRICE_UNIT, LATEX_PRICE_UNIT } from "./purchase-price-unit";
+import { COLUMNS } from "./unit-daily-fields";
+
+type Obj = Record<string, unknown>;
+
+/** Một file đính kèm nằm trong số liệu — hiện tên file + mở được. */
+export type FileLeaf = { kind: "file"; file: string; filename: string };
+/** Đơn giá 0 trong đề nghị biểu Thu mua = XOÁ ô giá — so như ô trống, hiện "(xoá)". */
+export type ClearLeaf = { kind: "clear" };
+const CLEAR: ClearLeaf = { kind: "clear" };
+
+export type DiffRow = {
+  path: string;
+  label: string;
+  before: unknown;
+  current: unknown;
+  proposed: unknown;
+  /** Ô đề nghị khác hiện tại (hoặc khác lúc gửi khi không có cột hiện tại) → tô nổi. */
+  highlight: boolean;
+};
+
+/** Nhãn dùng chung mọi op — bổ sung cho audit-diff. */
+const COMMON_LABELS: Record<string, string> = {
+  company: "Đơn vị", lines: "Dòng hàng", qty_dry: "Quy khô",
+};
+
+/** Nhãn biểu ngày — CHỈ áp cho op biểu ngày: `revenue`, `consumption`… trùng tên khoá của hợp đồng. */
+const DAILY_LABELS: Record<string, string> = {
+  // 3 cột cùng tên "Sản lượng thu mua" (mủ nước/chén/dây) → kèm tên nhóm cột cho khỏi nhầm.
+  ...Object.fromEntries([...COLUMNS.purchase, ...COLUMNS.consumption]
+    .map((c) => [c.key, c.group ? `${c.group} · ${c.label}` : c.label])),
+  purchase: `Đơn giá mủ nước (${LATEX_PRICE_UNIT})`,
+  purchase_cup: `Đơn giá mủ chén (${CUP_PRICE_UNIT})`,
+  purchase_lace: `Đơn giá mủ dây (${LACE_PRICE_UNIT})`,
+  finished: "Thu mua thành phẩm", sales: "Tiêu thụ mủ thu mua", sales_own: "Tiêu thụ mủ khai thác",
+  stock_not_warehoused: "Chế biến chưa nhập kho", stock_warehoused: "Đã nhập kho",
+  no_stock: "Không phát sinh tồn kho",
+  ...Object.fromEntries(SALE_DOCS.map((d) => [d.listKey, d.label])),
+  ...Object.fromEntries(SALE_DATES.map((d) => [d.key, d.label])),
+};
+
+/** Nhãn hợp đồng / đợt giao. */
+const CONTRACT_LABELS: Record<string, string> = {
+  customer_id: "Khách hàng", parent_id: "Hợp đồng gốc", master_id: "Hợp đồng mẹ",
+  delivery_type: "Hình thức giao", contract_type: "Loại hợp đồng", sign_date: "Ngày ký",
+  expiry_date: "Ngày hết hạn", start_date: "Ngày mở đợt", delivered_at: "Ngày giao",
+  channel: "Hình thức tiêu thụ", to_company: "Đơn vị nhận nội bộ", invoice_no: "Số hoá đơn",
+  invoice_docs: "Hoá đơn", payment_date: "Ngày thanh toán", payment_qty: "Sản lượng thanh toán",
+  payment_docs: "Chứng từ thanh toán", files: "Bộ hợp đồng", completed_at: "Ngày hoàn thành",
+  certs: "Chứng chỉ", premium: "Premium", premium_ccy: "Loại tiền premium",
+};
+
+const isDailyOp = (op: EditRequestOp) => op === "daily_report" || op === "daily_move";
+
+/** Khoá kỹ thuật / số hệ thống tự tính — không đưa ra so sánh. `file`, `filename`… phẳng là bản
+ *  sao tương thích ngược của danh sách file (file thật đã hiện qua `FileLeaf`); `delivered` suy từ `delivered_at`. */
+const IGNORED = new Set([
+  "id", "updated_at", "updated_by", "created_at", "created_by", "stock_signed_undelivered", "delivered",
+  "file", "filename", "wh_file", "wh_filename", "inv_file", "inv_filename",
+]);
+
+const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
+const asObj = (v: unknown): Obj | null => (isObj(v) ? v : null);
+
+const isFileDoc = (v: Obj): boolean =>
+  typeof v.file === "string" && Object.keys(v).every((k) => ["file", "filename", "size"].includes(k));
+
+function flatten(value: unknown, prefix = "", out: Obj = {}): Obj {
+  if (Array.isArray(value)) {
+    value.forEach((v, i) => flatten(v, `${prefix}[${i}]`, out));
+  } else if (isObj(value)) {
+    if (prefix && value === CLEAR) { out[prefix] = value; return out; }
+    if (prefix && isFileDoc(value)) {
+      out[prefix] = { kind: "file", file: value.file, filename: (value.filename as string) || value.file } as FileLeaf;
+      return out;
+    }
+    for (const [k, v] of Object.entries(value)) {
+      if (!IGNORED.has(k)) flatten(v, prefix ? `${prefix}.${k}` : k, out);
+    }
+  } else if (prefix) {
+    out[prefix] = value;
+  }
+  return out;
+}
+
+/** Chiếu bản ghi về khuôn so sánh được theo op. `side` = before/current hay payload. */
+function project(req: Pick<EditRequest, "op" | "payload">, o: Obj | null, side: "record" | "payload"): Obj | null {
+  const p = req.payload;
+  switch (req.op) {
+    case "daily_report":
+      return side === "payload"
+        ? { fields: p.fields ?? null, prices: clearZeroPrices(asObj(p.prices)) }
+        : o && { fields: o.fields ?? null, prices: pickKeys(asObj(o.prices), asObj(p.prices)) };
+    case "daily_move":
+      return side === "payload" ? { as_of: p.to_date } : { as_of: o?.fields ? p.as_of : null };
+    case "market_demand":
+      return side === "payload" ? { content: p.content ?? null } : o && { content: o.content ?? null };
+    case "contract_save":
+      // Bản ghi lưu có thêm số suy ra (qty, revenue…) — chỉ so các khoá đơn vị gửi lên.
+      return side === "payload" ? p : pickKeys(o, p);
+    case "contract_delete":
+      return side === "payload" ? null : o;
+  }
+}
+
+/** Đơn giá 0 = xoá ô giá (luật `upsert_record`) → đổi thành dấu XOÁ để so như trống. */
+function clearZeroPrices(prices: Obj | null): Obj | null {
+  if (!prices) return null;
+  return Object.fromEntries(Object.entries(prices).map(([k, v]) => [k, v === 0 ? CLEAR : v]));
+}
+
+/** Giữ các khoá của `src` có mặt trong `keysOf` (giá thu mua: chỉ khoá gửi lên mới ghi). */
+function pickKeys(src: Obj | null, keysOf: Obj | null): Obj | null {
+  if (!src || !keysOf) return null;
+  return Object.fromEntries(Object.keys(keysOf).map((k) => [k, src[k] ?? null]));
+}
+
+const norm = (v: unknown): string | null => {
+  if (v === null || v === undefined || v === "" || v === CLEAR) return null;
+  if (isObj(v) && (v as FileLeaf).kind === "file") return `file:${(v as FileLeaf).file}`;
+  return String(v);
+};
+const same = (a: unknown, b: unknown) => norm(a) === norm(b);
+
+/** Nhãn đường dẫn: bỏ tiền tố `fields.`/`prices.`, nối nhãn từng đoạn — `sales[1].qty` → "Tiêu thụ mủ thu mua 2 · Số lượng". */
+export function diffLabel(path: string, op: EditRequestOp): string {
+  const segs = path.split(".");
+  if (segs.length > 1 && (segs[0] === "fields" || segs[0] === "prices")) segs.shift();
+  const extra = isDailyOp(op) ? DAILY_LABELS : op.startsWith("contract_") ? CONTRACT_LABELS : {};
+  return segs.map((seg) => {
+    const m = seg.match(/^(.*?)(?:\[(\d+)\])?$/);
+    const key = m?.[1] ?? seg;
+    const name = extra[key] ?? COMMON_LABELS[key] ?? fieldLabel(key);
+    return m?.[2] != null ? `${name} ${Number(m[2]) + 1}` : name;
+  }).join(" · ");
+}
+
+/** Các dòng khác biệt. `withCurrent` = trang duyệt (3 cột); không có = đơn vị xem (lúc gửi ↔ đề nghị). */
+export function buildEditRequestDiff(
+  req: Pick<EditRequest, "op" | "payload" | "before">, current?: Obj | null, withCurrent = false,
+): DiffRow[] {
+  const b = flatten(project(req, req.before, "record"));
+  const c = withCurrent ? flatten(project(req, current ?? null, "record")) : {};
+  const p = flatten(project(req, null, "payload"));
+  const paths = [...new Set([...Object.keys(b), ...Object.keys(c), ...Object.keys(p)])];
+  const rows: DiffRow[] = [];
+  for (const path of paths) {
+    const differs = !same(b[path], p[path]) || (withCurrent && (!same(c[path], p[path]) || !same(b[path], c[path])));
+    if (!differs) continue;
+    rows.push({
+      path, label: diffLabel(path, req.op), before: b[path], current: c[path], proposed: p[path],
+      highlight: !same(withCurrent ? c[path] : b[path], p[path]),
+    });
+  }
+  return rows;
+}
+
+/** Giá trị hiển thị: nhãn server tra sẵn (`labels[khoá cuối][giá trị]`, vd id khách → tên khách) ·
+ *  dấu XOÁ → "(xoá)" · ngày ISO → dd/mm/yyyy · số kiểu vi-VN · còn lại theo `fmtValue`. */
+export function displayValue(v: unknown, path?: string, labels?: Record<string, Record<string, string>>): string {
+  if (v === CLEAR) return "(xoá)";
+  const key = path?.split(".").pop()?.replace(/\[\d+\]$/, "");
+  const named = key && v != null && v !== "" ? labels?.[key]?.[String(v)] : undefined;
+  if (named) return named;
+  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return dmy(v);
+  return fmtValue(v);
+}
+
+export const isFileLeaf = (v: unknown): v is FileLeaf => isObj(v) && (v as FileLeaf).kind === "file";

@@ -1,0 +1,26 @@
+/* Đề nghị sửa số liệu — khối thông tin dùng chung (Drawer của đơn vị · trang duyệt của Ban).
+   Danh sách/bộ lọc tái dùng .sp-row của support.css. */
+
+.er-info {
+  display: grid; grid-template-columns: 170px 1fr; gap: 8px 14px;
+  margin: 0; font-size: 13.5px; line-height: 1.5;
+}
+.er-info dt { color: var(--muted); }
+.er-info dd { margin: 0; color: #16241d; white-space: pre-wrap; word-break: break-word; }
+.er-info ul { margin: 0; padding-left: 18px; }
+
+.er-section { display: grid; gap: 10px; }
+.er-section h3 { margin: 0; font-size: 15px; font-weight: 600; }
+
+.er-title-cell { display: grid; gap: 2px; }
+
+/* Nút ở đầu trang (Tải lại, Duyệt…) và nút Huỷ đề nghị trong bảng: không xuống dòng / cắt chữ. */
+.er-page .page-title { gap: 16px; }
+.er-page .page-title .actions { flex-wrap: wrap; justify-content: flex-end; }
+.er-page .page-title .actions .btn, .er-nowrap { white-space: nowrap; }
+.er-title-cell small { color: var(--muted); }
+
+@media (max-width: 720px) {
+  .er-info { grid-template-columns: 1fr; gap: 2px; }
+  .er-info dd { margin-bottom: 8px; }
+}

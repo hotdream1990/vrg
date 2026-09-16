@@ -6,9 +6,11 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { Avatar, Dropdown, Layout, Menu, Typography } from "antd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
+import { fetchEditRequestPendingCount } from "../../lib/edit-request-client";
+import { DATA_SAVED_EVENT } from "../../lib/http";
 import { VRG } from "../../theme";
 import { useAuth } from "../auth/AuthContext";
 import { IMPERSONATION_BANNER_HEIGHT } from "../auth/ImpersonationBanner";
@@ -31,14 +33,33 @@ export default function AdminLayout() {
   const frameHeight = `calc(100vh - ${bannerH}px)`;
 
   const isMember = user?.role === "member";
-  const menuItems = buildSidebarMenu(user, can);
+
+  // Số đề nghị sửa đang chờ duyệt (Badge menu): tải lại khi đổi màn hoặc vừa duyệt/từ chối
+  // (ghi vào `/api/edit-requests`) — mọi lần lưu số liệu khác không đổi con số này, không poll.
+  const [pendingEdits, setPendingEdits] = useState(0);
+  const canReview = user?.role !== "member" && user?.role !== "leader" && can("edit_request");
+  useEffect(() => {
+    if (!canReview) { setPendingEdits(0); return; }
+    const refresh = () => {
+      fetchEditRequestPendingCount().then((r) => setPendingEdits(r.count)).catch(() => undefined);
+    };
+    const onSaved = (e: Event) => {
+      const path = (e as CustomEvent<{ path?: string }>).detail?.path ?? "";
+      if (path.startsWith("/api/edit-requests")) refresh();
+    };
+    refresh();
+    window.addEventListener(DATA_SAVED_EVENT, onSaved);
+    return () => window.removeEventListener(DATA_SAVED_EVENT, onSaved);
+  }, [canReview, pathname]);
+
+  const menuItems = buildSidebarMenu(user, can, pendingEdits);
 
   const ROUTE_KEYS = [
     "/quet-da-san",
     "/quan-ly-so-lieu/bang-gia-san", "/quan-ly-so-lieu/ty-gia", "/quan-ly-so-lieu/gia-san-tap-doan",
     "/quan-ly-so-lieu/gia-mu-nguyen-lieu", "/quan-ly-so-lieu/gia-physical",
     "/quan-ly-so-lieu/ton-kho", "/quan-ly-so-lieu/bao-gia-mu", "/quan-ly-so-lieu/don-vi-thanh-vien",
-    "/nhu-cau-thi-truong", "/bao-cao-thu-mua", "/bao-cao-tieu-thu", "/bao-cao-ton-kho",
+    "/nhu-cau-thi-truong", "/de-nghi-sua", "/duyet-de-nghi-sua", "/bao-cao-thu-mua", "/bao-cao-tieu-thu", "/bao-cao-ton-kho",
     // Các mục con phải đứng TRƯỚC "/hop-dong" — khớp tiền tố sẽ nuốt mục con.
     "/hop-dong/khach-hang", "/hop-dong/hop-dong-me", "/hop-dong",
     "/thong-ke-hop-dong", "/ke-hoach-nam", "/bao-cao-tong-hop",

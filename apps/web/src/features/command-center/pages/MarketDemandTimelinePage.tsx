@@ -1,5 +1,5 @@
-import { ApartmentOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
-import { Select } from "antd";
+import { ApartmentOutlined, EditOutlined, FormOutlined, PlusOutlined, SendOutlined } from "@ant-design/icons";
+import { Alert, Select, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -11,6 +11,7 @@ import {
   saveMyDemand,
 } from "../../../lib/market-demand-client";
 import { dmy, todayISO } from "../../../lib/date";
+import { DIRECT_SAVED_IN_REQUEST_MODE, useEditRequest } from "../../../lib/use-edit-request";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
@@ -38,6 +39,8 @@ export default function MarketDemandTimelinePage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [editing, setEditing] = useState<string | null>(null); // "as_of|company"
+  const [requesting, setRequesting] = useState(false);          // dòng đang sửa ở chế độ đề nghị
+  const { saveOrRequest, modal } = useEditRequest();
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -60,6 +63,12 @@ export default function MarketDemandTimelinePage() {
   const canEdit = (as_of: string, company: string) =>
     mayEdit && !viewOnly.has(company)
     && (isAdmin || (!!data && as_of <= data.today && daysBetween(data.today, as_of) <= data.edit_window_days));
+  // Ngoài cửa sổ sửa (nhu cầu không bị chốt số liệu) → tài khoản đơn vị gửi đề nghị sửa để Ban duyệt.
+  const canRequest = (as_of: string, company: string) =>
+    canEditUnitData && !viewOnly.has(company) && !!data && as_of <= data.today && !canEdit(as_of, company);
+  const startEdit = (e: DemandEntry, request: boolean) => {
+    setEditing(`${e.as_of}|${e.company}`); setDraft(e.content); setRequesting(request);
+  };
 
   // Gom entries theo ngày (đã sort DESC ở backend).
   const groups = useMemo(() => {
@@ -72,13 +81,30 @@ export default function MarketDemandTimelinePage() {
     return out;
   }, [data]);
 
-  const doSave = (company: string, as_of: string, content: string, key: string, after: () => void, createOnly = false) => {
+  // Server cho lưu thì lưu thẳng; tài khoản đơn vị bị cửa sổ sửa chặn thì popup gửi đề nghị.
+  // Payload đề nghị = đúng thân API ghi thẳng (kể cả `create_only` của nút Thêm → Ban duyệt cũng chống ghi trùng).
+  const doSave = async (
+    company: string, as_of: string, content: string, key: string, after: () => void,
+    createOnly = false, requestMode = false,
+  ) => {
     setBusy(key);
     setErr("");
-    (isMember ? saveMyDemand(company, as_of, content, createOnly) : saveDemand(company, as_of, content, createOnly))
-      .then(() => { after(); load(true); })
-      .catch((e) => setErr(e.message))
-      .finally(() => setBusy(null));
+    try {
+      const result = await saveOrRequest(
+        () => (isMember ? saveMyDemand(company, as_of, content, createOnly) : saveDemand(company, as_of, content, createOnly)),
+        { op: "market_demand", payload: { company, as_of, content, ...(createOnly ? { create_only: true } : {}) },
+          title: `Nhu cầu thị trường ngày ${dmy(as_of)}`, company, dates: [as_of] });
+      if (result === "cancelled") return;
+      after();
+      if (result === "saved") {
+        if (requestMode) message.success(DIRECT_SAVED_IN_REQUEST_MODE);
+        load(true);
+      }
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
   };
 
   // Chống ghi trùng: (ngày, đơn vị) đang chọn ở form Thêm đã có nhu cầu chưa (trong dữ liệu đã tải).
@@ -173,11 +199,16 @@ export default function MarketDemandTimelinePage() {
                       {isEditing ? (
                         <>
                           <div style={{ fontWeight: 600, color: "#0a9e48", marginBottom: 6 }}>{e.company}</div>
+                          {requesting && (
+                            <Alert type="warning" showIcon style={{ marginBottom: 6 }}
+                              message="Bạn đang soạn đề nghị sửa — số liệu chỉ thay đổi sau khi Ban duyệt." />
+                          )}
                           <textarea value={draft} rows={3} style={taStyle} onChange={(ev) => setDraft(ev.target.value)} />
                           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                             <button className="btn btn-primary" disabled={busy === key}
-                              onClick={() => doSave(e.company, e.as_of, draft, key, () => setEditing(null))}>
-                              {busy === key ? <span className="spinner" /> : "Lưu"}
+                              onClick={() => doSave(e.company, e.as_of, draft, key, () => setEditing(null), false, requesting)}>
+                              {busy === key ? <span className="spinner" />
+                                : requesting ? <><SendOutlined /> Gửi đề nghị sửa</> : "Lưu"}
                             </button>
                             <button className="btn" onClick={() => setEditing(null)}>Huỷ</button>
                           </div>
@@ -187,8 +218,15 @@ export default function MarketDemandTimelinePage() {
                           <div style={{ flex: 1, fontSize: 14, lineHeight: 1.5, color: "#16241d" }}>
                             <b style={{ color: "#0a9e48" }}>{e.company}:</b> {e.content}
                           </div>
+                          {canRequest(e.as_of, e.company) && (
+                            <button className="btn" style={{ flex: "0 0 auto", fontSize: 12, padding: "3px 8px" }}
+                              title="Ngày này đã ngoài cửa sổ sửa — gửi đề nghị để Ban duyệt"
+                              onClick={() => startEdit(e, true)}>
+                              <FormOutlined /> Đề nghị sửa
+                            </button>
+                          )}
                           {canEdit(e.as_of, e.company) && (
-                            <button onClick={() => { setEditing(key); setDraft(e.content); }} title="Sửa"
+                            <button onClick={() => startEdit(e, false)} title="Sửa"
                               style={{ flex: "0 0 auto", border: "none", background: "none", cursor: "pointer",
                                 color: "var(--muted)", padding: 2, fontSize: 14, lineHeight: 1 }}>
                               <EditOutlined />
@@ -204,6 +242,7 @@ export default function MarketDemandTimelinePage() {
           ))}
         </div>
       )}
+      {modal}
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import {
   CheckCircleOutlined,
+  DeleteOutlined,
   EditOutlined,
+  FormOutlined,
   PlusOutlined,
   SplitCellsOutlined,
   UndoOutlined,
@@ -19,10 +21,13 @@ import {
 } from "../../../../lib/sales-contract-client";
 import { dmy } from "../../../../lib/date";
 import { useEditWindow } from "../../../../lib/edit-window";
+import { useEditRequest } from "../../../../lib/use-edit-request";
+import { useAuth } from "../../../auth/AuthContext";
 import ContractBatchTable, { Docs } from "./ContractBatchTable";
 import ContractCompleteModal from "./ContractCompleteModal";
 import ContractFormModal from "./ContractFormModal";
 import { lineAmount } from "./ContractLinesTable";
+import { contractDeleteDraft, deleteConfirmText } from "./contract-edit-request";
 
 type Props = {
   contractId: number;
@@ -89,8 +94,11 @@ function CertBadges({ certs, premium, ccy }: {
 export default function ContractDetailModal({ contractId, meta, canEdit, onClose, onChanged }: Props) {
   const [d, setD] = useState<ContractDetail | null>(null);
   const [err, setErr] = useState("");
-  const [form, setForm] = useState<{ initial: Contract | null } | null>(null);
-  const [editSelf, setEditSelf] = useState(false);
+  // `request` = mở form ở chế độ ĐỀ NGHỊ SỬA (bản ghi đã quá hạn sửa, tài khoản đơn vị).
+  const [form, setForm] = useState<{ initial: Contract | null; request?: boolean } | null>(null);
+  const [editSelf, setEditSelf] = useState<{ request: boolean } | null>(null);
+  const { canEditUnitData } = useAuth();
+  const { saveOrRequest, modal } = useEditRequest();
   const [completing, setCompleting] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -107,9 +115,18 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
     finally { setBusy(false); }
   };
 
-  const remove = async (id: number, label: string) => {
-    if (!confirm(`Xoá ${label}?`)) return;
-    await run(() => deleteContract(id));
+  // Xoá thẳng khi server cho; quá hạn sửa/đã chốt thì popup gửi đề nghị xoá (chưa xoá nên không tải lại).
+  // Xoá được CHÍNH hợp đồng đang mở (đề nghị xoá ở tab thông tin) → xoá xong thì đóng luôn hộp chi tiết.
+  const remove = async (k: Contract, request = false) => {
+    const self = k.id === d?.contract.id;
+    if (!confirm(deleteConfirmText(`${k.parent_id ? "đợt giao" : "hợp đồng"} ${k.code}`, request))) return;
+    setBusy(true); setErr("");
+    try {
+      const result = await saveOrRequest(() => deleteContract(k.id as number), contractDeleteDraft(k));
+      if (result === "saved" && self) { onChanged(); onClose(); }
+      else if (result === "saved") refresh();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
+    finally { setBusy(false); }
   };
 
   const c = d?.contract;
@@ -118,6 +135,8 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
   // Cửa sổ sửa CHỈ áp cho lần giao, mốc là ngày giao — hợp đồng sửa được suốt vòng đời.
   const { isEditable } = useEditWindow();
   const locked = (deliveredAt: string | null) => !!deliveredAt && !isEditable(deliveredAt);
+  // Đơn vị đã sáp nhập không đi đường đề nghị sửa (không phải chuyện hàng rào thời gian).
+  const canRequest = canEditUnitData && !!c && !(meta.merged_units ?? []).includes(c.company);
 
   /** Đổi loại giao tại chỗ: lần giao đang nằm trên hợp đồng được dời xuống đợt giao đầu tiên. */
   const switchType = async () => {
@@ -227,11 +246,23 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                         <div className="blt-toolbar" style={{ marginBottom: 10 }}>
                           {/* HĐ giao-1-lần ĐÃ GIAO chính là một lần giao → cũng nằm trong cửa sổ sửa. */}
                           {locked(c.delivered_at) ? (
-                            <span style={{ color: "var(--muted)", fontSize: 12 }}>
-                              Đã giao quá hạn sửa — hợp đồng này chỉ còn xem.
-                            </span>
+                            <>
+                              <span style={{ color: "var(--muted)", fontSize: 12 }}>
+                                Đã giao quá hạn sửa — hợp đồng này chỉ còn xem.
+                              </span>
+                              {canRequest && !done && (
+                                <>
+                                  <button className="btn" onClick={() => setEditSelf({ request: true })}>
+                                    <FormOutlined /> Đề nghị sửa
+                                  </button>
+                                  <button className="btn" disabled={busy} onClick={() => remove(c, true)}>
+                                    <DeleteOutlined /> Đề nghị xoá
+                                  </button>
+                                </>
+                              )}
+                            </>
                           ) : (
-                            <button className="btn" disabled={done} onClick={() => setEditSelf(true)}>
+                            <button className="btn" disabled={done} onClick={() => setEditSelf({ request: false })}>
                               <EditOutlined /> Sửa thông tin hợp đồng
                             </button>
                           )}
@@ -317,8 +348,9 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                         )}
                       </div>
                       <ContractBatchTable rows={d.children} meta={meta} canEdit={canEdit && !done}
-                        locked={locked} onEdit={(k) => setForm({ initial: k })}
-                        onDelete={(k) => remove(k.id as number, `đợt giao ${k.code}`)} />
+                        locked={locked} canRequest={canRequest}
+                        onEdit={(k, request) => setForm({ initial: k, request })}
+                        onDelete={(k, request) => remove(k, request)} />
                     </>
                   ),
                 }] : []),
@@ -340,18 +372,19 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
 
       {/* Sửa CHÍNH hợp đồng: không truyền `parent` → form mở ở chế độ hợp đồng, không phải đợt giao. */}
       {editSelf && c && (
-        <ContractFormModal meta={meta} initial={c} onClose={() => setEditSelf(false)}
-          onSaved={refresh} />
+        <ContractFormModal meta={meta} initial={c} requestMode={editSelf.request}
+          onClose={() => setEditSelf(null)} onSaved={refresh} />
       )}
       {form && c && d && (
         <ContractFormModal meta={meta} parent={c}
           otherQty={d.children.reduce(
             (s, k) => s + (k.id === form.initial?.id ? 0 : k.qty), 0)}
-          initial={form.initial} onClose={() => setForm(null)} onSaved={refresh} />
+          initial={form.initial} requestMode={form.request} onClose={() => setForm(null)} onSaved={refresh} />
       )}
       {completing && d && (
         <ContractCompleteModal d={d} meta={meta} onClose={() => setCompleting(false)} onDone={refresh} />
       )}
+      {modal}
     </>
   );
 }

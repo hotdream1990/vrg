@@ -1,4 +1,5 @@
-import { Modal } from "antd";
+import { SendOutlined } from "@ant-design/icons";
+import { Alert, Modal, message } from "antd";
 import { useMemo, useState } from "react";
 
 import {
@@ -9,6 +10,8 @@ import {
   MAX_OVER_RATIO,
   saveContract,
 } from "../../../../lib/sales-contract-client";
+import { DIRECT_SAVED_IN_REQUEST_MODE, useEditRequest } from "../../../../lib/use-edit-request";
+import { useAuth } from "../../../auth/AuthContext";
 import CustomerPicker from "../../sections/CustomerPicker";
 import DateInput from "../../sections/DateInput";
 import MasterContractPicker from "../../sections/MasterContractPicker";
@@ -16,6 +19,7 @@ import CertPremiumFields from "./CertPremiumFields";
 import ContractAttach from "./ContractAttach";
 import ContractBatchDocs from "./ContractBatchDocs";
 import ContractLinesTable, { EMPTY_LINE } from "./ContractLinesTable";
+import { contractSaveDraft } from "./contract-edit-request";
 
 type Props = {
   meta: ContractMeta;
@@ -27,6 +31,8 @@ type Props = {
   /** Điền sẵn cho bản ghi MỚI (khác `initial` — cái đó là đang SỬA bản ghi có sẵn).
    *  Dùng khi mở form từ màn Hợp đồng mẹ: đã biết đơn vị + hợp đồng mẹ nên không bắt chọn lại. */
   preset?: Partial<Contract>;
+  /** Bản ghi đang khoá (quá hạn sửa) — đơn vị mở form để soạn ĐỀ NGHỊ SỬA gửi Ban duyệt. */
+  requestMode?: boolean;
   onClose: () => void;
   onSaved: () => void;
 };
@@ -63,9 +69,11 @@ const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 }
 
 /** Modal thêm/sửa HỢP ĐỒNG hoặc ĐỢT GIAO (mỗi đợt = 1 lần giao + 1 lần thanh toán). */
 export default function ContractFormModal({
-  meta, parent, otherQty = 0, initial, preset, onClose, onSaved,
+  meta, parent, otherQty = 0, initial, preset, requestMode, onClose, onSaved,
 }: Props) {
   const isChild = !!parent;
+  const { canEditUnitData } = useAuth();
+  const { saveOrRequest, modal } = useEditRequest();
   const [c, setC] = useState<Contract>(() => {
     if (initial) {
       // Bản ghi cũ có thể mang quy khô ở chủng loại KHÔNG dùng quy khô (trước đây ô này hiện cho
@@ -155,28 +163,41 @@ export default function ContractFormModal({
     if (p.length) { setErr(p.join(" · ")); return; }
     setBusy(true); setErr("");
     try {
-      await saveContract({
+      const body: Contract = {
         ...c,
         lines: c.lines.filter((l) => l.grade || l.qty != null),
         parent_id: isChild ? parent!.id : null,
         // Đợt giao đi theo hợp đồng, KHÔNG nối thẳng vào hợp đồng mẹ (server cũng ép NULL) —
         // nối cả hai cấp là cộng đôi sản lượng đã ký của hợp đồng mẹ.
         master_id: isChild ? null : c.master_id,
-      } as unknown as Record<string, unknown>);
-      onSaved(); onClose();
+      };
+      // Server cho lưu thì lưu thẳng; tài khoản đơn vị bị cửa sổ sửa/chốt số liệu chặn thì popup đề nghị.
+      const result = await saveOrRequest(
+        () => saveContract(body as unknown as Record<string, unknown>), contractSaveDraft(body, initial));
+      if (result === "cancelled") return;
+      if (result === "saved") {
+        // Chế độ đề nghị mà vẫn lưu thẳng được: chỉ đổi ô được phép sửa sau chốt (chứng từ, số HĐ…).
+        if (requestMode) message.success(DIRECT_SAVED_IN_REQUEST_MODE);
+        onSaved();
+      }
+      onClose();   // "requested": popup đã báo, số liệu chưa đổi nên không tải lại
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
     finally { setBusy(false); }
   };
 
-  const title = isChild
-    ? `${initial ? "Sửa" : "Thêm"} đợt giao — HĐ ${parent!.code}`
-    : `${initial ? "Sửa" : "Thêm"} hợp đồng`;
+  const verb = requestMode ? "Đề nghị sửa" : initial ? "Sửa" : "Thêm";
+  const title = isChild ? `${verb} đợt giao — HĐ ${parent!.code}` : `${verb} hợp đồng`;
 
   // Modal rộng để dòng chi tiết đủ chỗ nằm một hàng; `min()` giữ mép modal không tràn ra ngoài
   // màn hình hẹp — số cứng 1280 sẽ vượt khung ở laptop 13".
   return (
-    <Modal open width="min(1280px, 94vw)" title={title} onCancel={onClose} okText="Lưu" cancelText="Đóng"
+    <Modal open width="min(1280px, 94vw)" title={title} onCancel={onClose} cancelText="Đóng"
+      okText={requestMode ? <><SendOutlined /> Gửi đề nghị sửa</> : "Lưu"}
       onOk={submit} okButtonProps={{ loading: busy, disabled: overCap }} destroyOnHidden>
+      {requestMode && (
+        <Alert type="warning" showIcon style={{ marginBottom: 10 }}
+          message="Bạn đang soạn đề nghị sửa — số liệu chỉ thay đổi sau khi Ban duyệt." />
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 10 }}>
         <label className="form-field">Đơn vị
           <select className="blt-date-input" value={c.company}
@@ -276,8 +297,10 @@ export default function ContractFormModal({
         <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
           Kể cả khi <b>số liệu đã chốt</b>, các nội dung sau vẫn sửa và lưu được bình thường:{" "}
           <b>{meta.editable_when_locked.map((f) => f.label).join(" · ")}</b>. Còn sản lượng, đơn
-          giá, ngày giao, hình thức tiêu thụ, khách hàng và loại hợp đồng thì phải nhờ Ban TTKD sửa
-          hộ — đó là các ô làm đổi số đã báo cáo.
+          giá, ngày giao, hình thức tiêu thụ, khách hàng và loại hợp đồng là các ô làm đổi số đã báo
+          cáo — {canEditUnitData
+            ? <>bấm <b>Lưu</b>, hệ thống mở hộp gửi <b>đề nghị sửa</b>, Ban duyệt xong mới đổi.</>
+            : "phải nhờ Ban TTKD sửa hộ."}
         </p>
       )}
 
@@ -386,6 +409,7 @@ export default function ContractFormModal({
       </label>
 
       {err && <div className="blt-error" style={{ marginTop: 8 }}>{err}</div>}
+      {modal}
     </Modal>
   );
 }

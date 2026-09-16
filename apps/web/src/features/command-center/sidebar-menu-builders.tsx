@@ -10,11 +10,13 @@ import {
   CustomerServiceOutlined,
   DashboardOutlined,
   DeleteOutlined,
+  DiffOutlined,
   EditOutlined,
   ExperimentOutlined,
   ExportOutlined,
   FileDoneOutlined,
   FileProtectOutlined,
+  FileSearchOutlined,
   FileTextOutlined,
   FundOutlined,
   HistoryOutlined,
@@ -37,7 +39,7 @@ import {
   UsergroupAddOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
-import type { Menu } from "antd";
+import { Badge, type Menu } from "antd";
 
 import type { User } from "../../lib/auth-client";
 import type { Cap } from "../../lib/permissions";
@@ -81,11 +83,22 @@ const ITEM = {
   marketMovement: { key: "/ban-tin-bien-dong", icon: <LineChartOutlined />, label: "Bản tin biến động" },
   assistant: { key: "/tro-ly-ai", icon: <RobotOutlined />, label: "Trợ lý AI" },
   assistantHistory: { key: "/tro-ly-ai/lich-su", icon: <HistoryOutlined />, label: "Lịch sử hỏi đáp" },
+  myEditRequests: { key: "/de-nghi-sua", icon: <DiffOutlined />, label: "Đề nghị sửa số liệu" },
 };
+
+/** "Duyệt đề nghị sửa" kèm số đề nghị đang chờ (Badge ẩn khi 0). */
+const reviewEditRequestsItem = (pending: number) => ({
+  key: "/duyet-de-nghi-sua", icon: <FileSearchOutlined />,
+  label: (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      Duyệt đề nghị sửa <Badge count={pending} size="small" overflowCount={99} />
+    </span>
+  ),
+});
 
 /** Menu động theo quyền — trục mới (chốt 30/07/2026): số liệu thị trường · số liệu đơn vị ·
  *  quản lý hợp đồng · báo cáo & thống kê · phân tích & bản tin. */
-function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
+function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean, pendingEditRequests: number) {
   const items: MenuItems = [ITEM.dashboard];
   if (can("auto_data")) {
     items.push({ key: "/quet-da-san", icon: <ThunderboltOutlined />, label: "Quét Đa sàn" });
@@ -106,6 +119,7 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean) {
     can("unit_daily") && ITEM.unitStock,
     can("market_demand") && ITEM.marketDemand,
     can("unit_daily") && ITEM.yearPlan,
+    can("edit_request") && reviewEditRequestsItem(pendingEditRequests),
   ]));
   items.push(...group("contracts", <FileProtectOutlined />, "Quản lý hợp đồng", [
     can("sales_contract") && ITEM.customers,
@@ -209,6 +223,8 @@ function buildMemberMenu(hasPurchasePlan: boolean) {
       // Kế hoạch năm mở cho MỌI đơn vị, kể cả đơn vị chưa khai số nào: chính con số ở màn này là
       // công tắc bật màn Thu mua, khoá màn lại thì đơn vị chưa khai lần nào không bao giờ tự khai được.
       { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
+      // Ngày cũ đã khoá (quá hạn sửa / đã chốt) chỉ sửa được qua đề nghị Ban duyệt.
+      ITEM.myEditRequests,
     ]),
     ...group("contracts", <FileProtectOutlined />, "Quản lý hợp đồng", [
       ITEM.customers, ITEM.masterContracts, ITEM.contracts,
@@ -230,6 +246,7 @@ function buildLeaderMenu(hasPurchasePlan: boolean) {
       { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Tồn kho (theo ngày)" },
       { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
       { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
+      ITEM.myEditRequests,
     ]),
     ...group("contracts", <FileProtectOutlined />, "Hợp đồng (chỉ xem)", [
       ITEM.customers, ITEM.masterContracts, ITEM.contracts,
@@ -257,13 +274,15 @@ const RETIRED_MENU = {
 const PROFILE_ITEM = { key: "/ho-so", icon: <IdcardOutlined />, label: "Hồ sơ cá nhân" };
 
 /** Menu sidebar hoàn chỉnh theo vai trò của tài khoản đang đăng nhập. */
-export function buildSidebarMenu(user: User | null, can: (cap: Cap) => boolean): MenuItems {
+export function buildSidebarMenu(
+  user: User | null, can: (cap: Cap) => boolean, pendingEditRequests = 0,
+): MenuItems {
   const role = user?.role;
   const hasPlan = user?.member_has_purchase_plan ?? false;
   if (role === "leader") return [...buildLeaderMenu(hasPlan), PROFILE_ITEM];
   if (role === "member") return [...buildMemberMenu(hasPlan), PROFILE_ITEM];
   if (role === "executive") return [...buildExecutiveMenu(can), PROFILE_ITEM];
   const isAdmin = role === "admin";
-  return [...buildMenu(can, isAdmin), ...(isAdmin ? [ADMIN_MENU] : []), PROFILE_ITEM,
+  return [...buildMenu(can, isAdmin, pendingEditRequests), ...(isAdmin ? [ADMIN_MENU] : []), PROFILE_ITEM,
     ...(isAdmin ? [RETIRED_MENU] : [])];
 }

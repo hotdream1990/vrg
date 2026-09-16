@@ -14,6 +14,8 @@ import BulletinPage from "./features/command-center/pages/BulletinPage";
 import ConsumptionReportPage from "./features/command-center/pages/ConsumptionReportPage";
 import CustomerPage from "./features/command-center/pages/CustomerPage";
 import DashboardPage from "./features/command-center/pages/DashboardPage";
+import EditRequestReviewDetailPage from "./features/command-center/pages/EditRequestReviewDetailPage";
+import EditRequestReviewListPage from "./features/command-center/pages/EditRequestReviewListPage";
 import EntryWarnPreview from "./features/command-center/pages/EntryWarnPreview";
 import FloorSuggestPage from "./features/command-center/pages/FloorSuggestPage";
 import FxRatePage from "./features/command-center/pages/FxRatePage";
@@ -21,6 +23,7 @@ import InventoryPage from "./features/command-center/pages/InventoryPage";
 import MarketDemandTimelinePage from "./features/command-center/pages/MarketDemandTimelinePage";
 import MarketMovementPage from "./features/command-center/pages/MarketMovementPage";
 import MarketQuotePage from "./features/command-center/pages/MarketQuotePage";
+import MyEditRequestsPage from "./features/command-center/pages/MyEditRequestsPage";
 import WeeklyReportPage from "./features/command-center/pages/WeeklyReportPage";
 import MemberUnitPage from "./features/command-center/pages/MemberUnitPage";
 import PhysicalSheetPage from "./features/command-center/pages/PhysicalSheetPage";
@@ -79,6 +82,12 @@ function SupportRoute({ children }: { children: React.ReactNode }) {
   const { user, can } = useAuth();
   if (user?.role === "leader" || can("support")) return <>{children}</>;
   return <Navigate to="/" replace />;
+}
+
+/** Đề nghị sửa số liệu của đơn vị: chỉ tài khoản gắn đơn vị (lãnh đạo đơn vị chỉ xem). */
+function MyEditRequestsRoute() {
+  const { isUnitAccount } = useAuth();
+  return isUnitAccount ? <MyEditRequestsPage /> : <Navigate to="/" replace />;
 }
 
 /** Nhu cầu thị trường (timeline): đơn vị thành viên → chỉ đơn vị của mình; chuyên viên có quyền → mọi đơn vị. */
@@ -169,6 +178,12 @@ export default function App() {
                     <SupportRoute><SupportBatchPage /></SupportRoute>} />
                   <Route path="/ho-tro/:id" element={<SupportRoute><SupportThreadPage /></SupportRoute>} />
                   <Route path="/ke-hoach-nam" element={<YearPlanRoute />} />
+                  {/* Đề nghị sửa số liệu quá khứ — đơn vị gửi/theo dõi · Ban (quyền edit_request) duyệt */}
+                  <Route path="/de-nghi-sua" element={<MyEditRequestsRoute />} />
+                  <Route element={<RequireCap caps={["edit_request"]} />}>
+                    <Route path="/duyet-de-nghi-sua/:id" element={<EditRequestReviewDetailPage />} />
+                    <Route path="/duyet-de-nghi-sua" element={<EditRequestReviewListPage />} />
+                  </Route>
                   <Route path="/bao-cao-tong-hop" element={<PeriodReportRoute />} />
                   <Route path="/thong-ke-hop-dong" element={<StockContractHistoryRoute />} />
                   {/* Thống kê / kiểm tra số liệu đơn vị đã nhập — CHỈ chuyên viên có quyền `unit_daily` */}

@@ -6,6 +6,33 @@ import { authHeaders, onUnauthorized } from "./auth-token";
 
 export const API = import.meta.env.VITE_API_URL ?? "http://localhost:8390";
 
+/** Hàng rào thời gian đã chặn lần ghi: `window` = cửa sổ sửa N ngày · `lock` = chốt số liệu.
+ *  Server gắn qua header `X-Edit-Blocked` (xem api-contract Đề nghị sửa số liệu). */
+export type EditBlockedKind = "window" | "lock";
+
+/** Lỗi gọi API — vẫn là `Error` (message giữ nguyên câu tiếng Việt) nên mọi màn cũ đọc
+ *  `e.message` không đổi gì; thêm `status` (0 = không kết nối được) và `blocked`. */
+export class ApiError extends Error {
+  status: number;
+  blocked: EditBlockedKind | null;
+
+  constructor(message: string, status: number, blocked: EditBlockedKind | null = null) {
+    super(message);
+    this.status = status;
+    this.blocked = blocked;
+  }
+}
+
+/** Lần ghi bị hàng rào thời gian chặn (cửa sổ sửa / chốt số liệu) — đơn vị có thể gửi Đề nghị sửa. */
+export function isEditBlocked(e: unknown): e is ApiError {
+  return e instanceof ApiError && e.blocked != null;
+}
+
+function blockedKind(res: Response): EditBlockedKind | null {
+  const v = res.headers.get("X-Edit-Blocked");
+  return v === "window" || v === "lock" ? v : null;
+}
+
 /** Lỗi 422 của FastAPI: `detail` là MẢNG {loc, msg} → gộp thành câu đọc được.
  *  Không dịch được thì vẫn hơn hẳn "HTTP 422" trơ trọi — người dùng biết ô nào sai. */
 function validationMessage(detail: unknown): string | null {
@@ -31,7 +58,7 @@ async function errorMessage(res: Response, fallback?: string): Promise<string> {
   return base;
 }
 
-/** Gọi API + parse JSON. Ném Error với message thân thiện cho mọi nhánh lỗi. */
+/** Gọi API + parse JSON. Ném `ApiError` với message thân thiện cho mọi nhánh lỗi. */
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -40,17 +67,18 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       headers: { ...authHeaders(), ...(init?.headers ?? {}) },
     });
   } catch {
-    throw new Error(`Không kết nối được máy chủ (${API}) — kiểm tra mạng hoặc thử lại.`);
+    throw new ApiError(`Không kết nối được máy chủ (${API}) — kiểm tra mạng hoặc thử lại.`, 0);
   }
   if (res.status === 401) {
     onUnauthorized();
-    throw new Error("Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.");
+    throw new ApiError("Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.", 401);
   }
   if (res.status === 403) {
-    throw new Error(await errorMessage(res, "Bạn không có quyền thực hiện thao tác này."));
+    const msg = await errorMessage(res, "Bạn không có quyền thực hiện thao tác này.");
+    throw new ApiError(msg, 403, blockedKind(res));
   }
   if (!res.ok) {
-    throw new Error(await errorMessage(res));
+    throw new ApiError(await errorMessage(res), res.status, blockedKind(res));
   }
   if ((init?.method ?? "GET") !== "GET") notifyDataSaved(path);
   return (await res.json()) as T;

@@ -13,6 +13,7 @@ import {
   type Timeline, type TimelineRange, type TimelineRow, fetchMyDailyTimeline, fetchDailyTimeline,
 } from "../../../lib/unit-daily-client";
 import type { Kind } from "../../../lib/unit-daily-fields";
+import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
 import UnitDailyMoveDateModal from "./UnitDailyMoveDateModal";
 import UnitDailyTimelineSummary from "./UnitDailyTimelineSummary";
@@ -36,7 +37,9 @@ type Props = {
 };
 
 export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refreshKey, onEdit, onAdd }: Props) {
-  const [moving, setMoving] = useState<{ as_of: string; company: string } | null>(null);
+  const { canEditUnitData } = useAuth();
+  // `request` = bản ghi đang khoá vì hàng rào thời gian → đơn vị mở hộp đổi ngày ở chế độ đề nghị.
+  const [moving, setMoving] = useState<{ as_of: string; company: string; request: boolean } | null>(null);
   const [range, setRange] = useState<TimelineRange>({ days: 90 });   // bộ lọc ĐANG áp dụng (tải dữ liệu)
   const [custom, setCustom] = useState(false);                       // đang chọn "khoảng tự chọn"?
   const [from, setFrom] = useState(() => daysAgoISO(30));
@@ -113,6 +116,8 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
         const closed = !isAdmin && !!lockedUntil && r.as_of <= lockedUntil;   // đã chốt số liệu
         const locked = merged || closed
           || (!isAdmin && daysBetween(data?.today ?? todayISO(), r.as_of) > (data?.edit_window_days ?? 7));
+        // Khoá vì chốt/cửa sổ (không phải sáp nhập) → tài khoản đơn vị vẫn gửi được đề nghị sửa.
+        const requestable = canEditUnitData && locked && !merged;
         return (
           <>
             {/* Icon phải nói đúng việc bấm vào sẽ làm được: ngày đã CHỐT thì mở ra cũng chỉ xem,
@@ -120,8 +125,10 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
             <Tooltip title={merged
               ? "Đơn vị đã sáp nhập — số liệu cũ chỉ để tra cứu"
               : closed
-                ? "Số liệu ngày này đã chốt — mở ra chỉ xem, cần sửa thì báo Ban TTKD"
-                : locked ? "Ngày này đã ngoài cửa sổ nhập — mở ra chỉ xem"
+                ? (requestable ? "Số liệu ngày này đã chốt — bấm để xem hoặc gửi đề nghị sửa"
+                               : "Số liệu ngày này đã chốt — mở ra chỉ xem, cần sửa thì báo Ban TTKD")
+                : locked ? (requestable ? "Ngày này đã ngoài cửa sổ nhập — bấm để xem hoặc gửi đề nghị sửa"
+                                        : "Ngày này đã ngoài cửa sổ nhập — mở ra chỉ xem")
                          : "Sửa số liệu"}>
               <Button size="small" type="link"
                       icon={closed ? <LockOutlined /> : locked ? <EyeOutlined /> : <EditOutlined />}
@@ -129,12 +136,14 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
             </Tooltip>
             <Tooltip title={merged
               ? "Đơn vị đã sáp nhập — số liệu cũ chỉ để tra cứu"
-              : closed
+              : requestable
+                ? "Ngày này đang khoá — bấm để gửi đề nghị đổi ngày bản ghi"
+                : closed
                 ? "Số liệu ngày này đã chốt — báo Ban TTKD nếu cần sửa"
                 : locked ? "Ngày này đã ngoài cửa sổ nhập — chỉ xem"
                          : "Đổi ngày bản ghi (nhập nhầm ngày)"}>
-              <Button size="small" type="link" icon={<CalendarOutlined />} disabled={locked}
-                      onClick={() => setMoving({ as_of: r.as_of, company: r.company })} />
+              <Button size="small" type="link" icon={<CalendarOutlined />} disabled={locked && !requestable}
+                      onClick={() => setMoving({ as_of: r.as_of, company: r.company, request: requestable })} />
             </Tooltip>
           </>
         );
@@ -197,7 +206,7 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
       {moving && (
         <UnitDailyMoveDateModal
           open kind={kind} role={role} isAdmin={isAdmin}
-          company={moving.company} asOf={moving.as_of}
+          company={moving.company} asOf={moving.as_of} requestMode={moving.request}
           today={data?.today ?? todayISO()} windowDays={data?.edit_window_days ?? 7}
           onClose={() => setMoving(null)} onMoved={load}
         />

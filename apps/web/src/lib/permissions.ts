@@ -11,7 +11,7 @@
 export type Cap =
   | "market_quote" | "raw_material" | "floor" | "physical"
   | "inventory" | "member_unit" | "auto_data" | "market_demand" | "unit_daily"
-  | "sales_contract"
+  | "sales_contract" | "edit_request"
   | "floor_suggest" | "bulletin_daily" | "bulletin_weekly" | "market_movement" | "assistant"
   | "support" | "audit";
 
@@ -29,6 +29,7 @@ export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
   { key: "market_demand", label: "Nhu cầu thị trường", hint: "nhu cầu của mọi đơn vị" },
   { key: "unit_daily", label: "Báo cáo đơn vị theo ngày", hint: "thu mua · tồn kho (mọi đơn vị)" },
   { key: "sales_contract", label: "Hợp đồng & khách hàng", hint: "hợp đồng · đợt giao · danh mục khách (mọi đơn vị)" },
+  { key: "edit_request", label: "Duyệt đề nghị sửa số liệu của đơn vị", hint: "nhận email · duyệt/từ chối đề nghị sửa ngày đã khoá" },
   { key: "floor_suggest", label: "Gợi ý giá sàn", hint: "màn phân tích" },
   { key: "bulletin_daily", label: "Bản tin ngày", hint: "màn phân tích" },
   { key: "bulletin_weekly", label: "Báo cáo tuần", hint: "màn phân tích" },
@@ -62,7 +63,7 @@ export const isSplitCap = (key: Cap): boolean => SPLIT_CAPS.has(key);
 export const CAP_GROUPS: { title: string; keys: Cap[] }[] = [
   { title: "Số liệu thị trường (tự động)", keys: ["auto_data"] },
   { title: "Số liệu thị trường (thủ công)", keys: ["market_quote", "raw_material", "floor", "physical", "inventory"] },
-  { title: "Số liệu đơn vị thành viên", keys: ["member_unit", "unit_daily", "market_demand"] },
+  { title: "Số liệu đơn vị thành viên", keys: ["member_unit", "unit_daily", "market_demand", "edit_request"] },
   { title: "Quản lý hợp đồng", keys: ["sales_contract"] },
   { title: "Phân tích & Bản tin", keys: ["floor_suggest", "bulletin_daily", "bulletin_weekly", "market_movement", "assistant"] },
   { title: "Hỗ trợ đơn vị thành viên", keys: ["support"] },
