@@ -12,7 +12,7 @@ import {
   fetchAuditMeta,
 } from "../../../lib/audit-client";
 import { diffFields, summarize } from "../../../lib/audit-diff";
-import { daysAgoISO, todayISO } from "../../../lib/date";
+import { daysAgoISO, stampVN, todayISO } from "../../../lib/date";
 import { ROLE_COLOR, ROLE_LABEL } from "../../../lib/roles";
 import AuditChangeDetail from "../sections/AuditChangeDetail";
 import DateInput from "../sections/DateInput";
@@ -24,14 +24,6 @@ const ACTION_COLOR: Record<string, string> = {
 
 const PAGE_SIZE = 50;
 const EMPTY_META: AuditMeta = { entities: [], actions: [], actors: [], units: [] };
-
-/** Thời điểm 'YYYY-MM-DDTHH:mm:ss...' → 'HH:mm:ss DD/MM/YYYY' (chuẩn VN). */
-function stamp(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())} ${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
-}
 
 /** Tên người thao tác kèm ngữ cảnh: máy quét · link công khai · admin đăng nhập hộ. */
 function actorCell(r: AuditEntry) {
@@ -80,7 +72,7 @@ export default function AuditLogPage() {
   };
 
   const columns: ColumnsType<AuditEntry> = [
-    { title: "Thời điểm", dataIndex: "at", width: 150, render: stamp },
+    { title: "Thời điểm", dataIndex: "at", width: 150, render: stampVN },
     { title: "Người thao tác", key: "actor", width: 185, render: (_, r) => actorCell(r) },
     {
       title: "Nhóm số liệu · Bản ghi", key: "entity", width: 290,

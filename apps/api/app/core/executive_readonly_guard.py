@@ -24,6 +24,7 @@ _READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 EXECUTIVE_WRITE_ALLOW = frozenset({
     ("PUT", "/api/auth/me"),
     ("POST", "/api/auth/change-password"),
+    ("POST", "/api/access-log"),  # web báo "vừa vào trang nào" — ghi vết, không phải số liệu
     ("POST", "/api/assistant/chat"),
     ("POST", "/api/market-movement/assessment"),
     ("POST", "/api/weekly-reports/{week_key}/generate-pdf"),

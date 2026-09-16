@@ -11,14 +11,14 @@ from typing import Any
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
+from app.core.roles import role_label
+from app.services.xlsx_text import safe_cell
+
 _HEADERS = [
     ("Thời điểm", 20), ("Người thao tác", 22), ("Vai trò", 16), ("Đăng nhập hộ", 16),
     ("Nhóm số liệu", 24), ("Thao tác", 12), ("Bản ghi", 34), ("Ngày số liệu", 14),
     ("Đơn vị", 26), ("Nội dung thay đổi", 70), ("IP", 15), ("Ghi chú", 28),
 ]
-_ROLE_LABEL = {"admin": "Quản trị viên", "editor": "Chuyên viên nhập liệu",
-               "viewer": "Người xem", "member": "Đơn vị thành viên",
-               "leader": "Lãnh đạo đơn vị thành viên", "executive": "Lãnh đạo Tập đoàn"}
 
 
 def _flatten(value: Any, prefix: str = "", out: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -76,18 +76,18 @@ def build_xlsx(rows: list[dict[str, Any]]) -> bytes:
     ws.freeze_panes = "A2"
 
     for i, r in enumerate(rows, start=2):
-        ws.cell(row=i, column=1, value=str(r.get("at", ""))[:19].replace("T", " "))
-        ws.cell(row=i, column=2, value=r.get("actor", ""))
-        ws.cell(row=i, column=3, value=_ROLE_LABEL.get(r.get("actor_role", ""), ""))
-        ws.cell(row=i, column=4, value=r.get("on_behalf", ""))
-        ws.cell(row=i, column=5, value=r.get("entity_label", ""))
-        ws.cell(row=i, column=6, value=r.get("action_label", ""))
-        ws.cell(row=i, column=7, value=r.get("entity_key", ""))
-        ws.cell(row=i, column=8, value=r.get("as_of") or "")
-        ws.cell(row=i, column=9, value=r.get("company", ""))
-        ws.cell(row=i, column=10, value=_changes(r)).alignment = Alignment(wrap_text=True, vertical="top")
-        ws.cell(row=i, column=11, value=r.get("ip", ""))
-        ws.cell(row=i, column=12, value=r.get("note", ""))
+        ws.cell(row=i, column=1, value=safe_cell(str(r.get("at", ""))[:19].replace("T", " ")))
+        ws.cell(row=i, column=2, value=safe_cell(r.get("actor", "")))
+        ws.cell(row=i, column=3, value=safe_cell(role_label(r.get("actor_role", ""))))
+        ws.cell(row=i, column=4, value=safe_cell(r.get("on_behalf", "")))
+        ws.cell(row=i, column=5, value=safe_cell(r.get("entity_label", "")))
+        ws.cell(row=i, column=6, value=safe_cell(r.get("action_label", "")))
+        ws.cell(row=i, column=7, value=safe_cell(r.get("entity_key", "")))
+        ws.cell(row=i, column=8, value=safe_cell(r.get("as_of") or ""))
+        ws.cell(row=i, column=9, value=safe_cell(r.get("company", "")))
+        ws.cell(row=i, column=10, value=safe_cell(_changes(r))).alignment = Alignment(wrap_text=True, vertical="top")
+        ws.cell(row=i, column=11, value=safe_cell(r.get("ip", "")))
+        ws.cell(row=i, column=12, value=safe_cell(r.get("note", "")))
 
     buf = io.BytesIO()
     wb.save(buf)

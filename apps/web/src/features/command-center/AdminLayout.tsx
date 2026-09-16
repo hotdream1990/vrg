@@ -17,6 +17,7 @@ import { IMPERSONATION_BANNER_HEIGHT } from "../auth/ImpersonationBanner";
 import MemberChecklistBanner from "./sections/MemberChecklistBanner";
 import MemberDataLockBanner from "./sections/MemberDataLockBanner";
 import { DEFAULT_OPEN_KEYS, buildSidebarMenu } from "./sidebar-menu-builders";
+import { useAccessBeacon } from "./use-access-beacon";
 
 const { Header, Sider, Content, Footer } = Layout;
 
@@ -33,6 +34,9 @@ export default function AdminLayout() {
   const frameHeight = `calc(100vh - ${bannerH}px)`;
 
   const isMember = user?.role === "member";
+
+  // Lịch sử truy cập: báo cho server biết vừa mở trang nào (mọi màn sau đăng nhập đều qua đây).
+  useAccessBeacon(pathname, !!user);
 
   // Số đề nghị sửa đang chờ duyệt (Badge menu): tải lại khi đổi màn hoặc vừa duyệt/từ chối
   // (ghi vào `/api/edit-requests`) — mọi lần lưu số liệu khác không đổi con số này, không poll.
@@ -67,7 +71,8 @@ export default function AdminLayout() {
     "/ho-tro/nhac-lich", "/ho-tro",
     "/goi-y-gia-san", "/ban-tin-bien-dong", "/tro-ly-ai/lich-su", "/tro-ly-ai",
     "/ban-tin/tuan", "/ban-tin", "/quan-tri/nguoi-dung", "/quan-tri/cau-hinh",
-    "/quan-tri/lich-chay", "/quan-tri/nhat-ky", "/canh-bao-bat-thuong", "/ho-so",
+    "/quan-tri/lich-chay", "/quan-tri/nhat-ky", "/quan-tri/truy-cap",
+    "/canh-bao-bat-thuong", "/ho-so",
   ];
   const selected = pathname === "/"
     ? "/"

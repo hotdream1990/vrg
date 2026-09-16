@@ -152,6 +152,7 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean, pendingEditRequ
     can("assistant") && ITEM.assistantHistory,
     // Admin đã có mục này trong nhóm Quản trị → chỉ hiện ở đây cho tài khoản được CẤP quyền.
     !isAdmin && can("audit") && { key: "/quan-tri/nhat-ky", icon: <AuditOutlined />, label: "Nhật ký hoạt động" },
+    !isAdmin && can("audit") && { key: "/quan-tri/truy-cap", icon: <HistoryOutlined />, label: "Lịch sử truy cập" },
   ]));
   return items;
 }
@@ -206,6 +207,7 @@ const ADMIN_MENU = {
     { key: "/quan-tri/nguoi-dung", icon: <UsergroupAddOutlined />, label: "Người dùng" },
     { key: "/canh-bao-bat-thuong", icon: <WarningOutlined />, label: "Cảnh báo bất thường" },
     { key: "/quan-tri/nhat-ky", icon: <AuditOutlined />, label: "Nhật ký hoạt động" },
+    { key: "/quan-tri/truy-cap", icon: <HistoryOutlined />, label: "Lịch sử truy cập" },
     { key: "/quan-tri/cau-hinh", icon: <SettingOutlined />, label: "Cấu hình hệ thống" },
     { key: "/quan-tri/lich-chay", icon: <ClockCircleOutlined />, label: "Lịch chạy" },
   ],

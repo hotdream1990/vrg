@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.core.security import (
     UNIT_ROLES,
@@ -22,7 +22,7 @@ from app.schemas.auth import (
     TokenResponse,
     UserOut,
 )
-from app.services import unit_daily_repo, user_repo
+from app.services import access_repo, unit_daily_repo, user_repo
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +44,21 @@ def _user_out(user: dict, **extra) -> UserOut:
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest):
-    """Đăng nhập bằng username/password → trả JWT + thông tin user."""
+def login(body: LoginRequest, request: Request):
+    """Đăng nhập bằng username/password → trả JWT + thông tin user.
+
+    Ghi cả lần đăng nhập HỎNG vào Lịch sử truy cập: quản trị cần thấy dấu hiệu dò mật khẩu và
+    những người gõ sai nhiều lần (thường là quên, cần hỗ trợ).
+    """
     user = user_repo.authenticate(body.username, body.password)
+    agent = request.headers.get("user-agent", "")
     if not user:
+        # Tra hồ sơ chỉ để GHI kèm vai trò/đơn vị (quản trị thấy ngay "lãnh đạo đơn vị X gõ sai"),
+        # không đổi câu trả lời cho client — vẫn là "sai tài khoản hoặc mật khẩu".
+        name = body.username.strip()[:120]
+        access_repo.log_login(name, user_repo.get_user(name), ok=False, user_agent=agent)
         raise HTTPException(401, "Sai tài khoản hoặc mật khẩu")
+    access_repo.log_login(user["username"], user, user_agent=agent)
     return TokenResponse(access_token=create_access_token(user["username"]), user=_user_out(user))
 
 

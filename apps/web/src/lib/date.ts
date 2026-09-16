@@ -28,3 +28,12 @@ export const daysAgoISO = (n: number): string => {
   d.setDate(d.getDate() - n);
   return isoDate(d);
 };
+
+/** ISO datetime → 'HH:mm:ss DD/MM/YYYY' (dấu thời gian đầy đủ cho nhật ký). Rỗng → '—'. */
+export const stampVN = (v?: string | null): string => {
+  if (!v) return "—";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return v;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())} ${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+};

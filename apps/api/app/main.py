@@ -16,6 +16,7 @@ from app.core.security import block_unit_roles, get_current_user, require_admin,
 from app.web_static import mount_spa
 from app.routers import (
     anomalies,
+    access_log,
     audit,
     auth,
     assistant,
@@ -67,6 +68,12 @@ async def lifespan(app: FastAPI):
         user_repo.seed_admin()
     except Exception as exc:  # noqa: BLE001
         logger.warning("[auth] Bỏ qua seed admin (DB chưa sẵn sàng?): %s", exc)
+    try:
+        from app.services import access_repo
+
+        access_repo.purge_old()  # dọn lịch sử truy cập quá hạn lưu (400 ngày)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[access] Bỏ qua dọn lịch sử truy cập: %s", exc)
     try:
         from app.services import scheduler
 
@@ -189,6 +196,7 @@ app.include_router(customers.router, dependencies=_protected)
 app.include_router(master_contracts.router, dependencies=_protected)  # hợp đồng mẹ HĐNT/HĐDH (cùng quyền `sales_contract`)
 app.include_router(sales_contracts.router, dependencies=_protected)
 app.include_router(audit.router)  # Nhật ký hoạt động (tự gác quyền `audit` trong router)
+app.include_router(access_log.router)  # Lịch sử truy cập (ghi: mọi user · đọc: quyền `audit`)
 # Hỗ trợ & Thông báo: DÙNG CHUNG cho lãnh đạo đơn vị (role=leader) và Tập đoàn (quyền `support`)
 # — router tự nhận diện bên nào và ép phạm vi đơn vị, nên không gác cap ở đây.
 app.include_router(support.router)

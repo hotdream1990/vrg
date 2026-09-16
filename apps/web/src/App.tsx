@@ -3,6 +3,7 @@ import viVN from "antd/locale/vi_VN";
 import "dayjs/locale/vi";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
+import AccessLogPage from "./features/command-center/pages/AccessLogPage";
 import AdminLayout from "./features/command-center/AdminLayout";
 import AnomalyPage from "./features/command-center/pages/AnomalyPage";
 import AssistantHistoryPage from "./features/command-center/pages/AssistantHistoryPage";
@@ -241,6 +242,7 @@ export default function App() {
                   {/* Nhật ký hoạt động — admin (mặc định đủ quyền) hoặc tài khoản được cấp quyền `audit` */}
                   <Route element={<RequireCap caps={["audit"]} />}>
                     <Route path="/quan-tri/nhat-ky" element={<AuditLogPage />} />
+                    <Route path="/quan-tri/truy-cap" element={<AccessLogPage />} />
                   </Route>
                   <Route element={<RequireCap caps={["bulletin_weekly"]} />}>
                     <Route path="/ban-tin/tuan" element={<WeeklyReportPage />} />

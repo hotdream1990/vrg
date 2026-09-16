@@ -266,6 +266,26 @@ CREATE INDEX IF NOT EXISTS ix_audit_actor ON audit_log (actor, at DESC);
 CREATE INDEX IF NOT EXISTS ix_audit_key ON audit_log (entity, entity_key, at DESC);
 CREATE INDEX IF NOT EXISTS ix_audit_asof ON audit_log (as_of);
 
+-- Lịch sử truy cập (access log): ai ĐĂNG NHẬP lúc nào · VÀO TRANG nào. Tách riêng khỏi
+-- `audit_log` (chỉ ghi THAY ĐỔI số liệu) để nhật ký thay đổi không bị loãng vì lượt xem.
+-- `label` = tên trang tiếng Việt do server ánh xạ từ `path` (không tin nhãn client gửi lên).
+CREATE TABLE IF NOT EXISTS access_log (
+    id         bigserial PRIMARY KEY,
+    at         timestamptz NOT NULL DEFAULT now(),
+    username   text NOT NULL,
+    role       text,                       -- vai trò lúc truy cập (leader | member | editor | ...)
+    on_behalf  text,                       -- admin đang "đăng nhập hộ" (nếu có)
+    event      text NOT NULL,              -- login | login_failed | page
+    path       text NOT NULL DEFAULT '',   -- đường dẫn đã chuẩn hoá (đoạn động gom về dạng chung)
+    label      text NOT NULL DEFAULT '',   -- tên trang tiếng Việt
+    company    text,                       -- đơn vị được gán (tài khoản đơn vị/lãnh đạo đơn vị)
+    ip         text,
+    user_agent text
+);
+CREATE INDEX IF NOT EXISTS ix_access_at ON access_log (at DESC);
+CREATE INDEX IF NOT EXISTS ix_access_user ON access_log (username, at DESC);
+CREATE INDEX IF NOT EXISTS ix_access_event ON access_log (event, at DESC);
+
 -- Danh mục KHÁCH HÀNG — quản lý RIÊNG cho từng đơn vị (chốt Q6 30/07/2026): mỗi đơn vị một
 -- danh sách của mình, KHÔNG dùng chung ở cấp Tập đoàn. Hợp đồng gán khách của chính đơn vị đó.
 CREATE TABLE IF NOT EXISTS unit_customer (

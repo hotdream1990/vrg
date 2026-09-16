@@ -36,7 +36,7 @@ export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
   { key: "market_movement", label: "Bản tin biến động", hint: "màn phân tích" },
   { key: "assistant", label: "Trợ lý AI", hint: "hỏi đáp số liệu + tư vấn giá sàn" },
   { key: "support", label: "Hỗ trợ & Thông báo", hint: "hộp thư với lãnh đạo đơn vị + nhắc lịch" },
-  { key: "audit", label: "Nhật ký hoạt động", hint: "xem vết chỉnh sửa số liệu của mọi người dùng" },
+  { key: "audit", label: "Nhật ký hoạt động + Lịch sử truy cập", hint: "xem vết chỉnh sửa số liệu và lịch sử đăng nhập/vào trang của mọi người dùng" },
 ];
 
 export const CAP_KEYS: Cap[] = DATA_CAPS.map((c) => c.key);
