@@ -4,6 +4,23 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Lịch sử truy cập** (16/09/2026) — Quản trị → *Lịch sử truy cập*: theo dõi **ai đăng nhập lúc
+  nào và vào những trang nào**, để biết tài khoản đã cấp (nhất là lãnh đạo đơn vị thành viên) có
+  thực sự được dùng hay không.
+  - **Tab "Theo tài khoản"**: đăng nhập gần nhất · hoạt động gần nhất · số lần đăng nhập (kèm số
+    lần gõ sai mật khẩu) · số lượt xem trang · số ngày hoạt động · trang hay vào nhất. Kèm bảng
+    *Trang được xem nhiều nhất*.
+  - Bảng này liệt kê **cả tài khoản chưa truy cập lần nào** (ghi rõ bằng chữ đỏ) — biết ai được cấp
+    tài khoản mà không dùng mới là điều đáng giá nhất. Ô lọc *Tài khoản* cũng liệt kê đủ mọi tài
+    khoản, không chỉ người đã có vết.
+  - Lượt quản trị **"đăng nhập hộ"** không tính vào thống kê sử dụng của chủ tài khoản (tab *Chi
+    tiết* vẫn hiện đủ, ghi rõ ai đăng nhập hộ ai) — tính cả vào thì tưởng người ta đang dùng.
+  - **Tab "Chi tiết lượt truy cập"**: từng lượt đăng nhập / vào trang, có tên trang tiếng Việt,
+    đơn vị, IP và ghi rõ khi quản trị đang "đăng nhập hộ".
+  - Lọc theo khoảng ngày · tài khoản · vai trò · đơn vị · loại sự kiện, xuất Excel 2 sheet.
+  - Chỉ ghi **trang đã mở**, không ghi nội dung/bộ lọc đang xem. Lưu 400 ngày, tự dọn phần cũ hơn.
+  - Xem được khi có quyền *Nhật ký hoạt động + Lịch sử truy cập* (`audit`); quản trị viên mặc định có.
+  - ⚠ Không hồi tố: lịch sử chỉ tính từ ngày bản này lên máy chủ.
 - **Giá mủ tư nhân** (13/09/2026) — Báo giá mủ thị trường bỏ mục 6 "Giá mủ khu vực" (số mủ nước/mủ
   chén của đơn vị nay lấy thẳng từ đơn vị), thay bằng mục 6 **"Giá mủ tư nhân"**:
   - Mỗi đơn vị tư nhân nhập **một giá** hoặc **khoảng giá** (Giá – Giá max, đồng/độ TSC). Giá max nhỏ
