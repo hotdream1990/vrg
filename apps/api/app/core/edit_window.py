@@ -23,6 +23,10 @@ EDITOR_KEY = "EDITOR_EDIT_WINDOW_DAYS"
 ALERT_KEY = "MEMBER_ALERT_DAYS"
 DEFAULT_ALERT_DAYS = 14
 
+#: Header đánh dấu 403 do HÀNG RÀO THỜI GIAN (web đọc để mời đơn vị gửi «Đề nghị sửa»).
+#: `detail` giữ nguyên câu cũ — nhiều màn và test đang đọc chuỗi đó.
+BLOCK_HEADER = "X-Edit-Blocked"
+
 
 def today() -> date:
     return datetime.now(_TZ).date()
@@ -77,4 +81,5 @@ def assert_editable(as_of: str | date, window: int) -> None:
         raise HTTPException(
             403,
             f"Ngày này đã chuyển sang chế độ chỉ xem — chỉ được nhập/sửa trong {window} ngày gần nhất.",
+            headers={BLOCK_HEADER: "window"},
         )

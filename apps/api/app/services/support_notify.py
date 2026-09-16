@@ -21,7 +21,7 @@ _SUBJECT_PREFIX = "[VRG]"
 _EXCERPT = 600  # ký tự nội dung đưa vào email — phần còn lại đọc trên trang
 
 
-def _address(user: dict) -> str:
+def address(user: dict) -> str:
     """Email nhận thông báo của 1 tài khoản (ưu tiên cột email, sau đó tới username dạng email)."""
     return mailer.normalize(user.get("email")) or mailer.normalize(user.get("username"))
 
@@ -33,7 +33,7 @@ def _active(users: list[dict]) -> list[dict]:
 def unit_recipients(company: str) -> list[str]:
     """Email của lãnh đạo đơn vị `company` (rỗng nếu đơn vị chưa có tài khoản lãnh đạo)."""
     out = [
-        _address(u) for u in _active(user_repo.list_users())
+        address(u) for u in _active(user_repo.list_users())
         if u.get("role") == "leader" and company in (u.get("member_units") or [])
     ]
     return [a for a in out if a]
@@ -45,7 +45,7 @@ def hq_recipients() -> list[str]:
     for u in _active(user_repo.list_users()):
         caps = effective_caps(u.get("role", ""), u.get("permissions"))
         if has_cap(caps, _CAP):
-            out.append(_address(u))
+            out.append(address(u))
     return [a for a in out if a]
 
 

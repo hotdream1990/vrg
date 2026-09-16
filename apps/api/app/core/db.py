@@ -440,6 +440,36 @@ CREATE TABLE IF NOT EXISTS support_reminder (
 );
 CREATE INDEX IF NOT EXISTS ix_support_reminder_next ON support_reminder (enabled, next_at);
 
+-- ĐỀ NGHỊ SỬA SỐ LIỆU QUÁ KHỨ (chốt 15/09/2026): đơn vị bị cửa sổ sửa / chốt số liệu chặn thì gửi
+-- nội dung muốn sửa kèm lý do; số liệu thật CHỈ đổi khi người có quyền `edit_request` duyệt.
+-- `payload` = đúng body của API ghi gốc (đã chuẩn hoá) · `before` = ảnh chụp bản ghi LÚC GỬI để
+-- người duyệt so trước/sau · `unlocked` = các đợt chốt đã gỡ khi duyệt (đơn vị phải chốt lại).
+-- Mỗi (đơn vị, bản ghi) chỉ có MỘT đề nghị đang chờ — gửi lại là ghi đè (index UNIQUE một phần).
+CREATE TABLE IF NOT EXISTS edit_request (
+    id           bigserial PRIMARY KEY,
+    company      text NOT NULL,
+    op           text NOT NULL,          -- daily_report | daily_move | market_demand | contract_save | contract_delete
+    target_key   text NOT NULL,          -- khoá bản ghi bị sửa (chống trùng đề nghị đang chờ)
+    title        text NOT NULL DEFAULT '',
+    dates        jsonb NOT NULL DEFAULT '[]'::jsonb,   -- ngày số liệu bị ảnh hưởng
+    payload      jsonb NOT NULL,
+    before       jsonb,
+    reason       text NOT NULL DEFAULT '',
+    blocked      jsonb NOT NULL DEFAULT '[]'::jsonb,   -- câu báo chặn lúc gửi
+    status       text NOT NULL DEFAULT 'pending',      -- pending | approved | rejected | cancelled
+    requested_by text NOT NULL,
+    requested_at timestamptz NOT NULL DEFAULT now(),
+    updated_at   timestamptz NOT NULL DEFAULT now(),
+    reviewed_by  text,
+    reviewed_at  timestamptz,
+    review_note  text,
+    unlocked     jsonb
+);
+CREATE INDEX IF NOT EXISTS ix_edit_request_status ON edit_request (status, requested_at DESC);
+CREATE INDEX IF NOT EXISTS ix_edit_request_company ON edit_request (company, requested_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_edit_request_pending ON edit_request (company, target_key)
+    WHERE status = 'pending';
+
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
 -- Job chạy theo NGÀY TRONG TUẦN (rỗng/NULL = chạy hằng ngày như trước). Vd 'fri' = tối thứ Sáu
 -- cho job chốt tồn kho Tập đoàn theo tuần.

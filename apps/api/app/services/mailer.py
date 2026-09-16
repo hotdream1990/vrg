@@ -51,7 +51,8 @@ def _build(to: list[str], subject: str, body: str, sender: str) -> EmailMessage:
     msg = EmailMessage()
     msg["From"] = formataddr((_cfg(SENDER_KEY, _DEFAULT_SENDER), sender))
     msg["To"] = ", ".join(to)
-    msg["Subject"] = subject
+    # Tiêu đề thường ghép chữ người dùng nhập (số hợp đồng…): xuống dòng trong header là lỗi/tiêm header.
+    msg["Subject"] = " ".join(subject.replace("\r", " ").replace("\n", " ").split())
     msg.set_content(body)
     return msg
 

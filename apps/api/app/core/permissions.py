@@ -35,6 +35,8 @@ DATA_CAPS: dict[str, str] = {
     "assistant": "Trợ lý AI (hỏi đáp số liệu + tư vấn giá sàn)",
     "support": "Hỗ trợ & Thông báo (hộp thư với lãnh đạo đơn vị + nhắc lịch)",
     "audit": "Nhật ký hoạt động (xem vết chỉnh sửa số liệu)",
+    # 1 cấp, KHÔNG thuộc EXECUTIVE_CAPS: duyệt là thao tác GHI số liệu thay đơn vị (15/09/2026).
+    "edit_request": "Duyệt đề nghị sửa số liệu của đơn vị",
 }
 CAP_KEYS = frozenset(DATA_CAPS)
 

@@ -15,9 +15,12 @@ from datetime import date
 
 from fastapi import HTTPException
 
+from app.core.edit_window import BLOCK_HEADER
+
 #: Câu báo lỗi dùng CHUNG cho mọi endpoint — đơn vị phải biết ngay phải làm gì tiếp theo.
+#: Câu trung tính: hàng rào này chỉ chặn đơn vị, nhưng câu có thể hiện ở màn dùng chung.
 _MSG = ("Số liệu đến hết ngày {lock} đã được chốt — đơn vị không tự sửa được nữa. "
-        "Cần điều chỉnh, đề nghị báo Ban TTKD để chuyên viên sửa hộ.")
+        "Cần điều chỉnh số liệu ngày này, đơn vị gửi «Đề nghị sửa» để Ban duyệt.")
 
 #: Phần đuôi CHỈ dành cho hợp đồng/đợt giao: ở đó các ô không ảnh hưởng số liệu vẫn sửa được
 #: (chốt 29/08/2026) — nói rõ để đơn vị khỏi tưởng bản ghi đã đóng băng hoàn toàn.
@@ -65,4 +68,4 @@ def assert_not_locked(company: str, *dates: str | date | None,
         msg = _MSG.format(lock=lock.strftime("%d/%m/%Y"))
         if safe_fields:
             msg += _MSG_SAFE_TAIL.format(ok=safe_fields)
-        raise HTTPException(403, msg)
+        raise HTTPException(403, msg, headers={BLOCK_HEADER: "lock"})

@@ -149,6 +149,20 @@ def unlock(round_id: int, company: str) -> bool:
     return bool(n)
 
 
+def rounds_locked_from(company: str, from_date: str) -> list[dict[str, Any]]:
+    """Các đợt CHƯA HUỶ đơn vị đã xác nhận có ngày chốt ≥ `from_date` — đúng những xác nhận phải
+    gỡ khi Ban duyệt một đề nghị sửa số liệu ngày `from_date` (đợt cũ hơn ngày sửa giữ nguyên)."""
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(text(
+            "SELECT r.id, r.lock_date FROM unit_data_lock l "
+            "  JOIN data_lock_round r ON r.id = l.round_id "
+            " WHERE l.company = :c AND r.cancelled_at IS NULL "
+            "   AND r.lock_date >= CAST(:d AS date) ORDER BY r.lock_date, r.id"),
+            {"c": company, "d": from_date}).mappings().all()
+    return [{"round_id": int(r["id"]), "lock_date": str(r["lock_date"])} for r in rows]
+
+
 def locked_until(company: str) -> date | None:
     """Mốc khoá của một đơn vị: ngày chốt lớn nhất trong các đợt CHƯA HUỶ đã được xác nhận."""
     ensure_schema()

@@ -298,33 +298,6 @@ def get_contract(contract_id: int, scope: Scope) -> dict:
             "customer_name": names.get(c.get("customer_id") or 0)}
 
 
-def _assert_delivery_window(username: str, contract_id: int | None, new_delivered_at: str | None,
-                            company: str | None = None, old: dict | None = None) -> None:
-    """Cửa sổ sửa — chỉ áp cho LẦN GIAO, mốc là NGÀY GIAO (chốt 02/08/2026).
-
-    Lần giao là bản ghi tiêu thụ, đúng thứ cửa sổ sửa sinh ra để bảo vệ: giao xong quá N ngày thì
-    kỳ báo cáo đã chốt, sửa lùi là làm lệch số đã gửi đi.
-
-    KHÔNG áp cho hợp đồng: hợp đồng ký từ lâu vẫn phải sửa và thêm đợt giao suốt
-    vòng đời — khoá theo ngày ký là chặn đúng nghiệp vụ chính. Các mốc tương lai (thời hạn hợp đồng,
-    ngày mở đợt, ngày thanh toán) cũng không đụng tới, vì `assert_editable` chặn cả ngày tương lai.
-
-    Kiểm CẢ HAI đầu: ngày giao ĐANG lưu (không cho sửa/xoá lần giao đã khoá) và ngày giao MỚI gửi
-    lên (không cho khai lùi ra ngoài cửa sổ).
-    """
-    old = old if old is not None else (sales_contract_repo.get(contract_id) if contract_id else None)
-    days = [old.get("delivered_at") if old else None, new_delivered_at]
-    for as_of in days:
-        if as_of:
-            security.assert_edit_window(username, as_of)
-    # CHỐT SỐ LIỆU: lần giao là bản ghi TIÊU THỤ — đơn vị đã chốt đến ngày X thì mọi lần giao
-    # ≤ X phải đứng yên, nếu không con số tiêu thụ vừa xác nhận vẫn đổi được sau lưng (yêu cầu
-    # 25/08/2026: "hợp đồng có thể cập nhật nhưng tiêu thụ sẽ bị chốt lại"). Hợp đồng và các đợt
-    # giao SAU ngày chốt vẫn thêm/sửa bình thường.
-    security.assert_not_data_locked(username, company or (old or {}).get("company"), *days,
-                                    safe_fields=sales_contract_lock.EDITABLE_LABELS)
-
-
 @router.put("")
 def save_contract(body: ContractIn, scope: EditScope) -> dict:
     """Thêm mới / cập nhật hợp đồng hoặc ĐỢT GIAO (đợt có ngày giao mới tính là đã giao)."""
@@ -337,7 +310,8 @@ def save_contract(body: ContractIn, scope: EditScope) -> dict:
     # cho những chuyến đã chốt; hai hàng rào đó sinh ra để giữ CON SỐ. Quyền theo đơn vị
     # (`_assert_company` ở trên) KHÔNG bao giờ được bỏ qua.
     if not sales_contract_lock.is_safe_edit(old, payload):
-        _assert_delivery_window(username, body.id, body.delivered_at, body.company, old=old)
+        sales_contract_lock.assert_delivery_fences(username, body.id, body.delivered_at,
+                                                   body.company, old=old)
     try:
         return {"contract": sales_contract_repo.save(payload, body.company, username)}
     except ValueError as exc:
@@ -389,7 +363,7 @@ def set_delivery_type(contract_id: int, body: DeliveryTypeIn, scope: EditScope) 
 def delete_contract(contract_id: int, scope: EditScope) -> dict:
     """Xoá 1 hợp đồng / đợt giao (hợp đồng còn đợt giao thì phải xoá các đợt trước)."""
     username, companies = scope
-    _assert_delivery_window(username, contract_id, None)
+    sales_contract_lock.assert_delivery_fences(username, contract_id, None)
     try:
         ok = sales_contract_repo.delete(contract_id, companies)
     except ValueError as exc:

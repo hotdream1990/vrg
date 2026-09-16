@@ -28,10 +28,12 @@ from app.routers import (
     health,
     inventory,
     data_lock,
+    edit_requests,
     market_demand,
     market_movement,
     market_quote,
     master_contracts,
+    member_edit_requests,
     member_region,
     member_self,
     member_unit,
@@ -108,6 +110,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Web đọc header này để biết 403 là do hàng rào thời gian → mời gửi «Đề nghị sửa».
+    expose_headers=["X-Edit-Blocked"],
 )
 
 
@@ -174,6 +178,9 @@ app.include_router(member_region.router, dependencies=_hq_only)
 app.include_router(member_self.router, dependencies=_protected)  # đơn vị thành viên tự nhập giá của mình
 app.include_router(market_demand.router, dependencies=_protected)  # nhu cầu thị trường (editor có quyền: xem/sửa mọi đơn vị)
 app.include_router(data_lock.router, dependencies=_protected)  # chốt số liệu đơn vị (đơn vị xác nhận · Ban theo dõi)
+# Đề nghị sửa số liệu quá khứ: đơn vị gửi (/api/member/edit-requests) · Ban duyệt (quyền `edit_request`).
+app.include_router(member_edit_requests.router, dependencies=_protected)
+app.include_router(edit_requests.router)  # tự gác quyền `edit_request` trong router
 app.include_router(unit_daily.router, dependencies=[Depends(require_cap("unit_daily"))])  # báo cáo tiêu thụ–tồn kho theo ngày (chuyên viên xem/sửa mọi đơn vị)
 app.include_router(unit_analytics.router, dependencies=[Depends(require_cap("unit_daily"))])  # thống kê/lọc số liệu đơn vị đã nhập (chỉ đọc)
 # Hợp đồng & khách hàng: DÙNG CHUNG cho đơn vị thành viên lẫn chuyên viên — router tự ép phạm vi

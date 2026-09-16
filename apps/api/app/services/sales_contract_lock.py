@@ -115,3 +115,30 @@ def is_safe_edit(old: dict[str, Any] | None, new: dict[str, Any]) -> bool:
     if old is None:
         return False
     return stat_snapshot(old) == stat_snapshot(new)
+
+
+def assert_delivery_fences(username: str, contract_id: int | None, new_delivered_at: str | None,
+                           company: str | None = None, old: dict | None = None) -> None:
+    """Hai hàng rào thời gian của hợp đồng/đợt giao — mốc là NGÀY GIAO (chốt 02/08/2026).
+
+    Cửa sổ sửa chỉ áp cho LẦN GIAO: lần giao là bản ghi tiêu thụ, giao xong quá N ngày thì kỳ báo
+    cáo đã chốt, sửa lùi là làm lệch số đã gửi đi. KHÔNG áp cho hợp đồng: hợp đồng ký từ lâu vẫn
+    phải sửa và thêm đợt giao suốt vòng đời. Các mốc tương lai (thời hạn, ngày thanh toán) cũng
+    không đụng tới, vì `assert_editable` chặn cả ngày tương lai.
+
+    Kiểm CẢ HAI đầu: ngày giao ĐANG lưu (không cho sửa/xoá lần giao đã khoá) và ngày giao MỚI gửi
+    lên (không cho khai lùi ra ngoài cửa sổ). Dùng chung cho router hợp đồng và luồng «Đề nghị sửa»
+    (`edit_request_ops_contract`) — một luật, một chỗ.
+    """
+    from app.core import security
+    from app.services import sales_contract_repo
+
+    old = old if old is not None else (sales_contract_repo.get(contract_id) if contract_id else None)
+    days = [old.get("delivered_at") if old else None, new_delivered_at]
+    for as_of in days:
+        if as_of:
+            security.assert_edit_window(username, as_of)
+    # CHỐT SỐ LIỆU: lần giao ≤ ngày chốt phải đứng yên (yêu cầu 25/08/2026: "hợp đồng có thể cập
+    # nhật nhưng tiêu thụ sẽ bị chốt lại"). Hợp đồng và các đợt giao SAU ngày chốt vẫn thêm/sửa.
+    security.assert_not_data_locked(username, company or (old or {}).get("company"), *days,
+                                    safe_fields=EDITABLE_LABELS)

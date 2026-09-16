@@ -33,20 +33,12 @@ from app.schemas.unit_daily import (
 )
 from app.services import (
     contract_files, market_demand_repo, member_checklist, member_unit_merge, price_repo,
-    unit_daily_excel_io, unit_daily_repo, unit_stock_contract_repo,
+    unit_daily_excel_io, unit_daily_repo, unit_purchase_price, unit_stock_contract_repo,
 )
 from app.services.unit_report_query import split_csv
 
 router = APIRouter(prefix="/api/member", tags=["member-self"])
 _excel = [Depends(require_excel_import)]  # nhập Excel đang tạm tắt (app/core/feature_flags.py)
-
-
-def _price_unit(price_type: str, basis: str | None = None) -> str:
-    """Nhãn đơn vị lưu kèm giá: mủ nước = độ TSC, mủ chén = độ DRC (chốt 17/08/2026).
-
-    `basis` client cũ gửi lên bị BỎ QUA — cơ sở tính độ không còn là lựa chọn của người nhập.
-    """
-    return PURCHASE_PRICE_UNIT[price_type]
 
 
 def _plans_of(units: list[str], year: int) -> dict[str, float]:
@@ -134,12 +126,9 @@ def upsert_my_price(body: MemberPriceEdit,
     # Đơn giá thu mua là MỘT PHẦN của số liệu thu mua đã chốt → khoá theo cùng mốc.
     data_lock.assert_not_locked(body.company, body.as_of)
     # Giá đơn vị TỰ KHAI nằm ở lớp riêng — không đè lên giá chuyên viên đã chốt (xem market_meta).
-    price_repo.upsert_record({
-        "as_of": body.as_of, "source": PURCHASE_SOURCE_UNIT, "grade": body.company, "contract": "",
-        "price_type": body.price_type, "price": float(body.price),
-        "currency": "VND", "unit": _price_unit(body.price_type, body.basis),
-    })
-    return {"ok": True, "cleared": body.price == 0}
+    # `body.basis` client cũ gửi lên bị BỎ QUA — cơ sở tính độ không còn là lựa chọn (17/08/2026).
+    cleared = unit_purchase_price.save(body.company, body.as_of, body.price_type, body.price)
+    return {"ok": True, "cleared": cleared}
 
 
 @router.delete("/prices")

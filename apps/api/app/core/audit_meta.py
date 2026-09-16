@@ -29,6 +29,7 @@ ENTITIES: dict[str, str] = {
     "user": "Tài khoản người dùng",
     "config": "Cấu hình hệ thống",
     "schedule": "Lịch chạy",
+    "edit_request": "Đề nghị sửa số liệu",
 }
 
 #: Loại thao tác → nhãn hiển thị.
@@ -40,4 +41,8 @@ ACTIONS: dict[str, str] = {
     # Admin đánh dấu "không tổ chức thu mua" cho hàng loạt ô trống (màn Theo dõi nộp báo cáo):
     # 1 dòng nhật ký tóm tắt cả lượt, chi tiết số ô theo đơn vị nằm trong `data_after`.
     "bulk_no_purchase": "Đánh dấu hàng loạt",
+    # Đề nghị sửa số liệu quá khứ: Ban duyệt / từ chối, đơn vị tự huỷ đề nghị đang chờ.
+    "approve": "Duyệt",
+    "reject": "Từ chối",
+    "cancel": "Huỷ",
 }
