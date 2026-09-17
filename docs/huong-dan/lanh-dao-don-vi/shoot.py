@@ -118,23 +118,24 @@ LIST_ONLY = """(() => {
   return window.__annotate([alert, filter, table]);
 })()"""
 
-#: Màn Nhu cầu thị trường: dòng chỉ xem · thanh lọc · dải tổng hợp theo tình trạng · ô tình trạng
-#: của phiếu đã ký (kèm số HĐ + ngày ký). Lãnh đạo không có nút Thêm và cột Thao tác.
+#: Màn Nhu cầu thị trường: dòng chỉ xem · thanh lọc · ô Giao hàng + ô Kết quả của phiếu đã ký.
+#: Lãnh đạo không có nút Thêm và cột Thao tác.
 DEMAND = """(() => {
   const alert = document.querySelector('.ant-alert');
   const cards = [...document.querySelectorAll('.main .card')];
   const filter = cards.find(c => c.textContent.includes('Khoảng thời gian'));
   const box = cards.find(c => c.querySelector('table'));
-  const summary = box.querySelector('.ant-tag').parentElement;
-  const signed = [...box.querySelectorAll('tbody td')]
-      .find(td => td.textContent.trim().startsWith('Đã ký hợp đồng'));
+  // Cột Kết quả đứng ngay sau cột Giao hàng → lấy hai ô liền nhau của cùng một dòng.
+  const result = [...box.querySelectorAll('tbody td')]
+      .find(td => td.textContent.trim().startsWith('Đã ký HĐMB'));
+  const delivery = result && result.previousElementSibling;
   // Khung thanh lọc = từ chữ "Khoảng thời gian" tới hết ô Tìm (thẻ lọc rộng hết trang, khoanh cả thẻ
   // là dính vào khung dòng chỉ xem ngay phía trên).
   const a = filter.firstElementChild.getBoundingClientRect();
   const z = filter.querySelector('.ant-input-affix-wrapper').getBoundingClientRect();
   const bar = { getBoundingClientRect: () => ({ x: a.x, y: Math.min(a.y, z.y), width: z.right - a.x,
                                                 height: Math.max(a.bottom, z.bottom) - Math.min(a.y, z.y) }) };
-  return window.__annotate([alert, bar, summary, signed]);
+  return window.__annotate([alert, bar, delivery, result]);
 })()"""
 
 
@@ -230,7 +231,7 @@ def main() -> int:
         shot(f"{WEB}/bao-cao-ton-kho", READONLY, "09-ton-kho.png", wait_for=".ant-table",
              wide=True)
         shot(f"{WEB}/nhu-cau-thi-truong", DEMAND, "10-nhu-cau-thi-truong.png",
-             wait_for=".ant-table-tbody .ant-tag", wide=True)
+             wait_for=".ant-table-tbody tr.ant-table-row", wide=True)
         shot(f"{WEB}/ke-hoach-nam", PLAN, "11-ke-hoach-nam.png", wait_for="table",
              wide=True)
         shot(f"{WEB}/hop-dong/khach-hang", LIST_ONLY, "12-khach-hang.png", wait_for="table",

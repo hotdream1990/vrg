@@ -254,7 +254,7 @@
     {
       "title": "12. Nhu cầu thị trường",
       "location": "Menu ▸ Số liệu đơn vị (chỉ xem) ▸ Nhu cầu thị trường",
-      "intro": "Các lần khách hỏi mua mà đơn vị ghi nhận. Mỗi dòng là **một phiếu** cho **một chủng loại**, kèm **tình trạng**: đang đàm phán, đã ký hợp đồng hay không thành. Đây là phần thông tin thị trường đơn vị báo về Tập đoàn.",
+      "intro": "Các lần khách hỏi mua mà đơn vị ghi nhận. Mỗi dòng là **một phiếu** cho **một chủng loại**, kèm **kết quả** khi đã có. Đây là phần thông tin thị trường đơn vị báo về Tập đoàn.",
       "image": {
         "path": "img/10-nhu-cau-thi-truong.png",
         "w": 3800,
@@ -263,15 +263,15 @@
       "caption": "Hình 11. Phiếu nhu cầu thị trường của đơn vị",
       "steps": [
         "Dòng thông báo chế độ chỉ xem.",
-        "**Thanh lọc** — **Khoảng thời gian** (30 / 60 / 90 / 180 / 365 ngày gần nhất), **Tình trạng**, **Chủng loại**, và ô **Tìm** theo tên khách, số hợp đồng, ghi chú (gõ xong bấm Enter).",
-        "**Dải tổng hợp** — số phiếu và tổng số lượng của từng tình trạng, tính theo bộ lọc đang chọn. Nhìn đây là biết đơn vị đang đàm phán bao nhiêu, đã ký được bao nhiêu.",
-        "**Cột Tình trạng** — *Đang đàm phán* (xanh dương), *Đã ký hợp đồng* (xanh lá, kèm số hợp đồng và ngày ký), *Không thành* (xám)."
+        "**Thanh lọc** — **Khoảng thời gian** (30 / 60 / 90 / 180 / 365 ngày gần nhất), **Chủng loại**, và ô **Tìm** theo tên khách, kết quả, ghi chú (gõ xong bấm Enter).",
+        "**Cột Giao hàng** — dòng trên là nơi giao, dòng dưới (chữ xám) là thời gian giao khách yêu cầu.",
+        "**Cột Kết quả** — kết quả đàm phán do đơn vị ghi, ví dụ “Đã ký HĐMB số … ngày …” hoặc “Không thành — khách chê giá cao”. Ô có dấu “—” là chưa có kết quả."
       ],
       "notes": [
-        "Mỗi dòng ghi: ngày nhận, khách hàng, chủng loại, số lượng (tấn hoặc container), đơn giá (triệu đồng/tấn hoặc USD/tấn; *tạm tính* khi giá chưa chốt), nơi giao, thời gian giao và ghi chú. Rê chuột vào ô Ghi chú để đọc hết.",
+        "Mỗi dòng ghi: ngày nhận, khách hàng, chủng loại, số lượng (tấn hoặc container), đơn giá (triệu đồng/tấn hoặc USD/tấn), nơi giao, thời gian giao, kết quả và ghi chú. Rê chuột vào ô Ghi chú để đọc hết.",
         "Dòng mới nhất ở trên. Khách hỏi nhiều chủng loại thì có nhiều dòng cùng tên khách.",
         "Phiếu có nhãn **Chuyển từ bản cũ** là nội dung đơn vị viết dạng chữ trước 17/09/2026, nay đã chuyển thành phiếu. Nguyên văn cũ nằm trong Ghi chú.",
-        "Phiếu nằm ở *Đang đàm phán* quá lâu thì nhắc bộ phận nhập liệu cập nhật tình trạng."
+        "Phiếu đã lâu mà cột Kết quả vẫn trống thì nhắc bộ phận nhập liệu cập nhật."
       ]
     },
     {

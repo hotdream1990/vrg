@@ -46,7 +46,7 @@
         "**Từ 22/08/2026 — tỷ giá chỉ bắt buộc khi đã điền Ngày giao.** Lúc ký hợp đồng chưa ai biết tỷ giá ngày giao hàng, nên ô này để trống vẫn lưu được; ô ghi *“khi giao”* thay vì *“bắt buộc”*. Khi chưa có tỷ giá thì **doanh thu tạm để trống**, không tính bằng 0.",
         "**Từ 24/08/2026 — có thêm mục Hợp đồng mẹ (HĐNT/HĐDH)** trong nhóm Quản lý hợp đồng (mục 8). Kèm theo đó, **HĐ dài hạn nay là *phụ lục* của một hợp đồng mẹ nên bắt buộc chọn hồ sơ mới lưu được**; **HĐ chuyến không đổi gì** — ô hợp đồng mẹ không hiện. Hợp đồng dài hạn đã nhập trước đây vẫn còn nguyên và vẫn lên báo cáo bình thường, chỉ khi **sửa** mới phải chọn hồ sơ — cứ dọn dần, không phải làm gấp.",
         "**Từ 24/08/2026 — Kế hoạch năm có thêm ô Kế hoạch doanh thu (tỷ đồng)** — xem mục 16.",
-        "**Từ 17/09/2026 — Nhu cầu thị trường nhập theo phiếu** thay cho ô chữ theo ngày: mỗi lần khách hỏi mua là một phiếu có khách hàng, chủng loại, số lượng, đơn giá và tình trạng — xem mục 15. Nội dung đã nhập trước đó được chuyển sang phiếu, không phải nhập lại."
+        "**Từ 17/09/2026 — Nhu cầu thị trường nhập theo phiếu** thay cho ô chữ theo ngày: mỗi lần khách hỏi mua là một phiếu có khách hàng, chủng loại, số lượng, đơn giá, thời gian giao và kết quả — xem mục 15. Nội dung đã nhập trước đó được chuyển sang phiếu, không phải nhập lại."
       ]
     },
     {
@@ -380,7 +380,7 @@
     {
       "title": "15. Nhu cầu thị trường",
       "location": "Nhập liệu số liệu → Nhu cầu thị trường",
-      "intro": "Mỗi lần khách hỏi mua, đơn vị ghi thành **một phiếu**. Mỗi phiếu là **một chủng loại** và có **tình trạng**. Khi có kết quả thì mở phiếu cập nhật tình trạng — không phải nhập lại mỗi ngày.",
+      "intro": "Mỗi lần khách hỏi mua, đơn vị ghi thành **một phiếu**. Mỗi phiếu là **một chủng loại**. Khi có kết quả thì mở lại phiếu, ghi vào ô **Kết quả** — không phải nhập lại mỗi ngày.",
       "image": [
         {
           "path": "img/12-nhu-cau-thi-truong.png",
@@ -401,7 +401,7 @@
       "caption": [
         "Hình 12. Danh sách phiếu nhu cầu thị trường",
         "Hình 12b. Phiếu thêm nhu cầu",
-        "Hình 12c. Phiếu đã quá hạn sửa — chỉ cập nhật được tình trạng"
+        "Hình 12c. Phiếu đã quá hạn sửa — chỉ cập nhật được kết quả và ghi chú"
       ],
       "pre": "Bước 1–9: thêm một phiếu. Bước 10–14: cập nhật kết quả, nhân bản, phiếu cũ và tìm lại phiếu.",
       "steps": [
@@ -410,23 +410,22 @@
         "Gõ tên **Khách hàng** (2). Ô tự gợi ý các khách đơn vị đã ghi trước đó.",
         "Chọn **Chủng loại** (3). Mỗi phiếu chỉ một chủng loại.",
         "**Số lượng** (4) — gõ số rồi chọn **tấn** hay **container**.",
-        "**Đơn giá** (5) — gõ số rồi chọn **triệu đồng/tấn** hay **USD/tấn**. Giá chưa chốt thì tích **Giá tạm tính**. Khách chưa nói số lượng hay giá thì để trống hai ô này.",
-        "**Giao tại** (6) và **Giao từ ngày – đến ngày** (7) — nơi giao và thời gian giao khách yêu cầu. Biết đến đâu ghi đến đó.",
-        "**Tình trạng** (8) — phiếu mới thường là **Đang đàm phán**. Chọn **Đã ký hợp đồng** thì hiện thêm **Số hợp đồng** và **Ngày ký hợp đồng** (9) — hai ô này bắt buộc.",
-        "Ghi thêm **Ghi chú** nếu cần, rồi bấm **Lưu** (10). Phiếu hiện ngay trong bảng, dòng mới nhất ở trên.",
-        "**Khi có kết quả:** bấm **bút chì** ở cuối dòng (Hình 12 · ⑤). Đổi **Tình trạng** sang *Đã ký hợp đồng* (điền số hợp đồng, ngày ký) hoặc *Không thành*, rồi bấm **Lưu**. Cột **Tình trạng** hiện thêm số hợp đồng và ngày ký (Hình 12 · ④).",
-        "**Khách hỏi 2 chủng loại trở lên:** lưu xong dòng thứ nhất, bấm **Nhân bản** (biểu tượng hai tờ giấy, cạnh bút chì) ở dòng đó. Phiếu mới mở ra với cùng khách hàng, cùng nơi giao. Đổi **Chủng loại**, số lượng, đơn giá rồi bấm **Lưu**.",
-        "**Phiếu đã quá hạn sửa** (Hình 12c): bút chì vẫn mở được phiếu. Dòng chữ đỏ (1) báo phiếu đã quá hạn; các ô nội dung chuyển **xám** (2). Chỉ cập nhật được **Tình trạng** (3), **Số hợp đồng**, **Ngày ký** và **Ghi chú** (4), rồi bấm **Lưu** (5).",
-        "Muốn sửa các ô xám của phiếu cũ, bấm **Đề nghị sửa** ở cuối dòng (Hình 12 · ⑥) để gửi Ban duyệt — cách làm xem sổ tay *Đề nghị sửa số liệu*.",
-        "**Tìm lại phiếu:** dùng thanh lọc (Hình 12 · ②) — khoảng thời gian 30 đến 365 ngày, tình trạng, chủng loại, hoặc gõ tên khách, số hợp đồng vào ô tìm rồi bấm Enter. **Dải tổng hợp** (Hình 12 · ③) đếm số phiếu và tổng số lượng của từng tình trạng theo đúng bộ lọc đang chọn."
+        "**Đơn giá** (5) — gõ số rồi chọn **triệu đồng/tấn** hay **USD/tấn**. Khách chưa nói số lượng hay giá thì để trống hai ô này.",
+        "**Giao tại** (6) và **Thời gian giao** (7) — gõ đúng như khách yêu cầu, ví dụ “Đến 30/11/2026”, “T9+10/2026”, “Tháng 9/2026”. Biết đến đâu ghi đến đó.",
+        "**Kết quả** (8) — phiếu mới thường để trống, nghĩa là chưa có kết quả. Có kết quả thì ghi ngắn gọn, ví dụ “Đã ký HĐMB số 1752 ngày 17/09/2026”.",
+        "Ghi thêm **Ghi chú** nếu cần, rồi bấm **Lưu** (9). Phiếu hiện ngay trong bảng, dòng mới nhất ở trên. Cột **Giao hàng** (Hình 12 · ③) hiện nơi giao ở dòng trên, thời gian giao ở dòng dưới.",
+        "**Khi có kết quả:** bấm **bút chì** ở cuối dòng (Hình 12 · ⑤). Ghi vào ô **Kết quả**, rồi bấm **Lưu**. Nội dung hiện ở cột **Kết quả** (Hình 12 · ④).",
+        "**Khách hỏi 2 chủng loại trở lên:** lưu xong dòng thứ nhất, bấm **Nhân bản** (biểu tượng hai tờ giấy, cạnh bút chì) ở dòng đó. Phiếu mới mở ra với cùng khách hàng, nơi giao, thời gian giao và ghi chú; ô **Kết quả** để trống. Đổi **Chủng loại**, số lượng, đơn giá rồi bấm **Lưu**.",
+        "**Phiếu đã quá hạn sửa** (Hình 12c): bút chì vẫn mở được phiếu. Dòng chữ đỏ (1) báo phiếu đã quá hạn. Các ô nội dung chuyển **xám**, kể cả **Thời gian giao** (2). Chỉ sửa được **Kết quả** (3) và **Ghi chú** (4), rồi bấm **Lưu** (5).",
+        "Muốn sửa các ô xám của phiếu cũ, bấm **Đề nghị sửa** ở cuối dòng (Hình 12 · ⑥) để gửi Ban duyệt — cách làm xem sổ tay “Đề nghị sửa số liệu”.",
+        "**Tìm lại phiếu:** dùng thanh lọc (Hình 12 · ②) — chọn khoảng thời gian (30 đến 365 ngày gần nhất), chủng loại, hoặc gõ tên khách, chữ trong kết quả hay ghi chú vào ô tìm rồi bấm Enter."
       ],
       "notes": [
         "**Mỗi dòng một chủng loại.** Khách hỏi SVR 3L và LATEX thì ghi **2 dòng** — dùng **Nhân bản** cho nhanh.",
-        "Đơn giá bằng **VNĐ** gõ theo **triệu đồng/tấn**: gõ 40 là 40 triệu, không gõ đủ số đồng. Đơn giá bằng **USD** gõ theo USD/tấn. Gõ quá lớn hệ thống sẽ báo và không lưu.",
-        "Cập nhật **Tình trạng, Số hợp đồng, Ngày ký, Ghi chú** được **bất cứ lúc nào**, kể cả phiếu đã cũ — kết quả đàm phán thường đến sau vài tuần.",
-        "Đổi từ *Đã ký hợp đồng* sang tình trạng khác thì số hợp đồng và ngày ký tự bỏ.",
-        "Đàm phán không thành thì đổi tình trạng sang **Không thành**, đừng xoá phiếu. **Thùng rác** chỉ dùng khi nhập nhầm. Phiếu đã quá hạn sửa thì bấm xoá sẽ thành **đề nghị xoá**, Ban duyệt xong mới xoá thật.",
-        "Phiếu có nhãn **Chuyển từ bản cũ** ở cột Ghi chú là nội dung đơn vị viết dạng chữ trước 17/09/2026. Ghi chú giữ nguyên văn cũ. Rà lại các phiếu này và cập nhật tình trạng cho đúng.",
+        "Đơn giá bằng **VNĐ** gõ theo **triệu đồng/tấn**: gõ 40 là 40 triệu, không gõ đủ số đồng. Dòng chữ đỏ dưới ô Đơn giá nhắc điều này. Đơn giá bằng **USD** gõ theo USD/tấn. Gõ quá lớn hệ thống sẽ báo và không lưu.",
+        "**Kết quả** và **Ghi chú** cập nhật được **bất cứ lúc nào**, kể cả phiếu đã cũ — kết quả đàm phán thường đến sau vài tuần.",
+        "Đàm phán không thành thì ghi “Không thành” vào ô **Kết quả** (kèm lý do nếu biết), đừng xoá phiếu. **Thùng rác** chỉ dùng khi nhập nhầm. Phiếu đã quá hạn sửa thì bấm xoá sẽ thành **đề nghị xoá**, Ban duyệt xong mới xoá thật.",
+        "Phiếu có nhãn **Chuyển từ bản cũ** ở cột Ghi chú là nội dung đơn vị viết dạng chữ trước 17/09/2026. Ghi chú giữ nguyên văn cũ, rê chuột vào ô để đọc hết. Rà lại các phiếu này và ghi **Kết quả** cho đúng.",
         "Ghi đủ **con số cụ thể** (chủng loại, số lượng, mức giá) — Ban TTKD dùng thông tin này để đối chiếu với diễn biến giá sàn."
       ]
     },
@@ -507,8 +506,7 @@
         "**Không lưu được HĐ dài hạn, báo phải chọn hợp đồng mẹ** → HĐ dài hạn là phụ lục của một hồ sơ. Lập hồ sơ ở mục 8 rồi quay lại chọn; hoặc đổi **Loại hợp đồng** sang *HĐ chuyến* nếu bán đứt.",
         "**Không thấy ô Hợp đồng mẹ** → Đang để **Loại hợp đồng = HĐ chuyến**. HĐ chuyến không thuộc hồ sơ nào nên ô đó ẩn đi; đổi sang *HĐ dài hạn* thì ô hiện ra.",
         "**Không lưu được phiếu nhu cầu, báo đơn giá tính bằng TRIỆU đồng/tấn** → Đang gõ đủ số đồng. Gõ lại theo triệu đồng/tấn (40 = 40 triệu), hoặc đổi loại tiền sang USD/tấn nếu khách chào bằng USD.",
-        "**Không lưu được phiếu Đã ký hợp đồng** → Chưa điền **Số hợp đồng** hoặc **Ngày ký hợp đồng**. Hai ô này bắt buộc khi chọn tình trạng này.",
-        "**Phiếu nhu cầu cũ có ô xám, không sửa được số lượng, đơn giá** → Ngày nhận đã quá hạn sửa. Vẫn cập nhật được tình trạng, số hợp đồng, ngày ký, ghi chú. Muốn sửa ô khác thì bấm **Đề nghị sửa** ở cuối dòng."
+        "**Phiếu nhu cầu cũ có ô xám, không sửa được số lượng, đơn giá** → Ngày nhận đã quá hạn sửa. Vẫn cập nhật được kết quả và ghi chú. Muốn sửa ô khác thì bấm **Đề nghị sửa** ở cuối dòng."
       ],
       "notes_as_table": true
     }

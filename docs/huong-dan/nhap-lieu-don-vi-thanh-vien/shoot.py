@@ -110,37 +110,39 @@ def demand(company: str, as_of: str, customer: str, grade: str, qty: float | Non
     """Thân PUT một phiếu nhu cầu thị trường (id rỗng = thêm mới)."""
     return {"id": None, "company": company, "as_of": as_of, "customer": customer, "grade": grade,
             "qty": qty, "qty_unit": qty_unit, "price": price, "currency": currency,
-            "price_provisional": kw.get("provisional", False),
-            "delivery_place": kw.get("place", ""), "delivery_from": kw.get("d_from"),
-            "delivery_to": kw.get("d_to"), "status": kw.get("status", "open"),
-            "contract_no": kw.get("contract_no", ""), "contract_date": kw.get("contract_date"),
-            "note": kw.get("note", "")}
+            "delivery_place": kw.get("place", ""), "delivery_time": kw.get("time", ""),
+            "result": kw.get("result", ""), "note": kw.get("note", "")}
+
+
+def dmy(n: int = 0) -> str:
+    """Ngày cách hôm nay `n` ngày, dạng người dùng gõ (dd/mm/yyyy)."""
+    return (TODAY - timedelta(days=n)).strftime("%d/%m/%Y")
 
 
 def seed_demand(tok: str, admin: str) -> None:
-    """Phiếu nhu cầu thị trường mẫu: đủ 3 tình trạng, 1 phiếu giá USD, 1 khách hỏi 2 chủng loại
-    (2 dòng) và 1 phiếu ĐÃ QUÁ HẠN SỬA để bảng có nút "Đề nghị sửa". Phiếu cũ phải ghi bằng admin
-    (miễn cửa sổ nhập liệu) — tài khoản đơn vị ghi ngày cũ là bị chặn."""
+    """Phiếu nhu cầu thị trường mẫu: có phiếu đã ghi kết quả (ký được / không thành) lẫn phiếu chưa
+    có kết quả, 1 phiếu giá USD, 1 khách hỏi 2 chủng loại (2 dòng) và 1 phiếu ĐÃ QUÁ HẠN SỬA để bảng
+    có nút "Đề nghị sửa". Phiếu cũ phải ghi bằng admin (miễn cửa sổ nhập liệu) — tài khoản đơn vị
+    ghi ngày cũ là bị chặn."""
     rows = [
         demand(UNIT, D(0), "Shanghai Rubber Trading Co.", "SVR 10 / CSR 10", 500,
-               price=1650, currency="USD", provisional=True, place="Cảng Cát Lái",
-               d_from=D(-20), d_to=D(-50),
+               price=1650, currency="USD", place="Cảng Cát Lái", time="Tháng 10/2026",
                note="Khách chào theo giá SICOM tuần tới, chờ phản hồi."),
         demand(UNIT, D(1), "Công ty TNHH Cao su Sài Gòn", "SVR 3L", 120, price=43.5,
-               place="Tại kho", d_from=D(-5), d_to=D(-35), status="signed",
-               contract_no="HĐ-115/2026", contract_date=D(0)),
+               place="Tại kho", time=f"Đến {dmy(-40)}",
+               result=f"Đã ký HĐMB số HĐ-115/2026 ngày {dmy(0)}"),
         demand(UNIT, D(2), "Công ty TNHH Thương mại Phú Hưng", "LATEX", 3, "container", 38,
-               place="Tại kho", d_to=D(-30), note="Khách hỏi cùng lúc LATEX và SVR 3L."),
+               place="Tại kho", time="T10+11/2026", note="Khách hỏi cùng lúc LATEX và SVR 3L."),
         demand(UNIT, D(2), "Công ty TNHH Thương mại Phú Hưng", "SVR 3L", 60, price=43,
-               place="Tại kho", d_to=D(-30), note="Khách hỏi cùng lúc LATEX và SVR 3L."),
+               place="Tại kho", time="T10+11/2026", note="Khách hỏi cùng lúc LATEX và SVR 3L."),
         demand(UNIT, D(4), "Công ty TNHH Cao su Minh Phát", "RSS 3", 80, price=45,
-               status="failed", note="Khách chê giá cao, chuyển mua nơi khác."),
+               result="Không thành — khách chê giá cao, chuyển mua nơi khác."),
     ]
     for body in rows:
         call("PUT", "/api/member/market-demand/items", tok, body)
     call("PUT", "/api/market-demand/items", admin, demand(
         UNIT, D(25), "Công ty TNHH Cao su Sài Gòn", "SVR 10 / CSR 10", 200, price=41.2,
-        place="Tại kho", d_from=D(10), d_to=D(-20), note="Khách giữ giá, hẹn trả lời cuối tháng."))
+        place="Tại kho", time="Tháng 9/2026", note="Khách giữ giá, hẹn trả lời cuối tháng."))
 
 
 def seed_customers(tok: str) -> int:
@@ -362,17 +364,18 @@ COMPLETE_MODAL = """(() => {
 })()"""
 
 
-#: Màn Nhu cầu thị trường: nút thêm · thanh lọc · dải tổng hợp · ô tình trạng có số HĐ · nhóm nút
-#: của một dòng còn hạn sửa · nút "Đề nghị sửa" của dòng quá hạn.
+#: Màn Nhu cầu thị trường: nút thêm · thanh lọc · ô Giao hàng + ô Kết quả của phiếu đã ký · nhóm
+#: nút của một dòng còn hạn sửa · nút "Đề nghị sửa" của dòng quá hạn.
 DEMAND_LIST = """(() => {
   const cards = [...document.querySelectorAll('.main .card')];
   const filter = cards.find(c => c.textContent.includes('Khoảng thời gian'));
   const add = [...filter.querySelectorAll('button')].find(b => b.textContent.includes('Thêm nhu cầu'));
   const box = cards.find(c => c.querySelector('table'));
-  const summary = box.querySelector('.ant-tag').parentElement;
   const rows = [...box.querySelectorAll('tbody tr:not(.ant-table-measure-row)')];
-  const signed = [...box.querySelectorAll('tbody td')]
-      .find(td => td.textContent.trim().startsWith('Đã ký hợp đồng'));
+  // Cột Kết quả đứng ngay sau cột Giao hàng → lấy hai ô liền nhau của cùng một dòng.
+  const result = [...box.querySelectorAll('tbody td')]
+      .find(td => td.textContent.trim().startsWith('Đã ký HĐMB'));
+  const delivery = result && result.previousElementSibling;
   const openRow = rows.find(r => !r.textContent.includes('Đề nghị sửa'));
   const acts = openRow && openRow.querySelector('button').parentElement;
   const req = [...box.querySelectorAll('tbody button')].find(b => b.textContent.trim() === 'Đề nghị sửa');
@@ -381,7 +384,7 @@ DEMAND_LIST = """(() => {
   const z = filter.querySelector('.ant-input-affix-wrapper').getBoundingClientRect();
   const bar = { getBoundingClientRect: () => ({ x: a.x, y: Math.min(a.y, z.y), width: z.right - a.x,
                                                 height: Math.max(a.bottom, z.bottom) - Math.min(a.y, z.y) }) };
-  return window.__annotate([add, bar, summary, signed, acts, req]);
+  return window.__annotate([add, bar, delivery, result, acts, req]);
 })()"""
 
 #: Ô trong phiếu nhu cầu = `.ant-form-item` có nhãn bắt đầu bằng chữ cần tìm.
@@ -408,18 +411,9 @@ def _demand_item(pg, label: str):
         has=pg.locator(".ant-form-item-label", has_text=label)).first
 
 
-def _type_date(pg, locator, text: str) -> None:
-    """Ô ngày chỉ nhận chữ GÕ PHÍM thật (không nhận `fill`), rời ô mới chốt giá trị."""
-    locator.click()
-    locator.press_sequentially(text, delay=20)
-    pg.locator(".ant-modal-title").first.click()
-    pg.wait_for_timeout(250)
-
-
 def fill_demand_form(pg) -> None:
-    """Mở phiếu THÊM và điền mẫu một phiếu đã ký hợp đồng (để hiện đủ ô Số hợp đồng + Ngày ký)."""
+    """Mở phiếu THÊM và điền mẫu một phiếu mới (chưa có kết quả → ô Kết quả để trống, hiện gợi ý)."""
     open_modal(pg, "Thêm nhu cầu")
-    dmy = lambda n: (TODAY - timedelta(days=n)).strftime("%d/%m/%Y")  # noqa: E731
     _demand_item(pg, "Khách hàng").locator("input").fill("Công ty TNHH Cao su Minh Phát")
     pg.locator(".ant-modal-title").first.click()
     _demand_item(pg, "Chủng loại").locator(".ant-select").click()
@@ -428,26 +422,24 @@ def fill_demand_form(pg) -> None:
     _demand_item(pg, "Đơn giá").locator("input").first.fill("42,5")
     _demand_item(pg, "Giao tại").locator("input").fill("Tại kho")
     pg.locator(".ant-modal-title").first.click()
-    dates = _demand_item(pg, "Giao từ ngày").locator("input")
-    _type_date(pg, dates.nth(0), dmy(-14))
-    _type_date(pg, dates.nth(1), dmy(-44))
-    pg.locator(".ant-modal label.ant-radio-button-wrapper", has_text="Đã ký hợp đồng").click()
-    pg.wait_for_timeout(300)
-    _demand_item(pg, "Số hợp đồng").locator("input").fill("HĐ-118/2026")
-    _type_date(pg, _demand_item(pg, "Ngày ký hợp đồng").locator("input"), dmy(0))
+    _demand_item(pg, "Thời gian giao").locator("input").fill(f"Đến {dmy(-44)}")
     _demand_item(pg, "Ghi chú").locator("textarea").fill("Giao 2 đợt, mỗi đợt 150 tấn.")
     pg.locator(".ant-modal-title").first.click()
     pg.wait_for_timeout(400)
 
 
 def open_old_demand(pg) -> None:
-    """Bấm bút chì ở dòng ĐÃ QUÁ HẠN SỬA (dòng có nút "Đề nghị sửa")."""
+    """Bấm bút chì ở dòng ĐÃ QUÁ HẠN SỬA (dòng có nút "Đề nghị sửa") rồi gõ thử ô Kết quả —
+    chỉ để chụp, không bấm Lưu."""
     pg.add_style_tag(content=".ant-modal,.ant-modal-mask{opacity:1!important;"
                              "transform:none!important;animation:none!important}")
     row = pg.locator("tbody tr", has=pg.locator("button", has_text="Đề nghị sửa")).first
     row.locator('button[aria-label="Sửa"]').click()
     pg.wait_for_selector(".ant-modal", timeout=8000)
     pg.wait_for_timeout(500)
+    _demand_item(pg, "Kết quả").locator("textarea").fill("Không thành — khách đã mua nơi khác.")
+    pg.locator(".ant-modal-title").first.click()
+    pg.wait_for_timeout(300)
 
 
 def open_contract_form(page) -> None:
@@ -617,17 +609,19 @@ def shoot_all(tok: str, admin: str) -> None:
              "(() => window.__annotate([document.querySelector('.blt-toolbar'),"
              " document.querySelector('table')]))()",
              "11-bao-cao-tieu-thu.png", wait_for="table")
+        # Chờ nút bút chì (chỉ có khi bảng đã nạp xong dòng) — bảng không còn thẻ màu nào để chờ.
+        demand_rows = '.ant-table-tbody button[aria-label="Sửa"]'
         shot(f"{WEB}/nhu-cau-thi-truong", DEMAND_LIST, "12-nhu-cau-thi-truong.png",
-             wait_for=".ant-table-tbody .ant-tag",
+             wait_for=demand_rows,
              viewport={"width": 1900, "height": 1000})   # đủ mọi cột + đủ 6 dòng mẫu
         shot(f"{WEB}/nhu-cau-thi-truong",
              demand_form_targets("Ngày nhận", "Khách hàng", "Chủng loại", "Số lượng", "Đơn giá",
-                                 "Giao tại", "Giao từ ngày", "Tình trạng", "Số hợp đồng", "@ok"),
-             "12b-nhu-cau-thi-truong-them-phieu.png", wait_for=".ant-table-tbody .ant-tag",
+                                 "Giao tại", "Thời gian giao", "Kết quả", "@ok"),
+             "12b-nhu-cau-thi-truong-them-phieu.png", wait_for=demand_rows,
              setup=fill_demand_form, viewport={"width": 1500, "height": 1040})
         shot(f"{WEB}/nhu-cau-thi-truong",
-             demand_form_targets("@note", "Số lượng", "Tình trạng", "Ghi chú", "@ok"),
-             "12c-nhu-cau-thi-truong-phieu-qua-han.png", wait_for=".ant-table-tbody .ant-tag",
+             demand_form_targets("@note", "Thời gian giao", "Kết quả", "Ghi chú", "@ok"),
+             "12c-nhu-cau-thi-truong-phieu-qua-han.png", wait_for=demand_rows,
              setup=open_old_demand, viewport={"width": 1500, "height": 1040})
         shot(f"{WEB}/ke-hoach-nam",
              r"""(() => {

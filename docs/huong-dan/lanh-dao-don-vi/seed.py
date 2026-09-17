@@ -124,30 +124,32 @@ def demand(company: str, as_of: str, customer: str, grade: str, qty: float | Non
     """Thân PUT một phiếu nhu cầu thị trường (id rỗng = thêm mới)."""
     return {"id": None, "company": company, "as_of": as_of, "customer": customer, "grade": grade,
             "qty": qty, "qty_unit": qty_unit, "price": price, "currency": currency,
-            "price_provisional": kw.get("provisional", False),
-            "delivery_place": kw.get("place", ""), "delivery_from": kw.get("d_from"),
-            "delivery_to": kw.get("d_to"), "status": kw.get("status", "open"),
-            "contract_no": kw.get("contract_no", ""), "contract_date": kw.get("contract_date"),
-            "note": kw.get("note", "")}
+            "delivery_place": kw.get("place", ""), "delivery_time": kw.get("time", ""),
+            "result": kw.get("result", ""), "note": kw.get("note", "")}
+
+
+def dmy(n: int = 0) -> str:
+    """Ngày cách hôm nay `n` ngày, dạng người dùng gõ (dd/mm/yyyy)."""
+    return (TODAY - timedelta(days=n)).strftime("%d/%m/%Y")
 
 
 def seed_demand(tok: str, unit: str) -> None:
-    """Phiếu nhu cầu thị trường mẫu — đủ 3 tình trạng (dải tổng hợp có số), 1 phiếu giá USD,
-    1 khách hỏi 2 chủng loại (2 dòng). Mọi ngày nhận đều trong hạn sửa của tài khoản đơn vị."""
+    """Phiếu nhu cầu thị trường mẫu — có phiếu đã ghi kết quả (ký được / không thành) lẫn phiếu
+    chưa có kết quả, 1 phiếu giá USD, 1 khách hỏi 2 chủng loại (2 dòng). Mọi ngày nhận đều trong
+    hạn sửa của tài khoản đơn vị."""
     for body in (
         demand(unit, D(0), "Shanghai Rubber Trading Co.", "SVR 10 / CSR 10", 500,
-               price=1650, currency="USD", provisional=True, place="Cảng Cát Lái",
-               d_from=D(-20), d_to=D(-50),
+               price=1650, currency="USD", place="Cảng Cát Lái", time="Tháng 10/2026",
                note="Khách chào theo giá SICOM tuần tới, chờ phản hồi."),
         demand(unit, D(1), "Công ty TNHH Cao su Sài Gòn", "SVR 3L", 120, price=43.5,
-               place="Tại kho", d_from=D(-5), d_to=D(-35), status="signed",
-               contract_no="HĐ-115/2026", contract_date=D(0)),
+               place="Tại kho", time=f"Đến {dmy(-40)}",
+               result=f"Đã ký HĐMB số HĐ-115/2026 ngày {dmy(0)}"),
         demand(unit, D(2), "Công ty TNHH Thương mại Phú Hưng", "LATEX", 3, "container", 38,
-               place="Tại kho", d_to=D(-30), note="Khách hỏi cùng lúc LATEX và SVR 3L."),
+               place="Tại kho", time="T10+11/2026", note="Khách hỏi cùng lúc LATEX và SVR 3L."),
         demand(unit, D(2), "Công ty TNHH Thương mại Phú Hưng", "SVR 3L", 60, price=43,
-               place="Tại kho", d_to=D(-30), note="Khách hỏi cùng lúc LATEX và SVR 3L."),
+               place="Tại kho", time="T10+11/2026", note="Khách hỏi cùng lúc LATEX và SVR 3L."),
         demand(unit, D(4), "Công ty TNHH Cao su Minh Phát", "RSS 3", 80, price=45,
-               status="failed", note="Khách chê giá cao, chuyển mua nơi khác."),
+               result="Không thành — khách chê giá cao, chuyển mua nơi khác."),
     ):
         call("PUT", "/api/member/market-demand/items", tok, body)
 

@@ -385,7 +385,7 @@
     "**Xem** — mở chi tiết số liệu của đơn vị trong ngày đó."
    ],
    "notes": [
-    "Nhu cầu thị trường: mỗi dòng là một phiếu khách hỏi mua mà đơn vị ghi nhận — khách hàng, chủng loại, số lượng, đơn giá và tình trạng (đang đàm phán, đã ký hợp đồng kèm số hợp đồng, không thành). Lọc theo khoảng 30–365 ngày, đơn vị, tình trạng, chủng loại. Dải tổng hợp ở đầu bảng đếm số phiếu của từng tình trạng.",
+    "Nhu cầu thị trường: mỗi dòng là một phiếu khách hỏi mua mà đơn vị ghi nhận — khách hàng, chủng loại, số lượng, đơn giá, nơi giao, thời gian giao và **kết quả** do đơn vị ghi (ví dụ “Đã ký HĐMB số … ngày …” hoặc “Không thành”; dấu “—” là chưa có kết quả). Lọc theo khoảng 30–365 ngày, đơn vị, chủng loại; ô tìm theo tên khách, kết quả, ghi chú.",
     "Kế hoạch năm: chọn năm để xem kế hoạch thu mua, tiêu thụ, doanh thu của từng đơn vị."
    ]
   },

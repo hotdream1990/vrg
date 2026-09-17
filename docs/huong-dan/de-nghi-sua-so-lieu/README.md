@@ -94,7 +94,7 @@ Khi số liệu đúng nhưng bị nhập vào nhầm ngày, không cần nhập
 
 **Vị trí:** Menu ▸ Nhập liệu số liệu ▸ Nhu cầu thị trường
 
-Phiếu nhu cầu có **ngày nhận** đã quá hạn sửa vẫn hiện đầy đủ trong bảng, cuối dòng có thêm nút **Đề nghị sửa**. Kết quả đàm phán thì cập nhật thẳng được; các ô còn lại phải gửi đề nghị.
+Phiếu nhu cầu có **ngày nhận** đã quá hạn sửa vẫn hiện đầy đủ trong bảng, cuối dòng có thêm nút **Đề nghị sửa**. **Kết quả** và **Ghi chú** thì cập nhật thẳng được; các ô còn lại phải gửi đề nghị.
 
 ![Hình 7. Dòng nhu cầu quá hạn sửa: bút chì, nút Đề nghị sửa và thùng rác](img/08-nhu-cau-thi-truong.png)
 
@@ -104,7 +104,7 @@ Phiếu nhu cầu có **ngày nhận** đã quá hạn sửa vẫn hiện đầy
 
 *Hình 8. Phiếu nhu cầu ở chế độ đề nghị sửa*
 
-1. **Chỉ cập nhật kết quả đàm phán?** Bấm **bút chì** ở cuối dòng (Hình 7 · 1). Đổi **Tình trạng**, **Số hợp đồng**, **Ngày ký** hoặc **Ghi chú**, rồi bấm **Lưu**. Các ô khác hiện xám. Phiếu lưu ngay, **không cần gửi đề nghị**.
+1. **Chỉ cập nhật kết quả đàm phán?** Bấm **bút chì** ở cuối dòng (Hình 7 · 1). Sửa ô **Kết quả** hoặc **Ghi chú**, rồi bấm **Lưu**. Các ô khác hiện xám. Phiếu lưu ngay, **không cần gửi đề nghị**.
 2. **Cần sửa ô khác** (ngày nhận, khách hàng, chủng loại, số lượng, đơn giá, nơi giao, thời gian giao)? Bấm **Đề nghị sửa** ở cuối dòng (Hình 7 · 2).
 3. Phiếu mở ra với tiêu đề “Đề nghị sửa nhu cầu” và **mọi ô đều sửa được**. **Dải vàng** (Hình 8 · 1) nhắc: số liệu chỉ thay đổi sau khi Ban duyệt.
 4. Sửa đúng những ô sai (Hình 8 · 2), các ô khác để nguyên.
@@ -112,8 +112,8 @@ Phiếu nhu cầu có **ngày nhận** đã quá hạn sửa vẫn hiện đầy
 6. **Phiếu nhập thừa?** Bấm **thùng rác** (Hình 7 · 3) rồi bấm **Xoá**. Phiếu đã quá hạn sửa nên hệ thống mở hộp **đề nghị xoá**. Viết lý do rồi gửi; Ban duyệt xong phiếu mới bị xoá.
 
 > - Phiếu có ngày nhận còn trong hạn sửa không có nút Đề nghị sửa — bấm bút chì là sửa được mọi ô.
-> - Ở chế độ đề nghị mà chỉ đổi tình trạng, số hợp đồng, ngày ký hoặc ghi chú, hệ thống lưu thẳng và báo “Đã lưu trực tiếp” — không phải chờ Ban duyệt.
-> - Đàm phán không thành thì đổi tình trạng sang **Không thành** bằng bút chì, đừng gửi đề nghị xoá.
+> - Ở chế độ đề nghị mà chỉ đổi kết quả hoặc ghi chú, hệ thống lưu thẳng và báo “Đã lưu trực tiếp” — không phải chờ Ban duyệt.
+> - Đàm phán không thành thì bấm bút chì, ghi “Không thành” vào ô **Kết quả**, đừng gửi đề nghị xoá.
 > - Nhu cầu thị trường không nằm trong phần chốt số liệu, nên duyệt xong không phải chốt lại.
 
 ## 6. Đề nghị sửa hoặc xoá hợp đồng và đợt giao

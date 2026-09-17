@@ -74,7 +74,7 @@ MOVE_MODAL = """(() => {
   return window.__annotate([m.querySelector('input'), m.querySelector('.ant-alert'), send]);
 })()"""
 
-#: Màn Nhu cầu thị trường: dòng phiếu ĐÃ QUÁ HẠN SỬA — bút chì (vẫn cập nhật được tình trạng),
+#: Màn Nhu cầu thị trường: dòng phiếu ĐÃ QUÁ HẠN SỬA — bút chì (vẫn cập nhật được kết quả, ghi chú),
 #: nút "Đề nghị sửa", thùng rác (thành đề nghị xoá). Dò nút trong `tbody` và so khớp ĐÚNG nhãn:
 #: dải nhắc "Còn thiếu … việc" ở đầu trang cũng chứa chữ "Đề nghị sửa".
 DEMAND_ROW = """(() => {
@@ -86,6 +86,9 @@ DEMAND_ROW = """(() => {
   const req = trs[1] && [...trs[1].querySelectorAll('button')].find(b => b.textContent.trim() === 'Đề nghị sửa');
   return window.__annotate([icon(trs[0], 'Sửa'), req, icon(trs[0], 'Xoá')]);
 })()"""
+
+#: Bảng nhu cầu đã nạp xong dòng = có nút "Đề nghị sửa" (chỉ dòng quá hạn mới có).
+DEMAND_ROWS = f"{ROW} button:has-text('Đề nghị sửa')"
 
 #: Phiếu nhu cầu ở chế độ đề nghị sửa: dải vàng · một ô nội dung đã mở cho sửa · nút gửi.
 DEMAND_REQUEST = """(() => {
@@ -238,9 +241,9 @@ def main() -> int:
             dp = S.page_for(browser, "dp")
             demand = f"{S.WEB}/nhu-cau-thi-truong"
             shot(dp, demand, DEMAND_ROW, "08-nhu-cau-thi-truong.png",
-                 wait_for=f"{ROW} .ant-tag", viewport=WIDE)
+                 wait_for=DEMAND_ROWS, viewport=WIDE)
             shot(dp, demand, DEMAND_REQUEST, "08b-nhu-cau-form-de-nghi-sua.png",
-                 wait_for=f"{ROW} .ant-tag", setup=open_demand_request, viewport=MODAL)
+                 wait_for=DEMAND_ROWS, setup=open_demand_request, viewport=MODAL)
 
             box.lock_rounds()
             tn = S.page_for(browser, "tn")
