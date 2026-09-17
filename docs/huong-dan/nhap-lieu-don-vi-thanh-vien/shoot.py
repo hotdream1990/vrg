@@ -23,6 +23,7 @@ from datetime import date, timedelta
 SKILL = pathlib.Path.home() / ".claude/skills/screenshot-annotate/scripts"
 sys.path.insert(0, str(SKILL))
 from shoot import annotated_shot, browser_page  # noqa: E402
+from playwright.sync_api import Error as PlaywrightError  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
 API = "http://localhost:8390"
@@ -72,10 +73,6 @@ def seed(tok: str, cus: int, master_id: int) -> None:
         "year": TODAY.year, "company": UNIT, "plan_tonnes": 12000,
         "plan_sales_spot_tonnes": 4500,
         "signed_lt_tonnes": 8200, "carry_lt_tonnes": 350, "carry_spot_tonnes": 120})
-    call("PUT", "/api/member/market-demand", tok, {
-        "company": UNIT, "as_of": D(0),
-        "content": "Khách Trung Quốc hỏi mua SVR 10 giao tháng sau, số lượng khoảng 500 tấn. "
-                   "Giá chào quanh 41,5 triệu đ/tấn, đang thương lượng."})
 
 
     # HĐ giao 1 lần, ĐÃ giao → lên Báo cáo tiêu thụ. Ngày giao phải NẰM TRONG kỳ mặc định của màn
@@ -106,6 +103,44 @@ def seed(tok: str, cus: int, master_id: int) -> None:
         "channel": "export",
         "lines": [{"grade": "SVR 10 / CSR 10", "qty": 250, "price": 1635, "ccy": "USD",
                    "fx": 26200}]})
+
+
+def demand(company: str, as_of: str, customer: str, grade: str, qty: float | None,
+           qty_unit: str = "ton", price: float | None = None, currency: str = "VND", **kw) -> dict:
+    """Thân PUT một phiếu nhu cầu thị trường (id rỗng = thêm mới)."""
+    return {"id": None, "company": company, "as_of": as_of, "customer": customer, "grade": grade,
+            "qty": qty, "qty_unit": qty_unit, "price": price, "currency": currency,
+            "price_provisional": kw.get("provisional", False),
+            "delivery_place": kw.get("place", ""), "delivery_from": kw.get("d_from"),
+            "delivery_to": kw.get("d_to"), "status": kw.get("status", "open"),
+            "contract_no": kw.get("contract_no", ""), "contract_date": kw.get("contract_date"),
+            "note": kw.get("note", "")}
+
+
+def seed_demand(tok: str, admin: str) -> None:
+    """Phiếu nhu cầu thị trường mẫu: đủ 3 tình trạng, 1 phiếu giá USD, 1 khách hỏi 2 chủng loại
+    (2 dòng) và 1 phiếu ĐÃ QUÁ HẠN SỬA để bảng có nút "Đề nghị sửa". Phiếu cũ phải ghi bằng admin
+    (miễn cửa sổ nhập liệu) — tài khoản đơn vị ghi ngày cũ là bị chặn."""
+    rows = [
+        demand(UNIT, D(0), "Shanghai Rubber Trading Co.", "SVR 10 / CSR 10", 500,
+               price=1650, currency="USD", provisional=True, place="Cảng Cát Lái",
+               d_from=D(-20), d_to=D(-50),
+               note="Khách chào theo giá SICOM tuần tới, chờ phản hồi."),
+        demand(UNIT, D(1), "Công ty TNHH Cao su Sài Gòn", "SVR 3L", 120, price=43.5,
+               place="Tại kho", d_from=D(-5), d_to=D(-35), status="signed",
+               contract_no="HĐ-115/2026", contract_date=D(0)),
+        demand(UNIT, D(2), "Công ty TNHH Thương mại Phú Hưng", "LATEX", 3, "container", 38,
+               place="Tại kho", d_to=D(-30), note="Khách hỏi cùng lúc LATEX và SVR 3L."),
+        demand(UNIT, D(2), "Công ty TNHH Thương mại Phú Hưng", "SVR 3L", 60, price=43,
+               place="Tại kho", d_to=D(-30), note="Khách hỏi cùng lúc LATEX và SVR 3L."),
+        demand(UNIT, D(4), "Công ty TNHH Cao su Minh Phát", "RSS 3", 80, price=45,
+               status="failed", note="Khách chê giá cao, chuyển mua nơi khác."),
+    ]
+    for body in rows:
+        call("PUT", "/api/member/market-demand/items", tok, body)
+    call("PUT", "/api/market-demand/items", admin, demand(
+        UNIT, D(25), "Công ty TNHH Cao su Sài Gòn", "SVR 10 / CSR 10", 200, price=41.2,
+        place="Tại kho", d_from=D(10), d_to=D(-20), note="Khách giữ giá, hẹn trả lời cuối tháng."))
 
 
 def seed_customers(tok: str) -> int:
@@ -162,7 +197,7 @@ def clean() -> None:
         # `master_contract` phải xoá TRƯỚC `unit_customer` (hồ sơ trỏ tới khách) và SAU
         # `sales_contract` (không xoá được hồ sơ còn phụ lục ở tầng nghiệp vụ; ở đây xoá thẳng DB).
         for t in ("master_contract", "unit_customer", "unit_daily_report", "unit_purchase_plan",
-                  "market_demand", "unit_stock_contract"):
+                  "market_demand", "market_demand_item", "unit_stock_contract"):
             cur.execute(f"DELETE FROM {t} WHERE company = %s", (UNIT,))
         conn.commit()
 
@@ -327,6 +362,94 @@ COMPLETE_MODAL = """(() => {
 })()"""
 
 
+#: Màn Nhu cầu thị trường: nút thêm · thanh lọc · dải tổng hợp · ô tình trạng có số HĐ · nhóm nút
+#: của một dòng còn hạn sửa · nút "Đề nghị sửa" của dòng quá hạn.
+DEMAND_LIST = """(() => {
+  const cards = [...document.querySelectorAll('.main .card')];
+  const filter = cards.find(c => c.textContent.includes('Khoảng thời gian'));
+  const add = [...filter.querySelectorAll('button')].find(b => b.textContent.includes('Thêm nhu cầu'));
+  const box = cards.find(c => c.querySelector('table'));
+  const summary = box.querySelector('.ant-tag').parentElement;
+  const rows = [...box.querySelectorAll('tbody tr:not(.ant-table-measure-row)')];
+  const signed = [...box.querySelectorAll('tbody td')]
+      .find(td => td.textContent.trim().startsWith('Đã ký hợp đồng'));
+  const openRow = rows.find(r => !r.textContent.includes('Đề nghị sửa'));
+  const acts = openRow && openRow.querySelector('button').parentElement;
+  const req = [...box.querySelectorAll('tbody button')].find(b => b.textContent.trim() === 'Đề nghị sửa');
+  // Khung thanh lọc = từ chữ "Khoảng thời gian" tới hết ô Tìm (không ôm nút Thêm ở mép phải).
+  const a = filter.firstElementChild.getBoundingClientRect();
+  const z = filter.querySelector('.ant-input-affix-wrapper').getBoundingClientRect();
+  const bar = { getBoundingClientRect: () => ({ x: a.x, y: Math.min(a.y, z.y), width: z.right - a.x,
+                                                height: Math.max(a.bottom, z.bottom) - Math.min(a.y, z.y) }) };
+  return window.__annotate([add, bar, summary, signed, acts, req]);
+})()"""
+
+#: Ô trong phiếu nhu cầu = `.ant-form-item` có nhãn bắt đầu bằng chữ cần tìm.
+DEMAND_FORM = """(() => {
+  const m = [...document.querySelectorAll('.ant-modal')].pop();
+  const f = (t) => [...m.querySelectorAll('.ant-form-item')].find(e => {
+    const l = e.querySelector('.ant-form-item-label');
+    return l && l.textContent.trim().startsWith(t);
+  }) || null;
+  const ok = m.querySelector('.ant-modal-footer .ant-btn-primary');
+  const note = m.querySelector('p.form-note');
+  return window.__annotate([%s]);
+})()"""
+
+
+def demand_form_targets(*items: str) -> str:
+    """Tên ô → `f('…')`; hai từ khoá đặc biệt: `@ok` (nút lưu) · `@note` (dòng nhắc đỏ)."""
+    js = {"@ok": "ok", "@note": "note"}
+    return DEMAND_FORM % ", ".join(js.get(x, f"f({x!r})") for x in items)
+
+
+def _demand_item(pg, label: str):
+    return pg.locator(".ant-modal .ant-form-item").filter(
+        has=pg.locator(".ant-form-item-label", has_text=label)).first
+
+
+def _type_date(pg, locator, text: str) -> None:
+    """Ô ngày chỉ nhận chữ GÕ PHÍM thật (không nhận `fill`), rời ô mới chốt giá trị."""
+    locator.click()
+    locator.press_sequentially(text, delay=20)
+    pg.locator(".ant-modal-title").first.click()
+    pg.wait_for_timeout(250)
+
+
+def fill_demand_form(pg) -> None:
+    """Mở phiếu THÊM và điền mẫu một phiếu đã ký hợp đồng (để hiện đủ ô Số hợp đồng + Ngày ký)."""
+    open_modal(pg, "Thêm nhu cầu")
+    dmy = lambda n: (TODAY - timedelta(days=n)).strftime("%d/%m/%Y")  # noqa: E731
+    _demand_item(pg, "Khách hàng").locator("input").fill("Công ty TNHH Cao su Minh Phát")
+    pg.locator(".ant-modal-title").first.click()
+    _demand_item(pg, "Chủng loại").locator(".ant-select").click()
+    pg.locator('.ant-select-item-option[title="SVR 10 / CSR 10"]').click()
+    _demand_item(pg, "Số lượng").locator("input").first.fill("300")
+    _demand_item(pg, "Đơn giá").locator("input").first.fill("42,5")
+    _demand_item(pg, "Giao tại").locator("input").fill("Tại kho")
+    pg.locator(".ant-modal-title").first.click()
+    dates = _demand_item(pg, "Giao từ ngày").locator("input")
+    _type_date(pg, dates.nth(0), dmy(-14))
+    _type_date(pg, dates.nth(1), dmy(-44))
+    pg.locator(".ant-modal label.ant-radio-button-wrapper", has_text="Đã ký hợp đồng").click()
+    pg.wait_for_timeout(300)
+    _demand_item(pg, "Số hợp đồng").locator("input").fill("HĐ-118/2026")
+    _type_date(pg, _demand_item(pg, "Ngày ký hợp đồng").locator("input"), dmy(0))
+    _demand_item(pg, "Ghi chú").locator("textarea").fill("Giao 2 đợt, mỗi đợt 150 tấn.")
+    pg.locator(".ant-modal-title").first.click()
+    pg.wait_for_timeout(400)
+
+
+def open_old_demand(pg) -> None:
+    """Bấm bút chì ở dòng ĐÃ QUÁ HẠN SỬA (dòng có nút "Đề nghị sửa")."""
+    pg.add_style_tag(content=".ant-modal,.ant-modal-mask{opacity:1!important;"
+                             "transform:none!important;animation:none!important}")
+    row = pg.locator("tbody tr", has=pg.locator("button", has_text="Đề nghị sửa")).first
+    row.locator('button[aria-label="Sửa"]').click()
+    pg.wait_for_selector(".ant-modal", timeout=8000)
+    pg.wait_for_timeout(500)
+
+
 def open_contract_form(page) -> None:
     """Form hợp đồng, dòng đầu chọn sẵn LATEX — có vậy ảnh mới hiện đúng cặp ô "SL nước (tấn)" +
     "Quy khô (tấn)" của 3 chủng loại bán theo mủ nước (chốt PA1). Để trống chủng loại thì nhãn chỉ
@@ -379,6 +502,16 @@ def open_complete_modal(page) -> None:
     page.wait_for_timeout(600)
 
 
+def open_page(p, width: int, height: int):
+    """Ưu tiên Chrome cài sẵn: bản Chromium đi kèm Playwright hay lệch phiên bản sau mỗi lần nâng
+    cấp thư viện (chạy là báo thiếu file thực thi). Máy không có Chrome thì mới dùng bản kèm theo."""
+    try:
+        browser = p.chromium.launch(channel="chrome")
+    except PlaywrightError:
+        return browser_page(p, width, height)
+    return browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=2)
+
+
 def resolve_unit(admin: str) -> str:
     """Tên THẬT của đơn vị mẫu (dò theo `UNIT_KEY`). Không có thì dừng hẳn với thông báo rõ ràng —
     chạy tiếp với tên sai chỉ tạo ra bộ ảnh trống mà không ai để ý."""
@@ -396,13 +529,23 @@ def main() -> int:
     UNIT = resolve_unit(admin)
     tok = call("POST", "/api/auth/impersonate", admin, {"username": MEMBER})["access_token"]
     clean()               # chạy lại lần 2 không nhân đôi dữ liệu mẫu
+    try:
+        shoot_all(tok, admin)
+    finally:
+        clean()           # lỗi giữa chừng cũng không để lại dữ liệu mẫu
+    print(f"Xong. Ảnh ở {OUT}")
+    return 0
+
+
+def shoot_all(tok: str, admin: str) -> None:
     cus = seed_customers(tok)
     seed(tok, cus, seed_master(tok, cus))
+    seed_demand(tok, admin)
     seed_legacy()
     OUT.mkdir(exist_ok=True)
 
     with sync_playwright() as p:
-        page = browser_page(p, 1500, 820)
+        page = open_page(p, 1500, 820)
         page.context.add_init_script(f"localStorage.setItem('vrg_token', {tok!r});"
                                      "localStorage.removeItem('vrg_admin_token');")
 
@@ -410,8 +553,10 @@ def main() -> int:
         # số liệu mẫu nên chụp lại cả bộ là 14 file đều đổi — chỉ nên làm khi đổi giao diện diện rộng.
         only = tuple(sys.argv[1:])
 
-        def shot(url: str, targets: str, name: str, *, wait_for: str, setup=None) -> None:
-            """Mọi ảnh đều gỡ thanh 'đăng nhập hộ' trước, rồi mới chạy setup riêng của màn."""
+        def shot(url: str, targets: str, name: str, *, wait_for: str, setup=None,
+                 viewport: dict | None = None) -> None:
+            """Mọi ảnh đều gỡ thanh 'đăng nhập hộ' trước, rồi mới chạy setup riêng của màn.
+            `viewport`: khung riêng cho ảnh cần cao hơn (phiếu dài); ảnh sau tự trả về khung chuẩn."""
             if only and not name.startswith(only):
                 return
 
@@ -419,7 +564,8 @@ def main() -> int:
                 pg.evaluate(HIDE_BANNER)
                 if setup:
                     setup(pg)
-            annotated_shot(page, url, targets, str(OUT / name), wait_for=wait_for, setup=_prep)
+            annotated_shot(page, url, targets, str(OUT / name), wait_for=wait_for, setup=_prep,
+                           viewport=viewport or {"width": 1500, "height": 820})
 
         shot(f"{WEB}/bao-cao-thu-mua", MENU, "01-menu.png", wait_for=".ant-menu")
         shot(f"{WEB}/bao-cao-thu-mua", CHECKLIST, "01b-nhac-viec.png", wait_for=".dsn")
@@ -471,9 +617,18 @@ def main() -> int:
              "(() => window.__annotate([document.querySelector('.blt-toolbar'),"
              " document.querySelector('table')]))()",
              "11-bao-cao-tieu-thu.png", wait_for="table")
+        shot(f"{WEB}/nhu-cau-thi-truong", DEMAND_LIST, "12-nhu-cau-thi-truong.png",
+             wait_for=".ant-table-tbody .ant-tag",
+             viewport={"width": 1900, "height": 1000})   # đủ mọi cột + đủ 6 dòng mẫu
         shot(f"{WEB}/nhu-cau-thi-truong",
-             "(() => window.__annotate([document.querySelector('.card')]))()",
-             "12-nhu-cau-thi-truong.png", wait_for=".card")
+             demand_form_targets("Ngày nhận", "Khách hàng", "Chủng loại", "Số lượng", "Đơn giá",
+                                 "Giao tại", "Giao từ ngày", "Tình trạng", "Số hợp đồng", "@ok"),
+             "12b-nhu-cau-thi-truong-them-phieu.png", wait_for=".ant-table-tbody .ant-tag",
+             setup=fill_demand_form, viewport={"width": 1500, "height": 1040})
+        shot(f"{WEB}/nhu-cau-thi-truong",
+             demand_form_targets("@note", "Số lượng", "Tình trạng", "Ghi chú", "@ok"),
+             "12c-nhu-cau-thi-truong-phieu-qua-han.png", wait_for=".ant-table-tbody .ant-tag",
+             setup=open_old_demand, viewport={"width": 1500, "height": 1040})
         shot(f"{WEB}/ke-hoach-nam",
              r"""(() => {
                // Khớp CẢ HAI mảnh chữ: 4 cột đầu đều bắt đầu bằng "HĐ dài hạn"/"Kế hoạch" nên
@@ -492,9 +647,6 @@ def main() -> int:
              "(() => window.__annotate([document.querySelector('.ant-table')]))()",
              "14-hop-dong-cu.png", wait_for=".ant-table")
 
-    clean()
-    print(f"Xong. Ảnh ở {OUT}")
-    return 0
 
 
 if __name__ == "__main__":

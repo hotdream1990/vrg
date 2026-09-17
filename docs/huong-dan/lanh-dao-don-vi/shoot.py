@@ -118,12 +118,23 @@ LIST_ONLY = """(() => {
   return window.__annotate([alert, filter, table]);
 })()"""
 
-#: Màn Nhu cầu thị trường không dùng bảng AntD — khối nội dung là các `.card` xếp theo ngày.
+#: Màn Nhu cầu thị trường: dòng chỉ xem · thanh lọc · dải tổng hợp theo tình trạng · ô tình trạng
+#: của phiếu đã ký (kèm số HĐ + ngày ký). Lãnh đạo không có nút Thêm và cột Thao tác.
 DEMAND = """(() => {
   const alert = document.querySelector('.ant-alert');
-  const days = document.querySelector('.blt-date-input');
-  const cards = [...document.querySelectorAll('.card')];
-  return window.__annotate([alert, days, cards[cards.length - 1]]);
+  const cards = [...document.querySelectorAll('.main .card')];
+  const filter = cards.find(c => c.textContent.includes('Khoảng thời gian'));
+  const box = cards.find(c => c.querySelector('table'));
+  const summary = box.querySelector('.ant-tag').parentElement;
+  const signed = [...box.querySelectorAll('tbody td')]
+      .find(td => td.textContent.trim().startsWith('Đã ký hợp đồng'));
+  // Khung thanh lọc = từ chữ "Khoảng thời gian" tới hết ô Tìm (thẻ lọc rộng hết trang, khoanh cả thẻ
+  // là dính vào khung dòng chỉ xem ngay phía trên).
+  const a = filter.firstElementChild.getBoundingClientRect();
+  const z = filter.querySelector('.ant-input-affix-wrapper').getBoundingClientRect();
+  const bar = { getBoundingClientRect: () => ({ x: a.x, y: Math.min(a.y, z.y), width: z.right - a.x,
+                                                height: Math.max(a.bottom, z.bottom) - Math.min(a.y, z.y) }) };
+  return window.__annotate([alert, bar, summary, signed]);
 })()"""
 
 
@@ -219,7 +230,7 @@ def main() -> int:
         shot(f"{WEB}/bao-cao-ton-kho", READONLY, "09-ton-kho.png", wait_for=".ant-table",
              wide=True)
         shot(f"{WEB}/nhu-cau-thi-truong", DEMAND, "10-nhu-cau-thi-truong.png",
-             wait_for=".blt-date-input")
+             wait_for=".ant-table-tbody .ant-tag", wide=True)
         shot(f"{WEB}/ke-hoach-nam", PLAN, "11-ke-hoach-nam.png", wait_for="table",
              wide=True)
         shot(f"{WEB}/hop-dong/khach-hang", LIST_ONLY, "12-khach-hang.png", wait_for="table",

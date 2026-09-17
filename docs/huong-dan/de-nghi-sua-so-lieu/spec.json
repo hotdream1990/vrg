@@ -137,20 +137,35 @@
   {
    "title": "5. Đề nghị sửa ở màn Nhu cầu thị trường",
    "location": "Menu ▸ Nhập liệu số liệu ▸ Nhu cầu thị trường",
-   "intro": "Các dòng nhu cầu của những ngày đã quá hạn sửa vẫn hiện đầy đủ, nhưng chỉ sửa được qua đề nghị.",
-   "image": {
-    "path": "img/08-nhu-cau-thi-truong.png",
-    "w": 3000,
-    "h": 1760
-   },
-   "caption": "Hình 7. Dòng nhu cầu quá hạn sửa có nút Đề nghị sửa",
+   "intro": "Phiếu nhu cầu có **ngày nhận** đã quá hạn sửa vẫn hiện đầy đủ trong bảng, cuối dòng có thêm nút **Đề nghị sửa**. Kết quả đàm phán thì cập nhật thẳng được; các ô còn lại phải gửi đề nghị.",
+   "image": [
+    {
+     "path": "img/08-nhu-cau-thi-truong.png",
+     "w": 3800,
+     "h": 1760
+    },
+    {
+     "path": "img/08b-nhu-cau-form-de-nghi-sua.png",
+     "w": 3000,
+     "h": 2080
+    }
+   ],
+   "caption": [
+    "Hình 7. Dòng nhu cầu quá hạn sửa: bút chì, nút Đề nghị sửa và thùng rác",
+    "Hình 8. Phiếu nhu cầu ở chế độ đề nghị sửa"
+   ],
    "steps": [
-    "Tìm **dòng nhu cầu** của ngày cần sửa.",
-    "Bấm **Đề nghị sửa** ở bên phải dòng đó. Ô nội dung mở ra cho sửa, kèm dải vàng nhắc đây là đề nghị.",
-    "Sửa lại nội dung rồi bấm **Gửi đề nghị sửa** và viết lý do như ở mục 3."
+    "**Chỉ cập nhật kết quả đàm phán?** Bấm **bút chì** ở cuối dòng (Hình 7 · 1). Đổi **Tình trạng**, **Số hợp đồng**, **Ngày ký** hoặc **Ghi chú**, rồi bấm **Lưu**. Các ô khác hiện xám. Phiếu lưu ngay, **không cần gửi đề nghị**.",
+    "**Cần sửa ô khác** (ngày nhận, khách hàng, chủng loại, số lượng, đơn giá, nơi giao, thời gian giao)? Bấm **Đề nghị sửa** ở cuối dòng (Hình 7 · 2).",
+    "Phiếu mở ra với tiêu đề “Đề nghị sửa nhu cầu” và **mọi ô đều sửa được**. **Dải vàng** (Hình 8 · 1) nhắc: số liệu chỉ thay đổi sau khi Ban duyệt.",
+    "Sửa đúng những ô sai (Hình 8 · 2), các ô khác để nguyên.",
+    "Bấm **Gửi đề nghị sửa** (Hình 8 · 3). Hộp lý do hiện ra — viết lý do rồi gửi như ở mục 3.",
+    "**Phiếu nhập thừa?** Bấm **thùng rác** (Hình 7 · 3) rồi bấm **Xoá**. Phiếu đã quá hạn sửa nên hệ thống mở hộp **đề nghị xoá**. Viết lý do rồi gửi; Ban duyệt xong phiếu mới bị xoá."
    ],
    "notes": [
-    "Dòng của những ngày còn trong hạn sửa không có nút này — bấm thẳng vào dòng là sửa được ngay.",
+    "Phiếu có ngày nhận còn trong hạn sửa không có nút Đề nghị sửa — bấm bút chì là sửa được mọi ô.",
+    "Ở chế độ đề nghị mà chỉ đổi tình trạng, số hợp đồng, ngày ký hoặc ghi chú, hệ thống lưu thẳng và báo “Đã lưu trực tiếp” — không phải chờ Ban duyệt.",
+    "Đàm phán không thành thì đổi tình trạng sang **Không thành** bằng bút chì, đừng gửi đề nghị xoá.",
     "Nhu cầu thị trường không nằm trong phần chốt số liệu, nên duyệt xong không phải chốt lại."
    ]
   },
@@ -171,8 +186,8 @@
     }
    ],
    "caption": [
-    "Hình 8. Dòng “(chỉ xem)” có nút Đề nghị sửa và Đề nghị xoá",
-    "Hình 9. Hợp đồng đã Hoàn thành — bấm Mở lại hợp đồng trước"
+    "Hình 9. Dòng “(chỉ xem)” có nút Đề nghị sửa và Đề nghị xoá",
+    "Hình 10. Hợp đồng đã Hoàn thành — bấm Mở lại hợp đồng trước"
    ],
    "steps": [
     "Tìm hợp đồng hoặc đợt giao cần sửa. Dòng nào ghi **(chỉ xem)** là đã quá hạn tự sửa.",
@@ -194,7 +209,7 @@
     "w": 3000,
     "h": 1760
    },
-   "caption": "Hình 10. Màn theo dõi đề nghị sửa số liệu",
+   "caption": "Hình 11. Màn theo dõi đề nghị sửa số liệu",
    "steps": [
     "Chọn **thẻ trạng thái**: Chờ duyệt · Đã duyệt · Từ chối · Đã huỷ · Tất cả. Con số trong ngoặc là số đề nghị của từng nhóm.",
     "Bấm vào **một dòng** để xem lại đúng nội dung đã gửi.",
@@ -215,7 +230,7 @@
     "w": 3000,
     "h": 1760
    },
-   "caption": "Hình 11. Đề nghị đã duyệt và lời nhắc xác nhận chốt lại",
+   "caption": "Hình 12. Đề nghị đã duyệt và lời nhắc xác nhận chốt lại",
    "steps": [
     "Mở màn **Đề nghị sửa số liệu**, kiểm tra dòng vừa gửi đã chuyển sang **Đã duyệt**.",
     "Nếu dưới nội dung có dòng chữ đỏ **“Chốt số liệu đã được gỡ — vào xác nhận chốt lại”** thì còn một việc phải làm.",
@@ -236,7 +251,7 @@
     "w": 3000,
     "h": 1760
    },
-   "caption": "Hình 12. Ô cam sửa được ngay, ô xám phải gửi đề nghị",
+   "caption": "Hình 13. Ô cam sửa được ngay, ô xám phải gửi đề nghị",
    "steps": [
     "Ở dải nhắc việc đầu màn hình, **ô màu cam** là ngày còn sửa thẳng được — bấm vào là nhập ngay.",
     "**Ô màu xám** là ngày đã quá hạn sửa — bấm vào để mở ra xem, rồi bấm Đề nghị sửa.",

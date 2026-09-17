@@ -27,6 +27,8 @@ OUT = HERE / "img"
 ROW = "tbody tr:not(.ant-table-measure-row)"
 WIDE = {"width": 1900, "height": 880}
 NORMAL = {"width": 1500, "height": 880}
+#: Popup phiếu nhu cầu — cao hơn khung thường một chút mới thấy trọn nút gửi ở chân popup.
+MODAL = {"width": 1500, "height": 1040}
 #: Phiếu nhập ngày rất dài — phải nới cao mới thấy nút lưu ở chân form trong cùng một ảnh.
 TALL = {"width": 1500, "height": 1260}
 
@@ -72,10 +74,28 @@ MOVE_MODAL = """(() => {
   return window.__annotate([m.querySelector('input'), m.querySelector('.ant-alert'), send]);
 })()"""
 
+#: Màn Nhu cầu thị trường: dòng phiếu ĐÃ QUÁ HẠN SỬA — bút chì (vẫn cập nhật được tình trạng),
+#: nút "Đề nghị sửa", thùng rác (thành đề nghị xoá). Dò nút trong `tbody` và so khớp ĐÚNG nhãn:
+#: dải nhắc "Còn thiếu … việc" ở đầu trang cũng chứa chữ "Đề nghị sửa".
 DEMAND_ROW = """(() => {
-  // Dải nhắc "Còn thiếu … việc" cũng chứa chữ "Đề nghị sửa" → so khớp CẢ nhãn nút, không dùng includes.
-  const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Đề nghị sửa');
-  return window.__annotate([btn && btn.closest('.card'), btn]);
+  // Ba nút nằm sát nhau → khoanh bút chì + thùng rác ở dòng 1, nút "Đề nghị sửa" ở dòng 2
+  // (mọi dòng quá hạn giống nhau) cho huy hiệu khỏi chồng lên nhau.
+  const trs = [...document.querySelectorAll('tbody tr')]
+      .filter(t => [...t.querySelectorAll('button')].some(b => b.textContent.trim() === 'Đề nghị sửa'));
+  const icon = (tr, l) => tr && tr.querySelector(`button[aria-label="${l}"]`);
+  const req = trs[1] && [...trs[1].querySelectorAll('button')].find(b => b.textContent.trim() === 'Đề nghị sửa');
+  return window.__annotate([icon(trs[0], 'Sửa'), req, icon(trs[0], 'Xoá')]);
+})()"""
+
+#: Phiếu nhu cầu ở chế độ đề nghị sửa: dải vàng · một ô nội dung đã mở cho sửa · nút gửi.
+DEMAND_REQUEST = """(() => {
+  const m = [...document.querySelectorAll('.ant-modal')].filter(x => x.getBoundingClientRect().width).pop();
+  const qty = [...m.querySelectorAll('.ant-form-item')].find(e => {
+    const l = e.querySelector('.ant-form-item-label');
+    return l && l.textContent.trim().startsWith('Số lượng');
+  });
+  const send = [...m.querySelectorAll('button')].find(b => b.textContent.includes('Gửi đề nghị sửa'));
+  return window.__annotate([m.querySelector('.ant-alert-warning'), qty, send]);
 })()"""
 
 CONTRACT_ROW = """(() => {
@@ -156,6 +176,19 @@ def open_move(pg):
     pg.wait_for_timeout(500)
 
 
+def open_demand_request(pg):
+    """Bấm "Đề nghị sửa" ở dòng phiếu quá hạn đầu tiên rồi sửa thử ô Số lượng — CHỈ để chụp,
+    không bấm gửi (đây là phiếu thật của đơn vị)."""
+    pg.locator("tbody button", has_text="Đề nghị sửa").first.click()
+    pg.wait_for_selector(".ant-modal", state="attached")
+    pg.wait_for_timeout(600)
+    qty = pg.locator(".ant-modal .ant-form-item").filter(
+        has=pg.locator(".ant-form-item-label", has_text="Số lượng")).first
+    qty.locator("input").first.fill("120")
+    pg.locator(".ant-modal-title").first.click()
+    pg.wait_for_timeout(400)
+
+
 def find_contract(pg):
     """Lọc còn 2 hợp đồng của phụ lục Annex 08-26 rồi kéo dòng “(chỉ xem)” vào khung nhìn.
 
@@ -183,7 +216,6 @@ def main() -> int:
     only = tuple(sys.argv[1:])
     OUT.mkdir(exist_ok=True)
     box = S.Sandbox()
-    box.lock_rounds()
 
     def shot(page, url, targets, name, *, wait_for, setup=None, viewport=None):
         if only and not name.startswith(only):
@@ -200,6 +232,17 @@ def main() -> int:
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(channel="chrome", headless=True)
+
+            # Nhu cầu thị trường chụp TRƯỚC khi tạo đợt chốt mẫu: đợt chốt làm hiện dải vàng
+            # "Yêu cầu chốt số liệu" ở đầu trang Đồng Phú, trong khi nhu cầu không thuộc phần chốt.
+            dp = S.page_for(browser, "dp")
+            demand = f"{S.WEB}/nhu-cau-thi-truong"
+            shot(dp, demand, DEMAND_ROW, "08-nhu-cau-thi-truong.png",
+                 wait_for=f"{ROW} .ant-tag", viewport=WIDE)
+            shot(dp, demand, DEMAND_REQUEST, "08b-nhu-cau-form-de-nghi-sua.png",
+                 wait_for=f"{ROW} .ant-tag", setup=open_demand_request, viewport=MODAL)
+
+            box.lock_rounds()
             tn = S.page_for(browser, "tn")
             purchase = f"{S.WEB}/bao-cao-thu-mua"
 
@@ -213,10 +256,6 @@ def main() -> int:
             shot(tn, purchase, MOVE_MODAL, "06-de-nghi-doi-ngay.png", wait_for=ROW,
                  setup=open_move)
             shot(tn, purchase, CHIPS, "07-o-cam-o-xam.png", wait_for=".dsn")
-
-            dp = S.page_for(browser, "dp")
-            shot(dp, f"{S.WEB}/nhu-cau-thi-truong", DEMAND_ROW, "08-nhu-cau-thi-truong.png",
-                 wait_for=".card")
 
             brk = S.page_for(browser, "brk", 1900, 880)
             shot(brk, f"{S.WEB}/hop-dong", CONTRACT_ROW, "09-hop-dong-dot-giao.png",

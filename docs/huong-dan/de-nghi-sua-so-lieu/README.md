@@ -94,17 +94,26 @@ Khi số liệu đúng nhưng bị nhập vào nhầm ngày, không cần nhập
 
 **Vị trí:** Menu ▸ Nhập liệu số liệu ▸ Nhu cầu thị trường
 
-Các dòng nhu cầu của những ngày đã quá hạn sửa vẫn hiện đầy đủ, nhưng chỉ sửa được qua đề nghị.
+Phiếu nhu cầu có **ngày nhận** đã quá hạn sửa vẫn hiện đầy đủ trong bảng, cuối dòng có thêm nút **Đề nghị sửa**. Kết quả đàm phán thì cập nhật thẳng được; các ô còn lại phải gửi đề nghị.
 
-![Hình 7. Dòng nhu cầu quá hạn sửa có nút Đề nghị sửa](img/08-nhu-cau-thi-truong.png)
+![Hình 7. Dòng nhu cầu quá hạn sửa: bút chì, nút Đề nghị sửa và thùng rác](img/08-nhu-cau-thi-truong.png)
 
-*Hình 7. Dòng nhu cầu quá hạn sửa có nút Đề nghị sửa*
+*Hình 7. Dòng nhu cầu quá hạn sửa: bút chì, nút Đề nghị sửa và thùng rác*
 
-1. Tìm **dòng nhu cầu** của ngày cần sửa.
-2. Bấm **Đề nghị sửa** ở bên phải dòng đó. Ô nội dung mở ra cho sửa, kèm dải vàng nhắc đây là đề nghị.
-3. Sửa lại nội dung rồi bấm **Gửi đề nghị sửa** và viết lý do như ở mục 3.
+![Hình 8. Phiếu nhu cầu ở chế độ đề nghị sửa](img/08b-nhu-cau-form-de-nghi-sua.png)
 
-> - Dòng của những ngày còn trong hạn sửa không có nút này — bấm thẳng vào dòng là sửa được ngay.
+*Hình 8. Phiếu nhu cầu ở chế độ đề nghị sửa*
+
+1. **Chỉ cập nhật kết quả đàm phán?** Bấm **bút chì** ở cuối dòng (Hình 7 · 1). Đổi **Tình trạng**, **Số hợp đồng**, **Ngày ký** hoặc **Ghi chú**, rồi bấm **Lưu**. Các ô khác hiện xám. Phiếu lưu ngay, **không cần gửi đề nghị**.
+2. **Cần sửa ô khác** (ngày nhận, khách hàng, chủng loại, số lượng, đơn giá, nơi giao, thời gian giao)? Bấm **Đề nghị sửa** ở cuối dòng (Hình 7 · 2).
+3. Phiếu mở ra với tiêu đề “Đề nghị sửa nhu cầu” và **mọi ô đều sửa được**. **Dải vàng** (Hình 8 · 1) nhắc: số liệu chỉ thay đổi sau khi Ban duyệt.
+4. Sửa đúng những ô sai (Hình 8 · 2), các ô khác để nguyên.
+5. Bấm **Gửi đề nghị sửa** (Hình 8 · 3). Hộp lý do hiện ra — viết lý do rồi gửi như ở mục 3.
+6. **Phiếu nhập thừa?** Bấm **thùng rác** (Hình 7 · 3) rồi bấm **Xoá**. Phiếu đã quá hạn sửa nên hệ thống mở hộp **đề nghị xoá**. Viết lý do rồi gửi; Ban duyệt xong phiếu mới bị xoá.
+
+> - Phiếu có ngày nhận còn trong hạn sửa không có nút Đề nghị sửa — bấm bút chì là sửa được mọi ô.
+> - Ở chế độ đề nghị mà chỉ đổi tình trạng, số hợp đồng, ngày ký hoặc ghi chú, hệ thống lưu thẳng và báo “Đã lưu trực tiếp” — không phải chờ Ban duyệt.
+> - Đàm phán không thành thì đổi tình trạng sang **Không thành** bằng bút chì, đừng gửi đề nghị xoá.
 > - Nhu cầu thị trường không nằm trong phần chốt số liệu, nên duyệt xong không phải chốt lại.
 
 ## 6. Đề nghị sửa hoặc xoá hợp đồng và đợt giao
@@ -113,13 +122,13 @@ Các dòng nhu cầu của những ngày đã quá hạn sửa vẫn hiện đ�
 
 Hợp đồng đã giao từ lâu sẽ chuyển sang chỉ xem. Đơn vị vẫn đề nghị sửa hoặc đề nghị xoá được, và vẫn thay file đính kèm được ngay.
 
-![Hình 8. Dòng “(chỉ xem)” có nút Đề nghị sửa và Đề nghị xoá](img/09-hop-dong-dot-giao.png)
+![Hình 9. Dòng “(chỉ xem)” có nút Đề nghị sửa và Đề nghị xoá](img/09-hop-dong-dot-giao.png)
 
-*Hình 8. Dòng “(chỉ xem)” có nút Đề nghị sửa và Đề nghị xoá*
+*Hình 9. Dòng “(chỉ xem)” có nút Đề nghị sửa và Đề nghị xoá*
 
-![Hình 9. Hợp đồng đã Hoàn thành — bấm Mở lại hợp đồng trước](img/10-hop-dong-hoan-thanh.png)
+![Hình 10. Hợp đồng đã Hoàn thành — bấm Mở lại hợp đồng trước](img/10-hop-dong-hoan-thanh.png)
 
-*Hình 9. Hợp đồng đã Hoàn thành — bấm Mở lại hợp đồng trước*
+*Hình 10. Hợp đồng đã Hoàn thành — bấm Mở lại hợp đồng trước*
 
 1. Tìm hợp đồng hoặc đợt giao cần sửa. Dòng nào ghi **(chỉ xem)** là đã quá hạn tự sửa.
 2. Bấm **Đề nghị sửa** để mở đúng biểu hợp đồng ở chế độ đề nghị, sửa rồi gửi kèm lý do.
@@ -135,9 +144,9 @@ Hợp đồng đã giao từ lâu sẽ chuyển sang chỉ xem. Đơn vị vẫn
 
 Tất cả đề nghị của đơn vị nằm chung một chỗ, xem được đang chờ hay đã có kết quả.
 
-![Hình 10. Màn theo dõi đề nghị sửa số liệu](img/11-theo-doi-de-nghi.png)
+![Hình 11. Màn theo dõi đề nghị sửa số liệu](img/11-theo-doi-de-nghi.png)
 
-*Hình 10. Màn theo dõi đề nghị sửa số liệu*
+*Hình 11. Màn theo dõi đề nghị sửa số liệu*
 
 1. Chọn **thẻ trạng thái**: Chờ duyệt · Đã duyệt · Từ chối · Đã huỷ · Tất cả. Con số trong ngoặc là số đề nghị của từng nhóm.
 2. Bấm vào **một dòng** để xem lại đúng nội dung đã gửi.
@@ -153,9 +162,9 @@ Tất cả đề nghị của đơn vị nằm chung một chỗ, xem được �
 
 Ban duyệt xong, hệ thống ghi ngay nội dung đề nghị vào số liệu thật của đơn vị và gửi email báo kết quả.
 
-![Hình 11. Đề nghị đã duyệt và lời nhắc xác nhận chốt lại](img/12-sau-khi-ban-duyet.png)
+![Hình 12. Đề nghị đã duyệt và lời nhắc xác nhận chốt lại](img/12-sau-khi-ban-duyet.png)
 
-*Hình 11. Đề nghị đã duyệt và lời nhắc xác nhận chốt lại*
+*Hình 12. Đề nghị đã duyệt và lời nhắc xác nhận chốt lại*
 
 1. Mở màn **Đề nghị sửa số liệu**, kiểm tra dòng vừa gửi đã chuyển sang **Đã duyệt**.
 2. Nếu dưới nội dung có dòng chữ đỏ **“Chốt số liệu đã được gỡ — vào xác nhận chốt lại”** thì còn một việc phải làm.
@@ -171,9 +180,9 @@ Ban duyệt xong, hệ thống ghi ngay nội dung đề nghị vào số liệu
 
 Vài điểm giúp đỡ mất thời gian chờ không cần thiết.
 
-![Hình 12. Ô cam sửa được ngay, ô xám phải gửi đề nghị](img/07-o-cam-o-xam.png)
+![Hình 13. Ô cam sửa được ngay, ô xám phải gửi đề nghị](img/07-o-cam-o-xam.png)
 
-*Hình 12. Ô cam sửa được ngay, ô xám phải gửi đề nghị*
+*Hình 13. Ô cam sửa được ngay, ô xám phải gửi đề nghị*
 
 1. Ở dải nhắc việc đầu màn hình, **ô màu cam** là ngày còn sửa thẳng được — bấm vào là nhập ngay.
 2. **Ô màu xám** là ngày đã quá hạn sửa — bấm vào để mở ra xem, rồi bấm Đề nghị sửa.
