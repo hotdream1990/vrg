@@ -76,6 +76,7 @@ def _group_sheet(ws: Worksheet, group: dict[str, Any], period: str) -> None:
             value = row.get(c.get("key"))
             cell = ws.cell(row=r, column=i, value=safe_cell(value))
             cell.border = _BORDER
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
             if isinstance(value, (int, float)):
                 cell.number_format = _NUM
         r += 1
@@ -83,8 +84,10 @@ def _group_sheet(ws: Worksheet, group: dict[str, Any], period: str) -> None:
     if rows and cols:
         ws.auto_filter.ref = f"A{head}:{get_column_letter(len(cols))}{r - 1}"
     ws.freeze_panes = ws.cell(row=head + 1, column=1)
-    for i in range(1, len(cols) + 1):
-        ws.column_dimensions[get_column_letter(i)].width = 20
+    # Cột chữ dài (vd danh sách ngày thiếu) rộng hơn nhưng có trần — phần dư xuống dòng.
+    for i, c in enumerate(cols, start=1):
+        longest = max((len(str(row.get(c.get("key")) or "")) for row in rows), default=0)
+        ws.column_dimensions[get_column_letter(i)].width = min(max(20, longest * 1.1), 60)
 
 
 def _overview_sheet(ws: Worksheet, result: dict[str, Any]) -> None:

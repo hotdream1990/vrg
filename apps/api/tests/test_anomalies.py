@@ -181,3 +181,29 @@ def test_missing_price_is_checked_per_material(_unit) -> None:
     rows = _missing_rows()
     assert len(rows) == 1 and rows[0]["loai_mu"] == "Mủ chén"
     assert rows[0]["san_luong_tan"] == 3.0
+
+
+# ── Luật "Chưa nộp / thiếu một phần" — phải nêu ĐÚNG những ngày thiếu ──────────────────────────
+def test_not_submitted_lists_the_missing_days(monkeypatch) -> None:
+    """Chỉ ghi "0/259 ngày thiếu" thì người đọc không biết đi nhắc ngày nào (chủ dự án phản ánh
+    17/09/2026) → ghi rõ ngày, gộp ngày liền nhau; biểu đủ thì ghi "Đủ"."""
+    from app.services import anomaly_rules as rules
+
+    monkeypatch.setattr(rules, "_active_units", lambda: [
+        {"name": "A", "region": "R"}, {"name": "B", "region": ""}, {"name": "C", "region": ""}])
+    monkeypatch.setattr(rules.unit_daily_repo, "companies_with_purchase_plan", lambda _y: {"A", "C"})
+    days = ["2026-09-10", "2026-09-11", "2026-09-12", "2026-09-13"]
+    submitted = {
+        "A": {"purchase": [days[0], days[2]], "consumption": days},
+        "B": {"purchase": [], "consumption": days},                  # không có KH thu mua, đủ tồn kho
+        "C": {"purchase": days, "consumption": [days[0]]},
+    }
+    grp = rules._not_submitted(days[0], days[-1], {}, submitted)
+    assert [c["label"] for c in grp["columns"]][2:] == [
+        "Thu mua", "Ngày thiếu Thu mua", "Tồn kho", "Ngày thiếu Tồn kho"]
+    assert grp["rows"] == [
+        {"don_vi": "A", "khu_vuc": "R", "thu_mua": "Thiếu 2/4 ngày", "ngay_thieu_thu_mua": "11/09, 13/09",
+         "ton_kho": "Đủ", "ngay_thieu_ton_kho": ""},
+        {"don_vi": "C", "khu_vuc": "", "thu_mua": "Đủ", "ngay_thieu_thu_mua": "",
+         "ton_kho": "Thiếu 3/4 ngày", "ngay_thieu_ton_kho": "11/09–13/09"},
+    ]

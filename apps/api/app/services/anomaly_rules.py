@@ -9,7 +9,7 @@ cho màn này theo đúng đặc tả `plans/reports/anomaly-rules.md`.
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from sqlalchemy import text
@@ -18,7 +18,7 @@ from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import PURCHASE_PRICE_TYPES, PURCHASE_SOURCE_UNIT
 from app.services import member_unit_repo, unit_daily_fields, unit_daily_repo, unit_report_rows
 from app.services.anomaly_types import (
-    HIGH, LOW, MEDIUM, THRESHOLDS, finalize, group, vn_date, vn_num,
+    HIGH, LOW, MEDIUM, THRESHOLDS, finalize, group, vn_date, vn_day_runs, vn_num,
 )
 
 logger = logging.getLogger("vrg.anomaly_rules")
@@ -280,7 +280,7 @@ def _submission_days(date_from: str, date_to: str) -> dict[str, dict[str, list[s
     return out
 
 
-#: Ngày biểu Tiêu thụ–Tồn kho BẮT ĐẦU được thu thập trên hệ thống (tài khoản đơn vị cấp giữa 07/2026).
+#: Ngày biểu Tồn kho (Tiêu thụ–Tồn kho) BẮT ĐẦU được thu thập trên hệ thống (tài khoản đơn vị cấp giữa 07/2026).
 #: Không có mốc này thì quét từ đầu năm sẽ báo MỌI đơn vị "thiếu ~200 ngày" — số đúng mà kết luận
 #: sai, và bảng cảnh báo mất hết giá trị vì đơn vị nộp đủ 100% cũng bị nêu tên.
 STOCK_START = "2026-07-24"
@@ -290,38 +290,57 @@ STOCK_START = "2026-07-24"
 @_rule("not_submitted", "Chưa nộp / thiếu một phần")
 def _not_submitted(date_from: str, date_to: str, thresholds: dict[str, float],
                    submitted: dict[str, dict[str, list[str]]]) -> dict[str, Any]:
-    """Số ngày ĐÃ nộp so với tổng số ngày trong kỳ, theo 2 biểu — đơn vị không có KH thu mua thì
-    cột Thu mua là "không áp dụng" (KHÔNG tính là thiếu), khớp `unit_daily_repo.companies_with_purchase_plan`."""
-    total_days = (date.fromisoformat(date_to) - date.fromisoformat(date_from)).days + 1
+    """Ngày CHƯA nộp của 2 biểu (Thu mua · Tồn kho theo ngày), kèm đúng những ngày đó — đơn vị không
+    có KH thu mua thì cột Thu mua là "không áp dụng" (KHÔNG tính là thiếu), khớp
+    `unit_daily_repo.companies_with_purchase_plan`."""
+    total_days = _span(date_from, date_to)
     # Biểu Tồn kho có kỳ RIÊNG: chỉ tính từ ngày hệ thống bắt đầu thu thập biểu đó trở đi.
     stock_from = max(date_from, STOCK_START)
-    stock_days = max(0, (date.fromisoformat(date_to) - date.fromisoformat(stock_from)).days + 1)
+    stock_days = _span(stock_from, date_to)
     year = date.fromisoformat(date_to).year
+    with_year = date.fromisoformat(date_from).year != year
     needs_purchase = unit_daily_repo.companies_with_purchase_plan(year)
     out = []
     for u in _active_units():
         name = u["name"]
         got = submitted.get(name, {"purchase": [], "consumption": []})
-        thieu_thu_mua = (total_days - len(got["purchase"])) if name in needs_purchase else 0
-        # Chỉ đếm ngày tồn kho NẰM TRONG kỳ riêng của biểu đó, không đếm ngày trước khi có biểu.
-        da_nop_ton = sum(1 for d in got["consumption"] if str(d) >= stock_from)
-        thieu_ton_kho = stock_days - da_nop_ton
-        if thieu_thu_mua <= 0 and thieu_ton_kho <= 0:
+        thieu_thu_mua = _missing_days(date_from, date_to, got["purchase"]) if name in needs_purchase else []
+        thieu_ton_kho = _missing_days(stock_from, date_to, got["consumption"]) if stock_days else []
+        if not thieu_thu_mua and not thieu_ton_kho:
             continue
         out.append({
             "don_vi": name, "khu_vuc": u.get("region") or "",
-            "bieu_thu_mua": (f"{thieu_thu_mua}/{total_days} ngày thiếu"
-                            if name in needs_purchase else "Không áp dụng"),
-            "bieu_ton_kho": f"{thieu_ton_kho}/{stock_days} ngày thiếu",
+            "thu_mua": (_missing_label(len(thieu_thu_mua), total_days)
+                        if name in needs_purchase else "Không áp dụng"),
+            "ngay_thieu_thu_mua": vn_day_runs(thieu_thu_mua, with_year),
+            "ton_kho": _missing_label(len(thieu_ton_kho), stock_days),
+            "ngay_thieu_ton_kho": vn_day_runs(thieu_ton_kho, with_year),
         })
     return group("not_submitted", "Chưa nộp / thiếu một phần",
-                f"Số ngày còn thiếu của 2 biểu. Thu mua: từ {vn_date(date_from)} đến "
-                f"{vn_date(date_to)} ({total_days} ngày). Tiêu thụ–Tồn kho: từ {vn_date(stock_from)} "
-                f"đến {vn_date(date_to)} ({stock_days} ngày), vì biểu này bắt đầu nộp từ "
-                f"{vn_date(STOCK_START)}. Đơn vị không được giao kế hoạch thu mua thì cột Thu mua "
-                "ghi \"Không áp dụng\".", MEDIUM,
+                f"Những ngày đơn vị chưa nhập 2 biểu Thu mua (theo ngày) và Tồn kho (theo ngày). "
+                f"Thu mua tính từ {vn_date(date_from)} đến {vn_date(date_to)} ({total_days} ngày). "
+                f"Tồn kho tính từ {vn_date(stock_from)} đến {vn_date(date_to)} ({stock_days} ngày), vì "
+                f"biểu này bắt đầu nộp từ {vn_date(STOCK_START)}. Đơn vị không được giao kế hoạch thu "
+                "mua thì cột Thu mua ghi \"Không áp dụng\".", MEDIUM,
                 [("don_vi", "Đơn vị"), ("khu_vuc", "Khu vực"),
-                 ("bieu_thu_mua", "Biểu Thu mua"), ("bieu_ton_kho", "Biểu Tiêu thụ–Tồn kho")], out)
+                 ("thu_mua", "Thu mua"), ("ngay_thieu_thu_mua", "Ngày thiếu Thu mua"),
+                 ("ton_kho", "Tồn kho"), ("ngay_thieu_ton_kho", "Ngày thiếu Tồn kho")], out)
+
+
+def _span(date_from: str, date_to: str) -> int:
+    return max(0, (date.fromisoformat(date_to) - date.fromisoformat(date_from)).days + 1)
+
+
+def _missing_days(date_from: str, date_to: str, have: list[str]) -> list[date]:
+    """Các ngày trong [date_from, date_to] KHÔNG có trong `have` (ngày đã nộp), tăng dần."""
+    got = {str(d)[:10] for d in have}
+    start = date.fromisoformat(date_from)
+    days = (start + timedelta(days=i) for i in range(_span(date_from, date_to)))
+    return [d for d in days if d.isoformat() not in got]
+
+
+def _missing_label(missing: int, total: int) -> str:
+    return f"Thiếu {missing}/{total} ngày" if missing else "Đủ"
 
 
 # ── MEDIUM — missing_price (nhóm D collect.sql) ───────────────────────────────────────────────
@@ -407,7 +426,7 @@ def _silent_unit(date_from: str, date_to: str, thresholds: dict[str, float],
                         "so_ngay_ngung_nop": gap})
     out.sort(key=lambda r: -r["so_ngay_ngung_nop"])
     return group("silent_unit", "Đơn vị ngừng nộp nhiều ngày",
-                f"Đơn vị đang hoạt động không nộp biểu nào (Thu mua lẫn Tiêu thụ–Tồn kho) trong "
+                f"Đơn vị đang hoạt động không nộp biểu nào (Thu mua lẫn Tồn kho) trong "
                 f"{silent_days} ngày gần nhất, tính đến {vn_date(date_to)}.", MEDIUM,
                 [("don_vi", "Đơn vị"), ("khu_vuc", "Khu vực"),
                  ("ngay_nop_gan_nhat", "Ngày nộp gần nhất"),

@@ -107,6 +107,12 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     khai gì). Giá bình quân · bản tin · báo cáo **không đổi** — số 0 vẫn không vào kho giá.
 
 ### Changed
+- **Cảnh báo "Chưa nộp / thiếu một phần" ghi rõ ngày thiếu** (17/09/2026) — trước chỉ ghi
+  "2/55 ngày thiếu", người đọc không biết phải nhắc ngày nào; biểu đủ cũng hiện "0/259 ngày thiếu".
+  - Nay mỗi biểu có 2 cột: *Thiếu N/T ngày* (hoặc *Đủ*) và *Ngày thiếu*, ngày liền nhau gộp thành
+    đoạn (vd "24/05, 21/08–16/09"). Áp cho cả màn quản trị, màn lãnh đạo đơn vị và file Excel.
+  - Đổi tên cột "Biểu Tiêu thụ–Tồn kho" thành **Tồn kho** cho khớp menu *Tồn kho (theo ngày)*.
+  - Sổ tay lãnh đạo đơn vị: chụp lại ảnh 17.
 - **Cấu hình › Cửa sổ nhập liệu ghi rõ phạm vi và cách tính** (17/09/2026) — ô của đơn vị thành
   viên đổi nhãn thành “Thu mua · Tồn kho · Giá mủ · Nhu cầu thị trường · ngày giao hợp đồng” (nhãn cũ
   chỉ ghi “Giá mủ đơn vị”), gợi ý “0 = chỉ hôm nay · 1 = hôm nay và hôm qua”. Câu báo khi bị chặn

@@ -10,6 +10,7 @@ Mỗi luật trả về một NHÓM cảnh báo cùng khuôn, để frontend v�
 """
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 #: Mức nghiêm trọng — quyết định màu thẻ và thứ tự hiển thị.
@@ -45,6 +46,20 @@ def vn_date(iso: str) -> str:
     nên theo đúng cách ghi ngày của các màn khác thay vì dạng ISO của máy."""
     parts = str(iso)[:10].split("-")
     return f"{parts[2]}/{parts[1]}/{parts[0]}" if len(parts) == 3 else str(iso)
+
+
+def vn_day_runs(days: list[date], with_year: bool) -> str:
+    """Danh sách ngày (tăng dần) → '14/09, 16/09, 20/09–25/09': ngày liền nhau gộp thành một đoạn
+    để đơn vị thiếu cả tháng không hiện ra 30 ngày rời. Kỳ nằm gọn trong một năm thì bỏ năm."""
+    fmt = "%d/%m/%Y" if with_year else "%d/%m"
+    runs: list[tuple[date, date]] = []
+    for d in days:
+        if runs and (d - runs[-1][1]).days == 1:
+            runs[-1] = (runs[-1][0], d)
+        else:
+            runs.append((d, d))
+    return ", ".join(a.strftime(fmt) if a == b else f"{a.strftime(fmt)}–{b.strftime(fmt)}"
+                     for a, b in runs)
 
 
 def vn_num(value: float) -> str:

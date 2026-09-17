@@ -25,6 +25,8 @@ export const SEVERITY: Record<AnomalySeverity, { label: string; tag: string; acc
 };
 
 /** Giá trị một ô → chữ hiển thị: số kiểu vi-VN, ngày ISO đổi sang DD/MM/YYYY, rỗng → "—". */
+const LONG_TEXT = 40;
+
 function cellText(v: unknown): string {
   if (v === null || v === undefined || v === "") return "—";
   if (typeof v === "number") return formatViNumber(v);
@@ -88,7 +90,12 @@ export function GroupTable({ group, showLogin }: { group: AnomalyGroup; showLogi
     title: c.label,
     dataIndex: c.key,
     key: c.key,
-    render: (v: unknown) => cellText(v),
+    render: (v: unknown) => {
+      const text = cellText(v);
+      // Bảng cuộn theo `max-content`: chữ dài (vd danh sách ngày thiếu) không có trần sẽ kéo cột dài
+      // hết cỡ → cho xuống dòng trong khung vừa phải.
+      return text.length > LONG_TEXT ? <div style={{ maxWidth: 360, whiteSpace: "normal" }}>{text}</div> : text;
+    },
   }));
   // Thấy lỗi là vào thẳng tài khoản đơn vị đó kiểm chứng, khỏi sang màn Tài khoản dò theo email.
   // Chỉ màn quản trị mới có cột này: nút tự ẩn với người không phải admin, nhưng TIÊU ĐỀ cột thì
