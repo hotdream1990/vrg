@@ -5,18 +5,20 @@
 > mủ nguyên liệu theo kỳ).
 
 ## Quyết định đã chốt (17/09/2026)
-1. **Mỗi nhu cầu là một PHIẾU có tình trạng** (Đang đàm phán · Đã ký hợp đồng · Không thành), cập
-   nhật về sau — không nhập lại mỗi ngày. Cập nhật **tình trạng · số HĐ · ngày ký · ghi chú** được
-   MIỄN cửa sổ nhập liệu (cửa sổ đơn vị đang = 0).
+1. **Mỗi nhu cầu là một PHIẾU**, cập nhật kết quả về sau — không nhập lại mỗi ngày. Cập nhật
+   **kết quả · ghi chú** được MIỄN cửa sổ nhập liệu (cửa sổ đơn vị đang = 0).
 2. **Mỗi dòng MỘT chủng loại** (khách hỏi 2 loại → 2 dòng, có nút Nhân bản).
-3. Kết quả ký HĐ: **gõ tay số HĐ + ngày ký** (không liên kết module Hợp đồng).
-4. **Chuyển hết dữ liệu cũ sang trường**, giữ nguyên văn cũ trong Ghi chú; gửi chủ dự án bảng đối
-   chiếu TRƯỚC khi ghi prod.
+3. **Chuyển hết dữ liệu cũ sang trường**, giữ nguyên văn cũ trong Ghi chú; gửi chủ dự án bảng đối
+   chiếu TRƯỚC khi ghi prod (đã ghi prod ở 0.4.74: 67 phiếu).
+4. **RÚT GỌN** (chủ dự án chốt sau khi xem bản 0.4.74 — thấy tình trạng/số HĐ/ngày ký/từ–đến ngày quá
+   rắc rối): **Thời gian giao** và **Kết quả** là Ô CHỮ tự do; bỏ tình trạng, số HĐ, ngày ký, giá
+   tạm tính, cặp ngày giao, dải tổng hợp và bộ lọc theo tình trạng. Dữ liệu đã có được gộp thành chữ
+   khi khởi động (`db.py`), phiếu chuyển đổi được ghi lại theo lời gốc bằng `convert.py --refresh`.
 
 ## Trường
 Ngày nhận* · Khách hàng* · Chủng loại* (danh mục `UNIT_GRADES`) · Số lượng + đơn vị (tấn/container)
-· Đơn giá + loại tiền (VND = triệu đ/tấn · USD/tấn) + giá tạm tính · Giao tại · Giao từ–đến ngày
-· Tình trạng* · Số HĐ + ngày ký (bắt buộc khi Đã ký) · Ghi chú.
+· Đơn giá + loại tiền (VND = triệu đ/tấn · USD/tấn) · Giao tại · Thời gian giao (chữ) · Kết quả
+(chữ, trống = chưa có) · Ghi chú.
 
 ## Nhánh làm song song (file KHÔNG giao nhau)
 | Nhánh | Người làm | File |

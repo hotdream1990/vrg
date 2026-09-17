@@ -1,4 +1,4 @@
-# Hợp đồng API — Nhu cầu thị trường theo trường (phiếu có tình trạng)
+# Hợp đồng API — Nhu cầu thị trường theo trường (bản rút gọn)
 
 Nguồn sự thật chung cho nhánh Backend (A) và Web (B). Đổi gì ở đây thì báo agent chính.
 
@@ -17,13 +17,9 @@ CREATE TABLE IF NOT EXISTS market_demand_item (
     qty_unit          text NOT NULL DEFAULT 'ton',   -- ton | container
     price             numeric,                       -- đơn giá (không bắt buộc)
     currency          text NOT NULL DEFAULT 'VND',   -- VND = triệu đồng/tấn · USD = USD/tấn
-    price_provisional boolean NOT NULL DEFAULT false,-- giá tạm tính
     delivery_place    text NOT NULL DEFAULT '',
-    delivery_from     date,
-    delivery_to       date,
-    status            text NOT NULL DEFAULT 'open',  -- open | signed | failed
-    contract_no       text NOT NULL DEFAULT '',
-    contract_date     date,
+    delivery_time     text NOT NULL DEFAULT '',      -- thời gian giao, gõ tự do
+    result            text NOT NULL DEFAULT '',      -- kết quả, gõ tự do (trống = chưa có)
     note              text NOT NULL DEFAULT '',
     source_key        text,                          -- khoá chống nhập trùng khi chuyển dữ liệu cũ
     created_at        timestamptz NOT NULL DEFAULT now(),
@@ -44,13 +40,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_mdi_source_key ON market_demand_item (sourc
 |---|---|
 | `QTY_UNITS` | `ton` → "tấn" · `container` → "container" |
 | `CURRENCIES` | `VND` → "triệu đồng/tấn" · `USD` → "USD/tấn" |
-| `STATUSES` | `open` → "Đang đàm phán" · `signed` → "Đã ký hợp đồng" · `failed` → "Không thành" |
 | Chủng loại | `market_meta.UNIT_GRADES` (server trả trong `grades`) |
 | Trần giá | VND ≤ 1000 (triệu đ/tấn) · USD ≤ 20000 — vượt ⇒ 400 "Đơn giá tính bằng TRIỆU đồng/tấn (vd 40 = 40 triệu)" / "…USD/tấn" |
 
 **Ô NỘI DUNG** (bị cửa sổ nhập liệu chặn): `company, as_of, customer, grade, qty, qty_unit, price,
-currency, price_provisional, delivery_place, delivery_from, delivery_to`.
-**Ô THEO DÕI** (sửa bất cứ lúc nào, MIỄN cửa sổ): `status, contract_no, contract_date, note`.
+currency, delivery_place, delivery_time`.
+**Ô THEO DÕI** (sửa bất cứ lúc nào, MIỄN cửa sổ): `result, note`.
 
 ## 3. Kiểu dữ liệu
 
@@ -58,9 +53,9 @@ currency, price_provisional, delivery_place, delivery_from, delivery_to`.
 ```json
 {"id": 12, "company": "Công ty Cổ phần Cao Su Tây Ninh", "as_of": "2026-09-17",
  "customer": "Công ty TNHH Cao Su Anh Dũng", "grade": "LATEX",
- "qty": 100.0, "qty_unit": "ton", "price": 40.0, "currency": "VND", "price_provisional": false,
- "delivery_place": "Tại kho", "delivery_from": null, "delivery_to": "2026-11-30",
- "status": "signed", "contract_no": "1752", "contract_date": "2026-09-17",
+ "qty": 100.0, "qty_unit": "ton", "price": 40.0, "currency": "VND",
+ "delivery_place": "Tại kho", "delivery_time": "Đến 30/11/2026",
+ "result": "Đã ký HĐMB số 1752 ngày 17/09/2026",
  "note": "", "legacy": false,
  "created_at": "…", "created_by": "…", "updated_at": "…", "updated_by": "…"}
 ```
@@ -69,10 +64,9 @@ currency, price_provisional, delivery_place, delivery_from, delivery_to`.
 `DemandItemIn` (thân PUT; `id` rỗng = thêm mới) — đủ các ô trên trừ `legacy/created_*/updated_*`.
 Ngày dạng `YYYY-MM-DD`. Luật (400 kèm câu tiếng Việt):
 - `customer` bỏ khoảng trắng, không rỗng, ≤ 200 · `grade` ∈ UNIT_GRADES · `qty`, `price` ≥ 0 hoặc null
-- `delivery_place` ≤ 200 · `note` ≤ 2000 · `contract_no` ≤ 60
-- `as_of` không ở tương lai (kể cả admin) · `delivery_to` ≥ `delivery_from` khi có cả hai
-- `status = signed` ⇒ bắt buộc `contract_no` + `contract_date` (ngày ký không ở tương lai)
-- `status ≠ signed` ⇒ server XOÁ `contract_no`/`contract_date` trước khi lưu
+- `delivery_place` ≤ 200 · `delivery_time` ≤ 200 · `result` ≤ 500 · `note` ≤ 2000 (mọi ô chữ bỏ
+  khoảng trắng đầu/cuối)
+- `as_of` không ở tương lai (kể cả admin)
 - Trần giá theo §2
 
 ## 4. Endpoint
@@ -80,7 +74,7 @@ Ngày dạng `YYYY-MM-DD`. Luật (400 kèm câu tiếng Việt):
 ### Tài khoản đơn vị (`/api/member/market-demand`, `get_unit_user`, lãnh đạo đơn vị chỉ GET)
 | Method | Path | Mô tả |
 |---|---|---|
-| GET | `/items?date_from&date_to&status&grade&q` | Phạm vi ĐỌC = `_scope(member)` (gồm đơn vị đã sáp nhập vào). Mặc định `date_from` = hôm nay − 90, `date_to` = hôm nay. `q` tìm trong khách hàng/ghi chú/số HĐ (không phân biệt hoa thường). |
+| GET | `/items?date_from&date_to&grade&q` | Phạm vi ĐỌC = `_scope(member)` (gồm đơn vị đã sáp nhập vào). Mặc định `date_from` = hôm nay − 90, `date_to` = hôm nay. `q` tìm trong khách hàng/kết quả/ghi chú (không phân biệt hoa thường). |
 | PUT | `/items` | Ghi 1 phiếu. `company` phải ∈ đơn vị ĐƯỢC GÁN (403). Sửa phiếu có sẵn: phiếu đó cũng phải thuộc đơn vị được gán. |
 | DELETE | `/items/{id}` | Xoá 1 phiếu (403/404 tương tự). |
 
@@ -89,7 +83,7 @@ GET trả: `{units, view_only_units, today, edit_window_days, grades, items}`.
 ### Chuyên viên (`/api/market-demand`, đọc `require_cap("market_demand")`, ghi `require_cap_edit`)
 | Method | Path | Mô tả |
 |---|---|---|
-| GET | `/items?date_from&date_to&company&status&grade&q` | mọi đơn vị |
+| GET | `/items?date_from&date_to&company&grade&q` | mọi đơn vị |
 | PUT | `/items` | `company` ∈ `member_unit_repo.active_names()` |
 | DELETE | `/items/{id}` | |
 
@@ -123,15 +117,13 @@ Op chữ cũ `market_demand` BỎ khỏi backend lẫn web (prod không có đ�
 ## 6. Nhật ký hoạt động
 `audit_repo.log("market_demand", create|update|delete, key=str(id), before, after, as_of, company)`.
 Nhãn ô mới thêm vào `apps/web/src/lib/audit-diff.ts` (`LABELS`): customer "Khách hàng",
-qty_unit "Đơn vị số lượng", price_provisional "Giá tạm tính", delivery_place "Giao tại",
-delivery_from "Giao từ ngày", delivery_to "Giao đến ngày", status "Tình trạng",
-contract_no "Số hợp đồng", contract_date "Ngày ký hợp đồng", customer… (đã có: price, currency,
-qty, grade, note, as_of).
+qty_unit "Đơn vị số lượng", delivery_place "Giao tại", delivery_time "Thời gian giao",
+result "Kết quả" (đã có: price, currency, qty, grade, note, as_of). Giữ nhãn các ô của mẫu trước khi
+rút gọn (price_provisional, delivery_from/to, contract_no/date) vì nhật ký chuyển đổi 0.4.74 còn các
+khoá đó.
 
 ## 7. Web — hiển thị
 - `qty`: "100 tấn" · "3 container" · null → "—" (số kiểu vi-VN).
-- `price`: VND → "40 triệu đ/tấn" · USD → "2.380 USD/tấn"; `price_provisional` → thêm " (tạm tính)".
-- Giao: `delivery_from`+`delivery_to` → "01/08 – 30/09/2026"; chỉ `to` → "đến 30/11/2026";
-  chỉ `from` → "từ 06/08/2026"; bằng nhau → "06/08/2026".
-- Tình trạng: Tag màu (open = xanh dương · signed = xanh lá · failed = xám); signed kèm
-  "HĐ 1752 · 17/09/2026".
+- `price`: VND → "40 triệu đ/tấn" · USD → "2.380 USD/tấn".
+- Cột **Giao hàng**: dòng 1 nơi giao, dòng 2 thời gian giao (chữ xám).
+- Cột **Kết quả**: chữ xuống dòng, trống → "—". Cột Ghi chú: 2 dòng, tooltip đủ nội dung.
