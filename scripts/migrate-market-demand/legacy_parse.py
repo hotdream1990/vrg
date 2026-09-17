@@ -4,12 +4,12 @@ Dữ liệu cũ (34 bản ghi / 6 đơn vị, 23/07 → 17/09/2026) viết theo 
 vị — nhận ra được mẫu thì tách tự động; mục viết tự do thì lấy từ `legacy_manual.MANUAL` (soạn tay
 sau khi đọc từng câu). Không khớp cả hai ⇒ báo lỗi, không đoán.
 
-Nguyên tắc: KHÔNG bịa số liệu. Câu nào không nói rõ (không có số lượng, không có giá, thời gian ghi
-bằng chữ) thì để trống ô đó và ghi lại trong Ghi chú; nguyên văn cũ luôn được giữ ở cuối Ghi chú.
+Nguyên tắc: KHÔNG bịa số liệu. Câu nào không nói rõ (không có số lượng, không có giá) thì để trống ô
+đó; thời gian giao và kết quả là Ô CHỮ nên chép đúng lời đơn vị viết; nguyên văn cũ luôn được giữ ở
+cuối Ghi chú.
 """
 from __future__ import annotations
 
-import calendar
 import re
 from datetime import date
 
@@ -54,9 +54,6 @@ PATTERNS = [
         rf"\s*thời gian (?P<time>.+?)\s*$", re.I | re.S),
 ]
 
-_RESULT = re.compile(r"đã ký (?P<kind>HĐMB|HĐ uỷ thác XK|Phụ kiện) số (?P<no>\S+) ngày "
-                     r"(?P<d>\d{1,2}/\d{1,2}/\d{4})", re.I)
-_RESULT_NOTE = {"hđ uỷ thác xk": "Hợp đồng uỷ thác xuất khẩu", "phụ kiện": "Phụ kiện hợp đồng"}
 
 
 def split_items(text: str) -> list[str]:
@@ -76,30 +73,18 @@ def vn_number(raw: str) -> float:
     return float(s)
 
 
-def _dmy(raw: str, year: int | None = None) -> date:
-    d, m, *y = [int(x) for x in raw.split("/")]
-    return date(y[0] if y else year, m, d)
+def delivery_text(raw: str | None, as_of: date) -> str:
+    """Thời gian giao như đơn vị viết (viết hoa chữ đầu); ngày trơn ("14/8/2026", "31/7") viết đủ dd/mm/yyyy."""
+    t = re.sub(r"\s+", " ", (raw or "").strip())
+    if m := re.fullmatch(r"(\d{1,2})/(\d{1,2})(?:/(\d{4}))?", t):
+        return date(int(m[3] or as_of.year), int(m[2]), int(m[1])).strftime("%d/%m/%Y")
+    return t[:1].upper() + t[1:]
 
 
-def _month_span(m1: int, m2: int, year: int) -> tuple[date, date]:
-    return date(year, m1, 1), date(year, m2, calendar.monthrange(year, m2)[1])
-
-
-def delivery_span(raw: str | None, as_of: date) -> tuple[date | None, date | None]:
-    """Thời gian giao ghi bằng chữ → (từ ngày, đến ngày). Không hiểu thì (None, None)."""
-    t = (raw or "").strip().lower()
-    if not t:
-        return None, None
-    if m := re.fullmatch(r"đến (\d{1,2}/\d{1,2}/\d{4})", t):
-        return None, _dmy(m[1])
-    if m := re.fullmatch(r"t(\d{1,2})\+(\d{1,2})/(\d{4})", t):
-        return _month_span(int(m[1]), int(m[2]), int(m[3]))
-    if m := re.fullmatch(r"tháng (\d{1,2})(?:/(\d{4}))?", t):
-        return _month_span(int(m[1]), int(m[1]), int(m[2] or as_of.year))
-    if re.fullmatch(r"\d{1,2}/\d{1,2}(/\d{4})?", t):
-        d = _dmy(t, as_of.year)
-        return d, d
-    return None, None
+def sentence(raw: str | None) -> str:
+    """Câu kết quả: gọn khoảng trắng, bỏ dấu chấm cuối, viết hoa chữ đầu."""
+    t = re.sub(r"\s+", " ", (raw or "").strip()).rstrip(".").strip()
+    return t[:1].upper() + t[1:]
 
 
 def normalize_grade(raw: str) -> tuple[str, str]:
@@ -129,24 +114,17 @@ def auto_item(fragment: str, as_of: date) -> dict | None:
     cur = "USD" if (g.get("cur") or "").lower() == "usd" else "VND"
     if cur == "VND" and price and price > 1000:
         price = price / 1_000_000                     # "54.800.000 đồng/tấn" → 54,8 triệu
-    frm, to = delivery_span(g.get("time"), as_of)
     notes = [grade_note] if grade_note else []
     if g.get("addon"):
         notes.append(f"Mua thêm cho {g['addon'].strip()}")
-    item = {
+    if g.get("result") and not g["result"].lower().lstrip().startswith("đã ký"):
+        raise ValueError(f"Không đọc được kết quả: {g['result']!r}")
+    return {
         "as_of": as_of.isoformat(), "customer": re.sub(r"^Khách hàng\s+", "", g["customer"].strip()),
         "grade": grade, "qty": vn_number(g["qty"]), "qty_unit": "ton",
-        "price": price, "currency": cur, "price_provisional": False,
+        "price": price, "currency": cur,
         "delivery_place": normalize_place(g.get("place")),
-        "delivery_from": frm and frm.isoformat(), "delivery_to": to and to.isoformat(),
-        "status": "open", "contract_no": "", "contract_date": None,
+        "delivery_time": delivery_text(g.get("time"), as_of),
+        "result": sentence(g.get("result")),
+        "extra_note": " · ".join(notes),
     }
-    if g.get("result"):
-        r = _RESULT.search(g["result"])
-        if not r:
-            raise ValueError(f"Không đọc được kết quả: {g['result']!r}")
-        item.update(status="signed", contract_no=r["no"], contract_date=_dmy(r["d"]).isoformat())
-        if extra := _RESULT_NOTE.get(r["kind"].lower()):
-            notes.append(extra)
-    item["extra_note"] = " · ".join(notes)
-    return item

@@ -12,7 +12,7 @@ from typing import Any
 from fastapi import HTTPException
 
 from app.core import edit_window
-from app.core.market_demand_meta import CURRENCIES, DATA_FIELDS, QTY_UNITS, STATUSES
+from app.core.market_demand_meta import CURRENCIES, DATA_FIELDS, QTY_UNITS
 from app.core.unit_guard import assert_unit_can_enter
 from app.schemas.market_demand_item import DemandDeleteIn, DemandItemIn
 from app.services import market_demand_item_policy as policy
@@ -22,7 +22,7 @@ from app.services.edit_request_ops import (
 )
 
 _NOT_FOUND = "Không tìm thấy phiếu nhu cầu trong phạm vi tài khoản."
-_LABELS = {"status": STATUSES, "qty_unit": QTY_UNITS, "currency": CURRENCIES}
+_LABELS = {"qty_unit": QTY_UNITS, "currency": CURRENCIES}
 
 
 def _window(as_of: str):
@@ -100,7 +100,7 @@ OPS: dict[str, Op] = {
         label=lambda _p: "Nhu cầu thị trường",
         validate=_save_validate, snapshot=lambda p: _snapshot(p.get("id")),
         company=_save_company, check_scope=_save_scope,
-        # Duyệt sau vài ngày: kiểm lại luật (vd ngày ký không ở tương lai, chủng loại còn trong danh mục).
+        # Duyệt sau vài ngày: kiểm lại luật (vd chủng loại còn trong danh mục).
         precheck=lambda p, _b: policy.clean(p),
         target_key=_save_key, labels=lambda _rows: _LABELS,
         title=lambda p, _b: _title("Nhu cầu", p),

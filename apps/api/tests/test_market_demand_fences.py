@@ -39,17 +39,18 @@ def test_window_blocks_content_but_not_tracking_fields(md) -> None:
     assert _blocked(client.put(MEMBER_URL, headers=mem, json=item(id=iid, as_of=YDAY, customer="Khác")))
     # Kéo phiếu cũ vào vùng mở (đổi ngày nhận sang hôm nay) cũng bị chặn theo ngày CŨ.
     assert _blocked(client.put(MEMBER_URL, headers=mem, json=item(id=iid)))
-    tracking = item(id=iid, as_of=YDAY, qty=100.0, status="signed", contract_no="HD-9",
-                    contract_date=YDAY, note="Đã ký sau 1 ngày")
+    tracking = item(id=iid, as_of=YDAY, qty=100.0, result="Đã ký HĐ số HD-9", note="Đã ký sau 1 ngày")
     res = client.put(MEMBER_URL, headers=mem, json=tracking)
     assert res.status_code == 200, res.text
-    assert res.json()["item"]["status"] == "signed" and res.json()["item"]["updated_by"] == "zz_md_mem"
+    assert res.json()["item"]["result"] == "Đã ký HĐ số HD-9" and res.json()["item"]["updated_by"] == "zz_md_mem"
+    # Thời gian giao là ô NỘI DUNG — phiếu quá hạn thì không đổi được.
+    assert _blocked(client.put(MEMBER_URL, headers=mem, json={**tracking, "delivery_time": "Tháng 12"}))
     assert _blocked(client.delete(f"{MEMBER_URL}/{iid}", headers=mem))
     assert client.put(MEMBER_URL, headers=mem, json=item()).status_code == 200      # hôm nay vẫn nhập
 
     ed = md["ed"]
     assert _blocked(client.put(EDITOR_URL, headers=ed, json={**tracking, "price": 41}))
-    assert client.put(EDITOR_URL, headers=ed, json={**tracking, "status": "failed"}).status_code == 200
+    assert client.put(EDITOR_URL, headers=ed, json={**tracking, "result": "Không thành"}).status_code == 200
     admin = client.put(EDITOR_URL, headers=md["admin"], json={**tracking, "customer": "Admin sửa"})
     assert admin.status_code == 200 and admin.json()["item"]["customer"] == "Admin sửa"
     assert client.delete(f"{EDITOR_URL}/{iid}", headers=md["admin"]).status_code == 200

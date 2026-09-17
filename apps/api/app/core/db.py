@@ -203,13 +203,9 @@ CREATE TABLE IF NOT EXISTS market_demand_item (
     qty_unit          text NOT NULL DEFAULT 'ton',   -- ton | container
     price             numeric,                       -- đơn giá (không bắt buộc)
     currency          text NOT NULL DEFAULT 'VND',   -- VND = triệu đồng/tấn · USD = USD/tấn
-    price_provisional boolean NOT NULL DEFAULT false,-- giá tạm tính
     delivery_place    text NOT NULL DEFAULT '',
-    delivery_from     date,
-    delivery_to       date,
-    status            text NOT NULL DEFAULT 'open',  -- open | signed | failed
-    contract_no       text NOT NULL DEFAULT '',
-    contract_date     date,
+    delivery_time     text NOT NULL DEFAULT '',      -- thời gian giao, gõ tự do
+    result            text NOT NULL DEFAULT '',      -- kết quả, gõ tự do (trống = chưa có)
     note              text NOT NULL DEFAULT '',
     source_key        text,                          -- khoá chống nhập trùng khi chuyển dữ liệu cũ
     created_at        timestamptz NOT NULL DEFAULT now(),
@@ -616,6 +612,35 @@ BEGIN
       WHERE member_unit IS NOT NULL AND member_unit <> ''
         AND (member_units IS NULL OR member_units = '[]'::jsonb);
     ALTER TABLE app_user DROP COLUMN member_unit;
+  END IF;
+END $$;
+-- Nhu cầu thị trường RÚT GỌN (chốt 17/09/2026): thời gian giao + kết quả thành Ô CHỮ; bỏ tình trạng,
+-- số hợp đồng, ngày ký, giá tạm tính, cặp ngày giao. Gộp giá trị cũ thành chữ rồi bỏ cột (idempotent).
+ALTER TABLE market_demand_item ADD COLUMN IF NOT EXISTS delivery_time text NOT NULL DEFAULT '';
+ALTER TABLE market_demand_item ADD COLUMN IF NOT EXISTS result text NOT NULL DEFAULT '';
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'market_demand_item' AND column_name = 'status') THEN
+    UPDATE market_demand_item SET
+      delivery_time = CASE
+        WHEN delivery_from IS NULL AND delivery_to IS NULL THEN delivery_time
+        WHEN delivery_from IS NULL THEN 'Đến ' || to_char(delivery_to, 'DD/MM/YYYY')
+        WHEN delivery_to IS NULL THEN 'Từ ' || to_char(delivery_from, 'DD/MM/YYYY')
+        WHEN delivery_from = delivery_to THEN to_char(delivery_to, 'DD/MM/YYYY')
+        ELSE to_char(delivery_from, 'DD/MM/YYYY') || ' – ' || to_char(delivery_to, 'DD/MM/YYYY')
+      END,
+      result = CASE status
+        WHEN 'signed' THEN 'Đã ký hợp đồng số ' || contract_no
+                           || COALESCE(' ngày ' || to_char(contract_date, 'DD/MM/YYYY'), '')
+        WHEN 'failed' THEN 'Không thành'
+        ELSE result
+      END,
+      note = CASE WHEN price_provisional
+                  THEN 'Giá tạm tính' || CASE WHEN note <> '' THEN chr(10) || note ELSE '' END
+                  ELSE note END;
+    ALTER TABLE market_demand_item DROP COLUMN price_provisional, DROP COLUMN delivery_from,
+      DROP COLUMN delivery_to, DROP COLUMN status, DROP COLUMN contract_no, DROP COLUMN contract_date;
   END IF;
 END $$;
 -- Đổi tên quyền cũ 'corridor_info' → 'market_demand' (Thông tin hành lang → Nhu cầu thị trường).

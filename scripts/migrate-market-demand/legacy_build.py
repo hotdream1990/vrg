@@ -42,9 +42,6 @@ def build_items(rows: list[dict]) -> list[dict]:
                 raise ValueError(f"Mục chưa xử lý: {as_of} · {r['company']} · mục {idx}: {frag[:80]!r}")
             for k, item in enumerate(drafts, 1):
                 flag = item.pop("flag", "")
-                item.setdefault("status", "open")
-                item.setdefault("contract_no", "")
-                item.setdefault("contract_date", None)
                 out.append({
                     **item, "company": r["company"], "as_of": as_of,
                     "note": _note(item.get("note", ""), as_of, frag),
@@ -60,7 +57,7 @@ def _flag_duplicates(items: list[dict]) -> None:
     được ghi lại nhiều ngày (mô hình cũ nhập theo ngày). Chỉ ĐÁNH DẤU, không tự gộp."""
     first: dict[tuple, str] = {}
     for it in sorted(items, key=lambda x: x["as_of"]):
-        if it["status"] == "signed":
+        if it["result"]:
             continue                                   # số HĐ khác nhau = các hợp đồng thật khác nhau
         key = (it["company"], it["customer"].lower(), it["grade"], it["qty"], it["qty_unit"],
                it["price"], it["currency"])
@@ -74,5 +71,5 @@ def _flag_duplicates(items: list[dict]) -> None:
 
 
 def _same(a: dict, b: dict) -> bool:
-    keys = ("company", "grade", "qty", "price", "delivery_from", "delivery_to")
+    keys = ("company", "grade", "qty", "price", "delivery_time")
     return a["customer"].lower() == b["customer"].lower() and all(a[k] == b[k] for k in keys)

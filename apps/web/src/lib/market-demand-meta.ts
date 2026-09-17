@@ -1,18 +1,13 @@
-/* Danh mục · định dạng · luật kiểm tra phía web cho Nhu cầu thị trường (api-contract §2, §3, §7).
+/* Danh mục · định dạng · luật kiểm tra phía web cho Nhu cầu thị trường (api-contract §2, §3, §7) —
+   bản rút gọn 17/09/2026: thời gian giao và kết quả là ô chữ tự do.
    Kiểm tra ở đây chỉ để BÁO SỚM cho người nhập — server vẫn là hàng rào thật. */
 
-import { dm, dmy } from "./date";
+import { dmy } from "./date";
 import type {
-  DemandCurrency, DemandItem, DemandItemInput, DemandQtyUnit, DemandStatus,
+  DemandCurrency, DemandItem, DemandItemInput, DemandQtyUnit,
 } from "./market-demand-client";
 
 type Option<T extends string> = { value: T; label: string };
-
-export const DEMAND_STATUSES: (Option<DemandStatus> & { color: string })[] = [
-  { value: "open", label: "Đang đàm phán", color: "blue" },
-  { value: "signed", label: "Đã ký hợp đồng", color: "green" },
-  { value: "failed", label: "Không thành", color: "default" },
-];
 
 export const QTY_UNITS: Option<DemandQtyUnit>[] = [
   { value: "ton", label: "tấn" },
@@ -28,7 +23,8 @@ export const CURRENCIES: Option<DemandCurrency>[] = [
 const PRICE_SUFFIX: Record<DemandCurrency, string> = { VND: "triệu đ/tấn", USD: "USD/tấn" };
 /** Trần đơn giá — vượt là gần như chắc nhập sai đơn vị tính (vd gõ 40.000.000 thay vì 40). */
 const PRICE_CAP: Record<DemandCurrency, number> = { VND: 1000, USD: 20000 };
-const MAX_LEN = { customer: 200, delivery_place: 200, contract_no: 60, note: 2000 };
+/** Cùng giới hạn với server (`market_demand_meta.*_MAX`). */
+const MAX_LEN = { customer: 200, delivery_place: 200, delivery_time: 200, result: 500, note: 2000 };
 
 export const DEFAULT_DELIVERY_PLACE = "Tại kho";
 
@@ -39,8 +35,6 @@ export const shortUnit = (name: string): string =>
 const labelOf = <T extends string>(list: Option<T>[], v: T): string =>
   list.find((x) => x.value === v)?.label ?? v;
 
-export const statusMeta = (s: DemandStatus) =>
-  DEMAND_STATUSES.find((x) => x.value === s) ?? { value: s, label: s, color: "default" };
 export const qtyUnitLabel = (u: DemandQtyUnit) => labelOf(QTY_UNITS, u);
 export const currencyLabel = (c: DemandCurrency) => labelOf(CURRENCIES, c);
 
@@ -50,22 +44,9 @@ const num = (v: number) => v.toLocaleString("vi-VN", { maximumFractionDigits: 3 
 export const fmtQty = (i: Pick<DemandItemInput, "qty" | "qty_unit">): string =>
   (i.qty == null ? "—" : `${num(i.qty)} ${qtyUnitLabel(i.qty_unit)}`);
 
-/** "40 triệu đ/tấn" · "2.380 USD/tấn (tạm tính)" · trống → "—". */
-export const fmtPrice = (i: Pick<DemandItemInput, "price" | "currency" | "price_provisional">): string =>
-  (i.price == null ? "—"
-    : `${num(i.price)} ${PRICE_SUFFIX[i.currency] ?? i.currency}${i.price_provisional ? " (tạm tính)" : ""}`);
-
-/** "01/08 – 30/09/2026" · "đến 30/11/2026" · "từ 06/08/2026" · hai đầu bằng nhau → "06/08/2026". */
-export function fmtDelivery(from: string | null, to: string | null): string {
-  if (from && to) {
-    if (from === to) return dmy(to);
-    const head = from.slice(0, 4) === to.slice(0, 4) ? dm(from) : dmy(from);
-    return `${head} – ${dmy(to)}`;
-  }
-  if (to) return `đến ${dmy(to)}`;
-  if (from) return `từ ${dmy(from)}`;
-  return "—";
-}
+/** "40 triệu đ/tấn" · "2.380 USD/tấn" · trống → "—". */
+export const fmtPrice = (i: Pick<DemandItemInput, "price" | "currency">): string =>
+  (i.price == null ? "—" : `${num(i.price)} ${PRICE_SUFFIX[i.currency] ?? i.currency}`);
 
 type LabelFields = Pick<DemandItemInput, "customer" | "grade" | "as_of">;
 
@@ -79,36 +60,34 @@ export const demandTitle = (v: LabelFields, remove = false): string =>
 
 export const emptyDemand = (company: string, today: string): DemandItemInput => ({
   id: null, company, as_of: today, customer: "", grade: "",
-  qty: null, qty_unit: "ton", price: null, currency: "VND", price_provisional: false,
-  delivery_place: "", delivery_from: null, delivery_to: null,
-  status: "open", contract_no: "", contract_date: null, note: "",
+  qty: null, qty_unit: "ton", price: null, currency: "VND",
+  delivery_place: "", delivery_time: "", result: "", note: "",
 });
 
 /** Đúng thân PUT — bỏ các ô chỉ-đọc server trả kèm (legacy, created_*, updated_*). */
 export const toDemandInput = (i: DemandItem): DemandItemInput => ({
   id: i.id, company: i.company, as_of: i.as_of, customer: i.customer, grade: i.grade,
   qty: i.qty, qty_unit: i.qty_unit, price: i.price, currency: i.currency,
-  price_provisional: i.price_provisional, delivery_place: i.delivery_place,
-  delivery_from: i.delivery_from, delivery_to: i.delivery_to, status: i.status,
-  contract_no: i.contract_no, contract_date: i.contract_date, note: i.note,
+  delivery_place: i.delivery_place, delivery_time: i.delivery_time ?? "",
+  result: i.result ?? "", note: i.note,
 });
 
-/** Nhân bản: cùng nội dung, là phiếu MỚI nhận hôm nay, đang đàm phán, chưa có số HĐ. */
+/** Nhân bản: phiếu MỚI nhận hôm nay, cùng nội dung (khách hàng, nơi giao, thời gian giao…) nhưng
+ *  chưa có kết quả — kết quả thuộc về phiếu gốc. */
 export const cloneDemand = (i: DemandItem, company: string, today: string): DemandItemInput => ({
-  ...toDemandInput(i), id: null, company, as_of: today,
-  status: "open", contract_no: "", contract_date: null,
+  ...toDemandInput(i), id: null, company, as_of: today, result: "",
 });
 
-/** Chuẩn hoá trước khi gửi: bỏ khoảng trắng thừa; chưa ký thì bỏ số HĐ/ngày ký (server cũng làm vậy,
- *  làm luôn ở đây để bảng so sánh của đề nghị sửa không hiện ô "đổi" giả). */
+/** Chuẩn hoá trước khi gửi: bỏ khoảng trắng thừa ở mọi ô chữ (server cũng làm vậy — làm luôn ở đây
+ *  để bảng so sánh của đề nghị sửa không hiện ô "đổi" giả). */
 export function normalizeDemand(v: DemandItemInput): DemandItemInput {
-  const signed = v.status === "signed";
   return {
     ...v,
     customer: v.customer.trim(),
     delivery_place: v.delivery_place.trim(),
-    contract_no: signed ? v.contract_no.trim() : "",
-    contract_date: signed ? v.contract_date : null,
+    delivery_time: v.delivery_time.trim(),
+    result: v.result.trim(),
+    note: v.note.trim(),
   };
 }
 
@@ -130,28 +109,21 @@ export function validateDemand(raw: DemandItemInput, today: string): string | nu
       : `Đơn giá tính bằng USD/tấn (vd 2380 = 2.380 USD/tấn) — tối đa ${num(PRICE_CAP.USD)}.`;
   }
   if (v.delivery_place.length > MAX_LEN.delivery_place) return `Nơi giao tối đa ${MAX_LEN.delivery_place} ký tự.`;
-  if (v.delivery_from && v.delivery_to && v.delivery_to < v.delivery_from) {
-    return "Ngày giao «đến» phải bằng hoặc sau ngày giao «từ».";
+  if (v.delivery_time.length > MAX_LEN.delivery_time) {
+    return `Thời gian giao tối đa ${MAX_LEN.delivery_time} ký tự.`;
   }
-  if (v.status === "signed") {
-    if (!v.contract_no) return "Đã ký hợp đồng — nhập số hợp đồng.";
-    if (!v.contract_date) return "Đã ký hợp đồng — chọn ngày ký.";
-    if (v.contract_date > today) return "Ngày ký hợp đồng không được sau hôm nay.";
-  }
-  if (v.contract_no.length > MAX_LEN.contract_no) return `Số hợp đồng tối đa ${MAX_LEN.contract_no} ký tự.`;
+  if (v.result.length > MAX_LEN.result) return `Kết quả tối đa ${MAX_LEN.result} ký tự.`;
   if (v.note.length > MAX_LEN.note) return `Ghi chú tối đa ${MAX_LEN.note} ký tự.`;
   return null;
 }
 
-export const DEMAND_NOTE_MAX = MAX_LEN.note;
-export const DEMAND_CONTRACT_NO_MAX = MAX_LEN.contract_no;
+export const DEMAND_MAX_LEN = MAX_LEN;
 
-/** Mã → nhãn (tình trạng, đơn vị số lượng, đơn vị giá) cho bảng so sánh đề nghị sửa. Đổi cả hai phía
- *  nên vẫn so đúng. Chỉ dùng cho op nhu cầu: `status`… trùng tên khoá ở nhóm số liệu khác. */
+/** Mã → nhãn (đơn vị số lượng, đơn vị giá) cho bảng so sánh đề nghị sửa. Đổi cả hai phía nên vẫn so
+ *  đúng. Chỉ dùng cho op nhu cầu: `currency`… trùng tên khoá ở nhóm số liệu khác. */
 export function labelDemandCodes(o: Record<string, unknown> | null): Record<string, unknown> | null {
   if (!o) return null;
   const out = { ...o };
-  if (typeof o.status === "string") out.status = statusMeta(o.status as DemandStatus).label;
   if (typeof o.qty_unit === "string") out.qty_unit = qtyUnitLabel(o.qty_unit as DemandQtyUnit);
   if (typeof o.currency === "string") out.currency = currencyLabel(o.currency as DemandCurrency);
   return out;

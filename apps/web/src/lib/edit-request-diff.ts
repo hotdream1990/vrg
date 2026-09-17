@@ -61,7 +61,7 @@ const CONTRACT_LABELS: Record<string, string> = {
   certs: "Chứng chỉ", premium: "Premium", premium_ccy: "Loại tiền premium",
 };
 
-/** Nhãn nhu cầu thị trường — phần còn lại (khách hàng, giao tại, tình trạng…) lấy từ audit-diff. */
+/** Nhãn nhu cầu thị trường — phần còn lại (khách hàng, giao tại, thời gian giao, kết quả…) lấy từ audit-diff. */
 const DEMAND_LABELS: Record<string, string> = { as_of: "Ngày nhận", currency: "Đơn vị giá" };
 
 const isDailyOp = (op: EditRequestOp) => op === "daily_report" || op === "daily_move";

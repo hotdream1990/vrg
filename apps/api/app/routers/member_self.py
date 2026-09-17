@@ -151,11 +151,10 @@ def clear_my_price(
     return {"deleted": True}
 
 
-# ── Nhu cầu thị trường (phiếu theo trường — mỗi phiếu một chủng loại, có tình trạng) ──
+# ── Nhu cầu thị trường (phiếu theo trường — mỗi phiếu một chủng loại) ──
 @router.get("/market-demand/items")
 def my_market_demand_items(date_from: str | None = Query(None, description="Từ ngày nhận 'YYYY-MM-DD'"),
                            date_to: str | None = Query(None, description="Đến ngày nhận 'YYYY-MM-DD'"),
-                           status: str | None = Query(None, description="open | signed | failed"),
                            grade: str | None = Query(None),
                            q: str | None = Query(None, max_length=120),
                            member: dict = Depends(get_unit_user)) -> dict:
@@ -164,8 +163,7 @@ def my_market_demand_items(date_from: str | None = Query(None, description="Từ
     d_from, d_to = demand_policy.date_range(date_from, date_to)
     return {"units": units, "view_only_units": view_only, "today": edit_window.today().isoformat(),
             "edit_window_days": edit_window.member_window(), "grades": list(demand_meta.GRADES),
-            "items": market_demand_item_repo.list_items(units, d_from, d_to, status=status,
-                                                        grade=grade, q=q)}
+            "items": market_demand_item_repo.list_items(units, d_from, d_to, grade=grade, q=q)}
 
 
 def _my_demand_item(member: dict, item_id: int) -> dict:

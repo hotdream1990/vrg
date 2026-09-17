@@ -498,7 +498,7 @@ def test_member_entry_forms_keep_only_the_units_the_account_can_write() -> None:
     member = {"username": ACCOUNT, "member_units": [NEW]}
     assert member_self.my_year_plan(year=date.today().year, member=member)["units"] == [NEW]
     # Màn nhu cầu mở phạm vi ĐỌC sang đơn vị cũ, nhưng đánh dấu chỉ xem → form chỉ còn đơn vị mới.
-    demand = member_self.my_market_demand_items(date_from=None, date_to=None, status=None, grade=None,
-                                                q=None, member=member)
+    demand = member_self.my_market_demand_items(date_from=None, date_to=None, grade=None, q=None,
+                                                member=member)
     assert demand["view_only_units"] == [OLD]
     assert [u for u in demand["units"] if u not in demand["view_only_units"]] == [NEW]

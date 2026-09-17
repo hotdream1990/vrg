@@ -4,6 +4,8 @@
 Mặc định CHẠY THỬ: tách + kiểm từng phiếu bằng đúng luật của hệ thống (`policy.clean`), in tổng kết.
     --review FILE.xlsx   ghi bảng đối chiếu cho chủ dự án duyệt
     --commit             ghi thật (bỏ qua phiếu đã có `source_key` → chạy lại không nhân đôi)
+    --refresh            như --commit, nhưng phiếu đã chuyển thì GHI ĐÈ theo cách tách hiện tại —
+                         trừ phiếu người dùng đã tự sửa (updated_by khác tài khoản chuyển đổi)
     --undo               xoá mọi phiếu chuyển đổi (`source_key` bắt đầu bằng "legacy:")
     --dump FILE.json     đọc bản chữ cũ từ file thay vì DB (chạy thử trên máy dev)
 
@@ -30,12 +32,14 @@ from sqlalchemy import text  # noqa: E402
 
 from app.core import request_ctx  # noqa: E402
 from app.core.db import ensure_schema, session_scope  # noqa: E402
+from app.core.market_demand_meta import DATA_FIELDS  # noqa: E402
 from app.services import market_demand_item_policy as policy  # noqa: E402
 from app.services import market_demand_item_repo as repo  # noqa: E402
 from legacy_build import build_items  # noqa: E402
 
 ACTOR = "chuyen-doi-du-lieu"
 AUDIT_NOTE = "Chuyển từ Nhu cầu thị trường dạng chữ (17/09/2026)"
+REFRESH_NOTE = "Cập nhật phiếu chuyển đổi theo mẫu rút gọn (17/09/2026)"
 
 
 def load_rows(dump: str | None) -> list[dict]:
@@ -61,22 +65,36 @@ def validate(items: list[dict]) -> list[tuple[dict, dict]]:
     return out
 
 
-def existing_keys() -> set[str]:
+def existing_rows() -> dict[str, dict]:
     with session_scope() as db:
-        return set(db.execute(text("SELECT source_key FROM market_demand_item "
-                                   "WHERE source_key LIKE 'legacy:%'")).scalars())
+        rows = db.execute(text("SELECT id, source_key, updated_by FROM market_demand_item "
+                               "WHERE source_key LIKE 'legacy:%'")).mappings().all()
+    return {r["source_key"]: dict(r) for r in rows}
 
 
-def commit(pairs: list[tuple[dict, dict]]) -> Counter:
-    done = existing_keys()
+def _unchanged(item_id: int, clean: dict) -> bool:
+    current = repo.get(item_id) or {}
+    return all(current.get(f) == clean[f] for f in DATA_FIELDS)
+
+
+def commit(pairs: list[tuple[dict, dict]], refresh: bool = False) -> Counter:
+    done = existing_rows()
     stats: Counter = Counter()
-    with request_ctx.use_note(AUDIT_NOTE):
+    with request_ctx.use_note(REFRESH_NOTE if refresh else AUDIT_NOTE):
         for it, clean in pairs:
-            if it["source_key"] in done:
+            row = done.get(it["source_key"])
+            if row is None:
+                repo.save({**clean, "id": None}, ACTOR, source_key=it["source_key"])
+                stats["đã ghi"] += 1
+            elif not refresh:
                 stats["đã có, bỏ qua"] += 1
-                continue
-            repo.save({**clean, "id": None}, ACTOR, source_key=it["source_key"])
-            stats["đã ghi"] += 1
+            elif row["updated_by"] != ACTOR:
+                stats["người dùng đã sửa, giữ nguyên"] += 1   # không đè lên việc của đơn vị
+            elif _unchanged(row["id"], clean):
+                stats["không đổi"] += 1
+            else:
+                repo.save({**clean, "id": row["id"]}, ACTOR)
+                stats["đã cập nhật"] += 1
     return stats
 
 
@@ -94,6 +112,7 @@ def main() -> None:
     ap.add_argument("--review")
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument("--commit", action="store_true")
+    mode.add_argument("--refresh", action="store_true")
     mode.add_argument("--undo", action="store_true")
     args = ap.parse_args()
     request_ctx.set_request(ACTOR, "")
@@ -110,10 +129,10 @@ def main() -> None:
         from review_xlsx import write_review
         write_review(items, args.review)
         print(f"Đã ghi bảng đối chiếu: {args.review}")
-    if args.commit:
-        print(f"Kết quả ghi: {dict(commit(pairs))}")
+    if args.commit or args.refresh:
+        print(f"Kết quả ghi: {dict(commit(pairs, refresh=args.refresh))}")
     else:
-        print("Chạy thử — chưa ghi gì. Thêm --commit để ghi thật.")
+        print("Chạy thử — chưa ghi gì. Thêm --commit (hoặc --refresh) để ghi thật.")
 
 
 if __name__ == "__main__":

@@ -4,21 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { daysAgoISO, todayISO } from "../../../lib/date";
 import {
-  type DemandItem, type DemandItemInput, type DemandList, type DemandStatus, demandApi,
+  type DemandItem, type DemandItemInput, type DemandList, demandApi,
 } from "../../../lib/market-demand-client";
-import {
-  DEMAND_STATUSES, cloneDemand, demandTitle, emptyDemand, toDemandInput,
-} from "../../../lib/market-demand-meta";
+import { cloneDemand, demandTitle, emptyDemand, toDemandInput } from "../../../lib/market-demand-meta";
 import { GRADES } from "../../../lib/unit-daily-consumption";
 import { DIRECT_SAVED_IN_REQUEST_MODE, useEditRequest } from "../../../lib/use-edit-request";
 import { useAuth } from "../../auth/AuthContext";
 import DemandItemFormModal, { type DemandFormMode } from "../sections/DemandItemFormModal";
 import DemandItemTable, { type DemandRowPerm } from "../sections/DemandItemTable";
-import DemandSummary from "../sections/DemandSummary";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 
 const RANGES = [30, 60, 90, 180, 365].map((d) => ({ value: d, label: `${d} ngày gần nhất` }));
-const STATUS_FILTER = DEMAND_STATUSES.map(({ value, label }) => ({ value, label }));
 const toOptions = (list: string[]) => list.map((x) => ({ value: x, label: x }));
 const daysBetween = (later: string, earlier: string) =>
   Math.round((new Date(`${later}T00:00:00`).getTime() - new Date(`${earlier}T00:00:00`).getTime()) / 86400000);
@@ -26,7 +22,7 @@ const uniqDates = (...dates: (string | undefined)[]) => [...new Set(dates.filter
 
 type FormState = { mode: DemandFormMode; initial: DemandItemInput; original: DemandItem | null; locked: boolean };
 
-/** Nhu cầu thị trường — phiếu có trường, mỗi dòng một chủng loại, có tình trạng cập nhật về sau.
+/** Nhu cầu thị trường — phiếu có trường, mỗi dòng một chủng loại, kết quả cập nhật về sau.
  *  Dùng chung cho tài khoản đơn vị (chỉ đơn vị được gán; lãnh đạo đơn vị chỉ xem) và chuyên viên
  *  có quyền `market_demand` (mọi đơn vị) — đổi nguồn dữ liệu theo loại tài khoản. */
 export default function MarketDemandTimelinePage() {
@@ -38,7 +34,6 @@ export default function MarketDemandTimelinePage() {
 
   const [days, setDays] = useState(90);
   const [company, setCompany] = useState<string>();
-  const [status, setStatus] = useState<DemandStatus>();
   const [grade, setGrade] = useState<string>();
   const [qText, setQText] = useState("");
   const [q, setQ] = useState("");
@@ -54,14 +49,14 @@ export default function MarketDemandTimelinePage() {
     const mine = ++seq.current;
     setLoading(true); setErr("");
     try {
-      const r = await api.fetch({ date_from: daysAgoISO(days), company: serverCompany, status, grade, q });
+      const r = await api.fetch({ date_from: daysAgoISO(days), company: serverCompany, grade, q });
       if (mine === seq.current) setData(r);
     } catch (e) {
       if (mine === seq.current) setErr((e as Error).message);
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [api, days, serverCompany, status, grade, q]);
+  }, [api, days, serverCompany, grade, q]);
   useEffect(() => { void load(); }, [load]);
 
   // Chuyên viên chỉ được cấp mức Xem và lãnh đạo đơn vị: không có nút ghi nào.
@@ -146,8 +141,7 @@ export default function MarketDemandTimelinePage() {
       <div className="page-title">
         <div>
           <h2><ApartmentOutlined style={{ marginRight: 8 }} />Nhu cầu thị trường</h2>
-          <p>Ghi nhận các nhu cầu hỏi mua của khách hàng — mỗi dòng một chủng loại, cập nhật tình trạng
-            khi có kết quả.</p>
+          <p>Ghi nhận các nhu cầu hỏi mua của khách hàng — mỗi dòng một chủng loại, ghi kết quả khi có.</p>
         </div>
       </div>
       {err && <Alert type="error" showIcon title={err} style={{ marginBottom: 12 }} />}
@@ -161,12 +155,10 @@ export default function MarketDemandTimelinePage() {
           <Select showSearch allowClear placeholder="Tất cả đơn vị" style={{ minWidth: 240 }}
             value={company} options={toOptions(units)} onChange={setCompany} />
         )}
-        <Select allowClear placeholder="Mọi tình trạng" style={{ width: 170 }}
-          value={status} options={STATUS_FILTER} onChange={setStatus} />
         <Select showSearch allowClear placeholder="Mọi chủng loại" style={{ width: 200 }}
           value={grade} options={toOptions(grades)} onChange={setGrade} />
         <Input allowClear prefix={<SearchOutlined />} style={{ width: 280 }}
-          placeholder="Tìm khách hàng, ghi chú, số HĐ" value={qText}
+          placeholder="Tìm khách hàng, kết quả, ghi chú" value={qText}
           onChange={(e) => { setQText(e.target.value); if (!e.target.value) setQ(""); }}
           onPressEnter={applySearch} onBlur={applySearch} />
         {mayEdit && (
@@ -178,7 +170,6 @@ export default function MarketDemandTimelinePage() {
       </div>
 
       <div className="card">
-        {data && <DemandSummary items={items} />}
         <DemandItemTable items={items} loading={loading} showCompany={multiUnit} showActions={mayEdit}
           perm={perm} onEdit={openEdit} onClone={openClone} onDelete={(i) => { void remove(i); }} />
       </div>

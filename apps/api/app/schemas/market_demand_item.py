@@ -20,13 +20,9 @@ class DemandItemIn(BaseModel):
     qty_unit: str | None = "ton"
     price: float | None = None
     currency: str | None = "VND"
-    price_provisional: bool | None = False
     delivery_place: str | None = ""
-    delivery_from: str | None = None
-    delivery_to: str | None = None
-    status: str | None = "open"
-    contract_no: str | None = ""
-    contract_date: str | None = None
+    delivery_time: str | None = ""        # gõ tự do: "đến 30/11/2026", "T9+10/2026"…
+    result: str | None = ""               # gõ tự do: "Đã ký HĐMB số 1752 ngày 17/09/2026"; trống = chưa có
     note: str | None = ""
 
 

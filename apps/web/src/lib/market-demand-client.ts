@@ -1,11 +1,10 @@
-/* Client API Nhu cầu thị trường THEO TRƯỜNG (17/09/2026) — mỗi phiếu = một nhu cầu của MỘT chủng
-   loại, có tình trạng cập nhật về sau (api-contract §3–§4).
+/* Client API Nhu cầu thị trường THEO TRƯỜNG (17/09/2026, bản rút gọn) — mỗi phiếu = một nhu cầu của
+   MỘT chủng loại; thời gian giao và kết quả là ô chữ tự do (api-contract §3–§4).
    - Tài khoản đơn vị: `/api/member/market-demand/items` (server ép company ∈ đơn vị được gán).
    - Chuyên viên có quyền `market_demand`: `/api/market-demand/items` (mọi đơn vị). */
 
 import { apiFetch } from "./http";
 
-export type DemandStatus = "open" | "signed" | "failed";
 export type DemandQtyUnit = "ton" | "container";
 /** VND = TRIỆU đồng/tấn · USD = USD/tấn. */
 export type DemandCurrency = "VND" | "USD";
@@ -21,13 +20,11 @@ export interface DemandItemInput {
   qty_unit: DemandQtyUnit;
   price: number | null;
   currency: DemandCurrency;
-  price_provisional: boolean;
   delivery_place: string;
-  delivery_from: string | null;
-  delivery_to: string | null;
-  status: DemandStatus;
-  contract_no: string;
-  contract_date: string | null;
+  /** Chữ tự do: "đến 30/11/2026", "T9+10/2026"… */
+  delivery_time: string;
+  /** Chữ tự do, trống = chưa có kết quả — sửa được cả khi phiếu đã quá hạn. */
+  result: string;
   note: string;
 }
 
@@ -56,7 +53,6 @@ export type DemandFilter = {
   date_to?: string;
   /** Chỉ endpoint chuyên viên nhận; phía đơn vị lọc tại trình duyệt. */
   company?: string;
-  status?: DemandStatus;
   grade?: string;
   q?: string;
 };

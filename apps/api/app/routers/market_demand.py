@@ -28,7 +28,6 @@ _NOT_FOUND = "Không tìm thấy phiếu nhu cầu này."
 def list_items(date_from: str | None = Query(None, description="Từ ngày nhận 'YYYY-MM-DD'"),
                date_to: str | None = Query(None, description="Đến ngày nhận 'YYYY-MM-DD'"),
                company: str | None = Query(None),
-               status: str | None = Query(None, description="open | signed | failed"),
                grade: str | None = Query(None),
                q: str | None = Query(None, max_length=120),
                username: str = Depends(_require_md)) -> dict:
@@ -40,7 +39,7 @@ def list_items(date_from: str | None = Query(None, description="Từ ngày nhậ
         "edit_window_days": edit_window.editor_window(),
         "grades": GRADES,
         "items": market_demand_item_repo.list_items(
-            None, d_from, d_to, company=company, status=status, grade=grade, q=q),
+            None, d_from, d_to, company=company, grade=grade, q=q),
     }
 
 

@@ -3,7 +3,7 @@
 Dùng CHUNG cho router đơn vị (`/api/member/market-demand/items`), router chuyên viên
 (`/api/market-demand/items`) và luồng «Đề nghị sửa» (`edit_request_ops_demand`) — một luật, một chỗ.
 
-Hàng rào: sửa phiếu mà CHỈ đổi ô theo dõi (tình trạng · số HĐ · ngày ký · ghi chú) thì miễn cửa sổ
+Hàng rào: sửa phiếu mà CHỈ đổi ô theo dõi (kết quả · ghi chú) thì miễn cửa sổ
 nhập liệu. Cách nhận biết giống `sales_contract_lock`: KHÔNG liệt kê ô được sửa mà so ẢNH CHỤP các ô
 NỘI DUNG cũ/mới — thêm ô mới vào `CONTENT_FIELDS` là tự động bị gác, không lọt qua theo mặc định.
 """
@@ -18,13 +18,13 @@ from fastapi import HTTPException
 
 from app.core import edit_window, security
 from app.core.market_demand_meta import (
-    CONTENT_FIELDS, CONTRACT_NO_MAX, CURRENCIES, CUSTOMER_MAX, GRADES, NOTE_MAX, PLACE_MAX,
-    PRICE_CAP, PRICE_CAP_MESSAGE, QTY_UNITS, STATUS_OPEN, STATUS_SIGNED, STATUSES,
+    CONTENT_FIELDS, CURRENCIES, CUSTOMER_MAX, DELIVERY_TIME_MAX, GRADES, NOTE_MAX, PLACE_MAX,
+    PRICE_CAP, PRICE_CAP_MESSAGE, QTY_UNITS, RESULT_MAX,
 )
 
 DEFAULT_LIST_DAYS = 90
 _NUM_FIELDS = frozenset({"qty", "price"})
-_DATE_FIELDS = frozenset({"as_of", "delivery_from", "delivery_to", "contract_date"})
+_DATE_FIELDS = frozenset({"as_of"})
 
 
 def _bad(msg: str) -> HTTPException:
@@ -87,21 +87,6 @@ def clean(raw: dict[str, Any]) -> dict[str, Any]:
     price = _num(raw.get("price"), "Đơn giá")
     if price is not None and price > PRICE_CAP[currency]:
         raise _bad(PRICE_CAP_MESSAGE[currency])
-    d_from = _date(raw.get("delivery_from"), "Ngày giao từ")
-    d_to = _date(raw.get("delivery_to"), "Ngày giao đến")
-    if d_from and d_to and d_to < d_from:
-        raise _bad("Ngày giao đến phải sau hoặc bằng ngày giao từ.")
-    status = _choice(raw.get("status"), STATUSES, "Tình trạng", STATUS_OPEN)
-    contract_no = _text(raw.get("contract_no"), "Số hợp đồng", CONTRACT_NO_MAX)
-    contract_date = _date(raw.get("contract_date"), "Ngày ký hợp đồng")
-    if status == STATUS_SIGNED:
-        if not contract_no or not contract_date:
-            raise _bad("Đã ký hợp đồng thì phải nhập số hợp đồng và ngày ký.")
-        if contract_date > today:
-            raise _bad("Ngày ký hợp đồng không được ở tương lai.")
-    else:
-        # Chưa ký / không thành mà vẫn giữ số HĐ cũ thì báo cáo đọc nhầm là đã ký — xoá luôn.
-        contract_no, contract_date = "", None
     item_id = raw.get("id")
     return {
         "id": int(item_id) if item_id else None,
@@ -109,10 +94,9 @@ def clean(raw: dict[str, Any]) -> dict[str, Any]:
         "qty": _num(raw.get("qty"), "Số lượng"),
         "qty_unit": _choice(raw.get("qty_unit"), QTY_UNITS, "Đơn vị số lượng", "ton"),
         "price": price, "currency": currency,
-        "price_provisional": bool(raw.get("price_provisional")),
         "delivery_place": _text(raw.get("delivery_place"), "Nơi giao", PLACE_MAX),
-        "delivery_from": d_from, "delivery_to": d_to,
-        "status": status, "contract_no": contract_no, "contract_date": contract_date,
+        "delivery_time": _text(raw.get("delivery_time"), "Thời gian giao", DELIVERY_TIME_MAX),
+        "result": _text(raw.get("result"), "Kết quả", RESULT_MAX),
         "note": _text(raw.get("note"), "Ghi chú", NOTE_MAX),
     }
 

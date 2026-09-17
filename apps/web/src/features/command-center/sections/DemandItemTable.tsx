@@ -4,11 +4,13 @@ import type { ColumnsType } from "antd/es/table";
 
 import { dmy } from "../../../lib/date";
 import type { DemandItem } from "../../../lib/market-demand-client";
-import {
-  demandLabel, fmtDelivery, fmtPrice, fmtQty, shortUnit, statusMeta,
-} from "../../../lib/market-demand-meta";
+import { demandLabel, fmtPrice, fmtQty, shortUnit } from "../../../lib/market-demand-meta";
 
 const PAGE_SIZE = 20;
+// Ghi chú dài (nhất là nguyên văn bản cũ) chỉ hiện 2 dòng; đủ nội dung ở tooltip.
+const CLAMP_2 = {
+  display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+} as const;
 
 /** Quyền trên TỪNG phiếu — màn cha tính (vai trò, cửa sổ sửa, đơn vị đã sáp nhập). */
 export type DemandRowPerm = {
@@ -42,39 +44,42 @@ export default function DemandItemTable({
     { title: "Ngày nhận", dataIndex: "as_of", width: 96, render: (v: string) => dmy(v) },
     ...(showCompany
       ? [{
-        title: "Đơn vị", dataIndex: "company", width: 150,
+        title: "Đơn vị", dataIndex: "company", width: 130,
         render: (v: string) => <Tooltip title={v}>{shortUnit(v)}</Tooltip>,
       } as const]
       : []),
-    { title: "Khách hàng", dataIndex: "customer", width: 200 },
-    { title: "Chủng loại", dataIndex: "grade", width: 120 },
-    { title: "Số lượng", key: "qty", width: 100, align: "right", render: (_, r) => fmtQty(r) },
-    { title: "Đơn giá", key: "price", width: 150, align: "right", render: (_, r) => fmtPrice(r) },
-    // Tình trạng đứng ngay sau giá: là cột người xem cần nhất, không được rơi ra ngoài khung.
-    { title: "Tình trạng", key: "status", width: 150, render: (_, r) => <StatusCell item={r} /> },
-    { title: "Giao tại", dataIndex: "delivery_place", width: 140, render: (v: string) => v || "—" },
+    { title: "Khách hàng", dataIndex: "customer", width: 160 },
+    { title: "Chủng loại", dataIndex: "grade", width: 100 },
+    { title: "Số lượng", key: "qty", width: 90, align: "right", render: (_, r) => fmtQty(r) },
+    { title: "Đơn giá", key: "price", width: 115, align: "right", render: (_, r) => fmtPrice(r) },
+    // Nơi giao + thời gian giao chung một cột (2 dòng) cho bảng vừa màn laptop.
+    { title: "Giao hàng", key: "delivery", width: 150, render: (_, r) => <DeliveryCell item={r} /> },
+    // Kết quả là cột người xem cần nhất → đủ rộng và xuống dòng, không cắt chữ.
     {
-      title: "Thời gian giao", key: "delivery", width: 160,
-      render: (_, r) => fmtDelivery(r.delivery_from, r.delivery_to),
+      title: "Kết quả", dataIndex: "result", width: 190,
+      render: (v: string) => <span style={{ whiteSpace: "pre-line" }}>{v || "—"}</span>,
     },
     {
-      title: "Ghi chú", dataIndex: "note", width: 240, ellipsis: { showTitle: false },
+      title: "Ghi chú", dataIndex: "note", width: 150,
       render: (_, r) => <NoteCell item={r} />,
     },
     ...(showActions
       ? [{
-        title: "Thao tác", key: "actions", width: 150, fixed: "right" as const,
+        title: "Thao tác", key: "actions", width: 120, fixed: "right" as const,
         render: (_: unknown, r: DemandItem) => (
           <RowActions item={r} perm={perm(r)} onEdit={onEdit} onClone={onClone} onDelete={onDelete} />
         ),
       }]
       : []),
   ];
+  // Cuộn ngang đúng bằng tổng bề rộng cột (~1.170px, vừa khung màn 1600px): khung hẹp hơn thì bảng
+  // cuộn, cột Thao tác ghim phải nên không bị đẩy ra ngoài.
+  const scrollX = columns.reduce((t, c) => t + (typeof c.width === "number" ? c.width : 0), 0);
 
   return (
     <Table<DemandItem>
       rowKey="id" size="small" columns={columns} dataSource={items} loading={loading}
-      scroll={{ x: showCompany ? 1660 : 1510 }}
+      scroll={{ x: scrollX }}
       locale={{ emptyText: "Chưa có nhu cầu nào trong khoảng này." }}
       pagination={{
         pageSize: PAGE_SIZE, showSizeChanger: false, hideOnSinglePage: true,
@@ -84,26 +89,24 @@ export default function DemandItemTable({
   );
 }
 
-function StatusCell({ item }: { item: DemandItem }) {
-  const s = statusMeta(item.status);
+function DeliveryCell({ item }: { item: DemandItem }) {
+  if (!item.delivery_place && !item.delivery_time) return <>—</>;
   return (
-    <>
-      <Tag color={s.color} style={{ margin: 0 }}>{s.label}</Tag>
-      {item.status === "signed" && (
-        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-          HĐ {item.contract_no || "—"} · {dmy(item.contract_date)}
-        </div>
+    <div>
+      <div>{item.delivery_place || "—"}</div>
+      {item.delivery_time && (
+        <div style={{ color: "var(--muted)", fontSize: 12 }}>{item.delivery_time}</div>
       )}
-    </>
+    </div>
   );
 }
 
 function NoteCell({ item }: { item: DemandItem }) {
   const body = (
-    <span>
+    <div style={CLAMP_2}>
       {item.legacy && <Tag style={{ fontSize: 11, marginRight: 6 }}>Chuyển từ bản cũ</Tag>}
       {item.note || "—"}
-    </span>
+    </div>
   );
   if (!item.note) return body;
   return (
@@ -120,7 +123,7 @@ function RowActions({ item, perm, onEdit, onClone, onDelete }: ActionProps) {
   return (
     <div style={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
       {perm.edit && (
-        <Tooltip title={perm.locked ? "Cập nhật tình trạng, số hợp đồng, ngày ký, ghi chú" : "Sửa"}>
+        <Tooltip title={perm.locked ? "Cập nhật kết quả, ghi chú" : "Sửa"}>
           <Button size="small" type="text" icon={<EditOutlined />} aria-label="Sửa"
             onClick={() => onEdit(item, false)} />
         </Tooltip>

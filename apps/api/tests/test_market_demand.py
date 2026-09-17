@@ -96,18 +96,18 @@ def test_member_crud_scope_and_leader_read_only(md) -> None:
     assert created.status_code == 200, created.text
     got = created.json()["item"]
     iid = got["id"]
-    assert got["price"] == 40.0 and got["status"] == "open" and got["legacy"] is False
-    assert got["created_by"] == "zz_md_mem" and got["delivery_from"] is None
+    assert got["price"] == 40.0 and got["result"] == "" and got["legacy"] is False
+    assert got["created_by"] == "zz_md_mem" and got["delivery_time"] == ""
+    assert not {"status", "contract_no", "delivery_from", "price_provisional"} & set(got)
     listed = client.get(MEMBER_URL, headers=md["mem"]).json()
     assert listed["units"] == [UNIT_A] and listed["view_only_units"] == []
     assert "LATEX" in listed["grades"] and iid in [x["id"] for x in listed["items"]]
 
     signed = client.put(MEMBER_URL, headers=md["mem"], json=item(
-        id=iid, status="signed", contract_no="1752", contract_date=TODAY_ISO))
-    assert signed.status_code == 200 and signed.json()["item"]["contract_no"] == "1752"
-    reopened = client.put(MEMBER_URL, headers=md["mem"], json=item(
-        id=iid, status="failed", contract_no="1752", contract_date=TODAY_ISO)).json()["item"]
-    assert reopened["contract_no"] == "" and reopened["contract_date"] is None
+        id=iid, delivery_time="  đến 30/11/2026 ", result=" Đã ký HĐMB số 1752 ngày 17/09/2026 "))
+    assert signed.status_code == 200, signed.text
+    assert signed.json()["item"]["result"] == "Đã ký HĐMB số 1752 ngày 17/09/2026"
+    assert signed.json()["item"]["delivery_time"] == "đến 30/11/2026"
 
     # Đơn vị khác: không ghi, không xoá, không thấy.
     assert client.put(MEMBER_URL, headers=md["memb"], json=item()).status_code == 403
@@ -133,7 +133,10 @@ def test_editor_endpoints_filters_and_caps(md) -> None:
     assert res.json()["item"]["created_by"] == "zz_md_ed"
     body = client.get(EDITOR_URL, headers=ed, params={"company": UNIT_B}).json()
     assert UNIT_A in body["units"] and body["grades"] and [x["id"] for x in body["items"]] == [iid]
-    assert iid in _ids(client.get(EDITOR_URL, headers=ed, params={"q": "kHACH 100%", "status": "open"}))
+    assert iid in _ids(client.get(EDITOR_URL, headers=ed, params={"q": "kHACH 100%"}))
+    ed_item = res.json()["item"]
+    client.put(EDITOR_URL, headers=ed, json={**ed_item, "result": "Đã ký HĐMB số ZZ-77"})
+    assert _ids(client.get(EDITOR_URL, headers=ed, params={"company": UNIT_B, "q": "zz-77"})) == [iid]
     # Ký tự đại diện của LIKE được hiểu theo nghĩa đen: "%" khớp chữ "%", "_" không khớp gì.
     assert _ids(client.get(EDITOR_URL, headers=ed, params={"company": UNIT_B, "q": "%"})) == [iid]
     assert _ids(client.get(EDITOR_URL, headers=ed, params={"company": UNIT_B, "q": "_"})) == []
@@ -154,13 +157,10 @@ BAD = [
     ({"customer": "   "}, "khách hàng"), ({"customer": "x" * 201}, "tối đa"),
     ({"grade": "SVR 99"}, "Chủng loại"), ({"qty": -1}, "không âm"), ({"qty_unit": "kg"}, "Đơn vị số lượng"),
     ({"currency": "EUR"}, "Loại tiền"), ({"price": 40000}, "TRIỆU"),
-    ({"price": 25000, "currency": "USD"}, "USD/tấn"), ({"status": "won"}, "Tình trạng"),
-    ({"status": "signed"}, "số hợp đồng"), ({"status": "signed", "contract_no": "HD1"}, "ngày ký"),
-    ({"status": "signed", "contract_no": "HD1", "contract_date": TOMORROW}, "tương lai"),
-    ({"delivery_from": "2026-10-10", "delivery_to": "2026-10-01"}, "Ngày giao đến"),
-    ({"delivery_from": "2026-13-01"}, "không hợp lệ"), ({"as_of": TOMORROW}, "tương lai"),
-    ({"note": "x" * 2001}, "tối đa"), ({"contract_no": "x" * 61, "status": "signed"}, "tối đa"),
-    ({"delivery_place": "x" * 201}, "tối đa"),
+    ({"price": 25000, "currency": "USD"}, "USD/tấn"), ({"as_of": "2026-13-01"}, "không hợp lệ"),
+    ({"as_of": TOMORROW}, "tương lai"), ({"note": "x" * 2001}, "tối đa"),
+    ({"delivery_place": "x" * 201}, "tối đa"), ({"delivery_time": "x" * 201}, "Thời gian giao"),
+    ({"result": "x" * 501}, "Kết quả"),
 ]
 
 
@@ -171,7 +171,7 @@ def test_business_rules_reject_bad_items(md) -> None:
             assert res.status_code == 400, (patch, who, res.text)
             assert fragment.lower() in res.json()["detail"].lower(), (patch, res.json()["detail"])
     ok = client.put(MEMBER_URL, headers=md["mem"], json=item(price=2380, currency="USD", qty=3, qty_unit="container",
-                                                            delivery_from=YDAY, delivery_to=YDAY))
+                                                            delivery_time="T10+11/2026"))
     assert ok.status_code == 200 and ok.json()["item"]["qty_unit"] == "container", ok.text
 
 

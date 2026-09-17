@@ -1,13 +1,10 @@
 import { SendOutlined } from "@ant-design/icons";
-import {
-  Alert, AutoComplete, Checkbox, Form, Input, InputNumber, Modal, Radio, Select, Space,
-} from "antd";
+import { Alert, AutoComplete, Form, Input, InputNumber, Modal, Select, Space } from "antd";
 import { useState, type CSSProperties, type ReactNode } from "react";
 
 import type { DemandItemInput } from "../../../lib/market-demand-client";
 import {
-  CURRENCIES, DEFAULT_DELIVERY_PLACE, DEMAND_CONTRACT_NO_MAX, DEMAND_NOTE_MAX, DEMAND_STATUSES,
-  QTY_UNITS, normalizeDemand, suggest, validateDemand,
+  CURRENCIES, DEFAULT_DELIVERY_PLACE, DEMAND_MAX_LEN, QTY_UNITS, normalizeDemand, suggest, validateDemand,
 } from "../../../lib/market-demand-meta";
 import { formatViNumber, parseViNumber } from "../../../lib/number-format";
 import DateInput from "./DateInput";
@@ -17,7 +14,8 @@ export type DemandFormMode = "create" | "edit" | "request";
 type Props = {
   mode: DemandFormMode;
   initial: DemandItemInput;
-  /** Ngày nhận đã ngoài cửa sổ sửa (chỉ xét ở chế độ sửa thường): khoá các ô NỘI DUNG. */
+  /** Ngày nhận đã ngoài cửa sổ sửa (chỉ xét ở chế độ sửa thường): khoá các ô NỘI DUNG,
+   *  chỉ còn Kết quả + Ghi chú sửa được. */
   contentLocked: boolean;
   /** Đơn vị được chọn (đã bỏ đơn vị chỉ xem). */
   units: string[];
@@ -35,7 +33,6 @@ type Props = {
 const TITLE: Record<DemandFormMode, string> = {
   create: "Thêm nhu cầu", edit: "Sửa nhu cầu", request: "Đề nghị sửa nhu cầu",
 };
-const STATUS_OPTIONS = DEMAND_STATUSES.map(({ value, label }) => ({ value, label }));
 const GRID: CSSProperties = {
   display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", columnGap: 16,
 };
@@ -72,8 +69,6 @@ export default function DemandItemFormModal({
     setV((p) => ({ ...p, [k]: val }));
     setErr("");   // người dùng đang sửa → bỏ câu báo lỗi cũ
   };
-  const setDate = (k: "delivery_from" | "delivery_to" | "contract_date") =>
-    (iso: string) => set(k)(iso || null);
   const lock = mode === "edit" && contentLocked;
   const unitOptions = withCurrent(units, v.company);
 
@@ -101,8 +96,8 @@ export default function DemandItemFormModal({
       )}
       {lock && (
         <p className="form-note" style={{ margin: "0 0 12px" }}>
-          Ngày nhận đã ngoài thời hạn sửa — chỉ cập nhật được tình trạng, số hợp đồng, ngày ký và ghi
-          chú. Muốn sửa nội dung khác, bấm «Đề nghị sửa».
+          Ngày nhận đã ngoài thời hạn sửa — chỉ cập nhật được kết quả và ghi chú. Muốn sửa nội dung
+          khác, bấm «Đề nghị sửa».
         </p>
       )}
       <div style={GRID}>
@@ -120,6 +115,7 @@ export default function DemandItemFormModal({
             {/* antd AutoComplete khi khoá KHÔNG đổi sang nền xám (trông như vẫn gõ được) → dùng Input khoá. */}
             {lock ? <Input value={v.customer} disabled /> : (
               <AutoComplete value={v.customer} options={suggest(customers, v.customer)}
+                maxLength={DEMAND_MAX_LEN.customer}
                 placeholder="Tên công ty / khách hàng" onChange={set("customer")} />
             )}
           </Field>
@@ -136,18 +132,12 @@ export default function DemandItemFormModal({
             </Space.Compact>
           </Field>
           <Field label="Đơn giá" wide>
-            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-              <Space.Compact style={{ flex: "1 1 280px" }}>
-                <InputNumber<number> min={0} controls={false} style={FULL} value={v.price} disabled={lock}
-                  formatter={viFormatter} parser={viParser} onChange={set("price")} />
-                <Select value={v.currency} options={CURRENCIES} style={{ width: 160 }} disabled={lock}
-                  onChange={set("currency")} />
-              </Space.Compact>
-              <Checkbox checked={v.price_provisional} disabled={lock}
-                onChange={(e) => set("price_provisional")(e.target.checked)}>
-                Giá tạm tính
-              </Checkbox>
-            </div>
+            <Space.Compact block>
+              <InputNumber<number> min={0} controls={false} style={FULL} value={v.price} disabled={lock}
+                formatter={viFormatter} parser={viParser} onChange={set("price")} />
+              <Select value={v.currency} options={CURRENCIES} style={{ width: 160 }} disabled={lock}
+                onChange={set("currency")} />
+            </Space.Compact>
             {v.currency === "VND" && !lock && (
               <div className="form-note" style={{ fontSize: 13, marginTop: 4 }}>
                 Đơn giá tính bằng TRIỆU đồng/tấn — ví dụ 40 = 40 triệu
@@ -157,36 +147,24 @@ export default function DemandItemFormModal({
           <Field label="Giao tại">
             {lock ? <Input value={v.delivery_place} disabled /> : (
               <AutoComplete value={v.delivery_place} placeholder="Tại kho, cảng…"
+                maxLength={DEMAND_MAX_LEN.delivery_place}
                 options={suggest([DEFAULT_DELIVERY_PLACE, ...places], v.delivery_place)}
                 onChange={set("delivery_place")} />
             )}
           </Field>
-          <Field label="Giao từ ngày – đến ngày">
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <DateInput value={v.delivery_from ?? ""} onChange={setDate("delivery_from")} allowClear
-                maxDate={v.delivery_to ?? undefined} placeholder="Từ ngày" readOnly={lock} style={FULL} />
-              <span>–</span>
-              <DateInput value={v.delivery_to ?? ""} onChange={setDate("delivery_to")} allowClear
-                minDate={v.delivery_from ?? undefined} placeholder="Đến ngày" readOnly={lock} style={FULL} />
-            </div>
+          <Field label="Thời gian giao">
+            <Input value={v.delivery_time} disabled={lock} maxLength={DEMAND_MAX_LEN.delivery_time}
+              placeholder="VD: đến 30/11/2026, T9+10/2026" onChange={(e) => set("delivery_time")(e.target.value)} />
           </Field>
-          <Field label="Tình trạng" required wide>
-            <Radio.Group optionType="button" buttonStyle="solid" value={v.status} options={STATUS_OPTIONS}
-              onChange={(e) => set("status")(e.target.value)} />
+          {/* Kết quả + Ghi chú là ô THEO DÕI: sửa được cả khi phiếu đã quá hạn (không nhận `lock`). */}
+          <Field label="Kết quả" wide>
+            <Input.TextArea autoSize={{ minRows: 2, maxRows: 5 }} value={v.result}
+              maxLength={DEMAND_MAX_LEN.result} showCount
+              placeholder="VD: Đã ký HĐMB số 1752 ngày 17/09/2026 — để trống nếu chưa có kết quả"
+              onChange={(e) => set("result")(e.target.value)} />
           </Field>
-          {v.status === "signed" && (
-            <>
-              <Field label="Số hợp đồng" required>
-                <Input value={v.contract_no} maxLength={DEMAND_CONTRACT_NO_MAX}
-                  onChange={(e) => set("contract_no")(e.target.value)} />
-              </Field>
-              <Field label="Ngày ký hợp đồng" required>
-                <DateInput value={v.contract_date ?? ""} onChange={setDate("contract_date")} noFuture style={FULL} />
-              </Field>
-            </>
-          )}
           <Field label="Ghi chú" wide>
-            <Input.TextArea rows={3} value={v.note} maxLength={DEMAND_NOTE_MAX} showCount
+            <Input.TextArea rows={3} value={v.note} maxLength={DEMAND_MAX_LEN.note} showCount
               onChange={(e) => set("note")(e.target.value)} />
           </Field>
         </Form>

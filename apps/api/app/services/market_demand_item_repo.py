@@ -20,7 +20,7 @@ _ENTITY = "market_demand"
 _COLS = ", ".join(DATA_FIELDS)
 _SELECT = (f"SELECT id, {_COLS}, source_key, created_at, created_by, updated_at, updated_by "
            "FROM market_demand_item")
-_DATE_COLS = ("as_of", "delivery_from", "delivery_to", "contract_date")
+_DATE_COLS = ("as_of",)
 _NUM_COLS = ("qty", "price")
 
 # Ngày đi dạng chuỗi ISO → ép kiểu date ngay trong SQL (cùng cách các repo khác), khỏi lệ thuộc driver.
@@ -63,8 +63,8 @@ def get(item_id: int) -> dict[str, Any] | None:
 
 
 def list_items(companies: list[str] | None, date_from: str, date_to: str, *,
-               company: str | None = None, status: str | None = None,
-               grade: str | None = None, q: str | None = None) -> list[dict[str, Any]]:
+               company: str | None = None, grade: str | None = None,
+               q: str | None = None) -> list[dict[str, Any]]:
     """Phiếu trong khoảng ngày nhận, mới nhất trước. `companies=None` = mọi đơn vị (chuyên viên)."""
     ensure_schema()
     where = ["as_of BETWEEN CAST(:df AS date) AND CAST(:dt AS date)"]
@@ -72,14 +72,14 @@ def list_items(companies: list[str] | None, date_from: str, date_to: str, *,
     if companies is not None:
         where.append("company = ANY(:units)")
         params["units"] = list(companies)
-    for col, val in (("company", company), ("status", status), ("grade", grade)):
+    for col, val in (("company", company), ("grade", grade)):
         if val:
             where.append(f"{col} = :{col}")
             params[col] = val
     if q and q.strip():
         # Ký tự đại diện của LIKE trong từ khoá được coi là chữ thường, không phải "khớp mọi thứ".
         needle = q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        where.append("(customer ILIKE :q OR note ILIKE :q OR contract_no ILIKE :q)")
+        where.append("(customer ILIKE :q OR result ILIKE :q OR note ILIKE :q)")
         params["q"] = f"%{needle}%"
     sql = f"{_SELECT} WHERE {' AND '.join(where)} ORDER BY as_of DESC, id DESC"
     with session_scope() as db:
