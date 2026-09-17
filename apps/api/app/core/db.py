@@ -607,7 +607,8 @@ ALTER TABLE app_user ADD COLUMN IF NOT EXISTS member_units jsonb NOT NULL DEFAUL
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_name = 'app_user' AND column_name = 'member_unit') THEN
+             WHERE table_schema = current_schema() AND table_name = 'app_user'
+               AND column_name = 'member_unit') THEN
     UPDATE app_user SET member_units = jsonb_build_array(member_unit)
       WHERE member_unit IS NOT NULL AND member_unit <> ''
         AND (member_units IS NULL OR member_units = '[]'::jsonb);
@@ -621,7 +622,8 @@ ALTER TABLE market_demand_item ADD COLUMN IF NOT EXISTS result text NOT NULL DEF
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_name = 'market_demand_item' AND column_name = 'status') THEN
+             WHERE table_schema = current_schema() AND table_name = 'market_demand_item'
+               AND column_name = 'status') THEN
     UPDATE market_demand_item SET
       delivery_time = CASE
         WHEN delivery_from IS NULL AND delivery_to IS NULL THEN delivery_time

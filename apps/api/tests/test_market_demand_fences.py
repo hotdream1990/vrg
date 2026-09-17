@@ -11,6 +11,7 @@ import pytest
 
 from app.core.db import db_healthy
 from app.services import audit_repo, config_repo, market_demand_item_repo, member_unit_merge
+from app.services.edit_request_ops_demand import OPS
 from tests import test_market_demand as base
 from tests.edit_request_env import approve, send
 from tests.test_market_demand import (
@@ -119,3 +120,13 @@ def test_audit_log_records_create_update_delete(md) -> None:
     upd = next(r for r in mine if r["action"] == "update")
     assert upd["before"]["customer"] == "Công ty ZZ Anh Dũng" and upd["after"]["customer"] == "Khách đổi tên"
     assert all(r["actor"] == "zz_md_mem" and r["as_of"] == TODAY_ISO for r in mine)
+
+
+def test_request_from_old_form_applies_with_blank_new_fields(md) -> None:
+    """Đề nghị gửi từ mẫu phiếu trước khi rút gọn (có status/contract_no, thiếu delivery_time/result)
+    vẫn duyệt được: ô mới thành chuỗi rỗng thay vì NULL làm hỏng lệnh ghi."""
+    old = seed(as_of=YDAY)
+    payload = {**item(id=old["id"], as_of=YDAY, note="Mẫu cũ"),
+               "status": "signed", "contract_no": "HD-1", "contract_date": YDAY}
+    out = OPS["demand_save"].apply(payload, "zz_md_mem", UNIT_A)["item"]
+    assert out["result"] == "" and out["delivery_time"] == "" and out["note"] == "Mẫu cũ"

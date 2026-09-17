@@ -70,7 +70,8 @@ def _save_blocked(_username: str, p: dict, before: dict | None) -> list[str]:
 
 
 def _save_apply(p: dict, requester: str, company: str) -> dict:
-    saved = repo.save({**p, "company": company}, requester)
+    # Chuẩn hoá lại lúc duyệt: đề nghị gửi từ mẫu phiếu cũ (trước khi rút gọn) thiếu ô mới → ô trống.
+    saved = repo.save({**policy.clean(p), "company": company}, requester)
     if saved is None:
         raise HTTPException(404, _NOT_FOUND)
     return {"item": saved}

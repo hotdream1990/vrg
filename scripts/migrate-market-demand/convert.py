@@ -4,8 +4,8 @@
 Mặc định CHẠY THỬ: tách + kiểm từng phiếu bằng đúng luật của hệ thống (`policy.clean`), in tổng kết.
     --review FILE.xlsx   ghi bảng đối chiếu cho chủ dự án duyệt
     --commit             ghi thật (bỏ qua phiếu đã có `source_key` → chạy lại không nhân đôi)
-    --refresh            như --commit, nhưng phiếu đã chuyển thì GHI ĐÈ theo cách tách hiện tại —
-                         trừ phiếu người dùng đã tự sửa (updated_by khác tài khoản chuyển đổi)
+    --refresh            GHI ĐÈ phiếu đã chuyển theo cách tách hiện tại — bỏ qua phiếu người dùng đã
+                         tự sửa (updated_by khác tài khoản chuyển đổi) hoặc đã xoá; không thêm phiếu mới
     --undo               xoá mọi phiếu chuyển đổi (`source_key` bắt đầu bằng "legacy:")
     --dump FILE.json     đọc bản chữ cũ từ file thay vì DB (chạy thử trên máy dev)
 
@@ -72,29 +72,34 @@ def existing_rows() -> dict[str, dict]:
     return {r["source_key"]: dict(r) for r in rows}
 
 
-def _unchanged(item_id: int, clean: dict) -> bool:
-    current = repo.get(item_id) or {}
-    return all(current.get(f) == clean[f] for f in DATA_FIELDS)
+def _refresh_one(item_id: int, clean: dict) -> str:
+    """Ghi đè một phiếu chuyển đổi — đọc lại NGAY trước khi ghi để không đè lên việc người dùng vừa làm."""
+    current = repo.get(item_id)
+    if current is None:
+        return "đã bị xoá, bỏ qua"
+    if current["updated_by"] != ACTOR:
+        return "người dùng đã sửa, giữ nguyên"
+    if all(current.get(f) == clean[f] for f in DATA_FIELDS):
+        return "không đổi"
+    repo.save({**clean, "id": item_id}, ACTOR)
+    return "đã cập nhật"
 
 
 def commit(pairs: list[tuple[dict, dict]], refresh: bool = False) -> Counter:
+    """--commit: thêm phiếu chưa có khoá. --refresh: CHỈ ghi đè phiếu đã chuyển — phiếu người dùng đã
+    xoá không được tạo lại (vd các phiếu có thể trùng mà đơn vị đã dọn)."""
     done = existing_rows()
     stats: Counter = Counter()
     with request_ctx.use_note(REFRESH_NOTE if refresh else AUDIT_NOTE):
         for it, clean in pairs:
             row = done.get(it["source_key"])
-            if row is None:
+            if refresh:
+                stats[_refresh_one(row["id"], clean) if row else "không có trong DB, bỏ qua"] += 1
+            elif row:
+                stats["đã có, bỏ qua"] += 1
+            else:
                 repo.save({**clean, "id": None}, ACTOR, source_key=it["source_key"])
                 stats["đã ghi"] += 1
-            elif not refresh:
-                stats["đã có, bỏ qua"] += 1
-            elif row["updated_by"] != ACTOR:
-                stats["người dùng đã sửa, giữ nguyên"] += 1   # không đè lên việc của đơn vị
-            elif _unchanged(row["id"], clean):
-                stats["không đổi"] += 1
-            else:
-                repo.save({**clean, "id": row["id"]}, ACTOR)
-                stats["đã cập nhật"] += 1
     return stats
 
 
