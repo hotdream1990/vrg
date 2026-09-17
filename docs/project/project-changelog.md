@@ -4,6 +4,17 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Nhu cầu thị trường nhập theo phiếu có trường** (17/09/2026) — thay cho ô chữ tự do theo ngày.
+  - Mỗi dòng là **một nhu cầu của một chủng loại**: ngày nhận · khách hàng · chủng loại · số lượng
+    (tấn/container) · đơn giá (triệu đ/tấn hoặc USD/tấn, có đánh dấu giá tạm tính) · giao tại ·
+    thời gian giao · tình trạng · số hợp đồng và ngày ký · ghi chú. Khách hỏi 2 loại thì bấm
+    *Nhân bản*.
+  - **Tình trạng** (Đang đàm phán · Đã ký hợp đồng · Không thành) cập nhật về sau, không phải nhập
+    lại mỗi ngày; tình trạng, số HĐ, ngày ký và ghi chú **sửa được cả khi ngày nhận đã khoá**. Sửa
+    nội dung khác của phiếu cũ thì gửi *Đề nghị sửa số liệu*.
+  - Màn tổng hợp lọc theo đơn vị, tình trạng, chủng loại, tìm theo khách/ghi chú/số HĐ, có dải cộng
+    tổng số phiếu và số tấn theo tình trạng.
+  - Dữ liệu cũ (34 bản ghi chữ, 6 đơn vị) chuyển thành 67 phiếu; nguyên văn cũ giữ trong Ghi chú.
 - **Lãnh đạo đơn vị xem Cảnh báo bất thường của đơn vị mình** (17/09/2026) — mục mới ngay dưới
   *Hỗ trợ & Thông báo* trong menu lãnh đạo đơn vị: thấy nhân viên nhập liệu đang sai/thiếu gì (giá
   bán hoặc giá mủ sai đơn vị tính · chưa nộp biểu · ngừng nộp nhiều ngày · thiếu đơn giá · kế hoạch
