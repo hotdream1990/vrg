@@ -40,6 +40,18 @@ THRESHOLDS: dict[str, dict[str, Any]] = {
 }
 
 
+def vn_date(iso: str) -> str:
+    """'2026-09-16' → '16/09/2026'. Mô tả cảnh báo hiện thẳng cho người dùng (cả lãnh đạo đơn vị),
+    nên theo đúng cách ghi ngày của các màn khác thay vì dạng ISO của máy."""
+    parts = str(iso)[:10].split("-")
+    return f"{parts[2]}/{parts[1]}/{parts[0]}" if len(parts) == 3 else str(iso)
+
+
+def vn_num(value: float) -> str:
+    """1500 → '1.500' — dấu chấm ngăn nghìn như mọi con số khác trên giao diện."""
+    return f"{value:,.0f}".replace(",", ".")
+
+
 def group(key: str, label: str, desc: str, severity: str,
           columns: list[tuple[str, str]], rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Đóng gói một nhóm cảnh báo theo đúng khuôn frontend đang chờ."""
@@ -47,3 +59,24 @@ def group(key: str, label: str, desc: str, severity: str,
     return {"key": key, "label": label, "desc": desc, "severity": severity,
             "columns": [{"key": k, "label": lb} for k, lb in columns],
             "rows": rows, "count": len(rows), "units": len(units)}
+
+
+def finalize(date_from: str, date_to: str, groups: list[dict[str, Any]]) -> dict[str, Any]:
+    """Xếp nhóm + dựng tổng quan → đúng khuôn kết quả frontend chờ.
+
+    MỌI nhóm CÓ cảnh báo lên trước, rồi mới tới nhóm rỗng; trong mỗi phần mới xét mức nghiêm
+    trọng. Xếp mức trước thì ngày hệ thống sạch, ba nhóm "Nghiêm trọng · 0 dòng" chiếm hết đầu
+    trang còn việc thật (chưa nộp · thiếu đơn giá) bị đẩy xuống — đọc ngược hẳn thông điệp.
+    """
+    sev_rank = {HIGH: 0, MEDIUM: 1, LOW: 2}
+    groups = sorted(groups, key=lambda g: (0 if g["count"] else 1, sev_rank.get(g["severity"], 9)))
+    all_units: set[str] = set()
+    counts = {HIGH: 0, MEDIUM: 0, LOW: 0}
+    total = 0
+    for g in groups:
+        total += g["count"]
+        counts[g["severity"]] = counts.get(g["severity"], 0) + g["count"]
+        all_units |= {r.get("don_vi") for r in g["rows"] if r.get("don_vi")}
+    summary = {"total": total, "high": counts[HIGH], "medium": counts[MEDIUM],
+               "low": counts[LOW], "units": len(all_units)}
+    return {"date_from": date_from, "date_to": date_to, "groups": groups, "summary": summary}

@@ -14,6 +14,8 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
+from app.services.xlsx_text import safe_cell
+
 _HEAD_FILL = PatternFill("solid", fgColor="D9E7D5")
 _SEV_FILL = {
     "high": PatternFill("solid", fgColor="F8D7DA"),
@@ -72,7 +74,7 @@ def _group_sheet(ws: Worksheet, group: dict[str, Any], period: str) -> None:
     for row in rows:
         for i, c in enumerate(cols, start=1):
             value = row.get(c.get("key"))
-            cell = ws.cell(row=r, column=i, value=value)
+            cell = ws.cell(row=r, column=i, value=safe_cell(value))
             cell.border = _BORDER
             if isinstance(value, (int, float)):
                 cell.number_format = _NUM

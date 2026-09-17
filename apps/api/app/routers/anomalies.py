@@ -20,7 +20,7 @@ from app.services.anomaly_types import THRESHOLDS
 
 router = APIRouter(prefix="/api/anomalies", tags=["anomalies"])
 
-_XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 def _thresholds() -> dict[str, float]:
@@ -41,8 +41,9 @@ def _default_range() -> tuple[str, str]:
     return date(d.year, 1, 1).isoformat(), (d - timedelta(days=1)).isoformat()
 
 
-def _scan(date_from: str | None, date_to: str | None) -> dict:
-    """Gọi `anomaly_rules.scan()` — import muộn vì file đó đang được viết song song."""
+def scan_range(date_from: str | None, date_to: str | None) -> dict:
+    """Quét đủ 8 luật trong khoảng (thiếu thì lấy mặc định) — dùng chung với màn của lãnh đạo
+    đơn vị (`member_anomalies`). Import muộn `anomaly_rules` vì file đó từng viết song song."""
     try:
         from app.services import anomaly_rules
     except ImportError as exc:  # pragma: no cover - chỉ xảy ra khi anomaly_rules.py chưa tồn tại
@@ -56,7 +57,7 @@ def _scan(date_from: str | None, date_to: str | None) -> dict:
 @router.get("", dependencies=[Depends(require_admin)])
 def get_anomalies(date_from: str | None = Query(None), date_to: str | None = Query(None)) -> dict:
     """Quét + trả kết quả, kèm `thresholds` đang áp dụng để UI hiện lên form cấu hình."""
-    result = _scan(date_from, date_to)
+    result = scan_range(date_from, date_to)
     result["thresholds"] = _thresholds()
     return result
 
@@ -95,10 +96,10 @@ def put_config(body: dict, username: str = Depends(require_admin)) -> dict:
 @router.get("/export.xlsx", dependencies=[Depends(require_admin)])
 def export_xlsx(date_from: str | None = Query(None), date_to: str | None = Query(None)) -> Response:
     """Xuất Excel: một sheet mỗi nhóm cảnh báo + sheet "Tổng quan"."""
-    result = _scan(date_from, date_to)
+    result = scan_range(date_from, date_to)
     data = anomaly_export.build_xlsx(result)
     name = f"canh-bao-bat-thuong-{result['date_from']}-den-{result['date_to']}.xlsx"
     return Response(
-        content=data, media_type=_XLSX_MEDIA,
+        content=data, media_type=XLSX_MEDIA,
         headers={"Content-Disposition": f'attachment; filename="{name}"'},
     )

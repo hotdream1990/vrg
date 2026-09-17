@@ -252,6 +252,10 @@ export default function App() {
                     <Route path="/quan-tri/nguoi-dung" element={<UserManagementPage />} />
                     <Route path="/quan-tri/cau-hinh" element={<SystemConfigPage />} />
                     <Route path="/quan-tri/lich-chay" element={<SchedulePage />} />
+                  </Route>
+                  {/* Cảnh báo bất thường: quản trị xem toàn hệ thống, lãnh đạo đơn vị xem đơn vị mình
+                      (server tự thu hẹp phạm vi theo vai trò — xem routers/member_anomalies.py). */}
+                  <Route element={<RequireRole roles={["admin", "leader"]} />}>
                     <Route path="/canh-bao-bat-thuong" element={<AnomalyPage />} />
                   </Route>
                   <Route path="/ho-so" element={<ProfilePage />} />

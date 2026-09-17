@@ -243,6 +243,8 @@ function buildMemberMenu(hasPurchasePlan: boolean) {
 function buildLeaderMenu(hasPurchasePlan: boolean) {
   return [
     { key: "/ho-tro", icon: <CustomerServiceOutlined />, label: "Hỗ trợ & Thông báo" },
+    // Chỗ nhân viên nhập sai/thiếu — để lãnh đạo nhắc đúng việc (chỉ đơn vị mình, server tự lọc).
+    { key: "/canh-bao-bat-thuong", icon: <WarningOutlined />, label: "Cảnh báo bất thường" },
     ...group("data-manual", <BarChartOutlined />, "Số liệu đơn vị (chỉ xem)", [
       hasPurchasePlan && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Thu mua (theo ngày)" },
       { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Tồn kho (theo ngày)" },

@@ -34,6 +34,7 @@ from app.routers import (
     market_movement,
     market_quote,
     master_contracts,
+    member_anomalies,
     member_edit_requests,
     member_region,
     member_self,
@@ -187,6 +188,8 @@ app.include_router(market_demand.router, dependencies=_protected)  # nhu cầu t
 app.include_router(data_lock.router, dependencies=_protected)  # chốt số liệu đơn vị (đơn vị xác nhận · Ban theo dõi)
 # Đề nghị sửa số liệu quá khứ: đơn vị gửi (/api/member/edit-requests) · Ban duyệt (quyền `edit_request`).
 app.include_router(member_edit_requests.router, dependencies=_protected)
+# Cảnh báo bất thường của RIÊNG đơn vị mình — cho lãnh đạo đơn vị (tự gác `get_current_leader`).
+app.include_router(member_anomalies.router, dependencies=_protected)
 app.include_router(edit_requests.router)  # tự gác quyền `edit_request` trong router
 app.include_router(unit_daily.router, dependencies=[Depends(require_cap("unit_daily"))])  # báo cáo tiêu thụ–tồn kho theo ngày (chuyên viên xem/sửa mọi đơn vị)
 app.include_router(unit_analytics.router, dependencies=[Depends(require_cap("unit_daily"))])  # thống kê/lọc số liệu đơn vị đã nhập (chỉ đọc)

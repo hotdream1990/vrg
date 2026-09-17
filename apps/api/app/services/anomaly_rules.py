@@ -17,7 +17,9 @@ from sqlalchemy import text
 from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import PURCHASE_PRICE_TYPES, PURCHASE_SOURCE_UNIT
 from app.services import member_unit_repo, unit_daily_fields, unit_daily_repo, unit_report_rows
-from app.services.anomaly_types import HIGH, LOW, MEDIUM, THRESHOLDS, group
+from app.services.anomaly_types import (
+    HIGH, LOW, MEDIUM, THRESHOLDS, finalize, group, vn_date, vn_num,
+)
 
 logger = logging.getLogger("vrg.anomaly_rules")
 
@@ -90,8 +92,8 @@ def _wrong_raw_price(date_from: str, date_to: str, thresholds: dict[str, float])
     out = [{"don_vi": r["company"], "loai_mu": label_of.get(r["price_type"], r["price_type"]),
             "gia_lon_nhat_dong_do": round(r["max_price"]), "so_o_sai": r["n"]} for r in rows]
     return group("wrong_raw_price", "Giá mủ nguyên liệu sai đơn vị tính",
-                f"Đơn giá mủ nước/mủ chén tự khai vượt {ceiling:,.0f} đồng/độ (mặt bằng đúng "
-                "100–1.500) — nghi gõ nhầm đồng/kg hoặc đồng/tấn.", HIGH,
+                f"Đơn giá mủ nguyên liệu vượt {vn_num(ceiling)} đồng/độ (mức đúng thường "
+                "100–1.500) — nhiều khả năng gõ nhầm sang đồng/kg hoặc đồng/tấn.", HIGH,
                 [("don_vi", "Đơn vị"), ("loai_mu", "Loại mủ"),
                  ("gia_lon_nhat_dong_do", "Giá lớn nhất (đồng/độ)"), ("so_o_sai", "Số ô sai")], out)
 
@@ -112,7 +114,10 @@ def _wrong_sale_price(date_from: str, date_to: str, thresholds: dict[str, float]
     ensure_schema()
     sql = text("""
         SELECT company, count(*) AS n, min(d) AS d_from, max(d) AS d_to, max(price) AS max_price,
-               string_agg(DISTINCT ccy, ',' ORDER BY ccy) AS ccys, bool_or(no_fx) AS missing_fx,
+               string_agg(DISTINCT ccy, ',' ORDER BY ccy) AS ccys,
+               -- VND không cần tỷ giá: chỉ báo "thiếu" với dòng ngoại tệ, kẻo lãnh đạo đơn vị đi tìm
+               -- tỷ giá cho một hợp đồng tiền Việt.
+               bool_or(no_fx AND ccy <> 'VND') AS missing_fx,
                string_agg(DISTINCT code, ', ' ORDER BY code) AS codes
           FROM (
             SELECT c.company,
@@ -144,8 +149,9 @@ def _wrong_sale_price(date_from: str, date_to: str, thresholds: dict[str, float]
             "gia_lon_nhat": round(r["max_price"]), "loai_tien": r["ccys"],
             "thieu_ty_gia": bool(r["missing_fx"]), "ma_hop_dong": r["codes"]} for r in rows]
     return group("wrong_sale_price", "Giá bán sai đơn vị tính",
-                f"Giá bán quy đổi vượt {vnd_ceiling:,.0f} triệu đ/tấn (mặt bằng 40–70) — nguồn "
-                "sales_contract.lines, quy đổi bằng tỷ giá của chính dòng.", HIGH,
+                f"Giá bán trong hợp đồng vượt {vn_num(vnd_ceiling)} triệu đ/tấn (mức đúng thường "
+                "40–70) — nhiều khả năng gõ đồng thay cho triệu đồng. Giá ngoại tệ được quy đổi "
+                "bằng tỷ giá ghi trên chính dòng đó.", HIGH,
                 [("don_vi", "Đơn vị"), ("so_dong", "Số dòng sai"), ("tu_ngay", "Từ ngày"),
                  ("den_ngay", "Đến ngày"), ("gia_lon_nhat", "Giá lớn nhất (đang nhập, triệu đ/tấn)"),
                  ("loai_tien", "Loại tiền"), ("thieu_ty_gia", "Thiếu tỷ giá"),
@@ -181,7 +187,7 @@ def _revenue_outlier(date_from: str, date_to: str, thresholds: dict[str, float])
                         "don_vi": top_company,
                         "doanh_thu_don_vi_ty_dong": round(top_rev / TY, 1)})
     return group("revenue_outlier", "Doanh thu một ngày bất thường",
-                f"Tổng doanh thu quy VNĐ một ngày toàn Tập đoàn vượt {ceiling_vnd / TY:,.0f} tỷ "
+                f"Tổng doanh thu quy VNĐ một ngày toàn Tập đoàn vượt {vn_num(ceiling_vnd / TY)} tỷ "
                 "đồng (ngày cao điểm thật ~170 tỷ) — nghi một dòng nhập giá sai 1.000 lần.", HIGH,
                 [("ngay", "Ngày"), ("tong_doanh_thu_ty_dong", "Tổng doanh thu (tỷ đồng)"),
                  ("don_vi", "Đơn vị đóng góp lớn nhất"),
@@ -309,10 +315,11 @@ def _not_submitted(date_from: str, date_to: str, thresholds: dict[str, float],
             "bieu_ton_kho": f"{thieu_ton_kho}/{stock_days} ngày thiếu",
         })
     return group("not_submitted", "Chưa nộp / thiếu một phần",
-                f"Số ngày còn thiếu của 2 biểu. Thu mua: kỳ {date_from} – {date_to} ({total_days} "
-                f"ngày). Tiêu thụ–Tồn kho: kỳ {stock_from} – {date_to} ({stock_days} ngày) vì biểu "
-                f"này chỉ bắt đầu thu thập từ {STOCK_START}. Đơn vị không có kế hoạch thu mua thì "
-                "cột Thu mua là \"không áp dụng\".", MEDIUM,
+                f"Số ngày còn thiếu của 2 biểu. Thu mua: từ {vn_date(date_from)} đến "
+                f"{vn_date(date_to)} ({total_days} ngày). Tiêu thụ–Tồn kho: từ {vn_date(stock_from)} "
+                f"đến {vn_date(date_to)} ({stock_days} ngày), vì biểu này bắt đầu nộp từ "
+                f"{vn_date(STOCK_START)}. Đơn vị không được giao kế hoạch thu mua thì cột Thu mua "
+                "ghi \"Không áp dụng\".", MEDIUM,
                 [("don_vi", "Đơn vị"), ("khu_vuc", "Khu vực"),
                  ("bieu_thu_mua", "Biểu Thu mua"), ("bieu_ton_kho", "Biểu Tiêu thụ–Tồn kho")], out)
 
@@ -374,8 +381,8 @@ def _missing_price(date_from: str, date_to: str, thresholds: dict[str, float]) -
                     "loai_mu": ", ".join(_MATERIALS[m] for m in missing),
                     "san_luong_tan": round(sum(missing.values()), 2)})
     return group("missing_price", "Có thu mua nhưng thiếu đơn giá",
-                "Ngày có tổ chức thu mua (sản lượng > 0, không bật cờ \"không tổ chức\") nhưng "
-                "kho giá chưa có đơn giá ĐÚNG LOẠI MỦ đó, và đơn vị chưa khai rõ là không có giá.",
+                "Ngày có sản lượng thu mua nhưng chưa nhập đơn giá của đúng loại mủ đó, và cũng "
+                "chưa khai là ngày không có giá.",
                 MEDIUM, [("don_vi", "Đơn vị"), ("ngay", "Ngày"), ("loai_mu", "Loại mủ thiếu giá"),
                         ("san_luong_tan", "Sản lượng (tấn)")], out)
 
@@ -401,7 +408,7 @@ def _silent_unit(date_from: str, date_to: str, thresholds: dict[str, float],
     out.sort(key=lambda r: -r["so_ngay_ngung_nop"])
     return group("silent_unit", "Đơn vị ngừng nộp nhiều ngày",
                 f"Đơn vị đang hoạt động không nộp biểu nào (Thu mua lẫn Tiêu thụ–Tồn kho) trong "
-                f"{silent_days} ngày gần nhất tính tới {date_to}.", MEDIUM,
+                f"{silent_days} ngày gần nhất, tính đến {vn_date(date_to)}.", MEDIUM,
                 [("don_vi", "Đơn vị"), ("khu_vuc", "Khu vực"),
                  ("ngay_nop_gan_nhat", "Ngày nộp gần nhất"),
                  ("so_ngay_ngung_nop", "Số ngày ngừng nộp")], out)
@@ -430,8 +437,8 @@ def _plan_missing(date_from: str, date_to: str, thresholds: dict[str, float]) ->
         out.append({"don_vi": name, "khu_vuc": u.get("region") or "",
                     "o_con_thieu": ", ".join(missing), "so_o_thieu": len(missing)})
     return group("plan_missing", "Kế hoạch năm khai thiếu",
-                f"Đơn vị chưa khai đủ 5 chỉ tiêu Kế hoạch năm {year} (bỏ trống = NULL; số 0 tính "
-                "là đã khai).", LOW,
+                f"Đơn vị chưa khai đủ 5 chỉ tiêu Kế hoạch năm {year}. Ô để trống là chưa khai; "
+                "nhập số 0 vẫn tính là đã khai.", LOW,
                 [("don_vi", "Đơn vị"), ("khu_vuc", "Khu vực"),
                  ("o_con_thieu", "Ô còn thiếu"), ("so_o_thieu", "Số ô thiếu")], out)
 
@@ -453,18 +460,4 @@ def scan(date_from: str, date_to: str, thresholds: dict[str, float]) -> dict[str
         _run(_silent_unit, date_from, date_to, thresholds, submitted),
         _run(_plan_missing, date_from, date_to, thresholds),
     ]
-    # MỌI nhóm CÓ cảnh báo lên trước, rồi mới tới nhóm rỗng; trong mỗi phần mới xét mức nghiêm
-    # trọng. Xếp mức trước thì ngày hệ thống sạch, ba nhóm "Nghiêm trọng · 0 dòng" chiếm hết đầu
-    # trang còn việc thật (chưa nộp · thiếu đơn giá) bị đẩy xuống — đọc ngược hẳn thông điệp.
-    sev_rank = {HIGH: 0, MEDIUM: 1, LOW: 2}
-    groups.sort(key=lambda g: (0 if g["count"] else 1, sev_rank.get(g["severity"], 9)))
-    all_units: set[str] = set()
-    counts = {HIGH: 0, MEDIUM: 0, LOW: 0}
-    total = 0
-    for g in groups:
-        total += g["count"]
-        counts[g["severity"]] = counts.get(g["severity"], 0) + g["count"]
-        all_units |= {r.get("don_vi") for r in g["rows"] if r.get("don_vi")}
-    summary = {"total": total, "high": counts[HIGH], "medium": counts[MEDIUM],
-               "low": counts[LOW], "units": len(all_units)}
-    return {"date_from": date_from, "date_to": date_to, "groups": groups, "summary": summary}
+    return finalize(date_from, date_to, groups)
