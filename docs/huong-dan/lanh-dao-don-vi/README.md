@@ -2,7 +2,7 @@
 
 Tài liệu dành cho **lãnh đạo đơn vị thành viên** VRG trên Hệ thống Dự báo & Quản trị Giá Cao su. Tài khoản lãnh đạo chỉ thấy dữ liệu của chính đơn vị mình.
 
-Hai phần chính: **Hỗ trợ & Thông báo** — nhận và gửi thông tin với Tập đoàn (có báo qua email); và **theo dõi số liệu đơn vị** — thu mua, tồn kho, nhu cầu thị trường, kế hoạch năm, khách hàng, hợp đồng, báo cáo tiêu thụ. Lãnh đạo **chỉ xem**, không nhập/sửa số liệu.
+Ba phần chính: **Hỗ trợ & Thông báo** — nhận và gửi thông tin với Tập đoàn (có báo qua email); **Cảnh báo bất thường** — thấy ngay nhân viên nhập liệu đang sai hoặc thiếu gì để nhắc đúng việc; và **theo dõi số liệu đơn vị** — thu mua, tồn kho, nhu cầu thị trường, kế hoạch năm, khách hàng, hợp đồng, báo cáo tiêu thụ. Lãnh đạo **chỉ xem**, không nhập/sửa số liệu.
 
 > Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-lanh-dao-don-vi.docx](./Huong-dan-lanh-dao-don-vi.docx)
 > Sửa nội dung: chỉ sửa `spec.json` rồi chạy `python3 render_readme.py` (dựng lại README) và `node build_guide.js spec.json` (dựng lại bản Word).
@@ -12,17 +12,18 @@ Hai phần chính: **Hỗ trợ & Thông báo** — nhận và gửi thông tin 
 
 **Vị trí:** Đăng nhập tại địa chỉ hệ thống, bằng tài khoản Tập đoàn cấp
 
-Sau khi đăng nhập, menu bên trái gồm bốn phần. Chữ “(chỉ xem)” trên tên nhóm nghĩa là phần đó chỉ để theo dõi, không có nút nhập hay sửa.
+Sau khi đăng nhập, menu bên trái gồm các phần dưới đây. Chữ “(chỉ xem)” trên tên nhóm nghĩa là phần đó chỉ để theo dõi, không có nút nhập hay sửa.
 
 ![Hình 1. Menu của tài khoản lãnh đạo đơn vị](img/01-menu.png)
 
 *Hình 1. Menu của tài khoản lãnh đạo đơn vị*
 
 1. **Hỗ trợ & Thông báo** — hộp thư trao đổi hai chiều với Tập đoàn: nhận thông báo, nhận tin nhắc lịch và gửi yêu cầu hỗ trợ.
-2. **Số liệu đơn vị (chỉ xem)** — Thu mua theo ngày, Tồn kho theo ngày, Nhu cầu thị trường, Kế hoạch năm.
-3. **Hợp đồng (chỉ xem)** — Khách hàng, Hợp đồng mẹ (HĐNT/HĐDH), Hợp đồng & đợt giao.
-4. **Báo cáo** — Báo cáo tiêu thụ của đơn vị, có xuất Excel.
-5. Cuối menu là **Hồ sơ cá nhân** để đổi mật khẩu.
+2. **Cảnh báo bất thường** — những chỗ nhân viên nhập liệu đang nhập sai hoặc còn thiếu (mục 9).
+3. **Số liệu đơn vị (chỉ xem)** — Thu mua theo ngày, Tồn kho theo ngày, Nhu cầu thị trường, Kế hoạch năm, Đề nghị sửa số liệu.
+4. **Hợp đồng (chỉ xem)** — Khách hàng, Hợp đồng mẹ (HĐNT/HĐDH), Hợp đồng & đợt giao.
+5. **Báo cáo** — Báo cáo tiêu thụ của đơn vị, có xuất Excel.
+6. Cuối menu là **Hồ sơ cá nhân** để đổi mật khẩu.
 
 > - Lãnh đạo chỉ thấy số liệu của đơn vị mình. Nếu được giao phụ trách nhiều đơn vị, các màn hình có thêm ô chọn đơn vị.
 > - Số liệu hằng ngày do tài khoản nhập liệu của đơn vị nhập. Thấy số sai hoặc còn thiếu, báo bộ phận nhập liệu sửa, hoặc gửi yêu cầu lên Tập đoàn theo mục 4.
@@ -143,15 +144,35 @@ Không cần mở hệ thống suốt ngày: mỗi khi có thông báo mới, c�
 > - Đây là email tự động, **không trả lời trực tiếp vào email** — phản hồi phải gõ trong thẻ trên hệ thống thì Tập đoàn mới nhận được.
 > - Không nhận được email: kiểm tra hộp thư rác, sau đó báo Tập đoàn kiểm tra lại địa chỉ email gắn với tài khoản của bạn.
 
-## 9. Xem số liệu thu mua theo ngày
+## 9. Cảnh báo bất thường — nhắc nhân viên đúng việc
+
+**Vị trí:** Menu ▸ Cảnh báo bất thường
+
+Trang này gom những chỗ nhân viên nhập liệu của đơn vị đang nhập sai hoặc còn thiếu. Mở ra là biết cần nhắc ai, sửa gì. Nhóm nghiêm trọng nằm trên cùng.
+
+![Hình 8. Cảnh báo bất thường của đơn vị](img/17-canh-bao-bat-thuong.png)
+
+*Hình 8. Cảnh báo bất thường của đơn vị*
+
+1. **Khoảng ngày** — mặc định từ đầu năm đến hôm qua. Đổi ngày xong bấm **Quét lại**.
+2. **Thẻ tổng quan** — tổng số cảnh báo, chia theo mức: *Nghiêm trọng* (cần sửa ngay), *Cần xem*, *Ghi nhận*.
+3. **Từng nhóm cảnh báo** — tên lỗi, mức độ và một dòng giải thích. Nhóm có việc được mở sẵn; nhóm không có lỗi bị gạch ngang ở cuối trang.
+4. **Bảng chi tiết** — ngày, loại mủ, mã hợp đồng… để nhân viên tìm đúng chỗ cần sửa.
+5. **Xuất Excel** — tải danh sách gửi nhân viên. Nút **Chế độ chụp** bên cạnh ẩn menu để chụp ảnh gọn gửi qua Zalo; bấm **Esc** để thoát.
+
+> - Trang chỉ có số liệu của đơn vị mình, kể cả đơn vị đã sáp nhập vào đơn vị mình.
+> - Cảnh báo là dấu hiệu cần kiểm tra, chưa chắc số đã sai. Nhắc nhân viên xem lại; ngày đã khoá thì nhân viên gửi **Đề nghị sửa số liệu** để Tập đoàn duyệt.
+> - Lỗi hay gặp nhất: giá bán gõ đồng thay cho triệu đồng/tấn, giá mủ gõ đồng/kg thay cho đồng/độ, quên nộp biểu ngày, có sản lượng mà quên đơn giá.
+
+## 10. Xem số liệu thu mua theo ngày
 
 **Vị trí:** Menu ▸ Số liệu đơn vị (chỉ xem) ▸ Thu mua (theo ngày)
 
 Sản lượng và đơn giá thu mua mủ nguyên liệu của đơn vị, theo từng ngày.
 
-![Hình 8. Báo cáo thu mua theo ngày](img/08-thu-mua.png)
+![Hình 9. Báo cáo thu mua theo ngày](img/08-thu-mua.png)
 
-*Hình 8. Báo cáo thu mua theo ngày*
+*Hình 9. Báo cáo thu mua theo ngày*
 
 1. Dòng thông báo **“Chế độ chỉ xem”** nhắc rằng màn này chỉ để theo dõi.
 2. **Khoảng thời gian** — chọn 30 / 60 / 90 / 180 ngày gần nhất, hoặc tự chọn khoảng ngày.
@@ -161,15 +182,15 @@ Sản lượng và đơn giá thu mua mủ nguyên liệu của đơn vị, theo
 > - Mục này chỉ hiện với đơn vị được giao kế hoạch thu mua. Đơn vị không tổ chức thu mua sẽ không thấy mục này trong menu.
 > - Sản lượng ghi theo **tấn quy khô**; đơn giá mủ nước theo đồng/độ TSC, mủ chén theo đồng/độ DRC.
 
-## 10. Xem tồn kho theo ngày
+## 11. Xem tồn kho theo ngày
 
 **Vị trí:** Menu ▸ Số liệu đơn vị (chỉ xem) ▸ Tồn kho (theo ngày)
 
 Ảnh chụp kho của đơn vị theo từng ngày, kèm số tiêu thụ cộng dồn từ các lần giao trên hợp đồng.
 
-![Hình 9. Báo cáo tồn kho theo ngày](img/09-ton-kho.png)
+![Hình 10. Báo cáo tồn kho theo ngày](img/09-ton-kho.png)
 
-*Hình 9. Báo cáo tồn kho theo ngày*
+*Hình 10. Báo cáo tồn kho theo ngày*
 
 1. Chọn **Khoảng thời gian** muốn xem.
 2. Nhóm cột **Tiêu thụ (theo hợp đồng)** — tổng tiêu thụ, xuất khẩu, trong nước, nội bộ, doanh thu và giá bán bình quân.
@@ -179,15 +200,15 @@ Sản lượng và đơn giá thu mua mủ nguyên liệu của đơn vị, theo
 > - Tồn kho là số tại thời điểm, nên dòng Lũy kế lấy **số mới nhất** của đơn vị, không cộng dồn các ngày.
 > - Số tiêu thụ không nhập tay: hệ thống cộng từ các **đợt giao** ghi trên hợp đồng.
 
-## 11. Nhu cầu thị trường
+## 12. Nhu cầu thị trường
 
 **Vị trí:** Menu ▸ Số liệu đơn vị (chỉ xem) ▸ Nhu cầu thị trường
 
 Các lời chào hàng, hỏi mua mà đơn vị nắm được, ghi theo ngày. Đây là phần thông tin thị trường đơn vị báo về Tập đoàn.
 
-![Hình 10. Nhu cầu thị trường theo ngày](img/10-nhu-cau-thi-truong.png)
+![Hình 11. Nhu cầu thị trường theo ngày](img/10-nhu-cau-thi-truong.png)
 
-*Hình 10. Nhu cầu thị trường theo ngày*
+*Hình 11. Nhu cầu thị trường theo ngày*
 
 1. Dòng thông báo chế độ chỉ xem.
 2. **Khoảng thời gian** — 30 / 60 / 90 / 180 / 365 ngày gần nhất.
@@ -195,15 +216,15 @@ Các lời chào hàng, hỏi mua mà đơn vị nắm được, ghi theo ngày.
 
 > Chỉ những ngày có nhập mới hiện. Ngày trống nghĩa là hôm đó đơn vị không ghi nhận nhu cầu nào.
 
-## 12. Kế hoạch năm
+## 13. Kế hoạch năm
 
 **Vị trí:** Menu ▸ Số liệu đơn vị (chỉ xem) ▸ Kế hoạch năm
 
 Chỉ tiêu cả năm của đơn vị — cơ sở để hệ thống tính phần trăm thực hiện trên các báo cáo.
 
-![Hình 11. Kế hoạch năm của đơn vị](img/11-ke-hoach-nam.png)
+![Hình 12. Kế hoạch năm của đơn vị](img/11-ke-hoach-nam.png)
 
-*Hình 11. Kế hoạch năm của đơn vị*
+*Hình 12. Kế hoạch năm của đơn vị*
 
 1. Dòng thông báo chế độ chỉ xem.
 2. **Năm** — chọn năm muốn xem.
@@ -212,45 +233,45 @@ Chỉ tiêu cả năm của đơn vị — cơ sở để hệ thống tính ph�
 > - Số hiện mờ là do màn hình ở chế độ chỉ xem — đó vẫn là số thật đơn vị đã khai.
 > - Chỉ tiêu sai hoặc chưa khai: báo tài khoản nhập liệu của đơn vị cập nhật.
 
-## 13. Danh mục khách hàng
+## 14. Danh mục khách hàng
 
 **Vị trí:** Menu ▸ Hợp đồng (chỉ xem) ▸ Khách hàng
 
 Danh sách khách hàng riêng của đơn vị. Mỗi hợp đồng đều gắn với một khách hàng ở danh mục này, nhờ đó báo cáo tách được sản lượng và doanh thu theo từng khách.
 
-![Hình 12. Danh mục khách hàng của đơn vị](img/12-khach-hang.png)
+![Hình 13. Danh mục khách hàng của đơn vị](img/12-khach-hang.png)
 
-*Hình 12. Danh mục khách hàng của đơn vị*
+*Hình 13. Danh mục khách hàng của đơn vị*
 
 1. Dòng thông báo chế độ chỉ xem.
 2. **Ô tìm kiếm** — tìm theo tên khách, mã khách hoặc mã số thuế.
 3. Bảng danh sách: mã khách, tên khách hàng, mã số thuế, trạng thái, ghi chú. Danh sách dài thì chuyển trang ở cuối bảng.
 
-## 14. Hợp đồng mẹ (HĐNT/HĐDH)
+## 15. Hợp đồng mẹ (HĐNT/HĐDH)
 
 **Vị trí:** Menu ▸ Hợp đồng (chỉ xem) ▸ Hợp đồng mẹ (HĐNT/HĐDH)
 
 Hồ sơ hợp đồng nguyên tắc / hợp đồng dài hạn ký với khách: sản lượng cam kết, công thức giá, thời hạn. Các hợp đồng bán cụ thể là phụ lục thuộc hồ sơ này.
 
-![Hình 13. Danh sách hợp đồng mẹ](img/13-hop-dong-me.png)
+![Hình 14. Danh sách hợp đồng mẹ](img/13-hop-dong-me.png)
 
-*Hình 13. Danh sách hợp đồng mẹ*
+*Hình 14. Danh sách hợp đồng mẹ*
 
 1. Dòng thông báo chế độ chỉ xem.
 2. Khối bộ lọc — chọn **Loại** hồ sơ (HĐ nguyên tắc / HĐ dài hạn) hoặc gõ số hợp đồng vào ô tìm.
 3. Bảng hồ sơ: số hợp đồng, loại, khách hàng, chủng loại, **SL cam kết**, số phụ lục **đã ký** và **hiệu lực** đến ngày nào. Bấm **Xem** để mở chi tiết hồ sơ.
 
-> Hồ sơ mẹ chỉ ghi cam kết, không tính vào sản lượng tiêu thụ. Sản lượng thật nằm ở các hợp đồng và đợt giao (mục 15).
+> Hồ sơ mẹ chỉ ghi cam kết, không tính vào sản lượng tiêu thụ. Sản lượng thật nằm ở các hợp đồng và đợt giao (mục 16).
 
-## 15. Hợp đồng & đợt giao
+## 16. Hợp đồng & đợt giao
 
 **Vị trí:** Menu ▸ Hợp đồng (chỉ xem) ▸ Hợp đồng & đợt giao
 
 Toàn bộ hợp đồng bán của đơn vị và tiến độ giao hàng của từng hợp đồng.
 
-![Hình 14. Hợp đồng và tiến độ giao hàng](img/14-hop-dong-dot-giao.png)
+![Hình 15. Hợp đồng và tiến độ giao hàng](img/14-hop-dong-dot-giao.png)
 
-*Hình 14. Hợp đồng và tiến độ giao hàng*
+*Hình 15. Hợp đồng và tiến độ giao hàng*
 
 1. Dòng thông báo chế độ chỉ xem.
 2. Khối bộ lọc — khách hàng, hồ sơ hợp đồng mẹ, trạng thái, hình thức tiêu thụ, ngày ký, số hợp đồng.
@@ -259,15 +280,15 @@ Toàn bộ hợp đồng bán của đơn vị và tiến độ giao hàng của
 
 > Trạng thái thường gặp: **Đã giao đủ**, **Đang thực hiện**. Cột *Còn phải giao* là phần đã ký nhưng chưa giao.
 
-## 16. Báo cáo tiêu thụ
+## 17. Báo cáo tiêu thụ
 
 **Vị trí:** Menu ▸ Báo cáo ▸ Tiêu thụ
 
 Bức tranh tiêu thụ của đơn vị theo kỳ: giao bao nhiêu, cho ai, doanh thu bao nhiêu, còn phải giao bao nhiêu. Số liệu cộng từ các lần giao ghi trên hợp đồng.
 
-![Hình 15. Báo cáo tiêu thụ theo kỳ](img/15-bao-cao-tieu-thu.png)
+![Hình 16. Báo cáo tiêu thụ theo kỳ](img/15-bao-cao-tieu-thu.png)
 
-*Hình 15. Báo cáo tiêu thụ theo kỳ*
+*Hình 16. Báo cáo tiêu thụ theo kỳ*
 
 1. Chọn kỳ ở **Từ ngày** – **Đến ngày** (mặc định từ đầu tháng đến hôm nay), lọc thêm theo khách hàng hoặc chủng loại nếu cần.
 2. **Xuất Excel** — tải file gồm 2 sheet: tổng hợp theo đơn vị và chi tiết từng dòng bán.
@@ -277,15 +298,15 @@ Bức tranh tiêu thụ của đơn vị theo kỳ: giao bao nhiêu, cho ai, doa
 > - Sản lượng tính theo **quy khô**. Doanh thu tính theo tỷ đồng.
 > - Số ở đây luôn khớp với mục *Hợp đồng & đợt giao* vì cùng lấy từ các lần giao.
 
-## 17. Đổi mật khẩu
+## 18. Đổi mật khẩu
 
 **Vị trí:** Menu ▸ Hồ sơ cá nhân
 
 Nên đổi mật khẩu ngay sau lần đăng nhập đầu tiên.
 
-![Hình 16. Đổi mật khẩu](img/16-ho-so.png)
+![Hình 17. Đổi mật khẩu](img/16-ho-so.png)
 
-*Hình 16. Đổi mật khẩu*
+*Hình 17. Đổi mật khẩu*
 
 1. Nhập **Mật khẩu hiện tại**.
 2. Nhập **Mật khẩu mới** (tối thiểu 6 ký tự).
@@ -295,7 +316,7 @@ Nên đổi mật khẩu ngay sau lần đăng nhập đầu tiên.
 > - Khối bên trái là **Thông tin cá nhân** — sửa họ tên hiển thị rồi bấm *Lưu thông tin*. Tên đăng nhập do Tập đoàn cấp, không tự đổi được.
 > - Quên mật khẩu: liên hệ quản trị hệ thống của Tập đoàn để được cấp lại.
 
-## 18. Những tình huống hay gặp
+## 19. Những tình huống hay gặp
 
 Các câu hỏi lãnh đạo đơn vị hay gặp khi mới dùng hệ thống.
 
@@ -303,7 +324,9 @@ Các câu hỏi lãnh đạo đơn vị hay gặp khi mới dùng hệ thống.
 |---|---|
 | Không thấy nút Lưu / Sửa ở màn số liệu | Đúng thiết kế: tài khoản lãnh đạo chỉ theo dõi. Việc nhập/sửa do tài khoản nhập liệu của đơn vị thực hiện. |
 | Số liệu của ngày hôm nay còn trống | Đơn vị chưa nhập. Nhắc bộ phận nhập liệu; hạn nhập trong ngày theo quy định của Tập đoàn. |
-| Muốn sửa số đã nhập nhưng kỳ đã khoá | Gửi yêu cầu hỗ trợ lên Tập đoàn (mục 4), nêu rõ ngày và số cần sửa. |
+| Cảnh báo báo “chưa nộp” nhưng nhân viên nói đã nộp | Cột ghi số ngày còn thiếu trên tổng số ngày của khoảng đang xem. Mở Thu mua hoặc Tồn kho theo ngày để xem đúng ngày nào còn trống. |
+| Cảnh báo báo giá sai nhưng số thật sự đúng | Cảnh báo chỉ là dấu hiệu cần kiểm tra. Nếu đã đối chiếu và số đúng thì báo Tập đoàn qua Hỗ trợ & Thông báo. |
+| Muốn sửa số đã nhập nhưng kỳ đã khoá | Nhắc nhân viên nhập liệu gửi **Đề nghị sửa số liệu**; Tập đoàn duyệt xong số mới được cập nhật. |
 | Không nhận được email báo tin mới | Xem hộp thư rác trước; vẫn không có thì báo Tập đoàn kiểm tra địa chỉ email gắn với tài khoản. |
 | Lỡ bấm “Đánh dấu đã xong” khi việc chưa xong | Đơn vị không tự mở lại được; nhờ Tập đoàn mở lại hoặc gửi yêu cầu mới. |
 | Không thấy mục Thu mua trong menu | Đơn vị không được giao kế hoạch thu mua nên hệ thống ẩn mục này. |

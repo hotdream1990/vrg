@@ -122,6 +122,22 @@ def seed_unit_data(tok: str, unit: str) -> None:
                    "fx": 26200}]})
 
 
+# ── Lỗi nhập liệu MẪU cho ảnh "Cảnh báo bất thường" ─────────────────────────────────────────────
+def seed_anomalies(tok: str, unit: str) -> None:
+    """Hai lỗi nhân viên hay mắc nhất: giá bán gõ ĐỒNG thay cho triệu đồng/tấn · có sản lượng thu
+    mua mà quên đơn giá. `shoot.py` gọi hàm này SAU CÙNG, sau khi đã chụp xong các màn số liệu —
+    ghi sớm thì Báo cáo tiêu thụ trong ảnh ra doanh thu gấp 1.000 lần. `clean()` xoá cả hai."""
+    customers = call("GET", "/api/customers", tok)["items"]
+    call("PUT", "/api/sales-contracts", tok, {
+        "company": unit, "code": "HĐ-109/2026", "customer_id": customers[0]["id"],
+        "delivery_type": "single", "contract_type": "spot", "sign_date": D(4),
+        "delivered_at": D(3), "channel": "domestic", "invoice_no": "HĐ 0001301",
+        "lines": [{"grade": "SVR 3L", "qty": 60, "price": 43500, "ccy": "VND"}]})
+    call("PUT", "/api/member/daily-report", tok, {
+        "kind": "purchase", "company": unit, "as_of": D(5),
+        "fields": {"latex_wet": 96.2, "coagulum": 15.0, "cup_basis": "drc"}})
+
+
 # ── Hộp thư: 4 thẻ đủ 3 loại + 1 thẻ đã khép ─────────────────────────────────────────────────
 def seed_inbox(admin: str, leader_tok: str, unit: str) -> dict[str, int]:
     """Trả về {khoá: thread_id} để `shoot.py` mở đúng thẻ cần chụp."""

@@ -20,6 +20,7 @@ sys.path.insert(0, str(pathlib.Path.home() / ".claude/skills/screenshot-annotate
 import seed as S  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 from shoot import annotated_shot, browser_page  # noqa: E402
+from playwright.sync_api import Error as PlaywrightError  # noqa: E402
 
 WEB = "http://localhost:5390"
 OUT = pathlib.Path(__file__).parent / "img"
@@ -49,8 +50,8 @@ def btn(label: str) -> str:
 MENU = """(() => {
   const it = (t) => [...document.querySelectorAll('.ant-menu-submenu-title, .ant-menu-item')]
       .find(e => e.textContent.trim() === t);
-  return window.__annotate([it('Hỗ trợ & Thông báo'), it('Số liệu đơn vị (chỉ xem)'),
-                            it('Hợp đồng (chỉ xem)'), it('Báo cáo')]);
+  return window.__annotate([it('Hỗ trợ & Thông báo'), it('Cảnh báo bất thường'),
+                            it('Số liệu đơn vị (chỉ xem)'), it('Hợp đồng (chỉ xem)'), it('Báo cáo')]);
 })()"""
 
 INBOX = f"""(() => {{
@@ -133,6 +134,27 @@ PROFILE = """(() => {
 })()"""
 
 
+#: Cảnh báo bất thường: khoảng ngày · thẻ tổng quan · tiêu đề nhóm đầu tiên · bảng · Xuất Excel.
+ANOMALY = f"""(() => {{
+  const range = document.querySelector('.ant-picker-range');
+  const kpi = document.querySelector('.kpi-row');
+  const head = document.querySelector('.ant-collapse-header');
+  const table = document.querySelector('.ant-collapse .ant-table');
+  const xlsx = {btn('Xuất Excel')};
+  return window.__annotate([range, kpi, head, table, xlsx]);
+}})()"""
+
+
+def open_page(p, width: int, height: int):
+    """Ưu tiên Chrome cài sẵn: bản Chromium đi kèm Playwright hay lệch phiên bản sau mỗi lần nâng
+    cấp thư viện (chạy là báo thiếu file thực thi). Máy không có Chrome thì mới dùng bản kèm theo."""
+    try:
+        browser = p.chromium.launch(channel="chrome")
+    except PlaywrightError:
+        return browser_page(p, width, height)
+    return browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=2)
+
+
 def main() -> int:
     admin = S.call("POST", "/api/auth/login", None,
                    {"username": "admin", "password": "admin"})["access_token"]
@@ -147,7 +169,7 @@ def main() -> int:
     OUT.mkdir(exist_ok=True)
 
     with sync_playwright() as p:
-        page = browser_page(p, 1500, 860)
+        page = open_page(p, 1500, 860)
         page.context.add_init_script(f"localStorage.setItem('vrg_token', {lead!r});"
                                      "localStorage.removeItem('vrg_admin_token');")
         only = tuple(sys.argv[1:])
@@ -209,6 +231,12 @@ def main() -> int:
         shot(f"{WEB}/bao-cao-tieu-thu", CONSUMPTION, "15-bao-cao-tieu-thu.png",
              wait_for="table", wide=True)
         shot(f"{WEB}/ho-so", PROFILE, "16-ho-so.png", wait_for=".ant-card")
+
+        # ── Cảnh báo bất thường: ghi 2 lỗi mẫu SAU CÙNG để không lọt vào các ảnh số liệu ở trên ──
+        if not only or "17-canh-bao-bat-thuong.png".startswith(only):
+            S.seed_anomalies(member, unit)
+            shot(f"{WEB}/canh-bao-bat-thuong", ANOMALY, "17-canh-bao-bat-thuong.png",
+                 wait_for=".kpi-row", wide=True)
 
     if not only:
         S.clean(unit)

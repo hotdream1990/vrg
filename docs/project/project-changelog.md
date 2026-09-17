@@ -4,6 +4,18 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Lãnh đạo đơn vị xem Cảnh báo bất thường của đơn vị mình** (17/09/2026) — mục mới ngay dưới
+  *Hỗ trợ & Thông báo* trong menu lãnh đạo đơn vị: thấy nhân viên nhập liệu đang sai/thiếu gì (giá
+  bán hoặc giá mủ sai đơn vị tính · chưa nộp biểu · ngừng nộp nhiều ngày · thiếu đơn giá · kế hoạch
+  năm khai thiếu · chưa gộp tồn kho sau sáp nhập) để nhắc đúng việc.
+  - Chỉ thấy các đơn vị được gán cho tài khoản, cộng đơn vị đã sáp nhập vào đơn vị mình — máy chủ
+    tự lọc. Không có nhóm *Doanh thu một ngày bất thường* (tính trên số gộp cả Tập đoàn), không có
+    *Cấu hình ngưỡng*, không có *Đăng nhập hộ*.
+  - Vẫn dùng được *Xuất Excel* và *Chế độ chụp* để gửi cho nhân viên.
+  - Sổ tay lãnh đạo đơn vị (`docs/huong-dan/lanh-dao-don-vi/`) thêm mục 9 *Cảnh báo bất thường*,
+    chụp lại toàn bộ ảnh theo menu mới, cập nhật mục *Những tình huống hay gặp*.
+- **Mô tả các nhóm cảnh báo viết lại cho dễ hiểu** (17/09/2026) — bỏ tên bảng/cột kỹ thuật, ngày ghi
+  DD/MM/YYYY, số có dấu chấm ngăn nghìn; áp cho cả màn quản trị và file Excel.
 - **Lịch sử truy cập** (16/09/2026) — Quản trị → *Lịch sử truy cập*: theo dõi **ai đăng nhập lúc
   nào và vào những trang nào**, để biết tài khoản đã cấp (nhất là lãnh đạo đơn vị thành viên) có
   thực sự được dùng hay không.
@@ -50,7 +62,13 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 - **Sổ tay Lãnh đạo Tập đoàn** (13/09/2026) — `docs/huong-dan/lanh-dao-tap-doan/`, 21 mục, 20 ảnh
   chú thích, bản Word.
 
+### Security
+- **File Excel Cảnh báo bất thường** chặn công thức Excel ở ô chữ do đơn vị nhập (mã hợp đồng…),
+  vì file nay đến tay cả lãnh đạo đơn vị.
+
 ### Fixed
+- **Cảnh báo *Giá bán sai đơn vị tính* không còn ghi “Thiếu tỷ giá: Có” cho hợp đồng VND**
+  (17/09/2026) — tiền Việt không cần tỷ giá; cột này nay chỉ đánh dấu dòng ngoại tệ chưa có tỷ giá.
 - **Người chỉ xem tải được PDF Báo cáo tuần** (13/09/2026) — trước đây nút "Xuất PDF" lưu báo cáo
   rồi mới xuất, nên tài khoản chỉ xem (Lãnh đạo Tập đoàn…) bấm là báo lỗi. Nay xuất thẳng bản đã lưu.
 - **Màn Thống kê và Theo dõi nộp báo cáo hiện đúng kỳ vừa chọn** (13/09/2026) — đổi kỳ nhanh trong
