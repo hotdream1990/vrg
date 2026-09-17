@@ -1,6 +1,7 @@
 """Registry THAO TÁC của «Đề nghị sửa số liệu quá khứ» + khung chuẩn bị một đề nghị.
 
-Mỗi thao tác (op) khai ĐÚNG MỘT chỗ (`edit_request_ops_daily` · `edit_request_ops_contract`):
+Mỗi thao tác (op) khai ĐÚNG MỘT chỗ (`edit_request_ops_daily` · `edit_request_ops_contract` ·
+`edit_request_ops_demand`):
 chuẩn hoá payload, ảnh chụp bản ghi, đơn vị + phạm vi quyền, khoá chống trùng, tiêu đề, ngày bị ảnh
 hưởng, câu báo chặn và cách GHI THẬT khi Ban duyệt.
 
@@ -47,10 +48,11 @@ class Op:
 
 
 def _registry() -> dict[str, Op]:
-    # Import trong hàm: hai module con import lại helper của module này.
+    # Import trong hàm: các module con import lại helper của module này.
     from app.services import edit_request_ops_contract as contract, edit_request_ops_daily as daily
+    from app.services import edit_request_ops_demand as demand
 
-    return {**daily.OPS, **contract.OPS}
+    return {**daily.OPS, **contract.OPS, **demand.OPS}
 
 
 def get_op(key: str) -> Op:

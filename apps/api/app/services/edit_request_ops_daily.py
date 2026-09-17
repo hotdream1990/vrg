@@ -1,7 +1,8 @@
-"""Thao tác «Đề nghị sửa» cho số liệu THEO NGÀY: biểu Thu mua/Tồn kho · đổi ngày biểu · nhu cầu thị trường.
+"""Thao tác «Đề nghị sửa» cho số liệu THEO NGÀY: biểu Thu mua/Tồn kho · đổi ngày biểu.
 
 Hàng rào gọi lại đúng như `routers/member_self.py`: cửa sổ sửa của đơn vị (`member_window`) + chốt
-số liệu (nhu cầu thị trường chỉ có cửa sổ). Khi duyệt: ghi thẳng repo, `updated_by` = người GỬI.
+số liệu. Khi duyệt: ghi thẳng repo, `updated_by` = người GỬI. Nhu cầu thị trường (phiếu theo trường)
+nằm ở `edit_request_ops_demand`.
 """
 
 from __future__ import annotations
@@ -16,11 +17,8 @@ from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import PURCHASE_PRICE_TYPES, PURCHASE_SOURCE_UNIT
 from app.core.unit_guard import assert_unit_can_enter
 from app.schemas.edit_request import DailyReportRequest
-from app.schemas.market_demand import MarketDemandEdit
 from app.schemas.unit_daily import UnitDailyMove
-from app.services import (
-    market_demand_repo, price_repo, unit_daily_fields, unit_daily_repo, unit_purchase_price,
-)
+from app.services import price_repo, unit_daily_fields, unit_daily_repo, unit_purchase_price
 from app.services.edit_request_ops import (
     Op, assert_assigned, collect_blocked, dmy, iso_date, parse,
 )
@@ -124,23 +122,6 @@ def _move_apply(p: dict, requester: str, company: str) -> dict:
         raise HTTPException(409, str(exc)) from exc
 
 
-# ── Nhu cầu thị trường ───────────────────────────────────────────────────────
-def _demand_validate(payload: Any) -> dict:
-    m = parse(MarketDemandEdit, payload)
-    out = {"company": m.company, "as_of": iso_date(m.as_of), "content": m.content.strip()}
-    return {**out, "create_only": True} if m.create_only else out
-
-
-def _demand_precheck(p: dict, before: dict | None) -> None:
-    if p.get("create_only") and str((before or {}).get("content") or "").strip():
-        raise HTTPException(409, "Đơn vị này đã có nhu cầu cho ngày này — vui lòng dùng chức năng Sửa.")
-
-
-def _demand_apply(p: dict, requester: str, company: str) -> dict:
-    market_demand_repo.upsert(p["as_of"], company, p["content"], requester)
-    return {"ok": True}
-
-
 def _company(p: dict, _before: dict | None) -> str:
     return p["company"]
 
@@ -169,14 +150,4 @@ OPS: dict[str, Op] = {
             _window(p["as_of"]), _window(p["to_date"]),
             _lock(p["company"], p["as_of"], p["to_date"])),
         apply=_move_apply),
-    "market_demand": Op(
-        label=lambda _p: "Nhu cầu thị trường",
-        validate=_demand_validate,
-        snapshot=lambda p: {"content": market_demand_repo.entries_on(p["as_of"]).get(p["company"], "")},
-        company=_company, check_scope=_scope_on("as_of"), precheck=_demand_precheck,
-        target_key=lambda p: f"demand:{p['as_of']}",
-        title=lambda p, _b: f"Nhu cầu thị trường ngày {dmy(p['as_of'])}",
-        dates=lambda p, _b: [p["as_of"]],
-        blocked=lambda _u, p, _b: collect_blocked(_window(p["as_of"])),
-        apply=_demand_apply, lockable=False),   # nhu cầu thị trường không nằm trong chốt số liệu
 }

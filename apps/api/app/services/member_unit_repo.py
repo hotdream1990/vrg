@@ -84,14 +84,14 @@ def add_unit(name: str) -> None:
 
 # Các bảng số liệu gắn theo TÊN ĐƠN VỊ ở cột `company` — đổi tên đơn vị phải chuyển hết sang tên mới.
 _COMPANY_TABLES = ("unit_daily_report", "unit_stock_contract", "unit_purchase_plan", "market_demand",
-                   "unit_customer", "sales_contract", "master_contract")
+                   "market_demand_item", "unit_customer", "sales_contract", "master_contract")
 
 
 def rename_unit(old: str, new: str) -> None:
     """Đổi tên đơn vị + chuyển MỌI dữ liệu đang gắn theo tên đơn vị sang tên mới.
 
     Tên đơn vị chính là khoá liên kết của: giá mủ nguyên liệu (fact_price.grade), báo cáo ngày,
-    hợp đồng tồn kho, kế hoạch năm, nhu cầu thị trường, danh mục khách hàng + hợp đồng bán hàng
+    hợp đồng tồn kho, kế hoạch năm, nhu cầu thị trường (bản chữ cũ + phiếu theo trường), danh mục khách hàng + hợp đồng bán hàng
     (cả đơn vị sở hữu lẫn `sales_contract.to_company` — đơn vị nhận khi tiêu thụ nội bộ), HỒ SƠ
     HỢP ĐỒNG MẸ (`master_contract.company` — bỏ sót thì hồ sơ mồ côi và mọi phụ lục của nó không
     sửa được nữa vì bị coi là "hợp đồng mẹ thuộc đơn vị khác"), cây

@@ -24,7 +24,7 @@ export default function EditRequestDiffTable({ request, current, withCurrent = f
     () => buildEditRequestDiff(request, current, withCurrent),
     [request, current, withCurrent],
   );
-  const isDelete = request.op === "contract_delete";
+  const isDelete = request.op.endsWith("_delete");
 
   const cell = (path: string, v: unknown, emptyText = "(trống)") => {
     if (isFileLeaf(v)) {

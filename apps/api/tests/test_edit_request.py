@@ -8,12 +8,12 @@ import pytest
 
 from app.core.db import db_healthy
 from app.services import (
-    data_lock_repo, market_demand_repo, sales_contract_repo, unit_daily_repo, unit_purchase_price,
+    data_lock_repo, market_demand_item_repo, sales_contract_repo, unit_daily_repo, unit_purchase_price,
 )
 from app.services.edit_request_ops_daily import _day_fields, _unit_prices
 from tests import edit_request_env
 from tests.edit_request_env import (
-    OLD, OTHER, RECENT, TODAY, UNIT, approve, client, lock_round, reject, send,
+    OLD, OTHER, RECENT, TODAY, UNIT, approve, client, demand, lock_round, reject, seed_demand, send,
 )
 
 pytestmark = pytest.mark.skipif(not db_healthy(), reason="DB không sẵn sàng")
@@ -74,20 +74,20 @@ def test_daily_report_submit_review_and_unlock(env) -> None:
 
 def test_market_demand_reject_approve_and_cancel(env) -> None:
     e = env
-    market_demand_repo.upsert(OLD, UNIT, "Nội dung cũ", "admin")
-    payload = {"company": UNIT, "as_of": OLD, "content": "Nội dung mới"}
-    rid = send(e["member"], "market_demand", payload).json()["request"]["id"]
+    iid = seed_demand()["id"]
+    payload = demand(id=iid, customer="KH mới")
+    rid = send(e["member"], "demand_save", payload).json()["request"]["id"]
     assert reject(e["editor"], rid, " ").status_code == 400
     rej = reject(e["editor"], rid, "Không đủ căn cứ")
     assert rej.json()["request"]["status"] == "rejected"
-    assert market_demand_repo.entries_on(OLD)[UNIT] == "Nội dung cũ"
+    assert market_demand_item_repo.get(iid)["customer"] == "KH cũ"
 
-    rid2 = send(e["member"], "market_demand", payload).json()["request"]["id"]
+    rid2 = send(e["member"], "demand_save", payload).json()["request"]["id"]
     assert rid2 != rid
     assert approve(e["admin"], rid2).status_code == 200
-    assert market_demand_repo.entries_on(OLD)[UNIT] == "Nội dung mới"
+    assert market_demand_item_repo.get(iid)["customer"] == "KH mới"
 
-    rid3 = send(e["member"], "market_demand", {**payload, "content": "Lần ba"}).json()["request"]["id"]
+    rid3 = send(e["member"], "demand_save", {**payload, "customer": "Lần ba"}).json()["request"]["id"]
     assert client.post(f"/api/member/edit-requests/{rid3}/cancel", headers=e["member"]).json()["request"]["status"] == "cancelled"
     assert client.post(f"/api/member/edit-requests/{rid3}/cancel", headers=e["member"]).status_code == 409
     mine = client.get("/api/member/edit-requests", headers=e["leader"]).json()

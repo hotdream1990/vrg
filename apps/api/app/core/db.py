@@ -191,6 +191,37 @@ CREATE TABLE IF NOT EXISTS market_demand (
     PRIMARY KEY (as_of, company)
 );
 
+-- Nhu cầu thị trường THEO TRƯỜNG (17/09/2026): mỗi dòng = MỘT nhu cầu của MỘT chủng loại, có tình
+-- trạng cập nhật về sau. Thay cho ô chữ tự do `market_demand` (bảng cũ giữ lại để tra lịch sử).
+CREATE TABLE IF NOT EXISTS market_demand_item (
+    id                bigserial PRIMARY KEY,
+    company           text NOT NULL,                 -- đơn vị thành viên ghi nhận
+    as_of             date NOT NULL,                 -- ngày nhận nhu cầu
+    customer          text NOT NULL,                 -- khách hỏi mua (gõ tự do)
+    grade             text NOT NULL,                 -- chủng loại (UNIT_GRADES)
+    qty               numeric,                       -- số lượng (không bắt buộc)
+    qty_unit          text NOT NULL DEFAULT 'ton',   -- ton | container
+    price             numeric,                       -- đơn giá (không bắt buộc)
+    currency          text NOT NULL DEFAULT 'VND',   -- VND = triệu đồng/tấn · USD = USD/tấn
+    price_provisional boolean NOT NULL DEFAULT false,-- giá tạm tính
+    delivery_place    text NOT NULL DEFAULT '',
+    delivery_from     date,
+    delivery_to       date,
+    status            text NOT NULL DEFAULT 'open',  -- open | signed | failed
+    contract_no       text NOT NULL DEFAULT '',
+    contract_date     date,
+    note              text NOT NULL DEFAULT '',
+    source_key        text,                          -- khoá chống nhập trùng khi chuyển dữ liệu cũ
+    created_at        timestamptz NOT NULL DEFAULT now(),
+    created_by        text,
+    updated_at        timestamptz NOT NULL DEFAULT now(),
+    updated_by        text
+);
+CREATE INDEX IF NOT EXISTS ix_mdi_company_date ON market_demand_item (company, as_of DESC);
+CREATE INDEX IF NOT EXISTS ix_mdi_date ON market_demand_item (as_of DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_mdi_source_key ON market_demand_item (source_key)
+    WHERE source_key IS NOT NULL;
+
 -- Báo cáo tiêu thụ – tồn kho của đơn vị thành viên (theo NGÀY) — 2 loại: thu mua ('purchase')
 -- & tiêu thụ–tồn kho ('consumption'). Mỗi (ngày, đơn vị, loại) = 1 bản ghi, số liệu jsonb {field: number}.
 -- Đơn vị tự nhập của mình; chuyên viên có quyền `unit_daily` xem/sửa mọi đơn vị (realtime).
@@ -468,7 +499,7 @@ CREATE INDEX IF NOT EXISTS ix_support_reminder_next ON support_reminder (enabled
 CREATE TABLE IF NOT EXISTS edit_request (
     id           bigserial PRIMARY KEY,
     company      text NOT NULL,
-    op           text NOT NULL,          -- daily_report | daily_move | market_demand | contract_save | contract_delete
+    op           text NOT NULL,          -- daily_report | daily_move | demand_save | demand_delete | contract_save | contract_delete
     target_key   text NOT NULL,          -- khoá bản ghi bị sửa (chống trùng đề nghị đang chờ)
     title        text NOT NULL DEFAULT '',
     dates        jsonb NOT NULL DEFAULT '[]'::jsonb,   -- ngày số liệu bị ảnh hưởng

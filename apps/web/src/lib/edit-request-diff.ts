@@ -7,6 +7,7 @@
 import { fieldLabel, fmtValue } from "./audit-diff";
 import { dmy } from "./date";
 import type { EditRequest, EditRequestOp } from "./edit-request-client";
+import { labelDemandCodes } from "./market-demand-meta";
 import { SALE_DATES, SALE_DOCS } from "./unit-daily-consumption";
 import { CUP_PRICE_UNIT, LACE_PRICE_UNIT, LATEX_PRICE_UNIT } from "./purchase-price-unit";
 import { COLUMNS } from "./unit-daily-fields";
@@ -60,7 +61,17 @@ const CONTRACT_LABELS: Record<string, string> = {
   certs: "Chứng chỉ", premium: "Premium", premium_ccy: "Loại tiền premium",
 };
 
+/** Nhãn nhu cầu thị trường — phần còn lại (khách hàng, giao tại, tình trạng…) lấy từ audit-diff. */
+const DEMAND_LABELS: Record<string, string> = { as_of: "Ngày nhận", currency: "Đơn vị giá" };
+
 const isDailyOp = (op: EditRequestOp) => op === "daily_report" || op === "daily_move";
+
+const opLabels = (op: EditRequestOp): Record<string, string> => {
+  if (isDailyOp(op)) return DAILY_LABELS;
+  if (op.startsWith("contract_")) return CONTRACT_LABELS;
+  if (op.startsWith("demand_")) return DEMAND_LABELS;
+  return {};
+};
 
 /** Khoá kỹ thuật / số hệ thống tự tính — không đưa ra so sánh. `file`, `filename`… phẳng là bản
  *  sao tương thích ngược của danh sách file (file thật đã hiện qua `FileLeaf`); `delivered` suy từ `delivered_at`. */
@@ -103,13 +114,16 @@ function project(req: Pick<EditRequest, "op" | "payload">, o: Obj | null, side: 
         : o && { fields: o.fields ?? null, prices: pickKeys(asObj(o.prices), asObj(p.prices)) };
     case "daily_move":
       return side === "payload" ? { as_of: p.to_date } : { as_of: o?.fields ? p.as_of : null };
-    case "market_demand":
-      return side === "payload" ? { content: p.content ?? null } : o && { content: o.content ?? null };
     case "contract_save":
       // Bản ghi lưu có thêm số suy ra (qty, revenue…) — chỉ so các khoá đơn vị gửi lên.
       return side === "payload" ? p : pickKeys(o, p);
     case "contract_delete":
       return side === "payload" ? null : o;
+    case "demand_save":
+      // Bản ghi có thêm legacy/created_*… — chỉ so các khoá của thân PUT; mã → nhãn cho dễ đọc.
+      return labelDemandCodes(side === "payload" ? p : pickKeys(o, p));
+    case "demand_delete":
+      return side === "payload" ? null : labelDemandCodes(o);
   }
 }
 
@@ -136,7 +150,7 @@ const same = (a: unknown, b: unknown) => norm(a) === norm(b);
 export function diffLabel(path: string, op: EditRequestOp): string {
   const segs = path.split(".");
   if (segs.length > 1 && (segs[0] === "fields" || segs[0] === "prices")) segs.shift();
-  const extra = isDailyOp(op) ? DAILY_LABELS : op.startsWith("contract_") ? CONTRACT_LABELS : {};
+  const extra = opLabels(op);
   return segs.map((seg) => {
     const m = seg.match(/^(.*?)(?:\[(\d+)\])?$/);
     const key = m?.[1] ?? seg;

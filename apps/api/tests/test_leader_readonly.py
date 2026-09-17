@@ -23,6 +23,11 @@ client = TestClient(app)
 UNIT_A, UNIT_B = "_zz_ld_don_vi_a", "_zz_ld_don_vi_b"
 ACCOUNTS = ("ld_lead_a", "ld_mem_a")
 TODAY = date.today().isoformat()
+DEMAND_URL = "/api/member/market-demand/items"
+
+
+def _demand(company: str, customer: str = "Khách thử") -> dict:
+    return {"company": company, "as_of": TODAY, "customer": customer, "grade": "LATEX"}
 
 
 @pytest.fixture(autouse=True)
@@ -65,8 +70,7 @@ def test_lanh_dao_xem_duoc_so_lieu_don_vi_minh(env) -> None:
     for url in ("/api/member/prices?days=30",
                 f"/api/member/daily-report?kind=purchase&as_of={TODAY}",
                 f"/api/member/daily-report?kind=consumption&as_of={TODAY}",
-                f"/api/member/market-demand?as_of={TODAY}",
-                "/api/member/market-demand/timeline?days=30",
+                DEMAND_URL,
                 f"/api/member/plan?year={date.today().year}",
                 "/api/member/stock-contracts"):
         r = client.get(url, headers=lead)
@@ -93,8 +97,8 @@ def test_lanh_dao_khong_ghi_duoc_gi(env) -> None:
         ("put", "/api/member/prices",
          {"company": UNIT_A, "as_of": TODAY, "price_type": "purchase", "price": 300}),
         ("delete", f"/api/member/prices?company={UNIT_A}&as_of={TODAY}&price_type=purchase", None),
-        ("put", "/api/member/market-demand",
-         {"company": UNIT_A, "as_of": TODAY, "content": "thử ghi"}),
+        ("put", DEMAND_URL, _demand(UNIT_A)),
+        ("delete", f"{DEMAND_URL}/1", None),
         ("put", "/api/member/daily-report",
          {"kind": "purchase", "as_of": TODAY, "company": UNIT_A, "fields": {"latex_wet": 1}}),
         ("put", "/api/member/plan",
@@ -108,20 +112,18 @@ def test_lanh_dao_khong_ghi_duoc_gi(env) -> None:
         assert r.status_code == 403, f"{method.upper()} {url} → {r.status_code} (đáng lẽ 403)"
 
     # Cùng thao tác đó, tài khoản NHẬP LIỆU của chính đơn vị vẫn làm được → hàng rào đúng chỗ.
-    assert client.put("/api/member/market-demand",
-                      json={"company": UNIT_A, "as_of": TODAY, "content": "đơn vị nhập"},
-                      headers=env["mem"]).status_code == 200
-    client.put("/api/member/market-demand",
-               json={"company": UNIT_A, "as_of": TODAY, "content": ""}, headers=env["mem"])
+    res = client.put(DEMAND_URL, json=_demand(UNIT_A, "đơn vị nhập"), headers=env["mem"])
+    assert res.status_code == 200, res.text
+    assert client.delete(f"{DEMAND_URL}/{res.json()['item']['id']}", headers=env["mem"]).status_code == 200
 
 
 def test_lanh_dao_khong_thay_don_vi_khac(env) -> None:
     """Đơn vị B không thuộc tài khoản → không đọc, không ghi."""
     lead = env["lead"]
-    demand = client.get(f"/api/member/market-demand?as_of={TODAY}", headers=lead).json()
-    assert UNIT_B not in demand["entries"]
+    demand = client.get(DEMAND_URL, headers=lead).json()
+    assert UNIT_B not in demand["units"] and all(x["company"] != UNIT_B for x in demand["items"])
     # Endpoint của chuyên viên (mọi đơn vị) vẫn chặn lãnh đạo.
-    assert client.get(f"/api/market-demand?as_of={TODAY}", headers=lead).status_code == 403
+    assert client.get("/api/market-demand/items", headers=lead).status_code == 403
     assert client.get(f"/api/unit-daily/day?kind=purchase&as_of={TODAY}",
                       headers=lead).status_code == 403
 
@@ -186,8 +188,8 @@ def test_khong_lo_don_vi_khac_qua_bat_ky_endpoint_nao(env) -> None:
     client.post("/api/users", json={"username": "ld_mem_b", "password": "pass123",
                                     "role": "member", "member_units": [UNIT_B]}, headers=h)
     mem_b = _bearer("ld_mem_b", "pass123")
-    client.put("/api/member/market-demand",
-               json={"company": UNIT_B, "as_of": TODAY, "content": "BIMATCUADONVIB"}, headers=mem_b)
+    secret_demand = client.put(DEMAND_URL, json=_demand(UNIT_B, "BIMATCUADONVIB"), headers=mem_b)
+    assert secret_demand.status_code == 200, secret_demand.text
     client.put("/api/member/plan",
                json={"year": date.today().year, "company": UNIT_B, "plan_tonnes": 4321}, headers=mem_b)
     client.put("/api/customers", json={"company": UNIT_B, "name": "KHACHHANGRIENGCUAB"}, headers=mem_b)
@@ -196,8 +198,7 @@ def test_khong_lo_don_vi_khac_qua_bat_ky_endpoint_nao(env) -> None:
             f"/api/member/daily-report?kind=purchase&as_of={TODAY}",
             f"/api/member/daily-report?kind=consumption&as_of={TODAY}",
             "/api/member/daily-report/timeline?kind=purchase&days=30",
-            f"/api/member/market-demand?as_of={TODAY}",
-            "/api/member/market-demand/timeline?days=30",
+            DEMAND_URL,
             f"/api/member/plan?year={date.today().year}",
             "/api/member/prices?days=30",
             "/api/member/stock-contracts",
@@ -215,8 +216,7 @@ def test_khong_lo_don_vi_khac_qua_bat_ky_endpoint_nao(env) -> None:
             for secret in (UNIT_B, "BIMATCUADONVIB", "KHACHHANGRIENGCUAB"):
                 assert secret not in r.text, f"{url} lộ dấu vết đơn vị khác: {secret}"
     finally:
-        client.put("/api/member/market-demand",
-                   json={"company": UNIT_B, "as_of": TODAY, "content": ""}, headers=mem_b)
+        client.delete(f"{DEMAND_URL}/{secret_demand.json()['item']['id']}", headers=mem_b)
         client.delete("/api/users/ld_mem_b", headers=h)
 
 

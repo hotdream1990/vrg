@@ -87,7 +87,8 @@ def test_moi_thao_tac_ghi_deu_bi_chan(env) -> None:
     writes = [
         ("post", "/api/prices/scan"), ("put", "/api/prices/records"), ("delete", "/api/prices/records"),
         ("post", "/api/floor"), ("put", "/api/market-quote"), ("post", "/api/inventory"),
-        ("put", "/api/market-demand"), ("put", "/api/unit-daily/report"), ("put", "/api/unit-daily/plan"),
+        ("put", "/api/market-demand/items"), ("delete", "/api/market-demand/items/1"),
+        ("put", "/api/unit-daily/report"), ("put", "/api/unit-daily/plan"),
         ("put", "/api/sales-contracts"), ("put", "/api/customers"), ("put", "/api/master-contracts"),
         ("post", "/api/bulletins/draft"), ("post", "/api/bulletins/market-analysis"),
         ("put", "/api/weekly-reports/2026-09-07"), ("post", "/api/weekly-reports/2026-09-07/ai-assist"),

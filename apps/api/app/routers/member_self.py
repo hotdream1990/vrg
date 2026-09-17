@@ -15,29 +15,32 @@ gán (xem `_scope`), và trả kèm `view_only_units` để web khoá nút sửa
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 
 from app.core import data_lock, edit_window
 from app.core.feature_flags import require_excel_import
+from app.core import market_demand_meta as demand_meta
 from app.core.market_meta import PURCHASE_PRICE_UNIT, PURCHASE_SOURCE_UNIT, UNIT_GRADES
 from app.core.security import get_unit_user
 from app.core.unit_guard import assert_unit_can_enter
 from app.routers.unit_daily import resolve_timeline_range, timeline_page
-from app.schemas.market_demand import MarketDemandEdit
+from app.schemas.market_demand_item import DemandItemIn
 from app.schemas.member_self import MemberPriceEdit
 from app.schemas.unit_daily import (
     ExcelImportCommit, PurchasePlanEdit, StockContractEdit, UnitDailyEdit, UnitDailyMove,
 )
 from app.services import (
-    contract_files, market_demand_repo, member_checklist, member_unit_merge, price_repo,
+    contract_files, market_demand_item_repo, member_checklist, member_unit_merge, price_repo,
     unit_daily_excel_io, unit_daily_repo, unit_purchase_price, unit_stock_contract_repo,
 )
+from app.services import market_demand_item_policy as demand_policy
 from app.services.unit_report_query import split_csv
 
 router = APIRouter(prefix="/api/member", tags=["member-self"])
+_DEMAND_NOT_FOUND = "Không tìm thấy phiếu nhu cầu này."
 _excel = [Depends(require_excel_import)]  # nhập Excel đang tạm tắt (app/core/feature_flags.py)
 
 
@@ -148,38 +151,54 @@ def clear_my_price(
     return {"deleted": True}
 
 
-# ── Nhu cầu thị trường (free text theo đơn vị / ngày) ──
-@router.get("/market-demand/timeline")
-def my_market_demand_timeline(days: int = Query(90, ge=1, le=730),
-                              member: dict = Depends(get_unit_user)) -> dict:
-    """Timeline nhu cầu — các đơn vị được gán + đơn vị đã sáp nhập vào (chỉ xem), ẩn ngày trống."""
+# ── Nhu cầu thị trường (phiếu theo trường — mỗi phiếu một chủng loại, có tình trạng) ──
+@router.get("/market-demand/items")
+def my_market_demand_items(date_from: str | None = Query(None, description="Từ ngày nhận 'YYYY-MM-DD'"),
+                           date_to: str | None = Query(None, description="Đến ngày nhận 'YYYY-MM-DD'"),
+                           status: str | None = Query(None, description="open | signed | failed"),
+                           grade: str | None = Query(None),
+                           q: str | None = Query(None, max_length=120),
+                           member: dict = Depends(get_unit_user)) -> dict:
+    """Phiếu nhu cầu — đơn vị được gán + đơn vị đã sáp nhập vào (chỉ xem), mặc định 90 ngày gần nhất."""
     units, view_only = _scope(member)
-    date_from = (edit_window.today() - timedelta(days=days)).isoformat()
+    d_from, d_to = demand_policy.date_range(date_from, date_to)
     return {"units": units, "view_only_units": view_only, "today": edit_window.today().isoformat(),
-            "edit_window_days": edit_window.member_window(),
-            "entries": market_demand_repo.recent(date_from, companies=units)}
+            "edit_window_days": edit_window.member_window(), "grades": list(demand_meta.GRADES),
+            "items": market_demand_item_repo.list_items(units, d_from, d_to, status=status,
+                                                        grade=grade, q=q)}
 
 
-@router.get("/market-demand")
-def my_market_demand(as_of: str = Query(..., description="YYYY-MM-DD"),
-                     member: dict = Depends(get_unit_user)) -> dict:
-    """Nhu cầu thị trường của CÁC đơn vị được gán cho 1 ngày (chỉ đơn vị của tài khoản)."""
-    units = _units(member)   # phiếu NHẬP → chỉ đơn vị được gán (đơn vị đã sáp nhập xem ở timeline)
-    entries = market_demand_repo.entries_on(as_of)
-    return {"units": units, "today": edit_window.today().isoformat(),
-            "edit_window_days": edit_window.member_window(),
-            "entries": {u: entries.get(u, "") for u in units}}
+def _my_demand_item(member: dict, item_id: int) -> dict:
+    """Phiếu có sẵn mà tài khoản được GHI: không có → 404; của đơn vị khác (kể cả đã sáp nhập) → 403."""
+    old = market_demand_item_repo.get(item_id)
+    if old is None:
+        raise HTTPException(404, _DEMAND_NOT_FOUND)
+    if old["company"] not in _units(member):
+        raise HTTPException(403, "Đơn vị không thuộc quyền quản lý của tài khoản.")
+    return old
 
 
-@router.put("/market-demand")
-def upsert_my_market_demand(body: MarketDemandEdit,
-                            member: dict = Depends(get_unit_user)) -> dict:
-    """Ghi/sửa nhu cầu 1 đơn vị được gán, trong cửa sổ cho phép. create_only → chống ghi trùng."""
-    _assert_company(member, body.company, body.as_of)
-    edit_window.assert_editable(body.as_of, edit_window.member_window())
-    if body.create_only and market_demand_repo.entries_on(body.as_of).get(body.company, "").strip():
-        raise HTTPException(409, "Đơn vị này đã có nhu cầu cho ngày này — vui lòng dùng chức năng Sửa.")
-    market_demand_repo.upsert(body.as_of, body.company, body.content.strip(), member.get("username"))
+@router.put("/market-demand/items")
+def save_my_market_demand_item(body: DemandItemIn, member: dict = Depends(get_unit_user)) -> dict:
+    """Thêm/sửa 1 phiếu của đơn vị được gán. Chỉ đổi tình trạng · số HĐ · ngày ký · ghi chú thì
+    miễn cửa sổ nhập liệu (kết quả đàm phán đến sau, cửa sổ đơn vị có thể = 0)."""
+    item = demand_policy.clean(body.model_dump())
+    _assert_company(member, item["company"], item["as_of"])
+    old = _my_demand_item(member, item["id"]) if item["id"] else None
+    demand_policy.assert_save_fences(member["username"], old, item)
+    saved = market_demand_item_repo.save(item, member["username"])
+    if saved is None:
+        raise HTTPException(404, _DEMAND_NOT_FOUND)
+    return {"item": saved}
+
+
+@router.delete("/market-demand/items/{item_id}")
+def delete_my_market_demand_item(item_id: int, member: dict = Depends(get_unit_user)) -> dict:
+    """Xoá 1 phiếu nhập nhầm — trong cửa sổ theo ngày nhận của phiếu."""
+    old = _my_demand_item(member, item_id)
+    demand_policy.assert_delete_fences(member["username"], old)
+    if not market_demand_item_repo.delete(item_id, _units(member)):
+        raise HTTPException(404, _DEMAND_NOT_FOUND)
     return {"ok": True}
 
 

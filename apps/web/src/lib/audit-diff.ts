@@ -30,6 +30,10 @@ const LABELS: Record<string, string> = {
   rows: "Số bản ghi", sources: "Nguồn dữ liệu", dates: "Ngày",
   // Đánh dấu hàng loạt "không tổ chức thu mua" (màn Theo dõi nộp báo cáo).
   count: "Số ô đã đánh dấu", date_from: "Từ ngày", date_to: "Đến ngày",
+  // Phiếu nhu cầu thị trường (17/09/2026).
+  customer: "Khách hàng", qty_unit: "Đơn vị số lượng", price_provisional: "Giá tạm tính",
+  delivery_place: "Giao tại", delivery_from: "Giao từ ngày", delivery_to: "Giao đến ngày",
+  status: "Tình trạng", contract_no: "Số hợp đồng", contract_date: "Ngày ký hợp đồng",
   ...UNIT_DAILY_LABELS,
 };
 

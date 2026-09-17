@@ -42,7 +42,7 @@ def _cleanup(h: dict[str, str]) -> None:
     client.delete(f"/api/users/{USER}", headers=h)
     with session_scope() as db:
         for tbl in ("unit_daily_report", "unit_stock_contract", "unit_purchase_plan", "market_demand",
-                    "unit_customer"):
+                    "market_demand_item", "unit_customer"):
             db.execute(text(f"DELETE FROM {tbl} WHERE company = ANY(:u)"), {"u": [OLD, NEW]})
         db.execute(text("DELETE FROM sales_contract WHERE company = ANY(:u) OR to_company = ANY(:u)"),
                    {"u": [OLD, NEW, OTHER]})
@@ -73,6 +73,8 @@ def test_rename_moves_data_and_member_accounts() -> None:
                         "VALUES (2026, :c, 5000)"), {"c": OLD})
         db.execute(text("INSERT INTO market_demand (as_of, company, content) "
                         "VALUES ('2026-07-20', :c, 'test')"), {"c": OLD})
+        db.execute(text("INSERT INTO market_demand_item (as_of, company, customer, grade) "
+                        "VALUES ('2026-07-20', :c, 'Khách test', 'LATEX')"), {"c": OLD})
         db.execute(text("INSERT INTO fact_price (as_of, source, grade, price_type, price, currency, unit) "
                         "VALUES ('2026-07-20', 'vrg', :c, 'purchase', 380, 'VND', 'đồng/độ TSC')"), {"c": OLD})
         db.execute(text("INSERT INTO unit_customer (company, name) VALUES (:c, 'Khách test')"), {"c": OLD})
@@ -88,7 +90,7 @@ def test_rename_moves_data_and_member_accounts() -> None:
 
     with session_scope() as db:
         for tbl in ("unit_daily_report", "unit_stock_contract", "unit_purchase_plan", "market_demand",
-                    "unit_customer"):
+                    "market_demand_item", "unit_customer"):
             assert db.execute(text(f"SELECT count(*) FROM {tbl} WHERE company = :c"), {"c": NEW}).scalar() == 1, tbl
             assert db.execute(text(f"SELECT count(*) FROM {tbl} WHERE company = :c"), {"c": OLD}).scalar() == 0, tbl
         assert db.execute(text("SELECT count(*) FROM fact_price WHERE source='vrg' AND grade = :c"),

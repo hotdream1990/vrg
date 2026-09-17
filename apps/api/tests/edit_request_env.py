@@ -14,7 +14,9 @@ from sqlalchemy import text
 
 from app.core.db import session_scope
 from app.main import app
-from app.services import config_repo, mailer, member_unit_repo, user_repo
+from app.services import (
+    config_repo, mailer, market_demand_item_policy, market_demand_item_repo, member_unit_repo, user_repo,
+)
 
 client = TestClient(app)
 UNIT, OTHER = "_zz_er_unit", "_zz_er_other"
@@ -36,8 +38,8 @@ def _cleanup(h: dict[str, str]) -> None:
     for name in USERS:
         client.delete(f"/api/users/_zz_er_{name}", headers=h)
     with session_scope() as db:
-        for tbl in ("edit_request", "unit_daily_report", "market_demand", "sales_contract",
-                    "unit_customer", "unit_data_lock"):
+        for tbl in ("edit_request", "unit_daily_report", "market_demand", "market_demand_item",
+                    "sales_contract", "unit_customer", "unit_data_lock"):
             db.execute(text(f"DELETE FROM {tbl} WHERE company = ANY(:u)"), {"u": [UNIT, OTHER]})
         db.execute(text("DELETE FROM fact_price WHERE grade = :u"), {"u": UNIT})
         db.execute(text("DELETE FROM data_lock_round WHERE note = :n"), {"n": NOTE})
@@ -65,6 +67,16 @@ def env(monkeypatch):
     finally:
         client.put("/api/config", json={KEY: old_window or "__CLEAR__"}, headers=h)
         _cleanup(h)
+
+
+def demand(**kw) -> dict:
+    """Payload phiếu nhu cầu thị trường ngày OLD (ngoài cửa sổ 3 ngày)."""
+    return {"company": UNIT, "as_of": OLD, "customer": "KH cũ", "grade": "LATEX", **kw}
+
+
+def seed_demand(**kw) -> dict:
+    """Ghi thẳng repo (bỏ qua hàng rào) một phiếu nhu cầu cũ để gửi đề nghị sửa."""
+    return market_demand_item_repo.save(market_demand_item_policy.clean(demand(**kw)), "admin")
 
 
 def send(hdr, op: str, payload: dict, reason: str = "Nhập nhầm số liệu"):

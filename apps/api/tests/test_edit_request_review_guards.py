@@ -12,9 +12,11 @@ import pytest
 from sqlalchemy import text
 
 from app.core.db import db_healthy, session_scope
-from app.services import data_lock_repo, mailer, market_demand_repo, unit_daily_repo
+from app.services import data_lock_repo, mailer, unit_daily_repo
 from tests import edit_request_env
-from tests.edit_request_env import OLD, RECENT, TODAY, UNIT, approve, client, lock_round, reject, send
+from tests.edit_request_env import (
+    OLD, RECENT, TODAY, UNIT, approve, client, demand, lock_round, reject, seed_demand, send,
+)
 
 pytestmark = pytest.mark.skipif(not db_healthy(), reason="DB không sẵn sàng")
 env = edit_request_env.env   # fixture dùng chung
@@ -53,8 +55,8 @@ def test_market_demand_approval_keeps_data_lock(env) -> None:
     e = env
     yday = (TODAY - timedelta(days=1)).isoformat()
     lock_round(e["admin"], yday)
-    market_demand_repo.upsert(OLD, UNIT, "Nội dung cũ", "admin")
-    rid = send(e["member"], "market_demand", {"company": UNIT, "as_of": OLD, "content": "Mới"}).json()["request"]["id"]
+    iid = seed_demand()["id"]
+    rid = send(e["member"], "demand_save", demand(id=iid, customer="Mới")).json()["request"]["id"]
     assert client.get(f"/api/edit-requests/{rid}", headers=e["editor"]).json()["lock"]["will_unlock"] == []
     ok = approve(e["editor"], rid)
     assert ok.status_code == 200, ok.text
@@ -97,11 +99,8 @@ def test_completed_contract_rejected_at_submit_and_labels(env) -> None:
 def test_create_only_on_existing_entry(env) -> None:
     e = env
     unit_daily_repo.upsert("purchase", OLD, UNIT, {"latex_wet": 1}, "admin")
-    market_demand_repo.upsert(OLD, UNIT, "Đã có", "admin")
     dup = send(e["member"], "daily_report", {**DAILY, "create_only": True})
     assert dup.status_code == 409 and dup.json()["detail"].startswith("Đơn vị này đã có số liệu")
-    dup = send(e["member"], "market_demand", {"company": UNIT, "as_of": OLD, "content": "X", "create_only": True})
-    assert dup.status_code == 409 and dup.json()["detail"].startswith("Đơn vị này đã có nhu cầu")
     fresh = send(e["member"], "daily_report", {**DAILY, "kind": "consumption", "fields": {}, "create_only": True})
     assert fresh.status_code == 200, fresh.text
     assert "create_only" not in fresh.json()["request"]["payload"]
@@ -111,7 +110,7 @@ def test_email_subject_and_inactive_requester(env) -> None:
     e = env
     msg = mailer._build(["a@example.invalid"], "HĐ\r\nBcc: x@evil.invalid\nA", "nội dung", "s@example.invalid")
     assert msg["Subject"] == "HĐ Bcc: x@evil.invalid A" and "\n" not in msg["Subject"]
-    rid = send(e["member"], "market_demand", {"company": UNIT, "as_of": OLD, "content": "Mới"}).json()["request"]["id"]
+    rid = send(e["member"], "demand_save", demand(customer="Mới")).json()["request"]["id"]
     with session_scope() as db:
         db.execute(text("UPDATE app_user SET is_active = false WHERE username = '_zz_er_member'"))
     sent = len(e["mails"])

@@ -9,7 +9,8 @@ import { API, apiFetch } from "./http";
 
 const J = { "Content-Type": "application/json" };
 
-export type EditRequestOp = "daily_report" | "daily_move" | "market_demand" | "contract_save" | "contract_delete";
+export type EditRequestOp =
+  | "daily_report" | "daily_move" | "contract_save" | "contract_delete" | "demand_save" | "demand_delete";
 export type EditRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
 export type EditRequestStatusFilter = EditRequestStatus | "all";
 
@@ -78,9 +79,10 @@ export const statusMeta = (s: EditRequestStatus) =>
 export const EDIT_REQUEST_OPS: { value: EditRequestOp; label: string }[] = [
   { value: "daily_report", label: "Biểu Thu mua / Tồn kho" },
   { value: "daily_move", label: "Đổi ngày biểu" },
-  { value: "market_demand", label: "Nhu cầu thị trường" },
   { value: "contract_save", label: "Hợp đồng / đợt giao" },
   { value: "contract_delete", label: "Xoá hợp đồng / đợt giao" },
+  { value: "demand_save", label: "Nhu cầu thị trường" },
+  { value: "demand_delete", label: "Xoá nhu cầu thị trường" },
 ];
 
 /** Bỏ ô lọc trống khỏi query string. */
