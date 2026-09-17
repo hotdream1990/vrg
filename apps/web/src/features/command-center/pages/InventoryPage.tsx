@@ -12,7 +12,7 @@ import {
   upsertInventory,
 } from "../../../lib/inventory-client";
 import { isBigChange } from "../../../lib/change-warning";
-import { useEditorWindow } from "../../../lib/edit-window";
+import { useEditorWindow, windowPhrase } from "../../../lib/edit-window";
 import { useAuth } from "../../auth/AuthContext";
 import ChangeWarn from "../sections/ChangeWarn";
 import DateInput from "../sections/DateInput";
@@ -59,7 +59,7 @@ export default function InventoryPage() {
   const save = async () => {
     if (!form.as_of) { setErr("Chọn ngày tuần"); return; }
     if (!ew.isEditable(form.as_of)) {
-      setErr(`Tuần ${form.as_of} đã ngoài cửa sổ sửa — chỉ nhập được ${ew.days ?? 7} ngày gần nhất.`);
+      setErr(`Tuần ${form.as_of} đã ngoài cửa sổ sửa — chỉ nhập được ${windowPhrase(ew.days ?? 7)}.`);
       return;
     }
     setBusy(true); setErr("");

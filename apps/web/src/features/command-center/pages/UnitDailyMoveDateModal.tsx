@@ -8,6 +8,7 @@ import { Alert, Modal, message } from "antd";
 import { useEffect, useState } from "react";
 
 import { dmy } from "../../../lib/date";
+import { windowPhrase } from "../../../lib/edit-window";
 import { type MoveDateResult, moveDailyDate } from "../../../lib/unit-daily-client";
 import { KIND_LABEL, type Kind } from "../../../lib/unit-daily-fields";
 import { useEditRequest } from "../../../lib/use-edit-request";
@@ -52,8 +53,8 @@ export default function UnitDailyMoveDateModal(
     : to === asOf ? "Ngày mới đang trùng ngày hiện tại."
     : to > today ? "Không chuyển sang ngày trong tương lai."
     : canEditUnitData ? ""
-    : outOfWindow(to) ? `Ngày mới đã ngoài cửa sổ nhập (${windowDays} ngày gần nhất).`
-    : outOfWindow(asOf) ? `Ngày hiện tại của bản ghi đã ngoài cửa sổ nhập (${windowDays} ngày gần nhất) — không sửa được nữa.`
+    : outOfWindow(to) ? `Ngày mới đã ngoài cửa sổ nhập (chỉ nhập được ${windowPhrase(windowDays)}).`
+    : outOfWindow(asOf) ? `Ngày hiện tại của bản ghi đã ngoài cửa sổ nhập (chỉ sửa được ${windowPhrase(windowDays)}) — không sửa được nữa.`
     : "";
 
   const submit = async () => {

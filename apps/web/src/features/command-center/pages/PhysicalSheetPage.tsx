@@ -10,7 +10,7 @@ import {
 } from "../../../lib/api-client";
 import { buildGridPrevMap } from "../../../lib/change-warning";
 import { dmy, todayISO } from "../../../lib/date";
-import { useEditorWindow } from "../../../lib/edit-window";
+import { useEditorWindow, windowPhrase } from "../../../lib/edit-window";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
 import DataSourceNote from "../sections/DataSourceNote";
@@ -62,7 +62,7 @@ export default function PhysicalSheetPage() {
   const addDate = () => {
     if (!newDate || dates.includes(newDate)) return;
     if (!ew.isEditable(newDate)) {
-      setErr(`Ngày ${dmy(newDate)} đã ngoài cửa sổ sửa — chỉ nhập được ${ew.days ?? 7} ngày gần nhất.`);
+      setErr(`Ngày ${dmy(newDate)} đã ngoài cửa sổ sửa — chỉ nhập được ${windowPhrase(ew.days ?? 7)}.`);
       return;
     }
     setExtraDates((d) => [...new Set([...d, newDate])]);

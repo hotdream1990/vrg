@@ -22,6 +22,13 @@ function shiftISO(iso: string, delta: number): string {
   return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
 }
 
+/** N ngày lùi → cụm từ người dùng đọc không nhầm (khớp `edit_window.window_phrase` ở server):
+ *  0 → "hôm nay", 7 → "hôm nay và 7 ngày trước". Viết "trong N ngày gần nhất" thì đặt 0 ra câu vô
+ *  nghĩa, đặt 1 lại khiến người đọc tưởng chỉ được sửa hôm nay. */
+export function windowPhrase(days: number): string {
+  return days <= 0 ? "hôm nay" : `hôm nay và ${days} ngày trước`;
+}
+
 /** Hook cửa sổ sửa của chuyên viên. `isEditable(dateISO)`: admin→luôn true; editor→trong N ngày.
  *  `windowDates` = các ngày sửa được (hôm nay lùi N ngày) để lưới hiện sẵn dòng trống cho nhập. */
 export function useEditorWindow() {

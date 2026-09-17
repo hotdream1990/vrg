@@ -21,7 +21,7 @@ import {
   listQuotes,
   saveQuote,
 } from "../../../lib/market-quote-client";
-import { useEditorWindow } from "../../../lib/edit-window";
+import { useEditorWindow, windowPhrase } from "../../../lib/edit-window";
 import { useAuth } from "../../auth/AuthContext";
 import DataSourceNote from "../sections/DataSourceNote";
 import DateInput from "../sections/DateInput";
@@ -131,7 +131,7 @@ export default function MarketQuotePage() {
   };
   const startNew = () => {
     if (!ew.isEditable(createDate)) {
-      setErr(`Ngày ${dmy(createDate)} đã ngoài cửa sổ sửa — chỉ tạo phiếu trong ${ew.days ?? 7} ngày gần nhất.`);
+      setErr(`Ngày ${dmy(createDate)} đã ngoài cửa sổ sửa — chỉ tạo phiếu cho ${windowPhrase(ew.days ?? 7)}.`);
       return;
     }
     void startAt(createDate);
@@ -258,7 +258,7 @@ export default function MarketQuotePage() {
                 )}
                 {canEdit && outOfWindow && (
                   <span className="db-badge" style={{ color: "var(--muted)" }}>
-                    Chỉ xem — ngoài cửa sổ sửa {ew.days ?? 7} ngày
+                    Chỉ xem — ngoài cửa sổ sửa ({windowPhrase(ew.days ?? 7)})
                   </span>
                 )}
                 {/* Điền nhanh từ phiếu gần nhất trước đó (Mục 1–6, trừ tỷ giá VCB). */}

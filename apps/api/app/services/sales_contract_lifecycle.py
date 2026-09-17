@@ -24,7 +24,7 @@ from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import DELIVERY_TYPES
-from app.services import audit_repo, sales_contract_repo as repo
+from app.services import audit_repo, sales_contract_lock, sales_contract_repo as repo
 
 #: Các ô CHỈ thuộc về một lần giao — khi hợp đồng chuyển sang giao nhiều lần thì chúng đi theo
 #: đợt giao, không được để lại trên hợp đồng (để lại là sản lượng bị đếm hai lần).
@@ -93,8 +93,16 @@ def set_completion(contract_id: int, completed_at: str | None, companies: list[s
                 "và ghi nhận đã giao; nếu hợp đồng huỷ / không giao nữa thì tích ô "
                 "“không ghi lần giao”.")
         else:
+            delivered_at = delivery.get("delivered_at") or day.isoformat()
+            # Ghi ngày giao ở đây cũng là KHAI LẦN GIAO → phải qua đúng hai hàng rào thời gian như
+            # khi nhập đợt giao bình thường (cửa sổ sửa + chốt số liệu). Trước 17/09/2026 bước này
+            # không kiểm gì: đặt cửa sổ 0 ngày, đơn vị vẫn chốt được hợp đồng với ngày giao lùi
+            # 10 ngày, tức là ghi sản lượng vào kỳ đã qua — kể cả kỳ đã chốt.
+            if username:
+                sales_contract_lock.assert_delivery_fences(
+                    username, contract_id, delivered_at, before["company"], old=before)
             repo.save({**before,
-                       "delivered_at": delivery.get("delivered_at") or day.isoformat(),
+                       "delivered_at": delivered_at,
                        "channel": delivery["channel"],
                        "to_company": delivery.get("to_company")},
                       before["company"], username)

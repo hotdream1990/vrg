@@ -66,8 +66,9 @@ CONFIG_SPEC = [
      "secret": False, "placeholder": "vd https://vrg.bizino.vn — thiếu thì email không có link vào xem"},
     # Cửa sổ nhập liệu — số ngày gần nhất được nhập/sửa; ngày cũ hơn chuyển sang chỉ xem. Mặc định 7.
     {"key": "MEMBER_EDIT_WINDOW_DAYS", "group": "data_entry", "secret": False,
-     "label": "Số ngày sửa được — Giá mủ đơn vị (tài khoản đơn vị thành viên)",
-     "placeholder": "Mặc định 7 — số ngày gần nhất được nhập/sửa (0 = chỉ hôm nay)"},
+     "label": "Số ngày sửa được — tài khoản đơn vị thành viên (Thu mua · Tồn kho · Giá mủ · "
+              "Nhu cầu thị trường · ngày giao hợp đồng)",
+     "placeholder": "Mặc định 7 — 0 = chỉ hôm nay · 1 = hôm nay và hôm qua"},
     {"key": "EDITOR_EDIT_WINDOW_DAYS", "group": "data_entry", "secret": False,
      "label": "Số ngày sửa được — chuyên viên nhập liệu (Giá mủ nguyên liệu · Physical · Tồn kho · Báo giá)",
      "placeholder": "Mặc định 7 — số ngày gần nhất được nhập/sửa (0 = chỉ hôm nay); admin không bị giới hạn"},
