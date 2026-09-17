@@ -63,6 +63,11 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
   chú thích, bản Word.
 
 ### Security
+- **Nút “Hoàn thành hợp đồng” không còn lách được cửa sổ nhập liệu và chốt số liệu** (17/09/2026) —
+  hợp đồng giao 1 lần chưa có ngày giao, khi bấm Hoàn thành hệ thống ghi luôn ngày giao; trước đây
+  bước này không bị kiểm nên đơn vị ghi được ngày giao lùi (kể cả vào kỳ đã chốt) dù cửa sổ đặt 0
+  ngày. Nay ngày giao đó phải qua đúng hai hàng rào như khi nhập đợt giao thường; bị chặn thì gửi
+  *Đề nghị sửa số liệu*.
 - **File Excel Cảnh báo bất thường** chặn công thức Excel ở ô chữ do đơn vị nhập (mã hợp đồng…),
   vì file nay đến tay cả lãnh đạo đơn vị.
 
@@ -91,6 +96,11 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     khai gì). Giá bình quân · bản tin · báo cáo **không đổi** — số 0 vẫn không vào kho giá.
 
 ### Changed
+- **Cấu hình › Cửa sổ nhập liệu ghi rõ phạm vi và cách tính** (17/09/2026) — ô của đơn vị thành
+  viên đổi nhãn thành “Thu mua · Tồn kho · Giá mủ · Nhu cầu thị trường · ngày giao hợp đồng” (nhãn cũ
+  chỉ ghi “Giá mủ đơn vị”), gợi ý “0 = chỉ hôm nay · 1 = hôm nay và hôm qua”. Câu báo khi bị chặn
+  đổi thành “chỉ được nhập/sửa hôm nay” / “hôm nay và N ngày trước” thay cho “trong N ngày gần
+  nhất” (đặt 0 từng ra câu “trong 0 ngày”).
 - **Đơn vị đang bật "tự động lấy số" thì chuyên viên chỉ xem, không sửa được** (06/09/2026) —
   trước đây chuyên viên vẫn gõ đè được ô của những đơn vị này, nhưng lần đơn vị nộp sau lại ghi đè
   ngược, nên con số nhìn thấy tuỳ thuộc ai ghi sau cùng. Nay khoá hẳn:
