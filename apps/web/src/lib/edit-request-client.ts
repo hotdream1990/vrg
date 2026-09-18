@@ -60,10 +60,28 @@ export interface EditRequestDetail {
   changed_since_submit: boolean;
   /** `null` = server không kiểm được (vd tài khoản người gửi đã bị khoá). */
   still_blocked: boolean | null;
+  /** Lỗi nghiệp vụ mà bấm Duyệt chắc chắn gặp (vd trùng số hợp đồng) — null = không vướng gì. */
+  cannot_approve?: string | null;
   lock: { locked_until: string | null; will_unlock: EditRequestUnlock[] };
   /** Nhãn hiển thị theo khoá cuối của đường dẫn: `labels.customer_id["12"]` = tên khách. */
   labels?: Record<string, Record<string, string>>;
 }
+
+export type EditRequestAction = "create" | "update" | "delete";
+
+/** Đề nghị THÊM bản ghi mới hay SỬA/XOÁ bản ghi đang có — suy từ ảnh chụp lúc gửi: không có bản ghi
+ *  (biểu ngày: có dòng nhưng chưa có số) = thêm mới. Người duyệt cần biết để đọc đúng bảng so sánh. */
+export function editRequestAction(r: Pick<EditRequest, "op" | "before">): EditRequestAction {
+  if (r.op.endsWith("_delete")) return "delete";
+  if (!r.before) return "create";
+  return r.op === "daily_report" && r.before.fields == null ? "create" : "update";
+}
+
+export const EDIT_REQUEST_ACTION: Record<EditRequestAction, { label: string; color: string }> = {
+  create: { label: "Thêm mới", color: "blue" },
+  update: { label: "Sửa", color: "default" },
+  delete: { label: "Xoá", color: "red" },
+};
 
 export const EDIT_REQUEST_STATUS: { value: EditRequestStatus; label: string; color: string }[] = [
   { value: "pending", label: "Chờ duyệt", color: "gold" },

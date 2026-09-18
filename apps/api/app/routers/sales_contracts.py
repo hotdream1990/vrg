@@ -305,6 +305,13 @@ def save_contract(body: ContractIn, scope: EditScope) -> dict:
     _assert_company(companies, body.company)
     payload = body.model_dump()
     old = sales_contract_repo.get(body.id) if body.id else None
+    # Luật nghiệp vụ TRƯỚC hàng rào thời gian: dữ liệu sai (trùng số, vượt sản lượng…) báo ngay trên
+    # form. Kiểm sau hàng rào thì đơn vị quá hạn bị mời gửi «Đề nghị sửa» cho một bản ghi Ban chắc
+    # chắn không duyệt được (#36, #51 ngày 17–18/09/2026).
+    try:
+        sales_contract_repo.validate(payload, body.company)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     # SỬA NỘI DUNG KHÔNG DỊCH CON SỐ NÀO thì bỏ qua CẢ HAI hàng rào thời gian (cửa sổ sửa + chốt
     # số liệu) — chốt 29/08/2026. Đơn vị vẫn phải đính được chứng từ, sửa số hợp đồng, nối hồ sơ mẹ
     # cho những chuyến đã chốt; hai hàng rào đó sinh ra để giữ CON SỐ. Quyền theo đơn vị

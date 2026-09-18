@@ -26,6 +26,7 @@ from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
 from app.services import audit_repo, contract_docs, sales_contract_calc as calc
+from app.services.sales_contract_code_guard import assert_code_free
 from app.services.sales_contract_clean import assert_unit_can_sign, assert_unit_exists, clean
 
 logger = logging.getLogger("vrg.sales_contract")
@@ -146,67 +147,82 @@ def _assert_within_cap(total: float, committed: float, what: str) -> None:
             "lượng trên hợp đồng nếu hai bên đã thống nhất tăng.")
 
 
-def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
-    """Thêm mới (không có id) hoặc cập nhật. Raise ValueError nếu vi phạm nghiệp vụ."""
+def _prepare(row: dict, company: str) -> dict[str, Any]:
+    """Chuẩn hoá + luật không cần đọc bảng hợp đồng (đơn vị tồn tại, còn được ký hợp đồng mới)."""
     d = clean(row, company)
     assert_unit_exists(company, "Đơn vị")
     if d["id"] is None and d["parent_id"] is None:   # bản ghi MỚI ở cấp hợp đồng (không phải đợt giao)
         assert_unit_can_sign(company, "Đơn vị")
+    return d
+
+
+def _assert_rules(db, d: dict[str, Any], company: str) -> None:
+    """Mọi luật cần đọc DB của một lần lưu. `save` và `validate` gọi CHUNG hàm này — luật đổi ở đây
+    thì kiểm trước (form, lúc gửi đề nghị sửa) và lưu thật tự đổi theo."""
+    old_code = None
+    if d["id"] is not None:
+        cur = db.execute(text("SELECT company, parent_id, delivery_type, code, completed_at "
+                              "FROM sales_contract WHERE id = :i"),
+                         {"i": d["id"]}).mappings().first()
+        if cur is None:
+            raise ValueError("Hợp đồng không còn tồn tại (có thể đã bị xoá).")
+        if cur["company"] != company:
+            raise ValueError("Hợp đồng thuộc đơn vị khác.")
+        assert_open(dict(cur), "sửa")
+        old_code = cur["code"]
+        # Cấp bậc KHÔNG đổi được khi sửa: `_UPDATE` không ghi `parent_id`, nên nhận `parent_id`
+        # khác trong payload sẽ kiểm hạn mức trên HỢP ĐỒNG KHÁC rồi vẫn nằm ở hợp đồng cũ —
+        # lách được giới hạn sản lượng. Muốn chuyển sang hợp đồng khác thì xoá rồi nhập lại.
+        if (d["parent_id"] or None) != (cur["parent_id"] or None):
+            raise ValueError("Không đổi được hợp đồng của đợt giao — xoá rồi nhập lại đợt giao.")
+        kids = db.execute(text("SELECT count(*) FROM sales_contract WHERE parent_id = :i"),
+                          {"i": d["id"]}).scalar() or 0
+        # Đổi loại giao khi ĐÃ có đợt giao phải đi qua `sales_contract_lifecycle` (nó dời lần
+        # giao vào một đợt), không để form sửa thẳng — sửa thẳng là mất/đếm đôi sản lượng.
+        if kids and d["delivery_type"] != cur["delivery_type"]:
+            raise ValueError(f"Hợp đồng đang có {kids} đợt giao — dùng nút “Chuyển loại giao” "
+                             "ở màn chi tiết hợp đồng.")
+        if kids and d["delivered"]:
+            raise ValueError("Hợp đồng giao nhiều lần đã có đợt giao — không tự đánh dấu đã "
+                             "giao (sản lượng sẽ bị tính hai lần).")
+        if kids:
+            _assert_within_cap(_batches_qty(db, d["id"], None), calc.total_qty(d["lines"]),
+                               "Tổng các đợt giao")
+    parent = _parent_of(db, d["parent_id"]) if d["parent_id"] is not None else None
+    # Quyền với hợp đồng cha TRƯỚC mọi luật khác: câu báo trùng số nêu ngày giao · sản lượng của đợt
+    # đang có — kiểm sau thì đoán `parent_id` của đơn vị khác là đọc được số của họ.
+    if parent is not None and parent["company"] != company:
+        raise ValueError("Hợp đồng thuộc đơn vị khác.")
+    assert_code_free(db, d, company, old_code)
+
+    if parent is not None:
+        if parent["delivery_type"] != "multi":
+            raise ValueError("Chỉ hợp đồng loại “giao nhiều lần” mới thêm được đợt giao.")
+        assert_open(parent, "thêm/sửa đợt giao")
+        if parent["sign_date"] and d["delivered_at"] and d["delivered_at"] < parent["sign_date"]:
+            raise ValueError("Ngày giao của đợt không thể trước ngày ký hợp đồng.")
+        done = _batches_qty(db, d["parent_id"], d["id"])
+        _assert_within_cap(done + calc.total_qty(d["lines"]), parent["qty"], "Tổng các đợt giao")
+
+
+def validate(row: dict, company: str) -> dict[str, Any]:
+    """Kiểm Y NHƯ `save` nhưng KHÔNG ghi. Router gọi TRƯỚC hàng rào thời gian và luồng đề nghị sửa
+    gọi lúc đơn vị gửi: dữ liệu sai (trùng số, vượt sản lượng…) phải báo ngay trên form, không để
+    lọt thành một đề nghị mà Ban bấm Duyệt mới lộ lỗi. Raise ValueError như `save`."""
+    d = _prepare(row, company)
+    ensure_schema()
+    with session_scope() as db:
+        _assert_rules(db, d, company)
+    return d
+
+
+def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
+    """Thêm mới (không có id) hoặc cập nhật. Raise ValueError nếu vi phạm nghiệp vụ."""
+    d = _prepare(row, company)
     ensure_schema()
     before = get(d["id"]) if d["id"] is not None else None
     with session_scope() as db:
-        if d["id"] is not None:
-            cur = db.execute(text("SELECT company, parent_id, delivery_type, code, completed_at "
-                                  "FROM sales_contract WHERE id = :i"),
-                             {"i": d["id"]}).mappings().first()
-            if cur is None:
-                raise ValueError("Hợp đồng không còn tồn tại (có thể đã bị xoá).")
-            if cur["company"] != company:
-                raise ValueError("Hợp đồng thuộc đơn vị khác.")
-            assert_open(dict(cur), "sửa")
-            # Cấp bậc KHÔNG đổi được khi sửa: `_UPDATE` không ghi `parent_id`, nên nhận `parent_id`
-            # khác trong payload sẽ kiểm hạn mức trên HỢP ĐỒNG KHÁC rồi vẫn nằm ở hợp đồng cũ —
-            # lách được giới hạn sản lượng. Muốn chuyển sang hợp đồng khác thì xoá rồi nhập lại.
-            if (d["parent_id"] or None) != (cur["parent_id"] or None):
-                raise ValueError("Không đổi được hợp đồng của đợt giao — xoá rồi nhập lại đợt giao.")
-            kids = db.execute(text("SELECT count(*) FROM sales_contract WHERE parent_id = :i"),
-                              {"i": d["id"]}).scalar() or 0
-            # Đổi loại giao khi ĐÃ có đợt giao phải đi qua `sales_contract_lifecycle` (nó dời lần
-            # giao vào một đợt), không để form sửa thẳng — sửa thẳng là mất/đếm đôi sản lượng.
-            if kids and d["delivery_type"] != cur["delivery_type"]:
-                raise ValueError(f"Hợp đồng đang có {kids} đợt giao — dùng nút “Chuyển loại giao” "
-                                 "ở màn chi tiết hợp đồng.")
-            if kids and d["delivered"]:
-                raise ValueError("Hợp đồng giao nhiều lần đã có đợt giao — không tự đánh dấu đã "
-                                 "giao (sản lượng sẽ bị tính hai lần).")
-            if kids:
-                _assert_within_cap(_batches_qty(db, d["id"], None), calc.total_qty(d["lines"]),
-                                   "Tổng các đợt giao")
-        # Trùng số → chặn: lưu lại do mạng chập chờn sẽ nhân đôi sản lượng. Phạm vi kiểm phải theo
-        # ĐÚNG cấp: số hợp đồng là duy nhất trong ĐƠN VỊ, còn số đợt giao đánh lại từ 1 ở MỖI hợp
-        # đồng — kiểm cả đơn vị thì đợt "2" của hợp đồng này đụng đợt "2" của hợp đồng khác.
-        dup = db.execute(text(
-            "SELECT 1 FROM sales_contract WHERE lower(code) = lower(:k) "
-            " AND ((CAST(:p AS bigint) IS NULL AND parent_id IS NULL AND company = :c) "
-            "   OR (CAST(:p AS bigint) IS NOT NULL AND parent_id = CAST(:p AS bigint))) "
-            " AND (CAST(:i AS bigint) IS NULL OR id <> CAST(:i AS bigint)) LIMIT 1"),
-            {"c": company, "p": d["parent_id"], "k": d["code"], "i": d["id"]}).scalar()
-        if dup:
-            raise ValueError(f"Hợp đồng này đã có đợt giao số “{d['code']}”."
-                             if d["parent_id"] is not None else
-                             f"Đơn vị đã có hợp đồng số “{d['code']}”.")
-
-        if d["parent_id"] is not None:
-            parent = _parent_of(db, d["parent_id"])
-            if parent["company"] != company:
-                raise ValueError("Hợp đồng thuộc đơn vị khác.")
-            if parent["delivery_type"] != "multi":
-                raise ValueError("Chỉ hợp đồng loại “giao nhiều lần” mới thêm được đợt giao.")
-            assert_open(parent, "thêm/sửa đợt giao")
-            if parent["sign_date"] and d["delivered_at"] and d["delivered_at"] < parent["sign_date"]:
-                raise ValueError("Ngày giao của đợt không thể trước ngày ký hợp đồng.")
-            done = _batches_qty(db, d["parent_id"], d["id"])
-            _assert_within_cap(done + calc.total_qty(d["lines"]), parent["qty"], "Tổng các đợt giao")
+        _assert_rules(db, d, company)
         if d["id"] is not None:
             db.execute(_UPDATE, _params(d, updated_by))
             new_id = d["id"]

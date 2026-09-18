@@ -16,8 +16,7 @@ from app.core.market_meta import CONTRACT_TYPES, DELIVERY_TYPES, SALE_CHANNELS
 from app.schemas.edit_request import ContractDeleteRequest
 from app.schemas.sales_contract import ContractIn
 from app.services import (
-    customer_repo, master_contract_repo, member_unit_merge, sales_contract_clean, sales_contract_lock,
-    sales_contract_repo,
+    customer_repo, master_contract_repo, member_unit_merge, sales_contract_lock, sales_contract_repo,
 )
 from app.services.edit_request_ops import Op, collect_blocked, parse, uniq_dates
 
@@ -79,16 +78,14 @@ def _save_company(p: dict, before: dict | None) -> str:
     return p["company"]
 
 
-def _save_precheck(p: dict, before: dict | None) -> None:
-    """Luật nghiệp vụ thuần của hợp đồng (khách hàng, loại, ngày, dòng chi tiết…) + hợp đồng/hợp đồng
-    cha chưa hoàn thành — sai thì báo ngay (cùng thứ tự kiểm với `sales_contract_repo.save`)."""
+def _save_precheck(p: dict, _before: dict | None) -> None:
+    """ĐÚNG bộ luật lưu thật (`sales_contract_repo.validate`, chỉ không ghi): khách hàng, loại, ngày,
+    dòng chi tiết, trùng số hợp đồng/đợt giao, hợp đồng cha, hạn mức sản lượng, hợp đồng đã hoàn
+    thành… Sai thì báo ngay lúc gửi; lúc duyệt chạy lại để bắt thay đổi xảy ra sau khi gửi."""
     try:
-        sales_contract_clean.clean(p, p["company"])
+        sales_contract_repo.validate(p, p["company"])
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    _assert_open(before, "sửa")
-    parent_id = (before or {}).get("parent_id") if p.get("id") else p.get("parent_id")
-    _assert_open(_parent(parent_id), "thêm/sửa đợt giao")
 
 
 def _delete_precheck(_p: dict, before: dict | None) -> None:

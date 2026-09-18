@@ -1670,10 +1670,11 @@ def test_locked_contract_still_accepts_edits_that_move_no_number(env, cus) -> No
         detail = bad.json()["detail"]
         assert "đã được chốt" in detail and "Số hoá đơn" in detail
 
-        # 3) Đổi NGÀY GIAO (dời sản lượng sang kỳ khác) → chặn. Dùng ngày LÙI: ngày tương lai bị
-        #    luật khác chặn trước (400), sẽ không kiểm được đúng hàng rào chốt.
+        # 3) Đổi NGÀY GIAO (dời sản lượng sang kỳ khác) → chặn. Dùng ngày LÙI (ngày tương lai bị
+        #    luật khác chặn trước) và lùi CẢ ngày ký: luật nghiệp vụ nay kiểm TRƯỚC hàng rào, giao
+        #    trước ngày ký là 400 chứ không tới được hàng rào chốt.
         moved = client.put("/api/sales-contracts", headers=mh,
-                           json={**body, "delivered_at": YESTERDAY})
+                           json={**body, "sign_date": YESTERDAY, "delivered_at": YESTERDAY})
         assert moved.status_code == 403, moved.text
 
         # 4) Đổi HÌNH THỨC tiêu thụ (đổi cơ cấu XK/nội địa) → chặn.

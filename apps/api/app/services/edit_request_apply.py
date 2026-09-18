@@ -60,13 +60,26 @@ def detail(req_id: int) -> dict[str, Any]:
     except HTTPException:   # người gửi đã bị khoá, bản ghi đã mất… → không kiểm được
         still = None
     locked = data_lock_repo.locked_until(req["company"])
-    will = (unlock_plan(req["company"], _effective_dates(op, req, current))
-            if req["status"] == "pending" and op.lockable else [])
+    pending = req["status"] == "pending"
+    will = unlock_plan(req["company"], _effective_dates(op, req, current)) if pending and op.lockable else []
     return {"request": req, "current": current,
             "changed_since_submit": changed_since(current, req["before"]),
             "still_blocked": still,
+            "cannot_approve": _approval_problem(op, req["payload"] or {}, current) if pending else None,
             "labels": op.labels([req["payload"], req["before"], current]) if op.labels else {},
             "lock": {"locked_until": str(locked) if locked else None, "will_unlock": will}}
+
+
+def _approval_problem(op: Op, payload: dict, current: dict | None) -> str | None:
+    """Câu lỗi nghiệp vụ mà bấm Duyệt CHẮC CHẮN gặp (cùng `op.precheck` của `approve`) — trang duyệt
+    báo trước để Ban từ chối kèm hướng dẫn, khỏi bấm Duyệt nhiều lần. None = không thấy vướng gì."""
+    if not op.precheck:
+        return None
+    try:
+        op.precheck(payload, current)
+    except HTTPException as exc:
+        return str(exc.detail)
+    return None
 
 
 def _requester(username: str) -> dict[str, Any]:

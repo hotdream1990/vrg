@@ -3,7 +3,7 @@ import { App, Empty, Table } from "antd";
 import { useMemo } from "react";
 
 import type { EditRequest } from "../../../lib/edit-request-client";
-import { openEditRequestFile } from "../../../lib/edit-request-client";
+import { editRequestAction, openEditRequestFile } from "../../../lib/edit-request-client";
 import { type DiffRow, buildEditRequestDiff, displayValue, isFileLeaf } from "../../../lib/edit-request-diff";
 
 type Props = {
@@ -24,7 +24,10 @@ export default function EditRequestDiffTable({ request, current, withCurrent = f
     () => buildEditRequestDiff(request, current, withCurrent),
     [request, current, withCurrent],
   );
-  const isDelete = request.op.endsWith("_delete");
+  const action = editRequestAction(request);
+  const isDelete = action === "delete";
+  // Thêm mới: hai cột bên trái trống vì bản ghi CHƯA CÓ, không phải vì ô bị xoá trắng.
+  const noRecord = action === "create" ? "(chưa có)" : "(trống)";
 
   const cell = (path: string, v: unknown, emptyText = "(trống)") => {
     if (isFileLeaf(v)) {
@@ -42,9 +45,9 @@ export default function EditRequestDiffTable({ request, current, withCurrent = f
 
   const columns = [
     { title: "Ô số liệu", dataIndex: "label", key: "label", width: "34%" },
-    { title: "Lúc gửi", key: "before", render: (_: unknown, r: DiffRow) => cell(r.path, r.before) },
+    { title: "Lúc gửi", key: "before", render: (_: unknown, r: DiffRow) => cell(r.path, r.before, noRecord) },
     ...(withCurrent
-      ? [{ title: "Hiện tại", key: "current", render: (_: unknown, r: DiffRow) => cell(r.path, r.current) }]
+      ? [{ title: "Hiện tại", key: "current", render: (_: unknown, r: DiffRow) => cell(r.path, r.current, noRecord) }]
       : []),
     {
       title: "Đề nghị", key: "proposed",

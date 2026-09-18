@@ -1,7 +1,9 @@
 import { Tag } from "antd";
 
 import { dmy } from "../../../lib/date";
-import { type EditRequest, statusMeta } from "../../../lib/edit-request-client";
+import {
+  EDIT_REQUEST_ACTION, type EditRequest, editRequestAction, statusMeta,
+} from "../../../lib/edit-request-client";
 import { stampVN } from "../sections/support-format";
 import "../edit-request.css";
 
@@ -9,12 +11,16 @@ import "../edit-request.css";
 export default function EditRequestInfo({ request: r }: { request: EditRequest }) {
   const st = statusMeta(r.status);
   const reviewed = r.status === "approved" || r.status === "rejected";
+  const action = EDIT_REQUEST_ACTION[editRequestAction(r)];
   return (
     <dl className="er-info">
       <dt>Đơn vị</dt>
       <dd><b>{r.company}</b></dd>
       <dt>Nội dung</dt>
-      <dd>{r.title} <Tag style={{ marginLeft: 6 }}>{r.op_label}</Tag></dd>
+      <dd>
+        {r.title} <Tag style={{ marginLeft: 6 }}>{r.op_label}</Tag>
+        <Tag color={action.color}>{action.label}</Tag>
+      </dd>
       {r.dates.length > 0 && (<><dt>Ngày số liệu</dt><dd>{r.dates.map(dmy).join(" · ")}</dd></>)}
       <dt>Người gửi</dt>
       <dd>{r.requested_by_name || r.requested_by}</dd>

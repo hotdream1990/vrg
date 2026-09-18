@@ -74,6 +74,7 @@ export default function EditRequestReviewDetailPage() {
   const { request: r, current, lock } = data;
   const pending = r.status === "pending";
   const moveTarget = r.op === "daily_move" && Boolean((current ?? r.before)?.to_date_has_entry);
+  const cannotApprove = pending ? data.cannot_approve ?? null : null;
 
   return (
     <div className="main er-page">
@@ -88,7 +89,10 @@ export default function EditRequestReviewDetailPage() {
           {pending && (
             <>
               <button className="btn" onClick={() => setMode("reject")}><CloseOutlined /> Từ chối</button>
-              <button className="btn btn-primary" onClick={() => setMode("approve")}><CheckOutlined /> Duyệt</button>
+              <button className="btn btn-primary" disabled={!!cannotApprove} onClick={() => setMode("approve")}
+                title={cannotApprove ? "Đề nghị này không duyệt được — xem lý do bên dưới" : undefined}>
+                <CheckOutlined /> Duyệt
+              </button>
             </>
           )}
         </div>
@@ -98,6 +102,12 @@ export default function EditRequestReviewDetailPage() {
       {actionErr && (
         <Alert type="error" showIcon closable style={{ marginBottom: 12 }} onClose={() => setActionErr("")}
           message="Không thực hiện được" description={actionErr} />
+      )}
+      {/* Server chạy thử đúng bộ luật của nút Duyệt: vướng thì báo trước, khỏi bấm Duyệt rồi mới lộ lỗi. */}
+      {cannotApprove && (
+        <Alert type="error" showIcon style={{ marginBottom: 12 }}
+          message="Đề nghị này không duyệt được"
+          description={<>{cannotApprove}<br />Bấm <b>Từ chối</b> và ghi rõ cách sửa để đơn vị gửi lại.</>} />
       )}
       {pending && data.changed_since_submit && (
         <Alert type="warning" showIcon style={{ marginBottom: 12 }}
