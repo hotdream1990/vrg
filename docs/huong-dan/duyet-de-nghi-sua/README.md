@@ -60,13 +60,14 @@ Phần đầu trả lời ba câu: ai gửi, muốn sửa gì và vì sao không
 
 *Hình 4. Thông tin chung của một đề nghị*
 
-1. **Đơn vị · Nội dung · Ngày số liệu · Người gửi · Gửi lúc** cho biết đề nghị đến từ đâu và cho bản ghi nào.
+1. **Đơn vị · Nội dung · Ngày số liệu · Người gửi · Gửi lúc** cho biết đề nghị đến từ đâu và cho bản ghi nào. Cạnh Nội dung có thẻ **Thêm mới** (đơn vị xin thêm một bản ghi chưa có), **Sửa** hoặc **Xoá**.
 2. **Lý do chỉnh sửa** là phần đơn vị tự viết. Đọc kỹ: lý do không nêu được số đúng và căn cứ thì nên từ chối và yêu cầu ghi lại.
 3. **Vì sao không tự sửa** do hệ thống tự ghi: ngày đã quá hạn nhập, hoặc ngày nằm trong kỳ đã chốt. Đây là căn cứ để biết đề nghị có chính đáng không.
 4. **Trạng thái** phải là **Chờ duyệt** thì mới còn hai nút Duyệt và Từ chối ở góc trên bên phải.
 
 > - Dòng Gửi lúc có thêm chữ “cập nhật …” nghĩa là đơn vị đã sửa lại nội dung đề nghị sau lần gửi đầu.
 > - Nút **Danh sách** quay về danh sách, nút **Tải lại** lấy lại bản mới nhất của đề nghị này.
+> - Đề nghị **Thêm mới** thì hai cột Lúc gửi và Hiện tại ở bảng bên dưới ghi “(chưa có)” — bản ghi chưa tồn tại, không phải ô bị xoá trắng.
 
 ## 4. Bảng Nội dung thay đổi
 
@@ -147,7 +148,7 @@ Từ chối khi lý do chưa rõ, số đề nghị không khớp chứng từ, 
 
 **Vị trí:** Màn chi tiết một đề nghị
 
-Bốn trường hợp thường gặp và cách xử lý.
+Năm trường hợp thường gặp và cách xử lý.
 
 ![Hình 10. Cảnh báo số liệu đã thay đổi kể từ lúc đơn vị gửi](img/09-so-lieu-da-thay-doi.png)
 
@@ -157,6 +158,7 @@ Bốn trường hợp thường gặp và cách xử lý.
 2. **Đơn vị vừa cập nhật lại đề nghị** — bấm **Tải lại** để lấy bản mới nhất rồi đọc lại trước khi quyết định.
 3. **Bản ghi này hiện không còn bị khoá** — hàng rào thời gian đã mở, đơn vị tự sửa được. Có thể duyệt cho nhanh, hoặc từ chối và nhắn đơn vị tự sửa.
 4. **Đơn vị tự huỷ đề nghị** — trạng thái chuyển sang Đã huỷ, hai nút Duyệt và Từ chối không còn. Không phải làm gì thêm.
+5. **Đề nghị này không duyệt được** — khung đỏ ở đầu trang, nút **Duyệt** bị mờ. Nội dung đề nghị vi phạm quy định nhập liệu, hay gặp nhất là **trùng số**: đơn vị bấm Thêm rồi gõ lại số của một hợp đồng hoặc đợt giao đã có. Khung đỏ nêu bản ghi đang có (ngày giao, sản lượng). Bấm **Từ chối** và ghi cách sửa, ví dụ “Đợt 2 đã có — gửi lại với số Đợt 3”.
 
 > - Hợp đồng đang ở trạng thái Hoàn thành thì đơn vị phải bấm Mở lại hợp đồng rồi mới gửi đề nghị được. Gặp đề nghị bị vướng chỗ này, nhắn đơn vị làm bước đó trước.
 > - Nếu bấm duyệt mà hệ thống báo lỗi, đề nghị vẫn ở trạng thái Chờ duyệt — đọc dòng báo lỗi đỏ rồi xử lý tiếp.

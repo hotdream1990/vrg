@@ -137,6 +137,7 @@ Hợp đồng đã giao từ lâu sẽ chuyển sang chỉ xem. Đơn vị vẫn
 
 > - Hợp đồng đang ở trạng thái **Hoàn thành** thì khoá hẳn. Mở hợp đồng ra, bấm **Mở lại hợp đồng**, rồi mới đề nghị sửa được.
 > - Đơn vị đã sáp nhập không gửi đề nghị cho số liệu cũ được; phần đó chỉ để tra cứu.
+> - Thêm hợp đồng hoặc đợt giao mà gõ trùng số đã có, hệ thống báo đỏ ngay trên biểu và nêu bản ghi đang có — chưa mời gửi đề nghị. Là lần giao mới thì đặt số khác (vd Đợt 3). Muốn sửa bản ghi cũ thì mở đúng bản ghi đó rồi bấm Sửa hoặc Đề nghị sửa.
 
 ## 7. Theo dõi các đề nghị đã gửi
 

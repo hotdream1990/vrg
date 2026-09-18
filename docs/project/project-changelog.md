@@ -83,6 +83,21 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
   vì file nay đến tay cả lãnh đạo đơn vị.
 
 ### Fixed
+- **Đề nghị sửa hợp đồng trùng số không còn lọt tới lúc Ban duyệt** (18/09/2026) — hai đề nghị
+  (#36 Dầu Tiếng Campuchia, #51 Lai Châu II) bấm Duyệt là báo "đã có đợt giao/hợp đồng số …": đơn
+  vị bấm **Thêm** rồi gõ lại số của một đợt/hợp đồng đã có, nhưng hệ thống kiểm hạn nhập TRƯỚC khi
+  kiểm trùng nên mời gửi đề nghị luôn.
+  - Lưu hợp đồng/đợt giao nay kiểm **luật nghiệp vụ trước hạn nhập**: trùng số, vượt 110% sản lượng,
+    thêm đợt vào hợp đồng giao 1 lần… báo đỏ ngay trên biểu. Gửi đề nghị cũng kiểm đúng bộ luật đó.
+  - Câu báo trùng nêu bản ghi đang có (ngày giao · sản lượng) và phân biệt **thêm mới** (đặt số
+    khác, hoặc mở bản ghi cũ để sửa) với **sửa đổi sang số đã có**.
+  - **Sửa mà giữ nguyên số thì không kiểm trùng nữa** — 20 hợp đồng cũ trên prod trùng số sẵn
+    (3 nhóm) trước đây sửa ô nào cũng bị báo trùng.
+  - Thêm đợt giao kiểm **hợp đồng cha thuộc đúng đơn vị trước** khi báo trùng — câu báo nay nêu ngày
+    giao · sản lượng, kiểm sau thì đoán mã hợp đồng của đơn vị khác là đọc được số của họ.
+  - Trang duyệt: thẻ **Thêm mới / Sửa / Xoá**, cột trống ghi "(chưa có)" khi thêm mới; đề nghị
+    không duyệt được thì báo trước bằng khung đỏ và làm mờ nút Duyệt. Sổ tay duyệt và sổ tay đơn vị
+    cập nhật theo.
 - **Cảnh báo *Giá bán sai đơn vị tính* không còn ghi “Thiếu tỷ giá: Có” cho hợp đồng VND**
   (17/09/2026) — tiền Việt không cần tỷ giá; cột này nay chỉ đánh dấu dòng ngoại tệ chưa có tỷ giá.
 - **Người chỉ xem tải được PDF Báo cáo tuần** (13/09/2026) — trước đây nút "Xuất PDF" lưu báo cáo
