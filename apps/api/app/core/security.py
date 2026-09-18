@@ -120,16 +120,17 @@ def require_editor(username: str = Depends(get_current_user)) -> str:
     return username
 
 
-def assert_editor_window(username: str, as_of: str) -> None:
+def assert_editor_window(username: str, as_of: str, kind: str | None = None) -> None:
     """Chuyên viên (editor) chỉ được ghi trong cửa sổ N ngày gần nhất; admin MIỄN (toàn quyền).
 
     Chỉ gọi trong handler đã gác cap → user chắc chắn là admin hoặc editor.
+    `kind` = loại biểu theo ngày (biểu Tồn kho được cộng thêm ngày — xem `edit_window.for_kind`).
     """
     from app.core import edit_window
 
     if _active_user(username).get("role") == "admin":
         return
-    edit_window.assert_editable(as_of, edit_window.editor_window())
+    edit_window.assert_editable(as_of, edit_window.editor_window(kind))
 
 
 def assert_edit_window(username: str, as_of: str) -> None:

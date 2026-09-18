@@ -235,6 +235,59 @@ def test_unit_daily_edit_window_blocks_old_day() -> None:
     _cleanup(h, ["ud_win"], [unit])
 
 
+def test_stock_form_gets_extra_days_over_the_other_forms() -> None:
+    """Biểu Tồn kho được nhập trễ hơn 1 ngày so với các mục khác (STOCK_EXTRA_WINDOW_DAYS).
+
+    Tồn cuối ngày phải kiểm kho xong mới có số: đặt cửa sổ 0 (chỉ hôm nay) thì Thu mua phải nộp
+    trong ngày, còn Tồn kho vẫn nhập được hết ngày hôm sau.
+    """
+    h = _admin()
+    unit = "_zz_ud_stock_win"
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    two_days = (date.today() - timedelta(days=2)).isoformat()
+    client.delete("/api/users/ud_stock_win", headers=h)
+    client.delete("/api/users/ud_stock_ed", headers=h)
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    client.post("/api/users", json={"username": "ud_stock_win", "password": "pass123",
+                                    "role": "member", "member_units": [unit]}, headers=h)
+    client.post("/api/users", json={"username": "ud_stock_ed", "password": "pass123",
+                                    "role": "editor", "permissions": ["unit_daily"]}, headers=h)
+    mh, eh = _bearer("ud_stock_win", "pass123"), _bearer("ud_stock_ed", "pass123")
+
+    # Cửa sổ = 0 cho CẢ đơn vị lẫn chuyên viên: mọi mục chỉ nhập được hôm nay…
+    assert client.put("/api/config", json={"MEMBER_EDIT_WINDOW_DAYS": "0",
+                                           "EDITOR_EDIT_WINDOW_DAYS": "0"},
+                      headers=h).status_code == 200
+    try:
+        purchase = {"kind": "purchase", "company": unit, "as_of": yesterday,
+                    "fields": {"latex_wet": 1}}
+        stock = {"kind": "consumption", "company": unit, "as_of": yesterday,
+                 "fields": {"stock_material": 5}}
+        assert client.put("/api/member/daily-report", json=purchase, headers=mh).status_code == 403
+        assert client.put("/api/member/daily-report", json=stock, headers=mh).status_code == 200
+        # …nhưng chỉ THÊM 1 ngày, không phải mở toang.
+        assert client.put("/api/member/daily-report", json={**stock, "as_of": two_days},
+                          headers=mh).status_code == 403
+        # Chuyên viên nhập hộ cũng được cộng đúng 1 ngày ấy.
+        assert client.put("/api/unit-daily/report", json=stock, headers=eh).status_code == 200
+        assert client.put("/api/unit-daily/report", json=purchase, headers=eh).status_code == 403
+
+        # Số ngày trả cho web phải khác nhau theo từng biểu (form tự khoá đúng ô).
+        m_stock = client.get(f"/api/member/daily-report?kind=consumption&as_of={yesterday}", headers=mh)
+        m_buy = client.get(f"/api/member/daily-report?kind=purchase&as_of={yesterday}", headers=mh)
+        assert m_stock.json()["edit_window_days"] == 1 and m_buy.json()["edit_window_days"] == 0
+
+        # Admin tắt ưu ái (0) → biểu Tồn kho trở lại đúng cửa sổ chung.
+        assert client.put("/api/config", json={"STOCK_EXTRA_WINDOW_DAYS": "0"},
+                          headers=h).status_code == 200
+        assert client.put("/api/member/daily-report", json=stock, headers=mh).status_code == 403
+    finally:
+        client.put("/api/config", json={"MEMBER_EDIT_WINDOW_DAYS": "__CLEAR__",
+                                        "EDITOR_EDIT_WINDOW_DAYS": "__CLEAR__",
+                                        "STOCK_EXTRA_WINDOW_DAYS": "__CLEAR__"}, headers=h)
+    _cleanup(h, ["ud_stock_win", "ud_stock_ed"], [unit])
+
+
 def test_price_basis_is_fixed_and_prev_stock() -> None:
     """Cơ sở tính độ CỐ ĐỊNH (mủ nước TSC · mủ chén DRC) + nút 'Lấy tồn ngày trước'."""
     h = _admin()

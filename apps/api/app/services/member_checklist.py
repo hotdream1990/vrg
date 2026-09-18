@@ -164,15 +164,20 @@ def checklist(units: list[str]) -> dict[str, Any]:
     `member_data_check`). Hai nhóm cuối rà từ ĐẦU NĂM, không giới hạn trong `alert_days`.
 
     Phạm vi rà = `MEMBER_ALERT_DAYS` (admin cấu hình, mặc định 14 ngày, **0 = tắt cảnh báo**).
-    Rà có thể XA HƠN cửa sổ sửa → trả kèm `editable_from` để giao diện phân biệt ngày còn tự sửa
-    được với ngày đã khoá (đơn vị phải nhờ Ban TTKD nhập hộ), không hứa hão là bấm vào sửa được.
+    Rà có thể XA HƠN cửa sổ sửa → trả kèm `editable_from` (và `stock_editable_from` cho riêng
+    nhóm Tồn kho, vốn được nhập trễ hơn) để giao diện phân biệt ngày còn tự sửa được với ngày đã
+    khoá (đơn vị phải nhờ Ban TTKD nhập hộ), không hứa hão là bấm vào sửa được.
     """
     units = list(units)
     today = edit_window.today()
     alert = edit_window.alert_days()
     editable_from = (today - timedelta(days=edit_window.member_window())).isoformat()
+    # Biểu Tồn kho có cửa sổ riêng (rộng hơn vài ngày) → mốc "còn tự sửa được" cũng khác: dùng
+    # chung một mốc là chip ngày của nhóm Tồn kho hiện khoá trong khi form vẫn cho nhập.
+    stock_editable_from = (
+        today - timedelta(days=edit_window.member_window(edit_window.STOCK_KIND))).isoformat()
     base = {"today": today.isoformat(), "alert_days": alert, "enabled": alert > 0,
-            "editable_from": editable_from}
+            "editable_from": editable_from, "stock_editable_from": stock_editable_from}
     if alert <= 0 or not units:
         return {**base, "days": [], "units": [], "total_missing": 0}
     days = _days(alert, today)
@@ -181,7 +186,7 @@ def checklist(units: list[str]) -> dict[str, Any]:
     # cho tới khi có người mở đúng phiếu đó ra xem — giới hạn trong `alert_days` là gần như không
     # bao giờ thấy nó.
     year_start = date(today.year, 1, 1).isoformat()
-    checks = member_data_check.issues(units, year_start, editable_from)
+    checks = member_data_check.issues(units, year_start, editable_from, stock_editable_from)
 
     planned = unit_daily_repo.companies_with_purchase_plan(today.year)
     plan_now = unit_daily_repo.year_plan(today.year, units)

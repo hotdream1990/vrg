@@ -72,6 +72,12 @@ CONFIG_SPEC = [
     {"key": "EDITOR_EDIT_WINDOW_DAYS", "group": "data_entry", "secret": False,
      "label": "Số ngày sửa được — chuyên viên nhập liệu (Giá mủ nguyên liệu · Physical · Tồn kho · Báo giá)",
      "placeholder": "Mặc định 7 — số ngày gần nhất được nhập/sửa (0 = chỉ hôm nay); admin không bị giới hạn"},
+    # Ngoại lệ cho biểu Tồn kho: tồn cuối ngày phải kiểm kho xong mới có số, cửa sổ 0 thì đơn vị
+    # không nhập kịp trong ngày. Cộng THÊM vào cả hai thông số trên (xem `core/edit_window.py`).
+    {"key": "STOCK_EXTRA_WINDOW_DAYS", "group": "data_entry", "secret": False,
+     "label": "Biểu Tồn kho được nhập trễ hơn các mục khác bao nhiêu ngày",
+     "placeholder": "Mặc định 1 — vd cửa sổ 0 ngày thì biểu Tồn kho vẫn nhập được hết ngày hôm sau. "
+                    "Đặt 0 = giống mọi mục khác"},
     # Phạm vi RÀ của bảng nhắc việc — khác cửa sổ sửa ở trên: rà xa hơn thì đơn vị thấy cả những
     # ngày đã khoá mà mình còn nợ (nhờ Ban TTKD nhập hộ), rà ngắn lại thì bảng gọn.
     {"key": "MEMBER_ALERT_DAYS", "group": "data_entry", "secret": False,

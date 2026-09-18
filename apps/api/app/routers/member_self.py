@@ -220,7 +220,7 @@ def my_daily_timeline(kind: str = Query(..., pattern="^(purchase|consumption)$")
     d_from, d_to = resolve_timeline_range(days, date_from, date_to, today)
     res = timeline_page(kind, d_from, d_to, units, page, page_size)
     unit_daily_repo.attach_purchase_prices(res["entries"], kind)
-    return {"today": today.isoformat(), "edit_window_days": edit_window.member_window(),
+    return {"today": today.isoformat(), "edit_window_days": edit_window.member_window(kind),
             "locked_until": _locked(units),
             "units": units, "view_only_units": view_only, "plans": _plans_of(units, today.year),
             **res, "page": page, "page_size": page_size}
@@ -238,7 +238,7 @@ def my_daily(kind: str = Query(..., pattern="^(purchase|consumption)$"),
         raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
     entries = unit_daily_repo.entries_on(kind, as_of)
     return {"as_of": as_of, "today": edit_window.today().isoformat(),
-            "edit_window_days": edit_window.member_window(), "locked_until": _locked(units),
+            "edit_window_days": edit_window.member_window(kind), "locked_until": _locked(units),
             "units": units, "view_only_units": view_only,
             "plans": _plans_of(units, year),
             "entries": {u: entries.get(u) for u in units},
@@ -353,7 +353,7 @@ def upsert_my_daily(body: UnitDailyEdit,
                     member: dict = Depends(get_unit_user)) -> dict:
     """Ghi/sửa số liệu 1 đơn vị được gán cho 1 ngày, trong cửa sổ cho phép. create_only → chống ghi trùng."""
     _assert_company(member, body.company, body.as_of)
-    edit_window.assert_editable(body.as_of, edit_window.member_window())
+    edit_window.assert_editable(body.as_of, edit_window.member_window(body.kind))
     data_lock.assert_not_locked(body.company, body.as_of)
     if body.create_only and unit_daily_repo.has_entry(body.kind, body.as_of, body.company):
         raise HTTPException(409, "Đơn vị này đã có số liệu cho ngày này — vui lòng dùng chức năng Sửa.")
@@ -370,8 +370,8 @@ def move_my_daily_date(body: UnitDailyMove,
     """
     # Ngày ĐÍCH mới là ngày số liệu sẽ nằm sau khi dời.
     _assert_company(member, body.company, body.to_date)
-    edit_window.assert_editable(body.as_of, edit_window.member_window())
-    edit_window.assert_editable(body.to_date, edit_window.member_window())
+    edit_window.assert_editable(body.as_of, edit_window.member_window(body.kind))
+    edit_window.assert_editable(body.to_date, edit_window.member_window(body.kind))
     data_lock.assert_not_locked(body.company, body.as_of, body.to_date)
     try:
         return {"ok": True, **unit_daily_repo.move_day(

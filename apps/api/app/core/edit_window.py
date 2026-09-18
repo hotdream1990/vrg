@@ -7,6 +7,11 @@ Hai thông số ĐỘC LẬP (admin cấu hình ở app_config, đổi riêng t�
 - EDITOR_EDIT_WINDOW_DAYS → chuyên viên nhập liệu (Giá mủ nguyên liệu · Physical · Tồn kho · Báo giá)
 Mặc định 7 ngày cho cả hai. N = số ngày LÙI được phép tính từ hôm nay: 0 = chỉ hôm nay, 1 = hôm
 nay và hôm qua. Admin KHÔNG bị giới hạn (xem `security.assert_editor_window`).
+
+NGOẠI LỆ — biểu **Tồn kho** (`kind='consumption'`) được cộng thêm `STOCK_EXTRA_WINDOW_DAYS` ngày
+(mặc định 1) cho CẢ hai vai trò: tồn cuối ngày phải kiểm kho xong mới có số, đặt cửa sổ 0 thì đơn
+vị không tài nào nhập kịp trong ngày. Truyền `kind` vào `member_window`/`editor_window` để được
+cộng — không truyền thì giữ nguyên cửa sổ gốc.
 """
 
 from __future__ import annotations
@@ -25,6 +30,12 @@ EDITOR_KEY = "EDITOR_EDIT_WINDOW_DAYS"
 #: sửa ở trên: rà xa hơn để đơn vị biết mình còn nợ, kể cả ngày đã khoá (nhờ Ban TTKD nhập hộ).
 ALERT_KEY = "MEMBER_ALERT_DAYS"
 DEFAULT_ALERT_DAYS = 14
+
+#: Biểu Tồn kho nộp trễ hơn các mục khác bấy nhiêu ngày (admin cấu hình, 0 = không ưu ái gì thêm).
+#: Chỉ áp cho biểu theo ngày `kind='consumption'` — «Tồn kho Tập đoàn» theo tuần không liên quan.
+STOCK_KIND = "consumption"
+STOCK_EXTRA_KEY = "STOCK_EXTRA_WINDOW_DAYS"
+DEFAULT_STOCK_EXTRA_DAYS = 1
 
 #: Header đánh dấu 403 do HÀNG RÀO THỜI GIAN (web đọc để mời đơn vị gửi «Đề nghị sửa»).
 #: `detail` giữ nguyên câu cũ — nhiều màn và test đang đọc chuỗi đó.
@@ -50,12 +61,27 @@ def window_days(key: str) -> int:
     return _parse(config_repo.get_value(key))
 
 
-def member_window() -> int:
-    return window_days(MEMBER_KEY)
+def stock_extra_days() -> int:
+    """Số ngày cộng thêm cho biểu Tồn kho (rỗng/không hợp lệ/số âm → mặc định 1)."""
+    from app.services import config_repo
+
+    return _parse(config_repo.get_value(STOCK_EXTRA_KEY), DEFAULT_STOCK_EXTRA_DAYS)
 
 
-def editor_window() -> int:
-    return window_days(EDITOR_KEY)
+def for_kind(window: int, kind: str | None) -> int:
+    """Cửa sổ của biểu `kind`: Tồn kho được cộng thêm, các biểu khác giữ nguyên.
+
+    Chỉ đọc cấu hình khi đúng biểu Tồn kho — mọi đường ghi khác không phải chịu thêm một truy vấn.
+    """
+    return window + stock_extra_days() if kind == STOCK_KIND else window
+
+
+def member_window(kind: str | None = None) -> int:
+    return for_kind(window_days(MEMBER_KEY), kind)
+
+
+def editor_window(kind: str | None = None) -> int:
+    return for_kind(window_days(EDITOR_KEY), kind)
 
 
 def alert_days() -> int:

@@ -104,7 +104,7 @@ def timeline(kind: str = Query(..., pattern="^(purchase|consumption)$"),
     unit_daily_repo.attach_purchase_prices(res["entries"], kind)
     return {
         "today": today.isoformat(),
-        "edit_window_days": edit_window.editor_window(),
+        "edit_window_days": edit_window.editor_window(kind),
         "units": member_unit_repo.active_names(),
         "plans": unit_daily_repo.plans_for_year(today.year),
         **res, "page": page, "page_size": page_size,
@@ -130,7 +130,7 @@ def day(kind: str = Query(..., pattern="^(purchase|consumption)$"),
     return {
         "as_of": as_of,
         "today": edit_window.today().isoformat(),
-        "edit_window_days": edit_window.editor_window(),
+        "edit_window_days": edit_window.editor_window(kind),
         "units": units,
         "plans": unit_daily_repo.plans_for_year(_year_of(as_of)),
         "entries": entries,
@@ -224,7 +224,7 @@ def upsert(body: UnitDailyEdit, username: str = Depends(_require_edit)) -> dict:
     `create_only=True` (nút Thêm) → 409 nếu (ngày, đơn vị, loại) đã có số (chống ghi trùng).
     """
     assert_unit_can_enter(body.company, body.as_of)
-    assert_editor_window(username, body.as_of)
+    assert_editor_window(username, body.as_of, body.kind)
     if body.create_only and unit_daily_repo.has_entry(body.kind, body.as_of, body.company):
         raise HTTPException(409, "Đơn vị này đã có số liệu cho ngày này — vui lòng dùng chức năng Sửa.")
     unit_daily_repo.upsert(body.kind, body.as_of, body.company, body.fields, username)
@@ -239,8 +239,8 @@ def move_date(body: UnitDailyMove, username: str = Depends(_require_edit)) -> di
     """
     # Ngày ĐÍCH mới là ngày số liệu sẽ nằm — dời vào vùng sau ngày sáp nhập là sai đơn vị.
     assert_unit_can_enter(body.company, body.to_date)
-    assert_editor_window(username, body.as_of)
-    assert_editor_window(username, body.to_date)
+    assert_editor_window(username, body.as_of, body.kind)
+    assert_editor_window(username, body.to_date, body.kind)
     try:
         return {"ok": True, **unit_daily_repo.move_day(
             body.kind, body.company, body.as_of, body.to_date, username)}
