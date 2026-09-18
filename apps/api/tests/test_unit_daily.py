@@ -235,11 +235,12 @@ def test_unit_daily_edit_window_blocks_old_day() -> None:
     _cleanup(h, ["ud_win"], [unit])
 
 
-def test_stock_form_gets_extra_days_over_the_other_forms() -> None:
-    """Biểu Tồn kho được nhập trễ hơn 1 ngày so với các mục khác (STOCK_EXTRA_WINDOW_DAYS).
+def test_daily_forms_get_extra_days_over_the_other_forms() -> None:
+    """Biểu Thu mua và Tồn kho được nhập trễ hơn 1 ngày so với các mục khác, mỗi biểu một thông số.
 
-    Tồn cuối ngày phải kiểm kho xong mới có số: đặt cửa sổ 0 (chỉ hôm nay) thì Thu mua phải nộp
-    trong ngày, còn Tồn kho vẫn nhập được hết ngày hôm sau.
+    Tồn cuối ngày phải kiểm kho xong, số thu mua chốt sau giờ cân cuối: đặt cửa sổ 0 (chỉ hôm nay)
+    thì hai biểu vẫn nhập được hết ngày hôm sau. Đơn giá mủ trên biểu Thu mua đi CÙNG mốc đó (cả
+    đường đơn vị tự khai lẫn chuyên viên nhập hộ) — khác mốc là lưu được số lượng mà bị chặn lưu giá.
     """
     h = _admin()
     unit = "_zz_ud_stock_win"
@@ -250,41 +251,59 @@ def test_stock_form_gets_extra_days_over_the_other_forms() -> None:
     client.post("/api/member-units", json={"name": unit}, headers=h)
     client.post("/api/users", json={"username": "ud_stock_win", "password": "pass123",
                                     "role": "member", "member_units": [unit]}, headers=h)
-    client.post("/api/users", json={"username": "ud_stock_ed", "password": "pass123",
-                                    "role": "editor", "permissions": ["unit_daily"]}, headers=h)
+    client.post("/api/users", json={"username": "ud_stock_ed", "password": "pass123", "role": "editor",
+                                    "permissions": ["unit_daily", "raw_material"]}, headers=h)
     mh, eh = _bearer("ud_stock_win", "pass123"), _bearer("ud_stock_ed", "pass123")
 
-    # Cửa sổ = 0 cho CẢ đơn vị lẫn chuyên viên: mọi mục chỉ nhập được hôm nay…
+    def put(path: str, body: dict, hdr: dict, **kw) -> int:
+        return client.put(path, json={**body, **kw}, headers=hdr).status_code
+
+    purchase = {"kind": "purchase", "company": unit, "as_of": yesterday, "fields": {"latex_wet": 1}}
+    stock = {"kind": "consumption", "company": unit, "as_of": yesterday, "fields": {"stock_material": 5}}
+    my_price = {"company": unit, "as_of": yesterday, "price_type": "purchase", "price": 400}
+    hq_price = {"as_of": yesterday, "source": "vrg", "grade": unit, "contract": "",
+                "price_type": "purchase", "price": 400, "currency": "VND", "unit": "đồng/độ TSC"}
+    # Cửa sổ = 0 cho CẢ đơn vị lẫn chuyên viên: các mục khác chỉ nhập được hôm nay…
     assert client.put("/api/config", json={"MEMBER_EDIT_WINDOW_DAYS": "0",
                                            "EDITOR_EDIT_WINDOW_DAYS": "0"},
                       headers=h).status_code == 200
     try:
-        purchase = {"kind": "purchase", "company": unit, "as_of": yesterday,
-                    "fields": {"latex_wet": 1}}
-        stock = {"kind": "consumption", "company": unit, "as_of": yesterday,
-                 "fields": {"stock_material": 5}}
-        assert client.put("/api/member/daily-report", json=purchase, headers=mh).status_code == 403
-        assert client.put("/api/member/daily-report", json=stock, headers=mh).status_code == 200
-        # …nhưng chỉ THÊM 1 ngày, không phải mở toang.
-        assert client.put("/api/member/daily-report", json={**stock, "as_of": two_days},
-                          headers=mh).status_code == 403
-        # Chuyên viên nhập hộ cũng được cộng đúng 1 ngày ấy.
-        assert client.put("/api/unit-daily/report", json=stock, headers=eh).status_code == 200
-        assert client.put("/api/unit-daily/report", json=purchase, headers=eh).status_code == 403
+        # …còn hai biểu theo ngày (kèm đơn giá) vẫn nhập được hôm qua, cho cả hai vai trò.
+        for body, path, hdr in ((purchase, "/api/member/daily-report", mh),
+                                (stock, "/api/member/daily-report", mh),
+                                (my_price, "/api/member/prices", mh),
+                                (purchase, "/api/unit-daily/report", eh),
+                                (stock, "/api/unit-daily/report", eh),
+                                (hq_price, "/api/prices/records", eh)):
+            assert put(path, body, hdr) == 200, (path, body)
+            # …nhưng chỉ THÊM 1 ngày, không phải mở toang.
+            assert put(path, body, hdr, as_of=two_days) == 403, (path, body)
 
-        # Số ngày trả cho web phải khác nhau theo từng biểu (form tự khoá đúng ô).
-        m_stock = client.get(f"/api/member/daily-report?kind=consumption&as_of={yesterday}", headers=mh)
-        m_buy = client.get(f"/api/member/daily-report?kind=purchase&as_of={yesterday}", headers=mh)
-        assert m_stock.json()["edit_window_days"] == 1 and m_buy.json()["edit_window_days"] == 0
+        # Số ngày trả cho web phải khác nhau theo từng màn (form tự khoá đúng ô).
+        def days(url: str) -> int:
+            return client.get(url, headers=mh).json()["edit_window_days"]
+        assert days(f"/api/member/daily-report?kind=consumption&as_of={yesterday}") == 1
+        assert days(f"/api/member/daily-report?kind=purchase&as_of={yesterday}") == 1
+        assert days("/api/member/prices") == 1
+        assert client.get("/api/settings/edit-windows", headers=mh).json()["member_days"] == 0
+        chk = client.get("/api/member/checklist", headers=mh).json()
+        assert chk["purchase_editable_from"] == chk["stock_editable_from"] == yesterday
+        assert chk["editable_from"] == date.today().isoformat()
 
-        # Admin tắt ưu ái (0) → biểu Tồn kho trở lại đúng cửa sổ chung.
+        # Admin tắt ưu ái của TỪNG biểu (0) → biểu đó trở lại đúng cửa sổ chung, biểu kia giữ nguyên.
+        assert client.put("/api/config", json={"PURCHASE_EXTRA_WINDOW_DAYS": "0"},
+                          headers=h).status_code == 200
+        assert put("/api/member/daily-report", purchase, mh) == 403
+        assert put("/api/member/prices", my_price, mh) == 403
+        assert put("/api/member/daily-report", stock, mh) == 200
         assert client.put("/api/config", json={"STOCK_EXTRA_WINDOW_DAYS": "0"},
                           headers=h).status_code == 200
-        assert client.put("/api/member/daily-report", json=stock, headers=mh).status_code == 403
+        assert put("/api/member/daily-report", stock, mh) == 403
     finally:
         client.put("/api/config", json={"MEMBER_EDIT_WINDOW_DAYS": "__CLEAR__",
                                         "EDITOR_EDIT_WINDOW_DAYS": "__CLEAR__",
-                                        "STOCK_EXTRA_WINDOW_DAYS": "__CLEAR__"}, headers=h)
+                                        "STOCK_EXTRA_WINDOW_DAYS": "__CLEAR__",
+                                        "PURCHASE_EXTRA_WINDOW_DAYS": "__CLEAR__"}, headers=h)
     _cleanup(h, ["ud_stock_win", "ud_stock_ed"], [unit])
 
 

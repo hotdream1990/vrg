@@ -8,10 +8,14 @@ Hai thông số ĐỘC LẬP (admin cấu hình ở app_config, đổi riêng t�
 Mặc định 7 ngày cho cả hai. N = số ngày LÙI được phép tính từ hôm nay: 0 = chỉ hôm nay, 1 = hôm
 nay và hôm qua. Admin KHÔNG bị giới hạn (xem `security.assert_editor_window`).
 
-NGOẠI LỆ — biểu **Tồn kho** (`kind='consumption'`) được cộng thêm `STOCK_EXTRA_WINDOW_DAYS` ngày
-(mặc định 1) cho CẢ hai vai trò: tồn cuối ngày phải kiểm kho xong mới có số, đặt cửa sổ 0 thì đơn
-vị không tài nào nhập kịp trong ngày. Truyền `kind` vào `member_window`/`editor_window` để được
-cộng — không truyền thì giữ nguyên cửa sổ gốc.
+NGOẠI LỆ — hai biểu theo ngày được cộng thêm ngày cho CẢ hai vai trò, mỗi biểu một thông số riêng
+(mặc định 1, 0 = như mọi mục khác):
+- **Tồn kho** (`kind='consumption'`) · `STOCK_EXTRA_WINDOW_DAYS`: tồn cuối ngày phải kiểm kho xong
+  mới có số, đặt cửa sổ 0 thì đơn vị không tài nào nhập kịp trong ngày.
+- **Thu mua** (`kind='purchase'`) · `PURCHASE_EXTRA_WINDOW_DAYS` (18/09/2026): số thu mua trong ngày
+  cũng chỉ chốt được sau giờ cân cuối. Đơn giá mủ trên biểu Thu mua đi CÙNG mốc này.
+Truyền `kind` vào `member_window`/`editor_window` để được cộng — không truyền thì giữ nguyên cửa sổ
+gốc (giá Physical, báo giá, nhu cầu thị trường, hợp đồng…).
 """
 
 from __future__ import annotations
@@ -31,11 +35,14 @@ EDITOR_KEY = "EDITOR_EDIT_WINDOW_DAYS"
 ALERT_KEY = "MEMBER_ALERT_DAYS"
 DEFAULT_ALERT_DAYS = 14
 
-#: Biểu Tồn kho nộp trễ hơn các mục khác bấy nhiêu ngày (admin cấu hình, 0 = không ưu ái gì thêm).
-#: Chỉ áp cho biểu theo ngày `kind='consumption'` — «Tồn kho Tập đoàn» theo tuần không liên quan.
+#: Biểu theo ngày nộp trễ hơn các mục khác bấy nhiêu ngày (admin cấu hình từng biểu, 0 = không ưu ái
+#: gì thêm). «Tồn kho Tập đoàn» theo tuần KHÔNG thuộc đây — nó không phải biểu `consumption`.
 STOCK_KIND = "consumption"
+PURCHASE_KIND = "purchase"
 STOCK_EXTRA_KEY = "STOCK_EXTRA_WINDOW_DAYS"
-DEFAULT_STOCK_EXTRA_DAYS = 1
+PURCHASE_EXTRA_KEY = "PURCHASE_EXTRA_WINDOW_DAYS"
+EXTRA_KEYS = {STOCK_KIND: STOCK_EXTRA_KEY, PURCHASE_KIND: PURCHASE_EXTRA_KEY}
+DEFAULT_EXTRA_DAYS = 1
 
 #: Header đánh dấu 403 do HÀNG RÀO THỜI GIAN (web đọc để mời đơn vị gửi «Đề nghị sửa»).
 #: `detail` giữ nguyên câu cũ — nhiều màn và test đang đọc chuỗi đó.
@@ -61,19 +68,22 @@ def window_days(key: str) -> int:
     return _parse(config_repo.get_value(key))
 
 
-def stock_extra_days() -> int:
-    """Số ngày cộng thêm cho biểu Tồn kho (rỗng/không hợp lệ/số âm → mặc định 1)."""
+def extra_days(kind: str | None) -> int:
+    """Số ngày cộng thêm của biểu `kind` (rỗng/không hợp lệ/số âm → mặc định 1; biểu khác → 0)."""
+    key = EXTRA_KEYS.get(kind or "")
+    if key is None:
+        return 0
     from app.services import config_repo
 
-    return _parse(config_repo.get_value(STOCK_EXTRA_KEY), DEFAULT_STOCK_EXTRA_DAYS)
+    return _parse(config_repo.get_value(key), DEFAULT_EXTRA_DAYS)
 
 
 def for_kind(window: int, kind: str | None) -> int:
-    """Cửa sổ của biểu `kind`: Tồn kho được cộng thêm, các biểu khác giữ nguyên.
+    """Cửa sổ của biểu `kind`: Thu mua / Tồn kho được cộng thêm, mọi mục khác giữ nguyên.
 
-    Chỉ đọc cấu hình khi đúng biểu Tồn kho — mọi đường ghi khác không phải chịu thêm một truy vấn.
+    Chỉ đọc cấu hình khi đúng biểu theo ngày — mọi đường ghi khác không phải chịu thêm một truy vấn.
     """
-    return window + stock_extra_days() if kind == STOCK_KIND else window
+    return window + extra_days(kind)
 
 
 def member_window(kind: str | None = None) -> int:

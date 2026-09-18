@@ -113,8 +113,8 @@ def my_prices(days: int = Query(30, ge=1, le=180),
     units, view_only = _scope(member)
     sheets = {u: price_repo.member_price_history(u, days) for u in units}
     return {"units": units, "view_only_units": view_only, "today": edit_window.today().isoformat(),
-            "edit_window_days": edit_window.member_window(), "locked_until": _locked(units),
-            "sheets": sheets}
+            "edit_window_days": edit_window.member_window(edit_window.PURCHASE_KIND),
+            "locked_until": _locked(units), "sheets": sheets}
 
 
 @router.put("/prices")
@@ -125,7 +125,9 @@ def upsert_my_price(body: MemberPriceEdit,
     Giá 0 = "ngày đó không có giá" → `price_repo` xoá ô giá thay vì lưu số 0 (xem `market_meta`).
     """
     _assert_company(member, body.company, body.as_of)
-    edit_window.assert_editable(body.as_of, edit_window.member_window())
+    # Đơn giá nằm TRÊN biểu Thu mua → cùng cửa sổ với biểu (được nhập trễ hơn các mục khác), nếu
+    # không đơn vị lưu được số lượng mà bị chặn lưu giá của cùng một ngày.
+    edit_window.assert_editable(body.as_of, edit_window.member_window(edit_window.PURCHASE_KIND))
     # Đơn giá thu mua là MỘT PHẦN của số liệu thu mua đã chốt → khoá theo cùng mốc.
     data_lock.assert_not_locked(body.company, body.as_of)
     # Giá đơn vị TỰ KHAI nằm ở lớp riêng — không đè lên giá chuyên viên đã chốt (xem market_meta).
@@ -145,7 +147,7 @@ def clear_my_price(
     _assert_company(member, company, as_of)
     if price_type not in PURCHASE_PRICE_UNIT:
         raise HTTPException(400, "Loại giá không hợp lệ.")
-    edit_window.assert_editable(as_of, edit_window.member_window())
+    edit_window.assert_editable(as_of, edit_window.member_window(edit_window.PURCHASE_KIND))
     data_lock.assert_not_locked(company, as_of)
     price_repo.delete_record(as_of, PURCHASE_SOURCE_UNIT, company, "", price_type)
     return {"deleted": True}

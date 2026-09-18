@@ -92,6 +92,7 @@ export type MemberChecklist = {
   alert_days: number;           // rà bao nhiêu ngày gần nhất (admin cấu hình)
   enabled: boolean;             // admin đặt 0 ngày = tắt hẳn cảnh báo
   editable_from: string;        // ngày cũ hơn mốc này đơn vị KHÔNG tự sửa được nữa
+  purchase_editable_from: string; // mốc RIÊNG của biểu Thu mua (được nhập trễ hơn các mục khác)
   stock_editable_from: string;  // mốc RIÊNG của biểu Tồn kho (được nhập trễ hơn các mục khác)
   days: string[];               // các ngày được rà (mới → cũ)
   units: UnitChecklist[];

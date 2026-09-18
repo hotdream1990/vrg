@@ -99,8 +99,8 @@ function CheckRow({ c, onPick }: { c: DataCheck; onPick: () => void }) {
   );
 }
 
-function UnitRow({ u, today, editableFrom, stockEditableFrom, go }: {
-  u: UnitChecklist; today: string; editableFrom: string; stockEditableFrom: string;
+function UnitRow({ u, today, purchaseEditableFrom, stockEditableFrom, go }: {
+  u: UnitChecklist; today: string; purchaseEditableFrom: string; stockEditableFrom: string;
   go: (path: string, day?: string, company?: string) => void;
 }) {
   const items: JSX.Element[] = [];
@@ -108,7 +108,7 @@ function UnitRow({ u, today, editableFrom, stockEditableFrom, go }: {
     items.push(
       <div key="p" style={{ marginBottom: 4 }}>
         <b>Thu mua</b> — chưa nhập {u.purchase_missing.length} ngày:{" "}
-        <DayChips days={u.purchase_missing} today={today} editableFrom={editableFrom}
+        <DayChips days={u.purchase_missing} today={today} editableFrom={purchaseEditableFrom}
           onPick={(d) => go("/bao-cao-thu-mua", d, u.company)} />
       </div>,
     );
@@ -117,7 +117,7 @@ function UnitRow({ u, today, editableFrom, stockEditableFrom, go }: {
     items.push(
       <div key="s" style={{ marginBottom: 4 }}>
         <b>Tồn kho</b> — chưa nhập {u.stock_missing.length} ngày:{" "}
-        {/* Biểu Tồn kho được nhập trễ hơn các mục khác → chip ngày dùng mốc riêng của nó. */}
+        {/* Hai biểu theo ngày được nhập trễ hơn các mục khác → chip ngày dùng mốc riêng của từng biểu. */}
         <DayChips days={u.stock_missing} today={today} editableFrom={stockEditableFrom}
           onPick={(d) => go("/bao-cao-ton-kho", d, u.company)} />
       </div>,
@@ -271,7 +271,8 @@ export default function MemberChecklistBanner() {
         <span className="dsn-toggle">{open ? <>Thu gọn <UpOutlined /></> : <>Xem chi tiết <DownOutlined /></>}</span>
       </button>
       {open && data.units.map((u) => (
-        <UnitRow key={u.company} u={u} today={data.today} editableFrom={data.editable_from}
+        <UnitRow key={u.company} u={u} today={data.today}
+          purchaseEditableFrom={data.purchase_editable_from || data.editable_from}
           stockEditableFrom={data.stock_editable_from || data.editable_from} go={go} />
       ))}
     </div>

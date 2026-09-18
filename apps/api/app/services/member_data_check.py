@@ -111,12 +111,13 @@ def _stock(p: dict) -> list[tuple[str, str]]:
 
 
 def issues(units: list[str], date_from: str, editable_from: str,
-           stock_editable_from: str | None = None) -> dict[str, list[dict[str, Any]]]:
+           kind_editable_from: dict[str, str] | None = None) -> dict[str, list[dict[str, Any]]]:
     """{đơn vị: các ô cần soát lại} từ `date_from`, mới nhất trước.
 
     `editable_from` = mốc cửa sổ nhập liệu: ô cũ hơn thì đơn vị KHÔNG tự sửa được nữa, đánh dấu
     `editable=False` để giao diện nói thẳng phải nhờ Ban TTKD — mời bấm rồi chặn ở form là hứa hão.
-    `stock_editable_from` = mốc riêng của biểu Tồn kho (được nhập trễ hơn); bỏ trống = dùng chung.
+    `kind_editable_from` = mốc riêng theo nhóm ô (`purchase` · `stock` — hai biểu được nhập trễ hơn);
+    nhóm không có mốc riêng thì dùng `editable_from`.
     """
     out: dict[str, list[dict[str, Any]]] = {u: [] for u in units}
     if not units:
@@ -127,13 +128,13 @@ def issues(units: list[str], date_from: str, editable_from: str,
         prices = db.execute(_PRICE_SQL, args).mappings().all()
         contracts = db.execute(_CONTRACT_SQL, args).mappings().all()
 
-    stock_from = stock_editable_from or editable_from
+    kind_from = kind_editable_from or {}
 
     def add(company: str, as_of: str, kind: str, where: str, message: str,
             code: str | None = None) -> None:
         out.setdefault(company, []).append({
             "as_of": as_of, "kind": kind, "where": where, "message": message,
-            "code": code, "editable": as_of >= (stock_from if kind == "stock" else editable_from),
+            "code": code, "editable": as_of >= kind_from.get(kind, editable_from),
         })
 
     for r in daily:
