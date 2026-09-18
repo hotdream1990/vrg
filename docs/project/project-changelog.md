@@ -122,6 +122,13 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     khai gì). Giá bình quân · bản tin · báo cáo **không đổi** — số 0 vẫn không vào kho giá.
 
 ### Changed
+- **Biểu Tồn kho được nhập trễ hơn các mục khác 1 ngày** (18/09/2026) — tồn cuối ngày phải kiểm kho
+  xong mới có số, cửa sổ sửa đặt 0 (chỉ hôm nay) thì đơn vị không nhập kịp: 31/81 đề nghị sửa đầu
+  tiên (17–18/09) là biểu Tồn kho của hôm qua.
+  - Ô cấu hình mới *Biểu Tồn kho được nhập trễ hơn các mục khác bao nhiêu ngày* (tab Cửa sổ nhập
+    liệu, mặc định **1**, đặt 0 = như mọi mục khác). Cộng thêm cho cả đơn vị lẫn chuyên viên nhập
+    hộ; áp cho lưu, đổi ngày, đề nghị sửa và bảng nhắc việc của đơn vị (chip ngày Tồn kho dùng mốc
+    riêng). Tồn kho Tập đoàn theo tuần và các màn khác giữ nguyên cửa sổ chung.
 - **Cảnh báo "Chưa nộp / thiếu một phần" ghi rõ ngày thiếu** (17/09/2026) — trước chỉ ghi
   "2/55 ngày thiếu", người đọc không biết phải nhắc ngày nào; biểu đủ cũng hiện "0/259 ngày thiếu".
   - Nay mỗi biểu có 2 cột: *Thiếu N/T ngày* (hoặc *Đủ*) và *Ngày thiếu*, ngày liền nhau gộp thành
