@@ -235,7 +235,7 @@
       "notes": [
         "**Khoá API và mật khẩu luôn bị che**, chỉ hiện nhãn **Đã đặt**. **Để trống nghĩa là giữ nguyên giá trị cũ** — chỉ nhập khi thực sự muốn thay.",
         "Tab **Cửa sổ nhập liệu** có hai thông số độc lập cho đơn vị thành viên và cho chuyên viên (mặc định 7 ngày). Quá số ngày này, dòng số liệu chuyển sang **(chỉ xem)**.",
-        "Riêng biểu **Tồn kho** được nhập trễ hơn các mục khác **1 ngày** — đặt ở ô **“Biểu Tồn kho được nhập trễ hơn các mục khác bao nhiêu ngày”**. Tồn cuối ngày phải kiểm kho xong mới có số, nên ví dụ đặt cửa sổ **0**: các mục khác phải nhập trong ngày, còn biểu Tồn kho vẫn nhập được hết ngày hôm sau. Đặt ô này **0** = biểu Tồn kho giống mọi mục khác.",
+        "Riêng hai biểu **Thu mua** và **Tồn kho** được nhập trễ hơn các mục khác **1 ngày** — mỗi biểu một ô: **“Biểu Thu mua được nhập trễ hơn các mục khác bao nhiêu ngày”** và **“Biểu Tồn kho được nhập trễ hơn các mục khác bao nhiêu ngày”**. Ví dụ đặt cửa sổ **0**: các mục khác phải nhập trong ngày, còn hai biểu này vẫn nhập được hết ngày hôm sau (đơn giá mủ trên biểu Thu mua đi cùng biểu). Đặt ô của biểu nào về **0** = biểu đó giống mọi mục khác.",
         "Tab **Cửa sổ nhập liệu** còn ô **“Cảnh báo thiếu số liệu — rà bao nhiêu ngày gần nhất”** (mặc định **14**): bảng nhắc trên màn hình đơn vị rà lại bấy nhiêu ngày. Đặt **0 = tắt hẳn cảnh báo**; số âm bị bỏ qua, quay về mặc định. Rà xa hơn số ngày sửa được vẫn hợp lệ — những ngày quá hạn hiện màu xám, đơn vị phải báo Ban TTKD nhập hộ.",
         "Quản trị viên không bị giới hạn bởi cửa sổ nhập liệu."
       ]
