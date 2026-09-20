@@ -125,12 +125,23 @@ def purchase_rows(date_from: str, date_to: str,
             # Đơn vị nước ngoài nhập giá nội tệ → quy về VND; còn lại lấy kho "Giá mủ nguyên liệu".
             local = _price(f.get(local_key))
             price = (local * fx_local) if (local is not None and fx_local) else _price(day_px.get(material))
-            rows.append({**base, "material": material, "grade": MATERIAL_LABELS[material],
-                         "qty": qty, "price": price, "price_unit": "dong_do",
-                         "price_unit_label": PURCHASE_PRICE_UNIT[price_type],
-                         "ccy": "VND", "fx": None, "revenue_vnd": None,
-                         "price_declared_none": material in no_price,
-                         "missing_fx": local is not None and not fx_local})
+            common = {**base, "material": material, "price": price, "price_unit": "dong_do",
+                      "price_unit_label": PURCHASE_PRICE_UNIT[price_type],
+                      "ccy": "VND", "fx": None, "revenue_vnd": None,
+                      "price_declared_none": material in no_price,
+                      "missing_fx": local is not None and not fx_local}
+            # Đơn vị đã tách chủng loại (từ 20/09/2026) → mỗi chủng loại một dòng, `grade` là
+            # chủng loại THẬT. Ngày chưa tách thì vẫn một dòng với nhãn loại mủ như trước —
+            # nhờ vậy bảng chéo chủng loại hiện rõ phần nào đã tách, phần nào còn gom chung,
+            # thay vì im lặng làm biến mất sản lượng của các ngày cũ.
+            table = unit_daily_fields.MATERIAL_GRADE_TABLES[material][0]
+            breakdown = [r for r in (f.get(table) or []) if _num(r.get("qty")) is not None]
+            if breakdown:
+                for r in breakdown:
+                    rows.append({**common, "grade": str(r.get("grade") or "").strip() or "—",
+                                 "qty": _num(r.get("qty"))})
+            else:
+                rows.append({**common, "grade": MATERIAL_LABELS[material], "qty": qty})
         for ln in f.get("finished") or []:
             qty = _num(ln.get("qty"))
             if qty is None:

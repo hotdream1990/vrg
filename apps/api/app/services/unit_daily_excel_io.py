@@ -4,8 +4,9 @@ Mỗi loại biểu khai báo cột MỘT chỗ (`SPECS`) rồi dùng chung cho 
 người dùng nộp → mẫu và bộ đọc không bao giờ lệch nhau.
 
 4 loại (`kind`):
-  purchase   — Thu mua: phần mủ nguyên liệu (nước/chén/dây) 1 dòng / (đơn vị, ngày); THÀNH PHẨM nhiều
-               dòng (mỗi chủng loại 1 dòng) → gom thành mảng `finished`
+  purchase   — Thu mua: mủ nguyên liệu (nước/chén/dây) 1 dòng tổng / (đơn vị, ngày), hoặc tách
+               CHỦNG LOẠI thành nhiều dòng; THÀNH PHẨM mỗi chủng loại 1 dòng → xem
+               `unit_daily_excel_purchase`
   sales      — Tiêu thụ: NHIỀU dòng / (đơn vị, ngày) → tách theo cột "Nguồn mủ" thành 2 mảng
                `sales` (mủ thu mua) và `sales_own` (mủ khai thác)
   stock      — Tồn kho: NHIỀU dòng / (đơn vị, ngày) → gom thành 3 khối tồn kho (chưa nhập kho ·
@@ -32,8 +33,8 @@ from app.core import request_ctx
 from app.core.market_meta import PURCHASE_PRICE_UNIT, UNIT_GRADES
 from app.core.paths import bulletin_dir
 from app.core.market_meta import PURCHASE_SOURCE_UNIT
-from app.services import member_unit_repo, price_repo, unit_daily_repo
-from app.services.unit_daily_fields import FINISHED_TABLE, SALE_TABLES
+from app.services import member_unit_repo, price_repo, unit_daily_excel_purchase, unit_daily_repo
+from app.services.unit_daily_fields import SALE_TABLES
 
 _BULLETIN = bulletin_dir()
 if str(_BULLETIN) not in sys.path:
@@ -87,15 +88,20 @@ _DATE_COL = Col("as_of", "Ngày", "dd/mm/yyyy", required=True, type="date")
 SPECS: dict[str, Spec] = {
     "purchase": Spec(
         "BIỂU NHẬP — THU MUA", "Thu mua",
-        "Mủ nước / mủ chén / mủ dây: mỗi đơn vị 1 dòng / 1 ngày, sản lượng khai theo TẤN QUY KHÔ. "
+        "Mủ nước / mủ chén / mủ dây: sản lượng khai theo TẤN QUY KHÔ. "
         "Đơn giá ghi vào kho 'Giá mủ nguyên liệu'. Đơn giá mủ nước theo độ TSC, mủ chén và mủ dây "
-        "theo độ DRC (cố định, không còn cột chọn). "
+        "theo độ DRC (cố định, không còn cột chọn) — mỗi loại mủ MỘT giá cho cả ngày, điền ở dòng "
+        "đầu. "
+        "Muốn TÁCH CHỦNG LOẠI mủ nguyên liệu thì mỗi chủng loại 1 dòng, điền cột 'Chủng loại mủ "
+        "nguyên liệu' rồi ghi sản lượng vào đúng cột mủ nước / mủ chén / mủ dây; tổng của loại mủ "
+        "đó hệ thống tự cộng. Không tách chủng loại thì để trống cột đó và khai 1 dòng tổng như cũ. "
         "THU MUA THÀNH PHẨM tính theo CHỦNG LOẠI: mua mấy chủng loại thì thêm bấy nhiêu dòng cho "
-        "cùng (đơn vị, ngày) — các cột mủ nước/mủ chén/mủ dây chỉ điền ở dòng đầu, dòng sau để "
-        "trống. "
+        "cùng (đơn vị, ngày). "
         "File có dòng thành phẩm sẽ GHI ĐÈ toàn bộ phần thành phẩm của ngày đó; không có dòng nào "
         "thì phần thành phẩm đã nhập trên web được giữ nguyên.",
         [_UNIT_COL, _DATE_COL,
+         Col(unit_daily_excel_purchase.GRADE_COL, "Chủng loại mủ nguyên liệu",
+             "để trống = dòng tổng", type="enum", choices={g: g for g in GRADES}, width=24),
          Col("latex_wet", "SL thu mua mủ nước", "tấn"),
          Col("coagulum", "SL thu mua mủ chén", "tấn"),
          Col("lace", "SL thu mua mủ dây", "tấn", width=18),
@@ -187,8 +193,13 @@ def template_columns(kind: str, allowed_units: list[str] | None) -> tuple[list[C
     return cols, only
 
 
-def build_template(kind: str, allowed_units: list[str] | None = None) -> bytes:
-    """Sinh file Excel mẫu: header + đơn vị tính + ô chọn sẵn (dropdown) + sheet Danh mục."""
+def build_template(kind: str, allowed_units: list[str] | None = None,
+                   rows: list[dict[str, Any]] | None = None) -> bytes:
+    """Sinh file Excel mẫu: header + đơn vị tính + ô chọn sẵn (dropdown) + sheet Danh mục.
+
+    Truyền `rows` ({khoá cột: giá trị}) để XUẤT số liệu đã nhập vào đúng file mẫu đó — người dùng
+    sửa rồi nộp lại được ngay. Xuất số liệu Thu mua: dựng dòng bằng `unit_daily_excel_purchase`.
+    """
     spec = SPECS[kind]
     units = allowed_units if allowed_units else member_unit_repo.active_names()
     cols, only = template_columns(kind, allowed_units)
@@ -237,6 +248,10 @@ def build_template(kind: str, allowed_units: list[str] | None = None) -> bytes:
         ranges[c.key] = f"'Danh mục'!${letter}$2:${letter}${len(c.choices or {}) + 1}"
 
     first, last = head + 2, head + 501          # 500 dòng cho người dùng nhập
+    for r, row in enumerate(rows or [], start=first):
+        for i, c in enumerate(cols, start=1):
+            if row.get(c.key) is not None:
+                ws.cell(row=r, column=i, value=row[c.key])
     for i, c in enumerate(cols, start=1):
         rng = ranges.get(c.key)
         if not rng:
@@ -457,39 +472,20 @@ def _commit_rows(kind: str, rows: list[dict], username: str | None,
     saved = 0
     for (company, as_of), items in grouped.items():
         if kind == "purchase":
-            # Mủ nước/mủ chén là số CỦA NGÀY (1 giá trị), thành phẩm là NHIỀU DÒNG theo chủng loại
-            # → lấy ô đầu tiên có số cho phần theo ngày, gom mọi dòng có chủng loại cho thành phẩm.
-            first = lambda k: next((r.get(k) for r in items if r.get(k) is not None), None)  # noqa: E731
-            it = {k: first(k) for k in ("latex_wet", "coagulum", "lace",
-                                        "price_latex", "price_cup", "price_lace")}
             # MERGE: giữ các ô đã nhập trên web mà file không có (cờ không thu mua, đơn giá nội tệ…).
             cur = unit_daily_repo.entries_on("purchase", as_of).get(company) or {}
-            fields = dict(cur.get("fields") or {})
-            fields.update({k: v for k, v in it.items()
-                           if v is not None
-                           and k in ("latex_wet", "coagulum", "lace")})
-            # Thành phẩm: tỷ giá không có trong file → lấy lại tỷ giá đã nhập trên web (nếu có).
-            old_fx = next((r.get("fx") for r in (fields.get(FINISHED_TABLE) or [])
-                           if isinstance(r, dict) and r.get("fx")), None)
-            finished = [{"grade": r["finished_grade"], "qty": r.get("finished_qty"),
-                         "price": r.get("finished_price"),
-                         "ccy": (ccy := r.get("finished_ccy") or "VND"),
-                         "fx": old_fx if ccy == "USD" else None}
-                        for r in items if r.get("finished_grade")]
-            if finished:
-                fields[FINISHED_TABLE] = finished
-                if old_fx is None and any(r["ccy"] == "USD" for r in finished):
-                    warnings.append(
-                        f"{company} {as_of}: có dòng thành phẩm bằng USD chưa có tỷ giá "
-                        f"(nhập tỷ giá ở màn Thu mua rồi lưu lại).")
+            fields, warns = unit_daily_excel_purchase.fields_from_rows(items, cur.get("fields"))
+            warnings.extend(f"{company} {as_of}: {w}" for w in warns)
             unit_daily_repo.upsert("purchase", as_of, company, fields, username)
+            # Đơn giá là số CỦA NGÀY (1 giá / loại mủ) → lấy ô đầu tiên có số trong các dòng.
             for key, ptype in (("price_latex", "purchase"), ("price_cup", "purchase_cup"),
                                ("price_lace", "purchase_lace")):
-                if it.get(key) is not None:
+                px = next((r.get(key) for r in items if r.get(key) is not None), None)
+                if px is not None:
                     # Giá trong biểu Thu mua là số ĐƠN VỊ khai → lớp riêng, không đè giá chuyên viên.
                     price_repo.upsert_record({
                         "as_of": as_of, "source": PURCHASE_SOURCE_UNIT, "grade": company, "contract": "",
-                        "price_type": ptype, "price": float(it[key]),
+                        "price_type": ptype, "price": float(px),
                         "currency": "VND", "unit": PURCHASE_PRICE_UNIT[ptype]})
         else:
             # MERGE: giữ nguyên phần còn lại của bản ghi ngày đó.

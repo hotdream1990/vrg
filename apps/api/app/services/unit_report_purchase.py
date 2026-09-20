@@ -51,6 +51,10 @@ def _close_purchase(g: dict) -> dict[str, Any]:
         g[f"price_{m}_avg"] = avg(*w[m])
     fin_avg = avg(*fin)
     g["price_finished_avg"] = (fin_avg / TRIEU) if fin_avg is not None else None  # triệu đ/tấn
+    # Tử/mẫu của giá BQ thành phẩm — bảng chéo chủng loại cần để gộp ô bằng BQ GIA QUYỀN
+    # (xem `unit_scorecard_grade`), cộng thẳng hai con số giá là sai.
+    g["finished_revenue_vnd"] = fin[0] or None
+    g["finished_priced_qty"] = fin[1] or None
     for m in rows_mod.MATERIALS:
         g[f"qty_{m}"] = g[f"qty_{m}"] or None
     g["qty_total"] = g["qty_total"] or None
@@ -95,9 +99,12 @@ def purchase_report(date_from: str, date_to: str, *, companies: str | None = Non
     rows = filter_scope(merge_rollup(data["rows"], split_merged), view, regs)
     if mats:
         rows = [r for r in rows if r["material"] in set(mats)]
-    if grds:   # chủng loại chỉ áp cho mủ thành phẩm (mủ nước/chén không có chủng loại)
+    if grds:
+        # Trước 20/09/2026 chủng loại chỉ có ở thành phẩm. Nay mủ nguyên liệu cũng tách được, nên
+        # lọc thẳng theo `grade`: ngày CHƯA tách mang nhãn loại mủ ("Mủ nước"…) nên vẫn bị loại
+        # khỏi bộ lọc chủng loại, đúng như cách cũ.
         keep = set(grds)
-        rows = [r for r in rows if r["material"] == "finished" and r["grade"] in keep]
+        rows = [r for r in rows if r["grade"] in keep]
 
     key_of = GROUPERS[group_by]
     groups: dict[str, dict] = {}
