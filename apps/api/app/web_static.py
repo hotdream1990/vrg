@@ -39,9 +39,18 @@ def mount_spa(app: FastAPI, app_env: str) -> bool:
     if assets.is_dir():
         app.mount("/assets", StaticFiles(directory=assets), name="assets")
 
+    # `index.html` KHÔNG được để trình duyệt tự đoán thời hạn lưu đệm. Không có `Cache-Control`,
+    # trình duyệt áp quy tắc suy đoán (~10% khoảng thời gian kể từ `Last-Modified`): bản cũ để 3
+    # ngày ⇒ giữ tới ~7 tiếng mà KHÔNG hỏi lại máy chủ, nên sau khi deploy người dùng vẫn nhận
+    # index.html cũ → nó trỏ sang bundle JS cũ → "đã deploy mà không thấy gì đổi"
+    # (chủ dự án gặp đúng ca này 20/09/2026, phải mở cửa sổ ẩn danh mới thấy).
+    # `no-cache` = VẪN lưu, nhưng lần nào cũng hỏi lại; file ~1KB, không đổi thì trả 304.
+    # Các file trong /assets giữ nguyên lưu đệm dài vì tên đã có mã băm — đổi nội dung là đổi tên.
+    _HTML_HEADERS = {"Cache-Control": "no-cache"}
+
     @app.get("/", include_in_schema=False)
     async def _root() -> FileResponse:
-        return FileResponse(index)
+        return FileResponse(index, headers=_HTML_HEADERS)
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def _spa_fallback(full_path: str) -> FileResponse:
@@ -52,6 +61,7 @@ def mount_spa(app: FastAPI, app_env: str) -> bool:
         # Chống path traversal: target phải nằm trong dist và là file thật.
         if full_path and dist in target.parents and target.is_file():
             return FileResponse(target)
-        return FileResponse(index)  # deep-link React Router → trả index.html
+        # deep-link React Router → trả index.html (cùng luật lưu đệm với "/")
+        return FileResponse(index, headers=_HTML_HEADERS)
 
     return True
