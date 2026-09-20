@@ -224,7 +224,7 @@ CARRY_LOOKBACK_DAYS = 30
 
 
 def stock_rows(as_of: str, companies: list[str] | None = None, all_days: bool = False,
-               days_back: int = 0) -> dict[str, Any]:
+               days_back: int = 0, with_contracts: bool = True) -> dict[str, Any]:
     """Tồn kho tại NGÀY CHỐT `as_of` — ảnh chụp, KHÔNG cộng dồn giữa các ngày.
 
     Quy tắc lấy số của một đơn vị cho một ngày (chốt với chủ đề án 21/08/2026):
@@ -284,7 +284,10 @@ def stock_rows(as_of: str, companies: list[str] | None = None, all_days: bool = 
         for company, entry in snap.items():
             kept[(company, day) if all_days else company] = (entry, day)
 
-    undelivered = _undelivered_by_snapshot([e for e, _ in kept.values()])
+    # Khối "đã ký HĐ chưa giao" phải hỏi hợp đồng MỘT LẦN MỖI NGÀY của ảnh chụp — cửa sổ 60 ngày
+    # của biểu đồ Dashboard tốn ~5,8s chỉ cho khối này. Người gọi nào không dùng tới nó
+    # (`unit_series_stock` với cách xem kho/chủng loại/khu vực) thì tắt đi.
+    undelivered = _undelivered_by_snapshot([e for e, _ in kept.values()]) if with_contracts else {}
     rows: list[dict[str, Any]] = []
     for entry, day in kept.values():
         base = _base(entry, meta)

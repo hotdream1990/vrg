@@ -124,7 +124,10 @@ def stock_series(date_from: str, date_to: str, group_by: str = "warehouse") -> d
     if group_by not in GROUPS:
         group_by = "warehouse"
     days = days_between(date_from, date_to)
-    raw = unit_report_rows.stock_rows(date_to, all_days=True, days_back=len(days) - 1)
+    # Chỉ 2 cách xem dùng tới khối "đã ký HĐ chưa giao"; 3 cách còn lại (kho · chủng loại ·
+    # khu vực) không đụng tới `signed`, mà khối đó là phần đắt nhất của cả chuỗi.
+    raw = unit_report_rows.stock_rows(date_to, all_days=True, days_back=len(days) - 1,
+                                      with_contracts=group_by in ("structure", "free_grade"))
     stock, wh, signed, regions = _collect(raw["rows"])
     pairs = member_unit_merge.merge_pairs()
 
