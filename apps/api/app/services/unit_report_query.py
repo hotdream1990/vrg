@@ -32,6 +32,20 @@ def label_of(labels: dict[str, str], v: str | None) -> str:
     return labels.get(v or "", UNKNOWN_LABEL)
 
 
+#: Dấu nối khoá nhóm GHÉP ĐÔI (đơn vị × chủng loại) — ký tự điều khiển ASCII nên không thể trùng
+#: với tên đơn vị hay tên chủng loại do người dùng đặt.
+PAIR_SEP = "\u001f"
+
+
+def pair(scope: str, grade: str | None) -> str:
+    return f"{scope}{PAIR_SEP}{grade or UNKNOWN_LABEL}"
+
+
+def unpair(key: str) -> tuple[str, str]:
+    scope, _, grade = key.partition(PAIR_SEP)
+    return scope, grade
+
+
 #: group_by → hàm lấy nhãn nhóm của 1 dòng chi tiết.
 GROUPERS: dict[str, Callable[[dict], str | None]] = {
     "company": lambda r: r.get("company"),
@@ -42,6 +56,10 @@ GROUPERS: dict[str, Callable[[dict], str | None]] = {
     "contract": lambda r: label_of(CONTRACT_LABELS, r.get("contract")),
     "channel": lambda r: label_of(CHANNEL_LABELS, r.get("channel")),
     "source": lambda r: SOURCE_LABELS.get(r.get("source") or ""),
+    # Ghép đôi — phục vụ bảng chéo "đơn vị × chủng loại" của màn Chỉ số đơn vị. Nhờ đi qua đúng
+    # các hàm gộp sẵn có, giá bình quân ở từng ô vẫn là BQ GIA QUYỀN chứ không phải trung bình cộng.
+    "company+grade": lambda r: pair(r.get("company") or "", r.get("grade")),
+    "region+grade": lambda r: pair(r.get("region") or NO_REGION_LABEL, r.get("grade")),
 }
 
 

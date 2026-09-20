@@ -74,6 +74,7 @@ const ITEM = {
   consumptionReport: { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Báo cáo tiêu thụ" },
   summaryReport: { key: "/bao-cao-tong-hop", icon: <FileDoneOutlined />, label: "Báo cáo tổng hợp" },
   submission: { key: "/thong-ke/tinh-trang-nop", icon: <CheckSquareOutlined />, label: "Theo dõi nộp báo cáo" },
+  unitScorecard: { key: "/chi-so-don-vi", icon: <BarChartOutlined />, label: "Chỉ số đơn vị" },
   statPurchase: { key: "/thong-ke/thu-mua", icon: <ShoppingOutlined />, label: "Thống kê thu mua" },
   statStock: { key: "/thong-ke/ton-kho", icon: <InboxOutlined />, label: "Thống kê tồn kho" },
   statConsumption: { key: "/thong-ke/tieu-thu", icon: <ExportOutlined />, label: "Thống kê tiêu thụ" },
@@ -127,6 +128,7 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean, pendingEditRequ
     can("sales_contract") && ITEM.contracts,
   ]));
   items.push(...group("stats", <BarChartOutlined />, "Báo cáo & Thống kê", [
+    can("unit_daily") && ITEM.unitScorecard,
     can("sales_contract") && ITEM.consumptionReport,
     can("unit_daily") && ITEM.summaryReport,
     can("unit_daily") && ITEM.submission,
@@ -172,6 +174,7 @@ function buildExecutiveMenu(can: (cap: Cap) => boolean) {
       can("assistant") && ITEM.assistantHistory,
     ]),
     ...group("stats", <BarChartOutlined />, "Báo cáo & Thống kê", [
+      can("unit_daily") && ITEM.unitScorecard,
       can("unit_daily") && ITEM.summaryReport,
       can("sales_contract") && ITEM.consumptionReport,
       can("unit_daily") && ITEM.statPurchase,

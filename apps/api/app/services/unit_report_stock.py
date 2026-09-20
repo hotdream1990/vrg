@@ -17,8 +17,8 @@ from typing import Any
 
 from app.services import member_unit_merge, unit_report_rows
 from app.services.unit_report_query import (
-    dmy, filter_scope, merge_rollup, merge_scope, merge_view, report_units, sort_groups,
-    split_csv,
+    NO_REGION_LABEL, dmy, filter_scope, merge_rollup, merge_scope, merge_view, report_units,
+    sort_groups, split_csv,
 )
 
 _BLOCK_KEY = {"stock_not_warehoused": "not_warehoused", "stock_warehoused": "warehoused"}
@@ -202,16 +202,17 @@ def stock_report(as_of: str, days_back: int = 0, *, companies: str | None = None
         rows, snap = _keep(rows), _keep(snap)
 
     key_of = {"company": lambda r: r["company"],
-              "region": lambda r: r.get("region") or "(Chưa gán khu vực)",
+              "region": lambda r: r.get("region") or NO_REGION_LABEL,
               "grade": lambda r: r["grade"],
               "day": lambda r: r["as_of"]}[group_by]
+    by_grade_split = group_by == "grade"
     groups: dict[str, dict] = {}
     for r in rows:
-        if group_by == "grade" and r["block"] == "stock_material":
+        if by_grade_split and r["block"] == "stock_material":
             continue          # tồn nguyên liệu không thuộc chủng loại nào → chỉ tính ở dòng Tổng
         k = key_of(r)
         g = groups.get(k) or groups.setdefault(k, _new_group(k, r.get("region") if group_by == "company" else None))
-        _feed(g, r, with_grade=group_by != "grade")
+        _feed(g, r, with_grade=not by_grade_split)
 
     # Dòng Tổng cộng LUÔN là ảnh chụp tại ngày chốt (kể cả khi nhóm theo ngày): tồn kho là số thời
     # điểm nên cộng nhiều ngày là tính trùng chính lô hàng đó.

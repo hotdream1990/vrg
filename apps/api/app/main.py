@@ -50,6 +50,7 @@ from app.routers import (
     support_reminders,
     unit_analytics,
     unit_daily,
+    unit_scorecard,
     users,
     weekly_report_inputs,
     weekly_reports,
@@ -193,6 +194,7 @@ app.include_router(member_anomalies.router, dependencies=_protected)
 app.include_router(edit_requests.router)  # tự gác quyền `edit_request` trong router
 app.include_router(unit_daily.router, dependencies=[Depends(require_cap("unit_daily"))])  # báo cáo tiêu thụ–tồn kho theo ngày (chuyên viên xem/sửa mọi đơn vị)
 app.include_router(unit_analytics.router, dependencies=[Depends(require_cap("unit_daily"))])  # thống kê/lọc số liệu đơn vị đã nhập (chỉ đọc)
+app.include_router(unit_scorecard.router, dependencies=[Depends(require_cap("unit_daily"))])  # chỉ số đơn vị: cây khu vực → đơn vị, nhiều tab (chỉ đọc)
 # Hợp đồng & khách hàng: DÙNG CHUNG cho đơn vị thành viên lẫn chuyên viên — router tự ép phạm vi
 # đơn vị theo tài khoản (cap_or_member_scope), nên chỉ gác đăng nhập ở đây.
 app.include_router(customers.router, dependencies=_protected)

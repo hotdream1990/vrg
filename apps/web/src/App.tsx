@@ -46,6 +46,7 @@ import PeriodReportPage from "./features/command-center/pages/PeriodReportPage";
 import ConsumptionStatsPage from "./features/command-center/pages/analytics/ConsumptionStatsPage";
 import PurchaseStatsPage from "./features/command-center/pages/analytics/PurchaseStatsPage";
 import StockStatsPage from "./features/command-center/pages/analytics/StockStatsPage";
+import UnitScorecardPage from "./features/command-center/pages/scorecard/UnitScorecardPage";
 import SubmissionStatusPage from "./features/command-center/pages/analytics/SubmissionStatusPage";
 import UnitDailyPage from "./features/command-center/pages/UnitDailyPage";
 import YearPlanPage from "./features/command-center/pages/YearPlanPage";
@@ -189,6 +190,7 @@ export default function App() {
                   <Route path="/thong-ke-hop-dong" element={<StockContractHistoryRoute />} />
                   {/* Thống kê / kiểm tra số liệu đơn vị đã nhập — CHỈ chuyên viên có quyền `unit_daily` */}
                   <Route element={<RequireCap caps={["unit_daily"]} />}>
+                    <Route path="/chi-so-don-vi" element={<UnitScorecardPage />} />
                     <Route path="/thong-ke/thu-mua" element={<PurchaseStatsPage />} />
                     <Route path="/thong-ke/tieu-thu" element={<ConsumptionStatsPage />} />
                     <Route path="/thong-ke/ton-kho" element={<StockStatsPage />} />

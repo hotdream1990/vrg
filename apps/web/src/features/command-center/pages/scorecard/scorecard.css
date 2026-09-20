@@ -1,0 +1,131 @@
+/* Màn "Chỉ số đơn vị" — bảng cây hai cấp, nhiều cột nên cuộn ngang; cột tên GIM TRÁI để khi cuộn
+   vẫn biết đang đọc dòng của đơn vị nào. */
+
+.sc-wrap {
+  padding: 0;
+  overflow: auto;
+  max-height: calc(100vh - 300px);
+}
+
+.sc-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.sc-table th,
+.sc-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.sc-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12px;
+  text-align: right;
+  vertical-align: bottom;
+}
+
+.sc-table td.r {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cột tên: gim trái ở cả đầu bảng lẫn thân bảng (góc trên-trái phải đè lên header). */
+.sc-table .sc-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  min-width: 300px;
+  background: var(--card);
+}
+
+.sc-table thead .sc-name {
+  z-index: 3;
+  background: var(--bg);
+}
+
+.sc-sub {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: none;
+}
+
+.sc-note {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.sc-total td {
+  font-weight: 700;
+  background: var(--bg);
+}
+
+.sc-total .sc-name {
+  background: var(--bg);
+}
+
+.sc-region {
+  cursor: pointer;
+}
+
+/* Nền phải là màu ĐẶC (pha với nền thẻ, không pha với transparent): ô tên gim trái nằm đè lên
+   các ô khác khi cuộn ngang, nền trong suốt sẽ để lộ số chạy qua bên dưới. */
+.sc-region td,
+.sc-region .sc-name {
+  background: color-mix(in srgb, var(--info) 10%, var(--card));
+}
+
+.sc-region:hover td,
+.sc-region:hover .sc-name {
+  background: color-mix(in srgb, var(--info) 18%, var(--card));
+}
+
+.sc-unit {
+  padding-left: 34px !important;
+}
+
+.sc-count {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Cảnh báo thiếu số liệu: đơn vị chưa nộp thì ô để TRỐNG, không được hiểu là 0. */
+.sc-warn {
+  color: var(--warning, #d48806);
+}
+
+.sc-dim .sc-name {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.sc-empty {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+/* Thanh chọn chỉ số của tab "Theo chủng loại" — cột đã là chủng loại nên ô chỉ đổ được MỘT chỉ số. */
+.sc-measure {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.sc-measure-unit {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+}
