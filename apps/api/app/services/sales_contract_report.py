@@ -279,6 +279,12 @@ def undelivered_on(as_of: str, companies: list[str] | None = None,
         scope, params["cs"] = "AND company = ANY(:cs)", list(companies)
     sql = _BLOCK3_SQL.format(scope=scope, grade_sql=_GRADE_SQL)
     with session_scope() as db:
+        # Tắt JIT cho RIÊNG truy vấn này. `jsonb_array_elements` làm Postgres ước lượng 243.000
+        # dòng trong khi thực tế ~2.600 → vượt `jit_above_cost` nên nó biên dịch lại toàn bộ mỗi
+        # lượt gọi rồi vứt đi. Đo trên prod 21/09/2026: Emission 56ms trong Execution 144ms;
+        # tắt JIT còn 66ms/lượt. Khối này bị gọi MỘT LẦN MỖI NGÀY của ảnh chụp nên 60 ngày là
+        # gần 4 giây chỉ để biên dịch. `SET LOCAL` chỉ áp trong giao dịch hiện tại.
+        db.execute(text("SET LOCAL jit = off"))
         rows = db.execute(text(sql), params).mappings().all()
 
     per_contract: dict[int, list[dict[str, Any]]] = {}
