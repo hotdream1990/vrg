@@ -24,6 +24,20 @@ _TAB_PATTERN = "^(" + "|".join(TABS) + ")$"
 _MEASURE_PATTERN = "^(" + "|".join(unit_scorecard_grade.MEASURES) + ")$"
 
 
+def _stock_day(date_to: str, as_of: str | None) -> str:
+    """Ngày chốt tồn kho — KHÔNG bao giờ vượt quá hôm nay.
+
+    Kỳ mặc định "Tháng này" kết thúc ở ngày cuối tháng, tức là một ngày TƯƠNG LAI trong gần hết
+    tháng. Lấy thẳng ngày đó làm ngày chốt thì tab Tồn kho luôn trống (chưa ai khai cho tương lai)
+    và cột tồn ở tab Tổng quan cũng trống — trông như hỏng. Kẹp về hôm nay là số liệu mới nhất
+    thật sự có, vẫn đúng nguyên tắc không mượn số ngày khác.
+    """
+    from app.core.edit_window import today
+
+    chosen = as_of or date_to
+    return min(chosen, today().isoformat())
+
+
 def _assert_dates(date_from: str, date_to: str, as_of: str | None) -> None:
     try:
         a, b = date.fromisoformat(date_from), date.fromisoformat(date_to)
@@ -70,7 +84,7 @@ def scorecard(tab: str = Query("overview", pattern=_TAB_PATTERN),
     """Bảng chỉ số của một tab: dòng khu vực (kèm số đơn vị chưa có số) + dòng từng đơn vị."""
     _assert_dates(date_from, date_to, as_of)
     return unit_scorecard.scorecard(
-        tab, date_from=date_from, date_to=date_to, as_of=as_of or date_to,
+        tab, date_from=date_from, date_to=date_to, as_of=_stock_day(date_to, as_of),
         companies=companies, regions=regions, grades=grades, materials=materials,
         contract=contract, channel=channel, source=source, status_kind=status_kind,
         split_merged=split_merged)
@@ -91,7 +105,7 @@ def by_grade(measure: str = Query("con_qty", pattern=_MEASURE_PATTERN),
     """
     _assert_dates(date_from, date_to, as_of)
     return unit_scorecard_grade.by_grade(
-        measure, date_from=date_from, date_to=date_to, as_of=as_of or date_to,
+        measure, date_from=date_from, date_to=date_to, as_of=_stock_day(date_to, as_of),
         companies=companies, regions=regions, grades=None, materials=None,
         contract=contract, channel=channel, source=source, status_kind="purchase",
         split_merged=split_merged)

@@ -250,7 +250,12 @@ def stock_rows(as_of: str, companies: list[str] | None = None, all_days: bool = 
     first_day = end_day - timedelta(days=max(days_back, 0))
     scan_from = (first_day - timedelta(days=CARRY_LOOKBACK_DAYS)).isoformat()
     meta = unit_meta()
-    entries = unit_daily_repo.in_range("consumption", scan_from, as_of, companies)
+    # `attach_contracts=False`: khối "đã ký HĐ chưa giao" được tính RIÊNG bên dưới bằng
+    # `_undelivered_by_snapshot`, chỉ cho các bản ghi THỰC SỰ vào ảnh chụp. Để mặc định True thì
+    # `in_range` hỏi hợp đồng MỘT LẦN MỖI NGÀY trong cả cửa sổ quét lùi 30 ngày rồi vứt đi —
+    # đo trên prod 20/09/2026: 3,46s trong tổng 3,56s của `stock_rows`, bỏ đi còn 0,03s.
+    entries = unit_daily_repo.in_range("consumption", scan_from, as_of, companies,
+                                       attach_contracts=False)
 
     declared: dict[str, dict[str, dict[str, Any]]] = {}   # ngày → {đơn vị: bản ghi có số}
     unchanged: dict[str, set[str]] = {}                   # ngày → đơn vị tick "không phát sinh"
