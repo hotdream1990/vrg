@@ -8,7 +8,24 @@ import { formatViNumber } from "../../../lib/number-format";
 
 // Dùng chung 1 nguồn định dạng số vi-VN (giữ nguyên chữ ký để antd suy kiểu InputNumber<string>).
 export const fmtInput = (v?: string | number): string => formatViNumber(v);
-export const parseInput = (s?: string): string => (s ?? "").replace(/\./g, "").replace(",", ".");
+
+//: Dạng nhóm nghìn kiểu Việt: "1.250" · "12.345.678" — mỗi nhóm sau dấu chấm ĐÚNG 3 chữ số.
+const THOUSANDS = /^-?\d{1,3}(\.\d{3})+$/;
+
+/** Chuỗi người dùng gõ → chuỗi số cho `InputNumber` (giữ nguyên trạng thái đang gõ dở).
+ *
+ *  ⚠ Trước 20/09/2026 hàm này XOÁ MỌI dấu chấm, nên gõ `3.5` ra **35** — sai gấp 10 lần mà không
+ *  có dấu hiệu gì. Bàn phím số của laptop cho ra dấu chấm nên đây là bẫy rất dễ sập.
+ *  Nay theo đúng luật của `parseViNumber` (lib/number-format.ts — nguồn duy nhất): dấu chấm chỉ là
+ *  phân cách nghìn khi chuỗi ĐÚNG dạng nhóm nghìn; còn lại coi là dấu thập phân.
+ *  KHÔNG gọi thẳng `parseViNumber` vì antd gọi hàm này sau MỖI phím: nó phải giữ được trạng thái
+ *  gõ dở như "3," hay "3." (parse ra số sẽ nuốt mất dấu vừa gõ).
+ */
+export const parseInput = (s?: string): string => {
+  const raw = (s ?? "").trim();
+  if (raw.includes(",")) return raw.replace(/\./g, "").replace(",", ".");
+  return THOUSANDS.test(raw) ? raw.replace(/\./g, "") : raw;
+};
 
 /** Hộp ô chỉ đọc (cột suy ra / tự quy đổi) — nền mờ, viền nét đứt. */
 export const readOnlyBox = (text: string, tag: string) => (
@@ -58,4 +75,26 @@ export const fieldLabel = (label: React.ReactNode, unit?: string) => (
   <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 2 }}>
     {label}{unit ? <> <span style={{ opacity: 0.6 }}>({unit})</span></> : null}
   </div>
+);
+
+/** Lưới ô nhập của biểu Thu mua — ô tự xuống dòng theo bề ngang màn hình. */
+export const ENTRY_GRID = {
+  display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))",
+  gap: 10, alignItems: "end",
+} as const;
+
+/** Tiêu đề một khối trong lưới (chiếm trọn bề ngang). `first` = khối đầu, không chừa lề trên. */
+export const sectionHead = (title: string, first?: boolean, hint?: string) => (
+  <div style={{
+    gridColumn: "1 / -1", fontWeight: 600, fontSize: 12.5, opacity: 0.85,
+    marginTop: first ? 0 : 8, paddingBottom: 2, borderBottom: "1px solid rgba(125,125,125,.25)",
+  }}>
+    {title}
+    {hint && <span style={{ fontWeight: 400, opacity: 0.7 }}> ({hint})</span>}
+  </div>
+);
+
+/** Một ô của lưới: nhãn + đơn vị + ô nhập (hoặc hộp chỉ đọc). */
+export const entryField = (label: React.ReactNode, unit: string | undefined, node: React.ReactNode) => (
+  <label style={{ display: "block" }}>{fieldLabel(label, unit)}{node}</label>
 );
