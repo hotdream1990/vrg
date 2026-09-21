@@ -29,6 +29,7 @@ nhận email kết quả.
 | `market_demand` | Nhu cầu thị trường | cửa sổ | `market_demand_repo.upsert` |
 | `contract_save` | Hợp đồng / đợt giao (thêm, sửa) | cửa sổ + chốt theo ngày giao | `sales_contract_repo.save` |
 | `contract_delete` | Xoá hợp đồng / đợt giao | cửa sổ + chốt theo ngày giao | `sales_contract_repo.delete` |
+| `contract_delivery_type` | Chuyển loại giao của hợp đồng (giao 1 lần ↔ giao nhiều lần) | chốt theo ngày giao (KHÔNG có cửa sổ) | `sales_contract_lifecycle.set_delivery_type` |
 
 Không nằm trong phạm vi (không bị hàng rào thời gian): Hợp đồng mẹ, Khách hàng, Kế hoạch năm,
 Excel import (đang tắt), hợp đồng tồn kho cũ (không còn màn gọi).

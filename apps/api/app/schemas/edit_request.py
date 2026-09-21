@@ -49,3 +49,10 @@ class DailyReportRequest(UnitDailyEdit):
 
 class ContractDeleteRequest(BaseModel):
     id: int
+
+
+class ContractDeliveryTypeRequest(BaseModel):
+    """Chuyển loại giao 1 hợp đồng = body của `PUT /api/sales-contracts/{id}/delivery-type` + `id`."""
+
+    id: int
+    delivery_type: str = ""

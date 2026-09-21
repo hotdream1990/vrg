@@ -126,13 +126,29 @@ def set_completion(contract_id: int, completed_at: str | None, companies: list[s
     return after
 
 
+def assert_switchable(contract: dict[str, Any], delivery_type: str, kids: int | None = None) -> None:
+    """Luật của việc CHUYỂN LOẠI GIAO — chỉ kiểm, KHÔNG ghi gì.
+
+    Tách riêng để luồng «Đề nghị sửa» (`edit_request_ops_contract`) kiểm y hệt lúc đơn vị GỬI và
+    lúc Ban mở đề nghị ra xem — không để bấm Duyệt rồi mới biết vướng. `kids` = số đợt giao đã đếm
+    sẵn trong giao dịch ghi thật; None thì tự đếm.
+    """
+    if delivery_type not in DELIVERY_TYPES:
+        raise ValueError(f"Loại giao “{delivery_type}” không hợp lệ.")
+    if contract.get("parent_id") is not None:
+        raise ValueError("Thao tác này chỉ áp dụng cho hợp đồng, không áp dụng cho đợt giao.")
+    repo.assert_open(contract, "chuyển loại giao")
+    if delivery_type == "single":
+        n = len(repo.children(contract["id"])) if kids is None else kids
+        if n:
+            raise ValueError(f"Hợp đồng đang có {n} đợt giao — xoá hết đợt giao rồi mới "
+                             "chuyển về giao 1 lần.")
+
+
 def set_delivery_type(contract_id: int, delivery_type: str, companies: list[str] | None,
                       username: str | None) -> dict[str, Any]:
     """Chuyển hợp đồng giữa giao-1-lần ↔ giao-nhiều-lần, giữ nguyên dữ liệu đã nhập."""
-    if delivery_type not in DELIVERY_TYPES:
-        raise ValueError(f"Loại giao “{delivery_type}” không hợp lệ.")
     before = _load(contract_id, companies)
-    repo.assert_open(before, "chuyển loại giao")
     if before["delivery_type"] == delivery_type:
         return before
 
@@ -140,10 +156,8 @@ def set_delivery_type(contract_id: int, delivery_type: str, companies: list[str]
     with session_scope() as db:
         kids = db.execute(text("SELECT count(*) FROM sales_contract WHERE parent_id = :i"),
                           {"i": contract_id}).scalar() or 0
+        assert_switchable(before, delivery_type, kids=kids)
         if delivery_type == "single":
-            if kids:
-                raise ValueError(f"Hợp đồng đang có {kids} đợt giao — xoá hết đợt giao rồi mới "
-                                 "chuyển về giao 1 lần.")
             db.execute(text("UPDATE sales_contract SET delivery_type = 'single', "
                             "updated_by = :by, updated_at = now() WHERE id = :i"),
                        {"by": username, "i": contract_id})

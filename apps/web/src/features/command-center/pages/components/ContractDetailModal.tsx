@@ -27,7 +27,9 @@ import ContractBatchTable, { Docs } from "./ContractBatchTable";
 import ContractCompleteModal from "./ContractCompleteModal";
 import ContractFormModal from "./ContractFormModal";
 import { lineAmount } from "./ContractLinesTable";
-import { contractDeleteDraft, deleteConfirmText } from "./contract-edit-request";
+import {
+  contractDeleteDraft, contractDeliveryTypeDraft, deleteConfirmText,
+} from "./contract-edit-request";
 
 type Props = {
   contractId: number;
@@ -138,7 +140,9 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
   // Đơn vị đã sáp nhập không đi đường đề nghị sửa (không phải chuyện hàng rào thời gian).
   const canRequest = canEditUnitData && !!c && !(meta.merged_units ?? []).includes(c.company);
 
-  /** Đổi loại giao tại chỗ: lần giao đang nằm trên hợp đồng được dời xuống đợt giao đầu tiên. */
+  /** Đổi loại giao tại chỗ: lần giao đang nằm trên hợp đồng được dời xuống đợt giao đầu tiên.
+   *  Số liệu đã chốt thì server chặn → mở hộp gửi «Đề nghị sửa» (thao tác riêng, không đi kèm
+   *  đề nghị sửa nội dung hợp đồng). */
   const switchType = async () => {
     if (!c) return;
     const to = multi ? "single" : "multi";
@@ -150,7 +154,13 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
             + "đơn, thanh toán, chi tiết hàng). Hợp đồng giữ lại sản lượng đã ký."
           : "Sau đó nhập từng đợt giao cho tới khi hết sản lượng hợp đồng.");
     if (!confirm(msg)) return;
-    await run(() => setContractDeliveryType(c.id as number, to));
+    setBusy(true); setErr("");
+    try {
+      const result = await saveOrRequest(
+        () => setContractDeliveryType(c.id as number, to), contractDeliveryTypeDraft(c, to));
+      if (result === "saved") refresh();     // "requested": popup đã báo, số liệu chưa đổi
+    } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
+    finally { setBusy(false); }
   };
 
   return (

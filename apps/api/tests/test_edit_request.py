@@ -124,3 +124,35 @@ def test_contract_save_delete_and_file_guard(env) -> None:
     rid = send(e["member"], "contract_delete", {"id": cid}).json()["request"]["id"]
     assert approve(e["editor"], rid).status_code == 200
     assert sales_contract_repo.get(cid) is None
+
+
+def test_contract_delivery_type_request_round_trip(env) -> None:
+    """Đổi LOẠI GIAO của hợp đồng đã chốt: đơn vị không tự đổi được ⇒ gửi đề nghị, Ban duyệt mới đổi."""
+    e = env
+    cus = client.put("/api/customers", json={"company": UNIT, "name": "KH loại giao"},
+                     headers=e["admin"]).json()["id"]
+    body = {"company": UNIT, "code": "HD-ER-DT", "customer_id": cus, "contract_type": "spot",
+            "delivery_type": "single", "sign_date": OLD, "delivered_at": OLD, "channel": "domestic",
+            "lines": [{"grade": "SVR 10 / CSR 10", "qty": 12.0, "price": 40.0, "ccy": "VND"}]}
+    cid = client.put("/api/sales-contracts", headers=e["admin"], json=body).json()["contract"]["id"]
+    lock_round(e["admin"], OLD)
+
+    direct = client.put(f"/api/sales-contracts/{cid}/delivery-type", headers=e["member"],
+                        json={"delivery_type": "multi"})
+    assert direct.status_code == 403 and direct.headers.get("X-Edit-Blocked") == "lock"
+    assert send(e["member"], "contract_delivery_type", {"id": cid, "delivery_type": "x"}).status_code == 400
+
+    rid = send(e["member"], "contract_delivery_type", {"id": cid, "delivery_type": "multi"})
+    assert rid.status_code == 200, rid.text
+    req = rid.json()["request"]
+    assert req["blocked"] and req["title"].startswith("Hợp đồng HD-ER-DT — chuyển sang giao nhiều lần")
+    assert sales_contract_repo.get(cid)["delivery_type"] == "single"      # chưa duyệt ⇒ chưa đổi
+
+    assert approve(e["editor"], req["id"]).status_code == 200
+    assert sales_contract_repo.get(cid)["delivery_type"] == "multi"
+    kids = sales_contract_repo.children(cid)
+    assert len(kids) == 1 and kids[0]["delivered_at"] == OLD and kids[0]["qty"] == 12.0
+
+    # Quay về giao 1 lần khi còn đợt giao: chặn NGAY lúc gửi, không để Ban bấm Duyệt mới lỗi.
+    back = send(e["member"], "contract_delivery_type", {"id": cid, "delivery_type": "single"})
+    assert back.status_code == 400 and "xoá hết đợt giao" in back.json()["detail"]

@@ -1,4 +1,5 @@
-"""Thao tác «Đề nghị sửa» cho HỢP ĐỒNG / ĐỢT GIAO: thêm-sửa (`contract_save`) · xoá (`contract_delete`).
+"""Thao tác «Đề nghị sửa» cho HỢP ĐỒNG / ĐỢT GIAO: thêm-sửa (`contract_save`) · xoá
+(`contract_delete`) · chuyển loại giao (`contract_delivery_type`).
 
 Hàng rào = `sales_contract_lock.assert_delivery_fences` (đúng hàm router `/api/sales-contracts` dùng);
 sửa an toàn (`is_safe_edit` — không dịch con số nào) thì không bị chặn nên không cần đề nghị.
@@ -13,10 +14,11 @@ from typing import Any
 from fastapi import HTTPException
 
 from app.core.market_meta import CONTRACT_TYPES, DELIVERY_TYPES, SALE_CHANNELS
-from app.schemas.edit_request import ContractDeleteRequest
+from app.schemas.edit_request import ContractDeleteRequest, ContractDeliveryTypeRequest
 from app.schemas.sales_contract import ContractIn
 from app.services import (
-    customer_repo, master_contract_repo, member_unit_merge, sales_contract_lock, sales_contract_repo,
+    customer_repo, master_contract_repo, member_unit_merge, sales_contract_lifecycle,
+    sales_contract_lock, sales_contract_repo,
 )
 from app.services.edit_request_ops import Op, collect_blocked, parse, uniq_dates
 
@@ -112,7 +114,8 @@ def _save_key(p: dict) -> str:
 
 
 # ── Xoá ──────────────────────────────────────────────────────────────────────
-def _delete_company(_p: dict, before: dict | None) -> str:
+def _record_company(_p: dict, before: dict | None) -> str:
+    """Đơn vị lấy theo BẢN GHI (thao tác chỉ mang `id`) — bản ghi mất rồi thì 404 ngay."""
     if before is None:
         raise HTTPException(404, _NOT_FOUND)
     return before["company"]
@@ -128,6 +131,35 @@ def _delete_apply(p: dict, _requester: str, company: str) -> dict:
     return {"ok": True}
 
 
+# ── Chuyển loại giao ─────────────────────────────────────────────────────────
+def _dtype_validate(payload: Any) -> dict:
+    body = parse(ContractDeliveryTypeRequest, payload)
+    if body.delivery_type not in DELIVERY_TYPES:
+        raise HTTPException(400, f"Loại giao “{body.delivery_type}” không hợp lệ.")
+    return {"id": body.id, "delivery_type": body.delivery_type}
+
+
+def _dtype_precheck(p: dict, before: dict | None) -> None:
+    """ĐÚNG luật của lúc ghi thật (`sales_contract_lifecycle.assert_switchable`): hợp đồng đã hoàn
+    thành, đang có đợt giao mà đòi quay về giao 1 lần… Báo ngay lúc gửi, không đợi Ban bấm Duyệt."""
+    if before is None:
+        raise HTTPException(404, _NOT_FOUND)
+    try:
+        sales_contract_lifecycle.assert_switchable(before, p["delivery_type"])
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+def _dtype_apply(p: dict, requester: str, company: str) -> dict:
+    try:
+        return {"contract": sales_contract_lifecycle.set_delivery_type(
+            p["id"], p["delivery_type"], [company], requester)}
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
 OPS: dict[str, Op] = {
     "contract_save": Op(
         label=lambda _p: "Hợp đồng",
@@ -140,11 +172,26 @@ OPS: dict[str, Op] = {
         label=lambda _p: "Xoá hợp đồng",
         validate=lambda payload: {"id": parse(ContractDeleteRequest, payload).id},
         snapshot=lambda p: sales_contract_repo.get(p["id"]),
-        company=_delete_company, check_scope=_scope, precheck=_delete_precheck, labels=_labels,
+        company=_record_company, check_scope=_scope, precheck=_delete_precheck, labels=_labels,
         target_key=lambda p: f"contract:{p['id']}",
         title=lambda p, b: f"Xoá {_kind(b)} {(b or {}).get('code') or '#' + str(p['id'])}",
         dates=lambda _p, b: uniq_dates((b or {}).get("delivered_at")),
         blocked=lambda u, p, b: collect_blocked(
             lambda: sales_contract_lock.assert_delivery_fences(u, p["id"], None, old=b)),
         apply=_delete_apply),
+    # Chuyển giao-1-lần ↔ giao-nhiều-lần: ô «Loại giao» trên form là ô CHỈ XEM (đổi nó kéo theo
+    # việc dời lần giao xuống đợt giao đầu tiên), nên nó đi bằng một thao tác riêng thay vì nằm
+    # trong `contract_save`. `target_key` dùng chung với hai op kia — một bản ghi chỉ có một đề
+    # nghị đang chờ.
+    "contract_delivery_type": Op(
+        label=lambda _p: "Chuyển loại giao hợp đồng",
+        validate=_dtype_validate, snapshot=lambda p: sales_contract_repo.get(p["id"]),
+        company=_record_company, check_scope=_scope, precheck=_dtype_precheck, labels=_labels,
+        target_key=lambda p: f"contract:{p['id']}",
+        title=lambda p, b: (f"Hợp đồng {(b or {}).get('code') or '#' + str(p['id'])} — chuyển sang "
+                            f"{DELIVERY_TYPES[p['delivery_type']].lower()}"),
+        dates=lambda _p, b: uniq_dates((b or {}).get("delivered_at")),
+        blocked=lambda u, _p, b: collect_blocked(
+            lambda: sales_contract_lock.assert_switch_fences(u, b)),
+        apply=_dtype_apply),
 }

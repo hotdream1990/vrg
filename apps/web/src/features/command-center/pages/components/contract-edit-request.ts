@@ -18,6 +18,16 @@ export const contractSaveDraft = (body: Contract, before: Contract | null | unde
   dates: uniqDates(before?.delivered_at, body.delivered_at),
 });
 
+/** Chuyển loại giao (giao 1 lần ↔ giao nhiều lần) — thao tác riêng, không nằm trong `contract_save`:
+ *  đổi loại giao còn kéo theo việc dời lần giao xuống đợt giao đầu tiên. */
+export const contractDeliveryTypeDraft = (c: Contract, to: "single" | "multi"): EditRequestDraft => ({
+  op: "contract_delivery_type",
+  payload: { id: c.id, delivery_type: to },
+  title: `Hợp đồng ${c.code} — chuyển sang ${to === "multi" ? "giao nhiều lần" : "giao 1 lần"}`,
+  company: c.company,
+  dates: uniqDates(c.delivered_at),
+});
+
 export const contractDeleteDraft = (c: Contract): EditRequestDraft => ({
   op: "contract_delete",
   payload: { id: c.id },

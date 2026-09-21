@@ -61,6 +61,13 @@ const CONTRACT_LABELS: Record<string, string> = {
   certs: "Chứng chỉ", premium: "Premium", premium_ccy: "Loại tiền premium",
 };
 
+/** Mã loại giao → chữ (khớp `DELIVERY_TYPES` ở server, bỏ phần giải thích trong ngoặc). */
+const DELIVERY_TYPE_NAMES: Record<string, string> = {
+  single: "Giao 1 lần", multi: "Giao nhiều lần",
+};
+const deliveryLabel = (v: unknown): unknown =>
+  (typeof v === "string" ? DELIVERY_TYPE_NAMES[v] ?? v : v);
+
 /** Nhãn nhu cầu thị trường — phần còn lại (khách hàng, giao tại, thời gian giao, kết quả…) lấy từ audit-diff. */
 const DEMAND_LABELS: Record<string, string> = { as_of: "Ngày nhận", currency: "Đơn vị giá" };
 
@@ -119,6 +126,13 @@ function project(req: Pick<EditRequest, "op" | "payload">, o: Obj | null, side: 
       return side === "payload" ? p : pickKeys(o, p);
     case "contract_delete":
       return side === "payload" ? null : o;
+    case "contract_delivery_type":
+      // Chỉ một ô đổi — so nguyên bản ghi thì bảng đầy những dòng không liên quan. Đổi mã sang
+      // chữ ngay ở đây (như nhu cầu thị trường) để màn của ĐƠN VỊ cũng đọc được, không phụ thuộc
+      // bảng nhãn mà chỉ trang duyệt mới có.
+      return side === "payload"
+        ? { delivery_type: deliveryLabel(p.delivery_type) }
+        : o && { delivery_type: deliveryLabel(o.delivery_type) };
     case "demand_save":
       // Bản ghi có thêm legacy/created_*… — chỉ so các khoá của thân PUT; mã → nhãn cho dễ đọc.
       return labelDemandCodes(side === "payload" ? p : pickKeys(o, p));

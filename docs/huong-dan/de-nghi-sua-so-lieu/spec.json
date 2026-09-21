@@ -193,12 +193,14 @@
     "Tìm hợp đồng hoặc đợt giao cần sửa. Dòng nào ghi **(chỉ xem)** là đã quá hạn tự sửa.",
     "Bấm **Đề nghị sửa** để mở đúng biểu hợp đồng ở chế độ đề nghị, sửa rồi gửi kèm lý do.",
     "Bấm **Đề nghị xoá** nếu hợp đồng hoặc đợt giao đó bị nhập thừa. Hệ thống hỏi lại trước khi gửi.",
-    "Nếu chỉ **thêm hoặc bớt file đính kèm** mà không đụng đến con số, hệ thống lưu thẳng và báo “Đã lưu trực tiếp” — không phải chờ Ban duyệt."
+    "Nếu chỉ **thêm hoặc bớt file đính kèm** mà không đụng đến con số, hệ thống lưu thẳng và báo “Đã lưu trực tiếp” — không phải chờ Ban duyệt.",
+    "Cần đổi **loại giao**? Ô **Loại giao** trên biểu hợp đồng chỉ để xem. Mở hợp đồng ra, bấm **Chuyển sang giao nhiều lần** ở đầu màn chi tiết; hợp đồng đã khoá thì hệ thống cũng mở hộp gửi đề nghị, viết lý do rồi gửi như ở mục 3."
    ],
    "notes": [
     "Hợp đồng đang ở trạng thái **Hoàn thành** thì khoá hẳn. Mở hợp đồng ra, bấm **Mở lại hợp đồng**, rồi mới đề nghị sửa được.",
     "Đơn vị đã sáp nhập không gửi đề nghị cho số liệu cũ được; phần đó chỉ để tra cứu.",
-    "Thêm hợp đồng hoặc đợt giao mà gõ trùng số đã có, hệ thống báo đỏ ngay trên biểu và nêu bản ghi đang có — chưa mời gửi đề nghị. Là lần giao mới thì đặt số khác (vd Đợt 3). Muốn sửa bản ghi cũ thì mở đúng bản ghi đó rồi bấm Sửa hoặc Đề nghị sửa."
+    "Thêm hợp đồng hoặc đợt giao mà gõ trùng số đã có, hệ thống báo đỏ ngay trên biểu và nêu bản ghi đang có — chưa mời gửi đề nghị. Là lần giao mới thì đặt số khác (vd Đợt 3). Muốn sửa bản ghi cũ thì mở đúng bản ghi đó rồi bấm Sửa hoặc Đề nghị sửa.",
+    "Chuyển sang giao nhiều lần thì lần giao đã nhập tự thành **đợt giao đầu tiên** — giữ nguyên ngày giao, hoá đơn, thanh toán và chi tiết hàng, không phải nhập lại. Muốn quay về giao 1 lần thì phải xoá hết các đợt giao trước đã."
    ]
   },
   {

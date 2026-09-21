@@ -142,3 +142,17 @@ def assert_delivery_fences(username: str, contract_id: int | None, new_delivered
     # nhật nhưng tiêu thụ sẽ bị chốt lại"). Hợp đồng và các đợt giao SAU ngày chốt vẫn thêm/sửa.
     security.assert_not_data_locked(username, company or (old or {}).get("company"), *days,
                                     safe_fields=EDITABLE_LABELS)
+
+
+def assert_switch_fences(username: str, old: dict[str, Any] | None) -> None:
+    """Hàng rào thời gian của việc CHUYỂN LOẠI GIAO (giao 1 lần ↔ giao nhiều lần).
+
+    CHỈ hàng rào CHỐT SỐ LIỆU, KHÔNG có cửa sổ sửa — endpoint `/delivery-type` xưa nay như vậy.
+    Chuyển loại giao không dịch con số nào (lần giao được dời nguyên vẹn xuống đợt giao đầu tiên)
+    nhưng nó đổi CHỖ ghi nhận, nên kỳ đã chốt thì đơn vị phải đi qua «Đề nghị sửa».
+    Dùng chung cho router hợp đồng và `edit_request_ops_contract` — một luật, một chỗ.
+    """
+    from app.core import security
+
+    old = old or {}
+    security.assert_not_data_locked(username, old.get("company"), old.get("delivered_at"))

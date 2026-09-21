@@ -20,6 +20,7 @@ Payload = đúng body của API ghi gốc (để web gửi lại y nguyên thứ
 | `market_demand` | `{company, as_of, content, create_only?}` — **không** thuộc chốt số liệu: duyệt không gỡ chốt | `[as_of]` | `demand:{as_of}` |
 | `contract_save` | body của `PUT /api/sales-contracts` (`ContractIn`) | ngày giao cũ + mới (khác null) | `contract:{id}` · thêm mới: `contract:new:{parent_id or 0}:{code chữ thường}` |
 | `contract_delete` | `{id}` | ngày giao đang lưu | `contract:{id}` |
+| `contract_delivery_type` | `{id, delivery_type}` — ô «Loại giao» là ô CHỈ XEM trên form nên đi bằng thao tác riêng (đổi loại giao còn dời lần giao xuống đợt giao đầu tiên) | ngày giao đang lưu | `contract:{id}` |
 
 `create_only: true` (nút Thêm) chỉ kiểm LÚC GỬI, không lưu vào `payload` của đề nghị: ngày đó đã có
 số ⇒ `409` đúng câu của API ghi thẳng — biểu ngày: "Đơn vị này đã có số liệu cho ngày này — vui lòng
@@ -48,7 +49,8 @@ interface EditRequest {
   review_note: string | null;
   unlocked: { round_id: number; lock_date: string }[] | null;   // đợt chốt đã gỡ khi duyệt
 }
-type EditRequestOp = "daily_report" | "daily_move" | "market_demand" | "contract_save" | "contract_delete";
+type EditRequestOp = "daily_report" | "daily_move" | "market_demand" | "contract_save"
+                   | "contract_delete" | "contract_delivery_type";
 interface Paged { items: EditRequest[]; total: number; page: number; page_size: number;
                   counts: { pending: number; approved: number; rejected: number; cancelled: number } }
 ```
@@ -56,7 +58,7 @@ interface Paged { items: EditRequest[]; total: number; page: number; page_size: 
 - `daily_report`: `{fields: {...payload ngày đó} | null, prices: {purchase?, purchase_cup?, purchase_lace?}}` (giá lớp `vrg_unit`)
 - `daily_move`: `{fields: {...payload ngày as_of} | null, to_date_has_entry: boolean}`
 - `market_demand`: `{content: string}`
-- `contract_save` / `contract_delete`: bản ghi hợp đồng (`sales_contract_repo.get`) hoặc null
+- `contract_save` / `contract_delete` / `contract_delivery_type`: bản ghi hợp đồng (`sales_contract_repo.get`) hoặc null
 
 ## 3. Phía ĐƠN VỊ — `get_unit_user` (leader chỉ GET)
 | Method | Path | Body / query | Trả |

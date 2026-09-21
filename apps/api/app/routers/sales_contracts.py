@@ -25,7 +25,6 @@ from app.core.market_meta import (
     SALE_CURRENCIES,
     UNIT_GRADES,
 )
-from app.core import security
 from app.core.permissions import LEVEL_EDIT
 from app.core.security import cap_or_member_scope
 from app.schemas.sales_contract import CompletionIn, ContractIn, DeliveryTypeIn
@@ -352,11 +351,9 @@ def set_delivery_type(contract_id: int, body: DeliveryTypeIn, scope: EditScope) 
     nguyên ngày giao / hoá đơn / thanh toán / dòng chi tiết.
     """
     username, companies = scope
-    # Chuyển loại giao của một hợp đồng ĐÃ GIAO là dời chỗ ghi nhận tiêu thụ → chặn nếu đã chốt.
-    # CHỈ hàng rào chốt, KHÔNG thêm cửa sổ sửa: endpoint này xưa nay không bị cửa sổ chặn, siết
-    # thêm ở đây là đổi hành vi ngoài phạm vi việc đang làm.
-    _old = sales_contract_repo.get(contract_id) or {}
-    security.assert_not_data_locked(username, _old.get("company"), _old.get("delivered_at"))
+    # Chuyển loại giao của một hợp đồng ĐÃ GIAO là dời chỗ ghi nhận tiêu thụ → chặn nếu đã chốt
+    # (luật ở `sales_contract_lock.assert_switch_fences`, dùng chung với luồng «Đề nghị sửa»).
+    sales_contract_lock.assert_switch_fences(username, sales_contract_repo.get(contract_id))
     try:
         return {"contract": sales_contract_lifecycle.set_delivery_type(
             contract_id, body.delivery_type, companies, username)}
