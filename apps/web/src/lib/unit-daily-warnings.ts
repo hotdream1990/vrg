@@ -11,7 +11,7 @@ import {
   boundWarning, fxWarning, priceBound,
 } from "./entry-bounds";
 import type { ConsumptionData, StockQtyLine } from "./unit-daily-consumption";
-import { type MaterialGradeLine, MATERIALS } from "./unit-daily-purchase";
+import { MATERIALS } from "./unit-daily-purchase";
 
 /** Một cảnh báo: `where` = chỉ đường tới ô (bảng · dòng · cột), `message` = lý do. */
 export type EntryWarning = { where: string; message: string };
@@ -60,11 +60,6 @@ export type PurchaseValues = {
   price_latex_vnd?: number | null;
   price_cup_vnd?: number | null;
   price_lace_vnd?: number | null;
-  // Bảng CHỦNG LOẠI của từng loại mủ (chốt 20/09/2026) — khoá lấy từ `MATERIALS[].table`:
-  // `latex_grades` · `cup_grades` · `lace_grades`. Ô tổng ở trên là số đã cộng từ các dòng này.
-  latex_grades?: MaterialGradeLine[];
-  cup_grades?: MaterialGradeLine[];
-  lace_grades?: MaterialGradeLine[];
   finished?: { grade?: string; qty?: number | null; price?: number | null;
                ccy?: string; fx?: number | null }[];
 };
@@ -72,20 +67,12 @@ export type PurchaseValues = {
 /** Toàn bộ cảnh báo của biểu THU MUA (3 loại mủ nguyên liệu đọc chung cấu hình `MATERIALS`). */
 export function purchaseWarnings(d: PurchaseValues): EntryWarning[] {
   const v = d as unknown as Record<string, unknown>;
-  const materials = MATERIALS.flatMap((m) => [
-    ...keep([
-      { where: `${m.label} · Sản lượng thu mua`,
-        message: boundWarning(v[m.total] as number | null, TONNES_DAILY) },
-      { where: `${m.label} · Đơn giá thu mua`,
-        message: boundWarning(v[m.vndKey] as number | null, m.priceBound) },
-    ]),
-    // Từng dòng chủng loại: sai đơn vị tính ở dòng lẻ thì ô tổng (số đã cộng) có thể vẫn "trông
-    // hợp lý" — phải chỉ thẳng ra dòng nào sai, vì bảng còn cuộn ngang.
-    ...((v[m.table] as MaterialGradeLine[] | undefined) ?? []).flatMap((r, i) => keep([
-      { where: `${m.label} · chủng loại dòng ${i + 1} · Sản lượng`,
-        message: boundWarning(r.qty, TONNES_DAILY) },
-    ])),
-  ]);
+  const materials = MATERIALS.flatMap((m) => keep([
+    { where: `${m.label} · Sản lượng thu mua`,
+      message: boundWarning(v[m.total] as number | null, TONNES_DAILY) },
+    { where: `${m.label} · Đơn giá thu mua`,
+      message: boundWarning(v[m.vndKey] as number | null, m.priceBound) },
+  ]));
   const finished = (d.finished ?? []).flatMap((ln, i) => {
     const at = `Thu mua thành phẩm · dòng ${i + 1}`;
     return keep([

@@ -143,12 +143,11 @@ def test_template_download_then_import_roundtrip() -> None:
         # Thu mua thành phẩm theo CHỦNG LOẠI: 2 dòng cho cùng (đơn vị, ngày) — số mủ nguyên liệu
         # chỉ điền ở dòng đầu, dòng sau để trống (đúng cách hướng dẫn trong file mẫu).
         # Không còn cột "Đơn giá mủ chén tính theo": mủ chén LUÔN theo độ DRC (chốt 17/08/2026).
-        # Thứ tự cột: đơn vị · ngày · CHỦNG LOẠI mủ NL (để trống = dòng tổng, xem
-        #             test_unit_daily_excel_grades) · SL mủ nước · SL mủ chén · SL mủ dây
+        # Thứ tự cột: đơn vị · ngày · SL mủ nước · SL mủ chén · SL mủ dây
         #             · đơn giá nước · đơn giá chén · đơn giá dây · chủng loại TP · SL TP · giá TP · tiền TP
-        "purchase": [(unit, dmy, None, 120.0, 50.0, 15.0, 540, 510, 260,
+        "purchase": [(unit, dmy, 120.0, 50.0, 15.0, 540, 510, 260,
                       "SVR CV 50", 30, 41.2, "VND"),
-                     (unit, dmy, None, None, None, None, None, None, None,
+                     (unit, dmy, None, None, None, None, None, None,
                       "SVR 3L", 20, 1800, "USD")],
         # Cột "Nguồn mủ" tách mủ thu mua / mủ khai thác thành 2 bảng lưu riêng.
         # Cột "Số HĐ/PL" = số hợp đồng / phụ lục của dòng bán (và của dòng tồn kho đã ký HĐ).

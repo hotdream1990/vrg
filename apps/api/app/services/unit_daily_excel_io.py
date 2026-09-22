@@ -4,9 +4,8 @@ Mỗi loại biểu khai báo cột MỘT chỗ (`SPECS`) rồi dùng chung cho 
 người dùng nộp → mẫu và bộ đọc không bao giờ lệch nhau.
 
 4 loại (`kind`):
-  purchase   — Thu mua: mủ nguyên liệu (nước/chén/dây) 1 dòng tổng / (đơn vị, ngày), hoặc tách
-               CHỦNG LOẠI thành nhiều dòng; THÀNH PHẨM mỗi chủng loại 1 dòng → xem
-               `unit_daily_excel_purchase`
+  purchase   — Thu mua: mủ nguyên liệu (nước/chén/dây) 1 dòng / (đơn vị, ngày); THÀNH PHẨM nhiều
+               dòng (mỗi chủng loại 1 dòng) → xem `unit_daily_excel_purchase`
   sales      — Tiêu thụ: NHIỀU dòng / (đơn vị, ngày) → tách theo cột "Nguồn mủ" thành 2 mảng
                `sales` (mủ thu mua) và `sales_own` (mủ khai thác)
   stock      — Tồn kho: NHIỀU dòng / (đơn vị, ngày) → gom thành 3 khối tồn kho (chưa nhập kho ·
@@ -88,20 +87,17 @@ _DATE_COL = Col("as_of", "Ngày", "dd/mm/yyyy", required=True, type="date")
 SPECS: dict[str, Spec] = {
     "purchase": Spec(
         "BIỂU NHẬP — THU MUA", "Thu mua",
-        "Mủ nước / mủ chén / mủ dây: sản lượng khai theo TẤN QUY KHÔ. "
+        "Mủ nước / mủ chén / mủ dây: mỗi đơn vị 1 dòng / 1 ngày, sản lượng khai theo TẤN QUY KHÔ "
+        "(mủ nguyên liệu KHÔNG tách chủng loại). "
         "Đơn giá ghi vào kho 'Giá mủ nguyên liệu'. Đơn giá mủ nước theo độ TSC, mủ chén và mủ dây "
         "theo độ DRC (cố định, không còn cột chọn) — mỗi loại mủ MỘT giá cho cả ngày, điền ở dòng "
         "đầu. "
-        "Muốn TÁCH CHỦNG LOẠI mủ nguyên liệu thì mỗi chủng loại 1 dòng, điền cột 'Chủng loại mủ "
-        "nguyên liệu' rồi ghi sản lượng vào đúng cột mủ nước / mủ chén / mủ dây; tổng của loại mủ "
-        "đó hệ thống tự cộng. Không tách chủng loại thì để trống cột đó và khai 1 dòng tổng như cũ. "
         "THU MUA THÀNH PHẨM tính theo CHỦNG LOẠI: mua mấy chủng loại thì thêm bấy nhiêu dòng cho "
-        "cùng (đơn vị, ngày). "
+        "cùng (đơn vị, ngày) — các cột mủ nước/mủ chén/mủ dây chỉ điền ở dòng đầu, dòng sau để "
+        "trống. "
         "File có dòng thành phẩm sẽ GHI ĐÈ toàn bộ phần thành phẩm của ngày đó; không có dòng nào "
         "thì phần thành phẩm đã nhập trên web được giữ nguyên.",
         [_UNIT_COL, _DATE_COL,
-         Col(unit_daily_excel_purchase.GRADE_COL, "Chủng loại mủ nguyên liệu",
-             "để trống = dòng tổng", type="enum", choices={g: g for g in GRADES}, width=24),
          Col("latex_wet", "SL thu mua mủ nước", "tấn"),
          Col("coagulum", "SL thu mua mủ chén", "tấn"),
          Col("lace", "SL thu mua mủ dây", "tấn", width=18),
@@ -193,13 +189,8 @@ def template_columns(kind: str, allowed_units: list[str] | None) -> tuple[list[C
     return cols, only
 
 
-def build_template(kind: str, allowed_units: list[str] | None = None,
-                   rows: list[dict[str, Any]] | None = None) -> bytes:
-    """Sinh file Excel mẫu: header + đơn vị tính + ô chọn sẵn (dropdown) + sheet Danh mục.
-
-    Truyền `rows` ({khoá cột: giá trị}) để XUẤT số liệu đã nhập vào đúng file mẫu đó — người dùng
-    sửa rồi nộp lại được ngay. Xuất số liệu Thu mua: dựng dòng bằng `unit_daily_excel_purchase`.
-    """
+def build_template(kind: str, allowed_units: list[str] | None = None) -> bytes:
+    """Sinh file Excel mẫu: header + đơn vị tính + ô chọn sẵn (dropdown) + sheet Danh mục."""
     spec = SPECS[kind]
     units = allowed_units if allowed_units else member_unit_repo.active_names()
     cols, only = template_columns(kind, allowed_units)
@@ -248,10 +239,6 @@ def build_template(kind: str, allowed_units: list[str] | None = None,
         ranges[c.key] = f"'Danh mục'!${letter}$2:${letter}${len(c.choices or {}) + 1}"
 
     first, last = head + 2, head + 501          # 500 dòng cho người dùng nhập
-    for r, row in enumerate(rows or [], start=first):
-        for i, c in enumerate(cols, start=1):
-            if row.get(c.key) is not None:
-                ws.cell(row=r, column=i, value=row[c.key])
     for i, c in enumerate(cols, start=1):
         rng = ranges.get(c.key)
         if not rng:

@@ -40,24 +40,10 @@ PURCHASE_FIELDS: frozenset[str] = frozenset({
 # mua nhiều CHỦNG LOẠI với đơn giá khác nhau. Mỗi dòng: chủng loại · tấn · đơn giá · loại tiền · tỷ giá.
 FINISHED_TABLE = "finished"
 
-# Mủ NGUYÊN LIỆU tách theo CHỦNG LOẠI (chốt 20/09/2026). Mỗi loại mủ có thêm một BẢNG nhiều dòng
-# `{chủng loại, tấn quy khô}`; ô tổng cũ (`latex_wet`/`coagulum`/`lace`) giữ nguyên nhưng khi có
-# bảng thì nó là số SUY RA = tổng các dòng.
-#
-# Vì sao không thay hẳn ô tổng bằng bảng: hơn 7.000 bản ghi cũ chỉ có ô tổng, và toàn bộ hạ nguồn
-# (bản tin · Biểu (1)/(2) · thống kê · cảnh báo · báo cáo tuần) đang đọc ô đó. Giữ ô tổng nghĩa là
-# dữ liệu cũ vẫn đúng, hạ nguồn không phải sửa, và ngày nào chưa tách chủng loại thì vẫn hợp lệ.
-#
-# ⚠ ĐƠN GIÁ KHÔNG đi theo dòng: vẫn MỘT giá cho cả loại mủ trong ngày (chốt 20/09/2026), vì đơn giá
-# nằm ở kho giá riêng (`fact_price`, source `vrg_unit`) nuôi bản tin và lớp giá chuyên viên — thêm
-# chiều chủng loại vào kho giá sẽ kéo theo bản tin · gợi ý giá sàn · báo cáo tuần · cầu tự động.
-#: {loại mủ: (bảng chủng loại, ô tổng)}
-MATERIAL_GRADE_TABLES: dict[str, tuple[str, str]] = {
-    "latex": ("latex_grades", "latex_wet"),
-    "cup": ("cup_grades", "coagulum"),
-    "lace": ("lace_grades", "lace"),
-}
-GRADE_TABLES: tuple[str, ...] = tuple(t for t, _ in MATERIAL_GRADE_TABLES.values())
+# ⚠ MỦ NGUYÊN LIỆU KHÔNG CÓ CHỦNG LOẠI (chốt 22/09/2026): mủ nước · mủ chén · mủ dây mỗi loại một
+# ô sản lượng cho cả ngày. Chủng loại (SVR 3L, SVR 10…) chỉ có ở mủ ĐÃ CHẾ BIẾN, tức bảng
+# `finished` ở trên. Bản 0.4.79 từng thêm 3 bảng `latex_grades`/`cup_grades`/`lace_grades` —
+# sai nghiệp vụ, đã gỡ; khoá cũ còn sót trong payload thì `clean_fields` bỏ qua khi lưu lại.
 
 # Biểu Thu mua KHÔNG còn ô chữ nào: `cup_basis` (mủ chén tính theo độ TSC hay DRC) đã bỏ ngày
 # 17/08/2026 — mủ chén LUÔN theo độ DRC, xem `market_meta.PURCHASE_PRICE_UNIT`. Payload cũ còn giữ
@@ -138,7 +124,7 @@ STOCK_TABLES: tuple[str, ...] = ("stock_not_warehoused", "stock_warehoused")
 #: Đếm theo "có dòng trong bảng" thì các ngày ấy hiện ✅ và bảng theo dõi báo tỷ lệ nộp cao hơn
 #: thực tế (đo 05/08/2026: 151/566 ngày là bản ghi cũ như vậy). Vì thế phải soi ĐÚNG ô của biểu.
 _SUBMITTED_KEYS: dict[str, frozenset[str]] = {
-    "purchase": PURCHASE_FIELDS | PURCHASE_FLAGS | {FINISHED_TABLE} | frozenset(GRADE_TABLES),
+    "purchase": PURCHASE_FIELDS | PURCHASE_FLAGS | {FINISHED_TABLE},
     # CỐ Ý bỏ `sales`/`sales_own`/`revenue`/`sales_migrated`: form nay chỉ còn khối Tồn kho.
     "consumption": frozenset({"no_stock", "stock_material", *STOCK_TABLES}),
 }
@@ -241,20 +227,6 @@ def _clean_finished(rows) -> list[dict]:
     return out
 
 
-def _clean_grade_qty(rows) -> list[dict]:
-    """Dòng {chủng loại · sản lượng} — bỏ dòng trống, GỘP dòng trùng chủng loại (tránh cộng hụt)."""
-    merged: dict[str, float] = {}
-    for r in rows if isinstance(rows, list) else []:
-        if not isinstance(r, dict):
-            continue
-        grade = str(r.get("grade") or "")[:60].strip()
-        qty = _to_float(r.get("qty"))
-        if not grade or qty is None:
-            continue
-        merged[grade] = merged.get(grade, 0.0) + qty
-    return [{"grade": g, "qty": q} for g, q in merged.items()]
-
-
 def _clean_stock_qty(rows) -> list[dict]:
     """Khối tồn kho chỉ có SỐ LƯỢNG: chủng loại · số lượng (TẤN) — dùng cho khối 1 và khối 2."""
     out: list[dict] = []
@@ -312,15 +284,6 @@ def clean_fields(kind: str, fields: dict) -> dict:
     if kind == "purchase":
         if FINISHED_TABLE in fields:
             out[FINISHED_TABLE] = _clean_finished(fields.get(FINISHED_TABLE))
-        # Bảng chủng loại của mủ nguyên liệu: có bảng thì ô tổng là số SUY RA, để hai chỗ không
-        # bao giờ lệch nhau (người dùng không gõ tay ô tổng nữa).
-        for table, total_key in MATERIAL_GRADE_TABLES.values():
-            if table not in fields:
-                continue
-            rows = _clean_grade_qty(fields.get(table))
-            out[table] = rows
-            if rows:
-                out[total_key] = sum(r["qty"] or 0.0 for r in rows)
         for k in PURCHASE_FLAGS | frozenset(NO_PRICE_FLAGS.values()):
             if fields.get(k) is True:
                 out[k] = True

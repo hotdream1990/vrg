@@ -99,12 +99,9 @@ def purchase_report(date_from: str, date_to: str, *, companies: str | None = Non
     rows = filter_scope(merge_rollup(data["rows"], split_merged), view, regs)
     if mats:
         rows = [r for r in rows if r["material"] in set(mats)]
-    if grds:
-        # Trước 20/09/2026 chủng loại chỉ có ở thành phẩm. Nay mủ nguyên liệu cũng tách được, nên
-        # lọc thẳng theo `grade`: ngày CHƯA tách mang nhãn loại mủ ("Mủ nước"…) nên vẫn bị loại
-        # khỏi bộ lọc chủng loại, đúng như cách cũ.
+    if grds:   # chủng loại chỉ áp cho mủ thành phẩm (mủ nước/chén/dây không có chủng loại)
         keep = set(grds)
-        rows = [r for r in rows if r["grade"] in keep]
+        rows = [r for r in rows if r["material"] == "finished" and r["grade"] in keep]
 
     key_of = GROUPERS[group_by]
     groups: dict[str, dict] = {}

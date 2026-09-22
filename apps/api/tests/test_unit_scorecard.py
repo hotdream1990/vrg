@@ -205,16 +205,15 @@ def test_bang_cheo_khong_nhan_loc_chung_loai(seeded):
     assert any(c["label"] == "SVR 10 / CSR 10" for c in res.json()["cols"])
 
 
-def test_bang_cheo_thu_mua_tach_phan_da_khai_va_phan_chua_khai(seeded):
-    """Mủ nguyên liệu: ngày ĐÃ tách hiện thành cột chủng loại thật, ngày CHƯA tách vẫn gom ở cột
-    "Mủ nước/Mủ chén/Mủ dây" — không được im lặng làm biến mất sản lượng của ngày cũ."""
+def test_bang_cheo_thu_mua_nguyen_lieu_gom_theo_loai_mu(seeded):
+    """Mủ nguyên liệu KHÔNG có chủng loại (chốt 22/09/2026): sản lượng gom ở cột "Mủ nước /
+    Mủ chén / Mủ dây". Khoá `latex_grades` của bản 0.4.79 còn sót thì bị bỏ qua, không đẻ ra cột."""
     client.put("/api/unit-daily/report", headers=seeded, json={
         "kind": "purchase", "company": UNIT_C, "as_of": D1,
-        "fields": {"latex_grades": [{"grade": "SVR 3L", "qty": 20}]}})
+        "fields": {"latex_wet": 20, "latex_grades": [{"grade": "SVR 3L", "qty": 20}]}})
     rep = _by_grade(seeded, "pur_material_qty")
     vals = _region(rep)["values"]
     labels = {c["label"] for c in rep["cols"]}
-    assert "SVR 3L" in labels and "Mủ nước" in labels
-    assert vals["SVR 3L"] == pytest.approx(20.0)        # phần C đã tách
-    assert vals["Mủ nước"] == pytest.approx(500.0)      # phần A + B chưa tách
+    assert "Mủ nước" in labels and "SVR 3L" not in labels
+    assert vals["Mủ nước"] == pytest.approx(520.0)      # A + B (500) + C (20)
     assert vals["__total"] == pytest.approx(520.0)
