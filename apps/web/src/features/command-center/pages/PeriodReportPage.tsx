@@ -9,7 +9,7 @@ import { Button, Segmented, Spin, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  type PeriodReport, type PeriodRow, downloadPeriodXlsx, fetchPeriodReport,
+  type PeriodReport, type PeriodRow, downloadConsolidatedXlsx, downloadPeriodXlsx, fetchPeriodReport,
 } from "../../../lib/unit-daily-client";
 import { dmy } from "../../../lib/date";
 import { PRESETS, type Preset, rangeOf } from "../../../lib/date-presets";
@@ -141,6 +141,19 @@ export default function PeriodReportPage() {
     } catch (e) { message.error((e as Error).message); } finally { setSaving(false); }
   };
 
+  /** Biểu TỔNG HỢP gửi Tập đoàn: luôn LŨY KẾ từ 01/01 đến ngày chốt — biểu này của Ban TTKD chốt
+      theo tuần, không đọc theo khoảng ngày tự chọn. Kỳ "Tuần này"/"Tháng này" kết thúc ở ngày
+      TƯƠNG LAI nên phải kẹp về hôm nay, không thì server chặn "ngày chốt không thể ở tương lai". */
+  const today = new Date().toLocaleDateString("sv-SE");
+  const cutoff = to > today ? today : to;
+  const exportConsolidated = async () => {
+    setSaving(true);
+    try {
+      await downloadConsolidatedXlsx(cutoff);
+      message.success(`Đã tải biểu Tập đoàn lũy kế đến ${dmy(cutoff)}.`);
+    } catch (e) { message.error((e as Error).message); } finally { setSaving(false); }
+  };
+
   const rows = data?.rows ?? [];
   const hasData = rows.some((r) => r.days > 0);
 
@@ -168,6 +181,13 @@ export default function PeriodReportPage() {
         <Button icon={<ReloadOutlined />} onClick={load}>Làm mới</Button>
         <Button type="primary" icon={<DownloadOutlined />} onClick={exportXlsx}
                 loading={saving} disabled={!hasData}>Xuất Excel</Button>
+        {/* Biểu gửi Tập đoàn chỉ có ở phần Tiêu thụ - Tồn kho (biểu Thu mua không có khuôn này). */}
+        {kind === "consumption" && (
+          <Button icon={<DownloadOutlined />} onClick={exportConsolidated} loading={saving}
+                  title={`Mẫu Ban TTKD gửi Tập đoàn — lũy kế từ 01/01 đến ${dmy(cutoff)}`}>
+            Biểu Tập đoàn (lũy kế đến {dmy(cutoff)})
+          </Button>
+        )}
       </div>
 
       <Spin spinning={loading}>

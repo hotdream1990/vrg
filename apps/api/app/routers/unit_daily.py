@@ -21,9 +21,9 @@ from app.schemas.unit_daily import (
     ExcelImportCommit, PurchasePlanEdit, StockContractEdit, UnitDailyEdit, UnitDailyMove,
 )
 from app.services import (
-    contract_files, member_region_repo, member_unit_repo, unit_daily_contract_consumption,
-    unit_daily_excel_io, unit_daily_repo, unit_daily_timeline_totals, unit_period_excel,
-    unit_period_report, unit_stock_contract_repo,
+    contract_files, member_region_repo, member_unit_repo, unit_consolidated_excel,
+    unit_daily_contract_consumption, unit_daily_excel_io, unit_daily_repo,
+    unit_daily_timeline_totals, unit_period_excel, unit_period_report, unit_stock_contract_repo,
 )
 from app.services.unit_report_query import split_csv
 
@@ -285,6 +285,29 @@ def _xlsx_response(rep: dict, kind: str, date_from: str, date_to: str) -> Respon
         headers={"Content-Disposition": f'attachment; filename="{name}"'},
     )
 
+
+
+@router.get("/consolidated-report.xlsx")
+def consolidated_report_xlsx(as_of: str = Query(..., description="Ngày chốt số liệu 'YYYY-MM-DD'"),
+                             username: str = Depends(_require)):
+    """Biểu TỔNG HỢP gửi Tập đoàn (mẫu Ban TTKD): lũy kế từ 01/01 đến NGÀY CHỐT, gom theo khu vực.
+
+    Khác `period-report.xlsx` (mỗi đơn vị 1 dòng theo Biểu (1)/(2) nội bộ): đây là biểu Ban TTKD
+    gửi lên Tập đoàn — có dòng khu vực, dòng TẬP ĐOÀN và cột tồn kho chưa có HĐ theo chủng loại.
+    """
+    try:
+        day = date.fromisoformat(as_of)
+    except ValueError as exc:
+        raise HTTPException(400, "Ngày chốt không hợp lệ (YYYY-MM-DD).") from exc
+    if day > edit_window.today():
+        raise HTTPException(400, "Ngày chốt không thể ở tương lai.")
+    data = unit_consolidated_excel.build(day.isoformat())
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition":
+                 f'attachment; filename="{unit_consolidated_excel.file_name(day.isoformat())}"'},
+    )
 
 
 @router.get("/period-report.xlsx")

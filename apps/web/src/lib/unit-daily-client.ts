@@ -271,6 +271,22 @@ export async function downloadPeriodXlsx(
   setTimeout(() => URL.revokeObjectURL(href), 60_000);
 }
 
+/** Tải BIỂU TỔNG HỢP GỬI TẬP ĐOÀN (mẫu Ban TTKD) — lũy kế từ 01/01 đến ngày chốt. */
+export async function downloadConsolidatedXlsx(asOf: string): Promise<void> {
+  const res = await fetch(`${API}${PERIOD_BASE.replace("period-report", "consolidated-report")}`
+    + `.xlsx?as_of=${asOf}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Không tải được biểu tổng hợp.");
+  const blob = await res.blob();
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = `tong-hop-bao-cao-tieu-thu-ton-kho-${asOf}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 60_000);
+}
+
 // ── Nhập liệu bằng Excel (tải mẫu · xem trước · ghi) ──
 export type ImportKind = "purchase" | "sales" | "stock" | "plan";
 export type ImportRow = {

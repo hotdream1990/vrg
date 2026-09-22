@@ -222,6 +222,9 @@ def _consumption_rows(by_src: dict[str, list[dict]], plan: dict,
         "stock_not_warehoused": t(tonnes(not_wh)),
         "stock_warehoused": t(tonnes(wh)),
         "stock_by_grade": {g: t(v) for g, v in by_grade.items()},
+        # Khối 3 TÁCH THEO CHỦNG LOẠI — biểu tổng hợp gửi Tập đoàn cần cột "chưa có hợp đồng" của
+        # từng chủng loại = tồn kho chủng loại đó trừ phần đã ký (xem `unit_consolidated_excel`).
+        "stock_hd_by_grade": {g: t(_num(v)) for g, v in (signed.get("by_grade") or {}).items()},
         "stock_material": t(sum(_num(f.get("stock_material")) or 0.0 for f in lasts)),
         "carry_lt_tonnes": _num(plan.get("carry_lt_tonnes")),
         "carry_spot_tonnes": _num(plan.get("carry_spot_tonnes")),
