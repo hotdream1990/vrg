@@ -28,6 +28,10 @@ EXECUTIVE_WRITE_ALLOW = frozenset({
     ("POST", "/api/assistant/chat"),
     ("POST", "/api/market-movement/assessment"),
     ("POST", "/api/weekly-reports/{week_key}/generate-pdf"),
+    # Phương án giá sàn nháp: chỉ TÍNH trên dữ liệu gửi lên, không lưu gì (lưu bản nháp vẫn bị chặn).
+    ("POST", "/api/floor-proposal/create"),
+    ("POST", "/api/floor-proposal/apply"),
+    ("POST", "/api/floor-proposal/preview"),
 })
 
 

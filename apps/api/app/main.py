@@ -25,6 +25,7 @@ from app.routers import (
     config,
     customers,
     floor,
+    floor_proposal,
     floor_suggest,
     health,
     inventory,
@@ -184,6 +185,8 @@ app.include_router(purchase_auto_sync.router, dependencies=_protected)  # cầu 
 app.include_router(floor.router, dependencies=_hq_only)
 # Các màn phân tích/bản tin gác theo quyền (admin=tất cả, editor=được-cấp, viewer=không) — cả đọc lẫn ghi.
 app.include_router(floor_suggest.router, dependencies=[Depends(require_cap("floor_suggest"))])
+# Phương án giá sàn nháp (chỉ tính, không lưu) + bản nháp tờ trình — router tự gác quyền từng endpoint.
+app.include_router(floor_proposal.router, dependencies=_hq_only)
 app.include_router(member_unit.router, dependencies=_hq_only)
 app.include_router(member_region.router, dependencies=_hq_only)
 app.include_router(member_self.router, dependencies=_protected)  # đơn vị thành viên tự nhập giá của mình

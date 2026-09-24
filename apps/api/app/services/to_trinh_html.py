@@ -4,6 +4,8 @@ GIỮ NGUYÊN format + thứ tự bảng của mẫu `docs/ban hanh gia san/to-t
 """
 from __future__ import annotations
 
+from html import escape
+
 from app.services.to_trinh import vn
 
 _CSS = """
@@ -142,13 +144,14 @@ def _proposal_table(rows: list[dict], lan: int, prev_lan: int, year: int) -> str
 
 def render(d: dict) -> str:
     if d.get("error"):
-        return f'<div style="padding:24px;font-family:sans-serif;color:#b00">Lỗi: {d["error"]}</div>'
+        return f'<div style="padding:24px;font-family:sans-serif;color:#b00">Lỗi: {escape(str(d["error"]))}</div>'
     t1, t2, lan, plan, year = _dmy(d["t1"]), _dmy(d["t2"]), d["lan"], d["prev_lan"], d["year"]
     sett = _settlement_table(d["settlement"], d["t1"], d["t2"]).replace("{t1}", t1).replace("{t2}", t2)
     phys = _physical_table(d["physical"]).replace("{t1}", t1).replace("{t2}", t2)
     prop = _proposal_table(d["proposal"], lan, plan, year)
-    narr1 = "".join(f'<p class="body">{x}</p>' for x in d["n1"])
-    narr2 = "".join(f'<p class="body">{x}</p>' for x in d["n2"])
+    # Diễn giải SỬA TAY được ở bản nháp tờ trình ⇒ luôn escape (HTML này còn được nhúng vào iframe).
+    narr1 = "".join(f'<p class="body">{escape(x)}</p>' for x in d["n1"])
+    narr2 = "".join(f'<p class="body">{escape(x)}</p>' for x in d["n2"])
     return f"""<!doctype html><meta charset="utf-8"><style>{_CSS}</style><div class="page">
 <table class="hdr"><tr>
   <td><div class="b caps">Tập đoàn công nghiệp</div><div class="b caps">Cao su Việt Nam</div>

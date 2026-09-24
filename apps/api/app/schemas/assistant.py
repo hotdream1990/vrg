@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -20,3 +20,5 @@ class ChatRequest(BaseModel):
     advice: Literal["data", "model", "adjusted"] = "model"
     #: Mã phiên chat do frontend sinh, để gom các lượt vào cùng một hội thoại trong nhật ký.
     session_id: str | None = Field(default=None, max_length=64)
+    #: Phương án giá sàn NHÁP của phiên (frontend giữ, gửi kèm mỗi lượt) — làm sạch ở floor_proposal.
+    proposal: dict[str, Any] | None = None

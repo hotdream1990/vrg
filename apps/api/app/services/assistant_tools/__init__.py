@@ -12,7 +12,8 @@ from typing import Any, Callable
 
 from app.core.permissions import has_cap
 from app.services.assistant_tools import (
-    contract_tools, floor_tools, internal_tools, market_tools, private_price_tools, unit_tools,
+    contract_tools, floor_tools, internal_tools, market_tools, private_price_tools, proposal_tools,
+    unit_tools,
 )
 
 #: Gói kỹ năng. `cap` = quyền tối thiểu để dùng gói (None = ai vào được Trợ lý cũng dùng được);
@@ -30,7 +31,7 @@ PACKS: dict[str, dict[str, Any]] = {
                  "desc": "Cam kết · đã giao · đã ký chưa giao · doanh thu · khách hàng · hợp đồng mẹ"},
 }
 
-_MODULES = {"market": [market_tools], "floor": [floor_tools, private_price_tools],
+_MODULES = {"market": [market_tools], "floor": [floor_tools, private_price_tools, proposal_tools],
             "internal": [internal_tools], "unit": [unit_tools], "contract": [contract_tools]}
 
 #: {tên tool: {run, schema, pack}} — gộp từ các module gói.
@@ -69,7 +70,8 @@ def openai_tools(caps: dict[str, str] | None = None,
 #: Những việc Trợ lý CHƯA làm được — hiện thẳng trên giao diện để người dùng không kỳ vọng nhầm
 #: rồi tưởng hệ thống trả lời sai. Cập nhật danh sách này mỗi khi mở thêm khả năng mới.
 LIMITS: list[str] = [
-    "Chỉ ĐỌC số liệu — không nhập, không sửa, không ghi khuyến nghị vào biểu giá sàn.",
+    "Không nhập/sửa số liệu hệ thống, không ghi vào biểu giá sàn — chỉ lập và chỉnh được PHƯƠNG ÁN "
+    "NHÁP trong phiên chat (muốn giữ lại thì bấm Lưu bản nháp trên bảng phương án).",
     "Chưa trả lời được câu hỏi quy trình/nghiệp vụ (vd 'quy trình ban hành giá sàn thế nào') — "
     "mới tra được số, chưa tra được tài liệu nội bộ.",
     "Chưa có dữ liệu ngoài hệ thống: dầu thô, cao su tổng hợp, tin vĩ mô thế giới.",
@@ -94,6 +96,8 @@ TOOL_LABELS: dict[str, str] = {
     "simulate_floor_scenarios": "Kịch bản giá sàn khi thị trường biến động",
     "get_floor_context": "Tín hiệu bối cảnh quanh quyết định giá sàn",
     "get_private_price_benchmark": "So giá sàn SVR 3L với giá mủ tư nhân (kèm tồn kho)",
+    "create_floor_proposal": "Lập phương án giá sàn nháp trong phiên",
+    "adjust_floor_proposal": "Chỉnh phương án nháp theo lời bạn (tăng/giảm/đặt/hoàn tác)",
     # Nội bộ Tập đoàn
     "get_inventory_trend": "Tồn kho thành phẩm Tập đoàn theo ngày",
     "get_market_quote": "Báo giá mủ thị trường",
@@ -143,8 +147,11 @@ def pack_summary(caps: dict[str, str] | None = None,
 
 
 def run_tool(name: str, args: dict, caps: dict[str, str] | None = None,
-             enabled: list[str] | None = None) -> dict:
-    """Thực thi 1 tool. Chặn lần hai theo gói/quyền (LLM có thể gọi tên tool ngoài danh sách)."""
+             enabled: list[str] | None = None, ctx: dict | None = None) -> dict:
+    """Thực thi 1 tool. Chặn lần hai theo gói/quyền (LLM có thể gọi tên tool ngoài danh sách).
+
+    Tool `stateful` (phương án nháp) nhận thêm `ctx` của lượt hỏi và ghi kết quả vào đó.
+    """
     tool = TOOLS.get(name)
     if not tool:
         return {"summary": {"error": f"Không có công cụ '{name}'."}}
@@ -152,6 +159,6 @@ def run_tool(name: str, args: dict, caps: dict[str, str] | None = None,
         return {"summary": {"error": f"Công cụ '{name}' không nằm trong nhóm dữ liệu được phép."}}
     fn: Callable = tool["run"]
     try:
-        return fn(args or {})
+        return fn(args or {}, ctx if ctx is not None else {}) if tool.get("stateful") else fn(args or {})
     except Exception as exc:  # noqa: BLE001 - lỗi 1 tool không được làm hỏng cả lượt hỏi
         return {"summary": {"error": f"Lỗi khi chạy '{name}': {exc}"}}

@@ -15,7 +15,8 @@ import time
 from typing import Any
 
 from app.core import edit_window
-from app.services import assistant_tools, config_repo, llm
+from app.services import assistant_tools, config_repo, floor_proposal, llm
+from app.services.assistant_tools import proposal_tools
 
 logger = logging.getLogger("app.assistant")
 
@@ -140,9 +141,39 @@ _ADVICE_RULES = {
     ),
 }
 
+#: Phương án giá sàn NHÁP trong phiên — người dùng nhờ Trợ lý lập/chỉnh số rồi sửa tiếp trên bảng.
+#: Áp cho MỌI mức tư vấn: người dùng tự yêu cầu chỉnh là quyết định của người dùng, không phải
+#: khuyến nghị của Trợ lý (mức "Theo mô hình" vẫn cấm Trợ lý TỰ đưa ra mức khác mô hình).
+_PROPOSAL_RULES = (
+    "PHƯƠNG ÁN NHÁP: người dùng có thể nhờ bạn lập/chỉnh một PHƯƠNG ÁN GIÁ SÀN NHÁP trong phiên "
+    "(hiện trên bảng cạnh khung chat, không ghi vào biểu giá sàn). CHỈ gọi create_floor_proposal / "
+    "adjust_floor_proposal khi NGƯỜI DÙNG yêu cầu rõ (lập phương án/bản nháp/tờ trình; tăng, giảm, "
+    "đặt mức, đưa về mô hình, giữ như lần trước, hoàn tác) — không tự ý chỉnh, kể cả khi bạn thấy nên "
+    "chỉnh. Người dùng bảo tăng/giảm/đặt giá sàn, kể cả nói trống ('tăng lên tí xíu giúp anh'), thì "
+    "hiểu là chỉnh PHƯƠNG ÁN NHÁP và LÀM NGAY trong lượt đó, KHÔNG hỏi lại để xác nhận — bạn không "
+    "sửa được giá chính thức nên không có rủi ro; làm xong nói rõ là đã chỉnh trên bản nháp. Mọi phép tính do công cụ làm, bạn KHÔNG tự cộng trừ hay làm tròn: 'tí xíu/chút/nhẹ/một "
+    "ít' = step ±1; 'vài bước/kha khá' = step ±2 và nói rõ đã hiểu là 2 bước; 'X%' = percent; 'X USD' "
+    "= amount field fob, 'X đồng' = amount field vnd; 'lên X/bằng X' = set; 'như mô hình' = "
+    "reset_model; 'giữ như lần trước' = reset_current; 'bỏ lần vừa rồi' = undo. Không nêu chủng loại "
+    "thì lấy chủng loại đang bàn ở lượt trước; không có thì áp cho mọi chủng loại (grades ['all']) "
+    "và nói rõ đã áp cho tất cả. Giá nội địa của dòng có FOB tự tính theo FOB — chỉ dùng field vnd "
+    "khi người dùng nói rõ giá nội địa/đồng. Chưa có phương án mà người dùng bảo tăng/giảm: đang nói về "
+    "giá hiện hành thì base current, đang nói về mức mô hình gợi ý thì base model. Sau khi chỉnh: chép "
+    "nguyên mô tả trong da_lam (giữ dạng 'số cũ → số mới'), nói rõ xuất phát từ đâu nếu vừa lập "
+    "phương án (moi_lap_phuong_an), nêu canh_bao nếu có, nhắc ngắn đây là bản nháp trong phiên (sửa tiếp trên bảng, xem trước tờ trình "
+    "hoặc lưu bản nháp). Không bình luận nên hay không chỉnh trừ khi được hỏi. Hỏi số của phương án "
+    "thì đọc khối PHƯƠNG ÁN GIÁ SÀN NHÁP ĐANG MỞ (nếu có), không gọi lại công cụ; giá chính thức vẫn "
+    "là giá của lần ban hành, đừng lẫn với số của phương án. Người dùng bảo 'đưa vào bảng/phương "
+    "án', 'lập bảng' thì PHẢI gọi công cụ: đưa mức bạn vừa đề xuất vào phương án = "
+    "adjust_floor_proposal op set đúng mức đề xuất cho từng chủng loại đó (chưa có phương án thì "
+    "công cụ tự lập); mức đề xuất trùng mức mô hình mà chưa có phương án thì gọi "
+    "create_floor_proposal. CHỈ nói 'đã lập/đã chỉnh/bản nháp trong phiên' khi công cụ vừa chạy "
+    "THÀNH CÔNG trong lượt này; kết quả có error thì nói rõ CHƯA đổi gì và lý do."
+)
+
 SYSTEM = (
     "Bạn là Trợ lý phân tích thị trường cao su của Tập đoàn Công nghiệp Cao su Việt Nam (VRG). "
-    "Trả lời NGẮN GỌN, chuyên nghiệp, bằng tiếng Việt. "
+    "Trả lời NGẮN GỌN, chuyên nghiệp, bằng tiếng Việt; xưng 'em', gọi người dùng 'anh/chị'. "
     "TUYỆT ĐỐI KHÔNG bịa số liệu: mọi con số/giá/xu hướng phải lấy từ KẾT QUẢ TOOL — nếu chưa có "
     "dữ liệu thì gọi tool phù hợp; nếu tool báo không có dữ liệu thì nói rõ 'chưa có số liệu', "
     "không tự suy đoán con số. KHÔNG lấy số liệu ngày khác đắp cho ngày được hỏi. "
@@ -153,8 +184,9 @@ SYSTEM = (
     "KHÔNG ghi tên trường kỹ thuật (ket_luan, don_vi, tom_tat…) trong câu trả lời. "
     "Khi hỏi diễn biến/xu hướng → gọi tool chuỗi giá; hỏi giá hiện tại → tool ảnh chụp. "
     "Bạn CHỈ ĐỌC dữ liệu: mọi nhận định/khuyến nghị chỉ hiển thị để tham khảo, KHÔNG ghi vào biểu "
-    "giá sàn và không làm thay đổi bất kỳ số liệu nào của hệ thống. "
-    + _REASONING + " " + _FACTOR_RANKING + " "
+    "giá sàn và không làm thay đổi bất kỳ số liệu nào của hệ thống (phương án nháp trong phiên — "
+    "xem dưới — cũng KHÔNG ghi vào hệ thống). "
+    + _REASONING + " " + _FACTOR_RANKING + " " + _PROPOSAL_RULES + " "
     "Mọi khuyến nghị giá sàn đều là GỢI Ý tham khảo — quyết định cuối thuộc về Ban lãnh đạo. "
     "Khi tool trả bảng/biểu đồ, hệ thống TỰ hiển thị cho người dùng — bạn chỉ diễn giải ý nghĩa, "
     "không liệt kê lại toàn bộ số trong bảng. Nêu rõ kỳ dữ liệu (ngày/tuần) khi trả lời."
@@ -230,10 +262,24 @@ def _log_turn(session_id: str | None, username: str | None, messages: list[dict[
         logger.warning("Không ghi được nhật ký Trợ lý AI: %s", exc)
 
 
+def _session_proposal(raw: dict | None) -> dict | None:
+    """Phương án nháp frontend gửi kèm — hỏng thì bỏ qua (chat vẫn phải chạy), không làm lỗi lượt hỏi."""
+    try:
+        return floor_proposal.sanitize(raw)
+    except (floor_proposal.ProposalError, TypeError, ValueError, AttributeError, KeyError) as exc:
+        logger.warning("Bỏ qua phương án nháp không hợp lệ: %s", exc)
+        return None
+
+
 def chat(messages: list[dict[str, str]], caps: dict[str, str] | None = None,
          packs: list[str] | None = None, advice: str = DEFAULT_ADVICE,
-         session_id: str | None = None, username: str | None = None) -> dict[str, Any]:
-    """Chạy 1 lượt hỏi–đáp (kèm lịch sử). Trả {answer, artifacts, sources}."""
+         session_id: str | None = None, username: str | None = None,
+         proposal: dict | None = None) -> dict[str, Any]:
+    """Chạy 1 lượt hỏi–đáp (kèm lịch sử). Trả {answer, artifacts, sources, proposal}.
+
+    `proposal` = phương án giá sàn nháp của phiên (frontend giữ). Trả `proposal` khác None khi lượt
+    này đã lập/chỉnh phương án ⇒ frontend thay bằng bản mới.
+    """
     provider = (config_repo.get_value("LLM_PROVIDER", "openai") or "openai").lower()
     if provider != "openai":
         raise llm.LLMNotConfigured(
@@ -244,7 +290,10 @@ def chat(messages: list[dict[str, str]], caps: dict[str, str] | None = None,
     advice = advice if advice in ADVICE_MODES else DEFAULT_ADVICE
     scope = _scope(caps, packs)
     started = time.time()
+    ctx: dict[str, Any] = {"proposal": _session_proposal(proposal), "advice": advice, "changed": False}
     convo: list[dict[str, Any]] = [{"role": "system", "content": system_prompt(advice)}]
+    if ctx["proposal"]:
+        convo.append({"role": "system", "content": proposal_tools.context_block(ctx["proposal"], advice)})
     convo += [{"role": m["role"], "content": m["content"]} for m in messages
               if m.get("role") in ("user", "assistant") and m.get("content")]
     tools = assistant_tools.openai_tools(caps, scope)
@@ -264,7 +313,8 @@ def chat(messages: list[dict[str, str]], caps: dict[str, str] | None = None,
             answer = (msg.content or "").strip()
             _log_turn(session_id, username, messages, answer, used, _dedup(sources),
                       scope, advice, model, started)
-            return {"answer": answer, "artifacts": artifacts, "sources": _dedup(sources)}
+            return {"answer": answer, "artifacts": artifacts, "sources": _dedup(sources),
+                    "proposal": ctx["proposal"] if ctx["changed"] else None}
         # Ghi lại lượt assistant kèm tool_calls rồi thực thi từng tool.
         convo.append({"role": "assistant", "content": msg.content or "", "tool_calls": [
             {"id": tc.id, "type": "function",
@@ -277,7 +327,7 @@ def chat(messages: list[dict[str, str]], caps: dict[str, str] | None = None,
                                             "Hãy trả lời bằng số liệu và mời người dùng chuyển mức tư vấn."}}
             else:
                 res = assistant_tools.run_tool(tc.function.name, _parse_args(tc.function.arguments),
-                                               caps, scope)
+                                               caps, scope, ctx)
                 if advice == "model" and tc.function.name in _MODEL_MODE_FILTERS:
                     res = _MODEL_MODE_FILTERS[tc.function.name](res)
             if res.get("artifact"):
@@ -290,4 +340,5 @@ def chat(messages: list[dict[str, str]], caps: dict[str, str] | None = None,
     answer = "Câu hỏi cần quá nhiều bước tra cứu — anh/chị vui lòng hỏi cụ thể hơn giúp em."
     _log_turn(session_id, username, messages, answer, used, _dedup(sources), scope, advice,
               model, started)
-    return {"answer": answer, "artifacts": artifacts, "sources": _dedup(sources)}
+    return {"answer": answer, "artifacts": artifacts, "sources": _dedup(sources),
+            "proposal": ctx["proposal"] if ctx["changed"] else None}

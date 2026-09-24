@@ -30,11 +30,11 @@ def packs(username: str = Depends(require_cap("assistant"))) -> dict:
 
 @router.post("/chat")
 def chat(body: ChatRequest, username: str = Depends(require_cap("assistant"))) -> dict:
-    """Một lượt hỏi–đáp (kèm lịch sử). Trả {answer, artifacts, sources}."""
+    """Một lượt hỏi–đáp (kèm lịch sử + phương án nháp của phiên). Trả {answer, artifacts, sources, proposal}."""
     try:
         return assistant_service.chat([m.model_dump() for m in body.messages],
                                       user_caps(username), body.packs, body.advice,
-                                      body.session_id, username)
+                                      body.session_id, username, body.proposal)
     except llm.LLMNotConfigured as exc:
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
