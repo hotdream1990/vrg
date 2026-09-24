@@ -28,7 +28,10 @@ export type InventoryLean = {
 };
 export type FloorConfidence = "high" | "medium" | "low";
 /** Biến động 1 chỉ số trong rổ kể từ lần ban hành trước (căn cứ cho đề xuất). */
-export type FloorDriver = { index: string; prev: number | null; cur: number | null; change_pct: number | null };
+export type FloorDriver = {
+  index: string; prev: number | null; cur: number | null; change_pct: number | null;
+  prev_date?: string | null; cur_date?: string | null;   // NGÀY của số thật sự dùng (sàn nghỉ → phiên trước)
+};
 export type SuggestItem = {
   grade: string; unit: string; actual: number | null; suggested: number | null;
   diff: number | null; r: number | null;

@@ -11,6 +11,8 @@ type Props = {
   inventoryLean?: InventoryLean | null;
 };
 
+const dmy = (iso: string) => iso.split("-").reverse().join("/");
+
 /** Diễn giải đề xuất điều chỉnh cho grade đang chọn: khẳng định mức điều chỉnh là hợp lý. */
 export default function RecommendationRationale({ item, prevAsOf, basketChangePct, drivers, inventoryLean }: Props) {
   if (!item) return null;
@@ -52,7 +54,8 @@ export default function RecommendationRationale({ item, prevAsOf, basketChangePc
       {drivers.length > 0 && (
         <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
           {drivers.map((d) => (
-            <span key={d.index} className="chip" style={{ fontSize: 12 }}>
+            <span key={d.index} className="chip" style={{ fontSize: 12 }}
+              title={d.cur_date ? `Số ngày ${dmy(d.cur_date)} so với ${d.prev_date ? dmy(d.prev_date) : "—"}` : undefined}>
               {d.index}: {d.change_pct == null ? "—" : (d.change_pct > 0 ? "+" : "") + d.change_pct + "%"}
             </span>
           ))}

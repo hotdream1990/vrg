@@ -3,6 +3,8 @@
 Hai mô hình dùng chung 1 đường fit (chuẩn hoá CAUSAL — chỉ trên train, xem [floor_model.py]):
   - v1: hồi quy ĐƠN BIẾN theo rổ (TB z-score của 4 chỉ số futures) — baseline đã sửa look-ahead.
   - v2: hồi quy ĐA BIẾN ridge trên [giá mủ nước + 4 futures] — chọn feature động theo độ phủ train.
+Mức đề xuất NEO theo lần ban hành trước: giá sàn lần đó + mức mô hình thay đổi giữa hai ngày
+(xem `_fit_at`), làm tròn theo bước giá ban hành (`floor_recommend.to_step`).
 `backtest()` chạy walk-forward toàn bộ lần ban hành để đo độ khớp dự báo vs giá sàn thực tế.
 """
 from __future__ import annotations
@@ -42,9 +44,9 @@ LABELS[FREE] = "Tồn kho tự do (chưa có HĐ)"
 EXTRA = {INV, FREE}          # biến phụ: giữ cột riêng, KHÔNG gộp vào rổ futures
 
 PARTIAL_LOOKBACK = 14  # số ngày có giá đứng trước, dùng làm mốc "bình thường có mấy đơn vị nhập"
-#: Mô hình khuyến nghị: đa biến + mủ nước thắng rổ 4 futures ở cả 14 chủng loại khi backtest trên
-#: prod 83 lần ban hành 01/2024 → 09/2026 (MAPE TB 2,85% vs 3,41%, đúng hướng 78% vs 73%) —
-#: kết luận "v1 tốt nhất" hồi 06/2026 là trên n≈30, nay lật. Màn, API, tờ trình, Trợ lý AI dùng chung.
+#: Mô hình khuyến nghị: đa biến + mủ nước thắng rổ 4 futures khi backtest trên prod 83 lần ban hành
+#: 01/2024 → 09/2026 (theo mức: MAPE TB 2,85% vs 3,41%; sau khi neo lần trước 24/09/2026: 1,84% vs
+#: 1,99%) — kết luận "v1 tốt nhất" hồi 06/2026 là trên n≈30, nay lật. Màn, API, tờ trình, Trợ lý AI dùng chung.
 DEFAULT_MODEL = "v2"
 MIN_TRAIN = 8     # tối thiểu số lần trong tập train để fit
 MIN_COVER = 5     # 1 feature chỉ được dùng khi có >= ngần này điểm phủ trên train
@@ -52,15 +54,24 @@ DEFAULT_ALPHA = 1.0
 LEAD = ("shfe", "RU")          # chỉ báo dẫn hướng (đồng hướng giá sàn ~88% lịch sử)
 
 
-def _at(series: list[tuple[str, float]], d: str) -> float | None:
-    """Giá trị gần nhất <= ngày d (series đã sort tăng theo ngày)."""
+def _point(series: list[tuple[str, float]], d: str) -> tuple[str, float] | None:
+    """(ngày, giá trị) của điểm gần nhất <= ngày d (series đã sort tăng theo ngày).
+
+    Trả kèm ngày để nơi hiển thị nói được "OSE số ngày 18/09" khi sàn nghỉ nhiều phiên.
+    """
     best = None
     for dd, v in series:
         if dd <= d:
-            best = v
+            best = (dd, v)
         else:
             break
     return best
+
+
+def _at(series: list[tuple[str, float]], d: str) -> float | None:
+    """Giá trị gần nhất <= ngày d (series đã sort tăng theo ngày)."""
+    p = _point(series, d)
+    return p[1] if p else None
 
 
 def _drop_partial_tail(rows: list[tuple[str, float, int]]) -> list[tuple[str, float]]:
@@ -142,16 +153,26 @@ def _load(extra: tuple[str, ...] = (), snaps: inventory_daily.Snapshots | None =
 
 
 def _fit_at(train: list[str], target: str, grade: str, fmap: dict, idx: dict,
-            model: str, alpha: float, shock: float = 0.0) -> dict[str, Any] | None:
+            model: str, alpha: float, shock: float = 0.0,
+            anchor: tuple[str, float] | None = None) -> dict[str, Any] | None:
     """Fit trên `train`, dự báo giá sàn[grade] tại `target`. None nếu không đủ dữ liệu.
 
     `shock` = cú sốc % áp lên rổ chỉ số tại target (vd +0.05 = rổ tăng 5%) — dùng cho kịch bản.
+    `anchor` = (ngày, giá sàn) của lần ban hành trước ⇒ `pred` = giá sàn lần đó + mức mô hình THAY
+    ĐỔI giữa hai ngày (cùng một lần fit); không có ⇒ `pred` = mức mô hình. `level` luôn là mức mô hình.
+
+    Vì sao neo: hồi quy theo MỨC mang theo phần lệch tồn đọng giữa mô hình và giá sàn Tập đoàn đã
+    chọn. Đo prod 24/09/2026: 4 lần gần nhất mô hình cao hơn giá LATEX thực 9–15% trong khi Tập đoàn
+    giữ nguyên ⇒ hôm nay "NÂNG LATEX +11,7%" dù rổ chỉ số gần như đứng yên. Backtest 83 lần, 14
+    chủng loại: MAPE TB 2,85% (mức) → 1,84% (neo), đúng hướng 78% → 80%.
     """
     keys = (FEATS[1:] if model == "v1" else FEATS[1:] + [INV] if model == "v1i"
             else FEATS[1:] + [FREE] if model == "v1f" else FEATS)
     val = lambda k, d: _at(idx.get(k, []), d)  # noqa: E731
+    need = [target] + ([anchor[0]] if anchor else [])   # neo cần đủ biến ở CẢ hai ngày
     sel = [k for k in keys
-           if sum(val(k, d) is not None for d in train) >= MIN_COVER and val(k, target) is not None]
+           if sum(val(k, d) is not None for d in train) >= MIN_COVER
+           and all(val(k, d) is not None for d in need)]
     if not sel:
         return None
     # v1i/v1f mà thiếu tồn kho thì chỉ là v1 mang tên khác — trả None để màn so sánh không tưởng
@@ -171,19 +192,21 @@ def _fit_at(train: list[str], target: str, grade: str, fmap: dict, idx: dict,
     x = np.array(rows, float)
     y = np.array(ys, float)
     mean, sd = fm.standardize(x)
-    xs = (x - mean) / sd
-    xt = (np.array([val(k, target) for k in sel], float) * (1 + shock) - mean) / sd
-    a = alpha
-    if model in ("v1", "v1i", "v1f"):  # gộp futures về 1 biến rổ; giữ biến phụ (tồn kho) riêng
-        fut = [i for i, k in enumerate(sel) if k not in EXTRA]
-        ext = [i for i, k in enumerate(sel) if k in EXTRA]
-        cols_s, cols_t = [xs[:, fut].mean(axis=1)], [xt[fut].mean()]
-        if ext:  # biến phụ có phủ → thêm cột riêng (ridge nhẹ)
-            cols_s.append(xs[:, ext[0]])
-            cols_t.append(xt[ext[0]])
-        xs = np.column_stack(cols_s)
-        xt = np.array(cols_t)
-        a = 0.0 if len(cols_s) == 1 else alpha
+    pooled = model in ("v1", "v1i", "v1f")  # gộp futures về 1 biến rổ; giữ biến phụ (tồn kho) riêng
+    fut = [i for i, k in enumerate(sel) if k not in EXTRA]
+    ext = [i for i, k in enumerate(sel) if k in EXTRA]
+
+    def design(raw: np.ndarray) -> np.ndarray:
+        """Giá trị gốc (n, k) → ma trận vào hồi quy (đã chuẩn hoá theo train; v1* gộp rổ)."""
+        z = (raw - mean) / sd
+        if not pooled:
+            return z
+        cols_ = [z[:, fut].mean(axis=1)] + ([z[:, ext[0]]] if ext else [])  # biến phụ: cột riêng
+        return np.column_stack(cols_)
+
+    point = lambda d, s=0.0: design(np.array([[val(k, d) for k in sel]], float) * (1 + s))[0]  # noqa: E731
+    xs = design(x)
+    a = 0.0 if pooled and not ext else alpha   # rổ đơn biến ⇒ OLS; có biến phụ ⇒ ridge nhẹ
     try:
         inter, beta = fm.ridge_fit(xs, y, a)
     except np.linalg.LinAlgError:  # ma trận suy biến (vd rổ hằng số) — bỏ lần này
@@ -191,8 +214,10 @@ def _fit_at(train: list[str], target: str, grade: str, fmap: dict, idx: dict,
     fit = inter + xs @ beta
     ss_tot = float(np.sum((y - y.mean()) ** 2)) or 1.0
     r = max(0.0, 1 - float(np.sum((fit - y) ** 2)) / ss_tot) ** 0.5  # multiple-R train
-    # `pred` là MỨC GIÁ SÀN đề xuất (USD/T hoặc VNĐ/T) → làm tròn nửa LÊN như mọi số tiền.
-    return {"pred": r0(fm.predict(inter, beta, xt)), "n_train": len(rows),
+    level = fm.predict(inter, beta, point(target, shock))
+    pred = anchor[1] + level - fm.predict(inter, beta, point(anchor[0])) if anchor else level
+    # Mức GIÁ SÀN (USD/T hoặc VNĐ/T) → làm tròn nửa LÊN như mọi số tiền.
+    return {"pred": r0(pred), "level": r0(level), "n_train": len(rows),
             "feats": [LABELS[k] for k in sel], "r": round(r, 3)}
 
 
@@ -228,7 +253,7 @@ def suggest(as_of: str, model: str = DEFAULT_MODEL, backtest: bool = True,
     train = [d for d in fd if d != as_of and (d < as_of if backtest else True)]
     prev_d = max((d for d in fd if d < as_of), default=None)
     keys = FEATS[1:] if model == "v1" else FEATS
-    drivers = fr.drivers(idx, keys, LABELS, _at, prev_d, as_of)
+    drivers = fr.drivers(idx, keys, LABELS, _point, prev_d, as_of)
     chgs = [d["change_pct"] for d in drivers if d["change_pct"] is not None]
     shfe_chg = next((d["change_pct"] for d in drivers if d["index"] == LABELS[LEAD]), None)
 
@@ -238,13 +263,14 @@ def suggest(as_of: str, model: str = DEFAULT_MODEL, backtest: bool = True,
     n_train = 0
     items = []
     for g in grades:
-        r = _fit_at(train, as_of, g, fmap, idx, model, alpha)
-        sug = r["pred"] if r else None
+        pd_, prev = fr.prev_floor(fd, fmap, g, as_of)
+        r = _fit_at(train, as_of, g, fmap, idx, model, alpha,
+                    anchor=(pd_, prev) if prev is not None else None)
+        sug = fr.to_step(r["pred"], _unit(g)) if r else None
         if r:
             feats_used.update(r["feats"])
             n_train = max(n_train, r["n_train"])
         bt = _backtest_core(fd, fmap, idx, lanmap, g, model, alpha)["metrics"]
-        _, prev = fr.prev_floor(fd, fmap, g, as_of)
         items.append(fr.build_item(g, fmap.get((as_of, g)), sug, r, prev, bt, shfe_chg, _unit(g),
                                    lean["direction"] if lean else None))
     return {
@@ -283,11 +309,12 @@ def scenarios(as_of: str, model: str = DEFAULT_MODEL, shock_pct: float | None = 
     shock = (shock_pct / 100.0) if shock_pct else _basket_sigma(fd, idx, model)
     items = []
     for g in grades:
-        _, prev = fr.prev_floor(fd, fmap, g, as_of)
+        pd_, prev = fr.prev_floor(fd, fmap, g, as_of)
+        anchor = (pd_, prev) if prev is not None else None   # cùng cách neo với `suggest`
         preds = {}
         for key, s in (("base", 0.0), ("bull", shock), ("bear", -shock)):
-            r = _fit_at(train, as_of, g, fmap, idx, model, alpha, shock=s)
-            preds[key] = r["pred"] if r else None
+            r = _fit_at(train, as_of, g, fmap, idx, model, alpha, shock=s, anchor=anchor)
+            preds[key] = fr.to_step(r["pred"], _unit(g)) if r else None
         items.append({"grade": g, "unit": _unit(g),
                       "prev": round(prev) if prev is not None else None, **preds})
     return {"as_of": as_of, "model": model, "shock_pct": round(shock * 100, 1), "items": items}
@@ -295,17 +322,21 @@ def scenarios(as_of: str, model: str = DEFAULT_MODEL, shock_pct: float | None = 
 
 def _backtest_core(fd: list[str], fmap: dict, idx: dict, lanmap: dict,
                    grade: str, model: str, alpha: float) -> dict[str, Any]:
-    """Walk-forward expanding window: mỗi lần fit data TRƯỚC đó rồi dự báo, so với thực tế."""
+    """Walk-forward expanding window: mỗi lần fit data TRƯỚC đó rồi dự báo, so với thực tế.
+
+    Dự báo neo theo lần ban hành trước (như `suggest`) để sai số đo đúng thứ màn hình đang đề xuất.
+    """
     pts = []
     for i in range(MIN_TRAIN, len(fd)):
         target = fd[i]
         act = fmap.get((target, grade))
         if act is None:
             continue
-        r = _fit_at(fd[:i], target, grade, fmap, idx, model, alpha)
+        pd_, prev = fr.prev_floor(fd, fmap, grade, target)
+        r = _fit_at(fd[:i], target, grade, fmap, idx, model, alpha,
+                    anchor=(pd_, prev) if prev is not None else None)
         if not r:
             continue
-        prev = fr.prev_floor(fd, fmap, grade, target)[1]
         fv = _at(idx.get(FREE, []), target)  # tồn kho tự do (chưa có HĐ) tại lần này
         pts.append({"as_of": target, "lan": lanmap.get(target, i + 1), "actual": round(act),
                     "pred": r["pred"], "prev": round(prev) if prev is not None else None,

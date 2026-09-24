@@ -4,6 +4,7 @@ so với lần ban hành liền trước + bằng chứng (drivers thị trườ
 """
 from __future__ import annotations
 
+import math
 import sys
 from typing import Any, Callable
 
@@ -21,6 +22,24 @@ _SHFE_MIN = 0.5   # |%biến động SHFE| tối thiểu để tính là xác nh
 #: Tồn kho ngày dao động vài % là thường — dưới ngưỡng này coi là đi ngang, không cho nghiêng
 #: (chủ dự án duyệt 24/09/2026). Dùng chung cho màn Gợi ý giá sàn, Trợ lý AI, đối chiếu giá tư nhân.
 INVENTORY_LEAN_PCT = 3.0
+#: Bước giá khi ban hành — đo prod (mọi lần ban hành từ 01/2025): 599/599 giá FOB là bội của 5 USD/T,
+#: 644/644 giá nội địa là bội của 50.000 đồng. Đề xuất "2.353 USD/T" hay "62.014.747 đồng/tấn" không
+#: phải một mức giá sàn ban hành được.
+FOB_STEP = 5
+VND_STEP = 50_000
+
+
+def to_step(value: float | None, unit: str = "USD/T", how: str = "nearest") -> float | None:
+    """Làm tròn mức giá sàn theo bước ban hành (`unit` "VNĐ/T" → 50.000, còn lại → 5 USD).
+
+    `how`: "nearest" (nửa LÊN) · "up" · "down" — mép vùng dùng up/down để không rơi ra ngoài vùng.
+    """
+    if value is None:
+        return None
+    step = VND_STEP if unit == "VNĐ/T" else FOB_STEP
+    q = value / step
+    n = math.ceil(q) if how == "up" else math.floor(q) if how == "down" else r0(q)
+    return n * step
 
 
 def prev_floor(fd: list[str], fmap: dict, grade: str, as_of: str) -> tuple[str | None, float | None]:
@@ -33,15 +52,22 @@ def prev_floor(fd: list[str], fmap: dict, grade: str, as_of: str) -> tuple[str |
 
 
 def drivers(idx: dict, keys: list[tuple[str, str]], labels: dict,
-            at: Callable, prev_d: str | None, as_of: str) -> list[dict[str, Any]]:
-    """Mức biến động từng chỉ số trong rổ kể từ lần ban hành trước → căn cứ cho đề xuất."""
+            point: Callable, prev_d: str | None, as_of: str) -> list[dict[str, Any]]:
+    """Mức biến động từng chỉ số trong rổ kể từ lần ban hành trước → căn cứ cho đề xuất.
+
+    `point(series, ngày)` → (ngày có số, giá trị) | None. Kèm `cur_date`/`prev_date` = NGÀY CỦA SỐ
+    thật sự dùng (sàn nghỉ lễ thì là phiên gần nhất trước đó) — không ghi ra là người đọc tưởng số
+    của đúng ngày hỏi.
+    """
     out = []
     for k in keys:
-        cur = at(idx.get(k, []), as_of)
-        prev = at(idx.get(k, []), prev_d) if prev_d else None
+        cp = point(idx.get(k, []), as_of)
+        pp = point(idx.get(k, []), prev_d) if prev_d else None
+        cur, prev = (cp[1] if cp else None), (pp[1] if pp else None)
         chg = r2((cur - prev) / prev * 100) if (cur and prev) else None
         out.append({"index": labels[k], "prev": r1(prev) if prev is not None else None,
-                    "cur": r1(cur) if cur is not None else None, "change_pct": chg})
+                    "cur": r1(cur) if cur is not None else None, "change_pct": chg,
+                    "prev_date": pp[0] if pp else None, "cur_date": cp[0] if cp else None})
     return out
 
 

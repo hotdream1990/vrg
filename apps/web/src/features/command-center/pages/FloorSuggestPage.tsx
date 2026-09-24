@@ -82,7 +82,8 @@ export default function FloorSuggestPage() {
         <div>
           <h2><BulbOutlined style={{ marginRight: 8 }} />Gợi ý điều chỉnh giá sàn</h2>
           <p>Mô hình hồi quy trên giá mủ nước và rổ chỉ số thị trường (MRB SMR20 · SGX TSR20 · SHFE · OSE RSS3) đề xuất
-            NÂNG/GIỮ/HẠ giá sàn so với lần ban hành liền trước, kèm diễn giải căn cứ và độ tin cậy.
+            NÂNG/GIỮ/HẠ giá sàn so với lần ban hành liền trước: mức đề xuất = giá sàn lần trước + mức thay đổi của mô hình
+            từ đó tới nay, làm tròn theo bước ban hành, kèm diễn giải căn cứ và độ tin cậy.
             Chọn <b>một ngày cụ thể</b> để gợi ý giá sàn mới theo dữ liệu hiện có, hoặc 1 lần đã ban hành để đối chiếu.</p>
         </div>
       </div>

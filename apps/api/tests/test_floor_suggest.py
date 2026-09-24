@@ -141,10 +141,39 @@ def test_prev_floor_picks_latest_prior_with_value() -> None:
     assert fr.prev_floor(fd, fmap, "SVR 10", "2025-01-01") == (None, None)
 
 
+def test_fit_at_anchor_is_previous_floor_plus_model_change() -> None:
+    """Neo: đề xuất = giá sàn lần trước + (mức mô hình hôm nay − mức mô hình ngày đó), cùng một lần fit.
+
+    Mô hình lệch tồn đọng +100 so với giá sàn đã ban hành không được biến thành đề xuất NÂNG +100
+    khi rổ chỉ số đứng yên.
+    """
+    dates, fmap, idx = _synthetic()
+    train, target = dates[:-1], dates[-1]
+    prev_d = train[-1]
+    for k in fs.FEATS[1:]:                         # rổ đứng yên giữa lần trước và ngày gợi ý
+        idx[k][-1] = (target, fs._at(idx[k], prev_d))
+    lvl = fs._fit_at(train, target, "SVR 10", fmap, idx, "v1", 0.0)
+    at_prev = fs._fit_at(train, prev_d, "SVR 10", fmap, idx, "v1", 0.0)
+    issued = at_prev["pred"] - 100                 # Tập đoàn đã ban hành thấp hơn mô hình 100
+    r = fs._fit_at(train, target, "SVR 10", fmap, idx, "v1", 0.0, anchor=(prev_d, issued))
+    assert r["level"] == lvl["pred"]
+    assert abs(r["pred"] - issued) <= 1            # rổ đứng yên ⇒ đề xuất ≈ giá sàn lần trước
+
+
+def test_to_step_matches_issuance_steps() -> None:
+    """Giá sàn ban hành là bội 5 USD (FOB) / 50.000 đồng (nội địa); mép vùng làm tròn vào trong."""
+    assert fr.to_step(2353.0) == 2355 and fr.to_step(2352.4) == 2350
+    assert fr.to_step(62_014_747, "VNĐ/T") == 62_000_000
+    assert fr.to_step(63_361_636, "VNĐ/T", "up") == 63_400_000
+    assert fr.to_step(63_661_636, "VNĐ/T", "down") == 63_650_000
+    assert fr.to_step(None) is None
+
+
 def test_drivers_change_pct() -> None:
     idx = {("shfe", "RU"): [("2025-01-01", 100.0), ("2025-02-01", 110.0)]}
-    drv = fr.drivers(idx, [("shfe", "RU")], fs.LABELS, fs._at, "2025-01-01", "2025-02-01")
+    drv = fr.drivers(idx, [("shfe", "RU")], fs.LABELS, fs._point, "2025-01-01", "2025-02-01")
     assert drv[0]["index"] == "SHFE RU" and drv[0]["change_pct"] == 10.0
+    assert drv[0]["cur_date"] == "2025-02-01" and drv[0]["prev_date"] == "2025-01-01"
 
 
 def test_build_item_hold_and_shfe_caution() -> None:

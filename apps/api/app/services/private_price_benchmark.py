@@ -13,13 +13,10 @@ Kết hợp với tồn kho để chọn điểm trong vùng: tồn kho TĂNG (�
 
 from __future__ import annotations
 
-import json
 from datetime import date
 from typing import Any
 
-from sqlalchemy import text
 
-from app.core.db import ensure_schema, session_scope
 from app.services import floor_recommend, floor_repo, market_quote_repo
 
 PRIVATE_SVR3L_COEF = 1.08
@@ -28,6 +25,7 @@ TSC_TO_TONNE = 100_000
 FLOOR_PREMIUM_MIN = 700_000
 FLOOR_PREMIUM_MAX = 1_000_000
 STALE_AFTER_DAYS = 7          # giá tư nhân cũ hơn chừng này ngày thì cảnh báo
+_UNIT = "VNĐ/T"               # giá sàn nội địa → bước ban hành 50.000 đồng
 
 
 def svr3l_cost(tsc_price: float, processing_cost: float | None = None) -> float:
@@ -81,9 +79,9 @@ def _inventory_trend(inv: dict[str, Any] | None) -> tuple[str, str]:
             if lean.get("base_day") and lean.get("day") else "")
     moves = f"tổng {pct(lean['total_pct'])}, tự do {pct(lean['free_pct'])}{span}"
     if lean["direction"] == "up":
-        return f"TĂNG ({moves})", "mép DƯỚI vùng (+700.000) vì tồn kho tăng là áp lực bán"
+        return f"TĂNG ({moves})", "mép DƯỚI vùng (+700.000) vì tồn kho tăng (tổng hoặc phần tự do chưa có HĐ) là áp lực bán"
     if lean["direction"] == "down":
-        return f"GIẢM ({moves})", "mép TRÊN vùng (+1.000.000) vì tồn kho giảm, nguồn hàng chặt"
+        return f"GIẢM ({moves})", "mép TRÊN vùng (+1.000.000) vì tồn kho giảm (tổng hoặc phần tự do), nguồn hàng chặt"
     if lean["direction"] == "mixed":
         return f"trái chiều ({moves})", "điểm giữa vùng (tồn kho tổng và tự do đi ngược nhau)"
     return f"đi ngang ({moves})", "điểm giữa vùng (tồn kho đi ngang)"
@@ -137,15 +135,19 @@ def benchmark(as_of: str, inventory: dict[str, Any] | None = None,
         position, direction = "NẰM TRONG vùng hợp lý", "trung tính (giữ trong vùng)"
 
     trend, how = _inventory_trend(inventory)
-    target = band[0] if trend.startswith("TĂNG") else band[1] if trend.startswith("GIẢM") \
-        else round((band[0] + band[1]) / 2)
+    # Mức gợi ý là một giá sàn ban hành được (bội 50.000 đồng): mép dưới làm tròn LÊN, mép trên làm
+    # tròn XUỐNG để vẫn nằm trong vùng; điểm giữa làm tròn gần nhất.
+    step = floor_recommend.to_step
+    target = (step(band[0], _UNIT, "up") if trend.startswith("TĂNG")
+              else step(band[1], _UNIT, "down") if trend.startswith("GIẢM")
+              else step((band[0] + band[1]) / 2, _UNIT))
     newest = max(r["ngay_gia"] for r in cost_rows)
     old = [r["don_vi"] for r in cost_rows
            if (date.fromisoformat(as_of) - date.fromisoformat(r["ngay_gia"])).days > STALE_AFTER_DAYS]
 
     model_dom = None
     if model_fob_svr3l is not None and floor["fob_usd"]:
-        model_dom = round(cur * model_fob_svr3l / floor["fob_usd"])
+        model_dom = floor_recommend.to_step(cur * model_fob_svr3l / floor["fob_usd"], _UNIT)
     model_pos = None if model_dom is None else _position(model_dom, band)
     # Mức cuối: mô hình đã nằm trong vùng thì giữ mô hình; ngoài vùng (hoặc không có) thì lấy điểm
     # trong vùng đã chọn theo tồn kho. Tính ở đây để LLM chỉ việc đọc, không tự so sánh số.

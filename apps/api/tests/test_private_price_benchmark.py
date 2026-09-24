@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import text
 
 from app.core.db import db_healthy, session_scope
-from app.services import market_quote_repo, private_price_benchmark as pb
+from app.services import floor_recommend as fr, market_quote_repo, private_price_benchmark as pb
 
 _D = "2099-01-02"
 
@@ -41,9 +41,11 @@ def test_benchmark_vung_huong_va_muc_goi_y() -> None:
         assert b["gia_thanh_tham_chieu"] == ref
         assert b["vung_gia_san_hop_ly"] == {"tu": ref + 700_000, "den": ref + 1_000_000}
         assert b["huong_tac_dong"] == "hỗ trợ HẠ" and b["gia_san_hien_hanh_so_voi_vung"].startswith("CAO")
-        assert b["muc_goi_y_theo_gia_tu_nhan"] == ref + 700_000        # tồn kho tăng → mép dưới
-        assert b["dieu_chinh_can_thiet"] == round(ref + 700_000 - floor)
-        assert b["muc_de_xuat_noi_dia_svr3l"] == ref + 700_000        # chưa có mức mô hình → điểm theo tồn kho
+        low = fr.to_step(ref + 700_000, "VNĐ/T", "up")                  # mép dưới, bội 50.000, vẫn trong vùng
+        assert low % 50_000 == 0 and ref + 700_000 <= low <= ref + 1_000_000
+        assert b["muc_goi_y_theo_gia_tu_nhan"] == low                  # tồn kho tăng → mép dưới
+        assert b["dieu_chinh_can_thiet"] == round(low - floor)
+        assert b["muc_de_xuat_noi_dia_svr3l"] == low                   # chưa có mức mô hình → điểm theo tồn kho
         # Có mức mô hình nằm TRONG vùng → giữ mô hình; nằm NGOÀI → kéo về điểm trong vùng.
         fob = pb._floor_svr3l(_D)["fob_usd"]
         inside_fob = (ref + 850_000) / floor * fob
@@ -51,7 +53,8 @@ def test_benchmark_vung_huong_va_muc_goi_y() -> None:
         assert pb.benchmark(_D, None, inside_fob)["muc_mo_hinh_so_voi_vung"] == "TRONG vùng hợp lý"
         above = pb.benchmark(_D, {"d_ton_kho_pct": -10.0}, fob * 1.2)
         assert above["muc_mo_hinh_so_voi_vung"] == "CAO HƠN vùng hợp lý"
-        assert above["muc_de_xuat_noi_dia_svr3l"] == ref + 1_000_000 and "kéo về" in above["ket_luan"]
+        assert above["muc_de_xuat_noi_dia_svr3l"] == fr.to_step(ref + 1_000_000, "VNĐ/T", "down")
+        assert above["muc_mo_hinh_noi_dia_uoc_tinh"] % 50_000 == 0 and "kéo về" in above["ket_luan"]
     finally:
         with session_scope() as db:
             db.execute(text("DELETE FROM market_quote WHERE as_of = CAST(:d AS date)"), {"d": _D})
