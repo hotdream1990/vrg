@@ -20,7 +20,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
-from app.services import floor_repo, market_quote_repo
+from app.services import floor_recommend, floor_repo, market_quote_repo
 
 PRIVATE_SVR3L_COEF = 1.08
 DEFAULT_PROCESSING_COST = 2_000_000
@@ -28,7 +28,6 @@ TSC_TO_TONNE = 100_000
 FLOOR_PREMIUM_MIN = 700_000
 FLOOR_PREMIUM_MAX = 1_000_000
 STALE_AFTER_DAYS = 7          # giá tư nhân cũ hơn chừng này ngày thì cảnh báo
-_FLAT_INVENTORY_PCT = 0.5     # tồn kho thay đổi dưới ngưỡng này coi là đi ngang
 
 
 def svr3l_cost(tsc_price: float, processing_cost: float | None = None) -> float:
@@ -64,18 +63,30 @@ def _floor_svr3l(as_of: str) -> dict[str, Any] | None:
             "fob_usd": float(item["fob_usd"]) if item.get("fob_usd") is not None else None}
 
 
+def _dmy(iso: str) -> str:
+    return date.fromisoformat(iso).strftime("%d/%m/%Y")
+
+
 def _inventory_trend(inv: dict[str, Any] | None) -> tuple[str, str]:
-    """(xu hướng tồn kho, cách chọn điểm trong vùng)."""
-    if not inv or inv.get("ton_kho") is None or inv.get("d_ton_kho") is None:
+    """(xu hướng tồn kho, cách chọn điểm trong vùng) — `inv` = `inventory_daily.at`.
+
+    Hướng lấy từ luật chung `floor_recommend.inventory_lean` (tồn kho tổng + tự do, ngưỡng ±3%) để
+    khớp màn Gợi ý giá sàn và tín hiệu của Trợ lý AI. % tính trên đơn vị có số ở cả hai ngày.
+    """
+    lean = floor_recommend.inventory_lean(inv)
+    if not lean:
         return "chưa đủ dữ liệu", "điểm giữa vùng (không có tín hiệu tồn kho)"
-    week = f", tuần {inv['week']}" if inv.get("week") else ""
-    base = inv["ton_kho"] - inv["d_ton_kho"]
-    change = inv["d_ton_kho"] / base * 100 if base else 0.0
-    if abs(change) < _FLAT_INVENTORY_PCT:
-        return f"đi ngang ({change:+.1f}%{week})", "điểm giữa vùng (tồn kho đi ngang)"
-    if change > 0:
-        return f"TĂNG {change:+.1f}%{week}", "mép DƯỚI vùng (+700.000) vì tồn kho tăng là áp lực bán"
-    return f"GIẢM {change:+.1f}%{week}", "mép TRÊN vùng (+1.000.000) vì tồn kho giảm, nguồn hàng chặt"
+    pct = lambda v: "—" if v is None else f"{v:+.1f}%"  # noqa: E731
+    span = (f", {_dmy(lean['base_day'])} → {_dmy(lean['day'])}"
+            if lean.get("base_day") and lean.get("day") else "")
+    moves = f"tổng {pct(lean['total_pct'])}, tự do {pct(lean['free_pct'])}{span}"
+    if lean["direction"] == "up":
+        return f"TĂNG ({moves})", "mép DƯỚI vùng (+700.000) vì tồn kho tăng là áp lực bán"
+    if lean["direction"] == "down":
+        return f"GIẢM ({moves})", "mép TRÊN vùng (+1.000.000) vì tồn kho giảm, nguồn hàng chặt"
+    if lean["direction"] == "mixed":
+        return f"trái chiều ({moves})", "điểm giữa vùng (tồn kho tổng và tự do đi ngược nhau)"
+    return f"đi ngang ({moves})", "điểm giữa vùng (tồn kho đi ngang)"
 
 
 #: Trường ĐIỀU CHỈNH — chỉ dùng ở mức "Có điều chỉnh". Mức "Theo mô hình" phải giữ nguyên số mô hình

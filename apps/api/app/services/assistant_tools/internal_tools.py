@@ -6,6 +6,7 @@ nhất · độ tươi dữ liệu (chống trả lời trên số cũ mà khôn
 """
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from sqlalchemy import text
@@ -14,28 +15,37 @@ from app.core import edit_window
 from app.core.db import session_scope
 from app.core.market_meta import PURCHASE_PRICE_UNIT, PURCHASE_SOURCE_HQ
 from app.services import (
-    bulletin_service, draft_repo, inventory_repo, market_quote_repo, price_repo,
+    bulletin_service, draft_repo, inventory_daily, market_quote_repo, price_repo,
     weekly_report_service,
 )
 from app.services.assistant_tools._common import (
     NO_ARGS, clamp_days, cols, days_ago, dm, dmy, err, line, pct, table, today,
 )
 
-# ── get_inventory_trend (chuyển nguyên từ assistant_tools.py cũ) ──
+# ── get_inventory_trend: tồn kho THEO NGÀY từ biểu Tồn kho đơn vị (bỏ chuỗi tuần 24/09/2026) ──
 def _inventory_trend(args: dict) -> dict:
-    weeks = clamp_days(args.get("weeks"), 26)
-    ser = list(reversed(inventory_repo.series(limit=weeks)))
+    days = clamp_days(args.get("days"), 60)
+    snaps = inventory_daily.load(days_ago(days), today())
+    ser = inventory_daily.series(snaps)
     if not ser:
-        return err("Chưa có dữ liệu tồn kho.")
-    labels = [dm(r["as_of"]) for r in ser]
-    tk = [r.get("ton_kho") for r in ser]
-    hd = [r.get("ton_kho_hd") for r in ser]
-    art = line(f"Tồn kho thành phẩm theo tuần ({len(ser)} tuần)", labels,
-              [{"name": "Tồn kho", "values": tk}, {"name": "Đã có HĐ", "values": hd}], "tấn")
-    last = ser[-1]
-    return {"summary": {"tuan_gan_nhat": last["as_of"], "ton_kho_tan": last.get("ton_kho"),
-                        "ton_kho_da_co_hd_tan": last.get("ton_kho_hd"), "so_tuan": len(ser)},
-            "artifact": art, "source": f"fact_inventory · {len(ser)} tuần"}
+        return err(f"Không có ngày nào đủ đơn vị nhập tồn kho trong {days} ngày gần nhất "
+                   "(xem get_data_freshness để biết ngày có số mới nhất).")
+    first, last = ser[0][0], ser[-1][0]
+    # Cùng 1 hàm với màn Gợi ý giá sàn: % thay đổi chỉ trên đơn vị có số cả 2 ngày.
+    inv = inventory_daily.at(snaps, last, first) or {}
+    art = line(f"Tồn kho thành phẩm Tập đoàn theo ngày ({len(ser)} ngày)", [dm(d) for d, _ in ser],
+               [{"name": "Tồn kho", "values": [round(v, 1) for _, v in ser]}], "tấn")
+    return {"summary": {
+        "ngay_gan_nhat": last, "ton_kho_tan": inv.get("ton_kho"),
+        "da_ky_hd_chua_giao_tan": inv.get("ton_kho_hd"), "ton_tu_do_tan": inv.get("ton_free"),
+        "so_don_vi_co_so_lieu": inv.get("units_counted"), "so_ngay": len(ser),
+        "thay_doi_tu_ngay_dau_ky": {"tu_ngay": first, "tan": inv.get("d_ton_kho"),
+                                    "pct": inv.get("d_ton_kho_pct"),
+                                    "so_don_vi_so_sanh": inv.get("units_compared")},
+        "ghi_chu": f"Số theo ngày cộng từ biểu Tồn kho đơn vị (đã + chưa nhập kho), có từ "
+                   f"{dmy(inventory_daily.STOCK_START)}. Tổng mỗi ngày phụ thuộc số đơn vị nhập; "
+                   "% thay đổi chỉ tính trên đơn vị có số ở cả hai ngày."},
+        "artifact": art, "source": f"biểu Tồn kho đơn vị · {len(ser)} ngày"}
 
 
 # ── get_market_quote (mở rộng đủ 4 nhóm giá thay vì chỉ export_vrg) ──
@@ -220,15 +230,19 @@ def _data_freshness(_: dict) -> dict:
             rows.append(_fresh_row(label, latest, today_d))
         mq = db.execute(text("SELECT MAX(as_of) FROM market_quote")).scalar()
         rows.append(_fresh_row("Báo giá mủ thị trường (phiếu)", mq, today_d))
-        inv = db.execute(text("SELECT MAX(as_of) FROM fact_inventory")).scalar()
-        rows.append(_fresh_row("Tồn kho thành phẩm (tuần)", inv, today_d))
+    # Ngày tồn kho mới nhất ĐỦ đơn vị nhập (ngày đang nhập dở không tính là "tươi"). Quét 30 ngày
+    # là đủ cho ca thường; chỉ khi cả tháng không có số mới quét lại từ đầu để nói đúng ngày cuối.
+    inv_day = (max(inventory_daily.load(days_ago(30), today()), default=None)
+               or max(inventory_daily.load(), default=None))
+    rows.append(_fresh_row("Tồn kho thành phẩm (biểu đơn vị, theo ngày)",
+                           date.fromisoformat(inv_day) if inv_day else None, today_d))
     runs = price_repo.recent_runs(limit=1)
     art = table("Độ tươi dữ liệu theo nhóm", cols(("nhom", "Nhóm dữ liệu"),
                ("ngay_moi_nhat", "Ngày mới nhất"), ("so_ngay_tre", "Số ngày trễ")), rows)
     return {"summary": {"hom_nay": today_d.isoformat(), "cac_nhom": rows,
                         "lan_quet_gan_nhat": runs[0] if runs else None},
             "artifact": art,
-            "source": "fact_price · fact_inventory · market_quote · meta_crawl_run"}
+            "source": "fact_price · biểu Tồn kho đơn vị · market_quote · meta_crawl_run"}
 
 
 # ── Registry ──
@@ -236,9 +250,9 @@ TOOLS: dict[str, dict[str, Any]] = {
     "get_inventory_trend": {
         "run": _inventory_trend,
         "schema": {"name": "get_inventory_trend",
-                   "description": "Tồn kho thành phẩm Tập đoàn theo tuần, đơn vị TẤN (biểu đồ đường: tồn kho & đã có hợp đồng). weeks = số tuần gần nhất (mặc định 26).",
+                   "description": "Tồn kho thành phẩm Tập đoàn THEO NGÀY, đơn vị TẤN, cộng từ biểu Tồn kho đơn vị thành viên (có từ 24/07/2026): biểu đồ đường tồn kho + số mới nhất (đã ký HĐ chưa giao, tồn tự do) + thay đổi từ đầu kỳ. days = số ngày gần nhất (mặc định 60).",
                    "parameters": {"type": "object", "properties": {
-                       "weeks": {"type": "integer", "description": "số tuần gần nhất (mặc định 26)"}}}}},
+                       "days": {"type": "integer", "description": "số ngày gần nhất (mặc định 60)"}}}}},
     "get_market_quote": {
         "run": _market_quote,
         "schema": {"name": "get_market_quote",

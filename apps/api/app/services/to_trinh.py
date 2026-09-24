@@ -186,7 +186,7 @@ def _narrative(settlement: list[dict], physical: list[dict], t1=None) -> dict:
     return {"n1": n1, "n2": n2}
 
 
-def build(as_of: str, model: str = "v1") -> dict[str, Any]:
+def build(as_of: str, model: str = fs.DEFAULT_MODEL) -> dict[str, Any]:
     """Gom toàn bộ dữ liệu 4 khối tờ trình cho 1 lần ban hành (as_of)."""
     ensure_schema()
     sug = fs.suggest(as_of, model, backtest=True)

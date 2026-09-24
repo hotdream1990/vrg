@@ -154,8 +154,33 @@ def test_build_item_hold_and_shfe_caution() -> None:
     assert hold["action"] == "hold" and hold["delta"] == 20 and hold["confidence"] == "high"
     # Δ=+120 (raise) nhưng SHFE -3% ngược hướng ⇒ hạ tin cậy + caution.
     opp = fr.build_item("SVR 10", 1700.0, 1620.0, {"r": 0.9}, 1500.0, bt, shfe_chg=-3.0)
-    assert opp["action"] == "raise" and opp["caution"] == "shfe_opposite"
+    assert opp["action"] == "raise" and opp["cautions"] == ["shfe_opposite"]
     assert opp["confidence"] == "medium"  # high → medium
+
+
+def test_inventory_lean_uses_total_and_free_with_threshold() -> None:
+    """Tồn kho tổng + tự do so lần trước: dưới ±3% là đi ngang; hai chỉ số trái chiều thì không nghiêng."""
+    assert fr.inventory_lean(None) is None
+    assert fr.inventory_lean({"d_ton_kho_pct": None, "d_free_pct": None}) is None
+    assert fr.inventory_lean({"d_ton_kho_pct": 2.9, "d_free_pct": -2.9})["direction"] == "flat"
+    assert fr.inventory_lean({"d_ton_kho_pct": 1.0, "d_free_pct": 8.0})["direction"] == "up"
+    assert fr.inventory_lean({"d_ton_kho_pct": -4.0, "d_free_pct": None})["direction"] == "down"
+    assert fr.inventory_lean({"d_ton_kho_pct": 5.0, "d_free_pct": -6.0})["direction"] == "mixed"
+
+
+def test_build_item_inventory_opposite_lowers_confidence() -> None:
+    """Nâng mà tồn kho tăng / hạ mà tồn kho giảm ⇒ hạ tin cậy; số mô hình giữ nguyên."""
+    bt = {"mae": 50.0, "mape": 4.0, "hit": 90.0, "n": 20}
+    up = fr.build_item("SVR 10", None, 1620.0, {"r": 0.9}, 1500.0, bt, shfe_chg=2.0, lean="up")
+    assert up["action"] == "raise" and up["suggested"] == 1620.0
+    assert up["cautions"] == ["inventory_opposite"] and up["confidence"] == "medium"
+    agree = fr.build_item("SVR 10", None, 1620.0, {"r": 0.9}, 1500.0, bt, shfe_chg=2.0, lean="down")
+    assert agree["cautions"] == [] and agree["confidence"] == "high"
+    both = fr.build_item("SVR 10", None, 1380.0, {"r": 0.9}, 1500.0, bt, shfe_chg=3.0, lean="down")
+    assert both["action"] == "lower" and both["cautions"] == ["shfe_opposite", "inventory_opposite"]
+    assert both["confidence"] == "low"          # 2 tín hiệu ngược ⇒ hạ 2 bậc
+    hold = fr.build_item("SVR 10", None, 1520.0, {"r": 0.9}, 1500.0, bt, shfe_chg=2.0, lean="up")
+    assert hold["action"] == "hold" and hold["cautions"] == []
 
 
 def test_build_item_confidence_uses_actionable_error() -> None:

@@ -95,7 +95,7 @@ TOOL_LABELS: dict[str, str] = {
     "get_floor_context": "Tín hiệu bối cảnh quanh quyết định giá sàn",
     "get_private_price_benchmark": "So giá sàn SVR 3L với giá mủ tư nhân (kèm tồn kho)",
     # Nội bộ Tập đoàn
-    "get_inventory_trend": "Tồn kho thành phẩm theo tuần",
+    "get_inventory_trend": "Tồn kho thành phẩm Tập đoàn theo ngày",
     "get_market_quote": "Báo giá mủ thị trường",
     "get_raw_material_prices": "Giá thu mua mủ nguyên liệu",
     "get_latest_bulletin": "Bản tin / báo cáo đã phát hành",

@@ -16,8 +16,11 @@ if str(_BULLETIN) not in sys.path:
 
 from bulletin.convert import r0, r1, r2  # noqa: E402 - 1 nguồn làm tròn nửa-lên dùng chung
 
-_CONF_DOWN = {"high": "medium", "medium": "low", "low": "low"}  # hạ tin cậy khi SHFE ngược hướng
+_CONF_DOWN = {"high": "medium", "medium": "low", "low": "low"}  # hạ tin cậy khi có tín hiệu ngược hướng
 _SHFE_MIN = 0.5   # |%biến động SHFE| tối thiểu để tính là xác nhận/ngược hướng (lọc nhiễu phẳng)
+#: Tồn kho ngày dao động vài % là thường — dưới ngưỡng này coi là đi ngang, không cho nghiêng
+#: (chủ dự án duyệt 24/09/2026). Dùng chung cho màn Gợi ý giá sàn, Trợ lý AI, đối chiếu giá tư nhân.
+INVENTORY_LEAN_PCT = 3.0
 
 
 def prev_floor(fd: list[str], fmap: dict, grade: str, as_of: str) -> tuple[str | None, float | None]:
@@ -42,13 +45,35 @@ def drivers(idx: dict, keys: list[tuple[str, str]], labels: dict,
     return out
 
 
+def inventory_lean(inv: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Tồn kho TỔNG + TỰ DO so với lần ban hành trước → tham chiếu nghiêng lên/xuống quanh mức mô hình.
+
+    `direction`: "up" = tồn tăng (áp lực bán → nghiêng GIỮ/HẠ) · "down" = tồn giảm (nguồn chặt → ủng
+    hộ NÂNG) · "flat" = cả hai trong ±`INVENTORY_LEAN_PCT` · "mixed" = tổng và tự do đi ngược nhau
+    rõ rệt → không nghiêng. None = chưa có mốc so sánh. Chỉ là THAM CHIẾU: không sửa số mô hình —
+    tồn kho ngày mới có từ 24/07/2026, chưa đủ lần ban hành để đưa vào hồi quy.
+    """
+    if not inv:
+        return None
+    total, free = inv.get("d_ton_kho_pct"), inv.get("d_free_pct")
+    moves = [p for p in (total, free) if p is not None]
+    if not moves:
+        return None
+    up = any(p >= INVENTORY_LEAN_PCT for p in moves)
+    down = any(p <= -INVENTORY_LEAN_PCT for p in moves)
+    direction = "mixed" if up and down else "up" if up else "down" if down else "flat"
+    return {"direction": direction, "total_pct": total, "free_pct": free,
+            "threshold_pct": INVENTORY_LEAN_PCT, "base_day": inv.get("base_day"), "day": inv.get("day")}
+
+
 def build_item(grade: str, act: float | None, sug: float | None, r: dict | None,
                prev: float | None, bt: dict, shfe_chg: float | None,
-               unit: str = "USD/T") -> dict[str, Any]:
-    """Ghép 1 dòng đề xuất: Δ so lần trước, hành động (dead-band), độ tin cậy, cảnh báo SHFE.
+               unit: str = "USD/T", lean: str | None = None) -> dict[str, Any]:
+    """Ghép 1 dòng đề xuất: Δ so lần trước, hành động (dead-band), độ tin cậy, cảnh báo.
 
-    Dead-band = MAE backtest: |Δ| ≤ band ⇒ GIỮ (nhiễu). Hạ tin cậy + đánh dấu 'shfe_opposite'
-    khi đề xuất nâng/hạ nhưng SHFE (chỉ báo dẫn hướng ~88%) đi ngược chiều rõ rệt.
+    Dead-band = MAE backtest: |Δ| ≤ band ⇒ GIỮ (nhiễu). Mỗi tín hiệu đi NGƯỢC đề xuất nâng/hạ thì
+    hạ tin cậy 1 bậc + thêm vào `cautions`: 'shfe_opposite' (SHFE — chỉ báo dẫn hướng ~88% — đi ngược
+    rõ rệt) · 'inventory_opposite' (`lean` = hướng tồn kho: nâng mà tồn tăng, hạ mà tồn giảm).
     `unit` = đơn vị giá sàn grade (USD/T, hoặc VNĐ/T cho grade chỉ-nội-địa như SkimBlock).
     """
     # Nửa LÊN: delta được so với dead-band để ra NÂNG/GIỮ/HẠ, lệch 1 USD ở sát mép là đổi
@@ -63,17 +88,21 @@ def build_item(grade: str, act: float | None, sug: float | None, r: dict | None,
         else bt.get("mape")
     # Không có dự báo (grade chưa có dữ liệu giá sàn) → không có độ tin cậy để hiển thị.
     conf = fm.confidence(rel_mape, bt.get("hit"), bt.get("n", 0)) if sug is not None else None
-    caution = None
+    cautions: list[str] = []
     if action in ("raise", "lower") and shfe_chg is not None and abs(shfe_chg) >= _SHFE_MIN \
             and (delta > 0) != (shfe_chg > 0):
-        conf, caution = _CONF_DOWN[conf], "shfe_opposite"
+        conf = _CONF_DOWN[conf]
+        cautions.append("shfe_opposite")
+    if (action, lean) in (("raise", "up"), ("lower", "down")):
+        conf = _CONF_DOWN[conf]
+        cautions.append("inventory_opposite")
     return {
         "grade": grade, "unit": unit, "actual": act, "suggested": sug,
         "diff": (r0(act - sug) if act is not None and sug is not None else None),
         "r": r["r"] if r else None,
         "prev": r0(prev) if prev is not None else None, "delta": delta,
         "delta_pct": (r1(delta / prev * 100) if (delta is not None and prev) else None),
-        "band": band, "action": action, "confidence": conf, "caution": caution,
+        "band": band, "action": action, "confidence": conf, "cautions": cautions,
         "mape": bt.get("mape"), "mape_move": mape_move, "n_move": n_move,
         "hit": bt.get("hit"), "n_bt": bt.get("n", 0),
     }

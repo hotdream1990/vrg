@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services import floor_repo, floor_suggest, inventory_repo, price_repo, private_price_benchmark
+from app.services import floor_repo, floor_suggest, price_repo, private_price_benchmark
 from app.services.assistant_tools._common import (
     clamp_days, cols, days_ago, dm, dmy, err, line, pct, table, today,
 )
@@ -96,7 +96,8 @@ def _suggest_floor(args: dict) -> dict:
         return err(s["error"])
     out = [{"grade": it["grade"], "hien_tai": it.get("prev"), "de_xuat": it.get("suggested"),
             "hanh_dong": _ACTION.get(it.get("action"), it.get("action")), "delta": it.get("delta"),
-            "delta_pct": it.get("delta_pct"), "do_tin_cay": it.get("confidence")}
+            "delta_pct": it.get("delta_pct"), "do_tin_cay": it.get("confidence"),
+            "canh_bao": [_CAUTION[c] for c in it.get("cautions", [])]}
            for it in s.get("items", []) if it.get("suggested") is not None]
     if not out:
         return err(f"Chưa đủ dữ liệu để gợi ý giá sàn tại ngày {dmy(as_of)}.")
@@ -108,8 +109,11 @@ def _suggest_floor(args: dict) -> dict:
         "as_of": as_of, "lan_truoc": dmy(s.get("prev_as_of")),
         "basket_change_pct": s.get("basket_change_pct"),
         "drivers": [{"chi_so": d["index"], "thay_doi_pct": d["change_pct"]} for d in s.get("drivers", [])],
-        "ton_kho": s.get("inventory"), "items": out,
-        "note": "Hồi quy giá sàn theo rổ chỉ số; dead-band = MAE backtest (|Δ| nhỏ ⇒ GIỮ). "
+        "ton_kho": s.get("inventory"), "tham_chieu_ton_kho": _lean_text(s.get("inventory_lean")),
+        "items": out,
+        "note": "Mô hình đa biến: giá mủ nước + 4 futures (MRB SMR20 · SGX TSR20 · SHFE RU · OSE RSS3); "
+                "dead-band = MAE backtest (|Δ| nhỏ ⇒ GIỮ). Tồn kho tổng/tự do là THAM CHIẾU nghiêng, "
+                "không đổi số mô hình — ngược hướng đề xuất thì đã hạ độ tin cậy và ghi canh_bao. "
                 "Đây là GỢI Ý tham khảo, quyết định cuối thuộc Ban lãnh đạo."},
         "artifact": art, "source": f"engine gợi ý giá sàn · {dmy(as_of)}"}
 
@@ -141,10 +145,25 @@ def _scenarios(args: dict) -> dict:
 
 # ── Tín hiệu bên lề cho việc ĐIỀU CHỈNH khỏi mức engine ──
 # Trọng số = mức ảnh hưởng đo trên 80 lần ban hành (docs/project/tro-ly-ai-kha-nang.md):
-# "mạnh" = dẫn dắt điều chỉnh; "bổ sung" = mang thông tin rổ futures KHÔNG có (tương quan riêng
-# phần cao) — đây mới là thứ đáng dùng để lệch khỏi mức nền; "nền" = neo mặt bằng, không giải
-# thích lần chỉnh này.
-_W_STRONG, _W_EXTRA, _W_BASE = "mạnh", "bổ sung", "nền"
+# "mạnh" = biến của mô hình (4 futures + giá mủ nước) — đã nằm trong mức đề xuất; "bổ sung" = mang
+# thông tin mô hình KHÔNG có (tương quan riêng phần cao) — đây mới là thứ đáng dùng để lệch khỏi mức nền.
+_W_STRONG, _W_EXTRA = "mạnh", "bổ sung"
+
+#: Hướng tồn kho (floor_recommend.inventory_lean) → hướng tác động lên giá sàn. Cùng luật ±3% với màn
+#: Gợi ý giá sàn — AI không tự áp ngưỡng riêng.
+_LEAN_EFFECT = {"up": "hỗ trợ HẠ", "down": "hỗ trợ NÂNG", "flat": "trung tính (đi ngang)",
+                "mixed": "trung tính (tổng và tự do trái chiều)"}
+_CAUTION = {"shfe_opposite": "SHFE RU đi ngược hướng đề xuất",
+            "inventory_opposite": "tồn kho đi ngược hướng đề xuất"}
+
+
+def _lean_text(lean: dict | None) -> str:
+    """Câu tham chiếu tồn kho cho LLM đọc nguyên văn — hướng đã quy sẵn, không để LLM tự nhân dấu."""
+    if not lean:
+        return "chưa đủ dữ liệu tồn kho để so với lần ban hành trước"
+    pct_txt = lambda v: "—" if v is None else f"{v:+.1f}%".replace(".", ",")  # noqa: E731
+    return (f"tồn kho tổng {pct_txt(lean['total_pct'])}, tự do {pct_txt(lean['free_pct'])} so với "
+            f"{dmy(lean['base_day'])} (ngưỡng ±{lean['threshold_pct']:g}%) → {_LEAN_EFFECT[lean['direction']]}")
 
 
 #: Dưới ngưỡng này coi như đi ngang — nhiễu, không đủ để lệch khỏi mức mô hình.
@@ -191,7 +210,7 @@ def _purchase_change(price_type: str, days: int) -> float | None:
 
 
 def _floor_context(args: dict) -> dict:
-    """Gom TÍN HIỆU BÊN LỀ quanh một lần điều chỉnh: rổ futures, giá mủ nguyên liệu, tồn kho.
+    """Gom TÍN HIỆU BÊN LỀ quanh một lần điều chỉnh: biến của mô hình, giá mủ chén, tồn kho.
 
     Mục đích: cho phép điều chỉnh khỏi mức đề xuất của engine một cách CÓ CĂN CỨ — mỗi tín hiệu
     kèm hướng tác động và trọng số đã đo, thay vì để người/AI ước lượng cảm tính.
@@ -206,25 +225,28 @@ def _floor_context(args: dict) -> dict:
         return err(s["error"])
 
     signals: list[dict] = []
+    # Biến của mô hình đa biến (4 futures + giá mủ nước) — đã nằm trong mức đề xuất.
     for d in s.get("drivers", []):
-        signals.append(_signal(d["index"], d.get("change_pct"), _W_STRONG, +1))
-    latex = _purchase_change("purchase", days)
+        signals.append(_signal(d["index"], d.get("change_pct"), _W_STRONG, +1, "đã nằm trong mô hình"))
     cup = _purchase_change("purchase_cup", days)
-    if latex is not None:
-        signals.append(_signal("Giá mủ nước (VRG chốt)", latex, _W_BASE, +1,
-                               "NEO MẶT BẰNG — chỉ nói giá đang ở vùng nào, KHÔNG dùng để lệch khỏi mức mô hình"))
     if cup is not None:
         signals.append(_signal("Giá mủ chén (VRG chốt)", cup, _W_EXTRA, +1,
                                "mang thông tin nội địa mà rổ futures không có"))
 
     inv = s.get("inventory") or {}
+    lean = s.get("inventory_lean")
     if inv.get("ton_kho") is not None:
-        d_tk = inv.get("d_ton_kho")
-        signals.append(_signal(
-            f"Tồn kho Tập đoàn (tuần {dmy(inv.get('week'))})",
-            pct(inv["ton_kho"], inv["ton_kho"] - d_tk) if d_tk is not None else None,
-            _W_EXTRA, -1,  # tồn TĂNG ⇒ áp lực bán ⇒ hỗ trợ HẠ
-            f"tồn {inv['ton_kho']:,.0f} tấn · tự do (chưa có HĐ) {inv.get('ton_free')} tấn"))
+        # % thay đổi so với lần ban hành trước, chỉ trên các đơn vị có số ở cả hai ngày; hướng lấy từ
+        # luật chung `inventory_lean` (tổng + tự do, ngưỡng ±3%) để AI nói giống màn Gợi ý giá sàn.
+        span = (f"{dmy(inv['base_day'])} → {dmy(inv['day'])}, {inv['units_compared']} đơn vị có số cả 2 ngày"
+                if inv.get("base_day") else f"ngày {dmy(inv['day'])}, chưa có mốc so sánh")
+        signals.append({
+            "tin_hieu": f"Tồn kho Tập đoàn ({span})", "thay_doi_pct": inv.get("d_ton_kho_pct"),
+            "trong_so": _W_EXTRA,
+            "huong_tac_dong": _LEAN_EFFECT[lean["direction"]] if lean else "chưa đủ dữ liệu",
+            "quan_he": "nghịch chiều giá sàn",  # tồn TĂNG ⇒ áp lực bán ⇒ hỗ trợ HẠ
+            "ghi_chu": f"{_lean_text(lean)} · tồn {inv['ton_kho']:,.0f} tấn ({inv['units_counted']} đơn vị) "
+                       f"· tự do (chưa có HĐ) {inv['ton_free']:,.0f} tấn"})
 
     # Giá sàn SVR 3L so với vùng hợp lý theo giá mủ tư nhân — hướng tính theo VỊ TRÍ giá sàn trong vùng
     # (không phải % thay đổi), nên dựng dòng tín hiệu trực tiếp thay vì qua `_signal`.
@@ -245,27 +267,26 @@ def _floor_context(args: dict) -> dict:
                        + (f"; {bench['canh_bao_do_tuoi']}" if bench.get("canh_bao_do_tuoi") else "")})
 
     # Cán cân CHỈ tính trên tín hiệu trọng số "bổ sung" — đó là phần duy nhất được phép làm lệch
-    # mức mô hình (tín hiệu "mạnh" đã nằm trong mô hình, tín hiệu "nền" không nói về biên độ).
+    # mức mô hình (tín hiệu "mạnh" đã nằm trong mô hình).
     extra = [g for g in signals if g["trong_so"] == _W_EXTRA]
     up = sum(1 for g in extra if g["huong_tac_dong"] == "hỗ trợ NÂNG")
     down = sum(1 for g in extra if g["huong_tac_dong"] == "hỗ trợ HẠ")
     balance = ("nghiêng NÂNG" if up > down else "nghiêng HẠ" if down > up
                else "cân bằng — giữ nguyên mức mô hình")
-    weeks = len(inventory_repo.series(limit=8))
     return {"summary": {
         "as_of": as_of, "lan_truoc": dmy(s.get("prev_as_of")),
         "bien_dong_ro_chi_so_pct": s.get("basket_change_pct"),
         "can_can_tin_hieu_bo_sung": {"ho_tro_nang": up, "ho_tro_ha": down, "ket_luan": balance},
-        "tin_hieu": signals, "so_tuan_ton_kho_co_du_lieu": weeks,
-        "huong_dan": "Mức của engine đã tính từ rổ futures. Chỉ dùng tín hiệu trọng số 'bổ sung' "
-                     "(giá mủ chén, tồn kho, vùng giá tư nhân) và số liệu đơn vị thành viên để LỆCH khỏi mức đó; "
-                     "tín hiệu 'mạnh' đã nằm trong mô hình rồi, đừng cộng thêm lần nữa. "
-                     "Tín hiệu 'nền' chỉ dùng để nói giá đang ở vùng nào."},
+        "tin_hieu": signals, "ton_kho_ngay": inv.get("day"),
+        "huong_dan": "Mức của engine đã tính từ giá mủ nước + 4 futures (mô hình đa biến). Chỉ dùng tín "
+                     "hiệu trọng số 'bổ sung' (giá mủ chén, tồn kho, vùng giá tư nhân) và số liệu đơn vị thành "
+                     "viên để LỆCH khỏi mức đó; tín hiệu 'mạnh' (kể cả giá mủ nước) đã nằm trong mô hình rồi, "
+                     "đừng cộng thêm lần nữa."},
         "artifact": table(f"Tín hiệu bối cảnh điều chỉnh giá sàn ({dmy(as_of)})",
                           cols(("tin_hieu", "Tín hiệu"), ("thay_doi_pct", "Thay đổi %"),
                                ("huong_tac_dong", "Hướng tác động"), ("trong_so", "Trọng số"),
                                ("ghi_chu", "Ghi chú")), signals),
-        "source": f"engine drivers · fact_price (giá mủ NL) · fact_inventory · giá mủ tư nhân · {dmy(as_of)}"}
+        "source": f"engine drivers · fact_price (giá mủ chén) · biểu Tồn kho đơn vị (ngày) · giá mủ tư nhân · {dmy(as_of)}"}
 
 
 TOOLS: dict[str, dict[str, Any]] = {
@@ -298,7 +319,7 @@ TOOLS: dict[str, dict[str, Any]] = {
     "get_floor_context": {
         "run": _floor_context,
         "schema": {"name": "get_floor_context",
-                   "description": "TÍN HIỆU BÊN LỀ quanh quyết định điều chỉnh giá sàn: biến động rổ chỉ số, giá mủ nguyên liệu (mủ nước · mủ chén), tồn kho Tập đoàn — mỗi tín hiệu kèm hướng tác động (thuận/nghịch) và TRỌNG SỐ đã đo. Gọi tool này SAU suggest_floor_adjustment khi cần điều chỉnh khỏi mức đề xuất của mô hình, để việc điều chỉnh có căn cứ thay vì cảm tính.",
+                   "description": "TÍN HIỆU BÊN LỀ quanh quyết định điều chỉnh giá sàn: biến động các biến của mô hình (4 futures + giá mủ nước), giá mủ chén, tồn kho Tập đoàn (tổng + tự do) — mỗi tín hiệu kèm hướng tác động (thuận/nghịch) và TRỌNG SỐ đã đo. Gọi tool này SAU suggest_floor_adjustment khi cần điều chỉnh khỏi mức đề xuất của mô hình, để việc điều chỉnh có căn cứ thay vì cảm tính.",
                    "parameters": {"type": "object", "properties": {
                        "as_of": {"type": "string", "description": "ngày YYYY-MM-DD (mặc định hôm nay)"},
                        "days": {"type": "integer", "description": "số ngày tính biến động giá mủ nguyên liệu (mặc định 30)"}}}}},

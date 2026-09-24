@@ -52,7 +52,7 @@ WAREHOUSE_KEYS: tuple[tuple[str, str], ...] = (
 )
 
 
-def _trim_pending(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def trim_pending(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Bỏ các ngày CUỐI chưa đủ đơn vị nhập; trả (chuỗi đã cắt, các ngày bị cắt) để UI nói rõ."""
     best = max((r["units_counted"] for r in rows), default=0)
     if not best:
@@ -168,7 +168,7 @@ def stock_series(date_from: str, date_to: str, group_by: str = "warehouse") -> d
                      "units_counted": len(by_company),
                      "values": {k: round(v, 3) for k, v in values.items()}})
 
-    rows, pending = _trim_pending(rows)
+    rows, pending = trim_pending(rows)
 
     if group_by in ("grade", "free_grade"):
         series = series_of(rows, grade_totals)

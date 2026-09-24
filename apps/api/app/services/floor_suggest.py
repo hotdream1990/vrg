@@ -18,6 +18,8 @@ from app.core.market_meta import VRG_DOMESTIC_ONLY_GRADES, VRG_FLOOR_GRADES
 from app.core.paths import bulletin_dir
 from app.services import floor_model as fm
 from app.services import floor_recommend as fr
+from app.services import inventory_daily
+from app.services.unit_series_stock import MIN_COVERAGE_RATIO, STOCK_START
 
 _BULLETIN = bulletin_dir()
 if str(_BULLETIN) not in sys.path:
@@ -31,12 +33,19 @@ LABELS = {("vrg", "mu_nuoc"): "Giá mủ nước", ("lgm", "SMR20"): "MRB SMR20"
           ("sgx", "TSR20"): "SGX TSR20", ("shfe", "RU"): "SHFE RU", ("tocom", "RSS3"): "OSE RSS3"}
 # chỉ số tham chiếu thêm cho bảng tương quan (không vào model)
 REF = {("reuters", "SMR20"): "Physical SMR20", ("lgm", "SMRCV"): "MRB SMRCV", ("sgx", "RSS3"): "SGX RSS3"}
+# Tồn kho lấy THEO NGÀY từ biểu Tồn kho đơn vị (`inventory_daily`, có số từ 24/07/2026) — bỏ chuỗi
+# tuần `fact_inventory` (chốt 24/09/2026). Lịch sử ngắn nên v1i/v1f chỉ chạy khi đủ lần ban hành có số.
 INV = ("vrg", "ton_kho")     # tổng tồn kho — biến phụ cho "v1i" (rổ + tồn kho)
 FREE = ("vrg", "ton_free")   # tồn kho TỰ DO = tồn kho − đã có HĐ (chưa bán) — cho "v1f"
 LABELS[INV] = "Tồn kho"
 LABELS[FREE] = "Tồn kho tự do (chưa có HĐ)"
 EXTRA = {INV, FREE}          # biến phụ: giữ cột riêng, KHÔNG gộp vào rổ futures
 
+PARTIAL_LOOKBACK = 14  # số ngày có giá đứng trước, dùng làm mốc "bình thường có mấy đơn vị nhập"
+#: Mô hình khuyến nghị: đa biến + mủ nước thắng rổ 4 futures ở cả 14 chủng loại khi backtest trên
+#: prod 83 lần ban hành 01/2024 → 09/2026 (MAPE TB 2,85% vs 3,41%, đúng hướng 78% vs 73%) —
+#: kết luận "v1 tốt nhất" hồi 06/2026 là trên n≈30, nay lật. Màn, API, tờ trình, Trợ lý AI dùng chung.
+DEFAULT_MODEL = "v2"
 MIN_TRAIN = 8     # tối thiểu số lần trong tập train để fit
 MIN_COVER = 5     # 1 feature chỉ được dùng khi có >= ngần này điểm phủ trên train
 DEFAULT_ALPHA = 1.0
@@ -54,6 +63,23 @@ def _at(series: list[tuple[str, float]], d: str) -> float | None:
     return best
 
 
+def _drop_partial_tail(rows: list[tuple[str, float, int]]) -> list[tuple[str, float]]:
+    """Bỏ các ngày CUỐI mới vài đơn vị nhập giá mủ nước: bình quân khi đó đổi theo rổ đơn vị, không phải giá.
+
+    Đo prod 24/09/2026: buổi sáng mới 1 đơn vị nhập (495) so với 7 đơn vị mọi ngày (bình quân 553,6)
+    → mô hình đa biến đọc thành giá mủ nước giảm 10,6% và kéo đề xuất xuống. `rows` = (ngày, bình quân,
+    số đơn vị) tăng theo ngày. Chỉ cắt ĐUÔI, so với số đơn vị nhiều nhất của các ngày có giá ngay trước
+    đó — giữa chuỗi mà ít đơn vị là sự thật (03–04/2026 cả tháng chỉ 1 đơn vị nhập).
+    """
+    cut = len(rows)
+    while cut > 1:
+        before = [n for _, _, n in rows[max(0, cut - 1 - PARTIAL_LOOKBACK):cut - 1]]
+        if rows[cut - 1][2] >= MIN_COVERAGE_RATIO * max(before):
+            break
+        cut -= 1
+    return [(d, v) for d, v, _ in rows[:cut]]
+
+
 def _target(grade: str, fob: float | None, dom: float | None) -> float | None:
     """Trị hồi quy của 1 grade: grade chỉ-nội-địa (SkimBlock) dùng VNĐ/T, còn lại dùng FOB USD/T."""
     v = dom if grade in VRG_DOMESTIC_ONLY_GRADES else fob
@@ -65,7 +91,20 @@ def _unit(grade: str) -> str:
     return "VNĐ/T" if grade in VRG_DOMESTIC_ONLY_GRADES else "USD/T"
 
 
-def _load() -> tuple:
+def _inv_need(model: str) -> str:
+    """Phần tồn kho mô hình cần: v1f → tồn tự do, v1i → tổng, còn lại không dùng tồn kho."""
+    return "full" if model == "v1f" else "total" if model == "v1i" else "none"
+
+
+def _load(extra: tuple[str, ...] = (), snaps: inventory_daily.Snapshots | None = None,
+          inv: str = "full") -> tuple:
+    """Dữ liệu cho engine. `extra` = ngày cần thêm điểm tồn kho tự do (ngày gợi ý không phải lần ban hành);
+    `snaps` = tồn kho ngày đã nạp sẵn (người gọi cần dùng lại cho ô chỉ số tồn kho).
+
+    `inv` = phần tồn kho cần nạp: "none" · "total" (tổng, 1 lần quét biểu đơn vị) · "full" (+ tồn tự
+    do, hỏi hợp đồng MỖI lần ban hành). Một lượt mở màn gọi hàm này ~7 lần song song — nạp thừa là
+    nhân chi phí lên chừng ấy lần.
+    """
     ensure_schema()
     with session_scope() as db:
         fr = db.execute(text("SELECT as_of, grade, fob_usd, domestic_vnd, lan FROM vrg_floor_price "
@@ -77,11 +116,9 @@ def _load() -> tuple:
                              "ORDER BY as_of")).all()
         # price <> 0 (giống rổ chỉ số trên): đơn giá thu mua 0 = "không có giá", không phải một
         # mức giá — để lọt vào là bình quân ngày tụt hẳn và hồi quy học theo cú rơi không có thật.
-        mr = db.execute(text("SELECT as_of, avg(price) FROM fact_price WHERE source='vrg' "
+        mr = db.execute(text("SELECT as_of, avg(price), count(*) FROM fact_price WHERE source='vrg' "
                              "AND price_type='purchase' AND price <> 0 "
                              "GROUP BY as_of ORDER BY as_of")).all()
-        iv = db.execute(text("SELECT as_of, ton_kho, ton_kho_hd FROM fact_inventory "
-                             "WHERE ton_kho IS NOT NULL ORDER BY as_of")).all()
     # fmap = trị hồi quy theo grade (FOB cho grade thường, VNĐ cho grade chỉ-nội-địa như SkimBlock).
     fmap = {(str(d), g): t for d, g, fob, dom, _ in fr
             if (t := _target(g, fob, dom)) is not None}
@@ -94,9 +131,13 @@ def _load() -> tuple:
     idx: dict[tuple[str, str], list[tuple[str, float]]] = {}
     for d, s, g, v in ir:
         idx.setdefault((s, g), []).append((str(d), float(v)))
-    idx[("vrg", "mu_nuoc")] = [(str(d), float(v)) for d, v in mr]
-    idx[INV] = [(str(d), float(v)) for d, v, _ in iv]
-    idx[FREE] = [(str(d), float(v) - float(h)) for d, v, h in iv if h is not None]
+    idx[("vrg", "mu_nuoc")] = _drop_partial_tail([(str(d), float(v), int(n)) for d, v, n in mr])
+    if inv != "none":
+        snaps = inventory_daily.load() if snaps is None else snaps
+        idx[INV] = inventory_daily.series(snaps)
+    if inv == "full":
+        # Tồn tự do cần hỏi hợp đồng từng ngày → chỉ tính tại các lần ban hành có số + ngày gợi ý.
+        idx[FREE] = inventory_daily.free_series(snaps, [d for d in floor_dates if d >= STOCK_START] + list(extra))
     return floor_dates, grades, fmap, idx, lanmap
 
 
@@ -112,6 +153,10 @@ def _fit_at(train: list[str], target: str, grade: str, fmap: dict, idx: dict,
     sel = [k for k in keys
            if sum(val(k, d) is not None for d in train) >= MIN_COVER and val(k, target) is not None]
     if not sel:
+        return None
+    # v1i/v1f mà thiếu tồn kho thì chỉ là v1 mang tên khác — trả None để màn so sánh không tưởng
+    # "thêm tồn kho" cho kết quả y hệt rổ futures.
+    if model in ("v1i", "v1f") and not EXTRA & set(sel):
         return None
     rows, ys = [], []
     for d in train:
@@ -164,7 +209,7 @@ def points() -> list[dict[str, Any]]:
              "title": (r["title"] or "").strip()} for r in rows]
 
 
-def suggest(as_of: str, model: str = "v1", backtest: bool = True,
+def suggest(as_of: str, model: str = DEFAULT_MODEL, backtest: bool = True,
             alpha: float = DEFAULT_ALPHA) -> dict[str, Any]:
     """Đề xuất ĐIỀU CHỈNH giá sàn tại 1 lần: dự báo mức giá + so lần trước → NÂNG/GIỮ/HẠ.
 
@@ -172,7 +217,8 @@ def suggest(as_of: str, model: str = "v1", backtest: bool = True,
     nhiễu ⇒ giữ nguyên), độ tin cậy theo độ khớp backtest, cảnh báo khi SHFE đi ngược hướng.
     backtest=True ⇒ chỉ fit data TRƯỚC as_of (so sánh khách quan với giá đã ban hành).
     """
-    fd, grades, fmap, idx, lanmap = _load()
+    snaps = inventory_daily.load()
+    fd, grades, fmap, idx, lanmap = _load((as_of,), snaps, "full" if model == "v1f" else "total")
     is_issuance = as_of in fd
     if not is_issuance:
         # Ngày BẤT KỲ (chưa ban hành): fit toàn bộ lịch sử TRƯỚC as_of, không có giá thực để so.
@@ -186,6 +232,8 @@ def suggest(as_of: str, model: str = "v1", backtest: bool = True,
     chgs = [d["change_pct"] for d in drivers if d["change_pct"] is not None]
     shfe_chg = next((d["change_pct"] for d in drivers if d["index"] == LABELS[LEAD]), None)
 
+    inventory = inventory_daily.at(snaps, as_of, prev_d)
+    lean = fr.inventory_lean(inventory)
     feats_used: set[str] = set()
     n_train = 0
     items = []
@@ -197,31 +245,14 @@ def suggest(as_of: str, model: str = "v1", backtest: bool = True,
             n_train = max(n_train, r["n_train"])
         bt = _backtest_core(fd, fmap, idx, lanmap, g, model, alpha)["metrics"]
         _, prev = fr.prev_floor(fd, fmap, g, as_of)
-        items.append(fr.build_item(g, fmap.get((as_of, g)), sug, r, prev, bt, shfe_chg, _unit(g)))
+        items.append(fr.build_item(g, fmap.get((as_of, g)), sug, r, prev, bt, shfe_chg, _unit(g),
+                                   lean["direction"] if lean else None))
     return {
         "as_of": as_of, "model": model, "backtest": backtest, "is_issuance": is_issuance,
         "n_train": n_train, "feats": sorted(feats_used), "prev_as_of": prev_d,
         "basket_change_pct": round(sum(chgs) / len(chgs), 2) if chgs else None,
-        "drivers": drivers, "items": items, "inventory": _inventory_at(idx, as_of),
-    }
-
-
-def _inventory_at(idx: dict, as_of: str) -> dict[str, Any] | None:
-    """Tồn kho Tập đoàn tại tuần gần nhất ≤ as_of + xu hướng so tuần trước (cho chỉ số trên màn)."""
-    inv = [(d, v) for d, v in idx.get(INV, []) if d <= as_of]
-    free = [(d, v) for d, v in idx.get(FREE, []) if d <= as_of]
-    if not inv:
-        return None
-    wk, tk = inv[-1]
-    fr = free[-1][1] if free else None
-    p_tk = inv[-2][1] if len(inv) >= 2 else None
-    p_fr = free[-2][1] if len(free) >= 2 else None
-    return {
-        "week": wk, "ton_kho": round(tk),
-        "ton_free": round(fr) if fr is not None else None,
-        "ton_kho_hd": round(tk - fr) if fr is not None else None,
-        "d_ton_kho": round(tk - p_tk) if p_tk is not None else None,
-        "d_free": round(fr - p_fr) if (fr is not None and p_fr is not None) else None,
+        "drivers": drivers, "items": items, "inventory": inventory, "inventory_lean": lean,
+        "inventory_start": STOCK_START,
     }
 
 
@@ -239,13 +270,13 @@ def _basket_sigma(fd: list[str], idx: dict, model: str) -> float:
     return float(min(max(np.std(moves), 0.03), 0.15))
 
 
-def scenarios(as_of: str, model: str = "v1", shock_pct: float | None = None,
+def scenarios(as_of: str, model: str = DEFAULT_MODEL, shock_pct: float | None = None,
               alpha: float = DEFAULT_ALPHA) -> dict[str, Any]:
     """Ma trận kịch bản Giảm/Cơ sở/Tăng: áp cú sốc ±shock lên rổ chỉ số rồi dự báo lại từng grade.
 
     shock mặc định = 1 độ lệch chuẩn biến động rổ giữa các lần ban hành (kịch bản 'thường gặp').
     """
-    fd, grades, fmap, idx, _ = _load()
+    fd, grades, fmap, idx, _ = _load((as_of,), inv=_inv_need(model))
     train = [d for d in fd if d < as_of]
     if not train:
         return {"as_of": as_of, "items": [], "error": "Cần ít nhất 1 lần ban hành trước ngày này"}
@@ -295,17 +326,20 @@ def _backtest_core(fd: list[str], fmap: dict, idx: dict, lanmap: dict,
     return {"grade": grade, "model": model, "alpha": alpha, "metrics": m, "points": pts}
 
 
-def backtest(grade: str = "SVR 10 / CSR 10", model: str = "v1", alpha: float = DEFAULT_ALPHA) -> dict[str, Any]:
-    """Backtest 1 grade trên toàn bộ lịch sử ban hành (đo độ khớp dự báo vs giá sàn thực)."""
+def backtest(grade: str = "SVR 10 / CSR 10", model: str = DEFAULT_MODEL, alpha: float = DEFAULT_ALPHA) -> dict[str, Any]:
+    """Backtest 1 grade trên toàn bộ lịch sử ban hành (đo độ khớp dự báo vs giá sàn thực).
+
+    Nạp đủ tồn kho cho MỌI mô hình: biểu đồ backtest vẽ thêm đường tồn tự do tại từng lần ban hành.
+    """
     fd, grades, fmap, idx, lanmap = _load()
     if grade not in grades:
         return {"grade": grade, "error": "Không có grade này", "points": [], "metrics": {"n": 0}}
-    return _backtest_core(fd, fmap, idx, lanmap, grade, model, alpha)
+    return {**_backtest_core(fd, fmap, idx, lanmap, grade, model, alpha), "inventory_start": STOCK_START}
 
 
-def backtest_summary(model: str = "v1", alpha: float = DEFAULT_ALPHA) -> list[dict[str, Any]]:
+def backtest_summary(model: str = DEFAULT_MODEL, alpha: float = DEFAULT_ALPHA) -> list[dict[str, Any]]:
     """MAPE / % đúng hướng / n cho từng grade — SVR 10 / CSR 10 (mặt hàng PoC) đứng đầu."""
-    fd, grades, fmap, idx, lanmap = _load()
+    fd, grades, fmap, idx, lanmap = _load(inv=_inv_need(model))
     head = "SVR 10 / CSR 10"
     ordered = ([head] if head in grades else []) + [g for g in grades if g != head]
     out = []
@@ -319,7 +353,7 @@ def backtest_summary(model: str = "v1", alpha: float = DEFAULT_ALPHA) -> list[di
 
 def correlation(grade: str) -> list[dict[str, Any]]:
     """Tương quan mức giá: 1 grade giá sàn vs từng chỉ số (Pearson), >=15 điểm."""
-    fd, grades, fmap, idx, _ = _load()
+    fd, grades, fmap, idx, _ = _load(inv="total")  # tồn tự do chỉ có ở vài lần ban hành, không đủ 15 điểm
     y = [fmap.get((d, grade)) for d in fd]
     out = []
     for k, name in {**LABELS, **REF}.items():
@@ -338,7 +372,7 @@ def correlation(grade: str) -> list[dict[str, Any]]:
 
 def chart(grade: str) -> dict[str, Any]:
     """Chuỗi giá sàn[grade] + chỉ số (chuẩn hoá base-100) để vẽ tương quan."""
-    fd, grades, fmap, idx, _ = _load()
+    fd, grades, fmap, idx, _ = _load(inv="none")  # chỉ vẽ FEATS, không dùng tồn kho
     keys = [("self", grade)] + FEATS
     names = {("self", grade): f"Giá sàn {grade}", **LABELS}
     series = []

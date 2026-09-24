@@ -19,9 +19,10 @@ def test_cong_thuc_khop_vi_du_tai_lieu() -> None:
 
 
 def test_chon_diem_trong_vung_theo_ton_kho() -> None:
-    assert pb._inventory_trend({"ton_kho": 110, "d_ton_kho": 10})[0].startswith("TĂNG")
-    assert pb._inventory_trend({"ton_kho": 90, "d_ton_kho": -10})[0].startswith("GIẢM")
-    assert pb._inventory_trend({"ton_kho": 1000, "d_ton_kho": 1})[0].startswith("đi ngang")
+    assert pb._inventory_trend({"d_ton_kho_pct": 10.0})[0].startswith("TĂNG")
+    assert pb._inventory_trend({"d_ton_kho_pct": -10.0})[0].startswith("GIẢM")
+    assert pb._inventory_trend({"d_ton_kho_pct": 2.0})[0].startswith("đi ngang")   # dưới ngưỡng ±3%
+    assert pb._inventory_trend({"d_ton_kho_pct": 5.0, "d_free_pct": -5.0})[0].startswith("trái chiều")
     assert pb._inventory_trend(None)[0] == "chưa đủ dữ liệu"
 
 
@@ -34,7 +35,7 @@ def test_benchmark_vung_huong_va_muc_goi_y() -> None:
     tsc = round((floor - 5_000_000 - pb.DEFAULT_PROCESSING_COST) / (pb.PRIVATE_SVR3L_COEF * pb.TSC_TO_TONNE))
     market_quote_repo.save_quote({"as_of": _D, "private_prices": {"__TEST TN__": {"price": tsc, "price_max": None}}})
     try:
-        b = pb.benchmark(_D, {"ton_kho": 110, "d_ton_kho": 10})
+        b = pb.benchmark(_D, {"d_ton_kho_pct": 10.0})
         assert b is not None
         ref = pb.svr3l_cost(tsc)
         assert b["gia_thanh_tham_chieu"] == ref
@@ -48,7 +49,7 @@ def test_benchmark_vung_huong_va_muc_goi_y() -> None:
         inside_fob = (ref + 850_000) / floor * fob
         assert pb.benchmark(_D, None, inside_fob)["ket_luan"].startswith("Mức mô hình")
         assert pb.benchmark(_D, None, inside_fob)["muc_mo_hinh_so_voi_vung"] == "TRONG vùng hợp lý"
-        above = pb.benchmark(_D, {"ton_kho": 90, "d_ton_kho": -10}, fob * 1.2)
+        above = pb.benchmark(_D, {"d_ton_kho_pct": -10.0}, fob * 1.2)
         assert above["muc_mo_hinh_so_voi_vung"] == "CAO HƠN vùng hợp lý"
         assert above["muc_de_xuat_noi_dia_svr3l"] == ref + 1_000_000 and "kéo về" in above["ket_luan"]
     finally:

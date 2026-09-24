@@ -9,8 +9,9 @@ from app.services import floor_suggest, to_trinh, to_trinh_html
 
 router = APIRouter(prefix="/api/floor-suggest", tags=["floor-suggest"])
 
-_MODEL = Query("v1", pattern="^(v1|v1i|v1f|v2)$",
-               description="v1=rổ futures · v1i=rổ+tồn kho tổng · v1f=rổ+tồn kho tự do · v2=đa biến+mủ nước")
+_MODEL = Query(floor_suggest.DEFAULT_MODEL, pattern="^(v1|v1i|v1f|v2)$",
+               description="v2=đa biến 4 futures + mủ nước (khuyến nghị) · v1=rổ futures · "
+                           "v1i=rổ+tồn kho tổng · v1f=rổ+tồn kho tự do")
 
 
 @router.get("/points")
