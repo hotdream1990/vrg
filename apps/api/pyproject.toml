@@ -1,12 +1,12 @@
 [project]
 name = "vrg-caosu-api"
-version = "0.4.87"
+version = "0.4.88"
 description = "FastAPI gateway — AI Du bao Gia Cao su (VRG)"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
-    "numpy>=2.0",
+    "numpy>=2.0,<2.4",  # 2.4+ đòi CPU x86-64-v2 (SSE4.2); máy ảo prod có lúc chạy CPU QEMU đời cũ
     "pydantic-settings>=2.6",
     "sqlalchemy>=2.0",
     "psycopg[binary]>=3.2",
