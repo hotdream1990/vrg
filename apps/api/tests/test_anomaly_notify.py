@@ -293,7 +293,7 @@ def test_job_registered_and_seeded_off() -> None:
 
     name = anomaly_notify.JOB_NAME
     meta = scheduler.JOB_REGISTRY[name]
-    assert meta["catch_up"] and meta["seed_off"] and meta["default"] == (11, 5, None)
+    assert meta["catch_up"] and meta["seed_off"] and meta["default"] == (12, 0, None)
     with session_scope() as db:
         before = db.execute(text("SELECT * FROM schedule_job WHERE name = :n"),
                             {"n": name}).mappings().first()

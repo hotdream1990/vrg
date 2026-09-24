@@ -40,9 +40,10 @@ logger = logging.getLogger("vrg.anomaly_notify")
 JOB_NAME = "anomaly-notify"
 #: Ghi vào `meta_crawl_run.sources` → trang Lịch chạy hiện lần chạy gần nhất + cơ chế chạy bù.
 JOB_SOURCE = "anomaly-notify"
-#: 11:05 hằng ngày — ngay sau giờ chốt mặc định. Đổi giờ chốt thì chỉnh giờ job ở trang Lịch chạy
-#: (chạy trước giờ chốt cũng không sai: job tự lấy giờ chốt GẦN NHẤT ĐÃ QUA làm mốc).
-JOB_DEFAULT = (11, 5, None)
+#: 12:00 hằng ngày — chủ dự án chốt 24/09/2026: chừa một giờ sau giờ chốt 11:00 rồi mới gửi. Đổi giờ
+#: chốt thì chỉnh giờ job ở trang Lịch chạy (chạy trước giờ chốt cũng không sai: job tự lấy giờ chốt
+#: GẦN NHẤT ĐÃ QUA làm mốc).
+JOB_DEFAULT = (12, 0, None)
 AUTHOR = "system"
 AUTHOR_NAME = "Hệ thống VRG (tự động)"
 SENDER_LABEL = "Hệ thống cảnh báo tự động (sau giờ chốt nhập liệu)"
