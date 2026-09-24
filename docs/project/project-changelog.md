@@ -4,6 +4,19 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Dashboard đơn vị** (24/09/2026) — mục mới *Báo cáo & Thống kê → Dashboard đơn vị*
+  (`/dashboard-don-vi`): bức tranh thu mua · tiêu thụ · tồn kho · chỉ tiêu năm của MỘT phạm vi.
+  - Quản trị, chuyên viên, lãnh đạo Tập đoàn chọn **toàn Tập đoàn · một khu vực · một đơn vị**. Tài
+    khoản đơn vị (nhập liệu và lãnh đạo đơn vị) chỉ xem **đơn vị được gán** — mục nằm đầu menu của họ.
+  - 6 thẻ KPI; **chỉ tiêu năm lũy kế từ 01/01** (thu mua · tiêu thụ HĐ chuyến · doanh thu) có vạch
+    tiến độ thời gian và bảng tiến độ theo khu vực/đơn vị (ô vàng = chậm hơn tiến độ quá 10 điểm).
+  - Thu mua theo loại mủ + thành phẩm theo chủng loại; tiêu thụ theo loại hợp đồng / hình thức /
+    chủng loại kèm doanh thu và giá bán BQ; tồn kho tại ngày chốt (chưa/đã nhập kho, đã ký chưa
+    giao, có thể giao dịch, nguyên liệu, theo chủng loại) + diễn biến theo ngày 4 cách xem.
+  - Kỳ dài hơn 62 ngày thì biểu đồ gộp theo tháng. Số lấy nguyên từ các bảng thống kê đang có nên
+    khớp màn Chỉ số đơn vị / Thống kê.
+  - % chỉ tiêu tính trên các đơn vị **được giao** chỉ tiêu đó; đơn vị chưa được giao mà có số không
+    vào tử số (tổng cả phạm vi ghi ở dòng chú thích).
 - **Nhu cầu thị trường nhập theo phiếu có trường** (17/09/2026) — thay cho ô chữ tự do theo ngày.
   - Mỗi dòng là **một nhu cầu của một chủng loại**: ngày nhận · khách hàng · chủng loại · số lượng
     (tấn/container) · đơn giá (triệu đ/tấn hoặc USD/tấn) · giao tại · thời gian giao · kết quả ·
