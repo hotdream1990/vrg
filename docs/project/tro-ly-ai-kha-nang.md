@@ -142,7 +142,7 @@ Từ **6 công cụ trong 1 file** → **24 công cụ chia 5 gói kỹ năng b�
 
 | Công cụ | Trả về | Mới? |
 |---|---|---|
-| `get_inventory_trend` | Tồn kho thành phẩm theo tuần | cũ |
+| `get_inventory_trend` | Tồn kho thành phẩm Tập đoàn **theo ngày**, cộng từ biểu Tồn kho đơn vị (có từ 24/07/2026; bỏ chuỗi tuần 24/09/2026) | đổi nguồn |
 | `get_market_quote` | Báo giá mủ — **đủ 4 nhóm giá**, không chỉ xuất khẩu VRG | mở rộng |
 | `get_raw_material_prices` | Giá mủ nước/chén/dây (đồng/độ TSC·DRC), tổng hoặc theo đơn vị | **mới** |
 | `get_latest_bulletin` | Bản tin ngày / báo cáo tuần đã lưu gần nhất | **mới** |
@@ -248,3 +248,13 @@ trả lời sai. Danh sách giới hạn lấy từ `assistant_tools.LIMITS`, **
 - **Tri thức nội bộ (RAG)**: Trợ lý trả lời được số, chưa trả lời được câu hỏi quy trình/nghiệp vụ.
 - `get_latest_bulletin` chỉ đọc bản tin **đã lưu**; bản dựng tạm trên UI mà chưa bấm lưu thì không thấy.
 - Trợ lý **chỉ đọc** — không tạo nháp, không gửi nhắc (theo quyết định 10/09/2026).
+
+## Cập nhật 24/09/2026 — mô hình đa biến + tham chiếu tồn kho
+
+- `suggest_floor_adjustment`, `simulate_floor_scenarios`, `get_floor_context`, `get_private_price_benchmark`
+  dùng mô hình **đa biến: giá mủ nước + 4 futures** (`floor_suggest.DEFAULT_MODEL`), cùng số với màn
+  Gợi ý giá sàn và tờ trình. Backtest prod 83 lần ban hành: thắng rổ 4 futures ở cả 14 chủng loại.
+- Tồn kho (tổng + tự do, so với lần ban hành trước, ngưỡng ±3%) là **tham chiếu nghiêng**, không đổi số
+  mô hình. `suggest_floor_adjustment` trả `tham_chieu_ton_kho` và `canh_bao` từng chủng loại.
+- `get_floor_context` bỏ tín hiệu "Giá mủ nước (VRG chốt)" trọng số "nền" — giá mủ nước nay là biến
+  "mạnh" trong mô hình.

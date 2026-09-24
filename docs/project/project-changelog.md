@@ -122,6 +122,33 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     khai gì). Giá bình quân · bản tin · báo cáo **không đổi** — số 0 vẫn không vào kho giá.
 
 ### Changed
+- **Gợi ý giá sàn và Trợ lý AI dùng tồn kho THEO NGÀY** (24/09/2026) — thay cho tồn kho tuần
+  (bảng tuần dừng ở 07/08/2026, AI đang đọc số cũ 7 tuần).
+  - Số cộng thẳng từ biểu Tồn kho đơn vị tự khai (đã + chưa nhập kho), cùng cách tính với Thống kê
+    tồn kho và biểu đồ Command Center. Lấy ngày gần nhất đã đủ đơn vị nhập.
+  - Thay đổi tồn kho so với **lần ban hành giá sàn trước**, chỉ tính trên đơn vị có số ở cả hai ngày
+    — đơn vị nhập thiếu không bị hiểu thành tồn kho giảm.
+  - Áp cho: ô Tồn kho trên màn Gợi ý giá sàn, tín hiệu tồn kho khi AI tư vấn điều chỉnh, đối chiếu
+    giá mủ tư nhân, công cụ xem xu hướng tồn kho và bảng độ tươi dữ liệu của AI.
+  - Mô hình thử nghiệm "Rổ + Tồn kho" chỉ dùng số ngày (có từ 24/07/2026) nên tạm báo *chưa đủ dữ
+    liệu* cho tới khi có thêm lần ban hành. Mô hình khuyến nghị (rổ futures) không đổi.
+  - Màn nhập Tồn kho tuần và job tối thứ Sáu giữ nguyên.
+- **Màn Gợi ý giá sàn mở sẵn ở chế độ *Ngày cụ thể* (hôm nay) và mô hình *Đa biến: 4 futures + mủ
+  nước*** (24/09/2026).
+  - Thứ tự mô hình xếp theo backtest trên dữ liệu thật (83 lần ban hành 01/2024 → 09/2026): đa biến + mủ
+    nước tốt hơn rổ 4 futures ở cả 14 chủng loại — sai số trung bình 2,85% so với 3,41%, đúng hướng
+    78% so với 73%. Rổ 4 futures chuyển xuống làm đối chiếu; hai mô hình "+ tồn kho" để cuối.
+  - Ngày đang nhập dở giá mủ nước (vd sáng 24/09 mới 1/7 đơn vị) không còn kéo lệch đề xuất: mô hình
+    dùng ngày gần nhất đã đủ đơn vị nhập.
+- **Tồn kho tổng và tự do làm tham chiếu nghiêng lên/xuống giá sàn** (24/09/2026).
+  - So với lần ban hành trước: tăng từ 3% trở lên (tổng hoặc tự do) → nghiêng GIỮ/HẠ; giảm từ 3%
+    → ủng hộ NÂNG; trong ±3% → đi ngang; tổng và tự do trái chiều → không nghiêng.
+  - **Không đổi số của mô hình.** Mô hình đề xuất NÂNG mà tồn kho tăng (hoặc HẠ mà tồn kho giảm) thì
+    hạ độ tin cậy 1 bậc và hiện cảnh báo — cùng cách với khi SHFE đi ngược hướng.
+  - Chưa đưa tồn kho vào công thức hồi quy: tồn kho ngày mới có từ 24/07/2026 (5 lần ban hành).
+- **Trợ lý AI và tờ trình dùng mô hình đa biến (4 futures + giá mủ nước)** (24/09/2026) — cùng số
+  với màn Gợi ý giá sàn. AI dùng đúng luật tồn kho ±3% ở trên (trước đây tự áp ngưỡng 0,5%), bỏ tín
+  hiệu giá mủ nước đứng riêng vì nay đã nằm trong mô hình.
 - **Biểu Thu mua và Tồn kho được nhập trễ hơn các mục khác 1 ngày** (18/09/2026) — tồn cuối ngày
   phải kiểm kho xong, số thu mua chốt sau giờ cân cuối; cửa sổ sửa đặt 0 (chỉ hôm nay) thì đơn vị
   không nhập kịp: 45/81 đề nghị sửa đầu tiên (17–18/09) là hai biểu này của hôm qua.
