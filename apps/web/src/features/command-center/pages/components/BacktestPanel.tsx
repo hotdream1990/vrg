@@ -4,8 +4,10 @@ import {
   type BacktestMetrics,
   type BacktestResult,
   type FloorModel,
+  FLOOR_MODELS,
   fetchFloorBacktest,
 } from "../../../../lib/floor-suggest-client";
+import { dmy } from "../../../../lib/date";
 import BacktestChart from "../../charts/BacktestChart";
 
 const fmt = (n: number | null) => (n == null ? "—" : n.toLocaleString("vi-VN"));
@@ -44,6 +46,11 @@ export default function BacktestPanel({ grade, model, onModel }: {
 
   const cur = model === "v1" ? v1 : model === "v1i" ? v1i : model === "v1f" ? v1f : v2;
   const m = cur?.metrics;
+  // Tồn kho lấy theo ngày từ biểu đơn vị, chỉ có từ `inventory_start` → mô hình "+ tồn kho" phải chờ
+  // đủ lần ban hành sau mốc đó mới kiểm được (không lấy số tuần cũ bù vào).
+  const invNote = `Tồn kho theo ngày của đơn vị có từ ${dmy(v1i?.inventory_start)} — `
+    + "cần thêm lần ban hành có số tồn kho mới đủ để kiểm mô hình này.";
+  const isInvModel = model === "v1i" || model === "v1f";
 
   return (
     <div className="card">
@@ -53,7 +60,7 @@ export default function BacktestPanel({ grade, model, onModel }: {
           {loading && <span className="spinner" />}
         </h3>
         <div style={{ display: "flex", gap: 6 }}>
-          {(["v1", "v1i", "v1f", "v2"] as FloorModel[]).map((mo) => (
+          {FLOOR_MODELS.map(({ value: mo, short }) => (
             <button
               key={mo}
               onClick={() => onModel(mo)}
@@ -62,8 +69,7 @@ export default function BacktestPanel({ grade, model, onModel }: {
                 background: model === mo ? "var(--accent, #16a34a)" : undefined,
                 color: model === mo ? "#fff" : undefined }}
             >
-              {mo === "v1" ? "Rổ futures" : mo === "v1i" ? "+ Tồn kho tổng"
-                : mo === "v1f" ? "+ Tồn kho tự do" : "Đa biến + mủ nước"}
+              {short}
             </button>
           ))}
         </div>
@@ -91,7 +97,7 @@ export default function BacktestPanel({ grade, model, onModel }: {
               pred={cur.points.map((p) => p.pred)}
               free={cur.points.map((p) => p.ton_free ?? null)}
             />
-          : <div className="scan-empty">Chưa đủ dữ liệu để backtest grade này.</div>}
+          : <div className="scan-empty">{isInvModel ? invNote : "Chưa đủ dữ liệu để backtest grade này."}</div>}
       </div>
 
       {v1 && v1i && v1f && (() => {
@@ -102,7 +108,12 @@ export default function BacktestPanel({ grade, model, onModel }: {
           return mapeOk && hitOk ? ["TỐT HƠN", "#16a34a"]
             : !mapeOk && !hitOk ? ["TỆ HƠN", "#e11d48"] : ["LẪN LỘN", "#ca8a04"];
         };
-        const Row = ({ label, mt, v }: { label: string; mt: BacktestMetrics; v?: [string, string] }) => (
+        const Row = ({ label, mt, v }: { label: string; mt: BacktestMetrics; v?: [string, string] }) => (mt.n === 0 ? (
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "baseline" }}>
+            <span style={{ minWidth: 168, fontWeight: 500 }}>{label}</span>
+            <span style={{ color: "var(--muted)" }}>chưa đủ dữ liệu</span>
+          </div>
+        ) : (
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "baseline" }}>
             <span style={{ minWidth: 168, fontWeight: 500 }}>{label}</span>
             <span>MAPE <b style={{ color: v?.[1] }}>{mt.mape}%</b></span>
@@ -110,14 +121,17 @@ export default function BacktestPanel({ grade, model, onModel }: {
             <span>đúng hướng <b>{mt.hit}%</b></span>
             {v && <span style={{ color: v[1], fontWeight: 700 }}>{v[0]}</span>}
           </div>
-        );
+        ));
         return (
           <div style={{ margin: "8px 0", padding: "10px 14px", background: "var(--card-2, #f6faf7)", borderRadius: 8, fontSize: 13, display: "grid", gap: 5 }}>
             <b>Tác động Tồn kho lên mô hình ({grade})</b>
             <Row label="Trước · Rổ futures" mt={base} />
             <Row label="+ Tồn kho TỔNG" mt={v1i.metrics} v={verdict(v1i.metrics)} />
             <Row label="+ Tồn kho TỰ DO (chưa có HĐ)" mt={v1f.metrics} v={verdict(v1f.metrics)} />
-            {v2 && <div style={{ fontSize: 12, color: "var(--muted)" }}>(Tham chiếu — Đa biến + mủ nước: MAPE {v2.metrics.mape ?? "—"}% · đúng hướng {v2.metrics.hit ?? "—"}%)</div>}
+            {(v1i.metrics.n === 0 || v1f.metrics.n === 0) && (
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>{invNote}</div>
+            )}
+            {v2 && <div style={{ fontSize: 12, color: "var(--muted)" }}>(Mô hình khuyến nghị — Đa biến + mủ nước: MAPE {v2.metrics.mape ?? "—"}% · đúng hướng {v2.metrics.hit ?? "—"}%)</div>}
           </div>
         );
       })()}

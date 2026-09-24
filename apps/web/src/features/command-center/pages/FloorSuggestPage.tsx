@@ -7,6 +7,8 @@ import {
   type FloorModel,
   type FloorPoint,
   type SuggestResult,
+  DEFAULT_FLOOR_MODEL,
+  FLOOR_MODELS,
   fetchFloorChart,
   fetchFloorCorrelation,
   fetchFloorPoints,
@@ -30,10 +32,11 @@ const GRADES = ["SVR CV 50", "SVR CV60", "SVR L", "SVR 3L Mix", "SVR 3L", "SVR 5
  *  diễn giải căn cứ, kiểm định độ khớp (backtest) + tương quan chỉ số. */
 export default function FloorSuggestPage() {
   const [points, setPoints] = useState<FloorPoint[]>([]);
-  const [asOf, setAsOf] = useState("");
-  const [mode, setMode] = useState<"issuance" | "custom">("issuance");
+  // Mặc định gợi ý cho NGÀY CỤ THỂ (hôm nay) theo dữ liệu mới nhất — chủ dự án chốt 24/09/2026.
+  const [asOf, setAsOf] = useState(todayISO());
+  const [mode, setMode] = useState<"issuance" | "custom">("custom");
   const [backtest, setBacktest] = useState(true);
-  const [model, setModel] = useState<FloorModel>("v1");
+  const [model, setModel] = useState<FloorModel>(DEFAULT_FLOOR_MODEL);
   const [grade, setGrade] = useState("SVR 10 / CSR 10");
   const [sug, setSug] = useState<SuggestResult | null>(null);
   const [chart, setChart] = useState<FloorChart | null>(null);
@@ -44,8 +47,7 @@ export default function FloorSuggestPage() {
   const [showToTrinh, setShowToTrinh] = useState(false);
 
   useEffect(() => {
-    fetchFloorPoints().then((p) => { setPoints(p); if (p[0]) setAsOf(p[0].as_of); })
-      .catch((e) => setErr(e.message));
+    fetchFloorPoints().then(setPoints).catch((e) => setErr(e.message));
   }, []);
 
   const loadSuggest = useCallback(() => {
@@ -79,9 +81,9 @@ export default function FloorSuggestPage() {
       <div className="page-title">
         <div>
           <h2><BulbOutlined style={{ marginRight: 8 }} />Gợi ý điều chỉnh giá sàn</h2>
-          <p>Mô hình hồi quy theo rổ chỉ số thị trường (MRB SMR20 · SGX TSR20 · SHFE · OSE RSS3) đề xuất
+          <p>Mô hình hồi quy trên giá mủ nước và rổ chỉ số thị trường (MRB SMR20 · SGX TSR20 · SHFE · OSE RSS3) đề xuất
             NÂNG/GIỮ/HẠ giá sàn so với lần ban hành liền trước, kèm diễn giải căn cứ và độ tin cậy.
-            Chọn 1 lần đã ban hành để đối chiếu, hoặc <b>một ngày bất kỳ</b> để gợi ý giá sàn mới theo dữ liệu hiện có.</p>
+            Chọn <b>một ngày cụ thể</b> để gợi ý giá sàn mới theo dữ liệu hiện có, hoặc 1 lần đã ban hành để đối chiếu.</p>
         </div>
       </div>
       {err && <div className="blt-error">{err}</div>}
@@ -95,8 +97,8 @@ export default function FloorSuggestPage() {
             if (m === "issuance") { if (points[0]) setAsOf(points[0].as_of); }
             else setAsOf(todayISO());
           }}>
+            <option value="custom">Ngày cụ thể (gợi ý mới)</option>
             <option value="issuance">Lần đã ban hành</option>
-            <option value="custom">Ngày bất kỳ (gợi ý mới)</option>
           </select>
         </label>
         {mode === "issuance" ? (
@@ -112,10 +114,7 @@ export default function FloorSuggestPage() {
         )}
         <label className="blt-date-label">Mô hình:
           <select className="blt-date-input" value={model} onChange={(e) => setModel(e.target.value as FloorModel)}>
-            <option value="v1">Rổ 4 futures (khuyến nghị)</option>
-            <option value="v1i">Rổ + Tồn kho tổng (thử nghiệm)</option>
-            <option value="v1f">Rổ + Tồn kho tự do (thử nghiệm)</option>
-            <option value="v2">Đa biến + mủ nước (đối chiếu)</option>
+            {FLOOR_MODELS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </label>
         {mode === "issuance" && (
@@ -130,8 +129,10 @@ export default function FloorSuggestPage() {
           </span>
         ) : sug && !sug.error ? (
           <span className="chip">
-            {sug.is_issuance === false ? "Ngày bất kỳ · so với lần " + (sug.prev_as_of ?? "—") + " · " : ""}
+            {sug.is_issuance === false ? "Ngày cụ thể · so với lần " + (sug.prev_as_of ?? "—") + " · " : ""}
             Biến: {sug.feats.join(" · ") || "—"} · fit {sug.n_train} lần
+            {(model === "v1i" || model === "v1f") && sug.n_train === 0
+              && ` · Chưa chạy được: cần thêm lần ban hành có tồn kho ngày (có từ ${dmy(sug.inventory_start)})`}
           </span>
         ) : null}
         <button
@@ -146,7 +147,7 @@ export default function FloorSuggestPage() {
       </div>
 
       <div style={{ opacity: loading ? 0.45 : 1, pointerEvents: loading ? "none" : "auto", transition: "opacity .2s" }} aria-busy={loading}>
-        <InventoryIndicator inv={sug?.inventory} />
+        <InventoryIndicator inv={sug?.inventory} lean={sug?.inventory_lean} start={sug?.inventory_start} />
 
         <AdjustmentTable items={sug?.items ?? []} focus={grade} onFocus={setGrade} />
 
@@ -155,6 +156,7 @@ export default function FloorSuggestPage() {
           prevAsOf={sug?.prev_as_of ?? null}
           basketChangePct={sug?.basket_change_pct ?? null}
           drivers={sug?.drivers ?? []}
+          inventoryLean={sug?.inventory_lean}
         />
       </div>
 

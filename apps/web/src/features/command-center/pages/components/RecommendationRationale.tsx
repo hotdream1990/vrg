@@ -1,6 +1,6 @@
 import { CheckCircleOutlined, WarningOutlined } from "@ant-design/icons";
 
-import type { FloorDriver, SuggestItem } from "../../../../lib/floor-suggest-client";
+import type { FloorDriver, InventoryLean, SuggestItem } from "../../../../lib/floor-suggest-client";
 import { buildRationale } from "../../../../lib/floor-rationale";
 
 type Props = {
@@ -8,12 +8,13 @@ type Props = {
   prevAsOf: string | null;
   basketChangePct: number | null;
   drivers: FloorDriver[];
+  inventoryLean?: InventoryLean | null;
 };
 
 /** Diễn giải đề xuất điều chỉnh cho grade đang chọn: khẳng định mức điều chỉnh là hợp lý. */
-export default function RecommendationRationale({ item, prevAsOf, basketChangePct, drivers }: Props) {
+export default function RecommendationRationale({ item, prevAsOf, basketChangePct, drivers, inventoryLean }: Props) {
   if (!item) return null;
-  const r = buildRationale(item, { prevAsOf, basketChangePct, drivers });
+  const r = buildRationale(item, { prevAsOf, basketChangePct, drivers, inventoryLean });
 
   if (!r) {
     return (
@@ -42,11 +43,11 @@ export default function RecommendationRationale({ item, prevAsOf, basketChangePc
         ))}
       </ul>
 
-      {r.caution && (
-        <div style={{ marginTop: 10, padding: "8px 12px", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, fontSize: 13, color: "#9a3412", display: "flex", gap: 8 }}>
-          <WarningOutlined style={{ marginTop: 3, flexShrink: 0 }} /><span>{r.caution}</span>
+      {r.cautions.map((c) => (
+        <div key={c} style={{ marginTop: 10, padding: "8px 12px", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, fontSize: 13, color: "#9a3412", display: "flex", gap: 8 }}>
+          <WarningOutlined style={{ marginTop: 3, flexShrink: 0 }} /><span>{c}</span>
         </div>
-      )}
+      ))}
 
       {drivers.length > 0 && (
         <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
