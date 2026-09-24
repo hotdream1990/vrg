@@ -15,36 +15,55 @@ from app.core import edit_window
 from app.core.db import session_scope
 from app.core.market_meta import PURCHASE_PRICE_UNIT, PURCHASE_SOURCE_HQ
 from app.services import (
-    bulletin_service, draft_repo, inventory_daily, market_quote_repo, price_repo,
-    weekly_report_service,
+    bulletin_service, draft_repo, floor_recommend, floor_repo, inventory_daily, market_quote_repo,
+    price_repo, weekly_report_service,
 )
 from app.services.assistant_tools._common import (
     NO_ARGS, clamp_days, cols, days_ago, dm, dmy, err, line, pct, table, today,
 )
 
 # ── get_inventory_trend: tồn kho THEO NGÀY từ biểu Tồn kho đơn vị (bỏ chuỗi tuần 24/09/2026) ──
+#: Hướng tồn kho so với lần ban hành (luật chung `floor_recommend.inventory_lean`, ngưỡng ±3%) → câu
+#: đọc nguyên văn, không để LLM tự suy dấu.
+_LEAN_TEXT = {"up": "tồn kho tăng → nghiêng GIỮ/HẠ giá sàn", "down": "tồn kho giảm → ủng hộ NÂNG giá sàn",
+              "flat": "đi ngang (trong ±3%) → không nghiêng", "mixed": "tổng và tự do trái chiều → không nghiêng"}
 def _inventory_trend(args: dict) -> dict:
     days = clamp_days(args.get("days"), 60)
-    snaps = inventory_daily.load(days_ago(days), today())
-    ser = inventory_daily.series(snaps)
+    # Mốc so sánh quan trọng nhất cho tư vấn giá sàn = lần ban hành gần nhất. Đo thực tế: chỉ có "đầu
+    # kỳ 60 ngày" thì LLM gọi nhầm nó là "lần ban hành trước" (nói tồn kho +53% so với 25/08).
+    sched = floor_repo.list_schedules(date_to=today())
+    issued = str(sched[0]["as_of"]) if sched else None
+    start = min(days_ago(days), issued) if issued else days_ago(days)
+    snaps = inventory_daily.load(start, today())
+    ser = [(d, v) for d, v in inventory_daily.series(snaps) if d >= days_ago(days)]
     if not ser:
         return err(f"Không có ngày nào đủ đơn vị nhập tồn kho trong {days} ngày gần nhất "
                    "(xem get_data_freshness để biết ngày có số mới nhất).")
     first, last = ser[0][0], ser[-1][0]
     # Cùng 1 hàm với màn Gợi ý giá sàn: % thay đổi chỉ trên đơn vị có số cả 2 ngày.
     inv = inventory_daily.at(snaps, last, first) or {}
+    vs_issue = inventory_daily.at(snaps, last, issued) if issued else None
+    lean = floor_recommend.inventory_lean(vs_issue)
     art = line(f"Tồn kho thành phẩm Tập đoàn theo ngày ({len(ser)} ngày)", [dm(d) for d, _ in ser],
                [{"name": "Tồn kho", "values": [round(v, 1) for _, v in ser]}], "tấn")
     return {"summary": {
         "ngay_gan_nhat": last, "ton_kho_tan": inv.get("ton_kho"),
         "da_ky_hd_chua_giao_tan": inv.get("ton_kho_hd"), "ton_tu_do_tan": inv.get("ton_free"),
         "so_don_vi_co_so_lieu": inv.get("units_counted"), "so_ngay": len(ser),
+        "so_voi_lan_ban_hanh_gan_nhat": None if not vs_issue or not vs_issue.get("base_day") else {
+            "ngay_ban_hanh": issued, "ngay_so_lieu_moc": vs_issue["base_day"],
+            "ton_kho_tan": vs_issue["d_ton_kho"], "ton_kho_pct": vs_issue["d_ton_kho_pct"],
+            "ton_tu_do_tan": vs_issue["d_free"], "ton_tu_do_pct": vs_issue["d_free_pct"],
+            "so_don_vi_so_sanh": vs_issue["units_compared"],
+            "tham_chieu_gia_san": _LEAN_TEXT[lean["direction"]] if lean else None},
         "thay_doi_tu_ngay_dau_ky": {"tu_ngay": first, "tan": inv.get("d_ton_kho"),
                                     "pct": inv.get("d_ton_kho_pct"),
                                     "so_don_vi_so_sanh": inv.get("units_compared")},
         "ghi_chu": f"Số theo ngày cộng từ biểu Tồn kho đơn vị (đã + chưa nhập kho), có từ "
                    f"{dmy(inventory_daily.STOCK_START)}. Tổng mỗi ngày phụ thuộc số đơn vị nhập; "
-                   "% thay đổi chỉ tính trên đơn vị có số ở cả hai ngày."},
+                   "% thay đổi chỉ tính trên đơn vị có số ở cả hai ngày. 'thay_doi_tu_ngay_dau_ky' là so "
+                   "với NGÀY ĐẦU của khoảng tra cứu, KHÔNG phải lần ban hành giá sàn — so với lần ban hành "
+                   "thì dùng 'so_voi_lan_ban_hanh_gan_nhat'."},
         "artifact": art, "source": f"biểu Tồn kho đơn vị · {len(ser)} ngày"}
 
 
@@ -250,7 +269,7 @@ TOOLS: dict[str, dict[str, Any]] = {
     "get_inventory_trend": {
         "run": _inventory_trend,
         "schema": {"name": "get_inventory_trend",
-                   "description": "Tồn kho thành phẩm Tập đoàn THEO NGÀY, đơn vị TẤN, cộng từ biểu Tồn kho đơn vị thành viên (có từ 24/07/2026): biểu đồ đường tồn kho + số mới nhất (đã ký HĐ chưa giao, tồn tự do) + thay đổi từ đầu kỳ. days = số ngày gần nhất (mặc định 60).",
+                   "description": "Tồn kho thành phẩm Tập đoàn THEO NGÀY, đơn vị TẤN, cộng từ biểu Tồn kho đơn vị thành viên (có từ 24/07/2026): biểu đồ đường tồn kho + số mới nhất (đã ký HĐ chưa giao, tồn tự do) + thay đổi SO VỚI LẦN BAN HÀNH GIÁ SÀN GẦN NHẤT (tổng + tự do, kèm hướng tham chiếu) + thay đổi từ đầu khoảng tra cứu. days = số ngày gần nhất (mặc định 60).",
                    "parameters": {"type": "object", "properties": {
                        "days": {"type": "integer", "description": "số ngày gần nhất (mặc định 60)"}}}}},
     "get_market_quote": {

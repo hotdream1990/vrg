@@ -124,6 +124,43 @@ def test_system_prompt_carries_ranking_and_rules() -> None:
     assert "KHÔNG bịa số liệu" in p and "No Trading" in p
     assert "MRB SMR20" in p and "tồn kho" in p.lower()
     assert "Ban lãnh đạo" in p
+    # SHFE RU là yếu tố mạnh nhất khi đo lại (r=0,67 · 89%) — từng bị bỏ sót khỏi bảng thứ tự.
+    assert p.index("SHFE RU") < p.index("MRB SMR20 r=")
+    # Giá mủ chén không có bằng chứng ⇒ không còn là tín hiệu "bổ sung" được phép làm lệch mô hình.
+    assert "(giá mủ chén, tồn kho)" not in assistant_service.system_prompt("adjusted")
+
+
+def test_system_prompt_date_is_computed_per_call(monkeypatch) -> None:
+    """Ngày trong prompt phải tính mỗi lượt hỏi — hằng số lúc nạp module làm máy chủ chạy qua đêm nói sai ngày."""
+    from datetime import date
+
+    monkeypatch.setattr(assistant_service.edit_window, "today", lambda: date(2031, 5, 6))
+    assert "Hôm nay là 2031-05-06" in assistant_service.system_prompt("model")
+    assert "Hôm nay là" not in assistant_service.SYSTEM
+
+
+def test_suggest_tool_filters_grade_and_labels_units() -> None:
+    """Hỏi 1 chủng loại thì chỉ trả dòng đó; mỗi dòng mang đơn vị riêng; chủng loại lạ → báo lỗi gọn."""
+    caps = _admin_caps()
+    res = assistant_tools.run_tool("suggest_floor_adjustment", {"grade": "SVR 10 / CSR 10"}, caps)["summary"]
+    if "error" in res:
+        pytest.skip(f"DB chưa đủ dữ liệu giá sàn: {res['error'][:60]}")
+    assert [it["grade"] for it in res["items"]] == ["SVR 10 / CSR 10"]
+    assert res["items"][0]["don_vi"] == "USD/tấn (FOB)"
+    assert res["items"][0]["muc_mo_hinh_de_xuat"] % 5 == 0         # bước ban hành FOB
+    assert all("ngay_so_moi" in d for d in res["drivers"])
+    assert res["drivers"][0]["chi_so"] == "SHFE RU"                  # xếp theo mức ảnh hưởng đã đo
+    it = res["items"][0]   # câu tóm tắt định dạng sẵn: "SVR 10 / CSR 10: 2.340 → 2.355 USD/tấn FOB (+15, +0,6%) · GIỮ …"
+    vn = lambda n: f"{n:,.0f}".replace(",", ".")  # noqa: E731
+    assert f"{vn(it['gia_san_hien_hanh'])} → {vn(it['muc_mo_hinh_de_xuat'])} USD/tấn FOB" in it["tom_tat"]
+    # Kịch bản: "giảm 5%" dù LLM truyền −5 thì cột giảm vẫn thấp hơn cơ sở (không đảo Bear/Bull).
+    sc = assistant_tools.run_tool("simulate_floor_scenarios", {"shock_pct": -5}, caps)["summary"]
+    row = next(r for r in sc["items"] if r["grade"] == "SVR 10 / CSR 10")
+    assert sc["shock_pct"] == 5.0 and row["bear_giam"] < row["base_co_so"] < row["bull_tang"]
+    short = assistant_tools.run_tool("suggest_floor_adjustment", {"grade": "SVR 10"}, caps)["summary"]
+    assert [it["grade"] for it in short["items"]] == ["SVR 10 / CSR 10"]   # không lẫn "SVR 10 Mix"
+    bad = assistant_tools.run_tool("suggest_floor_adjustment", {"grade": "SVR 99"}, caps)["summary"]
+    assert "Không có chủng loại" in bad["error"]
 
 
 def test_tools_match_source_services_and_reject_bad_dates() -> None:
@@ -156,3 +193,39 @@ def test_tool_labels_cover_every_tool() -> None:
     """Bảng "Trợ lý làm được gì?" phải có nhãn tiếng Việt cho MỌI công cụ — thêm tool mà quên nhãn
     thì người dùng nhìn thấy tên hàm."""
     assert set(assistant_tools.TOOL_LABELS) == set(assistant_tools.TOOLS)
+
+
+def test_model_mode_hides_svr3l_adjustment_in_context() -> None:
+    """Mức "Theo mô hình": bảng tín hiệu bối cảnh không được lộ % cần chỉnh SVR 3L nội địa."""
+    from app.services.assistant_tools import floor_tools
+
+    row = {"tin_hieu": "Giá sàn SVR 3L so với vùng giá tư nhân", "thay_doi_pct": 1.8,
+           "chi_ap_dung": "chỉ giá nội địa SVR 3L",
+           "ghi_chu": "THẤP hơn vùng; vùng 1–2 đồng/tấn; thay_doi_pct = mức cần chỉnh để vào vùng"}
+    other = {"tin_hieu": "Tồn kho", "thay_doi_pct": -2.7, "ghi_chu": "x"}
+    res = {"summary": {"tin_hieu": [other, row]}, "artifact": {"rows": [other, row]}}
+    out = floor_tools.context_for_model_mode(res)
+    hidden = out["summary"]["tin_hieu"][1]
+    assert hidden["thay_doi_pct"] is None and "cần chỉnh" not in hidden["ghi_chu"]
+    assert out["summary"]["tin_hieu"][0]["thay_doi_pct"] == -2.7
+    assert out["artifact"]["rows"][1]["thay_doi_pct"] is None
+    assert "get_floor_context" in assistant_service._MODEL_MODE_FILTERS
+
+
+def test_inventory_trend_compares_with_latest_issuance() -> None:
+    """Tồn kho phải có mốc "so với lần ban hành gần nhất" — trùng số với engine Gợi ý giá sàn."""
+    from app.services import floor_repo, inventory_daily
+
+    res = assistant_tools.run_tool("get_inventory_trend", {}, _admin_caps())["summary"]
+    if "error" in res:
+        pytest.skip("DB chưa có tồn kho ngày")
+    vs = res["so_voi_lan_ban_hanh_gan_nhat"]
+    today = assistant_service.edit_window.today().isoformat()
+    sched = floor_repo.list_schedules(date_to=today)
+    if vs is None:      # chưa có lần ban hành, hoặc lần ban hành trước khi có tồn kho ngày
+        assert not sched or str(sched[0]["as_of"]) < inventory_daily.STOCK_START
+        return
+    assert vs["ngay_ban_hanh"] == str(sched[0]["as_of"])
+    snaps = inventory_daily.load(vs["ngay_ban_hanh"], today)
+    ref = inventory_daily.at(snaps, res["ngay_gan_nhat"], vs["ngay_ban_hanh"])
+    assert vs["ton_kho_pct"] == ref["d_ton_kho_pct"] and vs["ton_tu_do_tan"] == ref["d_free"]
