@@ -32,6 +32,41 @@ mọi tool nạp vào mỗi lượt gọi LLM (không bật/tắt được); art
 
 ## 2. Ranking yếu tố ảnh hưởng tới điều chỉnh giá sàn
 
+### ★ Đo lại 24/09/2026 — 83 lần ban hành (18/01/2024 → 09/09/2026), FOB `SVR 10 / CSR 10`
+
+Đây là bảng Trợ lý đang dùng (`assistant_service._FACTOR_RANKING`). Các bảng bên dưới là lần đo
+cũ (80 lần, 17/08/2026), giữ lại để đối chiếu.
+
+| Hạng | Yếu tố | r(mức) | r(Δ%) | Đồng hướng | r riêng phần (trừ rổ 4 futures) | n |
+|---|---|---|---|---|---|---|
+| 1 | **SHFE RU** | +0,87 | **+0,67** | **89%** | +0,29 | 82 |
+| 2 | MRB SMR20 | +0,97 | +0,64 | 78% | +0,16 | 82 |
+| 3 | SGX TSR20 | +0,95 | +0,58 | 76% | — | 82 |
+| 4 | OSE RSS3 | +0,90 | +0,40 | 75% | — | 82 |
+| 5 | MRB SMRCV · MRB LATEX | +0,72 | +0,40 · +0,38 | 76–80% | — | 82 |
+| 6 | SGX RSS3 | +0,73 | +0,34 | 76% | — | 82 |
+| — | Physical SMR20 | +0,94 | +0,49 | 80% | **−0,06** | 69 |
+| — | Giá mủ nước | +0,90 | +0,16 | 64% | +0,15 | 64 |
+| — | **Giá mủ chén** | +0,70 | **−0,31** | 50% | **−0,01** | 20 |
+| — | Tồn kho tuần (bảng cũ) | — | +0,08 | — | +0,06 | 44 |
+| — | Tồn kho ngày | — | — | — | — | 4 lần — chưa đo được |
+
+Thay đổi so với lần đo cũ và đã sửa trong Trợ lý:
+- **SHFE RU là yếu tố mạnh nhất** nhưng từng bị bỏ sót khỏi bảng thứ tự → nay đứng đầu.
+- **Giá mủ chén không mang thông tin gì ngoài rổ futures** (riêng phần −0,01; bản cũ ghi +0,55) →
+  gỡ khỏi tín hiệu "bổ sung" được phép làm lệch mức mô hình (`get_floor_context`).
+- **Physical SMR20** chỉ đi theo futures và đã ngừng cập nhật từ 21/08/2026 → không dùng làm căn cứ.
+- **Tồn kho**: chuỗi ngày mới có 4 lần ban hành nên chưa đo được; hướng ±3% là **quy tắc nghiệp vụ**
+  chủ dự án duyệt, không phải tương quan đã đo.
+
+**Cách ra mức đề xuất (đổi 24/09/2026):** giá sàn lần ban hành trước + mức thay đổi của mô hình
+đa biến giữa hai ngày, làm tròn theo bước ban hành (5 USD/tấn · 50.000 đồng/tấn). Trước đó engine
+lấy thẳng mức mô hình nên mang theo phần lệch tồn đọng: 4 lần gần nhất mô hình cao hơn giá sàn
+LATEX thực 9–15% trong khi Tập đoàn giữ nguyên ⇒ ngày 24/09 đề xuất "NÂNG LATEX +11,7%" dù rổ chỉ số
+đi ngang. Backtest 83 lần × 14 chủng loại: MAPE TB **2,85% → 1,84%**, đúng hướng 78% → 80%.
+
+### Lần đo cũ — 80 lần (17/08/2026)
+
 Đo trên dữ liệu thật trong DB (80 lần ban hành 18/01/2024 → 17/08/2026, chuẩn giá FOB
 `SVR 10 / CSR 10`). Hai thước đo khác nhau và **đừng lẫn lộn**:
 
@@ -109,9 +144,11 @@ futures (MRB SMR20 · SGX TSR20 · SHFE RU · OSE RSS3) ra khỏi cả hai vế 
 
 ### Kết luận dùng cho tư vấn
 
-1. Khi hỏi "nên nâng hay hạ", **MRB SMR20 · SGX TSR20 · Physical SMR20** là bộ ba phải nhìn trước.
+1. Khi hỏi "nên nâng hay hạ", **SHFE RU · MRB SMR20 · SGX TSR20** là bộ ba phải nhìn trước
+   (cập nhật 24/09/2026 — bản cũ ghi Physical SMR20, nay không còn số mới).
 2. **Giá mủ nước** trả lời câu "mặt bằng giá đang ở đâu", không trả lời câu "lần này chỉnh bao nhiêu".
-3. **Tồn kho** (cả Tập đoàn lẫn đơn vị) là **phanh**: tồn cao ⇒ nghiêng về hạ/giữ dù rổ futures tăng.
+3. **Tồn kho** (cả Tập đoàn lẫn đơn vị) là **phanh** theo quy tắc nghiệp vụ: tồn cao ⇒ nghiêng về
+   hạ/giữ dù rổ futures tăng.
 4. Tỷ giá USD/VND phải luôn kèm khi nói giá nội địa.
 
 ## 3. Hiện trạng SAU đợt mở rộng (09/2026)

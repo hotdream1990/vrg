@@ -96,6 +96,29 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
   vì file nay đến tay cả lãnh đạo đơn vị.
 
 ### Fixed
+- **Trợ lý AI tư vấn giá sàn — rà soát trên số liệu thật 24/09/2026** (bản sao prod, 12 câu hỏi × 3
+  mức tư vấn, so trước/sau).
+  - **Mức đề xuất neo theo lần ban hành trước**: = giá sàn lần trước + mức thay đổi của mô hình từ đó
+    tới nay (trước đây lấy thẳng mức mô hình nên mang theo phần lệch tồn đọng — hôm nay đề xuất
+    "NÂNG LATEX +11,7%", "SVR 10 +2,7%" dù rổ chỉ số gần như đứng yên −0,08%). Backtest 83 lần × 14
+    chủng loại: sai số trung bình 2,85% → 1,84%, đúng hướng 78% → 80%. Áp chung cho màn Gợi ý giá
+    sàn, kịch bản, tờ trình và Trợ lý.
+  - Mức đề xuất làm tròn theo **bước ban hành** (5 USD/tấn FOB, 50.000 đồng/tấn nội địa) — hết các số
+    kiểu "62.014.747 đồng/tấn".
+  - Trợ lý hết **nhầm đơn vị** (FOB 2.566 USD/tấn từng bị nói thành "2.566.000 đồng/tấn") và **nhầm
+    chủng loại** (hỏi "mủ 10" từng nhận số của SVR 3L nội địa): mỗi dòng đề xuất ghi đơn vị riêng,
+    hỏi một chủng loại thì chỉ lấy dòng đó.
+  - **Ngày "hôm nay"** của Trợ lý tính theo từng câu hỏi (trước đây đóng băng lúc khởi động máy chủ —
+    ngày 15/09 trả lời "hôm nay 14/09").
+  - Tồn kho so với **lần ban hành giá sàn gần nhất** (trước đây chỉ có "so với đầu khoảng 60 ngày" nên
+    Trợ lý nói nhầm "tồn kho +53% so với lần ban hành 25/08").
+  - Mỗi chỉ số dẫn hướng kèm **ngày của số** — sàn nghỉ lễ thì nói rõ (vd OSE RSS3 số ngày 18/09).
+  - Mức giá trong câu trả lời lấy từ câu tóm tắt **đã định dạng sẵn** — hết lỗi Trợ lý tự viết
+    "23.400 → 23.550 USD/tấn" thay cho 2.340 → 2.355. Kịch bản "thị trường giảm 5%" không còn bị đảo
+    chiều giảm/tăng.
+  - **Thứ tự yếu tố đo lại trên 83 lần**: SHFE RU mạnh nhất (tương quan 0,67 · đồng hướng 89%) — từng
+    bị bỏ sót. **Giá mủ chén** không còn là căn cứ để lệch khỏi mô hình (đo lại: không mang thêm thông
+    tin ngoài rổ futures). Chi tiết: `docs/project/tro-ly-ai-kha-nang.md` mục 2.
 - **Đề nghị sửa hợp đồng trùng số không còn lọt tới lúc Ban duyệt** (18/09/2026) — hai đề nghị
   (#36 Dầu Tiếng Campuchia, #51 Lai Châu II) bấm Duyệt là báo "đã có đợt giao/hợp đồng số …": đơn
   vị bấm **Thêm** rồi gõ lại số của một đợt/hợp đồng đã có, nhưng hệ thống kiểm hạn nhập TRƯỚC khi
