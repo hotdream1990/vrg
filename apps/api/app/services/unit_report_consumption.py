@@ -23,9 +23,10 @@ def _new_consumption(key: str, region: str | None) -> dict[str, Any]:
             "qty_long_term": 0.0, "qty_spot": 0.0, "qty_unknown_type": 0.0,
             "qty_export": 0.0, "qty_domestic": 0.0, "qty_internal": 0.0,
             "revenue_vnd": 0.0, "_rev_qty": 0.0, "lines": 0, "_days": set(),
-            # Số lần giao THIẾU TỶ GIÁ (không có trong doanh thu) — nơi đem doanh thu so kế hoạch
-            # cần biết để để trống % (như Báo cáo tổng hợp), thay vì báo tỷ lệ thấp hơn thực tế.
-            "missing_fx_lines": 0}
+            # Số lần giao CHƯA TÍNH ĐƯỢC doanh thu (thiếu tỷ giá hoặc thiếu đơn giá) — nơi đem doanh
+            # thu so kế hoạch cần biết để để trống % như Báo cáo tổng hợp (`total_revenue_vnd` ra
+            # None vì BẤT KỲ dòng nào thiếu), thay vì báo tỷ lệ thấp hơn thực tế.
+            "no_revenue_lines": 0}
 
 
 #: Giá trị enum → ô cộng dồn. Giá trị lạ/thiếu đi vào ô "chưa khai" riêng, KHÔNG dồn vào ô nào
@@ -46,8 +47,8 @@ def _feed_consumption(g: dict, r: dict) -> None:
     if r["revenue_vnd"] is not None:
         g["revenue_vnd"] += r["revenue_vnd"]
         g["_rev_qty"] += qty
-    if r.get("missing_fx"):
-        g["missing_fx_lines"] += 1
+    elif qty:
+        g["no_revenue_lines"] += 1
 
 
 def _close_consumption(g: dict) -> dict[str, Any]:
@@ -102,6 +103,8 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
         _feed_consumption(total, r)
     if (n := sum(1 for r in rows if r.get("missing_fx"))):
         warnings.append(f"{n} dòng bán bằng USD nhưng thiếu tỷ giá — chưa tính vào doanh thu & giá bán BQ.")
+    if (n := sum(1 for r in rows if r["revenue_vnd"] is None and r["qty"] and not r.get("missing_fx"))):
+        warnings.append(f"{n} dòng bán chưa có đơn giá — chưa tính vào doanh thu & giá bán BQ.")
 
     # Kế hoạch là chỉ tiêu NĂM → lấy theo năm của ngày CUỐI kỳ. Kỳ vắt qua 2 năm thì tử số có cả
     # sản lượng năm trước trong khi mẫu số chỉ là kế hoạch 1 năm → phải nói rõ, đừng để đọc nhầm.

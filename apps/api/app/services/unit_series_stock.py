@@ -18,7 +18,7 @@ Ba quy tắc bắt buộc giữ nguyên để các màn không lệch nhau:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 from app.services import member_unit_merge, unit_report_rows
 from app.services.unit_series import days_between, series_of
@@ -52,14 +52,19 @@ WAREHOUSE_KEYS: tuple[tuple[str, str], ...] = (
 )
 
 
-def trim_pending(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Bỏ các ngày CUỐI chưa đủ đơn vị nhập; trả (chuỗi đã cắt, các ngày bị cắt) để UI nói rõ."""
-    best = max((r["units_counted"] for r in rows), default=0)
+def trim_pending(rows: list[dict[str, Any]],
+                 coverage: Callable[[dict[str, Any]], int] = lambda r: r["units_counted"],
+                 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Bỏ các ngày CUỐI chưa đủ đơn vị nhập; trả (chuỗi đã cắt, các ngày bị cắt) để UI nói rõ.
+
+    `coverage` = cách đếm độ phủ của một ngày (mặc định `units_counted`).
+    """
+    best = max((coverage(r) for r in rows), default=0)
     if not best:
         return rows, []
     need = best * MIN_COVERAGE_RATIO
     cut = len(rows)
-    while cut and rows[cut - 1]["units_counted"] < need:
+    while cut and coverage(rows[cut - 1]) < need:
         cut -= 1
     pending = [{"as_of": r["as_of"], "units_counted": r["units_counted"]} for r in rows[cut:]]
     return (rows[:cut], pending) if cut else (rows, [])
@@ -135,8 +140,13 @@ def stock_series(date_from: str, date_to: str, group_by: str = "warehouse",
                                       with_contracts=group_by in ("structure", "free_grade"))
     stock, wh, signed, regions = _collect(raw["rows"])
     pairs = member_unit_merge.merge_pairs()
+    roll = member_unit_merge.rollup_map()
 
     rows: list[dict[str, Any]] = []
+    #: Độ phủ để cắt đuôi, đếm theo ĐƠN VỊ HIỆN HÀNH: trước ngày hiệu lực đơn vị cũ và đơn vị nhận
+    #: khai riêng (2), sau đó khai chung (1) — đếm tên gốc thì mọi ngày sau sáp nhập "thiếu độ phủ"
+    #: và bị cắt khỏi biểu đồ dù có số thật (đo 24/09/2026: Eah Leo mất 20 ngày 01–20/08).
+    current: dict[str, int] = {}
     grade_totals: dict[str, float] = {}
     for day in days:
         by_company = dict(stock.get(day, {}))
@@ -171,11 +181,12 @@ def stock_series(date_from: str, date_to: str, group_by: str = "warehouse",
             for company, grades in by_company.items():
                 region = regions.get(company) or NO_REGION
                 values[region] = values.get(region, 0.0) + sum(grades.values())
+        current[day] = len({roll.get(c, c) for c in by_company})
         rows.append({"as_of": day, "total": round(total, 3) if by_company else None,
                      "units_counted": len(by_company),
                      "values": {k: round(v, 3) for k, v in values.items()}})
 
-    rows, pending = trim_pending(rows)
+    rows, pending = trim_pending(rows, coverage=lambda r: current[r["as_of"]])
 
     if group_by in ("grade", "free_grade"):
         series = series_of(rows, grade_totals)

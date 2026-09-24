@@ -10,6 +10,7 @@ Chỉ có GET. Mỗi phần số liệu một endpoint để web tải song song
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -26,6 +27,11 @@ router = APIRouter(prefix="/api/unit-dashboard", tags=["unit-dashboard"])
 _access = cap_or_member_scope("unit_daily")
 
 _SCOPE = "^(" + "|".join(scope_svc.SCOPES) + ")$"
+#: Chỉ nhận đúng YYYY-MM-DD: `date.fromisoformat` còn nhận "20260805" hay "2026-W01-1", mà phía sau
+#: so ngày bằng CHUỖI (kẹp về hôm nay…) → số sai lặng lẽ hoặc lỗi 500.
+_DATE = r"^\d{4}-\d{2}-\d{2}$"
+#: Kỳ xem tối đa ~3 năm — chuỗi diễn biến dựng mọi mốc trong kỳ, kỳ vô hạn là hàng chục nghìn dòng.
+MAX_PERIOD_DAYS = 366 * 3
 _VIEW = "^(" + "|".join(svc.STOCK_VIEWS) + ")$"
 
 
@@ -40,11 +46,14 @@ def _viewer(access: tuple[str, list[str] | None] = Depends(_access)) -> list[str
 
 def _params(scope: str = Query("group", pattern=_SCOPE),
             key: str | None = Query(None, description="Tên khu vực / đơn vị"),
-            date_from: str = Query(..., description="Từ ngày YYYY-MM-DD"),
-            date_to: str = Query(..., description="Đến ngày YYYY-MM-DD"),
-            as_of: str | None = Query(None, description="Ngày chốt tồn kho; mặc định = đến ngày"),
+            date_from: str = Query(..., pattern=_DATE, description="Từ ngày YYYY-MM-DD"),
+            date_to: str = Query(..., pattern=_DATE, description="Đến ngày YYYY-MM-DD"),
+            as_of: str | None = Query(None, pattern=_DATE,
+                                      description="Ngày chốt tồn kho; mặc định = đến ngày"),
             own: list[str] | None = Depends(_viewer)) -> dict[str, Any]:
     assert_dates(date_from, date_to, as_of)
+    if (date.fromisoformat(date_to) - date.fromisoformat(date_from)).days >= MAX_PERIOD_DAYS:
+        raise HTTPException(400, "Kỳ xem dài quá 3 năm — chọn kỳ ngắn hơn.")
     try:
         sc = scope_svc.resolve(scope, key, own)
     except scope_svc.ScopeDenied as exc:

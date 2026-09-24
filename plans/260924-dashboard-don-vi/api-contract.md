@@ -70,7 +70,7 @@ type ConsumptionBlock = {
     qty_export: number|null; qty_domestic: number|null; qty_internal: number|null;
     revenue_ty: number|null;             // tỷ đồng
     avg_price_trieu: number|null;        // triệu đ/tấn
-    lines: number|null; days: number|null; missing_fx_lines: number;
+    lines: number|null; days: number|null; no_revenue_lines: number;   // lần giao thiếu tỷ giá HOẶC đơn giá
   };
   trend: { as_of: string; qty: number|null; qty_long_term: number|null; qty_spot: number|null;
            qty_unknown_type: number|null; qty_export: number|null; qty_domestic: number|null;

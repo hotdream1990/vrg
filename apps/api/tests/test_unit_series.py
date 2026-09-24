@@ -195,6 +195,26 @@ def test_merged_unit_is_not_counted_twice(clean) -> None:
     assert round(after[DAY] - before[DAY], 3) == 100.0 + NOT_WH          # chỉ còn số đơn vị nhận
 
 
+def test_merge_does_not_trim_the_receiving_units_real_days(clean) -> None:
+    """Sau ngày hiệu lực hai đơn vị khai CHUNG một kho: độ phủ 2 → 1 là đúng, không phải "nhập dở".
+
+    Đếm theo tên gốc thì mọi ngày sau sáp nhập bị cắt khỏi đuôi chuỗi của đơn vị nhận (lỗi thật
+    24/09/2026 trên Dashboard đơn vị: Eah Leo mất 20 ngày có số).
+    """
+    for n in (MERGED, UNIT):
+        member_unit_repo.add_unit(n)
+    early = (date.fromisoformat(PREV) - timedelta(days=1)).isoformat()
+    _stock(early, MERGED, warehoused=60.0)
+    _stock(early, UNIT, warehoused=100.0)
+    _stock(PREV, UNIT)
+    _stock(DAY, UNIT)
+    member_unit_merge.merge(MERGED, UNIT, PREV)
+
+    rep = st.stock_series(early, DAY, "warehouse", companies=[UNIT, MERGED])
+    assert [r["as_of"] for r in rep["rows"]] == [early, PREV, DAY] and rep["pending"] == []
+    assert _row(rep, early)["units_counted"] == 2        # hiển thị vẫn đếm đúng số đơn vị đã khai
+
+
 def test_stock_reports_only_units_that_actually_have_stock(clean) -> None:
     """Độ phủ chỉ đếm đơn vị CÓ tồn thành phẩm — không kèm mẫu số "trên tổng số đơn vị".
 

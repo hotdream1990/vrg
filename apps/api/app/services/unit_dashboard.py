@@ -30,7 +30,7 @@ _PURCHASE_TOTALS = ("qty_latex", "qty_cup", "qty_lace", "qty_finished", "qty_mat
 _PURCHASE_TREND = ("qty_latex", "qty_cup", "qty_lace", "qty_finished", "price_latex_avg")
 _CON_QTY = ("qty", "qty_long_term", "qty_spot", "qty_unknown_type", "qty_export",
             "qty_domestic", "qty_internal", "revenue_ty")
-_CON_TOTALS = (*_CON_QTY, "avg_price_trieu", "lines", "days", "missing_fx_lines")
+_CON_TOTALS = (*_CON_QTY, "avg_price_trieu", "lines", "days", "no_revenue_lines")
 _STOCK_TOTALS = ("not_warehoused", "warehoused", "total", "material", "signed_undelivered",
                  "tradable", "age_days", "dates")
 _STOCK_BREAKDOWN = ("total", "signed_undelivered", "tradable", "material", "as_of")

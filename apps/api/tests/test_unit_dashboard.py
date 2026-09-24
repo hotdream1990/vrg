@@ -211,7 +211,7 @@ def test_dien_bien_du_moc_ngay_trong(env):
 def test_tieu_thu_theo_chung_loai(env):
     rep = _get(env["admin"], "consumption", "unit", UNIT_A)
     t = rep["totals"]
-    assert t["qty"] == 30 and t["qty_spot"] == 30 and t["missing_fx_lines"] == 0
+    assert t["qty"] == 30 and t["qty_spot"] == 30 and t["no_revenue_lines"] == 0
     assert t["revenue_ty"] == pytest.approx(0.7)
     assert [g["grade"] for g in rep["by_grade"]] == ["SVR 10 / CSR 10", "SVR 3L"]   # SL giảm dần
     assert rep["breakdown"] == []                                    # mức đơn vị: không có chiều con
@@ -274,3 +274,42 @@ def test_don_vi_chua_giao_ke_hoach_khong_vao_tu_so(env):
     assert "9.100,0 tấn" in item["note"]
     rows = {r["label"]: r for r in rep["breakdown"]}
     assert rows[UNIT_D]["purchase_pct"] is None and rows[UNIT_E]["purchase_pct"] == pytest.approx(10)
+
+
+def test_lan_giao_thieu_don_gia_thi_de_trong_phan_tram_doanh_thu(env):
+    """Giống Báo cáo tổng hợp: lần giao chưa tính được doanh thu (thiếu tỷ giá HOẶC đơn giá) thì
+    doanh thu đang thiếu → % kế hoạch doanh thu để trống, không báo một tỷ lệ thấp hơn thực tế."""
+    r = client.put("/api/sales-contracts", headers=env["admin"], json={
+        "company": UNIT_A, "code": "DB-A3", "customer_id": _customer(env["admin"], UNIT_A),
+        "delivery_type": "single", "contract_type": "spot", "sign_date": D1, "start_date": D1,
+        "delivered_at": D1, "channel": "domestic",
+        "lines": [{"grade": "SVR 3L", "qty": 5, "price": None, "ccy": "VND"}]})
+    assert r.status_code == 200, r.text
+    con = _get(env["admin"], "consumption", "unit", UNIT_A)
+    assert con["totals"]["no_revenue_lines"] == 1
+    assert any("chưa có đơn giá" in w for w in con["warnings"])
+    rev = next(i for i in _get(env["admin"], "targets", "unit", UNIT_A)["items"]
+               if i["key"] == "revenue")
+    assert rev["pct"] is None and "đơn giá" in rev["note"]
+
+
+def test_ngay_sai_dinh_dang_va_ky_qua_dai_bi_tu_choi(env):
+    _get(env["admin"], "purchase", date_to="20260805", expect=422)      # không đoán định dạng
+    _get(env["admin"], "stock", as_of="2026-W01-1", expect=422)
+    _get(env["admin"], "purchase", date_from="2000-01-01", expect=400)  # kỳ dài hơn 3 năm
+
+
+def test_don_vi_co_ke_hoach_ngoai_khung_van_co_dong_tien_do(env):
+    """Đơn vị có kế hoạch nhưng chưa gán khu vực: tổng Tập đoàn có phần của họ → bảng phải có dòng."""
+    h = env["admin"]
+    client.post("/api/member-units", json={"name": "_zz_db_f"}, headers=h)
+    try:
+        client.put("/api/unit-daily/plan", headers=h,
+                   json={"year": YEAR, "company": "_zz_db_f", "plan_tonnes": 700})
+        rep = _get(h, "targets", "group", None)
+        rows = {r["label"]: r for r in rep["breakdown"]}
+        assert "(Chưa gán khu vực)" in rows and rows["(Chưa gán khu vực)"]["purchase_pct"] is not None
+    finally:
+        with session_scope() as db:
+            db.execute(text("DELETE FROM unit_purchase_plan WHERE company = '_zz_db_f'"))
+        client.delete("/api/member-units/_zz_db_f", headers=h)

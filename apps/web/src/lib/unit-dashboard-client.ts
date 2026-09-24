@@ -59,7 +59,9 @@ export type ConsumptionBlock = {
   scope: ScopeInfo; date_from: string; date_to: string; bucket: Bucket;
   totals: ConsumptionQtys & {
     revenue_ty: Num; avg_price_trieu: Num;
-    lines: Num; days: Num; missing_fx_lines: number;
+    lines: Num; days: Num;
+    /** Lần giao chưa tính được doanh thu (thiếu tỷ giá hoặc đơn giá) — doanh thu đang thiếu phần đó. */
+    no_revenue_lines: number;
   };
   trend: (ConsumptionQtys & { as_of: string; revenue_ty: Num })[];
   by_grade: { grade: string; qty: Num; revenue_ty: Num; avg_price_trieu: Num }[];

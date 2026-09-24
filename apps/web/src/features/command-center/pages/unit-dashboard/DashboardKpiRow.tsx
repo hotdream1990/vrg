@@ -41,12 +41,12 @@ export default function DashboardKpiRow({ purchase, consumption, stock }: Props)
       sub: `Dài hạn ${fmtTon(d.totals.qty_long_term)} · chuyến ${fmtTon(d.totals.qty_spot)} (tấn)`,
     })),
     kpiOf("Doanh thu", consumption, (d) => {
-      const missing = d.totals.missing_fx_lines;
+      const missing = d.totals.no_revenue_lines;
       return {
         value: withUnit(fmtTy(d.totals.revenue_ty), "tỷ đồng"),
-        // Đang thiếu phần bán USD chưa có tỷ giá → số trên thẻ THẤP hơn thực tế, phải nói ngay tại đây.
+        // Có lần giao chưa tính được doanh thu → số trên thẻ THẤP hơn thực tế, phải nói ngay tại đây.
         sub: missing > 0
-          ? `Chưa gồm ${missing.toLocaleString("vi-VN")} lần giao thiếu tỷ giá`
+          ? `Chưa gồm ${missing.toLocaleString("vi-VN")} lần giao thiếu tỷ giá / đơn giá`
           : `Giá bán BQ ${withUnit(fmtPrice(d.totals.avg_price_trieu, PRICE_TRIEU), PRICE_TRIEU)}`,
         warn: missing > 0,
       };

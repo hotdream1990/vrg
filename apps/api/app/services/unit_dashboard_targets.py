@@ -6,7 +6,8 @@ nào cũng "đạt 8%" — con số đúng mà vô nghĩa. Mốc so tiến độ
 Ba chỉ tiêu, cùng quy ước với Báo cáo tổng hợp:
 - Thu mua: tử số = mủ NGUYÊN LIỆU (nước + chén + dây, quy khô), không gồm thành phẩm mua ngoài.
 - Tiêu thụ: kế hoạch chỉ đặt cho HĐ CHUYẾN → so với sản lượng HĐ chuyến, không so tổng tiêu thụ.
-- Doanh thu (tỷ đồng): đơn vị có lần giao thiếu tỷ giá thì doanh thu đang THIẾU → % để trống.
+- Doanh thu (tỷ đồng): đơn vị có lần giao chưa tính được doanh thu (thiếu tỷ giá hoặc đơn giá) thì
+  doanh thu đang THIẾU → % để trống.
 
 ⚠ Tử số và mẫu số cùng MỘT RỔ ĐƠN VỊ — các đơn vị ĐƯỢC GIAO chỉ tiêu đó (kể cả đơn vị chưa làm
 được gì: bỏ họ ra là % tự đẹp lên). Đơn vị chưa được giao mà vẫn có số thì KHÔNG vào tử số: đo trên
@@ -57,8 +58,8 @@ def _progress(planned: list[str], plan: dict[str, float], done: dict[str, float 
 def _note(base: str, prog: dict[str, Any], scope_done: float, unit: str, missing: int) -> str:
     parts = [base] if base else []
     if missing:
-        parts.append(f"{missing} lần giao bán bằng USD chưa có tỷ giá — doanh thu đang thiếu phần "
-                     f"đó nên chưa tính % kế hoạch.")
+        parts.append(f"{missing} lần giao chưa tính được doanh thu (thiếu tỷ giá hoặc đơn giá) — "
+                     f"doanh thu đang thiếu phần đó nên chưa tính % kế hoạch.")
     # So sánh có dung sai: hai tổng số thực cộng theo hai thứ tự khác nhau có thể lệch ở số lẻ xa.
     if prog["plan"] and scope_done - (prog["done"] or 0.0) > 1e-6:
         parts.append(f"% chỉ tính trên {prog['units_planned']} đơn vị đã giao kế hoạch; cả phạm vi "
@@ -77,7 +78,7 @@ def targets_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any
     reps = {"purchase": pur.purchase_report(start, end, group_by="company", **f),
             "consumption": con.consumption_report(start, end, group_by="company", **f)}
     rows = {src: {r["key"]: r for r in rep["rows"]} for src, rep in reps.items()}
-    blocked = {k for k, r in rows["consumption"].items() if r.get("missing_fx_lines")}
+    blocked = {k for k, r in rows["consumption"].items() if r.get("no_revenue_lines")}
     region_of = region_of_units()
 
     items, per_item = [], {}
@@ -86,7 +87,7 @@ def targets_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any
         done = {k: r.get(field) for k, r in rows[src].items()}
         stop = blocked if key == "revenue" else set()
         prog = _progress([c for c in plan if plan[c]], plan, done, stop)
-        missing = sum(rows["consumption"][c].get("missing_fx_lines") or 0
+        missing = sum(rows["consumption"][c].get("no_revenue_lines") or 0
                       for c in plan if c in stop) if key == "revenue" else 0
         scope_done = reps[src]["totals"].get(field) or 0.0
         items.append({"key": key, "label": label, "unit": unit, "done": prog["done"],
@@ -100,7 +101,7 @@ def targets_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any
         "time_pct": time_pct(end), "items": items,
         "breakdown": _breakdown(sc, per_item, region_of) if sc["child"] else [],
         # Cảnh báo của bảng thống kê (thiếu đơn giá, thiếu tỷ giá…) đã hiện ở section của kỳ; chỗ
-        # duy nhất đụng tới chỉ tiêu — doanh thu thiếu tỷ giá — nằm trong `note` của mục đó.
+        # duy nhất đụng tới chỉ tiêu — doanh thu chưa tính được — nằm trong `note` của mục đó.
         "warnings": [],
     }
 
@@ -110,17 +111,20 @@ def _breakdown(sc: dict[str, Any], per_item: dict[str, tuple], region_of: dict[s
     """Tiến độ từng khu vực / đơn vị — khung dòng là DANH SÁCH, không phải "ai có số".
 
     Đơn vị được giao kế hoạch mà chưa thực hiện gì không có dòng nào trong bảng thống kê; bỏ qua
-    họ thì bảng chỉ còn toàn đơn vị đang chạy tốt.
+    họ thì bảng chỉ còn toàn đơn vị đang chạy tốt. Ngược lại, đơn vị CÓ kế hoạch mà nằm ngoài khung
+    (chưa gán khu vực, khu vực đã ẩn) thành dòng riêng ở cuối — không thì tổng ở trên có phần của họ
+    mà bảng dưới không thấy đâu.
     """
-    def members(child: str, plan: dict[str, float]) -> list[str]:
-        if sc["child"] == "company":
-            return [child] if plan.get(child) else []
-        return [c for c in plan if plan[c] and (region_of.get(c) or NO_REGION_LABEL) == child]
+    def label_of(c: str) -> str:
+        return c if sc["child"] == "company" else (region_of.get(c) or NO_REGION_LABEL)
 
+    planned = {c for plan, _, _ in per_item.values() for c in plan if plan[c]}
+    extra = sorted({label_of(c) for c in planned} - set(sc["children"]))
     out = []
-    for child in sc["children"]:
+    for child in [*sc["children"], *extra]:
         row: dict[str, Any] = {"label": child}
         for key, (plan, done, stop) in per_item.items():
-            row[f"{key}_pct"] = _progress(members(child, plan), plan, done, stop)["pct"]
+            members = [c for c in plan if plan[c] and label_of(c) == child]
+            row[f"{key}_pct"] = _progress(members, plan, done, stop)["pct"]
         out.append(row)
     return out
