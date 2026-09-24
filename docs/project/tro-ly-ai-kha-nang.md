@@ -174,6 +174,8 @@ Từ **6 công cụ trong 1 file** → **24 công cụ chia 5 gói kỹ năng b�
 | `suggest_floor_adjustment` | NÂNG/GIỮ/HẠ + drivers + bối cảnh tồn kho | mở rộng |
 | `simulate_floor_scenarios` | Kịch bản Bear/Base/Bull theo cú sốc rổ chỉ số | **mới** |
 | `get_floor_context` | Tín hiệu bối cảnh đã lượng hoá + **hướng tác động tính sẵn** | **mới** |
+| `create_floor_proposal` | Lập **phương án giá sàn nháp** trong phiên (mức mô hình / giá hiện hành) | **mới 25/09** |
+| `adjust_floor_proposal` | Chỉnh phương án theo lời người dùng: bước · % · số tiền · đặt mức · đưa về · hoàn tác | **mới 25/09** |
 
 ### Gói "Số liệu nội bộ Tập đoàn" (`internal`)
 
@@ -284,7 +286,8 @@ trả lời sai. Danh sách giới hạn lấy từ `assistant_tools.LIMITS`, **
 
 - **Tri thức nội bộ (RAG)**: Trợ lý trả lời được số, chưa trả lời được câu hỏi quy trình/nghiệp vụ.
 - `get_latest_bulletin` chỉ đọc bản tin **đã lưu**; bản dựng tạm trên UI mà chưa bấm lưu thì không thấy.
-- Trợ lý **chỉ đọc** — không tạo nháp, không gửi nhắc (theo quyết định 10/09/2026).
+- Trợ lý không ghi số liệu hệ thống, không gửi nhắc. Từ 25/09/2026 có **một ngoại lệ có kiểm soát**:
+  phương án giá sàn NHÁP trong phiên chat (không ghi DB; người dùng tự bấm lưu thành bản nháp tờ trình).
 
 ## Cập nhật 24/09/2026 — mô hình đa biến + tham chiếu tồn kho
 
@@ -295,3 +298,24 @@ trả lời sai. Danh sách giới hạn lấy từ `assistant_tools.LIMITS`, **
   mô hình. `suggest_floor_adjustment` trả `tham_chieu_ton_kho` và `canh_bao` từng chủng loại.
 - `get_floor_context` bỏ tín hiệu "Giá mủ nước (VRG chốt)" trọng số "nền" — giá mủ nước nay là biến
   "mạnh" trong mô hình.
+
+## Cập nhật 25/09/2026 — phương án giá sàn nháp trong phiên chat
+
+Chủ dự án yêu cầu: hỏi số → bảo Trợ lý "tăng lên tí xíu" → số hiện lên bảng để sửa tiếp → xem trước tờ
+trình → lưu bản nháp, sửa tay và lưu lại. **Không** đụng biểu giá sàn chính thức.
+
+- **Phương án sống ở frontend** (state + sessionStorage), gửi kèm mỗi lượt chat (`proposal`); server làm
+  sạch (`floor_proposal.sanitize`: dựng lại 14 dòng theo tờ trình, **nạp lại giá lần trước từ DB**, chặn
+  số ngoài khoảng — bắt nhầm đơn vị). Lượt nào công cụ lập/chỉnh thì chat trả `proposal` mới.
+- **Mọi phép tính ở server** (`floor_proposal_ops`): "tí xíu" = 1 bước (5 USD/tấn · 50.000 đ/tấn), % làm
+  tròn theo bước, số tiền/đặt mức giữ đúng số và cảnh báo nếu không phải bội bước; FOB đổi thì nội địa
+  tự tính theo tỉ lệ lần trước trừ khi đã sửa tay; mỗi thay đổi ghi nhật ký kèm giá trị trước ⇒ hoàn tác.
+  Ô sửa tay trên giao diện gọi cùng đường `POST /api/floor-proposal/apply`.
+- **Hàng rào đã đo bằng LLM thật**: với lỗi trơn, LLM trả lời "đã đưa về mức mô hình" dù công cụ từ chối
+  ⇒ lỗi công cụ phương án ghi rõ "KHÔNG THỰC HIỆN — phương án giữ nguyên" + luật prompt "chỉ nói đã chỉnh
+  khi công cụ chạy thành công". Được bảo "đưa vào bảng" mà không gọi công cụ ⇒ luật prompt bắt buộc gọi.
+- Mức **Chỉ tra số**: phương án xuất phát từ giá hiện hành, không kèm mức mô hình, chặn "đưa về mô hình".
+  Người dùng tự yêu cầu chỉnh là quyết định của người dùng ⇒ làm được ở mọi mức tư vấn.
+- **Bản nháp tờ trình** (`floor_draft`, quyền `floor_suggest`): lưu phương án + **ảnh chụp** khối 1–2
+  (số thị trường, lần thứ) lúc tạo; sửa được số + đoạn diễn giải + tiêu đề/ghi chú; ngày tờ trình cố định.
+  Diễn giải sửa tay được escape khi in HTML. Tạo từ chat, từ màn Gợi ý giá sàn, hoặc tạo mới.

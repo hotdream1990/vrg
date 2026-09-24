@@ -1,0 +1,26 @@
+# Review FRONTEND — phương án giá sàn nháp + bản nháp tờ trình (25/09/2026)
+
+Kiểm tra: `tsc --noEmit` 0 lỗi · `pnpm build` OK (chỉ cảnh báo chunk > 500 kB có từ trước). Không có emoji, console, TODO, `dangerouslySetInnerHTML`.
+
+## CAO
+1. `useFloorDraft.ts:50-61` + `FloorDraftEditorPage.tsx:36-45` — **lưu xong ghi đè mất phần vừa sửa**. (a) Gõ số vào ô giá rồi bấm thẳng "Lưu": blur gửi `apply`, cùng lúc click gửi PUT kèm `form.proposal` CŨ. Nếu `apply` về trước → `patch` → rồi PUT về `reset(d)` đè form bằng bản server (không có số vừa gõ), `dirty=false`, vẫn báo "Đã lưu bản nháp" → mất số, không có cảnh báo. (b) Bấm Lưu rồi gõ tiếp tiêu đề/diễn giải trong lúc chờ → `reset` xoá chữ vừa gõ. Sửa: chờ hàng đợi apply xong mới PUT (đưa `useProposalApply` lên `useFloorDraft`, hoặc Panel báo `onBusyChange` và khoá nút Lưu khi đang áp dụng); thêm `rev` ref tăng ở mỗi `patch`, sau PUT chỉ `setDraft(d)` (lấy `updated_at`), còn form và `dirty` giữ nguyên nếu `rev` đã đổi.
+2. `AssistantPage.tsx:219-230` — **bản AI đè mất số sửa tay**. `ask` gửi `proposal` của lần render hiện tại, không chờ `apply` đang chạy. Khoá bảng (`locked`) chỉ bật SAU khi blur đã gửi apply. Kịch bản: tải lại trang (phương án khôi phục từ sessionStorage, vẫn còn thẻ gợi ý), gõ 2.400 vào ô SVR10, bấm ngay thẻ "Tăng SVR 10 lên một chút". Kịch bản khác: gõ sẵn câu hỏi, sửa ô, rồi bấm Gửi. Apply về, ô có 2.400; vài giây sau AI trả `proposal` dựng trên bản cũ, `setProposal` đè mất 2.400. Sửa: `proposalRef` + `whenIdle()` của một hàng đợi dùng chung; `ask` gọi `await whenIdle()` rồi đọc `proposalRef.current`. Cách khác: khoá Gửi và thẻ gợi ý khi bảng đang áp dụng.
+
+## TRUNG BÌNH
+3. `FloorProposalPanel.tsx:89-99` — **không hiện `model_vnd` ở đâu cả**. Dòng Skim Block lấy mức mô hình ở `model_vnd` (BE `floor_proposal.py:168-169`: `model_fob=None`), nên cột "Mô hình FOB" = "—": chuyên viên không biết mô hình gợi ý Skim Block bao nhiêu. Dòng vẫn bị tô nền "khác mức mô hình" (`differsFromModel` so `vnd≠model_vnd`, dòng 32-33) mà không có số để đối chiếu. Sửa: thêm cột "Mô hình nội địa" (`fmtVi(r.model_vnd)`).
+4. `FloorDraftEditorPage.tsx:42-43` — **409 chỉ báo lỗi 3 giây**. Không có lối thoát: bấm Lưu lại vẫn 409 mãi (`base_updated_at` cũ); F5 thì mất hết. Thêm nữa, BE `floor_draft_service.py:64-65` in giờ bằng `updated_at[11:19]` (timestamptz của phiên DB = UTC) → lệch 7 tiếng. Sửa FE: `e instanceof ApiError && e.status === 409` → `modal.confirm` với nút "Tải bản mới nhất (bỏ phần sửa của tôi)" (`getDraft` → `reset`) / "Ở lại". Sửa BE: format giờ Việt Nam.
+5. `FloorDraftEditorPage.tsx:57-65` / `useFloorDraft.ts:69-74` — **thiếu chặn rời trang**. Chỉ nút "Danh sách" hỏi lại. Bấm menu sidebar (`AdminLayout.tsx:114`), nút Back của trình duyệt, Đăng xuất (`AdminLayout.tsx:147-149`) hay nút "Gợi ý giá sàn" đều rời trang không hỏi → mất phần chưa lưu. Report FE đã ghi nhận. Sửa: đăng ký leave-guard qua context để menu/đăng xuất gọi confirm + bắt `popstate`, hoặc chuyển sang `createBrowserRouter` để dùng `useBlocker`.
+
+## THẤP
+6. `AssistantProposalDock.tsx:60-61,77-83` — "Xem trước tờ trình"/"Lưu bản nháp" không khoá khi Trợ lý đang xử lý. Gửi "tăng SVR10" → mở Xem trước (dựng bản cũ) → AI trả bản mới → bấm "Lưu bản nháp" trong khung xem trước → lưu bản MỚI, khác bản đang nhìn. Sửa: `disabled={locked}`, hoặc nạp lại khung xem trước khi `revealKey` đổi.
+7. `FloorProposalCells.tsx:89-90` — apply lỗi → `setVal(value)` lấy `value` cũ từ closure. Ví dụ: lần sửa FOB trước trong hàng đợi làm nội địa tự tính lại, rồi lần sửa nội địa bị server từ chối (ngoài khoảng) → ô quay về số trước cả lần sửa FOB, lệch với phương án thật. Sửa: giữ `valueRef` luôn mới, lỗi thì `setVal(valueRef.current)`.
+8. `FloorDraftNarrative.tsx:44` — "Thêm đoạn" chèn sẵn `"- "`. Bỏ trống rồi lưu: trim còn `"-"` (không rỗng) → tờ trình in một dòng "-". Sửa: chèn `""`, hoặc lọc đoạn chỉ có `-`.
+9. `FloorDraftListPage.tsx:35-41` — đổi trang nhanh: request cũ về sau → bảng hiện dữ liệu trang khác với số trang đang chọn. Sửa: cờ seq/cancelled.
+10. `AuthContext.tsx` `logout` (~49) — không xoá `vrg.assistant.proposal:<user>`. Máy dùng chung, cùng tab: người đăng nhập sau mở DevTools vẫn đọc được phương án giá sàn của người trước. Sửa: xoá các khoá có tiền tố này khi đăng xuất.
+11. `FloorDraftNarrative.tsx:25` — ghi chú hướng dẫn nhập dùng màu muted, chưa theo quy ước `.form-note`. Ghi chú ở `SaveDraftModal.tsx:64` giới hạn `maxLength` 2000, trong khi màn soạn và server là 4000.
+
+## ĐÃ KIỂM — ĐẠT
+- Bảo mật: iframe `sandbox="allow-same-origin allow-modals"` (không `allow-scripts`). Server `escape` n1/n2. Nút ghi (Lưu/Tạo/Xoá/"Lưu thành bản nháp") gác bằng `canEditCap("floor_suggest")`, nên executive (mức Xem) không thấy; BE còn chặn bằng `require_cap_edit`.
+- Bảng đủ 14 dòng, theo đúng thứ tự `proposal.rows`, không sort, key = grade. Số định dạng vi-VN (`fmtVi`/NumInput/`DeltaText`). Không lộ tên kỹ thuật trên UI.
+- sessionStorage khoá theo username; ProtectedRoute chờ có user mới render. Lưu thành công thì `reset(d)` đồng bộ `updated_at`, lần lưu sau không tự dính 409. Xoá dòng cuối của trang > 1 thì lùi về trang trước.
+- "Hoàn tác": BE `build()` tạo `log=[]` nên không có trường hợp 400 như report FE lo ngại.

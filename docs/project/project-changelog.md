@@ -4,6 +4,14 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Phương án giá sàn nháp trong Trợ lý AI + Bản nháp tờ trình** (25/09/2026).
+  - Trong khung chat, bảo Trợ lý "tăng SVR 10 lên tí xíu", "giảm nhóm RSS 1%", "đặt giá nội địa SVR 3L
+    63.500.000", "bỏ lần vừa rồi"… → số đổi trên **bảng phương án** cạnh khung chat, sửa tay tiếp được.
+    Chỉ là bản nháp trong phiên, không ghi vào biểu giá sàn.
+  - Xem trước tờ trình ngay từ phương án; **Lưu bản nháp** → mục *Bản nháp tờ trình*: sửa số, sửa đoạn
+    diễn giải, lưu lại, in PDF. Tạo được cả từ màn Gợi ý giá sàn.
+  - Tờ trình ở màn Gợi ý giá sàn: dòng chưa có mức mô hình nay điền giá hiện hành (trước để trống ô
+    FOB); cột chênh lệch nội địa hiện "0" khi không đổi (trước để trống).
 - **Dashboard đơn vị** (24/09/2026) — mục mới *Báo cáo & Thống kê → Dashboard đơn vị*
   (`/dashboard-don-vi`): bức tranh thu mua · tiêu thụ · tồn kho · chỉ tiêu năm của MỘT phạm vi.
   - Quản trị, chuyên viên, lãnh đạo Tập đoàn chọn **toàn Tập đoàn · một khu vực · một đơn vị**. Tài
