@@ -18,6 +18,8 @@ import DashboardPage from "./features/command-center/pages/DashboardPage";
 import EditRequestReviewDetailPage from "./features/command-center/pages/EditRequestReviewDetailPage";
 import EditRequestReviewListPage from "./features/command-center/pages/EditRequestReviewListPage";
 import EntryWarnPreview from "./features/command-center/pages/EntryWarnPreview";
+import FloorDraftEditorPage from "./features/command-center/pages/FloorDraftEditorPage";
+import FloorDraftListPage from "./features/command-center/pages/FloorDraftListPage";
 import FloorSuggestPage from "./features/command-center/pages/FloorSuggestPage";
 import FxRatePage from "./features/command-center/pages/FxRatePage";
 import InventoryPage from "./features/command-center/pages/InventoryPage";
@@ -224,6 +226,9 @@ export default function App() {
                     <Route path="/quan-ly-so-lieu/gia-san-tap-doan" element={<VrgFloorPage />} />
                   </Route>
                   <Route element={<RequireCap caps={["floor_suggest"]} />}>
+                    {/* Bản nháp tờ trình (phương án giá sàn nháp) — tách hẳn biểu giá sàn chính thức */}
+                    <Route path="/goi-y-gia-san/ban-nhap/:id" element={<FloorDraftEditorPage />} />
+                    <Route path="/goi-y-gia-san/ban-nhap" element={<FloorDraftListPage />} />
                     <Route path="/goi-y-gia-san" element={<FloorSuggestPage />} />
                   </Route>
                   <Route element={<RequireCap caps={["raw_material"]} />}>

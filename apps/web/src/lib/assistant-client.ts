@@ -1,6 +1,7 @@
 /* Client Trợ lý AI — hỏi đáp số liệu nội bộ + tư vấn giá sàn (tool-calling).
    Gác bằng cap `assistant` (admin + chuyên viên được cấp). */
 
+import type { Proposal } from "./floor-proposal-client";
 import { apiFetch } from "./http";
 
 export type TableArtifact = {
@@ -19,7 +20,10 @@ export type LineArtifact = {
 export type ChatArtifact = TableArtifact | LineArtifact;
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
-export type ChatReply = { answer: string; artifacts: ChatArtifact[]; sources: string[] };
+/** `proposal` khác null ⇒ Trợ lý vừa lập/chỉnh phương án giá sàn nháp → FE thay phương án của phiên. */
+export type ChatReply = {
+  answer: string; artifacts: ChatArtifact[]; sources: string[]; proposal?: Proposal | null;
+};
 
 /** Một công cụ trong gói. `name` là tên hàm kỹ thuật (chỉ dùng làm khoá, KHÔNG hiện cho người
  *  dùng nghiệp vụ); `desc` là mô tả tiếng Việt "công cụ này tra ra cái gì". */
@@ -57,9 +61,10 @@ export const fetchPacks = () => apiFetch<PacksReply>("/api/assistant/packs");
 /** Gửi câu hỏi kèm phạm vi tra cứu (`packs`) + mức tư vấn (`advice`) + mã phiên (`sessionId`).
  *  Bỏ trống `packs` = backend dùng TẤT CẢ gói khả dụng — nên khi rỗng ta không gửi trường này,
  *  tránh gửi mảng rỗng rồi bị hiểu nhầm thành "không cho tra cứu gì cả". Tương tự với `advice`:
- *  không gửi = backend giữ mức mặc định của nó. */
+ *  không gửi = backend giữ mức mặc định của nó. `proposal` = phương án giá sàn nháp hiện tại của phiên
+ *  (để Trợ lý chỉnh tiếp "tăng lên tí xíu"); không có thì không gửi. */
 export const sendChat = (messages: ChatMessage[], packs?: string[], advice?: AdviceLevel,
-                         sessionId?: string) =>
+                         sessionId?: string, proposal?: Proposal | null) =>
   apiFetch<ChatReply>("/api/assistant/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -69,5 +74,6 @@ export const sendChat = (messages: ChatMessage[], packs?: string[], advice?: Adv
       ...(advice ? { advice } : {}),
       // Thiếu session_id là máy chủ KHÔNG ghi nhật ký hỏi–đáp (trang "Lịch sử hỏi đáp" sẽ trống).
       ...(sessionId ? { session_id: sessionId } : {}),
+      ...(proposal ? { proposal } : {}),
     }),
   });

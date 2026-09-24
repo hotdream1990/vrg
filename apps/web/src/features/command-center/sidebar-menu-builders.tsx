@@ -19,6 +19,7 @@ import {
   FileProtectOutlined,
   FileSearchOutlined,
   FileTextOutlined,
+  FormOutlined,
   FundOutlined,
   FundProjectionScreenOutlined,
   HistoryOutlined,
@@ -83,6 +84,7 @@ const ITEM = {
   statStock: { key: "/thong-ke/ton-kho", icon: <InboxOutlined />, label: "Thống kê tồn kho" },
   statConsumption: { key: "/thong-ke/tieu-thu", icon: <ExportOutlined />, label: "Thống kê tiêu thụ" },
   floorSuggest: { key: "/goi-y-gia-san", icon: <BulbOutlined />, label: "Gợi ý giá sàn" },
+  floorDrafts: { key: "/goi-y-gia-san/ban-nhap", icon: <FormOutlined />, label: "Bản nháp tờ trình" },
   bulletinDaily: { key: "/ban-tin", icon: <FileTextOutlined />, label: "Bản tin ngày" },
   bulletinWeekly: { key: "/ban-tin/tuan", icon: <FileDoneOutlined />, label: "Báo cáo tuần" },
   marketMovement: { key: "/ban-tin-bien-dong", icon: <LineChartOutlined />, label: "Bản tin biến động" },
@@ -153,6 +155,7 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean, pendingEditRequ
   ]));
   items.push(...group("analysis", <LineChartOutlined />, "Phân tích & Bản tin", [
     can("floor_suggest") && ITEM.floorSuggest,
+    can("floor_suggest") && ITEM.floorDrafts,
     can("bulletin_daily") && ITEM.bulletinDaily,
     can("bulletin_weekly") && ITEM.bulletinWeekly,
     can("market_movement") && ITEM.marketMovement,
@@ -174,6 +177,7 @@ function buildExecutiveMenu(can: (cap: Cap) => boolean) {
     ...group("analysis", <LineChartOutlined />, "Phân tích & Bản tin", [
       can("assistant") && ITEM.assistant,
       can("floor_suggest") && ITEM.floorSuggest,
+      can("floor_suggest") && ITEM.floorDrafts,
       can("market_movement") && ITEM.marketMovement,
       can("bulletin_daily") && ITEM.bulletinDaily,
       can("bulletin_weekly") && ITEM.bulletinWeekly,

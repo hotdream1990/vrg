@@ -1,5 +1,7 @@
-import { BulbOutlined, FileTextOutlined } from "@ant-design/icons";
+import { BulbOutlined, FileTextOutlined, FormOutlined, SaveOutlined } from "@ant-design/icons";
+import { App, Button } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
   type CorrRow,
@@ -14,7 +16,9 @@ import {
   fetchFloorPoints,
   fetchFloorSuggest,
 } from "../../../lib/floor-suggest-client";
+import { DRAFT_LIST_PATH, createDraft, draftPath } from "../../../lib/floor-proposal-client";
 import { dmy, todayISO } from "../../../lib/date";
+import { useAuth } from "../../auth/AuthContext";
 import CorrelationChart from "../charts/CorrelationChart";
 import DateInput from "../sections/DateInput";
 import AdjustmentTable from "./components/AdjustmentTable";
@@ -45,6 +49,24 @@ export default function FloorSuggestPage() {
   const [loading, setLoading] = useState(false);
   const [chartLoading, setChartLoading] = useState(false);
   const [showToTrinh, setShowToTrinh] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const { canEditCap } = useAuth();
+  const { message } = App.useApp();
+  const navigate = useNavigate();
+  const canSaveDraft = canEditCap("floor_suggest");
+
+  /** Tờ trình đang xem → bản nháp (server dựng phương án từ mô hình tại ngày này) → mở để sửa tay. */
+  const saveAsDraft = async () => {
+    setSavingDraft(true);
+    try {
+      const d = await createDraft({ source: "floor_suggest", as_of: asOf, model });
+      navigate(draftPath(d.id));
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : "Không lưu được bản nháp.");
+    } finally {
+      setSavingDraft(false);
+    }
+  };
 
   useEffect(() => {
     fetchFloorPoints().then(setPoints).catch((e) => setErr(e.message));
@@ -136,10 +158,13 @@ export default function FloorSuggestPage() {
               && ` · Chưa chạy được: cần thêm lần ban hành có tồn kho ngày (có từ ${dmy(sug.inventory_start)})`}
           </span>
         ) : null}
+        <Button icon={<FormOutlined />} style={{ marginLeft: "auto" }} onClick={() => navigate(DRAFT_LIST_PATH)}>
+          Bản nháp tờ trình
+        </Button>
         <button
           onClick={() => setShowToTrinh(true)}
           disabled={!asOf}
-          style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
             background: "var(--accent, #16a34a)", color: "#fff", border: "none", borderRadius: 8,
             padding: "8px 16px", fontWeight: 600 }}
         >
@@ -206,7 +231,10 @@ export default function FloorSuggestPage() {
       </div>
 
       {showToTrinh && asOf && (
-        <ToTrinhPreview asOf={asOf} model={model} onClose={() => setShowToTrinh(false)} />
+        <ToTrinhPreview asOf={asOf} model={model} onClose={() => setShowToTrinh(false)}
+          extraActions={canSaveDraft && (
+            <Button icon={<SaveOutlined />} loading={savingDraft} onClick={saveAsDraft}>Lưu thành bản nháp</Button>
+          )} />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { type User, fetchMe, impersonateUser, login as apiLogin } from "../../li
 import {
   clearAdminToken, clearToken, getAdminToken, getToken, setAdminToken, setToken,
 } from "../../lib/auth-token";
+import { clearSessionProposals } from "../../lib/floor-proposal-client";
 import { type Cap, effectiveCaps, hasCap } from "../../lib/permissions";
 import ImpersonationBanner from "./ImpersonationBanner";
 
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(r.access_token);
     setUser(r.user);
   };
-  const logout = () => { clearToken(); clearAdminToken(); setUser(null); };
+  const logout = () => { clearToken(); clearAdminToken(); clearSessionProposals(); setUser(null); };
   const refreshUser = async () => { setUser(await fetchMe()); };
   const canEdit = user?.role === "admin" || user?.role === "editor";
   const isUnitAccount = user?.role === "member" || user?.role === "leader";
