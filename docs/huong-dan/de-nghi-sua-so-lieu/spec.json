@@ -32,7 +32,7 @@
   {
    "title": "1. Khi nào phải gửi đề nghị sửa",
    "location": "Menu ▸ Nhập liệu số liệu ▸ Thu mua (theo ngày) · Tồn kho (theo ngày)",
-   "intro": "Đơn vị chỉ tự sửa được số liệu của một số ngày gần nhất. Ngày cũ hơn, hoặc ngày nằm trong kỳ đã chốt, sẽ chuyển sang chỉ xem. Nhìn ba chỗ sau là biết ngày đó còn sửa thẳng được hay phải gửi đề nghị.",
+   "intro": "Số liệu mỗi ngày chỉ tự sửa được đến **11:00** theo hạn quy định (ví dụ: đến 11:00 ngày hôm sau). Quá hạn, hoặc ngày nằm trong kỳ đã chốt, sẽ chuyển sang chỉ xem. Nhìn ba chỗ sau là biết ngày đó còn sửa thẳng được hay phải gửi đề nghị.",
    "image": {
     "path": "img/01-dau-hieu-ngay-bi-khoa.png",
     "w": 3000,

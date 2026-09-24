@@ -61,7 +61,7 @@ Dùng cho cán bộ Ban/Phòng tại Tập đoàn. Điểm quan trọng nhất l
    - **Không** — ẩn khỏi menu, gõ thẳng địa chỉ màn hình cũng không vào được.
    - **Xem** — vào được màn hình và đọc số liệu, nhưng mọi ô nhập bị khoá và các nút Thêm/Sửa/Xoá đều ẩn.
      Quyền này chặn ở cả giao diện lẫn API — người dùng không thể lách bằng cách gọi thẳng API để ghi.
-   - **Sửa** — xem và nhập/sửa/xoá (vẫn theo cửa sổ nhập liệu N ngày như trước).
+   - **Sửa** — xem và nhập/sửa/xoá (vẫn theo hạn nhập ở mục 10).
 
    Các mục ở nhóm **Phân tích & Bản tin** chỉ có **Không** / **Có quyền** (không tách hai mức).
 5. Kéo xuống cuối cửa sổ, bấm **Lưu**.
@@ -225,14 +225,14 @@ Nơi khai báo khoá API của AI, mật khẩu trang công khai và cửa sổ 
 
 1. Tab **AI / LLM** — nhà cung cấp, khoá API và mô hình dùng để sinh nhận định.
 2. Tab **Link công khai** — mật khẩu của trang nhập giá mủ dành cho đơn vị (không cần đăng nhập).
-3. Tab **Cửa sổ nhập liệu** — số ngày gần nhất mà đơn vị / chuyên viên còn được sửa số liệu.
+3. Tab **Cửa sổ nhập liệu** — hạn nhập/sửa số liệu của đơn vị và chuyên viên.
 4. **Nhà cung cấp LLM** — chọn nhà cung cấp; danh sách mô hình bên dưới đổi theo lựa chọn này.
 5. Bấm **Lưu cấu hình**.
 
 > - **Khoá API và mật khẩu luôn bị che**, chỉ hiện nhãn *Đã đặt*. **Để trống nghĩa là giữ nguyên giá trị cũ** — chỉ nhập khi thực sự muốn thay.
-> - Tab **Cửa sổ nhập liệu** có hai thông số độc lập cho đơn vị thành viên và cho chuyên viên (mặc định 7 ngày). Quá số ngày này, dòng số liệu chuyển sang *(chỉ xem)*.
-> - Riêng hai biểu **Thu mua** và **Tồn kho** được nhập trễ hơn các mục khác **1 ngày** — mỗi biểu một ô: **“Biểu Thu mua được nhập trễ hơn các mục khác bao nhiêu ngày”** và **“Biểu Tồn kho được nhập trễ hơn các mục khác bao nhiêu ngày”**. Ví dụ đặt cửa sổ **0**: các mục khác phải nhập trong ngày, còn hai biểu này vẫn nhập được hết ngày hôm sau (đơn giá mủ trên biểu Thu mua đi cùng biểu). Đặt ô của biểu nào về **0** = biểu đó giống mọi mục khác.
-> - Tab **Cửa sổ nhập liệu** còn ô **“Cảnh báo thiếu số liệu — rà bao nhiêu ngày gần nhất”** (mặc định **14**): bảng nhắc trên màn hình đơn vị rà lại bấy nhiêu ngày. Đặt **0 = tắt hẳn cảnh báo**; số âm bị bỏ qua, quay về mặc định. Rà xa hơn số ngày sửa được vẫn hợp lệ — những ngày quá hạn hiện màu xám, đơn vị phải báo Ban TTKD nhập hộ.
+> - Hạn nhập tính tới **giờ chốt**: số liệu ngày D nhập/sửa được đến **11:00 ngày D + N**. N đặt riêng cho đơn vị thành viên và cho chuyên viên (mặc định 7). Đặt **0** = nhập đến 11:00 cùng ngày; đặt **1** = nhập đến 11:00 ngày hôm sau. Quá hạn, dòng số liệu chuyển sang *(chỉ xem)*.
+> - Hạn này áp chung cho mọi mục: Thu mua, Tiêu thụ – Tồn kho, giá mủ, nhu cầu thị trường, ngày giao hợp đồng. Đổi giờ chốt ở ô **“Giờ chốt nhập liệu”** (mặc định 11).
+> - Tab **Cửa sổ nhập liệu** còn ô **“Cảnh báo thiếu số liệu — rà bao nhiêu ngày gần nhất”** (mặc định **14**): bảng nhắc trên màn hình đơn vị rà lại bấy nhiêu ngày. Đặt **0 = tắt hẳn cảnh báo**; số âm bị bỏ qua, quay về mặc định. Rà xa hơn hạn sửa vẫn hợp lệ — những ngày quá hạn hiện màu xám, đơn vị phải báo Ban TTKD nhập hộ.
 > - Quản trị viên không bị giới hạn bởi cửa sổ nhập liệu.
 
 ## 11. Lịch chạy tác vụ tự động

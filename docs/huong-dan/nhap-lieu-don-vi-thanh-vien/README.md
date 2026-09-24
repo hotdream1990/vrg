@@ -42,7 +42,7 @@ Sau khi đăng nhập bằng tài khoản đơn vị, menu bên trái hiển th�
 3. **Báo cáo** — Tiêu thụ (số hệ thống tự tính) · Hợp đồng cũ trước 30/07 (chỉ tra cứu).
 
 > - Đơn vị **không được giao kế hoạch thu mua** sẽ không thấy mục “Thu mua”. Mục **Kế hoạch năm luôn hiện** cho mọi đơn vị — chính số khai ở đó mới bật màn Thu mua.
-> - Chỉ nhập/sửa được ngày hôm nay và một số ngày gần nhất theo quy định; ngày cũ hơn chỉ để xem.
+> - Số liệu mỗi ngày nhập/sửa được đến **11:00** theo hạn quy định (ví dụ: đến 11:00 ngày hôm sau). Quá hạn, ngày đó chỉ để xem.
 
 ## 3. Bảng nhắc “còn thiếu gì”
 
@@ -263,7 +263,7 @@ Mỗi đợt giao = một lần giao hàng + một lần thanh toán. Đây là 
 > - Phiếu hiện sẵn dòng *Còn phải giao theo hợp đồng … · tối đa nhập được …*. Sản lượng thực giao **được phép lệch** so với hợp đồng: vượt thì có cảnh báo vàng nhưng vẫn lưu, **quá 110% sản lượng hợp đồng mới bị chặn**.
 > - **Tiêu thụ nội bộ** chỉ hiện khi đơn vị thuộc một nhóm công ty mẹ–con, và chỉ chọn được đơn vị trong cùng nhóm.
 > - **Thành tiền** của mỗi dòng = số lượng × đơn giá, hệ thống tự tính (không nhập tay); tổng của cả đợt hiện ngay dưới bảng chi tiết.
-> - Lần giao đã ghi quá **số ngày cho phép sửa** sẽ chuyển sang **chỉ xem** (dòng hiện “(chỉ xem)” thay cho nút Sửa/Xoá). Hợp đồng **không** bị khoá, vẫn thêm đợt giao mới bình thường.
+> - Lần giao đã quá **hạn sửa** (11:00 theo quy định, tính từ ngày giao) sẽ chuyển sang **chỉ xem** (dòng hiện “(chỉ xem)” thay cho nút Sửa/Xoá). Hợp đồng **không** bị khoá, vẫn thêm đợt giao mới bình thường.
 > - **Tỷ giá:** đợt chưa điền *Ngày giao* thì để trống được (ô ghi “khi giao”); vừa điền ngày giao là **bắt buộc** phải có tỷ giá, nếu không sẽ không lưu được.
 
 ## 13. Hoàn thành hợp đồng
@@ -410,8 +410,8 @@ Các bước:
 | **Không lưu được đợt giao, báo vượt quá 110%** | Tổng các đợt giao vượt quá 110% sản lượng hợp đồng. Kiểm lại số cân; nếu hai bên đã thống nhất tăng thì sửa sản lượng trên hợp đồng. |
 | **Hợp đồng còn treo sản lượng chưa giao dù đã bán xong** | Giao thiếu vài % là bình thường; bấm **Hoàn thành hợp đồng** để chốt, phần chênh sẽ rời khỏi “đã ký HĐ chưa giao”. |
 | **Không sửa được hợp đồng, báo “đã hoàn thành”** | Hợp đồng đã chốt. Bấm **Mở lại hợp đồng** ở màn chi tiết rồi sửa. |
-| **Không sửa được số liệu ngày cũ** | Ngoài cửa sổ sửa cho phép. Báo Ban TTKD nếu cần mở lại. |
-| **Đợt giao hiện “(chỉ xem)”, không có nút Sửa** | Lần giao đã quá số ngày cho phép sửa. Báo Ban TTKD nếu thật sự cần chỉnh. |
+| **Không sửa được số liệu ngày cũ** | Ngày đó đã quá hạn nhập (11:00 theo quy định). Mở ngày đó ra, bấm **Đề nghị sửa** để gửi Ban duyệt. |
+| **Đợt giao hiện “(chỉ xem)”, không có nút Sửa** | Lần giao đã quá hạn sửa. Bấm **Đề nghị sửa** để gửi Ban duyệt nếu thật sự cần chỉnh. |
 | **Không thấy hợp đồng cần gắn trong danh sách “Gắn hợp đồng có sẵn”** | Hợp đồng đó đã thuộc một hồ sơ khác. Mở hồ sơ đó gỡ ra trước, rồi gắn sang hồ sơ mới. |
 | **Không xoá được hợp đồng mẹ** | Hồ sơ còn phụ lục. Gỡ hết phụ lục ở màn chi tiết rồi mới xoá. |
 | **Không lưu được HĐ dài hạn, báo phải chọn hợp đồng mẹ** | HĐ dài hạn là phụ lục của một hồ sơ. Lập hồ sơ ở mục 8 rồi quay lại chọn; hoặc đổi **Loại hợp đồng** sang *HĐ chuyến* nếu bán đứt. |

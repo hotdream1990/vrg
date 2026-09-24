@@ -147,7 +147,7 @@
         "*… không phải số* — ô có chữ hoặc ký tự lạ (dấu cách, đơn vị tính). Chỉ để lại con số."
       ],
       "notes": [
-        "Chỉ nhập được ngày hôm nay và một số ngày gần nhất theo quy định; ngày cũ hơn hệ thống sẽ từ chối ghi.",
+        "Số liệu mỗi ngày chỉ nhập được đến **11:00** theo hạn quy định (ví dụ: đến 11:00 ngày hôm sau); ngày đã quá hạn hệ thống sẽ từ chối ghi.",
         "Nhập lại cùng một ngày là **ghi đè**, không nhân đôi — cứ sửa file rồi nhập lại cho tới khi đúng."
       ]
     }

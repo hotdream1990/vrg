@@ -13,7 +13,7 @@ Cách làm chung: mở đúng bản ghi cần sửa, bấm **Đề nghị sửa*
 
 **Vị trí:** Menu ▸ Nhập liệu số liệu ▸ Thu mua (theo ngày) · Tồn kho (theo ngày)
 
-Đơn vị chỉ tự sửa được số liệu của một số ngày gần nhất. Ngày cũ hơn, hoặc ngày nằm trong kỳ đã chốt, sẽ chuyển sang chỉ xem. Nhìn ba chỗ sau là biết ngày đó còn sửa thẳng được hay phải gửi đề nghị.
+Số liệu mỗi ngày chỉ tự sửa được đến **11:00** theo hạn quy định (ví dụ: đến 11:00 ngày hôm sau). Quá hạn, hoặc ngày nằm trong kỳ đã chốt, sẽ chuyển sang chỉ xem. Nhìn ba chỗ sau là biết ngày đó còn sửa thẳng được hay phải gửi đề nghị.
 
 ![Hình 1. Dấu hiệu cho biết số liệu ngày đó đã khoá](img/01-dau-hieu-ngay-bi-khoa.png)
 
