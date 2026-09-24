@@ -8,6 +8,7 @@ import type { ColumnsType } from "antd/es/table";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { daysAgoISO, dmy, todayISO } from "../../../lib/date";
+import { inWindow } from "../../../lib/edit-window";
 import { dataColumns } from "../../../lib/unit-daily-columns";
 import {
   type Timeline, type TimelineRange, type TimelineRow, fetchMyDailyTimeline, fetchDailyTimeline,
@@ -20,9 +21,6 @@ import UnitDailyTimelineSummary from "./UnitDailyTimelineSummary";
 
 const DAY_RANGES = [30, 60, 90, 180];
 const CUSTOM = "custom";   // giá trị select cho "khoảng tự chọn"
-
-const daysBetween = (later: string, earlier: string) =>
-  Math.round((new Date(later + "T00:00:00").getTime() - new Date(earlier + "T00:00:00").getTime()) / 86_400_000);
 
 type Row = TimelineRow & { key: string; _daySpan: number };
 
@@ -115,7 +113,7 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
         const merged = viewOnly.has(r.company);                               // đơn vị đã sáp nhập
         const closed = !isAdmin && !!lockedUntil && r.as_of <= lockedUntil;   // đã chốt số liệu
         const locked = merged || closed
-          || (!isAdmin && daysBetween(data?.today ?? todayISO(), r.as_of) > (data?.edit_window_days ?? 7));
+          || (!isAdmin && !!data && !inWindow(r.as_of, data.editable_from, data.today));
         // Khoá vì chốt/cửa sổ (không phải sáp nhập) → tài khoản đơn vị vẫn gửi được đề nghị sửa.
         const requestable = canEditUnitData && locked && !merged;
         return (
@@ -127,8 +125,8 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
               : closed
                 ? (requestable ? "Số liệu ngày này đã chốt — bấm để xem hoặc gửi đề nghị sửa"
                                : "Số liệu ngày này đã chốt — mở ra chỉ xem, cần sửa thì báo Ban TTKD")
-                : locked ? (requestable ? "Ngày này đã ngoài cửa sổ nhập — bấm để xem hoặc gửi đề nghị sửa"
-                                        : "Ngày này đã ngoài cửa sổ nhập — mở ra chỉ xem")
+                : locked ? (requestable ? "Ngày này đã quá hạn nhập — bấm để xem hoặc gửi đề nghị sửa"
+                                        : "Ngày này đã quá hạn nhập — mở ra chỉ xem")
                          : "Sửa số liệu"}>
               <Button size="small" type="link"
                       icon={closed ? <LockOutlined /> : locked ? <EyeOutlined /> : <EditOutlined />}
@@ -140,7 +138,7 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
                 ? "Ngày này đang khoá — bấm để gửi đề nghị đổi ngày bản ghi"
                 : closed
                 ? "Số liệu ngày này đã chốt — báo Ban TTKD nếu cần sửa"
-                : locked ? "Ngày này đã ngoài cửa sổ nhập — chỉ xem"
+                : locked ? "Ngày này đã quá hạn nhập — chỉ xem"
                          : "Đổi ngày bản ghi (nhập nhầm ngày)"}>
               <Button size="small" type="link" icon={<CalendarOutlined />} disabled={locked && !requestable}
                       onClick={() => setMoving({ as_of: r.as_of, company: r.company, request: requestable })} />
@@ -208,6 +206,7 @@ export default function UnitDailyTimeline({ kind, role, isAdmin, canEdit, refres
           open kind={kind} role={role} isAdmin={isAdmin}
           company={moving.company} asOf={moving.as_of} requestMode={moving.request}
           today={data?.today ?? todayISO()} windowDays={data?.edit_window_days ?? 7}
+          editableFrom={data?.editable_from ?? ""}
           onClose={() => setMoving(null)} onMoved={load}
         />
       )}

@@ -16,6 +16,7 @@ from sqlalchemy import text
 from app.core.db import db_healthy, session_scope
 from app.main import app
 from app.services import config_repo, data_lock_repo, user_repo
+from tests.edit_window_clock import pin_clock
 
 pytestmark = pytest.mark.skipif(not db_healthy(), reason="DB không sẵn sàng")
 
@@ -33,8 +34,12 @@ def _login(username: str, password: str) -> dict[str, str]:
 
 
 @pytest.fixture()
-def env():
-    """Đơn vị + tài khoản nhập liệu + khách hàng; cửa sổ sửa của đơn vị = 0 (chỉ hôm nay)."""
+def env(monkeypatch):
+    """Đơn vị + tài khoản nhập liệu + khách hàng; cửa sổ sửa của đơn vị = 0 (hôm nay, tới 11:00).
+
+    Ghim giờ sáng: cửa sổ 0 mà chạy sau giờ chốt thì chính hôm nay cũng đã khoá.
+    """
+    pin_clock(monkeypatch, day=TODAY)
     user_repo.seed_admin()
     admin = _login("admin", "admin")
     before_window = config_repo.get_value(WINDOW_KEY)

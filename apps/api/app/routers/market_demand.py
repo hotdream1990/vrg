@@ -33,10 +33,12 @@ def list_items(date_from: str | None = Query(None, description="Từ ngày nhậ
                username: str = Depends(_require_md)) -> dict:
     """Phiếu nhu cầu MỌI đơn vị trong khoảng ngày nhận (mặc định 90 ngày gần nhất)."""
     d_from, d_to = policy.date_range(date_from, date_to)
+    window = edit_window.editor_window()
     return {
         "units": member_unit_repo.active_names(),
         "today": edit_window.today().isoformat(),
-        "edit_window_days": edit_window.editor_window(),
+        "edit_window_days": window,
+        "editable_from": edit_window.editable_from(window).isoformat(),
         "grades": GRADES,
         "items": market_demand_item_repo.list_items(
             None, d_from, d_to, company=company, grade=grade, q=q),

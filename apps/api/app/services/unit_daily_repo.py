@@ -405,48 +405,69 @@ def year_plan(year: int, companies: list[str] | None = None) -> dict[str, dict[s
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(
-            text("SELECT company, plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, carry_spot_tonnes, "
-                 "       plan_sales_spot_tonnes, plan_revenue_ty "
+            text("SELECT company, plan_exploit_tonnes, plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, "
+                 "       carry_spot_tonnes, plan_sales_spot_tonnes, plan_revenue_ty "
                  "FROM unit_purchase_plan WHERE year = :y"),
             {"y": year},
         ).mappings().all()
     keep = set(companies) if companies is not None else None
-    return {r["company"]: {"plan_tonnes": r["plan_tonnes"], "signed_lt_tonnes": r["signed_lt_tonnes"],
+    return {r["company"]: {"plan_exploit_tonnes": r["plan_exploit_tonnes"],
+                           "plan_tonnes": r["plan_tonnes"], "signed_lt_tonnes": r["signed_lt_tonnes"],
                            "carry_lt_tonnes": r["carry_lt_tonnes"], "carry_spot_tonnes": r["carry_spot_tonnes"],
                            "plan_sales_spot_tonnes": r["plan_sales_spot_tonnes"],
                            "plan_revenue_ty": r["plan_revenue_ty"]}
             for r in rows if keep is None or r["company"] in keep}
 
 
+# Các ô số liệu năm = cột của `unit_purchase_plan` (tên cột lấy từ ĐÂY, không từ input → không chèn SQL).
+PLAN_FIELDS: tuple[str, ...] = (
+    "plan_exploit_tonnes", "plan_tonnes", "signed_lt_tonnes", "carry_lt_tonnes",
+    "carry_spot_tonnes", "plan_sales_spot_tonnes", "plan_revenue_ty",
+)
+
+
 def set_year_plan(year: int, company: str, plan_tonnes: float | None, signed_lt_tonnes: float | None,
                   carry_lt_tonnes: float | None, carry_spot_tonnes: float | None,
                   plan_sales_spot_tonnes: float | None,
                   plan_revenue_ty: float | None,
-                  updated_by: str | None) -> None:
-    """Đặt số liệu năm cho 1 đơn vị (ghi đè các ô; None = xoá ô đó)."""
+                  updated_by: str | None, *,
+                  plan_exploit_tonnes: float | None = None) -> None:
+    """Đặt TRỌN dòng số liệu năm của 1 đơn vị (ghi đè cả 7 ô; None = xoá ô đó).
+
+    Chỉ còn cho script/test dựng số liệu. Endpoint và nhập Excel dùng `save_year_plan` để ô người
+    dùng KHÔNG gửi lên thì giữ nguyên.
+    """
+    save_year_plan(year, company, {
+        "plan_exploit_tonnes": plan_exploit_tonnes, "plan_tonnes": plan_tonnes,
+        "signed_lt_tonnes": signed_lt_tonnes, "carry_lt_tonnes": carry_lt_tonnes,
+        "carry_spot_tonnes": carry_spot_tonnes, "plan_sales_spot_tonnes": plan_sales_spot_tonnes,
+        "plan_revenue_ty": plan_revenue_ty}, updated_by)
+
+
+def save_year_plan(year: int, company: str, values: dict[str, float | None],
+                   updated_by: str | None) -> None:
+    """Ghi các ô số liệu năm CÓ trong `values` (None = xoá ô đó); ô VẮNG MẶT giữ nguyên số đang lưu.
+
+    Vắng mặt ≠ để trống: body từ bản web cũ (chưa biết ô mới) hay file Excel mẫu cũ (thiếu cột)
+    không được âm thầm xoá chỉ tiêu người khác vừa khai (review 24/09/2026).
+    """
+    cols = [k for k in PLAN_FIELDS if k in values]
+    if not cols:
+        return
     ensure_schema()
-    after = {"plan_tonnes": plan_tonnes, "signed_lt_tonnes": signed_lt_tonnes,
-             "carry_lt_tonnes": carry_lt_tonnes, "carry_spot_tonnes": carry_spot_tonnes,
-             "plan_sales_spot_tonnes": plan_sales_spot_tonnes,
-             "plan_revenue_ty": plan_revenue_ty}
+    params = {k: values[k] for k in cols}
     with session_scope() as db:
         before = _plan_snapshot(db, year, company)
         db.execute(
             text("INSERT INTO unit_purchase_plan "
-                 "(year, company, plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, carry_spot_tonnes, "
-                 " plan_sales_spot_tonnes, plan_revenue_ty, "
-                 " updated_by, updated_at) "
-                 "VALUES (:y, :c, :p, :s, :cl, :cs, :ps, :pr, :by, now()) "
+                 f"(year, company, {', '.join(cols)}, updated_by, updated_at) "
+                 f"VALUES (:y, :c, {', '.join(':' + k for k in cols)}, :by, now()) "
                  "ON CONFLICT (year, company) DO UPDATE SET "
-                 "plan_tonnes = EXCLUDED.plan_tonnes, signed_lt_tonnes = EXCLUDED.signed_lt_tonnes, "
-                 "plan_sales_spot_tonnes = EXCLUDED.plan_sales_spot_tonnes, "
-                 "plan_revenue_ty = EXCLUDED.plan_revenue_ty, "
-                 "carry_lt_tonnes = EXCLUDED.carry_lt_tonnes, carry_spot_tonnes = EXCLUDED.carry_spot_tonnes, "
-                 "updated_by = EXCLUDED.updated_by, updated_at = now()"),
-            {"y": year, "c": company, "p": plan_tonnes, "s": signed_lt_tonnes,
-             "cl": carry_lt_tonnes, "cs": carry_spot_tonnes, "ps": plan_sales_spot_tonnes,
-             "pr": plan_revenue_ty, "by": updated_by},
+                 + "".join(f"{k} = EXCLUDED.{k}, " for k in cols)
+                 + "updated_by = EXCLUDED.updated_by, updated_at = now()"),
+            {"y": year, "c": company, "by": updated_by, **params},
         )
+    after = {**(before or dict.fromkeys(PLAN_FIELDS)), **params}
     audit_repo.log("unit_plan", "update" if before else "create", f"{year}|{company}",
                    before=before, after=after, company=company, note=f"Số liệu năm {year}")
 
@@ -471,7 +492,8 @@ def set_plan(year: int, company: str, plan_tonnes: float | None, updated_by: str
 def _plan_snapshot(db, year: int, company: str) -> dict[str, Any] | None:  # noqa: ANN001
     """Số liệu năm hiện có của 1 đơn vị (None nếu chưa có) — giá trị TRƯỚC khi sửa."""
     row = db.execute(
-        text("SELECT plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, carry_spot_tonnes "
+        text("SELECT plan_exploit_tonnes, plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, "
+             "       carry_spot_tonnes, plan_sales_spot_tonnes, plan_revenue_ty "
              "FROM unit_purchase_plan WHERE year = :y AND company = :c"),
         {"y": year, "c": company}).mappings().first()
     return dict(row) if row else None

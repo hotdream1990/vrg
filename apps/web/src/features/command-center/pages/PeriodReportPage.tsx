@@ -31,6 +31,7 @@ const PURCHASE_COLS: Col[] = [
   { key: "total_purchase", label: "Tổng SL thu mua", unit: "tấn", note: "= nước + chén" },
   { key: "price_latex_avg", label: "Giá mủ nước BQ", unit: LATEX_PRICE_UNIT, note: "BQ gia quyền" },
   { key: "price_cup_avg", label: "Giá mủ chén BQ", unit: CUP_PRICE_UNIT, note: "BQ gia quyền" },
+  { key: "plan_exploit_tonnes", label: "Kế hoạch khai thác", unit: "tấn", note: "số liệu năm" },
   { key: "plan_tonnes", label: "Kế hoạch thu mua", unit: "tấn", note: "số liệu năm" },
   { key: "pct_plan", label: "% thực hiện KH", unit: "%", note: "= TH / KH" },
   { key: "consumption", label: "SL tiêu thụ mủ thu mua", unit: "tấn", note: "cộng dồn" },

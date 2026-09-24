@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { deleteRecord, upsertRecord } from "../../../lib/api-client";
 import { dmy } from "../../../lib/date";
+import { inWindow, useCutoffHour, windowRule } from "../../../lib/edit-window";
 import { type MemberPriceType, clearMyPrice, upsertMyPrice } from "../../../lib/member-client";
 import { CUP_PRICE_UNIT, LACE_PRICE_UNIT, LATEX_PRICE_UNIT } from "../../../lib/purchase-price-unit";
 import {
@@ -25,9 +26,6 @@ import { type PriceChanges, dailyReportDraft, priceChanges } from "./unit-daily-
 const PRICE_UNIT: Record<MemberPriceType, string> = {
   purchase: LATEX_PRICE_UNIT, purchase_cup: CUP_PRICE_UNIT, purchase_lace: LACE_PRICE_UNIT,
 };
-
-const daysBetween = (later: string, earlier: string) =>
-  Math.round((new Date(later + "T00:00:00").getTime() - new Date(earlier + "T00:00:00").getTime()) / 86_400_000);
 
 type Props = {
   open: boolean;
@@ -55,6 +53,7 @@ export default function UnitDailyEditModal(
   const [saving, setSaving] = useState(false);
   const { canEditUnitData } = useAuth();
   const { saveOrRequest, modal } = useEditRequest();
+  const cutoffHour = useCutoffHour();
   // Chế độ ĐỀ NGHỊ SỬA: ngày đang khoá nhưng đơn vị bấm "Đề nghị sửa" → form mở cho sửa, lưu = gửi đề nghị.
   const [requestMode, setRequestMode] = useState(false);
 
@@ -84,7 +83,8 @@ export default function UnitDailyEditModal(
     if (!canEdit || !day || day > today || mergedUnit) return false;
     if (isAdmin) return true;
     if (lockedUntil && day <= lockedUntil) return false;
-    return daysBetween(today, day) <= (data?.edit_window_days ?? 7);
+    // Mốc `editable_from` do server tính theo giờ chốt — chưa tải xong thì tạm cho (server vẫn chặn).
+    return !data || inWindow(day, data.editable_from, data.today);
   }, [canEdit, isAdmin, day, today, data, lockedUntil, mergedUnit]);
   // Chỉ khoá vì HÀNG RÀO THỜI GIAN (chốt số liệu · ngoài cửa sổ) mới gửi đề nghị được — sáp nhập,
   // ngày tương lai, tài khoản chỉ xem thì không phải chuyện Ban duyệt.
@@ -175,7 +175,7 @@ export default function UnitDailyEditModal(
                      + "sửa được nữa. " + (canRequest
                        ? "Cần điều chỉnh thì bấm “Đề nghị sửa” để gửi Ban duyệt."
                        : "Cần điều chỉnh, đề nghị báo Ban TTKD để chuyên viên sửa hộ.")
-                   : "Ngày này ở chế độ chỉ xem — ngoài cửa sổ nhập cho phép."
+                   : `Ngày này đã quá hạn nhập, chỉ xem được — ${windowRule(data?.edit_window_days ?? 7, cutoffHour)}.`
                      + (canRequest ? " Cần điều chỉnh thì bấm “Đề nghị sửa” để gửi Ban duyệt." : "")} />
       )}
       <Spin spinning={loading}>

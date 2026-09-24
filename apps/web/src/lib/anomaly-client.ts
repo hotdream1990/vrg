@@ -67,6 +67,15 @@ export function defaultAnomalyRange(today = new Date()): { from: string; to: str
   return { from: `${today.getFullYear()}-01-01`, to: isoDate(yesterday) };
 }
 
+/** Khoảng ngày mở sẵn từ link (tin cảnh báo tự động gửi `?date_from=…&date_to=…` để trang hiện
+ *  ĐÚNG khoảng đã tính trong tin). Thiếu/sai định dạng/ngược chiều → null (dùng khoảng mặc định). */
+export function rangeFromQuery(params: URLSearchParams): { from: string; to: string } | null {
+  const from = params.get("date_from") ?? "";
+  const to = params.get("date_to") ?? "";
+  const ok = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s));
+  return ok(from) && ok(to) && from <= to ? { from, to } : null;
+}
+
 export function fetchAnomalies(from: string, to: string, scope: AnomalyScope = "all"): Promise<AnomalyReport> {
   const qs = new URLSearchParams({ date_from: from, date_to: to });
   return apiFetch<AnomalyReport>(`${baseOf(scope)}?${qs.toString()}`);

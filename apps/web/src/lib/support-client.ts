@@ -8,7 +8,8 @@ import { authHeaders } from "./auth-token";
 import { apiFetch } from "./http";
 
 export type Side = "hq" | "unit";
-export type ThreadKind = "request" | "announce" | "reminder";
+/** `alert` = cảnh báo số liệu hệ thống tự gửi sau giờ chốt nhập liệu (mỗi đơn vị một tin riêng). */
+export type ThreadKind = "request" | "announce" | "reminder" | "alert";
 export type Attachment = { file: string; filename: string; size?: number };
 
 export type SupportContext = {

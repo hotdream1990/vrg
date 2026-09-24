@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
 Kind = Literal["purchase", "consumption"]
+
+# Số liệu năm: số THẬT, không âm. Chặn NaN/Infinity ngay cửa vào — một ô "NaN" lọt xuống DB làm
+# hỏng JSON của báo cáo kỳ, nhật ký và bản lưu tuần (review 24/09/2026).
+PlanNum = Annotated[float, Field(ge=0, allow_inf_nan=False)]
 
 
 class UnitDailyEdit(BaseModel):
@@ -31,16 +35,26 @@ class UnitDailyMove(BaseModel):
 
 
 class PurchasePlanEdit(BaseModel):
-    """Số liệu NĂM của 1 đơn vị (nhập 1 lần, cập nhật khi có thay đổi). None = xoá ô đó."""
+    """Số liệu NĂM của 1 đơn vị (nhập 1 lần, cập nhật khi có thay đổi).
+
+    Gửi `null` = XOÁ ô đó. KHÔNG gửi khoá = GIỮ số đang lưu (router chỉ ghi `model_fields_set`) —
+    trình duyệt còn bản web cũ chưa biết ô mới thì cũng không xoá oan chỉ tiêu người khác vừa khai.
+    """
 
     year: int = Field(ge=2020, le=2100)
     company: str
-    plan_tonnes: float | None = None        # kế hoạch thu mua năm (tấn)
-    signed_lt_tonnes: float | None = None   # tổng SL đã ký HĐ dài hạn năm (tấn)
-    carry_lt_tonnes: float | None = None    # SL tiêu thụ HĐ dài hạn năm trước chuyển sang (tấn)
-    carry_spot_tonnes: float | None = None  # SL tiêu thụ HĐ chuyến năm trước chuyển sang (tấn)
-    plan_sales_spot_tonnes: float | None = None  # kế hoạch TIÊU THỤ cho HĐ chuyến (tấn)
-    plan_revenue_ty: float | None = None  # kế hoạch DOANH THU năm (TỶ ĐỒNG)
+    # Kế hoạch KHAI THÁC năm (tấn) — mủ từ vườn cây của chính đơn vị; chỉ là chỉ tiêu, chưa tính %.
+    plan_exploit_tonnes: PlanNum | None = None
+    plan_tonnes: PlanNum | None = None        # kế hoạch thu mua năm (tấn)
+    signed_lt_tonnes: PlanNum | None = None   # tổng SL đã ký HĐ dài hạn năm (tấn)
+    carry_lt_tonnes: PlanNum | None = None    # SL tiêu thụ HĐ dài hạn năm trước chuyển sang (tấn)
+    carry_spot_tonnes: PlanNum | None = None  # SL tiêu thụ HĐ chuyến năm trước chuyển sang (tấn)
+    plan_sales_spot_tonnes: PlanNum | None = None  # kế hoạch TIÊU THỤ cho HĐ chuyến (tấn)
+    plan_revenue_ty: PlanNum | None = None  # kế hoạch DOANH THU năm (TỶ ĐỒNG)
+
+    def plan_values(self) -> dict[str, float | None]:
+        """Chỉ các ô số liệu năm CÓ trong body (kể cả `null` tường minh) → {ô: giá trị}."""
+        return {k: getattr(self, k) for k in self.model_fields_set - {"year", "company"}}
 
 
 class ContractDocIn(BaseModel):

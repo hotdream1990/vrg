@@ -8,7 +8,7 @@ import { Alert, Modal, message } from "antd";
 import { useEffect, useState } from "react";
 
 import { dmy } from "../../../lib/date";
-import { windowPhrase } from "../../../lib/edit-window";
+import { inWindow, useCutoffHour, windowRule } from "../../../lib/edit-window";
 import { type MoveDateResult, moveDailyDate } from "../../../lib/unit-daily-client";
 import { KIND_LABEL, type Kind } from "../../../lib/unit-daily-fields";
 import { useEditRequest } from "../../../lib/use-edit-request";
@@ -20,9 +20,6 @@ const PRICE_LABEL: Record<string, string> = {
   purchase: "đơn giá mủ nước", purchase_cup: "đơn giá mủ chén", purchase_lace: "đơn giá mủ dây",
 };
 
-const daysBetween = (later: string, earlier: string) =>
-  Math.round((new Date(later + "T00:00:00").getTime() - new Date(earlier + "T00:00:00").getTime()) / 86_400_000);
-
 type Props = {
   open: boolean;
   role: "member" | "hq";
@@ -30,7 +27,8 @@ type Props = {
   company: string;
   asOf: string;              // ngày ĐANG lưu của bản ghi
   today: string;
-  windowDays: number;
+  windowDays: number;        // N — chỉ để dựng câu nhắc
+  editableFrom: string;      // ngày cũ nhất còn sửa được (server tính theo giờ chốt)
   isAdmin: boolean;          // admin không bị giới hạn cửa sổ sửa
   requestMode?: boolean;     // bản ghi đang khoá (chốt/cửa sổ) → mở ở chế độ đề nghị sửa
   onClose: () => void;
@@ -38,23 +36,24 @@ type Props = {
 };
 
 export default function UnitDailyMoveDateModal(
-  { open, role, kind, company, asOf, today, windowDays, isAdmin, requestMode, onClose, onMoved }: Props,
+  { open, role, kind, company, asOf, today, windowDays, editableFrom, isAdmin, requestMode, onClose, onMoved }: Props,
 ) {
   const [to, setTo] = useState(asOf);
   const [saving, setSaving] = useState(false);
   const { canEditUnitData } = useAuth();
   const { saveOrRequest, modal } = useEditRequest();
+  const rule = windowRule(windowDays, useCutoffHour());
   useEffect(() => { if (open) setTo(asOf); }, [open, asOf]);
 
-  const outOfWindow = (d: string) => !isAdmin && daysBetween(today, d) > windowDays;
+  const outOfWindow = (d: string) => !isAdmin && !!editableFrom && !inWindow(d, editableFrom, today);
   // Tài khoản đơn vị: ngày ngoài cửa sổ không còn là lỗi chặn nút — thành đề nghị gửi Ban duyệt.
   const asRequest = canEditUnitData && (!!requestMode || outOfWindow(asOf) || (!!to && outOfWindow(to)));
   const err = !to ? "Chọn ngày mới."
     : to === asOf ? "Ngày mới đang trùng ngày hiện tại."
     : to > today ? "Không chuyển sang ngày trong tương lai."
     : canEditUnitData ? ""
-    : outOfWindow(to) ? `Ngày mới đã ngoài cửa sổ nhập (chỉ nhập được ${windowPhrase(windowDays)}).`
-    : outOfWindow(asOf) ? `Ngày hiện tại của bản ghi đã ngoài cửa sổ nhập (chỉ sửa được ${windowPhrase(windowDays)}) — không sửa được nữa.`
+    : outOfWindow(to) ? `Ngày mới đã quá hạn nhập (${rule}).`
+    : outOfWindow(asOf) ? `Ngày hiện tại của bản ghi đã quá hạn nhập (${rule}) — không sửa được nữa.`
     : "";
 
   const submit = async () => {

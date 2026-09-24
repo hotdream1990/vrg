@@ -10,7 +10,6 @@ import tempfile
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core import edit_window
 from app.core.market_meta import PURCHASE_PRICE_TYPES, PURCHASE_SOURCE_HQ
 from app.core.paths import crawlers_dir
 from app.core.permissions import LEVEL_EDIT
@@ -55,12 +54,6 @@ _phys = [Depends(require_cap_edit("physical"))]   # giá physical (preview Reute
 _auto_view = [Depends(require_cap("auto_data"))]
 
 _CRAWLER_DIR = crawlers_dir()
-
-
-def _window_kind(cap: str) -> str | None:
-    """Giá mủ nguyên liệu đi CÙNG cửa sổ biểu Thu mua (được nhập trễ hơn các mục khác) — chuyên viên
-    nhập hộ biểu Thu mua ghi giá qua đây; khác cửa sổ là lưu được số lượng mà bị chặn lưu giá."""
-    return edit_window.PURCHASE_KIND if cap == "raw_material" else None
 
 
 def _cap_for_record(source: str, price_type: str) -> str:
@@ -162,7 +155,7 @@ def delete_purchase(as_of: str = Query(..., description="YYYY-MM-DD"),
 
     Giữ nguyên ô của các đơn vị đang lấy số tự động — số đó thuộc quyền đơn vị, chuyên viên chỉ xem.
     """
-    assert_editor_window(username, as_of, edit_window.PURCHASE_KIND)
+    assert_editor_window(username, as_of)
     kept = purchase_price_sync.auto_companies()
     return {"deleted": price_repo.delete_purchase_date(as_of, keep=kept), "kept_auto": len(kept)}
 
@@ -222,7 +215,7 @@ def upsert_record(rec: PriceRecordEdit, username: str = Depends(get_current_user
     cap = _cap_for_record(rec.source, rec.price_type)
     assert_cap(username, cap, LEVEL_EDIT)
     if cap in _WINDOWED_CAPS:
-        assert_editor_window(username, rec.as_of, _window_kind(cap))
+        assert_editor_window(username, rec.as_of)
     if rec.source == PURCHASE_SOURCE_HQ:
         _assert_manual_allowed(rec.grade, rec.price_type)
     price_repo.upsert_record(rec.model_dump())
@@ -242,7 +235,7 @@ def delete_record(
     cap = _cap_for_record(source, price_type)
     assert_cap(username, cap, LEVEL_EDIT)
     if cap in _WINDOWED_CAPS:
-        assert_editor_window(username, as_of, _window_kind(cap))
+        assert_editor_window(username, as_of)
     if source == PURCHASE_SOURCE_HQ:
         _assert_manual_allowed(grade, price_type)
     if not price_repo.delete_record(as_of, source, grade, contract, price_type):

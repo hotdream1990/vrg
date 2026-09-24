@@ -21,7 +21,7 @@ import {
   listQuotes,
   saveQuote,
 } from "../../../lib/market-quote-client";
-import { useEditorWindow, windowPhrase } from "../../../lib/edit-window";
+import { useEditorWindow } from "../../../lib/edit-window";
 import { useAuth } from "../../auth/AuthContext";
 import DataSourceNote from "../sections/DataSourceNote";
 import DateInput from "../sections/DateInput";
@@ -38,7 +38,7 @@ type SectKey = "domestic_private" | "domestic_export" | "export_vrg" | "domestic
 /** Quản lý số liệu → Báo giá mủ thị trường: 1 phiếu/ngày, TỰ LƯU (auto-save) khi nhập. */
 export default function MarketQuotePage() {
   const { user, canEditCap } = useAuth();
-  const ew = useEditorWindow();            // cửa sổ sửa: phiếu ngày cũ hơn N ngày → chỉ xem (admin miễn)
+  const ew = useEditorWindow();            // cửa sổ sửa: quá giờ chốt ngày D + N → chỉ xem (admin miễn)
   const canEdit = canEditCap("market_quote");
   const isAdmin = user?.role === "admin";  // chỉ quản trị viên xoá được đơn vị tư nhân khỏi danh mục
   const [grades, setGrades] = useState<string[]>([]);
@@ -131,7 +131,7 @@ export default function MarketQuotePage() {
   };
   const startNew = () => {
     if (!ew.isEditable(createDate)) {
-      setErr(`Ngày ${dmy(createDate)} đã ngoài cửa sổ sửa — chỉ tạo phiếu cho ${windowPhrase(ew.days ?? 7)}.`);
+      setErr(`Ngày ${dmy(createDate)} đã quá hạn nhập — phiếu mỗi ngày chỉ tạo/sửa ${ew.phrase}.`);
       return;
     }
     void startAt(createDate);
@@ -258,7 +258,7 @@ export default function MarketQuotePage() {
                 )}
                 {canEdit && outOfWindow && (
                   <span className="db-badge" style={{ color: "var(--muted)" }}>
-                    Chỉ xem — ngoài cửa sổ sửa ({windowPhrase(ew.days ?? 7)})
+                    Chỉ xem — đã quá hạn sửa (phiếu mỗi ngày sửa {ew.phrase})
                   </span>
                 )}
                 {/* Điền nhanh từ phiếu gần nhất trước đó (Mục 1–6, trừ tỷ giá VCB). */}

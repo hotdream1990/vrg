@@ -125,7 +125,8 @@ def test_unit_daily_member_and_editor_flow() -> None:
                             "signed_lt_tonnes": 1500, "carry_lt_tonnes": 40, "carry_spot_tonnes": 15},
                       headers=eh).status_code == 200
     pl = client.get(f"/api/unit-daily/plan?year={date.today().year}", headers=eh)
-    assert pl.json()["plans"][unit] == {"plan_tonnes": 2000, "signed_lt_tonnes": 1500,
+    assert pl.json()["plans"][unit] == {"plan_exploit_tonnes": None,
+                                        "plan_tonnes": 2000, "signed_lt_tonnes": 1500,
                                         "carry_lt_tonnes": 40, "carry_spot_tonnes": 15,
                                         "plan_sales_spot_tonnes": None,
                                         "plan_revenue_ty": None}
@@ -235,17 +236,20 @@ def test_unit_daily_edit_window_blocks_old_day() -> None:
     _cleanup(h, ["ud_win"], [unit])
 
 
-def test_daily_forms_get_extra_days_over_the_other_forms() -> None:
-    """Biểu Thu mua và Tồn kho được nhập trễ hơn 1 ngày so với các mục khác, mỗi biểu một thông số.
+def test_every_daily_form_shares_the_cutoff_deadline(monkeypatch) -> None:
+    """Hạn nhập = giờ chốt 11:00 của ngày D + N — CHUNG mọi biểu (chốt 24/09/2026).
 
-    Tồn cuối ngày phải kiểm kho xong, số thu mua chốt sau giờ cân cuối: đặt cửa sổ 0 (chỉ hôm nay)
-    thì hai biểu vẫn nhập được hết ngày hôm sau. Đơn giá mủ trên biểu Thu mua đi CÙNG mốc đó (cả
-    đường đơn vị tự khai lẫn chuyên viên nhập hộ) — khác mốc là lưu được số lượng mà bị chặn lưu giá.
+    Bỏ 2 ô "biểu Thu mua / Tồn kho được nhập trễ hơn": đặt N = 1 thì số liệu hôm qua (cả Thu mua,
+    Tồn kho lẫn đơn giá mủ trên biểu Thu mua, cho cả đơn vị lẫn chuyên viên) nhập được tới 11:00
+    hôm nay, sau đó khoá; N = 0 thì hôm nay nhập tới 11:00 hôm nay. Admin miễn.
     """
+    from tests.edit_window_clock import pin_clock, window_config
+
     h = _admin()
     unit = "_zz_ud_stock_win"
-    yesterday = (date.today() - timedelta(days=1)).isoformat()
-    two_days = (date.today() - timedelta(days=2)).isoformat()
+    day = pin_clock(monkeypatch, 10, 59).date()
+    today = day.isoformat()
+    yesterday = (day - timedelta(days=1)).isoformat()
     client.delete("/api/users/ud_stock_win", headers=h)
     client.delete("/api/users/ud_stock_ed", headers=h)
     client.post("/api/member-units", json={"name": unit}, headers=h)
@@ -263,47 +267,36 @@ def test_daily_forms_get_extra_days_over_the_other_forms() -> None:
     my_price = {"company": unit, "as_of": yesterday, "price_type": "purchase", "price": 400}
     hq_price = {"as_of": yesterday, "source": "vrg", "grade": unit, "contract": "",
                 "price_type": "purchase", "price": 400, "currency": "VND", "unit": "đồng/độ TSC"}
-    # Cửa sổ = 0 cho CẢ đơn vị lẫn chuyên viên: các mục khác chỉ nhập được hôm nay…
-    assert client.put("/api/config", json={"MEMBER_EDIT_WINDOW_DAYS": "0",
-                                           "EDITOR_EDIT_WINDOW_DAYS": "0"},
-                      headers=h).status_code == 200
-    try:
-        # …còn hai biểu theo ngày (kèm đơn giá) vẫn nhập được hôm qua, cho cả hai vai trò.
-        for body, path, hdr in ((purchase, "/api/member/daily-report", mh),
-                                (stock, "/api/member/daily-report", mh),
-                                (my_price, "/api/member/prices", mh),
-                                (purchase, "/api/unit-daily/report", eh),
-                                (stock, "/api/unit-daily/report", eh),
-                                (hq_price, "/api/prices/records", eh)):
+    forms = ((purchase, "/api/member/daily-report", mh), (stock, "/api/member/daily-report", mh),
+             (my_price, "/api/member/prices", mh), (purchase, "/api/unit-daily/report", eh),
+             (stock, "/api/unit-daily/report", eh), (hq_price, "/api/prices/records", eh))
+
+    def editable_from(url: str, hdr: dict) -> str:
+        return client.get(url, headers=hdr).json()["editable_from"]
+
+    # N = 1 cho CẢ đơn vị lẫn chuyên viên, giờ chốt 11:00 đặt TƯỜNG MINH (DB có thể đang cấu hình
+    # giờ khác); cấu hình cũ được trả lại khi ra khỏi khối.
+    with window_config(member=1, editor=1, hour=11):
+        # 10:59 — số liệu hôm qua còn hạn ở MỌI biểu (không biểu nào được ưu ái hơn biểu nào).
+        for body, path, hdr in forms:
             assert put(path, body, hdr) == 200, (path, body)
-            # …nhưng chỉ THÊM 1 ngày, không phải mở toang.
-            assert put(path, body, hdr, as_of=two_days) == 403, (path, body)
+        assert editable_from(f"/api/member/daily-report?kind=consumption&as_of={today}", mh) == yesterday
+        assert editable_from("/api/unit-daily/timeline?kind=purchase&days=7", eh) == yesterday
 
-        # Số ngày trả cho web phải khác nhau theo từng màn (form tự khoá đúng ô).
-        def days(url: str) -> int:
-            return client.get(url, headers=mh).json()["edit_window_days"]
-        assert days(f"/api/member/daily-report?kind=consumption&as_of={yesterday}") == 1
-        assert days(f"/api/member/daily-report?kind=purchase&as_of={yesterday}") == 1
-        assert days("/api/member/prices") == 1
-        assert client.get("/api/settings/edit-windows", headers=mh).json()["member_days"] == 0
-        chk = client.get("/api/member/checklist", headers=mh).json()
-        assert chk["purchase_editable_from"] == chk["stock_editable_from"] == yesterday
-        assert chk["editable_from"] == date.today().isoformat()
-
-        # Admin tắt ưu ái của TỪNG biểu (0) → biểu đó trở lại đúng cửa sổ chung, biểu kia giữ nguyên.
-        assert client.put("/api/config", json={"PURCHASE_EXTRA_WINDOW_DAYS": "0"},
-                          headers=h).status_code == 200
-        assert put("/api/member/daily-report", purchase, mh) == 403
-        assert put("/api/member/prices", my_price, mh) == 403
-        assert put("/api/member/daily-report", stock, mh) == 200
-        assert client.put("/api/config", json={"STOCK_EXTRA_WINDOW_DAYS": "0"},
-                          headers=h).status_code == 200
-        assert put("/api/member/daily-report", stock, mh) == 403
-    finally:
-        client.put("/api/config", json={"MEMBER_EDIT_WINDOW_DAYS": "__CLEAR__",
-                                        "EDITOR_EDIT_WINDOW_DAYS": "__CLEAR__",
-                                        "STOCK_EXTRA_WINDOW_DAYS": "__CLEAR__",
-                                        "PURCHASE_EXTRA_WINDOW_DAYS": "__CLEAR__"}, headers=h)
+        # 11:00 — hôm qua hết hạn cùng lúc ở mọi biểu, hôm nay vẫn mở.
+        pin_clock(monkeypatch, 11, 0, day)
+        for body, path, hdr in forms:
+            res = client.put(path, json=body, headers=hdr)
+            assert res.status_code == 403 and res.headers.get("X-Edit-Blocked") == "window", (path, res.text)
+            assert "đến 11:00 ngày hôm sau" in res.json()["detail"]
+            assert put(path, body, hdr, as_of=today) == 200, (path, body)
+        for url in (f"/api/member/daily-report?kind=purchase&as_of={today}", "/api/member/prices",
+                    "/api/member/checklist"):
+            assert editable_from(url, mh) == today, url
+        s = client.get("/api/settings/edit-windows", headers=mh).json()
+        assert (s["member_days"], s["member_editable_from"], s["cutoff_hour"]) == (1, today, 11)
+        # Admin miễn hàng rào: vẫn ghi được số liệu hôm qua.
+        assert put("/api/unit-daily/report", stock, h) == 200
     _cleanup(h, ["ud_stock_win", "ud_stock_ed"], [unit])
 
 
@@ -899,6 +892,126 @@ def test_year_plan_keeps_revenue_target_in_ty_dong() -> None:
     with session_scope() as db:
         db.execute(text("DELETE FROM unit_purchase_plan WHERE company = :c"), {"c": unit})
     _cleanup(h, [], [unit])
+
+
+def test_year_plan_stores_exploit_target_and_blank_clears_it() -> None:
+    """Kế hoạch KHAI THÁC năm (tấn, chốt 24/09/2026): ghi → đọc lại → để trống = NULL.
+
+    Đi qua CẢ HAI cửa ghi: chuyên viên (`/api/unit-daily/plan`) và đơn vị tự khai
+    (`/api/member/plan`); lãnh đạo đơn vị chỉ xem. Ô mới không làm lệch ô cũ, KHÔNG phải công tắc
+    màn Thu mua (công tắc vẫn là kế hoạch THU MUA), và báo cáo kỳ chỉ hiện chỉ tiêu — chưa có số
+    thực hiện khai thác nên không có % nào đi kèm.
+    """
+    from app.services import unit_daily_repo, unit_period_report
+
+    h = _admin()
+    unit = "_zz_ud_plan_exploit"
+    year = date.today().year
+    users = ["ud_px", "ud_px_lead"]
+    for u in users:
+        client.delete(f"/api/users/{u}", headers=h)
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    for u, role in zip(users, ("member", "leader")):
+        client.post("/api/users", json={"username": u, "password": "pass123", "role": role,
+                                        "member_units": [unit]}, headers=h)
+    mh, lh = _bearer("ud_px", "pass123"), _bearer("ud_px_lead", "pass123")
+
+    def row_of(path: str, hdr: dict[str, str]) -> dict:
+        return client.get(f"{path}?year={year}", headers=hdr).json()["plans"][unit]
+
+    body = {"year": year, "company": unit, "plan_exploit_tonnes": 3500.5, "plan_tonnes": 1200}
+    assert client.put("/api/unit-daily/plan", json=body, headers=h).status_code == 200
+    row = row_of("/api/unit-daily/plan", h)
+    assert row["plan_exploit_tonnes"] == pytest.approx(3500.5) and row["plan_tonnes"] == 1200
+
+    # Đơn vị tự sửa chỉ tiêu của mình; lãnh đạo đơn vị đọc được nhưng không ghi được.
+    assert client.put("/api/member/plan", json={**body, "plan_exploit_tonnes": 4000},
+                      headers=mh).status_code == 200
+    assert row_of("/api/member/plan", mh)["plan_exploit_tonnes"] == 4000
+    assert client.put("/api/member/plan", json={**body, "plan_exploit_tonnes": 1},
+                      headers=lh).status_code == 403
+    assert row_of("/api/member/plan", lh)["plan_exploit_tonnes"] == 4000
+
+    # Để trống = XOÁ chỉ tiêu (NULL trong DB), không giữ số cũ; các ô khác nguyên vẹn.
+    assert client.put("/api/member/plan", json={**body, "plan_exploit_tonnes": None},
+                      headers=mh).status_code == 200
+    with session_scope() as db:
+        raw = db.execute(text("SELECT plan_exploit_tonnes, plan_tonnes FROM unit_purchase_plan "
+                              "WHERE year = :y AND company = :c"), {"y": year, "c": unit}).one()
+    assert raw.plan_exploit_tonnes is None and raw.plan_tonnes == 1200
+
+    # Chỉ khai khai thác (xoá thu mua bằng null TƯỜNG MINH — khoá không gửi thì giữ số cũ)
+    # → KHÔNG bật màn Thu mua.
+    assert client.put("/api/unit-daily/plan", headers=h,
+                      json={"year": year, "company": unit, "plan_exploit_tonnes": 999,
+                            "plan_tonnes": None}).status_code == 200
+    assert unit not in unit_daily_repo.companies_with_purchase_plan(year)
+
+    # Báo cáo kỳ (biểu Thu mua) trả kèm chỉ tiêu, không bịa % thực hiện khai thác.
+    rep = unit_period_report.period_report("purchase", f"{year}-01-01", f"{year}-01-31",
+                                           companies=[unit])
+    got = next(r for r in rep["rows"] if r["company"] == unit)
+    assert got["plan_exploit_tonnes"] == 999
+    assert not [k for k in got if k.startswith("pct_") and "exploit" in k]
+
+    _cleanup(h, users, [unit])
+
+
+def test_year_plan_put_keeps_unsent_keys_and_rejects_nan() -> None:
+    """PUT /plan chỉ ghi khoá CÓ trong body; null tường minh = xoá; NaN/Infinity/số âm → 422.
+
+    Hồi quy review 24/09/2026: trình duyệt còn giữ bản web cũ (chưa biết ô khai thác) sửa bất kỳ ô
+    nào là xoá oan chỉ tiêu khai thác người khác vừa khai; còn "NaN" lọt xuống DB làm hỏng JSON
+    của báo cáo kỳ, nhật ký và bản lưu tuần.
+    """
+    h = _admin()
+    unit, user = "_zz_ud_plan_partial", "ud_pp"
+    year = date.today().year
+    client.delete(f"/api/users/{user}", headers=h)
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    client.post("/api/users", json={"username": user, "password": "pass123", "role": "member",
+                                    "member_units": [unit]}, headers=h)
+    mh = _bearer(user, "pass123")
+    doors = (("/api/unit-daily/plan", h), ("/api/member/plan", mh))
+
+    def row() -> dict:
+        return client.get(f"/api/unit-daily/plan?year={year}", headers=h).json()["plans"][unit]
+
+    try:
+        full = {"year": year, "company": unit, "plan_exploit_tonnes": 2500, "plan_tonnes": 800,
+                "plan_revenue_ty": 12.5}
+        assert client.put("/api/unit-daily/plan", json=full, headers=h).status_code == 200
+
+        # Body y như bản web CŨ (6 ô, chưa có khai thác/doanh thu) → 2 ô vắng mặt giữ nguyên.
+        old_web = {"year": year, "company": unit, "plan_tonnes": 900, "signed_lt_tonnes": None,
+                   "carry_lt_tonnes": None, "carry_spot_tonnes": None, "plan_sales_spot_tonnes": 300}
+        for path, hdr in doors:
+            assert client.put(path, json=old_web, headers=hdr).status_code == 200, path
+            got = row()
+            assert got["plan_exploit_tonnes"] == 2500, path
+            assert got["plan_revenue_ty"] == pytest.approx(12.5), path
+            assert got["plan_tonnes"] == 900 and got["plan_sales_spot_tonnes"] == 300
+
+        # null TƯỜNG MINH vẫn là xoá — và chỉ xoá đúng ô đó.
+        assert client.put("/api/member/plan", headers=mh,
+                          json={"year": year, "company": unit,
+                                "plan_exploit_tonnes": None}).status_code == 200
+        got = row()
+        assert got["plan_exploit_tonnes"] is None and got["plan_tonnes"] == 900
+
+        # NaN / Infinity dạng chuỗi, số âm → 422 ở cả 2 cửa. Literal JSON NaN (trình duyệt không bao
+        # giờ gửi — JSON.stringify(NaN) = null) cũng bị từ chối; FastAPI không JSON hoá nổi `nan`
+        # trong câu báo 422 nên trả 500 — không ghi gì là đủ ở đây.
+        raw_client = TestClient(app, raise_server_exceptions=False)
+        for path, hdr in doors:
+            for bad, via in (('"NaN"', client), ('"-inf"', client), ("-1", client),
+                             ("NaN", raw_client), ("Infinity", raw_client)):
+                r = via.put(path, headers={**hdr, "Content-Type": "application/json"},
+                            content=f'{{"year": {year}, "company": "{unit}", "plan_tonnes": {bad}}}')
+                assert r.status_code == 422 if via is client else r.status_code >= 400, (path, bad)
+        assert row()["plan_tonnes"] == 900
+    finally:
+        _cleanup(h, [user], [unit])
 
 
 def test_lace_purchase_saves_its_tonnage_and_its_own_price_slot() -> None:

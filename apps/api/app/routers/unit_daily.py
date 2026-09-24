@@ -24,6 +24,7 @@ from app.services import (
     contract_files, member_region_repo, member_unit_repo, unit_consolidated_excel,
     unit_daily_contract_consumption, unit_daily_excel_io, unit_daily_repo,
     unit_daily_timeline_totals, unit_period_excel, unit_period_report, unit_stock_contract_repo,
+    user_repo,
 )
 from app.services.unit_report_query import split_csv
 
@@ -31,6 +32,14 @@ router = APIRouter(prefix="/api/unit-daily", tags=["unit-daily"])
 _require = require_cap("unit_daily")            # đọc: mức Xem là đủ
 _require_edit = require_cap_edit("unit_daily")  # ghi: bắt buộc mức Sửa
 _excel = [Depends(require_excel_import)]        # nhập Excel đang tạm tắt (app/core/feature_flags.py)
+
+
+def _import_window(username: str) -> int | None:
+    """Cửa sổ nhập liệu áp cho file Excel của chuyên viên; admin không giới hạn (None) —
+    cùng luật với `assert_editor_window` của đường nhập trên web."""
+    if (user_repo.get_user(username) or {}).get("role") == "admin":
+        return None
+    return edit_window.editor_window()
 
 
 def _assert_range(date_from: str, date_to: str) -> None:
@@ -104,7 +113,8 @@ def timeline(kind: str = Query(..., pattern="^(purchase|consumption)$"),
     unit_daily_repo.attach_purchase_prices(res["entries"], kind)
     return {
         "today": today.isoformat(),
-        "edit_window_days": edit_window.editor_window(kind),
+        "edit_window_days": edit_window.editor_window(),
+        "editable_from": edit_window.editable_from(edit_window.editor_window()).isoformat(),
         "units": member_unit_repo.active_names(),
         "plans": unit_daily_repo.plans_for_year(today.year),
         **res, "page": page, "page_size": page_size,
@@ -130,7 +140,8 @@ def day(kind: str = Query(..., pattern="^(purchase|consumption)$"),
     return {
         "as_of": as_of,
         "today": edit_window.today().isoformat(),
-        "edit_window_days": edit_window.editor_window(kind),
+        "edit_window_days": edit_window.editor_window(),
+        "editable_from": edit_window.editable_from(edit_window.editor_window()).isoformat(),
         "units": units,
         "plans": unit_daily_repo.plans_for_year(_year_of(as_of)),
         "entries": entries,
@@ -224,7 +235,7 @@ def upsert(body: UnitDailyEdit, username: str = Depends(_require_edit)) -> dict:
     `create_only=True` (nút Thêm) → 409 nếu (ngày, đơn vị, loại) đã có số (chống ghi trùng).
     """
     assert_unit_can_enter(body.company, body.as_of)
-    assert_editor_window(username, body.as_of, body.kind)
+    assert_editor_window(username, body.as_of)
     if body.create_only and unit_daily_repo.has_entry(body.kind, body.as_of, body.company):
         raise HTTPException(409, "Đơn vị này đã có số liệu cho ngày này — vui lòng dùng chức năng Sửa.")
     unit_daily_repo.upsert(body.kind, body.as_of, body.company, body.fields, username)
@@ -239,8 +250,8 @@ def move_date(body: UnitDailyMove, username: str = Depends(_require_edit)) -> di
     """
     # Ngày ĐÍCH mới là ngày số liệu sẽ nằm — dời vào vùng sau ngày sáp nhập là sai đơn vị.
     assert_unit_can_enter(body.company, body.to_date)
-    assert_editor_window(username, body.as_of, body.kind)
-    assert_editor_window(username, body.to_date, body.kind)
+    assert_editor_window(username, body.as_of)
+    assert_editor_window(username, body.to_date)
     try:
         return {"ok": True, **unit_daily_repo.move_day(
             body.kind, body.company, body.as_of, body.to_date, username)}
@@ -339,9 +350,8 @@ def set_plan(body: PurchasePlanEdit, username: str = Depends(_require_edit)) -> 
     # Chỉ tiêu NĂM: mốc so là 01/01 của năm đó — đơn vị sáp nhập giữa năm 2026 vẫn sửa được kế
     # hoạch 2026 (nó đã chạy phần đầu năm), nhưng không nhận kế hoạch của các năm sau đó.
     assert_unit_can_enter(body.company, f"{body.year}-01-01")
-    unit_daily_repo.set_year_plan(body.year, body.company, body.plan_tonnes, body.signed_lt_tonnes,
-                                  body.carry_lt_tonnes, body.carry_spot_tonnes,
-                                  body.plan_sales_spot_tonnes, body.plan_revenue_ty, username)
+    # Chỉ ghi ô CÓ trong body (null = xoá); ô không gửi giữ nguyên — xem PurchasePlanEdit.
+    unit_daily_repo.save_year_plan(body.year, body.company, body.plan_values(), username)
     return {"ok": True}
 
 
@@ -363,7 +373,8 @@ async def import_preview(kind: str = Query(..., pattern="^(purchase|sales|stock|
                          username: str = Depends(_require_edit)) -> dict:
     """Đọc file người dùng nộp → trả các dòng + lỗi để XEM TRƯỚC (chưa ghi gì)."""
     try:
-        return unit_daily_excel_io.parse_upload(kind, await file.read())
+        return unit_daily_excel_io.parse_upload(kind, await file.read(),
+                                                window=_import_window(username))
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -371,6 +382,7 @@ async def import_preview(kind: str = Query(..., pattern="^(purchase|sales|stock|
 @router.post("/import/commit", dependencies=_excel)
 def import_commit(body: ExcelImportCommit,
                   username: str = Depends(_require_edit)) -> dict:
-    """Ghi các dòng hợp lệ đã xem trước (bỏ qua dòng lỗi)."""
-    return unit_daily_excel_io.commit_rows(body.kind, body.rows, username)
+    """Ghi các dòng hợp lệ đã xem trước (bỏ qua dòng lỗi + dòng có ngày đã quá hạn nhập)."""
+    return unit_daily_excel_io.commit_rows(body.kind, body.rows, username,
+                                           window=_import_window(username))
 

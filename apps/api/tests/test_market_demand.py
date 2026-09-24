@@ -20,6 +20,7 @@ from app.services import (
     config_repo, mailer, market_demand_item_policy, market_demand_item_repo, member_unit_repo,
     user_repo,
 )
+from tests.edit_window_clock import pin_clock
 
 pytestmark = pytest.mark.skipif(not db_healthy(), reason="DB không sẵn sàng")
 
@@ -77,6 +78,8 @@ def md(monkeypatch):
         assert res.status_code == 200, res.text
     old = {k: config_repo.get_value(k) for k in WINDOW_KEYS}
     config_repo.set_config({k: "7" for k in WINDOW_KEYS})
+    # Test hàng rào đặt cửa sổ 0 rồi ghi "hôm nay" → ghim giờ sáng (trước giờ chốt 11:00).
+    pin_clock(monkeypatch)
     # Đề nghị sửa gửi email cho người duyệt THẬT trong DB bản sao prod — chặn hẳn.
     monkeypatch.setattr(mailer, "send_async", lambda *_a, **_k: None)
     try:

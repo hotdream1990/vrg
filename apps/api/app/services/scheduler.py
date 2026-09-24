@@ -70,6 +70,37 @@ JOB_REGISTRY[inventory_auto.WEEKLY_JOB_NAME] = {
     "run": inventory_auto.run_weekly_job,
 }
 
+# Snapshot số liệu tuần: chạy HẰNG NGÀY ngay sau giờ chốt nhập liệu; tự tìm tuần gần nhất đã hết hạn
+# nhập ngày Chủ nhật mà chưa có bản lưu → chụp (không đè). Đổi giờ chốt thì chỉnh giờ job theo.
+from app.services import unit_week_snapshot  # noqa: E402 - để khối đăng ký job tự đứng riêng
+
+JOB_REGISTRY[unit_week_snapshot.JOB_NAME] = {
+    "label": "Snapshot số liệu tuần (sau giờ chốt)",
+    "purpose": "Chụp thu mua · tiêu thụ · tồn kho từng đơn vị của tuần vừa hết hạn nhập ngày Chủ "
+               "nhật → bản lưu cố định (chỉ tuần gần nhất, không chụp đè, không chụp bù tuần cũ)",
+    "source": unit_week_snapshot.JOB_SOURCE,
+    "default": unit_week_snapshot.JOB_DEFAULT,
+    "catch_up": True,
+    "run": unit_week_snapshot.run_job,
+}
+
+# Cảnh báo bất thường → gửi thẳng cho từng đơn vị qua Hỗ trợ & Thông báo (+ email lãnh đạo đơn vị),
+# ngay sau giờ chốt nhập liệu. `seed_off`: tạo lần đầu ở trạng thái TẮT — job gửi tin ra ngoài hằng
+# ngày nên admin xem mẫu ("Chạy ngay" một lần) rồi mới bật ở trang Lịch chạy.
+from app.services import anomaly_notify  # noqa: E402 - để khối đăng ký job tự đứng riêng
+
+JOB_REGISTRY[anomaly_notify.JOB_NAME] = {
+    "label": "Gửi cảnh báo bất thường cho đơn vị (sau giờ chốt nhập liệu)",
+    "purpose": "Quét Cảnh báo bất thường tính đến ngày vừa hết hạn nhập → mỗi đơn vị có vấn đề nhận "
+               "MỘT tin trong Hỗ trợ & Thông báo (kèm email lãnh đạo đơn vị); chạy lại trong ngày "
+               "không gửi trùng",
+    "source": anomaly_notify.JOB_SOURCE,
+    "default": anomaly_notify.JOB_DEFAULT,
+    "catch_up": True,
+    "seed_off": True,
+    "run": anomaly_notify.run_job,
+}
+
 #: Nhịp rà NHẮC LỊCH (phút). Cố tình KHÔNG đưa vào `JOB_REGISTRY`/trang Lịch chạy: đây không phải
 #: một mốc chạy trong ngày mà là vòng rà nền — giờ phát do từng lịch nhắc tự quyết (`next_at`).
 _REMINDER_INTERVAL_MINUTES = 5
@@ -133,7 +164,8 @@ def _schedule_catch_up() -> None:
 def start() -> None:
     """Seed lịch mặc định + khởi động scheduler + lên lịch các job đang bật."""
     global _scheduler
-    schedule_repo.seed_defaults({k: v["default"] for k, v in JOB_REGISTRY.items()})
+    schedule_repo.seed_defaults({k: v["default"] for k, v in JOB_REGISTRY.items()},
+                                disabled={k for k, v in JOB_REGISTRY.items() if v.get("seed_off")})
     _scheduler = BackgroundScheduler(timezone=_TZ)
     _scheduler.start()
     sync()

@@ -3,6 +3,7 @@ import { Alert, App, Button, Input, Select } from "antd";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { daysAgoISO, todayISO } from "../../../lib/date";
+import { inWindow as inEditWindow } from "../../../lib/edit-window";
 import {
   type DemandItem, type DemandItemInput, type DemandList, demandApi,
 } from "../../../lib/market-demand-client";
@@ -16,8 +17,6 @@ import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 
 const RANGES = [30, 60, 90, 180, 365].map((d) => ({ value: d, label: `${d} ngày gần nhất` }));
 const toOptions = (list: string[]) => list.map((x) => ({ value: x, label: x }));
-const daysBetween = (later: string, earlier: string) =>
-  Math.round((new Date(`${later}T00:00:00`).getTime() - new Date(`${earlier}T00:00:00`).getTime()) / 86400000);
 const uniqDates = (...dates: (string | undefined)[]) => [...new Set(dates.filter((d): d is string => !!d))];
 
 type FormState = { mode: DemandFormMode; initial: DemandItemInput; original: DemandItem | null; locked: boolean };
@@ -75,9 +74,9 @@ export default function MarketDemandTimelinePage() {
   const customers = useMemo(() => (data?.items ?? []).map((i) => i.customer), [data]);
   const places = useMemo(() => (data?.items ?? []).map((i) => i.delivery_place), [data]);
 
-  // Cửa sổ sửa tính như màn cũ: admin luôn sửa được; còn lại trong N ngày gần nhất tính tới hôm nay.
+  // Cửa sổ sửa: admin luôn sửa được; còn lại so với `editable_from` server đã tính theo giờ chốt.
   const inWindow = (asOf: string) => isAdmin
-    || (!!data && asOf <= data.today && daysBetween(data.today, asOf) <= data.edit_window_days);
+    || (!!data && inEditWindow(asOf, data.editable_from, data.today));
   const perm = (i: DemandItem): DemandRowPerm => {
     const own = mayEdit && !viewOnly.has(i.company);
     const open = inWindow(i.as_of);

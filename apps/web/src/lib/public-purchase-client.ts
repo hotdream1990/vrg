@@ -2,10 +2,16 @@
 
 import { API } from "./http";
 
-export type PublicAuthResult = { token: string; units: string[]; today: string };
+/** `closed`: câu báo khi hôm nay đã quá hạn nhập (qua giờ chốt) — null = còn nhập được. */
+export type PublicAuthResult = { token: string; units: string[]; today: string; closed?: string | null };
 export type RecentRow = { as_of: string; price: number };
 
 const J = { "Content-Type": "application/json" };
+
+/** Lỗi HTTP kèm mã — trang cần tách 403 (bị chặn: quá giờ chốt / đã chốt số liệu) khỏi lỗi khác. */
+export class PublicHttpError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
 
 async function post<T>(path: string, body: unknown, token?: string): Promise<T> {
   let res: Response;
@@ -19,7 +25,7 @@ async function post<T>(path: string, body: unknown, token?: string): Promise<T> 
     throw new Error("Không kết nối được máy chủ — kiểm tra mạng.");
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { detail?: string })?.detail || `Lỗi (${res.status})`);
+  if (!res.ok) throw new PublicHttpError((data as { detail?: string })?.detail || `Lỗi (${res.status})`, res.status);
   return data as T;
 }
 

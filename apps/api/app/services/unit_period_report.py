@@ -131,6 +131,9 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
         "price_latex_avg": _ratio(wsum["latex"], wqty["latex"]),   # đồng/độ TSC
         "price_cup_avg": _ratio(wsum["cup"], wqty["cup"]),         # đồng/độ DRC
         "price_lace_avg": _ratio(wsum["lace"], wqty["lace"]),      # đồng/độ DRC
+        # Kế hoạch KHAI THÁC năm (tấn) — chỉ hiện chỉ tiêu: CHƯA có số thực hiện khai thác nên
+        # không có "% thực hiện" (đừng lấy số thu mua làm tử số — khác nguồn mủ).
+        "plan_exploit_tonnes": _num(plan.get("plan_exploit_tonnes")),
         "plan_tonnes": plan_tonnes,
         "pct_plan": (total / plan_tonnes * 100) if plan_tonnes else None,
         "consumption": consumption,

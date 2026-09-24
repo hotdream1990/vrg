@@ -44,6 +44,8 @@ export interface DemandList {
   view_only_units?: string[];
   today: string;
   edit_window_days: number;
+  /** Ngày nhận cũ nhất còn sửa nội dung được (server đã tính giờ chốt; có thể > today). */
+  editable_from: string;
   grades: string[];
   items: DemandItem[];
 }

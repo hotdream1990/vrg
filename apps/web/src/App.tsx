@@ -43,6 +43,7 @@ import SchedulePage from "./features/command-center/pages/SchedulePage";
 import StockContractHistoryPage from "./features/command-center/pages/StockContractHistoryPage";
 import SystemConfigPage from "./features/command-center/pages/SystemConfigPage";
 import PeriodReportPage from "./features/command-center/pages/PeriodReportPage";
+import UnitWeekSnapshotPage from "./features/command-center/pages/UnitWeekSnapshotPage";
 import ConsumptionStatsPage from "./features/command-center/pages/analytics/ConsumptionStatsPage";
 import PurchaseStatsPage from "./features/command-center/pages/analytics/PurchaseStatsPage";
 import StockStatsPage from "./features/command-center/pages/analytics/StockStatsPage";
@@ -201,6 +202,8 @@ export default function App() {
                   {/* Thống kê / kiểm tra số liệu đơn vị đã nhập — CHỈ chuyên viên có quyền `unit_daily` */}
                   <Route element={<RequireCap caps={["unit_daily"]} />}>
                     <Route path="/chi-so-don-vi" element={<UnitScorecardPage />} />
+                    {/* Bản lưu số liệu tuần (số toàn hệ thống) — cùng quyền với Báo cáo tổng hợp */}
+                    <Route path="/snapshot-so-lieu-tuan" element={<UnitWeekSnapshotPage />} />
                     <Route path="/thong-ke/thu-mua" element={<PurchaseStatsPage />} />
                     <Route path="/thong-ke/tieu-thu" element={<ConsumptionStatsPage />} />
                     <Route path="/thong-ke/ton-kho" element={<StockStatsPage />} />

@@ -1,10 +1,11 @@
 import { CheckCircleOutlined, LockOutlined } from "@ant-design/icons";
-import { App, Button, Card, Input, Select, Table, Typography } from "antd";
+import { Alert, App, Button, Card, Input, Select, Table, Typography } from "antd";
 import { useState } from "react";
 
 import { changeLabel, isBigChange } from "../../lib/change-warning";
 import { dmy } from "../../lib/date";
 import {
+  PublicHttpError,
   type RecentRow,
   publicAuth,
   publicRecent,
@@ -28,19 +29,26 @@ export default function PublicPurchaseInputPage() {
   const [price, setPrice] = useState("");
   const [recent, setRecent] = useState<RecentRow[]>([]);
   const [busy, setBusy] = useState(false);
+  // Câu chặn của server, hiện cố định trên form (không chỉ thoáng qua):
+  // `closed` = hôm nay đã quá giờ chốt (chung mọi đơn vị, biết ngay khi vào trang);
+  // `blocked` = lần gửi bị từ chối 403 (vd số liệu của đơn vị đã chốt) — theo đơn vị đang chọn.
+  const [closed, setClosed] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState<string | null>(null);
+  const stop = closed ?? blocked;
 
   const doAuth = async () => {
     if (!pw.trim()) return;
     setBusy(true);
     try {
       const r = await publicAuth(pw);
-      setToken(r.token); setUnits(r.units); setToday(r.today);
+      setToken(r.token); setUnits(r.units); setToday(r.today); setClosed(r.closed ?? null);
     } catch (e) { message.error(e instanceof Error ? e.message : "Lỗi"); }
     finally { setBusy(false); }
   };
 
   const pickCompany = async (c: string) => {
     setCompany(c);
+    setBlocked(null);
     try { setRecent((await publicRecent(token, c)).records); } catch { setRecent([]); }
   };
 
@@ -50,6 +58,7 @@ export default function PublicPurchaseInputPage() {
   const warnPrice = isBigChange(priceNum, prevPrice);
 
   const submit = async () => {
+    if (stop) return;
     if (!company) { message.warning("Chọn đơn vị của bạn"); return; }
     const p = Number(price.replace(/[.,\s]/g, ""));
     if (!p || p <= 0) { message.warning("Nhập giá hợp lệ (đồng/độ TSC)"); return; }
@@ -59,7 +68,11 @@ export default function PublicPurchaseInputPage() {
       message.success(`Đã gửi giá ngày ${dmy(today)} cho ${company}`);
       setPrice("");
       setRecent((await publicRecent(token, company)).records);
-    } catch (e) { message.error(e instanceof Error ? e.message : "Lỗi gửi"); }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Lỗi gửi";
+      if (e instanceof PublicHttpError && e.status === 403) setBlocked(msg);
+      else message.error(msg);
+    }
     finally { setBusy(false); }
   };
 
@@ -102,7 +115,7 @@ export default function PublicPurchaseInputPage() {
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontWeight: 600 }}>Giá mủ nước (đồng/độ TSC)</label>
           <Input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="numeric"
-            placeholder="vd: 550" onPressEnter={submit} style={{ marginTop: 4 }} disabled={!company}
+            placeholder="vd: 550" onPressEnter={submit} style={{ marginTop: 4 }} disabled={!company || !!stop}
             status={warnPrice ? "warning" : undefined} />
           {warnPrice && (
             <Typography.Text type="warning" style={{ fontSize: 12, display: "block", marginTop: 4 }}>
@@ -111,7 +124,9 @@ export default function PublicPurchaseInputPage() {
           )}
         </div>
 
-        <Button type="primary" block loading={busy} disabled={!company} onClick={submit}>
+        {stop && <Alert type="error" showIcon message={stop} style={{ marginBottom: 12 }} />}
+
+        <Button type="primary" block loading={busy} disabled={!company || !!stop} onClick={submit}>
           Gửi giá ngày {dmy(today)}
         </Button>
 

@@ -11,7 +11,7 @@ import {
 } from "../../../lib/api-client";
 import { buildGridPrevMap } from "../../../lib/change-warning";
 import { dmy, todayISO } from "../../../lib/date";
-import { useEditorWindow, windowPhrase } from "../../../lib/edit-window";
+import { useEditorWindow } from "../../../lib/edit-window";
 import { type AutoSyncConfig, fetchAutoSync } from "../../../lib/purchase-auto-sync-client";
 import { useAuth } from "../../auth/AuthContext";
 import DateInput from "../sections/DateInput";
@@ -28,7 +28,7 @@ const STICKY = { position: "sticky" as const, left: 0, background: "var(--card, 
 export default function RawMaterialPage() {
   const { canEditCap } = useAuth();
   const canEdit = canEditCap("raw_material"); // mức Xem của mục này → khoá toàn bộ thao tác ghi
-  const ew = useEditorWindow(); // cửa sổ sửa: ngày cũ hơn N ngày → chỉ xem (admin miễn)
+  const ew = useEditorWindow(); // cửa sổ sửa: quá giờ chốt ngày D + N → chỉ xem (admin miễn)
   const [sheet, setSheet] = useState<PurchaseSheet | null>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -77,7 +77,7 @@ export default function RawMaterialPage() {
   const addDate = () => {
     if (!newDate || dates.includes(newDate)) return;
     if (!ew.isEditable(newDate)) {
-      setErr(`Ngày ${dmy(newDate)} đã ngoài cửa sổ sửa — chỉ nhập được ${windowPhrase(ew.days ?? 7)}.`);
+      setErr(`Ngày ${dmy(newDate)} đã quá hạn nhập — số liệu mỗi ngày chỉ nhập/sửa ${ew.phrase}.`);
       return;
     }
     setExtraDates((d) => [...new Set([...d, newDate])]);

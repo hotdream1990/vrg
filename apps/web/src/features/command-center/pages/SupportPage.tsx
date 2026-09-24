@@ -8,7 +8,7 @@ import {
   fetchBatches, fetchSupportContext, fetchThreads,
 } from "../../../lib/support-client";
 import SupportComposer from "../sections/SupportComposer";
-import { KIND_LABEL, stampVN } from "../sections/support-format";
+import { KIND_COLOR, KIND_LABEL, stampVN } from "../sections/support-format";
 import "../../bulletin/bulletin.css";
 import "../support.css";
 
@@ -92,10 +92,10 @@ export default function SupportPage() {
               <div className="sp-item-main">
                 <div className="sp-item-title">{b.subject}</div>
                 <div className="sp-item-meta">
-                  <Tag color={b.kind === "reminder" ? "purple" : "blue"}>{KIND_LABEL[b.kind]}</Tag>
+                  <Tag color={KIND_COLOR[b.kind]}>{KIND_LABEL[b.kind]}</Tag>
                   <span>{b.unit_count} đơn vị nhận</span>
                   {b.unread_count > 0 && <span>{b.unread_count} phản hồi chưa đọc</span>}
-                  <span>Người gửi: {b.created_by ?? "—"}</span>
+                  <span>Người gửi: {b.created_by === "system" ? "Hệ thống (tự động)" : b.created_by ?? "—"}</span>
                 </div>
               </div>
               <div className="sp-item-side">{stampVN(b.last_at)}</div>
@@ -115,7 +115,7 @@ export default function SupportPage() {
             <div className="sp-item-main">
               <div className="sp-item-title">{t.subject}</div>
               <div className="sp-item-meta">
-                <Tag color={t.kind === "request" ? "gold" : t.kind === "reminder" ? "purple" : "blue"}>
+                <Tag color={KIND_COLOR[t.kind]}>
                   {KIND_LABEL[t.kind]}
                 </Tag>
                 {isHq && <span>{t.company}</span>}

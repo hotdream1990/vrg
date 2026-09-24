@@ -262,10 +262,16 @@ def _unit_plan_progress(args: dict) -> dict:
 
     plan_qty, plan_qty_total = urq.year_plan_by_group("plan_tonnes", group_by, None, None, year)
     plan_rev, plan_rev_total = urq.year_plan_by_group("plan_revenue_ty", group_by, None, None, year)
+    _, plan_exploit_total = urq.year_plan_by_group("plan_exploit_tonnes", group_by, None, None, year)
     # Kế hoạch doanh thu năm còn RẤT ít đơn vị khai (đo 2026: 1/67) trong khi thực hiện lấy TOÀN
     # TẬP ĐOÀN — % thực hiện vì vậy có thể vọt lên vô nghĩa (mẫu số quá hẹp), PHẢI nói rõ tỷ lệ khai.
-    n_units_total = len(urq.report_units())
-    n_rev_plan = sum(1 for p in udr.year_plan(year).values() if p.get("plan_revenue_ty"))
+    # Tử và mẫu cùng MỘT tập (đơn vị đang hoạt động) — đếm cả kế hoạch của đơn vị đã sáp nhập/ngừng
+    # vào tử số thì tỷ lệ "đã khai" có thể vượt 100% (vd 65/64).
+    active = {u["name"] for u in urq.report_units()}
+    n_units_total = len(active)
+    year_plans = [p for c, p in udr.year_plan(year).items() if c in active]
+    n_rev_plan = sum(1 for p in year_plans if p.get("plan_revenue_ty"))
+    n_exploit_plan = sum(1 for p in year_plans if p.get("plan_exploit_tonnes"))
 
     y_from, y_to = f"{year}-01-01", (f"{year}-12-31" if year < cur.year else today())
     actual_qty: dict[str, float] = {}
@@ -290,6 +296,11 @@ def _unit_plan_progress(args: dict) -> dict:
                     ("thuc_hien_tan", "Thực hiện (tấn)"), ("pct_thuc_hien", "% thực hiện")), rows)
     return {"summary": {
         "year": year, "group_by": group_by, "ky_thuc_hien": f"{y_from} → {y_to}",
+        # Khai thác CHỈ có chỉ tiêu — hệ thống chưa thu số thực hiện khai thác, KHÔNG suy % từ thu mua.
+        "khai_thac": {"ke_hoach_tan": round(plan_exploit_total, 3) or None,
+                      "so_don_vi_da_khai": f"{n_exploit_plan}/{n_units_total}",
+                      "ghi_chu": "Chưa có số liệu thực hiện khai thác trong hệ thống — chỉ có kế "
+                                 "hoạch, không tính được % thực hiện."},
         "san_luong_thu_mua": {"ke_hoach_tan_quy_kho": round(plan_qty_total, 3) or None,
                               "thuc_hien_tan_quy_kho": actual_qty_total,
                               "pct_thuc_hien": round(actual_qty_total / plan_qty_total * 100, 1)
@@ -373,7 +384,8 @@ TOOLS: dict[str, dict[str, Any]] = {
     "get_unit_plan_progress": {"run": _unit_plan_progress, "schema": {
         "name": "get_unit_plan_progress",
         "description": "Chỉ tiêu kế hoạch NĂM và % thực hiện: sản lượng thu mua (TẤN QUY KHÔ) chia theo "
-                      "khu vực/đơn vị; doanh thu (TỶ ĐỒNG) chỉ có mức toàn Tập đoàn.",
+                      "khu vực/đơn vị; doanh thu (TỶ ĐỒNG) chỉ có mức toàn Tập đoàn; kế hoạch khai "
+                      "thác (tấn) chỉ có chỉ tiêu, chưa có số thực hiện.",
         "parameters": {"type": "object", "properties": {
             "year": {"type": "integer", "description": "Năm kế hoạch, mặc định năm hiện tại"},
             "group_by": {"type": "string", "enum": ["region", "company"],

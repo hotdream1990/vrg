@@ -14,20 +14,24 @@ from app.core.db import ensure_schema, session_scope
 from app.services import audit_repo
 
 
-def seed_defaults(defaults: dict[str, tuple[int, int, str | None]]) -> None:
+def seed_defaults(defaults: dict[str, tuple[int, int, str | None]],
+                  disabled: frozenset[str] | set[str] = frozenset()) -> None:
     """Tạo lịch mặc định cho job chưa có (không đụng giờ/bật-tắt admin đã cấu hình).
 
     Riêng `day_of_week` LUÔN đồng bộ theo registry: đó là chu kỳ nghiệp vụ của job (job tuần phải
     chạy đúng thứ), không phải tuỳ chọn của admin — job cũ trong DB nhờ vậy cũng được nâng cấp.
+
+    `disabled` = job mới tạo ở trạng thái TẮT (chỉ áp lúc tạo lần đầu, không bao giờ tắt lại job
+    admin đã bật) — cho job gửi tin ra ngoài, cần admin xem mẫu rồi mới bật.
     """
     ensure_schema()
     with session_scope() as db:
         for name, (hour, minute, dow) in defaults.items():
             db.execute(
-                text("INSERT INTO schedule_job (name, hour, minute, day_of_week) "
-                     "VALUES (:n, :h, :m, :d) "
+                text("INSERT INTO schedule_job (name, hour, minute, day_of_week, enabled) "
+                     "VALUES (:n, :h, :m, :d, :e) "
                      "ON CONFLICT (name) DO UPDATE SET day_of_week = EXCLUDED.day_of_week"),
-                {"n": name, "h": hour, "m": minute, "d": dow},
+                {"n": name, "h": hour, "m": minute, "d": dow, "e": name not in disabled},
             )
 
 

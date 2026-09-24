@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { dmy } from "../../../lib/date";
+import { useEditWindow, windowRule } from "../../../lib/edit-window";
 import { DATA_SAVED_EVENT } from "../../../lib/http";
 import { type DataCheck, type MemberChecklist, type MissingFxDelivery, type UnitChecklist, fetchMyChecklist } from "../../../lib/member-client";
 
@@ -99,8 +100,8 @@ function CheckRow({ c, onPick }: { c: DataCheck; onPick: () => void }) {
   );
 }
 
-function UnitRow({ u, today, purchaseEditableFrom, stockEditableFrom, go }: {
-  u: UnitChecklist; today: string; purchaseEditableFrom: string; stockEditableFrom: string;
+function UnitRow({ u, today, editableFrom, go }: {
+  u: UnitChecklist; today: string; editableFrom: string;
   go: (path: string, day?: string, company?: string) => void;
 }) {
   const items: JSX.Element[] = [];
@@ -108,7 +109,7 @@ function UnitRow({ u, today, purchaseEditableFrom, stockEditableFrom, go }: {
     items.push(
       <div key="p" style={{ marginBottom: 4 }}>
         <b>Thu mua</b> — chưa nhập {u.purchase_missing.length} ngày:{" "}
-        <DayChips days={u.purchase_missing} today={today} editableFrom={purchaseEditableFrom}
+        <DayChips days={u.purchase_missing} today={today} editableFrom={editableFrom}
           onPick={(d) => go("/bao-cao-thu-mua", d, u.company)} />
       </div>,
     );
@@ -117,8 +118,7 @@ function UnitRow({ u, today, purchaseEditableFrom, stockEditableFrom, go }: {
     items.push(
       <div key="s" style={{ marginBottom: 4 }}>
         <b>Tồn kho</b> — chưa nhập {u.stock_missing.length} ngày:{" "}
-        {/* Hai biểu theo ngày được nhập trễ hơn các mục khác → chip ngày dùng mốc riêng của từng biểu. */}
-        <DayChips days={u.stock_missing} today={today} editableFrom={stockEditableFrom}
+        <DayChips days={u.stock_missing} today={today} editableFrom={editableFrom}
           onPick={(d) => go("/bao-cao-ton-kho", d, u.company)} />
       </div>,
     );
@@ -218,6 +218,7 @@ export default function MemberChecklistBanner() {
   const { pathname } = useLocation();
   const [data, setData] = useState<MemberChecklist | null>(null);
   const [open, setOpen] = useState(sessionStorage.getItem(COLLAPSE_KEY) !== "1");
+  const ew = useEditWindow();
 
   const load = useCallback(() => {
     fetchMyChecklist().then(setData).catch(() => setData(null));
@@ -267,13 +268,12 @@ export default function MemberChecklistBanner() {
           cần kiểm tra lại (phần <b>thiếu tỷ giá</b> và <b>ô cần kiểm tra</b> rà cả năm). Ô{" "}
           <b>màu cam</b> bấm vào là sửa được ngay; ô <b>xám</b> đã quá hạn sửa — bấm vào để mở, rồi
           bấm <b>Đề nghị sửa</b> để gửi Ban duyệt.
+          {ew.days !== null && <> {windowRule(ew.days, ew.cutoffHour)}.</>}
         </span>
         <span className="dsn-toggle">{open ? <>Thu gọn <UpOutlined /></> : <>Xem chi tiết <DownOutlined /></>}</span>
       </button>
       {open && data.units.map((u) => (
-        <UnitRow key={u.company} u={u} today={data.today}
-          purchaseEditableFrom={data.purchase_editable_from || data.editable_from}
-          stockEditableFrom={data.stock_editable_from || data.editable_from} go={go} />
+        <UnitRow key={u.company} u={u} today={data.today} editableFrom={data.editable_from} go={go} />
       ))}
     </div>
   );

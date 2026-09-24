@@ -52,6 +52,7 @@ from app.routers import (
     unit_daily,
     unit_dashboard,
     unit_scorecard,
+    unit_week_snapshots,
     users,
     weekly_report_inputs,
     weekly_reports,
@@ -199,6 +200,9 @@ app.include_router(unit_scorecard.router, dependencies=[Depends(require_cap("uni
 # Dashboard đơn vị: DÙNG CHUNG cho chuyên viên (mọi phạm vi) và tài khoản đơn vị (chỉ đơn vị được
 # gán) — router tự ép phạm vi theo tài khoản (cap_or_member_scope), nên chỉ gác đăng nhập ở đây.
 app.include_router(unit_dashboard.router, dependencies=_protected)
+# Snapshot số liệu tuần (bản lưu cố định, số toàn hệ thống): xem = quyền `unit_daily` như Báo cáo
+# tổng hợp; "Chụp ngay" tự gác thêm require_admin trong router.
+app.include_router(unit_week_snapshots.router, dependencies=[Depends(require_cap("unit_daily"))])
 # Hợp đồng & khách hàng: DÙNG CHUNG cho đơn vị thành viên lẫn chuyên viên — router tự ép phạm vi
 # đơn vị theo tài khoản (cap_or_member_scope), nên chỉ gác đăng nhập ở đây.
 app.include_router(customers.router, dependencies=_protected)

@@ -13,12 +13,20 @@ Ai nhận:
 
 from __future__ import annotations
 
+import logging
+import threading
+
 from app.core.permissions import effective_caps, has_cap
 from app.services import mailer, user_repo
 
 _CAP = "support"
 _SUBJECT_PREFIX = "[VRG]"
 _EXCERPT = 600  # ký tự nội dung đưa vào email — phần còn lại đọc trên trang
+
+logger = logging.getLogger("vrg.support_notify")
+
+#: 1 thư đã dựng sẵn: (nhãn để ghi log — vd tên đơn vị, (người nhận, tiêu đề, nội dung)).
+Mail = tuple[str, tuple[list[str], str, str]]
 
 
 def address(user: dict) -> str:
@@ -55,11 +63,14 @@ def _link(thread_id: int) -> str:
     return f"{base}/ho-tro/{thread_id}" if base else ""
 
 
-def _body(intro: str, subject: str, content: str, thread_id: int, footer: str) -> str:
+def _body(intro: str, subject: str, content: str, thread_id: int, footer: str,
+          extra: str = "") -> str:
     parts = [intro, "", f"Tiêu đề: {subject}", ""]
     text = (content or "").strip()
     if text:
         parts += [text[:_EXCERPT] + ("…" if len(text) > _EXCERPT else ""), ""]
+    if extra:  # dòng người gửi bắt buộc phải tới tay người đọc (vd link) — không bị cắt như nội dung
+        parts += [extra, ""]
     link = _link(thread_id)
     if link:
         parts += [f"Xem và phản hồi tại: {link}", ""]
@@ -69,19 +80,55 @@ def _body(intro: str, subject: str, content: str, thread_id: int, footer: str) -
     return "\n".join(parts)
 
 
-def notify_to_units(threads: list[tuple[int, str]], subject: str, content: str,
-                    sender_label: str) -> None:
-    """Báo cho lãnh đạo các đơn vị: MỘT email cho MỘT đơn vị (link riêng của đơn vị đó)."""
-    for thread_id, company in threads:
-        to = unit_recipients(company)
-        if not to:
-            continue
-        mailer.send_async(
-            to, f"{_SUBJECT_PREFIX} {subject}",
+def unit_email(thread_id: int, company: str, subject: str, content: str, sender_label: str,
+               extra: str = "") -> tuple[list[str], str, str] | None:
+    """(người nhận, tiêu đề, nội dung) email báo lãnh đạo `company` — None nếu đơn vị chưa có ai nhận.
+
+    Chỉ DỰNG, không gửi: người gọi tự chọn cách gửi (từng thư ở luồng nền, hay gửi tuần tự cả đợt).
+    """
+    to = unit_recipients(company)
+    if not to:
+        return None
+    return (to, f"{_SUBJECT_PREFIX} {subject}",
             _body(f"Kính gửi {company},\n{sender_label} vừa gửi một thông tin trên hệ thống VRG.",
                   subject, content, thread_id,
-                  "Email tự động từ Hệ thống Dự báo & Quản trị Giá Cao su — vui lòng không trả lời email này."),
-        )
+                  "Email tự động từ Hệ thống Dự báo & Quản trị Giá Cao su — vui lòng không trả lời email này.",
+                  extra))
+
+
+def notify_to_units(threads: list[tuple[int, str]], subject: str, content: str,
+                    sender_label: str, extra: str = "") -> None:
+    """Báo cho lãnh đạo các đơn vị: MỘT email cho MỘT đơn vị (link riêng của đơn vị đó)."""
+    for thread_id, company in threads:
+        mail = unit_email(thread_id, company, subject, content, sender_label, extra)
+        if mail:
+            mailer.send_async(*mail)
+
+
+def send_sequential(mails: list[Mail]) -> int:
+    """Gửi LẦN LƯỢT từng thư (mỗi lúc một kết nối SMTP) → số thư lỗi. Thư lỗi chỉ ghi log."""
+    failed = 0
+    for label, (to, subject, body) in mails:
+        try:
+            ok, err = mailer.send(to, subject, body)
+        except Exception as exc:  # noqa: BLE001 - một thư hỏng không được chặn các thư sau
+            ok, err = False, str(exc)
+        if not ok:
+            failed += 1
+            logger.warning("[mail] thư cho %s lỗi: %s", label, err)
+    return failed
+
+
+def _in_background(fn, *args) -> None:
+    """Chạy ở MỘT luồng nền — người gọi không chờ máy chủ mail. Test thay bằng chạy đồng bộ."""
+    threading.Thread(target=fn, args=args, daemon=True, name="support-mail-batch").start()
+
+
+def send_batch(mails: list[Mail]) -> None:
+    """Gửi cả đợt thư (job gửi hàng loạt): TUẦN TỰ trong một luồng nền. Mở hàng chục kết nối SMTP
+    cùng lúc (mỗi thư một `send_async`) dễ bị máy chủ mail chặn (421 too many connections)."""
+    if mails:
+        _in_background(send_sequential, list(mails))
 
 
 def notify_to_hq(thread_id: int, company: str, subject: str, content: str, actor: str) -> None:

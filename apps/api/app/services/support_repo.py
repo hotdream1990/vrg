@@ -20,7 +20,10 @@ from app.core.db import ensure_schema, session_scope
 
 HQ, UNIT = "hq", "unit"
 KIND_REQUEST, KIND_ANNOUNCE, KIND_REMINDER = "request", "announce", "reminder"
-KINDS = (KIND_REQUEST, KIND_ANNOUNCE, KIND_REMINDER)
+#: Cảnh báo số liệu hệ thống tự gửi sau giờ chốt nhập liệu (`anomaly_notify`) — nội dung riêng
+#: từng đơn vị, mọi luồng của cùng một ngày chung `batch_id` = `alert-YYYY-MM-DD`.
+KIND_ALERT = "alert"
+KINDS = (KIND_REQUEST, KIND_ANNOUNCE, KIND_REMINDER, KIND_ALERT)
 
 _THREAD_COLS = ("id, company, kind, subject, status, batch_id, reminder_id, created_by, "
                 "created_at, last_at, last_side, hq_read_at, unit_read_at")
@@ -56,24 +59,33 @@ def open_threads(companies: list[str], kind: str, subject: str, body: str,
     if not targets:
         return []
     batch = uuid.uuid4().hex if len(targets) > 1 or kind != KIND_REQUEST else None
-    payload = json.dumps(files or [])
-    ids: list[int] = []
     with session_scope() as db:
-        for company in targets:
-            tid = db.execute(
-                text("INSERT INTO support_thread "
-                     "(company, kind, subject, batch_id, reminder_id, created_by, last_side) "
-                     "VALUES (:c, :k, :s, :b, :r, :by, :side) RETURNING id"),
-                {"c": company, "k": kind, "s": subject, "b": batch, "r": reminder_id,
-                 "by": author, "side": side},
-            ).scalar()
-            db.execute(
-                text("INSERT INTO support_message (thread_id, side, author, author_name, body, files) "
-                     "VALUES (:t, :side, :a, :an, :b, CAST(:f AS jsonb))"),
-                {"t": tid, "side": side, "a": author, "an": author_name, "b": body, "f": payload},
-            )
-            ids.append(int(tid))
-    return ids
+        return [insert_thread(db, company, kind, subject, body, files, author, author_name, side,
+                              batch, reminder_id) for company in targets]
+
+
+def insert_thread(db: Any, company: str, kind: str, subject: str, body: str,
+                  files: list[dict] | None, author: str, author_name: str | None, side: str,
+                  batch_id: str | None, reminder_id: int | None = None) -> int:
+    """Ghi MỘT luồng của MỘT đơn vị + tin đầu tiên, trong session của người gọi → id luồng.
+
+    Tách riêng để nơi gửi nội dung KHÁC NHAU cho từng đơn vị (cảnh báo tự động) vẫn đi đúng một
+    đường ghi, trong cùng giao dịch với bước chống gửi trùng của nó.
+    """
+    tid = db.execute(
+        text("INSERT INTO support_thread "
+             "(company, kind, subject, batch_id, reminder_id, created_by, last_side) "
+             "VALUES (:c, :k, :s, :b, :r, :by, :side) RETURNING id"),
+        {"c": company, "k": kind, "s": subject, "b": batch_id, "r": reminder_id,
+         "by": author, "side": side},
+    ).scalar()
+    db.execute(
+        text("INSERT INTO support_message (thread_id, side, author, author_name, body, files) "
+             "VALUES (:t, :side, :a, :an, :b, CAST(:f AS jsonb))"),
+        {"t": tid, "side": side, "a": author, "an": author_name, "b": body,
+         "f": json.dumps(files or [])},
+    )
+    return int(tid)
 
 
 def get_thread(thread_id: int, companies: list[str] | None) -> dict[str, Any] | None:

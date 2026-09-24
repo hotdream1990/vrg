@@ -1,5 +1,5 @@
 /* Kế hoạch năm — số liệu lớn NHẬP 1 LẦN cho cả năm (không nhập hàng ngày), cập nhật khi có thay đổi:
-   kế hoạch thu mua năm + tổng sản lượng đã ký hợp đồng dài hạn.
+   kế hoạch khai thác (cột đầu) + kế hoạch thu mua năm + tổng sản lượng đã ký hợp đồng dài hạn…
    Đơn vị thành viên: chỉ đơn vị của mình · Chuyên viên có quyền `unit_daily`: mọi đơn vị. */
 
 import { ProfileOutlined } from "@ant-design/icons";
@@ -38,7 +38,7 @@ export default function YearPlanPage() {
   }, [role, year]);
   useEffect(() => { load(); }, [load]);
 
-  const EMPTY: YearPlanRow = { plan_tonnes: null, plan_sales_spot_tonnes: null,
+  const EMPTY: YearPlanRow = { plan_exploit_tonnes: null, plan_tonnes: null, plan_sales_spot_tonnes: null,
     signed_lt_tonnes: null, carry_lt_tonnes: null, carry_spot_tonnes: null,
     plan_revenue_ty: null };
 
@@ -100,6 +100,8 @@ export default function YearPlanPage() {
               <tr>
                 <th style={{ width: 60 }}>#</th>
                 <th>Đơn vị</th>
+                {/* Khai thác = mủ từ vườn cây của chính đơn vị; thu mua = mua của dân → 2 chỉ tiêu riêng. */}
+                <th className="r" style={{ width: 220 }}>Kế hoạch khai thác (tấn)</th>
                 <th className="r" style={{ width: 240 }}>Kế hoạch thu mua (tấn)</th>
                 <th className="r" style={{ width: 240 }}>Kế hoạch tiêu thụ — HĐ chuyến (tấn)</th>
                 <th className="r" style={{ width: 220 }}>HĐ dài hạn đã ký (tấn)</th>
@@ -117,6 +119,9 @@ export default function YearPlanPage() {
                   <tr key={u} style={{ opacity: savingUnit === u ? 0.6 : 1 }}>
                     <td>{i + 1}</td>
                     <td style={{ fontWeight: 500 }}>{u}</td>
+                    <td onBlur={() => canEdit && save(u)}>
+                      {numInput(r.plan_exploit_tonnes, (v) => setCell(u, "plan_exploit_tonnes", v), !canEdit)}
+                    </td>
                     <td onBlur={() => canEdit && save(u)}>
                       {numInput(r.plan_tonnes, (v) => setCell(u, "plan_tonnes", v), !canEdit)}
                     </td>
@@ -139,7 +144,7 @@ export default function YearPlanPage() {
                 );
               })}
               {units.length === 0 && !loading && (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
+                <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                   Chưa có đơn vị nào.
                 </td></tr>
               )}
@@ -147,6 +152,7 @@ export default function YearPlanPage() {
                 <tr style={{ fontWeight: 600, background: "rgba(125,125,125,.08)" }}>
                   <td />
                   <td>Tổng cộng</td>
+                  <td className="r">{fmtNum(total("plan_exploit_tonnes"), 3)}</td>
                   <td className="r">{fmtNum(total("plan_tonnes"), 3)}</td>
                   <td className="r">{fmtNum(total("plan_sales_spot_tonnes"), 3)}</td>
                   <td className="r">{fmtNum(total("signed_lt_tonnes"), 3)}</td>

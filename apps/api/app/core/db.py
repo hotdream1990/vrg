@@ -437,7 +437,7 @@ CREATE INDEX IF NOT EXISTS ix_unit_data_lock_company ON unit_data_lock (company)
 CREATE TABLE IF NOT EXISTS support_thread (
     id          bigserial PRIMARY KEY,
     company     text NOT NULL,          -- đơn vị của luồng (khớp member_unit) — khoá cách ly
-    kind        text NOT NULL,          -- request (đơn vị gửi lên) | announce (Tập đoàn gửi xuống) | reminder
+    kind        text NOT NULL,          -- request (đơn vị gửi lên) | announce (Tập đoàn gửi xuống) | reminder | alert (cảnh báo tự động)
     subject     text NOT NULL,
     status      text NOT NULL DEFAULT 'open',   -- open | closed
     batch_id    text,                   -- gom các luồng sinh ra từ CÙNG một lần gửi (thông báo nhiều đơn vị)
@@ -517,6 +517,22 @@ CREATE INDEX IF NOT EXISTS ix_edit_request_company ON edit_request (company, req
 CREATE UNIQUE INDEX IF NOT EXISTS ux_edit_request_pending ON edit_request (company, target_key)
     WHERE status = 'pending';
 
+-- SNAPSHOT SỐ LIỆU TUẦN (chốt 24/09/2026): bản lưu CỐ ĐỊNH thu mua · tiêu thụ · tồn kho của TỪNG
+-- đơn vị, chụp tự động khi hết hạn nhập của ngày Chủ nhật. Mỗi tuần MỘT dòng, không bao giờ ghi đè
+-- (INSERT … ON CONFLICT DO NOTHING) — sửa số liệu sau lúc chụp không làm đổi bản lưu.
+-- `purchase`/`consumption` = NGUYÊN kết quả `unit_period_report.period_report` của tuần (đủ cột để
+-- xuất lại Excel) · `totals` = dòng Tổng cộng của từng biểu · `deadline_at` = hạn nhập lúc chụp.
+CREATE TABLE IF NOT EXISTS unit_week_snapshot (
+    week_start  date PRIMARY KEY,          -- Thứ Hai (ISO) của tuần
+    week_end    date NOT NULL,             -- Chủ nhật
+    purchase    jsonb NOT NULL,
+    consumption jsonb NOT NULL,
+    totals      jsonb NOT NULL,
+    deadline_at timestamptz NOT NULL,
+    taken_at    timestamptz NOT NULL DEFAULT now(),
+    taken_by    text NOT NULL              -- 'job' = tự động · username = admin bấm "Chụp ngay"
+);
+
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
 -- Job chạy theo NGÀY TRONG TUẦN (rỗng/NULL = chạy hằng ngày như trước). Vd 'fri' = tối thứ Sáu
 -- cho job chốt tồn kho Tập đoàn theo tuần.
@@ -570,6 +586,9 @@ ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_sales_spot_tonnes d
 -- Kế hoạch DOANH THU năm (chốt 24/08/2026) — đơn vị **TỶ ĐỒNG**, cùng đơn vị với `revenue_ty` của
 -- báo cáo kỳ nên "% thực hiện" là phép chia cùng đơn vị, không phải quy đổi (chỗ dễ sai nhất).
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_revenue_ty double precision;
+-- Kế hoạch KHAI THÁC năm (chốt 24/09/2026) — TẤN, mủ từ vườn cây của CHÍNH đơn vị (khác thu mua =
+-- mua của dân). NULL = chưa khai. Chưa có số thực hiện khai thác ⇒ chỉ lưu/hiện, không tính %.
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_exploit_tonnes double precision;
 -- Hợp đồng tồn kho: đính kèm NHIỀU file. Cột file/filename cũ giữ nguyên = file ĐẦU danh sách.
 ALTER TABLE unit_stock_contract ADD COLUMN IF NOT EXISTS files jsonb NOT NULL DEFAULT '[]'::jsonb;
 -- Đã được script chuyển sang bảng hợp đồng 2 cấp `sales_contract` chưa. Bản ghi CŨ vẫn giữ nguyên

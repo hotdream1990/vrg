@@ -12,7 +12,7 @@ import {
   upsertInventory,
 } from "../../../lib/inventory-client";
 import { isBigChange } from "../../../lib/change-warning";
-import { useEditorWindow, windowPhrase } from "../../../lib/edit-window";
+import { useEditorWindow } from "../../../lib/edit-window";
 import { useAuth } from "../../auth/AuthContext";
 import ChangeWarn from "../sections/ChangeWarn";
 import DateInput from "../sections/DateInput";
@@ -31,7 +31,7 @@ const EMPTY = { as_of: "", ton_kho: "", ton_kho_hd: "", note: "" };
 export default function InventoryPage() {
   const { canEditCap } = useAuth();
   const canEdit = canEditCap("inventory"); // mức Xem của mục này → khoá toàn bộ thao tác ghi
-  const ew = useEditorWindow(); // cửa sổ sửa: tuần cũ hơn N ngày → chỉ xem (admin miễn)
+  const ew = useEditorWindow(); // cửa sổ sửa: quá giờ chốt ngày D + N → chỉ xem (admin miễn)
   const [weeks, setWeeks] = useState<InventoryWeek[]>([]);
   const [form, setForm] = useState({ ...EMPTY });
   const [busy, setBusy] = useState(false);
@@ -59,7 +59,7 @@ export default function InventoryPage() {
   const save = async () => {
     if (!form.as_of) { setErr("Chọn ngày tuần"); return; }
     if (!ew.isEditable(form.as_of)) {
-      setErr(`Tuần ${form.as_of} đã ngoài cửa sổ sửa — chỉ nhập được ${windowPhrase(ew.days ?? 7)}.`);
+      setErr(`Tuần ${form.as_of} đã quá hạn nhập — số liệu mỗi ngày chỉ nhập/sửa ${ew.phrase}.`);
       return;
     }
     setBusy(true); setErr("");

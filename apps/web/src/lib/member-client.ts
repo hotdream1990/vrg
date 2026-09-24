@@ -18,7 +18,8 @@ export type MemberPrices = {
   units: string[];                       // các đơn vị được gán + đơn vị đã sáp nhập vào (chỉ xem)
   view_only_units?: string[];            // phần CHỈ XEM trong `units` (đơn vị đã sáp nhập)
   today: string;                         // YYYY-MM-DD (giờ VN, để tính cửa sổ sửa)
-  edit_window_days: number;              // sửa được: hôm nay + N ngày gần nhất
+  edit_window_days: number;              // N: số liệu ngày D sửa được đến giờ chốt ngày D + N
+  editable_from: string;                 // ngày cũ nhất còn sửa được (server đã tính giờ chốt)
   sheets: Record<string, UnitSheet>;     // {đơn vị: lịch sử giá}
 };
 
@@ -91,9 +92,7 @@ export type MemberChecklist = {
   today: string;
   alert_days: number;           // rà bao nhiêu ngày gần nhất (admin cấu hình)
   enabled: boolean;             // admin đặt 0 ngày = tắt hẳn cảnh báo
-  editable_from: string;        // ngày cũ hơn mốc này đơn vị KHÔNG tự sửa được nữa
-  purchase_editable_from: string; // mốc RIÊNG của biểu Thu mua (được nhập trễ hơn các mục khác)
-  stock_editable_from: string;  // mốc RIÊNG của biểu Tồn kho (được nhập trễ hơn các mục khác)
+  editable_from: string;        // ngày cũ hơn mốc này đơn vị KHÔNG tự sửa được nữa (đã tính giờ chốt, chung mọi biểu)
   days: string[];               // các ngày được rà (mới → cũ)
   units: UnitChecklist[];
   total_missing: number;

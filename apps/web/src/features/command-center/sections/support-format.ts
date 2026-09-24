@@ -6,6 +6,15 @@ export const KIND_LABEL: Record<ThreadKind, string> = {
   request: "Yêu cầu hỗ trợ",
   announce: "Thông báo",
   reminder: "Nhắc lịch",
+  alert: "Cảnh báo tự động",
+};
+
+/** Màu thẻ loại tin — dùng chung cho hộp thư, đợt gửi và chi tiết luồng. */
+export const KIND_COLOR: Record<ThreadKind, string> = {
+  request: "gold",
+  announce: "blue",
+  reminder: "purple",
+  alert: "red",
 };
 
 export const REPEAT_LABEL: Record<string, string> = {

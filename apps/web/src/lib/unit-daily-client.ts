@@ -44,6 +44,8 @@ export type DayData = {
   as_of: string;
   today: string;
   edit_window_days: number;
+  /** Ngày cũ nhất còn nhập/sửa được lúc tải (server đã tính giờ chốt; có thể > today). */
+  editable_from: string;
   /** {đơn vị: ngày đã CHỐT SỐ LIỆU} — ngày ≤ mốc này đơn vị hết tự sửa. */
   locked_until?: Record<string, string>;
   units: string[];
@@ -68,6 +70,8 @@ export type TimelineTotals = Record<string, number | null> & {
 };
 export type Timeline = {
   today: string; edit_window_days: number; locked_until?: Record<string, string>;
+  /** Ngày cũ nhất còn nhập/sửa được lúc tải (server đã tính giờ chốt; có thể > today). */
+  editable_from: string;
   units: string[];
   /** Đơn vị CHỈ XEM trong `units` — đã sáp nhập vào đơn vị của tài khoản (chỉ có ở role=member). */
   view_only_units?: string[];
@@ -82,6 +86,9 @@ export type Timeline = {
 };
 /** Số liệu NĂM của 1 đơn vị (nhập 1 lần, cập nhật khi có thay đổi). */
 export type YearPlanRow = {
+  /** Kế hoạch KHAI THÁC năm (tấn) — mủ từ vườn cây của CHÍNH đơn vị (khác thu mua = mua của dân).
+   *  Chỉ là chỉ tiêu: chưa có số thực hiện khai thác nên KHÔNG tính % và không bật/tắt màn nào. */
+  plan_exploit_tonnes: number | null;
   plan_tonnes: number | null;        // kế hoạch thu mua năm (tấn) — >0 là CÔNG TẮC bật màn Thu mua
   plan_sales_spot_tonnes: number | null;  // kế hoạch TIÊU THỤ cho HĐ chuyến (tấn)
   signed_lt_tonnes: number | null;   // tổng SL đã ký HĐ dài hạn (tấn)

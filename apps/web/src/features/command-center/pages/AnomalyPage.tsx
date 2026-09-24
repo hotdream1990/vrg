@@ -11,9 +11,10 @@ import {
 import { Alert, Button, Collapse, DatePicker, Spin } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import {
-  type AnomalyReport, defaultAnomalyRange, downloadAnomalyXlsx, fetchAnomalies,
+  type AnomalyReport, defaultAnomalyRange, downloadAnomalyXlsx, fetchAnomalies, rangeFromQuery,
 } from "../../../lib/anomaly-client";
 import { dmy } from "../../../lib/date";
 import { useAuth } from "../../auth/AuthContext";
@@ -34,7 +35,9 @@ export default function AnomalyPage() {
   const isLeader = user?.role === "leader";
   const scope = isLeader ? "mine" : "all";
 
-  const initial = defaultAnomalyRange();
+  // Mở từ link trong tin cảnh báo tự động → đúng khoảng ngày của tin; mở thường → khoảng mặc định.
+  const [params] = useSearchParams();
+  const initial = rangeFromQuery(params) ?? defaultAnomalyRange();
   const [range, setRange] = useState<[Dayjs, Dayjs]>([dayjs(initial.from), dayjs(initial.to)]);
   const [report, setReport] = useState<AnomalyReport | null>(null);
   const [activeKeys, setActiveKeys] = useState<string[]>([]);

@@ -33,6 +33,7 @@ _PURCHASE_COLS: list[tuple[str, str, str, str]] = [
     ("price_cup_avg", "Giá thu mua mủ chén BQ", "bình quân gia quyền", "đồng/độ DRC"),
     ("price_lace_avg", "Giá thu mua mủ dây BQ", "bình quân gia quyền", "đồng/độ DRC"),
     ("no_purchase_days", "Số ngày không tổ chức thu mua", "đếm ngày", "ngày"),
+    ("plan_exploit_tonnes", "Kế hoạch khai thác", "số liệu năm", "tấn"),
     ("plan_tonnes", "Kế hoạch thu mua", "số liệu năm", "tấn"),
     ("pct_plan", "% thực hiện kế hoạch", "= thực hiện / kế hoạch", "%"),
     ("consumption", "Sản lượng tiêu thụ mủ thu mua", "cộng dồn", "tấn"),
@@ -77,8 +78,10 @@ _TITLE = {
     "purchase": ("BÁO CÁO THU MUA", "Về công tác Thu mua và Tiêu thụ mủ nguyên liệu"),
     "consumption": ("BÁO CÁO TIÊU THỤ - TỒN KHO", "Về công tác Tiêu thụ - Tồn kho mủ cao su"),
 }
-# Chỉ tiêu KHÔNG được cộng ở dòng Tổng cộng (giá / tỷ lệ → tính lại hoặc bỏ trống).
-_NO_SUM = {"price_latex_avg", "price_cup_avg", "pct_plan", "avg_sell_price"}
+# Chỉ tiêu KHÔNG được cộng ở dòng Tổng cộng (giá / tỷ lệ → tính lại hoặc bỏ trống). Thêm cột giá
+# BQ hay % mới vào báo cáo kỳ thì PHẢI thêm vào đây — thiếu là ô Tổng cộng ra "40% + 70% = 110".
+_NO_SUM = frozenset({"price_latex_avg", "price_cup_avg", "price_lace_avg", "pct_plan",
+                     "avg_sell_price", "pct_plan_sales_spot", "pct_plan_revenue"})
 
 
 def _columns(kind: str, grades: list[str]) -> tuple[list[tuple[str, str, str, str]], list[str]]:

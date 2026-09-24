@@ -44,9 +44,9 @@ def _unit_prices(as_of: str, company: str) -> dict[str, float]:
     return {pt: v for pt, v in got.items() if v is not None}
 
 
-def _window(kind: str, as_of: str):
-    """Cửa sổ sửa của đơn vị cho đúng loại biểu — biểu Tồn kho được cộng thêm ngày."""
-    return lambda: edit_window.assert_editable(as_of, edit_window.member_window(kind))
+def _window(as_of: str):
+    """Cửa sổ sửa của đơn vị (hạn = giờ chốt của ngày D + N — chung mọi biểu)."""
+    return lambda: edit_window.assert_editable(as_of, edit_window.member_window())
 
 
 def _lock(company: str, *dates: str):
@@ -135,7 +135,7 @@ OPS: dict[str, Op] = {
         target_key=lambda p: f"daily:{p['kind']}:{p['as_of']}",
         title=lambda p, _b: f"{_KIND[p['kind']]} ngày {dmy(p['as_of'])}",
         dates=lambda p, _b: [p["as_of"]],
-        blocked=lambda _u, p, _b: collect_blocked(_window(p["kind"], p["as_of"]),
+        blocked=lambda _u, p, _b: collect_blocked(_window(p["as_of"]),
                                                   _lock(p["company"], p["as_of"])),
         apply=_report_apply),
     "daily_move": Op(
@@ -148,7 +148,7 @@ OPS: dict[str, Op] = {
         title=lambda p, _b: f"{_MOVE[p['kind']]} {dmy(p['as_of'])} → {dmy(p['to_date'])}",
         dates=lambda p, _b: sorted({p["as_of"], p["to_date"]}),
         blocked=lambda _u, p, _b: collect_blocked(
-            _window(p["kind"], p["as_of"]), _window(p["kind"], p["to_date"]),
+            _window(p["as_of"]), _window(p["to_date"]),
             _lock(p["company"], p["as_of"], p["to_date"])),
         apply=_move_apply),
 }

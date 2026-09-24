@@ -55,7 +55,7 @@ def unread(scope: ScopeDep) -> dict:
 @router.get("/threads")
 def list_threads(
     scope: ScopeDep,
-    kind: str | None = Query(None, description="request | announce | reminder"),
+    kind: str | None = Query(None, description="request | announce | reminder | alert"),
     status: str | None = None,
     q: str | None = None,
     company: str | None = None,
@@ -84,7 +84,7 @@ def list_batches(
     """Các ĐỢT gửi của Tập đoàn, gom 1 dòng/lần gửi (chỉ phía Tập đoàn)."""
     assert_hq(scope)
     return support_query.list_batches(
-        kinds=[support_repo.KIND_ANNOUNCE, support_repo.KIND_REMINDER],
+        kinds=[support_repo.KIND_ANNOUNCE, support_repo.KIND_REMINDER, support_repo.KIND_ALERT],
         status=status, q=q, page=page, page_size=page_size,
     )
 

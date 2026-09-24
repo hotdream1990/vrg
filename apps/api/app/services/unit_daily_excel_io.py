@@ -18,6 +18,7 @@ Ghi có MERGE: nhập Tiêu thụ không xoá Tồn kho của cùng bản ghi ng
 from __future__ import annotations
 
 import io
+import math
 import sys
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -28,7 +29,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from app.core import request_ctx
+from app.core import edit_window, request_ctx
 from app.core.market_meta import PURCHASE_PRICE_UNIT, UNIT_GRADES
 from app.core.paths import bulletin_dir
 from app.core.market_meta import PURCHASE_SOURCE_UNIT
@@ -150,6 +151,8 @@ SPECS: dict[str, Spec] = {
         "BIỂU NHẬP — KẾ HOẠCH NĂM", "Kế hoạch năm",
         "Mỗi dòng = 1 đơn vị / 1 năm. Số liệu nhập 1 lần, cập nhật khi có thay đổi.",
         [_UNIT_COL, Col("year", "Năm", required=True, type="year", width=10),
+         # Khai thác (vườn cây của chính đơn vị) đứng TRƯỚC thu mua (mua của dân) — chốt 24/09/2026.
+         Col("plan_exploit_tonnes", "Kế hoạch khai thác", "tấn", width=20),
          Col("plan_tonnes", "Kế hoạch thu mua", "tấn", width=20),
          Col("plan_sales_spot_tonnes", "Kế hoạch tiêu thụ (HĐ chuyến)", "tấn", width=26),
          Col("plan_revenue_ty", "Kế hoạch doanh thu", "tỷ đồng", width=22),
@@ -271,10 +274,15 @@ def _as_date(v: Any) -> str | None:
 
 
 def _as_num(v: Any) -> float | None:
+    """Ô Excel → số HỮU HẠN; không đọc được thành số → None.
+
+    `float("nan")`/`float("inf")` vẫn chạy nên phải chặn riêng: NaN lọt xuống DB làm hỏng JSON của
+    báo cáo kỳ, nhật ký và bản lưu tuần. Ô có chữ mà ra None thì bộ đọc báo lỗi dòng "không phải số".
+    """
     if v is None or (isinstance(v, str) and not v.strip()):
         return None
     if isinstance(v, (int, float)):
-        return float(v)
+        return float(v) if math.isfinite(v) else None
     s = str(v).strip().replace(" ", "")
     # Người dùng hay gõ kiểu vi-VN: "1.234,5"
     if "," in s and "." in s:
@@ -282,14 +290,40 @@ def _as_num(v: Any) -> float | None:
     elif "," in s:
         s = s.replace(",", ".")
     try:
-        return float(s)
+        n = float(s)
     except ValueError:
         return None
+    return n if math.isfinite(n) else None
 
 
-def parse_upload(kind: str, data: bytes,
-                 allowed_units: list[str] | None = None) -> dict[str, Any]:
-    """Đọc file người dùng nộp → danh sách dòng đã chuẩn hoá + lỗi từng dòng (để XEM TRƯỚC)."""
+def _window_error(as_of: Any, window: int | None) -> str | None:
+    """Câu báo khi ngày `as_of` nằm NGOÀI cửa sổ nhập liệu; None = ghi được.
+
+    `window` None = không giới hạn (admin). Cùng luật với nhập trên web (`edit_window`): Excel là
+    đường ghi thứ hai vào đúng các bảng đó nên phải qua cùng hàng rào (sổ tay đã hứa như vậy).
+    """
+    if window is None or not as_of:
+        return None
+    try:
+        d = date.fromisoformat(str(as_of))
+    except ValueError:
+        return "Ngày không hợp lệ"
+    if d > edit_window.today():
+        return f"Ngày {d:%d/%m/%Y}: không nhập số liệu cho ngày trong tương lai"
+    if not edit_window.is_editable(d, window):
+        return (f"Ngày {d:%d/%m/%Y} đã chuyển sang chế độ chỉ xem — số liệu mỗi ngày chỉ được "
+                f"nhập/sửa {edit_window.window_phrase(window)}")
+    return None
+
+
+def parse_upload(kind: str, data: bytes, allowed_units: list[str] | None = None,
+                 window: int | None = None) -> dict[str, Any]:
+    """Đọc file người dùng nộp → danh sách dòng đã chuẩn hoá + lỗi từng dòng (để XEM TRƯỚC).
+
+    Cột KHÔNG có trong file (mẫu cũ) thì dòng không mang khoá đó → lúc ghi ô ấy giữ nguyên số đang
+    lưu; ô TRỐNG của cột có trong file vẫn là xoá. `window` (None = admin) đánh lỗi sẵn dòng có
+    ngày đã quá hạn nhập, để người dùng thấy trước khi bấm ghi.
+    """
     spec = SPECS[kind]
     try:
         wb = load_workbook(io.BytesIO(data), data_only=True)
@@ -327,6 +361,8 @@ def parse_upload(kind: str, data: bytes,
             if c.key == "company" and idx["company"] is None and default_company:
                 rec["company"] = default_company     # mẫu không có cột Đơn vị → gán đơn vị của tài khoản
                 continue
+            if idx[c.key] is None:
+                continue                             # cột vắng mặt → KHÔNG đặt khoá (giữ số cũ khi ghi)
             if c.type == "date":
                 val = _as_date(v)
                 if val is None and (c.required or (v not in (None, ""))):
@@ -354,6 +390,8 @@ def parse_upload(kind: str, data: bytes,
                 val = _as_num(v)
                 if val is None and v not in (None, ""):
                     rec["_errors"].append(f"{c.title}: không phải số")
+                elif kind == "plan" and val is not None and val < 0:
+                    rec["_errors"].append(f"{c.title}: không được âm")   # cùng luật với form web
             rec[c.key] = val
             if c.required and rec.get(c.key) in (None, "") and not rec["_errors"]:
                 rec["_errors"].append(f"{c.title}: bắt buộc")
@@ -362,15 +400,18 @@ def parse_upload(kind: str, data: bytes,
             rec["_errors"].append(f"Đơn vị '{rec['company']}' không có trong danh mục")
         elif allowed is not None and rec.get("company") and rec["company"] not in allowed:
             rec["_errors"].append(f"Đơn vị '{rec['company']}' không thuộc quyền của tài khoản")
+        if (msg := _window_error(rec.get("as_of"), window)) is not None:
+            rec["_errors"].append(msg)
         rows.append(rec)
 
     _mark_actions(kind, rows)
     ok = sum(1 for r in rows if not r["_errors"])
     return {
         "kind": kind, "rows": rows,
-        # Nhãn cột tiếng Việt để bảng xem trước hiển thị dễ đọc (không phải khoá thô).
+        # Nhãn cột tiếng Việt để bảng xem trước hiển thị dễ đọc (không phải khoá thô). Chỉ cột CÓ
+        # trong file — cột vắng mặt không bị ghi nên không hiện ô trống gây hiểu nhầm là "xoá".
         "columns": [{"key": c.key, "title": c.title, "unit": c.unit} for c in spec.cols
-                    if not (c.key == "company" and idx["company"] is None and default_company)],
+                    if idx[c.key] is not None],
         "summary": {"total": len(rows), "ok": ok, "error": len(rows) - ok},
     }
 
@@ -421,14 +462,37 @@ def _sale_line(r: dict, ccy: str, fx: float | None) -> dict:
 
 
 def commit_rows(kind: str, rows: list[dict], username: str | None,
-                allowed_units: list[str] | None = None) -> dict[str, Any]:
-    """Ghi các dòng HỢP LỆ vào hệ thống (bỏ qua dòng có lỗi). Trả số bản ghi đã ghi."""
+                allowed_units: list[str] | None = None,
+                window: int | None = None) -> dict[str, Any]:
+    """Ghi các dòng HỢP LỆ vào hệ thống (bỏ qua dòng có lỗi). Trả số bản ghi đã ghi.
+
+    `window` = cửa sổ nhập liệu của người ghi (None = admin, không giới hạn): dòng có ngày đã quá
+    hạn KHÔNG được ghi, câu báo từng dòng trả trong `warnings`. Kế hoạch năm không theo ngày → miễn.
+    """
     with request_ctx.use_note("Nhập từ file Excel"):  # Nhật ký ghi rõ số liệu đến từ file
-        return _commit_rows(kind, rows, username, allowed_units)
+        return _commit_rows(kind, rows, username, allowed_units, window)
+
+
+def _plan_values(r: dict) -> dict[str, float | None] | None:
+    """Các ô số liệu năm CÓ trong dòng (cột vắng mặt = giữ số cũ); None nếu có ô không phải số
+    hữu hạn ≥ 0 — client gửi lại dòng nên JSON `NaN` vẫn có thể tới đây, không tin bước xem trước."""
+    out: dict[str, float | None] = {}
+    for k in unit_daily_repo.PLAN_FIELDS:
+        if k not in r:
+            continue
+        if r[k] is None:
+            out[k] = None
+            continue
+        n = _as_num(r[k])
+        if n is None or n < 0:
+            return None
+        out[k] = n
+    return out
 
 
 def _commit_rows(kind: str, rows: list[dict], username: str | None,
-                 allowed_units: list[str] | None = None) -> dict[str, Any]:
+                 allowed_units: list[str] | None = None,
+                 window: int | None = None) -> dict[str, Any]:
     # Client gửi lại danh sách dòng nên phải KIỂM LẠI ở đây (không tin bước xem trước):
     # đơn vị phải có thật và thuộc quyền tài khoản.
     valid_units = set(member_unit_repo.active_names())
@@ -439,16 +503,24 @@ def _commit_rows(kind: str, rows: list[dict], username: str | None,
     if kind == "plan":
         n = 0
         for r in good:
-            unit_daily_repo.set_year_plan(int(r["year"]), r["company"], r.get("plan_tonnes"),
-                                          r.get("signed_lt_tonnes"), r.get("carry_lt_tonnes"),
-                                          r.get("carry_spot_tonnes"),
-                                          r.get("plan_sales_spot_tonnes"),
-                                          r.get("plan_revenue_ty"), username)
+            year, values = _as_num(r.get("year")), _plan_values(r)
+            if values is None or year is None or not (2020 <= year <= 2100):
+                continue
+            unit_daily_repo.save_year_plan(int(year), r["company"], values, username)
             n += 1
-        return {"saved": n, "skipped": len(rows) - len(good), "warnings": []}
+        return {"saved": n, "skipped": len(rows) - n, "warnings": []}
+
+    warnings: list[str] = []
+    # Cửa sổ nhập liệu — cùng hàng rào với nhập trên web (dòng quá hạn bỏ qua, báo từng dòng).
+    in_window = []
+    for r in good:
+        if (msg := _window_error(r.get("as_of"), window)) is None:
+            in_window.append(r)
+        else:
+            warnings.append(f"Dòng {r.get('_row', '?')} ({r.get('company')}): {msg} — không ghi.")
+    good = in_window
 
     currencies = member_unit_repo.currency_by_name()
-    warnings: list[str] = []
 
     # Gom theo (đơn vị, ngày)
     grouped: dict[tuple[str, str], list[dict]] = {}

@@ -51,6 +51,12 @@ def _active_units() -> list[dict[str, Any]]:
     return member_unit_repo.list_units(include_inactive=False)
 
 
+#: Cờ TƯỜNG MINH trên nhóm có kết quả không tin được (luật lỗi, hoặc thiếu dữ liệu đầu vào).
+#: Trang chỉ xem nên vẫn hiện như cũ; job gửi tin tự động (`anomaly_notify`) thấy cờ thì HUỶ cả
+#: đợt — không suy ra lỗi từ chữ mô tả (đổi câu chữ là mất dấu).
+ERROR_FLAG = "error"
+
+
 def _run(builder, *args) -> dict[str, Any]:
     """Chạy 1 luật, KHÔNG để lỗi của luật này làm hỏng cả lần quét (yêu cầu #5)."""
     try:
@@ -59,7 +65,8 @@ def _run(builder, *args) -> dict[str, Any]:
         logger.exception("Lỗi khi quét luật %s", getattr(builder, "__name__", builder))
         key = getattr(builder, "_key", "unknown")
         label = getattr(builder, "_label", key)
-        return group(key, label, "Lỗi khi quét luật này — xem log server.", MEDIUM, [], [])
+        return {**group(key, label, "Lỗi khi quét luật này — xem log server.", MEDIUM, [], []),
+                ERROR_FLAG: True}
 
 
 def _rule(key: str, label: str):
@@ -462,13 +469,18 @@ def _plan_missing(date_from: str, date_to: str, thresholds: dict[str, float]) ->
                  ("o_con_thieu", "Ô còn thiếu"), ("so_o_thieu", "Số ô thiếu")], out)
 
 
+#: Luật dựa trên dữ liệu "đã nộp" (`_submission_days`) — đọc lỗi thì kết quả của cả hai sai.
+_SUBMISSION_RULES = frozenset({"not_submitted", "silent_unit"})
+
+
 def scan(date_from: str, date_to: str, thresholds: dict[str, float]) -> dict[str, Any]:
     """Quét toàn bộ 8 luật, trả {date_from, date_to, groups, summary}. Không ném exception."""
+    submission_failed = False
     try:
         submitted = _submission_days(date_from, date_to)
     except Exception:  # noqa: BLE001 — lỗi ở đây không được kéo sập not_submitted lẫn silent_unit
         logger.exception("Lỗi khi đọc dữ liệu nộp báo cáo (not_submitted + silent_unit)")
-        submitted = {}
+        submitted, submission_failed = {}, True
     groups = [
         _run(_wrong_raw_price, date_from, date_to, thresholds),
         _run(_wrong_sale_price, date_from, date_to, thresholds),
@@ -479,4 +491,6 @@ def scan(date_from: str, date_to: str, thresholds: dict[str, float]) -> dict[str
         _run(_silent_unit, date_from, date_to, thresholds, submitted),
         _run(_plan_missing, date_from, date_to, thresholds),
     ]
+    if submission_failed:   # 2 luật này vừa chạy trên dữ liệu RỖNG → mọi đơn vị hoá ra "chưa nộp"
+        groups = [{**g, ERROR_FLAG: True} if g["key"] in _SUBMISSION_RULES else g for g in groups]
     return finalize(date_from, date_to, groups)

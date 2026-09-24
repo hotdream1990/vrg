@@ -8,7 +8,7 @@ Hai điểm quan trọng nhất được khoá lại ở đây:
 from __future__ import annotations
 
 import io
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -360,6 +360,43 @@ def test_sales_import_giu_loai_tien_theo_TUNG_DONG() -> None:
     client.delete(f"/api/member-units/{unit}", headers=h)
 
 
+def test_plan_template_puts_exploit_first_and_blank_cell_clears_it() -> None:
+    """Biểu Kế hoạch năm: cột "Kế hoạch khai thác" đứng ĐẦU (ngay sau Đơn vị · Năm, trước "Kế hoạch
+    thu mua"); điền vào đúng mẫu → ghi được → lần nhập sau để trống ô đó = XOÁ chỉ tiêu.
+
+    Gọi thẳng tầng service (không qua endpoint) để test chạy được cả khi cờ nhập Excel đang tắt.
+    """
+    from app.services import unit_daily_excel_io as xio
+    from app.services import unit_daily_repo
+
+    h = _admin()
+    unit = "_zz_xl_plan"
+    year = date.today().year
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+
+    ws = load_workbook(io.BytesIO(xio.build_template("plan")))["Kế hoạch năm"]
+    head = [ws.cell(row=5, column=c).value for c in range(1, ws.max_column + 1)]
+    assert head[:4] == ["Đơn vị", "Năm", "Kế hoạch khai thác", "Kế hoạch thu mua"]
+
+    def import_plan(exploit: float | None) -> int:
+        cells = {"Đơn vị": unit, "Năm": year, "Kế hoạch khai thác": exploit, "Kế hoạch thu mua": 800}
+        data = _rows_to_xlsx("Kế hoạch năm", head, [tuple(cells.get(t) for t in head)])
+        prev = xio.parse_upload("plan", data)
+        assert prev["summary"]["error"] == 0, prev["rows"]
+        return xio.commit_rows("plan", prev["rows"], "admin")["saved"]
+
+    try:
+        assert import_plan(2500) == 1
+        assert unit_daily_repo.year_plan(year, [unit])[unit]["plan_exploit_tonnes"] == 2500
+        assert import_plan(None) == 1
+        got = unit_daily_repo.year_plan(year, [unit])[unit]
+        assert got["plan_exploit_tonnes"] is None and got["plan_tonnes"] == 800
+    finally:
+        with session_scope() as db:
+            db.execute(text("DELETE FROM unit_purchase_plan WHERE company = :u"), {"u": unit})
+        client.delete(f"/api/member-units/{unit}", headers=h)
+
+
 @pytest.mark.skipif(EXCEL_IMPORT_ENABLED, reason="Nhập liệu bằng Excel đang bật")
 def test_import_endpoints_dong_khi_tat_co() -> None:
     """Khi cờ tắt: mọi endpoint nhập Excel trả 503 — không tải được mẫu, không xem trước, không ghi.
@@ -373,3 +410,176 @@ def test_import_endpoints_dong_khi_tat_co() -> None:
                        files={"file": ("f.xlsx", b"khong-doc-den")}).status_code == 503
     assert client.post("/api/unit-daily/import/commit", headers=h,
                        json={"kind": "purchase", "rows": []}).status_code == 503
+
+
+# ── Hồi quy review 24/09/2026 (gọi thẳng tầng xử lý — chạy được cả khi cờ nhập Excel đang tắt) ──
+_PLAN_SHEET = "Kế hoạch năm"
+
+
+def _plan_unit(name: str) -> dict[str, str]:
+    h = _admin()
+    client.post("/api/member-units", json={"name": name}, headers=h)
+    return h
+
+
+def _drop_plan_unit(name: str, h: dict[str, str]) -> None:
+    with session_scope() as db:
+        db.execute(text("DELETE FROM unit_purchase_plan WHERE company = :u"), {"u": name})
+    client.delete(f"/api/member-units/{name}", headers=h)
+
+
+def test_excel_non_finite_or_negative_plan_numbers_are_row_errors() -> None:
+    """Ô chữ "nan"/"inf" KHÔNG được đọc thành số (float() nhận cả hai) → lỗi dòng, không ghi.
+
+    Client gửi lại dòng lúc ghi nên JSON NaN vẫn có thể tới tầng ghi — phải chặn lần nữa ở đó.
+    """
+    from app.services import unit_daily_excel_io as xio
+    from app.services import unit_daily_repo
+
+    assert [xio._as_num(v) for v in ("nan", "NaN", "inf", "-Infinity", float("nan"))] == [None] * 5
+    assert xio._as_num("1.234,5") == 1234.5
+
+    unit, year = "_zz_xl_plan_nan", date.today().year
+    h = _plan_unit(unit)
+    try:
+        head = ["Đơn vị", "Năm", "Kế hoạch khai thác", "Kế hoạch thu mua"]
+        data = _rows_to_xlsx(_PLAN_SHEET, head,
+                             [(unit, year, "nan", 800), (unit, year, 100, "inf"), (unit, year, -5, 800)])
+        prev = xio.parse_upload("plan", data)
+        assert prev["summary"] == {"total": 3, "ok": 0, "error": 3}
+        errs = [r["_errors"] for r in prev["rows"]]
+        assert "không phải số" in errs[0][0] and "không phải số" in errs[1][0]
+        assert "không được âm" in errs[2][0]
+
+        hacked = [{"_row": 7, "_errors": [], "company": unit, "year": year,
+                   "plan_exploit_tonnes": float("nan"), "plan_tonnes": 800}]
+        assert xio.commit_rows("plan", hacked, "admin")["saved"] == 0
+        assert unit not in unit_daily_repo.year_plan(year, [unit])
+    finally:
+        _drop_plan_unit(unit, h)
+
+
+def test_plan_import_old_template_keeps_columns_missing_from_file() -> None:
+    """File mẫu CŨ (chưa có cột Kế hoạch khai thác / doanh thu): cột VẮNG MẶT giữ nguyên số đang lưu;
+    ô TRỐNG của cột CÓ trong file vẫn là xoá (luật cũ)."""
+    from app.services import unit_daily_excel_io as xio
+    from app.services import unit_daily_repo
+
+    unit, year = "_zz_xl_plan_old", date.today().year
+    h = _plan_unit(unit)
+    try:
+        unit_daily_repo.set_year_plan(year, unit, 800, None, None, None, 300, 12.5, "admin",
+                                      plan_exploit_tonnes=2500)
+        old_head = ["Đơn vị", "Năm", "Kế hoạch thu mua", "Kế hoạch tiêu thụ (HĐ chuyến)",
+                    "HĐ dài hạn đã ký", "HĐ dài hạn năm trước chuyển sang",
+                    "HĐ chuyến năm trước chuyển sang"]
+        data = _rows_to_xlsx(_PLAN_SHEET, old_head, [(unit, year, 900, None, 50, None, None)])
+        prev = xio.parse_upload("plan", data)
+        assert prev["summary"]["error"] == 0, prev["rows"]
+        row = prev["rows"][0]
+        assert "plan_exploit_tonnes" not in row and "plan_revenue_ty" not in row
+        assert row["plan_sales_spot_tonnes"] is None           # cột có mặt, ô trống
+        shown = [c["key"] for c in prev["columns"]]
+        assert "plan_exploit_tonnes" not in shown and "plan_tonnes" in shown
+
+        assert xio.commit_rows("plan", prev["rows"], "admin")["saved"] == 1
+        got = unit_daily_repo.year_plan(year, [unit])[unit]
+        assert got["plan_exploit_tonnes"] == 2500 and got["plan_revenue_ty"] == pytest.approx(12.5)
+        assert got["plan_tonnes"] == 900 and got["signed_lt_tonnes"] == 50
+        assert got["plan_sales_spot_tonnes"] is None
+    finally:
+        _drop_plan_unit(unit, h)
+
+
+def test_period_excel_total_row_does_not_sum_prices_or_percents() -> None:
+    """Dòng Tổng cộng của file báo cáo kỳ KHÔNG cộng giá BQ / % (40% + 70% ≠ 110%)."""
+    from app.services import unit_period_excel
+
+    def total_row(kind: str, rows: list[dict]) -> dict[str, object]:
+        rep = {"kind": kind, "date_from": "2026-09-01", "date_to": "2026-09-07",
+               "grades": [], "rows": rows}
+        ws = load_workbook(io.BytesIO(unit_period_excel.build_period_xlsx(rep))).active
+        head = [ws.cell(row=5, column=c).value for c in range(1, ws.max_column + 1)]
+        last = next(r for r in range(8, ws.max_row + 1) if ws.cell(row=r, column=2).value == "Tổng cộng")
+        return {t: ws.cell(row=last, column=i).value for i, t in enumerate(head, start=1)}
+
+    pur = total_row("purchase", [
+        {"company": "A", "latex_wet": 10, "price_lace_avg": 30000, "pct_plan": 40},
+        {"company": "B", "latex_wet": 5, "price_lace_avg": 32000, "pct_plan": 70}])
+    assert pur["Sản lượng thu mua mủ nước"] == 15
+    assert pur["Giá thu mua mủ dây BQ"] is None and pur["% thực hiện kế hoạch"] is None
+
+    con = total_row("consumption", [
+        {"company": "A", "total_consumption": 10, "pct_plan_sales_spot": 40},
+        {"company": "B", "total_consumption": 5, "pct_plan_sales_spot": 70}])
+    assert con["Tổng tiêu thụ"] == 15
+    assert con["% thực hiện KH tiêu thụ (HĐ chuyến)"] is None
+
+
+def test_excel_import_respects_edit_window(monkeypatch) -> None:
+    """Nhập Excel qua CÙNG hàng rào cửa sổ nhập liệu như form web (sổ tay đã hứa).
+
+    Đơn vị (MEMBER window) và chuyên viên (EDITOR window): dòng có ngày quá hạn không ghi, báo
+    lỗi từng dòng — cả ở bước xem trước lẫn lúc ghi. Admin không giới hạn. Endpoint đang tắt bằng
+    cờ nên test mở tạm dependency cờ để đi đúng đường router thật.
+    """
+    from app.core import edit_window
+    from app.core.feature_flags import require_excel_import
+    from app.services import unit_daily_repo
+
+    unit, mem, ed = "_zz_xl_win", "xl_win_mem", "xl_win_ed"
+    today = edit_window.today()
+    old = (today - timedelta(days=30)).isoformat()
+    h = _admin()
+    for u in (mem, ed):
+        client.delete(f"/api/users/{u}", headers=h)
+    client.post("/api/member-units", json={"name": unit}, headers=h)
+    client.post("/api/users", json={"username": mem, "password": "pass123", "role": "member",
+                                    "member_units": [unit]}, headers=h)
+    client.post("/api/users", json={"username": ed, "password": "pass123", "role": "editor",
+                                    "permissions": ["unit_daily"]}, headers=h)
+
+    def login(u: str) -> dict[str, str]:
+        tok = client.post("/api/auth/login", json={"username": u, "password": "pass123"}).json()
+        return {"Authorization": f"Bearer {tok['access_token']}"}
+
+    def rows(*days: str) -> list[dict]:
+        return [{"_row": 7 + i, "_errors": [], "company": unit, "as_of": d, "latex_wet": 5.0}
+                for i, d in enumerate(days)]
+
+    def has(d: str) -> bool:
+        return unit_daily_repo.has_entry("purchase", d, unit)
+
+    # N = 1: hôm nay luôn còn hạn ở mọi giờ chạy; 30 ngày trước thì chắc chắn đã khoá.
+    monkeypatch.setattr(edit_window, "member_window", lambda: 1)
+    monkeypatch.setattr(edit_window, "editor_window", lambda: 1)
+    app.dependency_overrides[require_excel_import] = lambda: None
+    try:
+        mh, eh = login(mem), login(ed)
+        # Xem trước (mẫu 1 đơn vị, không có cột Đơn vị): dòng quá hạn bị đánh lỗi sẵn.
+        data = _rows_to_xlsx("Thu mua", ["Ngày", "SL thu mua mủ nước"],
+                             [(old, 5), (today.isoformat(), 6)])
+        prev = client.post("/api/member/import/preview?kind=purchase", headers=mh,
+                           files={"file": ("f.xlsx", data)}).json()
+        assert prev["summary"] == {"total": 2, "ok": 1, "error": 1}
+        assert "chỉ xem" in prev["rows"][0]["_errors"][0]
+
+        # Ghi (client xoá cờ lỗi): đơn vị & chuyên viên đều bị chặn dòng quá hạn, dòng hôm nay vẫn ghi.
+        for hdr, path in ((mh, "/api/member/import/commit"), (eh, "/api/unit-daily/import/commit")):
+            res = client.post(path, headers=hdr,
+                              json={"kind": "purchase", "rows": rows(old, today.isoformat())}).json()
+            assert res["saved"] == 1 and res["skipped"] == 1, (path, res)
+            assert "Dòng 7" in res["warnings"][0] and "chỉ xem" in res["warnings"][0]
+            assert not has(old) and has(today.isoformat())
+
+        # Admin: không giới hạn cửa sổ (như form web).
+        res = client.post("/api/unit-daily/import/commit", headers=h,
+                          json={"kind": "purchase", "rows": rows(old)}).json()
+        assert res["saved"] == 1 and has(old)
+    finally:
+        app.dependency_overrides.pop(require_excel_import, None)
+        for u in (mem, ed):
+            client.delete(f"/api/users/{u}", headers=h)
+        with session_scope() as db:
+            db.execute(text("DELETE FROM unit_daily_report WHERE company = :u"), {"u": unit})
+        client.delete(f"/api/member-units/{unit}", headers=h)

@@ -64,25 +64,23 @@ CONFIG_SPEC = [
      "placeholder": "Hệ thống VRG"},
     {"key": "APP_BASE_URL", "group": "email", "label": "Địa chỉ hệ thống (dùng dựng link trong email)",
      "secret": False, "placeholder": "vd https://vrg.bizino.vn — thiếu thì email không có link vào xem"},
-    # Cửa sổ nhập liệu — số ngày gần nhất được nhập/sửa; ngày cũ hơn chuyển sang chỉ xem. Mặc định 7.
+    # Cửa sổ nhập liệu — số liệu ngày D nhập/sửa được đến giờ chốt của ngày D + N; quá hạn = chỉ xem.
+    # Nhãn nói "nhập trễ" chứ không nói "số ngày sửa được": N = 0 vẫn nhập được hôm nay (tới giờ chốt).
     {"key": "MEMBER_EDIT_WINDOW_DAYS", "group": "data_entry", "secret": False,
-     "label": "Số ngày sửa được — tài khoản đơn vị thành viên (Thu mua · Tồn kho · Giá mủ · "
+     "label": "Số ngày được nhập trễ (N) — tài khoản đơn vị thành viên (Thu mua · Tồn kho · Giá mủ · "
               "Nhu cầu thị trường · ngày giao hợp đồng)",
-     "placeholder": "Mặc định 7 — 0 = chỉ hôm nay · 1 = hôm nay và hôm qua"},
+     "placeholder": "Mặc định 7 — số liệu ngày D nhập/sửa được đến giờ chốt ngày D + N. "
+                    "0 = đến giờ chốt cùng ngày · 1 = đến giờ chốt ngày hôm sau"},
     {"key": "EDITOR_EDIT_WINDOW_DAYS", "group": "data_entry", "secret": False,
-     "label": "Số ngày sửa được — chuyên viên nhập liệu (Giá mủ nguyên liệu · Physical · Tồn kho · Báo giá)",
-     "placeholder": "Mặc định 7 — số ngày gần nhất được nhập/sửa (0 = chỉ hôm nay); admin không bị giới hạn"},
-    # Ngoại lệ cho 2 biểu theo ngày: tồn cuối ngày phải kiểm kho xong, số thu mua chốt sau giờ cân
-    # cuối — cửa sổ 0 thì đơn vị không nhập kịp trong ngày. Cộng THÊM vào cả hai thông số trên, mỗi
-    # biểu một ô riêng (xem `core/edit_window.py`).
-    {"key": "STOCK_EXTRA_WINDOW_DAYS", "group": "data_entry", "secret": False,
-     "label": "Biểu Tồn kho được nhập trễ hơn các mục khác bao nhiêu ngày",
-     "placeholder": "Mặc định 1 — vd cửa sổ 0 ngày thì biểu Tồn kho vẫn nhập được hết ngày hôm sau. "
-                    "Đặt 0 = giống mọi mục khác"},
-    {"key": "PURCHASE_EXTRA_WINDOW_DAYS", "group": "data_entry", "secret": False,
-     "label": "Biểu Thu mua được nhập trễ hơn các mục khác bao nhiêu ngày",
-     "placeholder": "Mặc định 1 — đơn giá mủ trên biểu Thu mua đi cùng mốc này. "
-                    "Đặt 0 = giống mọi mục khác"},
+     "label": "Số ngày được nhập trễ (N) — chuyên viên nhập liệu (Giá mủ nguyên liệu · Physical · Tồn kho · "
+              "Báo giá)",
+     "placeholder": "Mặc định 7 — số liệu ngày D nhập/sửa được đến giờ chốt ngày D + N. "
+                    "0 = đến giờ chốt cùng ngày · 1 = đến giờ chốt ngày hôm sau; admin không bị giới hạn"},
+    # Giờ chốt — hạn nhập số liệu ngày D là giờ này của ngày D + N (N = hai ô trên). Thay cho 2 ô
+    # "biểu Thu mua / Tồn kho được nhập trễ hơn" cũ (chủ dự án chốt 24/09/2026: mọi biểu chung mốc).
+    {"key": "EDIT_CUTOFF_HOUR", "group": "data_entry", "secret": False,
+     "label": "Giờ chốt nhập liệu (giờ Việt Nam, 0–23)",
+     "placeholder": "Mặc định 11 — số liệu ngày D nhập/sửa được đến 11:00 ngày D + N"},
     # Phạm vi RÀ của bảng nhắc việc — khác cửa sổ sửa ở trên: rà xa hơn thì đơn vị thấy cả những
     # ngày đã khoá mà mình còn nợ (nhờ Ban TTKD nhập hộ), rà ngắn lại thì bảng gọn.
     {"key": "MEMBER_ALERT_DAYS", "group": "data_entry", "secret": False,

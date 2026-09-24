@@ -12,7 +12,8 @@ import {
 import { useAuth } from "../../auth/AuthContext";
 import SupportComposer from "../sections/SupportComposer";
 import { AttachmentList, AttachmentPicker } from "../sections/SupportAttachments";
-import { KIND_LABEL, stampVN } from "../sections/support-format";
+import SupportMessageBody from "../sections/SupportMessageBody";
+import { KIND_COLOR, KIND_LABEL, stampVN } from "../sections/support-format";
 import "../../bulletin/bulletin.css";
 import "../support.css";
 
@@ -109,7 +110,7 @@ export default function SupportThreadPage() {
         <div>
           <h2>{thread.subject}</h2>
           <p>
-            <Tag color={thread.kind === "request" ? "gold" : thread.kind === "reminder" ? "purple" : "blue"}>
+            <Tag color={KIND_COLOR[thread.kind]}>
               {KIND_LABEL[thread.kind]}
             </Tag>
             {ctx.side === "hq" && <b style={{ marginRight: 10 }}>{thread.company}</b>}
@@ -144,7 +145,7 @@ export default function SupportThreadPage() {
               <span>{m.side === "hq" ? "Tập đoàn" : thread.company}</span>
               <span>{stampVN(m.created_at)}</span>
             </div>
-            {m.body && <div className="sp-msg-body">{m.body}</div>}
+            {m.body && <div className="sp-msg-body"><SupportMessageBody text={m.body} /></div>}
             <AttachmentList files={m.files} />
           </div>
         ))}
