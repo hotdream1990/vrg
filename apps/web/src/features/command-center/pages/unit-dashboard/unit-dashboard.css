@@ -1,0 +1,95 @@
+/* Màn "Dashboard đơn vị" — mọi class tiền tố `ud-` để không đụng style màn khác.
+   Dùng lại biến màu của command-center.css (--muted --accent --danger --warn --line --panel…). */
+
+.ud-page .ud-section { margin-bottom: 18px; }
+.ud-alert { margin-bottom: 12px; }
+.ud-muted { color: var(--muted); }
+.ud-small { font-size: 12px; }
+.ud-neg { color: var(--danger) !important; }
+.ud-warn { color: #a96a00; }
+.ud-error { color: var(--danger); }
+.ud-note { color: var(--muted); font-size: 11.5px; margin: 8px 0 0; line-height: 1.5; }
+.ud-sub { margin-bottom: 0 !important; }
+.ud-warn-list { margin: 0; padding-left: 18px; }
+
+/* ── Thanh chọn ─────────────────────────────────────────────────────────── */
+.ud-filter { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.ud-filter-gap { flex: 0 0 8px; }
+.ud-inline { display: inline-flex; align-items: center; gap: 6px; }
+.ud-inline-label { font-size: 12px; }
+
+/* ── KPI: 6 thẻ, tự xuống dòng theo bề rộng ──────────────────────────────── */
+/* Hai class để thắng `.kpi-row` (4 cột) của command-center.css bất kể thứ tự nạp CSS. */
+/* Lưới CỐ ĐỊNH 6 → 3 → 2 cột: auto-fit dễ ra 5+1 hay 4+2, trông như thiếu thẻ. */
+.kpi-row.ud-kpi-row { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.ud-kpi-row .kpi .value { font-size: 21px; white-space: nowrap; }
+
+/* ── Chỉ tiêu năm ───────────────────────────────────────────────────────── */
+.ud-target-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.ud-target { min-width: 0; }
+.ud-target-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  font-size: 13px; margin-bottom: 4px; }
+.ud-target-nums { color: var(--muted); font-variant-numeric: tabular-nums; }
+.ud-target-body { display: flex; align-items: center; gap: 10px; }
+.ud-target-bar { position: relative; flex: 1; min-width: 0; }
+/* Gốc Progress mặc định inline-flex (cao theo dòng chữ) → ép flex khối để khung cao đúng bằng thanh,
+   vạch tiến độ thời gian mới trùm vừa thanh. */
+.ud-target-bar .ant-progress { display: flex; margin: 0; }
+.ud-target-pct { font-weight: 700; font-size: 14px; min-width: 56px; text-align: right;
+  font-variant-numeric: tabular-nums; }
+/* Vạch "tiến độ thời gian" đè lên thanh: % thời gian đã qua của năm. */
+.ud-time-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px;
+  background: var(--text); border-radius: 1px; cursor: help; }
+
+/* ── Bảng nhỏ ───────────────────────────────────────────────────────────── */
+.ud-table-wrap { margin-top: 14px; overflow-x: auto; }
+.ud-scroll { max-height: 330px; overflow-y: auto; margin-top: 0; }
+.ud-mini-title { font-size: 12.5px; font-weight: 600; margin: 12px 0 6px; }
+.ud-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ud-table th, .ud-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+/* Tiêu đề được xuống dòng (ô số thì không): tiêu đề dài như "Doanh thu (tỷ đ)" là thứ đẩy bảng
+   tràn ra ngoài cột phải và sinh thanh cuộn ngang. */
+.ud-table thead th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-align: left;
+  position: sticky; top: 0; background: var(--panel); z-index: 1; white-space: normal;
+  vertical-align: bottom; }
+.ud-table .r { text-align: right; font-variant-numeric: tabular-nums; }
+.ud-table .ud-total td { font-weight: 700; background: var(--panel-2); }
+
+/* Ô % có thanh mini (tiến độ theo đơn vị · tỷ trọng chủng loại). */
+.ud-pct-cell { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.ud-mini-bar { display: inline-block; width: 64px; height: 6px; border-radius: 3px;
+  background: var(--panel-2); overflow: hidden; }
+.ud-mini-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.ud-mini-bar > span.is-behind { background: var(--warn); }
+.ud-pct-text { min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── Bố cục trong section: biểu đồ trái rộng hơn bảng phải ──────────────── */
+.ud-split { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; }
+.ud-split-even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.ud-hbar { min-width: 0; }
+
+/* ── Tồn kho: 6 ô chỉ số ────────────────────────────────────────────────── */
+.ud-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px; margin-bottom: 8px; }
+.ud-stat { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel); }
+.ud-stat.is-main { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
+.ud-stat-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
+.ud-stat-value { font-size: 19px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.ud-stat-value small { font-size: 11px; font-weight: 500; color: var(--muted); }
+.ud-stat-sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+@media (max-width: 1380px) {
+  .kpi-row.ud-kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 1100px) {
+  .ud-split, .ud-split-even { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .kpi-row.ud-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ud-kpi-row .kpi .value { font-size: 18px; white-space: normal; }
+  .ud-filter > * { max-width: 100%; }
+  /* Hàng nút kỳ dài hơn màn điện thoại → cuộn ngang TRONG chính nó, không kéo cả trang. */
+  .ud-filter .ant-segmented { overflow-x: auto; scrollbar-width: none; }
+}

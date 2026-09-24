@@ -19,6 +19,7 @@ import {
   FileSearchOutlined,
   FileTextOutlined,
   FundOutlined,
+  FundProjectionScreenOutlined,
   HistoryOutlined,
   IdcardOutlined,
   InboxOutlined,
@@ -75,6 +76,7 @@ const ITEM = {
   summaryReport: { key: "/bao-cao-tong-hop", icon: <FileDoneOutlined />, label: "Báo cáo tổng hợp" },
   submission: { key: "/thong-ke/tinh-trang-nop", icon: <CheckSquareOutlined />, label: "Theo dõi nộp báo cáo" },
   unitScorecard: { key: "/chi-so-don-vi", icon: <BarChartOutlined />, label: "Chỉ số đơn vị" },
+  unitDashboard: { key: "/dashboard-don-vi", icon: <FundProjectionScreenOutlined />, label: "Dashboard đơn vị" },
   statPurchase: { key: "/thong-ke/thu-mua", icon: <ShoppingOutlined />, label: "Thống kê thu mua" },
   statStock: { key: "/thong-ke/ton-kho", icon: <InboxOutlined />, label: "Thống kê tồn kho" },
   statConsumption: { key: "/thong-ke/tieu-thu", icon: <ExportOutlined />, label: "Thống kê tiêu thụ" },
@@ -128,6 +130,7 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean, pendingEditRequ
     can("sales_contract") && ITEM.contracts,
   ]));
   items.push(...group("stats", <BarChartOutlined />, "Báo cáo & Thống kê", [
+    can("unit_daily") && ITEM.unitDashboard,
     can("unit_daily") && ITEM.unitScorecard,
     can("sales_contract") && ITEM.consumptionReport,
     can("unit_daily") && ITEM.summaryReport,
@@ -174,6 +177,7 @@ function buildExecutiveMenu(can: (cap: Cap) => boolean) {
       can("assistant") && ITEM.assistantHistory,
     ]),
     ...group("stats", <BarChartOutlined />, "Báo cáo & Thống kê", [
+      can("unit_daily") && ITEM.unitDashboard,
       can("unit_daily") && ITEM.unitScorecard,
       can("unit_daily") && ITEM.summaryReport,
       can("sales_contract") && ITEM.consumptionReport,
@@ -221,6 +225,8 @@ const ADMIN_MENU = {
 // "Thu mua" + "Kế hoạch năm" chỉ hiện khi đơn vị được giao kế hoạch thu mua.
 function buildMemberMenu(hasPurchasePlan: boolean) {
   return [
+    // Bức tranh thu mua · tồn kho · tiêu thụ · chỉ tiêu của chính đơn vị (server ép đúng đơn vị).
+    ITEM.unitDashboard,
     ...group("data-manual", <EditOutlined />, "Nhập liệu số liệu", [
       hasPurchasePlan && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Thu mua (theo ngày)" },
       { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Tồn kho (theo ngày)" },
@@ -245,6 +251,7 @@ function buildMemberMenu(hasPurchasePlan: boolean) {
 // nên nhãn nhóm ghi rõ "(chỉ xem)" để lãnh đạo không đi tìm nút Lưu.
 function buildLeaderMenu(hasPurchasePlan: boolean) {
   return [
+    ITEM.unitDashboard,
     { key: "/ho-tro", icon: <CustomerServiceOutlined />, label: "Hỗ trợ & Thông báo" },
     // Chỗ nhân viên nhập sai/thiếu — để lãnh đạo nhắc đúng việc (chỉ đơn vị mình, server tự lọc).
     { key: "/canh-bao-bat-thuong", icon: <WarningOutlined />, label: "Cảnh báo bất thường" },

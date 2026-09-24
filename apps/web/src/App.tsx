@@ -47,6 +47,7 @@ import ConsumptionStatsPage from "./features/command-center/pages/analytics/Cons
 import PurchaseStatsPage from "./features/command-center/pages/analytics/PurchaseStatsPage";
 import StockStatsPage from "./features/command-center/pages/analytics/StockStatsPage";
 import UnitScorecardPage from "./features/command-center/pages/scorecard/UnitScorecardPage";
+import UnitDashboardPage from "./features/command-center/pages/unit-dashboard/UnitDashboardPage";
 import SubmissionStatusPage from "./features/command-center/pages/analytics/SubmissionStatusPage";
 import UnitDailyPage from "./features/command-center/pages/UnitDailyPage";
 import YearPlanPage from "./features/command-center/pages/YearPlanPage";
@@ -108,6 +109,14 @@ function UnitDailyRoute(props: React.ComponentProps<typeof UnitDailyPage>) {
     return <Navigate to="/bao-cao-ton-kho" replace />;
   }
   if (isMember || can("unit_daily")) return <UnitDailyPage {...props} />;
+  return <Navigate to="/" replace />;
+}
+
+/** Dashboard đơn vị: tài khoản đơn vị → đơn vị được gán; có quyền `unit_daily` → chọn Tập đoàn /
+ *  khu vực / đơn vị (server tự ép phạm vi theo tài khoản — xem routers/unit_dashboard.py). */
+function UnitDashboardRoute() {
+  const { isUnitAccount, can } = useAuth();
+  if (isUnitAccount || can("unit_daily")) return <UnitDashboardPage />;
   return <Navigate to="/" replace />;
 }
 
@@ -187,6 +196,7 @@ export default function App() {
                     <Route path="/duyet-de-nghi-sua" element={<EditRequestReviewListPage />} />
                   </Route>
                   <Route path="/bao-cao-tong-hop" element={<PeriodReportRoute />} />
+                  <Route path="/dashboard-don-vi" element={<UnitDashboardRoute />} />
                   <Route path="/thong-ke-hop-dong" element={<StockContractHistoryRoute />} />
                   {/* Thống kê / kiểm tra số liệu đơn vị đã nhập — CHỈ chuyên viên có quyền `unit_daily` */}
                   <Route element={<RequireCap caps={["unit_daily"]} />}>
