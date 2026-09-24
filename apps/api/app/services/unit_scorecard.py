@@ -48,11 +48,12 @@ def _fetch(src: str, group_by: str, p: dict[str, Any]) -> dict[str, Any]:
 _STOCK_HINT_DAYS = 60
 
 
-def _latest_stock_day(as_of: str) -> str | None:
+def _latest_stock_day(as_of: str, companies: list[str] | None = None) -> str | None:
     """Ngày gần nhất ≤ ngày chốt mà CÓ đơn vị khai tồn kho — chỉ để GỢI Ý đổi ngày chốt.
 
     Tồn kho không được đắp số ngày khác sang ngày đang xem, nên khi ngày chốt trống thì thay vì
-    lặng lẽ hiện bảng rỗng, màn hình mời người dùng bấm sang đúng ngày có số.
+    lặng lẽ hiện bảng rỗng, màn hình mời người dùng bấm sang đúng ngày có số. `companies` thu hẹp
+    về một nhóm đơn vị (Dashboard đơn vị) — None = mọi đơn vị.
     """
     from datetime import date, timedelta
 
@@ -60,7 +61,7 @@ def _latest_stock_day(as_of: str) -> str | None:
     from app.services.unit_report_rows import has_stock
 
     start = (date.fromisoformat(as_of) - timedelta(days=_STOCK_HINT_DAYS)).isoformat()
-    days = [e["as_of"] for e in unit_daily_repo.in_range("consumption", start, as_of, None,
+    days = [e["as_of"] for e in unit_daily_repo.in_range("consumption", start, as_of, companies,
                                                          attach_contracts=False)
             if has_stock(e["fields"])]
     return max(days, default=None)

@@ -24,7 +24,7 @@ _TAB_PATTERN = "^(" + "|".join(TABS) + ")$"
 _MEASURE_PATTERN = "^(" + "|".join(unit_scorecard_grade.MEASURES) + ")$"
 
 
-def _stock_day(date_to: str, as_of: str | None) -> str:
+def stock_day(date_to: str, as_of: str | None) -> str:
     """Ngày chốt tồn kho — KHÔNG bao giờ vượt quá hôm nay.
 
     Kỳ mặc định "Tháng này" kết thúc ở ngày cuối tháng, tức là một ngày TƯƠNG LAI trong gần hết
@@ -38,7 +38,7 @@ def _stock_day(date_to: str, as_of: str | None) -> str:
     return min(chosen, today().isoformat())
 
 
-def _assert_dates(date_from: str, date_to: str, as_of: str | None) -> None:
+def assert_dates(date_from: str, date_to: str, as_of: str | None) -> None:
     try:
         a, b = date.fromisoformat(date_from), date.fromisoformat(date_to)
     except ValueError as exc:
@@ -82,9 +82,9 @@ def scorecard(tab: str = Query("overview", pattern=_TAB_PATTERN),
               split_merged: bool = Query(False, description="Tách riêng đơn vị đã sáp nhập"),
               username: str = Depends(_require)) -> dict:
     """Bảng chỉ số của một tab: dòng khu vực (kèm số đơn vị chưa có số) + dòng từng đơn vị."""
-    _assert_dates(date_from, date_to, as_of)
+    assert_dates(date_from, date_to, as_of)
     return unit_scorecard.scorecard(
-        tab, date_from=date_from, date_to=date_to, as_of=_stock_day(date_to, as_of),
+        tab, date_from=date_from, date_to=date_to, as_of=stock_day(date_to, as_of),
         companies=companies, regions=regions, grades=grades, materials=materials,
         contract=contract, channel=channel, source=source, status_kind=status_kind,
         split_merged=split_merged)
@@ -103,9 +103,9 @@ def by_grade(measure: str = Query("con_qty", pattern=_MEASURE_PATTERN),
 
     Không nhận `grades`: cột ĐÃ là chủng loại, lọc thêm chỉ làm mất cột.
     """
-    _assert_dates(date_from, date_to, as_of)
+    assert_dates(date_from, date_to, as_of)
     return unit_scorecard_grade.by_grade(
-        measure, date_from=date_from, date_to=date_to, as_of=_stock_day(date_to, as_of),
+        measure, date_from=date_from, date_to=date_to, as_of=stock_day(date_to, as_of),
         companies=companies, regions=regions, grades=None, materials=None,
         contract=contract, channel=channel, source=source, status_kind="purchase",
         split_merged=split_merged)

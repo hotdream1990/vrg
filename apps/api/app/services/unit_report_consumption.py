@@ -22,7 +22,10 @@ def _new_consumption(key: str, region: str | None) -> dict[str, Any]:
     return {"key": key, "label": key, "region": region, "qty": 0.0,
             "qty_long_term": 0.0, "qty_spot": 0.0, "qty_unknown_type": 0.0,
             "qty_export": 0.0, "qty_domestic": 0.0, "qty_internal": 0.0,
-            "revenue_vnd": 0.0, "_rev_qty": 0.0, "lines": 0, "_days": set()}
+            "revenue_vnd": 0.0, "_rev_qty": 0.0, "lines": 0, "_days": set(),
+            # Số lần giao THIẾU TỶ GIÁ (không có trong doanh thu) — nơi đem doanh thu so kế hoạch
+            # cần biết để để trống % (như Báo cáo tổng hợp), thay vì báo tỷ lệ thấp hơn thực tế.
+            "missing_fx_lines": 0}
 
 
 #: Giá trị enum → ô cộng dồn. Giá trị lạ/thiếu đi vào ô "chưa khai" riêng, KHÔNG dồn vào ô nào
@@ -43,6 +46,8 @@ def _feed_consumption(g: dict, r: dict) -> None:
     if r["revenue_vnd"] is not None:
         g["revenue_vnd"] += r["revenue_vnd"]
         g["_rev_qty"] += qty
+    if r.get("missing_fx"):
+        g["missing_fx_lines"] += 1
 
 
 def _close_consumption(g: dict) -> dict[str, Any]:

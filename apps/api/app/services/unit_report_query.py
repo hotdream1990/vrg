@@ -51,6 +51,9 @@ GROUPERS: dict[str, Callable[[dict], str | None]] = {
     "company": lambda r: r.get("company"),
     "region": lambda r: r.get("region") or NO_REGION_LABEL,
     "day": lambda r: r.get("as_of"),
+    # "YYYY-MM" — xếp theo chữ cũng là xếp theo thời gian. Dashboard đơn vị dùng khi kỳ dài (cả năm
+    # mà vẽ theo ngày thì hơn 250 cột); gộp qua đúng các hàm gộp nên giá tháng vẫn là BQ GIA QUYỀN.
+    "month": lambda r: (r.get("as_of") or "")[:7] or None,
     "grade": lambda r: r.get("grade"),
     "material": lambda r: MATERIAL_LABELS.get(r.get("material") or ""),
     "contract": lambda r: label_of(CONTRACT_LABELS, r.get("contract")),

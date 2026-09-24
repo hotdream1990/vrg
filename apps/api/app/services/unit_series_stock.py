@@ -106,8 +106,13 @@ def _collect(raw_rows: list[dict[str, Any]]) -> tuple[dict, dict, dict, dict]:
     return stock, wh, signed, regions
 
 
-def stock_series(date_from: str, date_to: str, group_by: str = "warehouse") -> dict[str, Any]:
+def stock_series(date_from: str, date_to: str, group_by: str = "warehouse",
+                 companies: list[str] | None = None) -> dict[str, Any]:
     """Tồn kho Tập đoàn theo ngày, nhóm theo kho · cơ cấu hợp đồng · chủng loại · khu vực.
+
+    `companies` thu hẹp chuỗi về một nhóm đơn vị (Dashboard đơn vị: một khu vực / một đơn vị) — phải
+    là danh sách ĐÃ MỞ RỘNG theo sáp nhập (`member_unit_merge.expand`) để ảnh chụp của đơn vị cũ
+    trước ngày hiệu lực vẫn được tính; luật bỏ ảnh chụp trùng bên dưới giữ nguyên.
 
     Mỗi ngày kèm `units_counted` = số đơn vị THẬT SỰ có tồn thành phẩm trong ảnh chụp đó: thiếu đơn
     vị mà không nói ra thì người xem tưởng cột thấp là hàng bán được nhiều, trong khi thật ra là
@@ -126,7 +131,7 @@ def stock_series(date_from: str, date_to: str, group_by: str = "warehouse") -> d
     days = days_between(date_from, date_to)
     # Chỉ 2 cách xem dùng tới khối "đã ký HĐ chưa giao"; 3 cách còn lại (kho · chủng loại ·
     # khu vực) không đụng tới `signed`, mà khối đó là phần đắt nhất của cả chuỗi.
-    raw = unit_report_rows.stock_rows(date_to, all_days=True, days_back=len(days) - 1,
+    raw = unit_report_rows.stock_rows(date_to, companies, all_days=True, days_back=len(days) - 1,
                                       with_contracts=group_by in ("structure", "free_grade"))
     stock, wh, signed, regions = _collect(raw["rows"])
     pairs = member_unit_merge.merge_pairs()
