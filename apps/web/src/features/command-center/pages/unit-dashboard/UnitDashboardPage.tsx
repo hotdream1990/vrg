@@ -46,13 +46,16 @@ export default function UnitDashboardPage() {
 
   // Tham số gọi API phải ỔN ĐỊNH theo giá trị — hook tải lại mỗi khi tham chiếu đổi.
   // Đổi riêng nút preset (vd sang "Tự chọn") mà ngày không đổi thì KHÔNG tải lại.
+  // Ngày chốt tồn kho CHỈ vào tham số của khối tồn kho: server không dùng nó ở khối khác, gắn chung
+  // thì bấm "Xem ngày …" là xoá trắng và tính lại cả 4 khối kia.
   const { scope, key, from, to, asOf } = filters ?? {};
-  const query = useMemo(() => toQuery({ scope, key, from, to, asOf }), [scope, key, from, to, asOf]);
+  const query = useMemo(() => toQuery({ scope, key, from, to, asOf: "" }), [scope, key, from, to]);
+  const stockQuery = useMemo(() => (query ? { ...query, asOf: asOf ?? "" } : null), [query, asOf]);
   const seriesQuery = useMemo(() => (query ? { ...query, view } : null), [query, view]);
 
   const purchase = useDashboardBlock(fetchDashPurchase, query, tick);
   const consumption = useDashboardBlock(fetchDashConsumption, query, tick);
-  const stock = useDashboardBlock(fetchDashStock, query, tick);
+  const stock = useDashboardBlock(fetchDashStock, stockQuery, tick);
   const targets = useDashboardBlock(fetchDashTargets, query, tick);
   const series = useDashboardBlock(fetchDashStockSeries, seriesQuery, tick);
 
@@ -78,10 +81,6 @@ export default function UnitDashboardPage() {
 
       {catalogErr && (
         <Alert type="error" showIcon className="ud-alert" title={`Chưa tải được danh sách phạm vi: ${catalogErr}`} />
-      )}
-      {catalog?.mode === "unit" && catalog.units.length === 0 && (
-        <Alert type="warning" showIcon className="ud-alert"
-               title="Tài khoản chưa được gán đơn vị thành viên nào — liên hệ quản trị để được gán." />
       )}
       {!catalog || !filters ? (
         !catalogErr && <div className="card scan-empty">Đang tải phạm vi xem…</div>

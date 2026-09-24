@@ -37,7 +37,7 @@ export default function TrendBarChart({ labels, series, unit = "Tấn", format =
   if (line) datasets.push({
     type: "line" as const, label: line.label, data: line.data, yAxisID: "y1",
     borderColor: line.color ?? "#0f172a", backgroundColor: "transparent",
-    borderWidth: 2, tension: 0.25, pointRadius: labels.length <= 31 ? 2.5 : 0, spanGaps: true,
+    borderWidth: 2, tension: 0.25, pointRadius: labels.length <= 31 ? 2.5 : 0, spanGaps: false,
   });
 
   const options: ChartOptions<"bar" | "line"> = {

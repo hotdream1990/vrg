@@ -70,13 +70,13 @@ def scopes(own: list[str] | None = Depends(_viewer)) -> dict:
 @router.get("/purchase")
 def purchase(q: dict = Depends(_params)) -> dict:
     """Thu mua trong kỳ: theo loại mủ · diễn biến · thành phẩm theo chủng loại · theo khu vực/đơn vị."""
-    return svc.purchase_block(q["sc"], q["date_from"], q["date_to"])
+    return svc.purchase_block(q["sc"], q["date_from"], q["date_to"], q["today"])
 
 
 @router.get("/consumption")
 def consumption(q: dict = Depends(_params)) -> dict:
     """Tiêu thụ trong kỳ: loại HĐ · hình thức · chủng loại · diễn biến · theo khu vực/đơn vị."""
-    return svc.consumption_block(q["sc"], q["date_from"], q["date_to"])
+    return svc.consumption_block(q["sc"], q["date_from"], q["date_to"], q["today"])
 
 
 @router.get("/stock")

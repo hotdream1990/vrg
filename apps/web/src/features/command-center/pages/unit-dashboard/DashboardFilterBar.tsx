@@ -97,7 +97,7 @@ export default function DashboardFilterBar({ catalog, value, onChange, onReload,
         <span className="ud-inline">
           <b className="ud-inline-label">Chốt tồn kho</b>
           <DateInput value={value.asOf} allowClear placeholder="Tự động" style={{ width: 140 }}
-                     onChange={(v) => patch({ asOf: v })} />
+                     maxDate={catalog.today} onChange={(v) => patch({ asOf: v })} />
         </span>
       </Tooltip>
 

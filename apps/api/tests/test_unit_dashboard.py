@@ -192,9 +192,20 @@ def test_thu_mua_khu_vuc_khop_bang_thong_ke_va_la_bq_gia_quyen(env):
 def test_ky_dai_gop_dien_bien_theo_thang(env):
     rep = _get(env["admin"], "purchase", date_from=f"{YEAR}-01-01", date_to=D1)
     assert rep["bucket"] == "month"
-    months = {r["as_of"] for r in rep["trend"]}
-    assert months == {D0[:7], D1[:7]}
+    # ĐỦ mọi tháng từ đầu kỳ (tháng không mua giữ ô trống, không phải 0) — trục thời gian không dồn.
+    months = [r["as_of"] for r in rep["trend"]]
+    assert months == [f"{YEAR}-{m:02d}" for m in range(1, int(D1[5:7]) + 1)]
     assert sum(r["qty_latex"] or 0 for r in rep["trend"]) == 500
+    assert all(r["qty_latex"] is None for r in rep["trend"] if r["as_of"] not in (D0[:7], D1[:7]))
+
+
+def test_dien_bien_du_moc_ngay_trong(env):
+    """Ngày không giao hàng vẫn là một mốc (ô trống) — nếu bỏ, hai ngày cách nhau thành liền kề."""
+    start = (date.fromisoformat(D0) - timedelta(days=2)).isoformat()
+    rep = _get(env["admin"], "consumption", "unit", UNIT_A, date_from=start, date_to=D1)
+    assert [r["as_of"] for r in rep["trend"]][:3] == [start, (date.fromisoformat(start)
+                                                             + timedelta(days=1)).isoformat(), D0]
+    assert rep["trend"][0]["qty"] is None and rep["trend"][2]["qty"] == 20
 
 
 def test_tieu_thu_theo_chung_loai(env):
@@ -221,6 +232,10 @@ def test_dien_bien_ton_kho_chi_trong_pham_vi(env):
     rep = _get(env["admin"], "stock-series", "unit", UNIT_B, view="grade")
     day = next(r for r in rep["rows"] if r["as_of"] == D1)
     assert day["total"] == 50 and day["units_counted"] == 1          # chỉ B, không lẫn A
+    # Ngày B chưa khai: không có số — không được thành cột "0 tấn" ở cách xem đã/chưa nhập kho.
+    wh = _get(env["admin"], "stock-series", "unit", UNIT_B, view="warehouse")
+    before = next(r for r in wh["rows"] if r["as_of"] == D0)
+    assert before["total"] is None and before["values"] == {}
     _get(env["admin"], "stock-series", view="khong-co", expect=422)
 
 

@@ -19,7 +19,7 @@ from app.services import unit_report_purchase as pur
 from app.services import unit_report_stock as st
 from app.services import unit_series_stock as sst
 from app.services.unit_scorecard import _latest_stock_day
-from app.services.unit_series import window
+from app.services.unit_series import days_between, window
 
 #: Kỳ dài hơn ngần này thì biểu đồ diễn biến gộp theo THÁNG (cả năm vẽ theo ngày là hơn 250 cột).
 MAX_DAILY_DAYS = 62
@@ -39,6 +39,27 @@ _STOCK_BREAKDOWN = ("total", "signed_undelivered", "tradable", "material", "as_o
 def bucket_of(date_from: str, date_to: str) -> str:
     days = (date.fromisoformat(date_to) - date.fromisoformat(date_from)).days + 1
     return "day" if days <= MAX_DAILY_DAYS else "month"
+
+
+def _timeline(date_from: str, date_to: str, bucket: str, today: str) -> list[str]:
+    """Mọi mốc (ngày hoặc "YYYY-MM") từ đầu kỳ tới min(cuối kỳ, hôm nay) — tương lai thì chưa có gì."""
+    end = min(date_to, today)
+    if end < date_from:
+        return []
+    days = days_between(date_from, end)
+    return days if bucket == "day" else list(dict.fromkeys(d[:7] for d in days))
+
+
+def _trend(rows: list[dict[str, Any]], keys: tuple[str, ...], date_from: str, date_to: str,
+           bucket: str, today: str) -> list[dict[str, Any]]:
+    """Chuỗi diễn biến ĐỦ mốc: bảng thống kê chỉ trả mốc có số, bỏ các mốc trống thì trục thời gian
+    dồn lại (3 lần giao ngày 03 · 15 · 22 trông như 3 ngày liền) — mốc trống giữ ô None, không phải 0.
+    Dòng ngoài khung (vd kỳ toàn tương lai) vẫn giữ để không mất số."""
+    by_key = {r["key"]: {"as_of": r["key"], **_pick(r, keys)} for r in rows}
+    empty = dict.fromkeys(keys)
+    out = [by_key.pop(k, None) or {"as_of": k, **empty}
+           for k in _timeline(date_from, date_to, bucket, today)]
+    return sorted(out + list(by_key.values()), key=lambda r: r["as_of"])
 
 
 def _pick(row: dict[str, Any], keys: tuple[str, ...]) -> dict[str, Any]:
@@ -66,7 +87,7 @@ def _data_warnings(warnings: list[str]) -> list[str]:
     return list(dict.fromkeys(w for w in warnings if "kế hoạch" not in w))
 
 
-def purchase_block(sc: dict[str, Any], date_from: str, date_to: str) -> dict[str, Any]:
+def purchase_block(sc: dict[str, Any], date_from: str, date_to: str, today: str) -> dict[str, Any]:
     f, child = sc["filters"], sc["child"]
     bucket = bucket_of(date_from, date_to)
     base = pur.purchase_report(date_from, date_to, group_by=child or "company", **f)
@@ -79,7 +100,7 @@ def purchase_block(sc: dict[str, Any], date_from: str, date_to: str) -> dict[str
         "price_units": {"latex": PURCHASE_PRICE_UNIT["purchase"],
                         "cup": PURCHASE_PRICE_UNIT["purchase_cup"],
                         "lace": PURCHASE_PRICE_UNIT["purchase_lace"], "finished": "triệu đ/tấn"},
-        "trend": [{"as_of": r["key"], **_pick(r, _PURCHASE_TREND)} for r in trend["rows"]],
+        "trend": _trend(trend["rows"], _PURCHASE_TREND, date_from, date_to, bucket, today),
         "finished_by_grade": _desc([{"grade": r["key"], "qty": r["qty_finished"],
                                      "price_avg": r["price_finished_avg"]} for r in fin["rows"]],
                                    "qty"),
@@ -90,7 +111,8 @@ def purchase_block(sc: dict[str, Any], date_from: str, date_to: str) -> dict[str
     }
 
 
-def consumption_block(sc: dict[str, Any], date_from: str, date_to: str) -> dict[str, Any]:
+def consumption_block(sc: dict[str, Any], date_from: str, date_to: str,
+                      today: str) -> dict[str, Any]:
     f, child = sc["filters"], sc["child"]
     bucket = bucket_of(date_from, date_to)
     base = con.consumption_report(date_from, date_to, group_by=child or "company", **f)
@@ -99,7 +121,7 @@ def consumption_block(sc: dict[str, Any], date_from: str, date_to: str) -> dict[
     return {
         "scope": sc["public"], "date_from": date_from, "date_to": date_to, "bucket": bucket,
         "totals": _pick(base["totals"], _CON_TOTALS),
-        "trend": [{"as_of": r["key"], **_pick(r, _CON_QTY)} for r in trend["rows"]],
+        "trend": _trend(trend["rows"], _CON_QTY, date_from, date_to, bucket, today),
         "by_grade": _desc([{"grade": r["key"], **_pick(r, ("qty", "revenue_ty", "avg_price_trieu"))}
                            for r in grade["rows"]], "qty"),
         "breakdown": [{"label": r["key"], **_pick(r, ("qty", "revenue_ty", "avg_price_trieu"))}

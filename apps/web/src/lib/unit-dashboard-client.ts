@@ -85,7 +85,10 @@ export type StockBlock = {
 
 export type DashStockView = Exclude<StockGroupBy, "region">;
 
-export type DashStockSeries = StockSeries & { scope: ScopeInfo; date_from: string; date_to: string };
+/** `start_floor` = null khi xem MỘT đơn vị (không kẹp mốc đủ độ phủ của Tập đoàn/khu vực). */
+export type DashStockSeries = Omit<StockSeries, "start_floor"> & {
+  scope: ScopeInfo; date_from: string; date_to: string; start_floor: string | null;
+};
 
 export type TargetKey = "purchase" | "sales_spot" | "revenue";
 
@@ -94,8 +97,9 @@ export type TargetsBlock = {
   date_from: string; date_to: string;
   /** % thời gian đã qua của năm tại `date_to` — mốc so tiến độ. */
   time_pct: number;
+  /** done/plan/pct tính trên rổ `units_planned` đơn vị ĐƯỢC GIAO chỉ tiêu đó. */
   items: { key: TargetKey; label: string; unit: string;
-           done: Num; plan: Num; pct: Num; note: string }[];
+           done: Num; plan: Num; pct: Num; units_planned: number; note: string }[];
   breakdown: { label: string; purchase_pct: Num; sales_spot_pct: Num; revenue_pct: Num }[];
   warnings: string[];
 };
@@ -120,17 +124,19 @@ function dashQueryString(q: DashQuery, extra: Record<string, string> = {}): stri
 
 export const fetchDashScopes = () => apiFetch<ScopeCatalog>(`${BASE}/scopes`);
 
-export const fetchDashPurchase = (q: DashQuery) =>
-  apiFetch<PurchaseBlock>(`${BASE}/purchase?${dashQueryString(q)}`);
+// `signal`: huỷ lượt gọi cũ khi đổi bộ lọc — mỗi khối là vài báo cáo nặng, bấm kỳ liên tục mà không
+// huỷ thì server vẫn tính hết các lượt đã bị bỏ.
+export const fetchDashPurchase = (q: DashQuery, signal?: AbortSignal) =>
+  apiFetch<PurchaseBlock>(`${BASE}/purchase?${dashQueryString(q)}`, { signal });
 
-export const fetchDashConsumption = (q: DashQuery) =>
-  apiFetch<ConsumptionBlock>(`${BASE}/consumption?${dashQueryString(q)}`);
+export const fetchDashConsumption = (q: DashQuery, signal?: AbortSignal) =>
+  apiFetch<ConsumptionBlock>(`${BASE}/consumption?${dashQueryString(q)}`, { signal });
 
-export const fetchDashStock = (q: DashQuery) =>
-  apiFetch<StockBlock>(`${BASE}/stock?${dashQueryString(q)}`);
+export const fetchDashStock = (q: DashQuery, signal?: AbortSignal) =>
+  apiFetch<StockBlock>(`${BASE}/stock?${dashQueryString(q)}`, { signal });
 
-export const fetchDashTargets = (q: DashQuery) =>
-  apiFetch<TargetsBlock>(`${BASE}/targets?${dashQueryString(q)}`);
+export const fetchDashTargets = (q: DashQuery, signal?: AbortSignal) =>
+  apiFetch<TargetsBlock>(`${BASE}/targets?${dashQueryString(q)}`, { signal });
 
-export const fetchDashStockSeries = (q: DashSeriesQuery) =>
-  apiFetch<DashStockSeries>(`${BASE}/stock-series?${dashQueryString(q, { view: q.view })}`);
+export const fetchDashStockSeries = (q: DashSeriesQuery, signal?: AbortSignal) =>
+  apiFetch<DashStockSeries>(`${BASE}/stock-series?${dashQueryString(q, { view: q.view })}`, { signal });

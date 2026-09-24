@@ -16,7 +16,7 @@ type Props = {
 
 const PRICE_TRIEU = "triệu đ/tấn";
 
-type Kpi = { label: string; value: string; sub: string; negative?: boolean };
+type Kpi = { label: string; value: string; sub: string; negative?: boolean; warn?: boolean };
 
 /** Thẻ lấy số từ một khối: tự lo trạng thái đang tải / lỗi, chỉ tính số khi đã có dữ liệu. */
 function kpiOf<T>(label: string, state: BlockState<T>, make: (d: T) => Omit<Kpi, "label">): Kpi {
@@ -40,10 +40,17 @@ export default function DashboardKpiRow({ purchase, consumption, stock }: Props)
       value: withUnit(fmtTon(d.totals.qty), "tấn"),
       sub: `Dài hạn ${fmtTon(d.totals.qty_long_term)} · chuyến ${fmtTon(d.totals.qty_spot)} (tấn)`,
     })),
-    kpiOf("Doanh thu", consumption, (d) => ({
-      value: withUnit(fmtTy(d.totals.revenue_ty), "tỷ đồng"),
-      sub: `Giá bán BQ ${withUnit(fmtPrice(d.totals.avg_price_trieu, PRICE_TRIEU), PRICE_TRIEU)}`,
-    })),
+    kpiOf("Doanh thu", consumption, (d) => {
+      const missing = d.totals.missing_fx_lines;
+      return {
+        value: withUnit(fmtTy(d.totals.revenue_ty), "tỷ đồng"),
+        // Đang thiếu phần bán USD chưa có tỷ giá → số trên thẻ THẤP hơn thực tế, phải nói ngay tại đây.
+        sub: missing > 0
+          ? `Chưa gồm ${missing.toLocaleString("vi-VN")} lần giao thiếu tỷ giá`
+          : `Giá bán BQ ${withUnit(fmtPrice(d.totals.avg_price_trieu, PRICE_TRIEU), PRICE_TRIEU)}`,
+        warn: missing > 0,
+      };
+    }),
     kpiOf("Tồn kho thành phẩm", stock, (d) => ({
       value: withUnit(fmtTon(d.totals.total), "tấn"),
       sub: `tại ${dmy(d.as_of)}`,
@@ -66,7 +73,7 @@ export default function DashboardKpiRow({ purchase, consumption, stock }: Props)
         <div className="kpi" key={k.label}>
           <div className="label">{k.label}</div>
           <div className={`value${k.negative ? " ud-neg" : ""}`}>{k.value}</div>
-          <div className="sub">{k.sub}</div>
+          <div className={`sub${k.warn ? " ud-warn" : ""}`}>{k.sub}</div>
         </div>
       ))}
     </div>

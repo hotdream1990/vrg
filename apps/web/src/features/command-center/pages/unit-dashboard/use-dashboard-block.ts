@@ -17,7 +17,7 @@ const IDLE = { data: null, loading: false, error: null } as const;
  * Xoá số cũ ngay khi bắt đầu tải: để số của kỳ trước nằm dưới nhãn kỳ mới là đọc nhầm chắc chắn.
  */
 export function useDashboardBlock<T, Q>(
-  load: (q: Q) => Promise<T>, query: Q | null, tick: number,
+  load: (q: Q, signal?: AbortSignal) => Promise<T>, query: Q | null, tick: number,
 ): BlockState<T> {
   const [state, setState] = useState<BlockState<T>>(IDLE);
 
@@ -27,14 +27,17 @@ export function useDashboardBlock<T, Q>(
       return;
     }
     let alive = true;
+    const ac = new AbortController();
     setState({ data: null, loading: true, error: null });
-    load(query)
+    load(query, ac.signal)
       .then((data) => { if (alive) setState({ data, loading: false, error: null }); })
       .catch((e: unknown) => {
         if (alive) setState({ data: null, loading: false,
                               error: e instanceof Error ? e.message : String(e) });
       });
-    return () => { alive = false; };
+    // Huỷ luôn request đang bay (server thôi tính lượt đã bị bỏ); lỗi AbortError rơi vào catch nhưng
+    // `alive` đã tắt nên không đụng tới state.
+    return () => { alive = false; ac.abort(); };
   }, [load, query, tick]);
 
   return state;

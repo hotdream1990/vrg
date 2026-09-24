@@ -25,13 +25,16 @@ const VIEWS: { value: DashStockView; label: string; sub: string }[] = [
 /** Liệt kê từng ngày khi ít; nhiều ngày thì gộp thành khoảng — danh sách dài hơn cả biểu đồ. */
 const MAX_PENDING_LISTED = 3;
 
-function pendingNote(pending: DashStockSeries["pending"]): string {
-  if (pending.length <= MAX_PENDING_LISTED) {
-    return `Chưa vẽ ${pending.map((p) => dmy(p.as_of)).join(", ")} vì đang nhập dở `
-      + `(mới ${pending.map((p) => p.units_counted).join(", ")} đơn vị).`;
-  }
-  return `Chưa vẽ ${pending.length} ngày cuối (${dmy(pending[0].as_of)} → `
-    + `${dmy(pending[pending.length - 1].as_of)}) vì chưa đủ đơn vị nhập.`;
+function pendingNote(pending: DashStockSeries["pending"], isUnit: boolean): string {
+  const few = pending.length <= MAX_PENDING_LISTED;
+  const days = few
+    ? pending.map((p) => dmy(p.as_of)).join(", ")
+    : `${pending.length} ngày cuối (${dmy(pending[0].as_of)} → ${dmy(pending[pending.length - 1].as_of)})`;
+  // Một đơn vị thì chỉ có "đã khai" hoặc "chưa khai" — không có chuyện "nhập dở, mới 0 đơn vị".
+  if (isUnit) return `Đơn vị chưa khai tồn kho ${days}.`;
+  return few
+    ? `Chưa vẽ ${days} vì đang nhập dở (mới ${pending.map((p) => p.units_counted).join(", ")} đơn vị).`
+    : `Chưa vẽ ${days} vì chưa đủ đơn vị nhập.`;
 }
 
 type Props = {
@@ -59,8 +62,10 @@ function SeriesBody({ d }: { d: DashStockSeries }) {
       <p className="ud-note">
         {dmy(d.date_from)} → {dmy(d.date_to)}. Mỗi ngày là số thời điểm (không cộng dồn); đơn vị chưa
         khai ngày nào thì ngày đó không có số của đơn vị đó.
-        {!isUnit && ` Chuỗi bắt đầu từ ${dmy(d.start_floor)} — trước đó chưa đủ đơn vị nhập để cộng.`}
-        {d.pending.length > 0 && ` ${pendingNote(d.pending)}`}
+        {/* Chỉ nói về mốc khi chuỗi THẬT SỰ bị kẹp ở mốc đó (kỳ xem bắt đầu trước mốc). */}
+        {d.start_floor && d.date_from === d.start_floor
+          && ` Chuỗi bắt đầu từ ${dmy(d.start_floor)} — trước đó chưa đủ đơn vị nhập để cộng.`}
+        {d.pending.length > 0 && ` ${pendingNote(d.pending, isUnit)}`}
       </p>
     </>
   );

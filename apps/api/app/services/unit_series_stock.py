@@ -148,7 +148,9 @@ def stock_series(date_from: str, date_to: str, group_by: str = "warehouse",
         wh_day = wh.get(day, {})
         total = sum(sum(g.values()) for g in by_company.values())
         values: dict[str, float] = {}
-        if group_by == "warehouse":
+        if not by_company:
+            pass        # ngày không đơn vị nào có số → KHÔNG có cột nào, chứ không phải cột 0 tấn
+        elif group_by == "warehouse":
             done = sum(q for c, q in wh_day.items() if c in by_company)
             values = {"warehoused": done, "not_warehoused": total - done}
         elif group_by == "structure":
