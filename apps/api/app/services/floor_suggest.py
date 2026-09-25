@@ -9,6 +9,8 @@ Mức đề xuất NEO theo lần ban hành trước: giá sàn lần đó + m�
 """
 from __future__ import annotations
 
+from bisect import bisect_right
+from operator import itemgetter
 import sys
 from typing import Any
 
@@ -58,14 +60,11 @@ def _point(series: list[tuple[str, float]], d: str) -> tuple[str, float] | None:
     """(ngày, giá trị) của điểm gần nhất <= ngày d (series đã sort tăng theo ngày).
 
     Trả kèm ngày để nơi hiển thị nói được "OSE số ngày 18/09" khi sàn nghỉ nhiều phiên.
+    Tìm NHỊ PHÂN: bản dò tuần tự bị gọi ~466.000 lần mỗi lượt gợi ý (backtest 14 chủng loại) và
+    chiếm ~80% thời gian — prod 25/09/2026 (CPU QEMU) mất 11 giây một lượt.
     """
-    best = None
-    for dd, v in series:
-        if dd <= d:
-            best = (dd, v)
-        else:
-            break
-    return best
+    i = bisect_right(series, d, key=itemgetter(0))
+    return series[i - 1] if i else None
 
 
 def _at(series: list[tuple[str, float]], d: str) -> float | None:
