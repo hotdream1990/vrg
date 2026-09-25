@@ -43,7 +43,8 @@ def context_block(prop: dict, advice: str) -> str:
     lines = _lines(prop, {"advice": advice})
     return ("PHƯƠNG ÁN GIÁ SÀN NHÁP ĐANG MỞ TRONG PHIÊN (ngày " + dmy(prop["as_of"])
             + (f", so với lần ban hành {dmy(prop['prev_as_of'])}" if prop.get("prev_as_of") else "")
-            + "; chưa lưu, KHÔNG phải giá chính thức):\n- " + "\n- ".join(lines))
+            + "; chưa lưu, KHÔNG phải giá chính thức). Bạn KHÔNG tự sửa được bảng này — mọi thay đổi "
+            "(kể cả hoàn tác) PHẢI qua adjust_floor_proposal:\n- " + "\n- ".join(lines))
 
 
 def _create(args: dict, ctx: dict) -> dict:
@@ -84,8 +85,8 @@ def _adjust(args: dict, ctx: dict) -> dict:
         return _fail("Cần ít nhất một thay đổi (changes).")
     if ctx.get("advice") == "data" and any(isinstance(c, dict) and c.get("op") == "reset_model"
                                            for c in changes):
-        return _fail("Chế độ 'Chỉ tra số' không dùng mức mô hình. Mời người dùng chuyển mức tư vấn "
-                   "hoặc tự đặt số.")
+        return _fail("Chế độ 'Chỉ tra số' không dùng mức mô hình. Mời người dùng chuyển sang mức 'Theo "
+                     "mô hình' hoặc 'Có điều chỉnh' ở đầu màn hình, hoặc tự nêu con số muốn đặt.")
     prop, created = ctx.get("proposal"), None
     try:
         if not prop:

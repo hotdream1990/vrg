@@ -66,6 +66,25 @@ def _item_line(it: dict) -> str:
             f"{_ACTION.get(it.get('action'), it.get('action'))}" + (f" · độ tin cậy {conf}" if conf else ""))
 
 
+def _reason(it: dict) -> str | None:
+    """Lý do NÂNG/GIỮ/HẠ đúng như mô hình quyết định (ngưỡng giữ nguyên = sai số TB backtest).
+
+    Đo prod 25/09/2026: không có câu này, LLM viết "tồn kho tăng nên mô hình chọn GIỮ" — sai nhân quả
+    (mô hình GIỮ vì chênh +15 nhỏ hơn ngưỡng; tồn kho chỉ là tham chiếu, không đổi hành động).
+    """
+    d, band = it.get("delta"), it.get("band")
+    if d is None or band is None:
+        return None
+    unit = _UNIT_SHORT.get(it.get("unit"), it.get("unit") or "")
+    chg = "không đổi" if d == 0 else f"chênh {'+' if d > 0 else '−'}{_vn_int(abs(d))} {unit}"
+    if it.get("action") == "hold":
+        return (f"GIỮ vì mức mô hình {chg} so với giá hiện hành, không vượt ngưỡng giữ nguyên "
+                f"{_vn_int(band)} {unit} (sai số trung bình của mô hình khi kiểm tra lại lịch sử)")
+    act = _ACTION.get(it.get("action"), it.get("action"))
+    return (f"{act} vì mức mô hình {chg} so với giá hiện hành, vượt ngưỡng giữ nguyên "
+            f"{_vn_int(band)} {unit}")
+
+
 def _driver_rows(drivers: list[dict], as_of: str) -> list[dict]:
     """Biến động từng chỉ số kèm NGÀY CỦA SỐ — sàn nghỉ nhiều phiên thì số không phải của ngày hỏi."""
     rank = {name: i for i, name in enumerate(_DRIVER_RANK)}
@@ -174,7 +193,8 @@ def _suggest_floor(args: dict) -> dict:
             "nguong_giu_nguyen": it.get("band"),
             "do_tin_cay": _CONFIDENCE.get(it.get("confidence"), it.get("confidence")),
             "canh_bao": [_CAUTION[c] for c in it.get("cautions", [])],
-            "tom_tat": _item_line(it) if it.get("prev") is not None else None}
+            "tom_tat": _item_line(it) if it.get("prev") is not None else None,
+            "ly_do": _reason(it)}
            for it in picked if it.get("suggested") is not None]
     if not out:
         return err(f"Chưa đủ dữ liệu để gợi ý giá sàn tại ngày {dmy(as_of)}.")

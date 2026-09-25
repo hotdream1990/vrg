@@ -15,6 +15,7 @@ import time
 from typing import Any
 
 from app.core import edit_window
+from app.services import assistant_claim_guard as claim_guard
 from app.services import assistant_tools, config_repo, floor_proposal, llm
 from app.services.assistant_tools import proposal_tools
 
@@ -105,7 +106,9 @@ _ADVICE_RULES = {
         "MỨC TƯ VẤN = THEO MÔ HÌNH. Khi được hỏi về điều chỉnh giá sàn, gọi suggest_floor_adjustment "
         "và trình bày ĐÚNG mức đề xuất và ĐÚNG hành động (NÂNG/GIỮ/HẠ) của mô hình cho từng chủng loại "
         "— KHÔNG tự cộng/trừ ra một mức khác, KHÔNG tự đưa ra kết luận khác mô hình (kiểu 'giữ nhưng "
-        "nghiêng hạ'). Bạn giải thích vì sao mô hình đề xuất như vậy dựa trên các chỉ số dẫn hướng, nêu "
+        "nghiêng hạ'). Lý do của hành động là trường ly_do của dòng đó (GIỮ = mức chênh nhỏ hơn ngưỡng giữ "
+        "nguyên) — chép đúng lý do đó; tồn kho và bối cảnh chỉ là ghi chú tham khảo, KHÔNG viết như thể "
+        "chúng khiến mô hình chọn hành động. Bạn giải thích vì sao mô hình đề xuất như vậy dựa trên các chỉ số dẫn hướng, nêu "
         "độ tin cậy và canh_bao nếu có, và nêu những yếu tố bối cảnh đáng lưu ý (tồn kho, tiêu thụ; với "
         "SVR 3L nội địa: vị trí so với vùng giá tư nhân qua get_private_price_benchmark) như GHI CHÚ tham "
         "khảo, không đổi con số."
@@ -302,15 +305,31 @@ def chat(messages: list[dict[str, str]], caps: dict[str, str] | None = None,
     artifacts: list[dict] = []
     sources: list[str] = []
     used: list[str] = []
+    question = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
+    retried = False
 
+    force = False   # lượt làm lại của hàng rào: chỉ 2 công cụ phương án, bắt buộc gọi
     for _ in range(MAX_ITERS):
         resp = client.chat.completions.create(
-            model=model, messages=convo, tools=tools, tool_choice="auto",
+            model=model, messages=convo,
+            tools=[t for t in tools if t["function"]["name"] in claim_guard.PROPOSAL_TOOLS] if force else tools,
+            tool_choice="required" if force else "auto",
             max_completion_tokens=1500,
         )
+        force = False
         msg = resp.choices[0].message
         if not msg.tool_calls:
             answer = (msg.content or "").strip()
+            # Nói "đã chỉnh bản nháp" mà lượt này không có thay đổi thật ⇒ bắt làm lại một lần, vẫn sai
+            # thì đính chính — xem assistant_claim_guard.
+            if not retried and claim_guard.needs_retry(question, answer, ctx["changed"]):
+                retried = force = True
+                logger.info("Trợ lý chưa chỉnh phương án dù được yêu cầu / báo sai — bắt gọi công cụ")
+                convo.append({"role": "assistant", "content": answer})
+                convo.append({"role": "system", "content": claim_guard.RETRY_MESSAGE})
+                continue
+            if claim_guard.false_claim(question, answer, ctx["changed"]):
+                answer += claim_guard.CORRECTION
             _log_turn(session_id, username, messages, answer, used, _dedup(sources),
                       scope, advice, model, started)
             return {"answer": answer, "artifacts": artifacts, "sources": _dedup(sources),
