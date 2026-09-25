@@ -32,11 +32,21 @@ _EXPLICIT = re.compile(
 PROPOSAL_TOOLS = ("create_floor_proposal", "adjust_floor_proposal")
 _SENTENCE = re.compile(r"[^.!?\n]+")
 
-RETRY_MESSAGE = (
-    "KIỂM TRA TỰ ĐỘNG: câu trả lời vừa rồi nói đã thay đổi phương án giá sàn nháp nhưng trong lượt "
-    "này CHƯA có công cụ create_floor_proposal/adjust_floor_proposal nào chạy thành công — số trên "
-    "bảng CHƯA đổi. Gọi ĐÚNG công cụ ngay bây giờ để làm đúng yêu cầu của người dùng (hoàn tác = "
-    "adjust_floor_proposal op undo), rồi trả lời lại theo kết quả công cụ.")
+def retry_message(question: str) -> str:
+    """Lời nhắc ở lượt làm lại — nêu đúng yêu cầu của người dùng và cách làm từng loại.
+
+    Đo prod 0.4.89: bản cũ chỉ lấy ví dụ "hoàn tác = undo" nên với câu "đưa luôn vào bảng" LLM bị ép
+    gọi công cụ đã chọn nhầm undo, rồi trả lời "chưa có gì để hoàn tác" và mất luôn phần phân tích.
+    """
+    return (
+        "KIỂM TRA TỰ ĐỘNG: trong lượt này CHƯA có công cụ create_floor_proposal/adjust_floor_proposal "
+        f"nào chạy thành công — bảng phương án CHƯA đổi. Yêu cầu của người dùng: «{question[:300]}». "
+        "Gọi ĐÚNG một công cụ để làm đúng yêu cầu đó: đưa mức bạn vừa đề xuất vào bảng = "
+        "adjust_floor_proposal op set đúng mức đề xuất cho chủng loại đó (chưa có phương án thì công "
+        "cụ tự lập; mức đề xuất trùng mức mô hình thì create_floor_proposal base model); lập phương án "
+        "= create_floor_proposal; tăng/giảm/đặt = adjust_floor_proposal op step/percent/amount/set; "
+        "CHỈ dùng op undo khi người dùng xin hoàn tác/bỏ lần vừa rồi. Sau đó trả lời lại ĐẦY ĐỦ: giữ "
+        "nguyên phần phân tích/số liệu của câu trả lời trước nếu vẫn đúng, cộng kết quả công cụ.")
 
 CORRECTION = ("\n\n_Lưu ý: phương án nháp **chưa thay đổi** trong lượt này. Anh/chị nhắn lại yêu cầu "
               "hoặc sửa trực tiếp trên bảng phương án._")

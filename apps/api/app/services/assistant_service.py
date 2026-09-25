@@ -326,7 +326,7 @@ def chat(messages: list[dict[str, str]], caps: dict[str, str] | None = None,
                 retried = force = True
                 logger.info("Trợ lý chưa chỉnh phương án dù được yêu cầu / báo sai — bắt gọi công cụ")
                 convo.append({"role": "assistant", "content": answer})
-                convo.append({"role": "system", "content": claim_guard.RETRY_MESSAGE})
+                convo.append({"role": "system", "content": claim_guard.retry_message(question)})
                 continue
             if claim_guard.false_claim(question, answer, ctx["changed"]):
                 answer += claim_guard.CORRECTION
