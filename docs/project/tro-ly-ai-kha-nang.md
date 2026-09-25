@@ -319,3 +319,17 @@ trình → lưu bản nháp, sửa tay và lưu lại. **Không** đụng biểu
 - **Bản nháp tờ trình** (`floor_draft`, quyền `floor_suggest`): lưu phương án + **ảnh chụp** khối 1–2
   (số thị trường, lần thứ) lúc tạo; sửa được số + đoạn diễn giải + tiêu đề/ghi chú; ngày tờ trình cố định.
   Diễn giải sửa tay được escape khi in HTML. Tạo từ chat, từ màn Gợi ý giá sàn, hoặc tạo mới.
+
+## Cập nhật 25/09/2026 (0.4.89) — kiểm thử trên prod + hàng rào "nói mà không làm"
+- **Kiểm trên prod 0.4.88 (LLM thật, số thật):** tư vấn giá sàn, tăng/giảm/đặt/chặn ở mức Chỉ tra số, bản
+  nháp (tạo · sửa · in · chống lưu đè · xoá) đều đúng; nhưng 2/8 lượt Trợ lý báo "đã hoàn tác" / "đã đưa
+  vào bảng" mà không gọi công cụ.
+- **Hàng rào** `assistant_claim_guard`: câu trả lời khẳng định đã chỉnh (hoặc yêu cầu rõ ràng: hoàn tác,
+  bỏ lần, đưa vào bảng, lập phương án, tăng/giảm "tí/chút") mà lượt đó không có công cụ phương án chạy
+  thành công ⇒ gạt câu trả lời, gọi lại LLM với CHỈ 2 công cụ phương án + `tool_choice=required`; vẫn sai
+  ⇒ nối lời đính chính. Khối phương án trong prompt ghi rõ "mọi thay đổi PHẢI qua adjust_floor_proposal".
+  Đo lại LLM thật: hoàn tác 4/4 (trước 1/4 ở lượt đầu), đưa vào bảng 4/4, câu tư vấn thường không bị ép.
+- `suggest_floor_adjustment` mỗi dòng có `ly_do` (NÂNG/GIỮ/HẠ so với ngưỡng giữ nguyên) — LLM từng viết
+  "tồn kho tăng nên mô hình chọn GIỮ".
+- **Tốc độ:** `floor_suggest._point` dò tuần tự → tìm nhị phân (gọi ~466.000 lần/lượt): 2,06 s → 0,39 s
+  (dev), kết quả byte-by-byte y hệt; prod CPU QEMU trước đó 11 s/lượt.

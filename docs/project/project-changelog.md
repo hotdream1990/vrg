@@ -4,6 +4,12 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Trợ lý AI chắc hơn khi chỉnh phương án nháp + nhanh hơn** (25/09/2026, 0.4.89).
+  - Trợ lý không còn được báo "đã hoàn tác / đã đưa vào bảng" khi thực ra chưa làm: hệ thống tự kiểm
+    và bắt làm lại; vẫn không làm được thì câu trả lời ghi rõ "phương án chưa thay đổi".
+  - Giải thích NÂNG/GIỮ/HẠ đúng lý do của mô hình (so với ngưỡng giữ nguyên), không gán cho tồn kho.
+  - Tính gợi ý giá sàn nhanh hơn ~5 lần (kết quả giữ nguyên từng số) — màn Gợi ý giá sàn, tờ trình và
+    Trợ lý đều nhanh hơn.
 - **Phương án giá sàn nháp trong Trợ lý AI + Bản nháp tờ trình** (25/09/2026).
   - Trong khung chat, bảo Trợ lý "tăng SVR 10 lên tí xíu", "giảm nhóm RSS 1%", "đặt giá nội địa SVR 3L
     63.500.000", "bỏ lần vừa rồi"… → số đổi trên **bảng phương án** cạnh khung chat, sửa tay tiếp được.
