@@ -13,16 +13,12 @@ import CustomerPicker from "../sections/CustomerPicker";
 import { MultiSelect } from "./analytics/AnalyticsFilters";
 import DateInput from "../sections/DateInput";
 import ConsumptionByCustomer from "./components/ConsumptionByCustomer";
+import ConsumptionCompanyTable from "./components/ConsumptionCompanyTable";
 import ConsumptionDeliveryHistory from "./components/ConsumptionDeliveryHistory";
+import ConsumptionKpiRow from "./components/ConsumptionKpiRow";
+import ConsumptionMasterProgress from "./components/ConsumptionMasterProgress";
+import { reportCompanies, sumBacklog, sumConsumption } from "./components/consumption-report-totals";
 import "../../bulletin/bulletin.css";
-
-const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
-/** Cột "SL chưa quy khô": chỉ chủng loại còn nước (latex · mủ nguyên liệu · mủ dây) mới có;
-    0 = hàng khô → hiện "—" chứ không hiện "0" (số 0 bị đọc thành "bán 0 tấn", trong khi thật ra
-    chủng loại đó không có khái niệm quy khô). */
-const wet = (n: number) => (n ? t3(n) : "—");
-const ty = (n: number | null) =>
-  (n == null ? "—" : (n / 1_000_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
 
 const today = () => new Date().toISOString().slice(0, 10);
 const monthStart = () => `${new Date().toISOString().slice(0, 7)}-01`;
@@ -55,33 +51,9 @@ export default function ConsumptionReportPage() {
   useEffect(() => { fetchContractMeta().then(setMeta).catch((e) => setErr(e.message)); }, []);
   useEffect(() => { load(); }, [load]);
 
-  const rows = rep?.by_company ?? {};
-  const undelivered = rep?.undelivered ?? {};
-  const companies = useMemo(
-    () => Array.from(new Set([...Object.keys(rows), ...Object.keys(undelivered)])).sort(),
-    [rows, undelivered]);
-
-  const totals = useMemo(() => {
-    const acc = {
-      qty: 0, qty_wet: 0, revenue: 0 as number | null, deliveries: 0, remaining: 0,
-      // Hình thức tiêu thụ chỉ có ở dòng từng đơn vị — không cộng thì cả bảng thiếu tổng XK /
-      // trong nước / nội bộ, đúng 3 con số hay bị hỏi nhất.
-      channels: { export: 0, domestic: 0, internal: 0 } as Record<string, number>,
-    };
-    for (const c of companies) {
-      const r = rows[c];
-      if (r) {
-        acc.qty += r.qty; acc.qty_wet += r.qty_wet; acc.deliveries += r.deliveries;
-        for (const k of Object.keys(acc.channels)) acc.channels[k] += r.by_channel?.[k] ?? 0;
-        if (r.revenue == null) acc.revenue = null;
-        else if (acc.revenue != null) acc.revenue += r.revenue;
-      }
-      acc.remaining += undelivered[c]?.qty ?? 0;
-    }
-    return acc;
-  }, [companies, rows, undelivered]);
-
-  const ch = (c: string, k: string) => rows[c]?.by_channel?.[k] ?? 0;
+  const companies = useMemo(() => reportCompanies(rep), [rep]);
+  const totals = useMemo(() => sumConsumption(rep, companies), [rep, companies]);
+  const backlog = useMemo(() => sumBacklog(rep?.backlog), [rep]);
 
   const exportXlsx = async () => {
     setBusy(true); setErr("");
@@ -98,8 +70,9 @@ export default function ConsumptionReportPage() {
           <p>
             Tổng hợp từ <b>các lần giao</b> ghi trên hợp đồng &amp; đợt giao — đơn vị không nhập tay
             số tiêu thụ nữa. Sản lượng tính theo <b>quy khô</b>: latex, mủ nguyên liệu và mủ dây
-            lấy số quy khô, chủng loại chưa khai quy khô thì giữ nguyên số đang có. Cột <b>Chưa giao</b> lấy
-            tại ngày cuối kỳ. Nút <b>Xuất Excel</b> cho ra 2 sheet: tổng hợp theo đơn vị và{" "}
+            lấy số quy khô, chủng loại chưa khai quy khô thì giữ nguyên số đang có. Phần phải giao lấy
+            tại ngày cuối kỳ; <b>Tổng phải giao</b> tính phần dài hạn theo <b>cam kết HĐ mẹ</b> (gồm cả phần
+            chưa ký phụ lục) nên khác số “Đã ký HĐ chưa giao” ở biểu Tồn kho. Nút <b>Xuất Excel</b> cho ra 2 sheet: tổng hợp theo đơn vị và{" "}
             <b>chi tiết từng dòng bán</b> (đã bật sẵn bộ lọc để soát/pivot trong Excel).
           </p>
         </div>
@@ -139,68 +112,12 @@ export default function ConsumptionReportPage() {
 
       {err && <div className="blt-error">{err}</div>}
 
-      <div className="kpi-row">
-        <div className="kpi"><div className="label">Sản lượng tiêu thụ (tấn quy khô)</div><div className="value">{t3(totals.qty)}</div></div>
-        <div className="kpi"><div className="label">Trong đó: SL chưa quy khô (tấn)</div><div className="value">{wet(totals.qty_wet)}</div></div>
-        <div className="kpi"><div className="label">Doanh thu (tỷ đồng)</div><div className="value">{ty(totals.revenue)}</div></div>
-        <div className="kpi"><div className="label">Số lần giao</div><div className="value">{totals.deliveries}</div></div>
-        <div className="kpi"><div className="label">Đã ký chưa giao (tấn quy khô)</div><div className="value">{t3(totals.remaining)}</div></div>
-      </div>
+      <ConsumptionKpiRow totals={totals} backlog={backlog} />
 
-      <div className="card table-scroll" style={{ padding: 0 }}>
-        <table>
-          <thead><tr>
-            <th>Đơn vị</th><th className="r">Lần giao</th><th className="r">Quy khô (tấn)</th>
-            {/* Số chưa quy khô để đối chiếu số cân thực tế — chỉ chủng loại còn nước mới có. */}
-            <th className="r">SL chưa quy khô (tấn)</th>
-            <th className="r">{meta?.channels.export ?? "Xuất khẩu"}</th>
-            <th className="r">{meta?.channels.domestic ?? "Trong nước"}</th>
-            <th className="r">{meta?.channels.internal ?? "Nội bộ"}</th>
-            <th className="r">Doanh thu (tỷ đ)</th>
-            <th className="r">Chưa giao (tấn quy khô)</th>
-          </tr></thead>
-          <tbody>
-            {companies.map((c) => (
-              <tr key={c}>
-                <td style={{ fontWeight: 500 }}>{c}</td>
-                <td className="r">{rows[c]?.deliveries ?? 0}</td>
-                <td className="r">{t3(rows[c]?.qty ?? 0)}</td>
-                <td className="r">{wet(rows[c]?.qty_wet ?? 0)}</td>
-                <td className="r">{t3(ch(c, "export"))}</td>
-                <td className="r">{t3(ch(c, "domestic"))}</td>
-                <td className="r">{t3(ch(c, "internal"))}</td>
-                <td className="r">{ty(rows[c]?.revenue ?? null)}</td>
-                <td className="r">{t3(undelivered[c]?.qty ?? 0)}</td>
-              </tr>
-            ))}
-            {companies.length === 0 && !loading && (
-              <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
-                Chưa có lần giao nào trong kỳ — nới rộng khoảng ngày hoặc bỏ bớt bộ lọc.
-              </td></tr>
-            )}
-          </tbody>
-          {companies.length > 0 && (
-            <tfoot>
-              <tr style={{ fontWeight: 600 }}>
-                <td>
-                  Lũy kế cả kỳ
-                  <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: 12 }}>
-                    {" "}· {companies.length} đơn vị
-                  </span>
-                </td>
-                <td className="r">{totals.deliveries.toLocaleString("vi-VN")}</td>
-                <td className="r">{t3(totals.qty)}</td>
-                <td className="r">{wet(totals.qty_wet)}</td>
-                <td className="r">{t3(totals.channels.export)}</td>
-                <td className="r">{t3(totals.channels.domestic)}</td>
-                <td className="r">{t3(totals.channels.internal)}</td>
-                <td className="r">{ty(totals.revenue)}</td>
-                <td className="r">{t3(totals.remaining)}</td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
+      <ConsumptionCompanyTable rep={rep} meta={meta} companies={companies} totals={totals}
+        backlog={backlog} loading={loading} />
+
+      {rep && <ConsumptionMasterProgress rep={rep} totals={backlog} />}
 
       {rep && <ConsumptionByCustomer rep={rep} />}
 

@@ -78,6 +78,47 @@
 .ud-stat-value small { font-size: 11px; font-weight: 500; color: var(--muted); }
 .ud-stat-sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
 
+/* ── Tiến độ bán hàng năm (card OutlookCard) ─────────────────────────────── */
+.ud-ol-lead { margin-top: 0; }
+/* Dòng phương trình: ô + [nhóm "phải giao" đóng khung] = ô tổng — mọi ô rộng bằng nhau. */
+.ud-eq { display: flex; align-items: stretch; gap: 8px; margin-bottom: 14px; }
+.ud-eq > .ud-eq-tile, .ud-eq-group-body > .ud-eq-tile { flex: 1 1 0; }
+.ud-eq-tile { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.ud-eq-op { flex: none; align-self: center; color: var(--muted); font-weight: 600; }
+.ud-eq-op-lg { font-size: 20px; line-height: 1; }
+.ud-eq-group { flex: 2 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px;
+  padding: 6px 8px 8px; border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 4%, transparent); }
+.ud-eq-group-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  font-size: 12px; color: var(--muted); padding: 0 2px; }
+.ud-eq-group-head b { color: var(--text); font-variant-numeric: tabular-nums; }
+.ud-eq-group-body { flex: 1; display: flex; align-items: stretch; gap: 8px; }
+
+/* 3 khối: HĐ mẹ · so KH bán hàng · doanh thu dự kiến. */
+.ud-ol-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.ud-ol-panel { min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 12px;
+  border: 1px solid var(--line); border-radius: 10px; }
+.ud-ol-panel .ud-target-head { margin-bottom: 0; }
+.ud-ol-figure { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ud-ol-figure b { font-size: 15px; color: var(--text); }
+
+/* Phương trình nhỏ trong khối: "KH khai thác + KH thu mua = KH bán hàng". */
+.ud-mini-eq { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 11.5px;
+  color: var(--muted); padding-top: 6px; border-top: 1px dashed var(--line); }
+.ud-mini-eq-lead { font-weight: 600; }
+.ud-mini-eq-term { display: inline-flex; flex-direction: column; line-height: 1.3; }
+.ud-mini-eq-term b { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; }
+.ud-mini-eq-term.is-total b { color: var(--accent-2); }
+.ud-mini-eq-unit { align-self: flex-end; }
+
+/* Bảng theo khu vực / đơn vị: 3 nhóm cột, vạch dọc ngăn nhóm, thanh mini hẹp hơn cho vừa 1 màn. */
+.ud-ol-table .ud-th-group { text-align: center; border-bottom: 1px solid var(--line); }
+.ud-ol-table .ud-col-start { border-left: 1px solid var(--line); }
+.ud-ol-table .ud-mini-bar { width: 44px; }
+.ud-cell-sub { color: var(--muted); font-size: 11px; }
+.ud-badge-gap { margin-left: 6px; }
+
 @media (max-width: 1380px) {
   .kpi-row.ud-kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
@@ -92,4 +133,7 @@
   .ud-filter > * { max-width: 100%; }
   /* Hàng nút kỳ dài hơn màn điện thoại → cuộn ngang TRONG chính nó, không kéo cả trang. */
   .ud-filter .ant-segmented { overflow-x: auto; scrollbar-width: none; }
+  /* Phương trình sản lượng xếp dọc: mỗi ô một hàng, dấu +/= nằm giữa. */
+  .ud-eq, .ud-eq-group-body { flex-direction: column; }
+  .ud-eq-op-lg { font-size: 16px; }
 }

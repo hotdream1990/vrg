@@ -4,6 +4,7 @@
    Số `null` = CHƯA CÓ SỐ (không phải 0) — web hiện "—", biểu đồ để trống chứ không vẽ 0. */
 
 import { apiFetch } from "./http";
+import type { BacklogItem } from "./sales-contract-client";
 import type { StockGroupBy, StockSeries } from "./series-client";
 import type { StockCoverage } from "./unit-analytics-client";
 
@@ -62,10 +63,14 @@ export type ConsumptionBlock = {
     lines: Num; days: Num;
     /** Lần giao chưa tính được doanh thu (thiếu tỷ giá hoặc đơn giá) — doanh thu đang thiếu phần đó. */
     no_revenue_lines: number;
+    /** Dòng bán có đơn giá quy đổi vượt trần = nghi nhập sai đơn vị tính → doanh thu bị ĐỘI lên.
+     *  Vắng = API cũ. */
+    bad_price_lines?: number;
   };
   trend: (ConsumptionQtys & { as_of: string; revenue_ty: Num })[];
   by_grade: { grade: string; qty: Num; revenue_ty: Num; avg_price_trieu: Num }[];
-  breakdown: { label: string; qty: Num; revenue_ty: Num; avg_price_trieu: Num }[];
+  breakdown: { label: string; qty: Num; revenue_ty: Num; avg_price_trieu: Num;
+               bad_price_lines?: number }[];
   warnings: string[];
 };
 
@@ -99,11 +104,58 @@ export type TargetsBlock = {
   date_from: string; date_to: string;
   /** % thời gian đã qua của năm tại `date_to` — mốc so tiến độ. */
   time_pct: number;
-  /** done/plan/pct tính trên rổ `units_planned` đơn vị ĐƯỢC GIAO chỉ tiêu đó. */
+  /** done/plan/pct tính trên rổ `units_planned` đơn vị ĐƯỢC GIAO chỉ tiêu đó. `scope_done` = số
+   *  thực hiện của CẢ phạm vi (gồm đơn vị chưa giao KH) — cùng gốc với thẻ KPI; vắng = API cũ. */
   items: { key: TargetKey; label: string; unit: string;
-           done: Num; plan: Num; pct: Num; units_planned: number; note: string }[];
+           done: Num; plan: Num; pct: Num; units_planned: number; note: string;
+           scope_done?: Num }[];
   breakdown: { label: string; purchase_pct: Num; sales_spot_pct: Num; revenue_pct: Num }[];
   warnings: string[];
+};
+
+/* ── Tiến độ bán hàng cả năm (plans/260926-hd-dai-han-phai-giao/api-contract.md mục 4) ──────────
+   Sản lượng: TẤN (gốc quy khô như tiêu thụ) · doanh thu: TỶ ĐỒNG. Số "cả phạm vi" và số của RỔ (đơn
+   vị có KH) là hai gốc khác nhau. Khoá con để Partial: API viết song song, thiếu khoá thì hiện "—". */
+
+/** HĐ dài hạn theo HĐ mẹ có cam kết — cả phạm vi. `expired_short`: cam kết CHƯA KÝ phụ lục của HĐ mẹ
+ *  đã hết hạn (KHÔNG vào phải giao) · `unlinked_undelivered`: HĐ dài hạn không có cam kết HĐ mẹ, đã ký
+ *  chưa giao · `remaining_after_year`: phần còn lại thuộc HĐ mẹ còn hiệu lực sau 31/12 / không thời hạn. */
+export type OutlookLt = { committed: Num; delivered: Num; remaining: Num; pct: Num; masters: Num;
+                          expired_short: Num; unlinked_undelivered: Num; remaining_after_year: Num };
+
+/** Còn phải giao đến cuối năm — cả phạm vi. to_deliver = spot + lt_remaining + unknown. */
+export type OutlookBacklog = { spot_undelivered: Num; lt_remaining: Num; unknown_undelivered: Num;
+                               to_deliver: Num };
+
+/** KH bán hàng = KH khai thác + KH thu mua. delivered_ytd/projected: cả phạm vi; plan_* ·
+ *  basket_projected · pct: rổ `units_planned` đơn vị đã nhập KH khai thác. */
+export type OutlookVolume = {
+  delivered_ytd: Num; projected: Num; plan_exploit: Num; plan_purchase: Num; plan_total: Num;
+  basket_projected: Num; pct: Num; units_planned: Num; units_missing_exploit: Num; note: string;
+};
+
+/** DT dự kiến = đã thực hiện + SL còn phải giao × giá bán BQ lũy kế của chính đơn vị.
+ *  done_ytd/expected_rest/projected: cả phạm vi; plan · basket_projected · pct: rổ có KH DT. */
+export type OutlookRevenue = {
+  done_ytd: Num; expected_rest: Num; projected: Num;
+  plan: Num; basket_projected: Num; pct: Num; units_planned: Num; note: string;
+};
+
+export type OutlookBreakdownRow = {
+  label: string;
+  lt_committed: Num; lt_delivered: Num; lt_remaining: Num; lt_pct: Num;
+  spot_undelivered: Num; to_deliver: Num; delivered_ytd: Num; projected: Num;
+  plan_exploit: Num; plan_purchase: Num; plan_total: Num; qty_basket_projected?: Num; qty_pct: Num;
+  revenue_projected: Num; plan_revenue: Num; revenue_basket_projected?: Num; revenue_pct: Num;
+};
+
+/** `as_of` = min(đến ngày, hôm nay), lũy kế từ 01/01 · `breakdown` rỗng khi xem 1 đơn vị ·
+ *  `items` (từng HĐ mẹ) chỉ khi xem 1 đơn vị. */
+export type OutlookBlock = {
+  scope: ScopeInfo; year: number; as_of: string;
+  lt?: Partial<OutlookLt>; backlog?: Partial<OutlookBacklog>;
+  volume?: Partial<OutlookVolume>; revenue?: Partial<OutlookRevenue>;
+  breakdown?: OutlookBreakdownRow[]; items?: BacklogItem[]; warnings?: string[];
 };
 
 /** Tham số chung của các endpoint số liệu. `asOf` rỗng = server tự lấy min(đến ngày, hôm nay). */
@@ -139,6 +191,9 @@ export const fetchDashStock = (q: DashQuery, signal?: AbortSignal) =>
 
 export const fetchDashTargets = (q: DashQuery, signal?: AbortSignal) =>
   apiFetch<TargetsBlock>(`${BASE}/targets?${dashQueryString(q)}`, { signal });
+
+export const fetchDashOutlook = (q: DashQuery, signal?: AbortSignal) =>
+  apiFetch<OutlookBlock>(`${BASE}/outlook?${dashQueryString(q)}`, { signal });
 
 export const fetchDashStockSeries = (q: DashSeriesQuery, signal?: AbortSignal) =>
   apiFetch<DashStockSeries>(`${BASE}/stock-series?${dashQueryString(q, { view: q.view })}`, { signal });

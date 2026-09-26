@@ -1,0 +1,24 @@
+/* Khối "Hợp đồng dài hạn theo hợp đồng mẹ" của Báo cáo tiêu thụ — tiền tố `cmp-` để không đụng
+   style màn khác. Dùng lại biến màu của command-center.css (--muted --accent --line --panel-2…). */
+
+/* Không dùng `.table-scroll`: nó ghim MỌI `thead th` trong khung, kể cả tiêu đề của bảng con khi mở
+   rộng một đơn vị → hai hàng tiêu đề chồng nhau lúc cuộn. Khối này ít dòng, chỉ cần cuộn ngang. */
+.card.cmp-card { padding: 0; overflow-x: auto; }
+.cmp-caret { color: var(--muted); font-size: 10px; margin-right: 8px; }
+
+/* Ô % có thanh mini: thanh đầy ở 100%, số vẫn là số thật. */
+.cmp-pct { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.cmp-bar { display: inline-block; width: 72px; height: 6px; border-radius: 3px;
+  background: var(--line); overflow: hidden; }
+.cmp-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.cmp-pct-text { min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Bảng con: danh sách HĐ mẹ của một đơn vị, thụt vào để đọc ra là "thuộc" dòng phía trên. */
+.cmp-items-cell { padding: 4px 8px 12px 28px !important; background: var(--panel-2); }
+.cmp-items { font-size: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.cmp-items th { padding: 6px 8px; font-size: 10.5px; }
+.cmp-items td { padding: 6px 8px; }
+.cmp-items tbody tr:last-child td { border-bottom: none; }
+.cmp-expired { margin-left: 8px; padding: 1px 6px; }
+
+.cmp-note { color: var(--muted); font-size: 11.5px; margin-top: 8px; line-height: 1.5; }

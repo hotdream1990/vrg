@@ -5,7 +5,7 @@ import { dmy } from "../../../../lib/date";
 import type {
   ConsumptionBlock, PurchaseBlock, StockBlock,
 } from "../../../../lib/unit-dashboard-client";
-import { fmtPrice, fmtTon, fmtTy, withUnit } from "./dashboard-format";
+import { fmtPrice, fmtTon, fmtTy, rangeEndLabel, withUnit } from "./dashboard-format";
 import type { BlockState } from "./use-dashboard-block";
 
 type Props = {
@@ -30,7 +30,7 @@ export default function DashboardKpiRow({ purchase, consumption, stock }: Props)
   const cards: Kpi[] = [
     kpiOf("Thu mua mủ nguyên liệu", purchase, (d) => ({
       value: withUnit(fmtTon(d.totals.qty_material), "tấn"),
-      sub: `Mủ nước · chén · dây, ${dmy(d.date_from)} → ${dmy(d.date_to)}`,
+      sub: `Mủ nước · chén · dây, ${dmy(d.date_from)} → ${rangeEndLabel(d.date_to)}`,
     })),
     kpiOf("Giá mủ nước BQ", purchase, (d) => ({
       value: fmtPrice(d.totals.price_latex_avg, d.price_units.latex),
@@ -42,13 +42,18 @@ export default function DashboardKpiRow({ purchase, consumption, stock }: Props)
     })),
     kpiOf("Doanh thu", consumption, (d) => {
       const missing = d.totals.no_revenue_lines;
+      const bad = d.totals.bad_price_lines ?? 0;
+      const n = (v: number) => v.toLocaleString("vi-VN");
+      // Hai lỗi kéo số NGƯỢC chiều: nghi sai đơn vị tính → ĐỘI lên (nặng hơn, nói trước); thiếu
+      // tỷ giá / đơn giá → THẤP hơn thực tế. Có lỗi nào cũng phải nói ngay trên thẻ.
+      const sub = bad > 0
+        ? `${n(bad)} dòng bán nghi sai đơn vị tính — doanh thu đang bị đội lên`
+          + (missing > 0 ? ` · chưa gồm ${n(missing)} lần giao thiếu tỷ giá` : "")
+        : missing > 0 ? `Chưa gồm ${n(missing)} lần giao thiếu tỷ giá / đơn giá` : "";
       return {
         value: withUnit(fmtTy(d.totals.revenue_ty), "tỷ đồng"),
-        // Có lần giao chưa tính được doanh thu → số trên thẻ THẤP hơn thực tế, phải nói ngay tại đây.
-        sub: missing > 0
-          ? `Chưa gồm ${missing.toLocaleString("vi-VN")} lần giao thiếu tỷ giá / đơn giá`
-          : `Giá bán BQ ${withUnit(fmtPrice(d.totals.avg_price_trieu, PRICE_TRIEU), PRICE_TRIEU)}`,
-        warn: missing > 0,
+        sub: sub || `Giá bán BQ ${withUnit(fmtPrice(d.totals.avg_price_trieu, PRICE_TRIEU), PRICE_TRIEU)}`,
+        warn: !!sub,
       };
     }),
     kpiOf("Tồn kho thành phẩm", stock, (d) => ({

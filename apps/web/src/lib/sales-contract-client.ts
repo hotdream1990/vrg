@@ -206,6 +206,36 @@ export type ConsumptionReport = {
   by_company: Record<string, ConsumptionSummary>;
   undelivered: Record<string, UndeliveredSummary>;
   customers: Record<string, string>;
+  /** Sản lượng CÒN PHẢI GIAO theo đơn vị tại `backlog_as_of` (= ngày cuối kỳ). Vắng = API cũ. */
+  backlog?: Record<string, Backlog>;
+  backlog_as_of?: string;
+};
+
+/** 1 hợp đồng mẹ CÓ sản lượng cam kết — tiến độ giao lũy kế từ ngày ký (tấn, gốc quy khô). */
+export type BacklogItem = {
+  id: number; code: string; master_type: "long_term" | "principle"; customer_id: number | null;
+  sign_date: string | null; expiry_date: string | null;
+  committed: number; delivered: number; remaining: number; pct: number | null; expired: boolean;
+  expired_short?: number;   // HĐ mẹ hết hạn: cam kết chưa ký phụ lục — không còn phải giao
+  after_year?: boolean;     // còn hiệu lực sau 31/12 (hoặc không thời hạn)
+};
+
+/** Còn phải giao của 1 đơn vị (plans/260926-hd-dai-han-phai-giao/api-contract.md). Hợp đồng thuộc
+ *  HĐ mẹ có cam kết tính ở cấp HĐ mẹ; còn lại tính theo loại của chính nó — không đếm trùng. */
+export type Backlog = {
+  spot_undelivered: number;         // HĐ chuyến đã ký chưa giao
+  lt_unlinked_undelivered: number;  // HĐ dài hạn không thuộc HĐ mẹ có cam kết: đã ký chưa giao
+  unknown_undelivered: number;      // hợp đồng chưa khai loại
+  master_committed: number;
+  master_delivered: number;
+  master_remaining: number;         // HĐ mẹ còn hiệu lực + phụ lục đã ký chưa giao của HĐ mẹ hết hạn
+  master_expired_short: number;     // HĐ mẹ hết hạn: cam kết chưa ký phụ lục — KHÔNG vào phải giao
+  master_remaining_after_year?: number;  // phần còn lại thuộc HĐ mẹ hiệu lực sau 31/12
+  masters: number;
+  master_pct: number | null;
+  lt_remaining: number;             // = master_remaining + lt_unlinked_undelivered
+  to_deliver: number;               // = spot + lt_remaining + unknown
+  items: BacklogItem[];
 };
 
 /** Đã ký HĐ chưa giao (khối 3) tại một ngày. */

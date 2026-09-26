@@ -1,13 +1,13 @@
 /* Màn "DASHBOARD ĐƠN VỊ" — bức tranh của MỘT phạm vi (toàn Tập đoàn · một khu vực · một đơn vị thành
-   viên): thu mua · tiêu thụ · tồn kho · chỉ tiêu năm, chia theo loại mủ / chủng loại / loại hợp đồng /
-   hình thức tiêu thụ / đã-chưa nhập kho.
+   viên): thu mua · tiêu thụ · tồn kho · chỉ tiêu năm · tiến độ bán hàng cả năm, chia theo loại mủ /
+   chủng loại / loại hợp đồng / hình thức tiêu thụ / đã-chưa nhập kho.
 
    Khác màn "Chỉ số đơn vị" (bảng SO SÁNH nhiều đơn vị): ở đây là KPI + biểu đồ của một phạm vi.
    Số liệu lấy nguyên từ server (cùng luật với các báo cáo tổng hợp) — web KHÔNG tự cộng lại.
 
-   5 khối tải SONG SONG và độc lập (thu mua · tiêu thụ · tồn kho · chỉ tiêu · diễn biến tồn kho):
-   khối nào chậm/lỗi chỉ ảnh hưởng ô của nó. Đổi phạm vi/kỳ → tải lại cả 5; đổi cách xem diễn biến
-   tồn kho → chỉ tải lại khối đó. */
+   6 khối tải SONG SONG và độc lập (thu mua · tiêu thụ · tồn kho · chỉ tiêu · tiến độ bán hàng ·
+   diễn biến tồn kho): khối nào chậm/lỗi chỉ ảnh hưởng ô của nó. Đổi phạm vi/kỳ → tải lại cả 6; đổi
+   cách xem diễn biến tồn kho → chỉ tải lại khối đó. */
 
 import { FundProjectionScreenOutlined } from "@ant-design/icons";
 import { Alert } from "antd";
@@ -15,13 +15,14 @@ import { useEffect, useMemo, useState } from "react";
 
 import { dmy } from "../../../../lib/date";
 import {
-  type DashStockView, type ScopeCatalog, fetchDashConsumption, fetchDashPurchase, fetchDashScopes,
-  fetchDashStock, fetchDashStockSeries, fetchDashTargets,
+  type DashStockView, type ScopeCatalog, fetchDashConsumption, fetchDashOutlook, fetchDashPurchase,
+  fetchDashScopes, fetchDashStock, fetchDashStockSeries, fetchDashTargets,
 } from "../../../../lib/unit-dashboard-client";
 import ConsumptionSection from "./ConsumptionSection";
 import DashboardFilterBar from "./DashboardFilterBar";
 import DashboardKpiRow from "./DashboardKpiRow";
 import { type DashFilters, initialDashFilters, localScopeLabel, toQuery } from "./dashboard-filters";
+import OutlookCard from "./OutlookCard";
 import PurchaseSection from "./PurchaseSection";
 import StockSection from "./StockSection";
 import StockSeriesCard from "./StockSeriesCard";
@@ -47,7 +48,7 @@ export default function UnitDashboardPage() {
   // Tham số gọi API phải ỔN ĐỊNH theo giá trị — hook tải lại mỗi khi tham chiếu đổi.
   // Đổi riêng nút preset (vd sang "Tự chọn") mà ngày không đổi thì KHÔNG tải lại.
   // Ngày chốt tồn kho CHỈ vào tham số của khối tồn kho: server không dùng nó ở khối khác, gắn chung
-  // thì bấm "Xem ngày …" là xoá trắng và tính lại cả 4 khối kia.
+  // thì bấm "Xem ngày …" là xoá trắng và tính lại cả 5 khối kia.
   const { scope, key, from, to, asOf } = filters ?? {};
   const query = useMemo(() => toQuery({ scope, key, from, to, asOf: "" }), [scope, key, from, to]);
   const stockQuery = useMemo(() => (query ? { ...query, asOf: asOf ?? "" } : null), [query, asOf]);
@@ -57,9 +58,10 @@ export default function UnitDashboardPage() {
   const consumption = useDashboardBlock(fetchDashConsumption, query, tick);
   const stock = useDashboardBlock(fetchDashStock, stockQuery, tick);
   const targets = useDashboardBlock(fetchDashTargets, query, tick);
+  const outlook = useDashboardBlock(fetchDashOutlook, query, tick);
   const series = useDashboardBlock(fetchDashStockSeries, seriesQuery, tick);
 
-  const loading = [purchase, consumption, stock, targets, series].some((b) => b.loading);
+  const loading = [purchase, consumption, stock, targets, outlook, series].some((b) => b.loading);
   const scopeLabel = purchase.data?.scope.label ?? stock.data?.scope.label
     ?? (filters ? localScopeLabel(filters) : "");
   const badRange = !!filters && !!filters.from && !!filters.to && filters.from > filters.to;
@@ -73,7 +75,7 @@ export default function UnitDashboardPage() {
             {filters ? (
               <>Đang xem <b>{scopeLabel}</b> · kỳ <b>{dmy(filters.from)} → {dmy(filters.to)}</b>. </>
             ) : null}
-            Thu mua · tiêu thụ · tồn kho · chỉ tiêu năm của một phạm vi. Ô “—” là <b>chưa có số</b>,
+            Thu mua · tiêu thụ · tồn kho · chỉ tiêu năm · tiến độ bán hàng của một phạm vi. Ô “—” là <b>chưa có số</b>,
             không phải bằng 0.
           </p>
         </div>
@@ -96,6 +98,7 @@ export default function UnitDashboardPage() {
           )}
           <DashboardKpiRow purchase={purchase} consumption={consumption} stock={stock} />
           <TargetsCard state={targets} />
+          <OutlookCard state={outlook} />
           <PurchaseSection state={purchase} />
           <ConsumptionSection state={consumption} />
           <StockSection state={stock}

@@ -1,9 +1,9 @@
 /* Định dạng số / nhãn thời gian dùng chung cho màn Dashboard đơn vị.
    null = CHƯA CÓ SỐ → luôn hiện "—", không bao giờ quy về 0. */
 
-import { dmy } from "../../../../lib/date";
+import { dmy, todayISO } from "../../../../lib/date";
 
-type Num = number | null | undefined;
+export type Num = number | null | undefined;
 
 const vi = (v: number, digits: number) =>
   v.toLocaleString("vi-VN", { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -36,6 +36,13 @@ export function fmtByUnit(v: Num, unit: string): string {
   return fmtPrice(v, unit);
 }
 
+/** Ngày cuối kỳ để HIỂN THỊ: kỳ kéo tới tương lai (vd "Năm nay" → 31/12) thì số liệu thật chỉ có tới
+ *  hôm nay — ghi "hôm nay dd/mm/yyyy" thay vì một ngày chưa tới, khỏi đọc nhầm là số cả năm. */
+export function rangeEndLabel(dateTo: string): string {
+  const today = todayISO();
+  return dateTo > today ? `hôm nay ${dmy(today)}` : dmy(dateTo);
+}
+
 /** Chậm hơn tiến độ thời gian quá ngưỡng này (điểm %) thì tô cảnh báo. */
 const BEHIND_PP = 10;
 
@@ -60,4 +67,21 @@ export function sortDesc<T>(rows: T[], get: (r: T) => Num): T[] {
     if (y == null) return -1;
     return y - x;
   });
+}
+
+/** Tấn kèm đơn vị: "1.234 tấn" · chưa có số "—". */
+export const fmtTons = (v: Num): string => withUnit(fmtTon(v), "tấn");
+
+/** Có số và lớn hơn 0 — cho dòng chú thích chỉ hiện khi có phần đáng nói. */
+export const isPositive = (v: Num): v is number => v != null && v > 0;
+
+/** Lệch dưới ngưỡng này (tỷ lệ) coi như bằng nhau — lệch lẻ tẻ do làm tròn thì khỏi nêu. */
+const DIFF_RATIO = 0.005;
+
+/** Số của RỔ (đơn vị có KH) và số cả phạm vi khác nhau đáng kể → phải nói rõ, không thì người xem
+ *  đặt 2 số cạnh nhau rồi tưởng lệch logic (phản hồi 26/09/2026). */
+export function differsNotably(basket: Num, scope: Num): boolean {
+  if (scope == null) return false;
+  if (basket == null) return scope !== 0;
+  return Math.abs(scope - basket) > Math.abs(basket) * DIFF_RATIO;
 }
