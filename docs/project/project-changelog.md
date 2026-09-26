@@ -4,6 +4,21 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Dashboard đơn vị: HĐ dài hạn theo HĐ mẹ · sản lượng còn phải giao · tiến độ bán hàng năm**
+  (26/09/2026, 0.4.92).
+  - Thẻ mới *Tiến độ bán hàng năm*: đã giao lũy kế + HĐ chuyến đã ký chưa giao + HĐ dài hạn còn phải
+    giao = bán cả năm (dự kiến). HĐ dài hạn: đã giao / cam kết của HĐ mẹ, còn lại, % thực hiện.
+  - So với **KH bán hàng = KH khai thác + KH thu mua**; **doanh thu dự kiến** = doanh thu đã thực hiện
+    + SL còn phải giao × giá bán BQ lũy kế của chính đơn vị, so với KH doanh thu. Có bảng theo khu vực
+    / đơn vị; xem một đơn vị thì có danh sách HĐ mẹ.
+  - Báo cáo tiêu thụ: ô "Đã ký chưa giao" tách thành HĐ chuyến chưa giao · HĐ dài hạn còn phải giao ·
+    Tổng phải giao; thêm khối HĐ dài hạn theo HĐ mẹ; file Excel thêm các cột tương ứng.
+  - Phần dài hạn tính theo **cam kết HĐ mẹ** nên gồm cả sản lượng chưa ký phụ lục — khác "Đã ký HĐ
+    chưa giao" ở biểu Tồn kho. HĐ mẹ đã hết hạn không tính vào phải giao.
+  - Sửa phản hồi "số liệu, ghi chú lệch logic": khối Chỉ tiêu ghi rõ rổ "N đơn vị có KH" và tổng cả
+    phạm vi; dòng bán có đơn giá vượt trần (mặc định 200 triệu đ/tấn, chung ngưỡng trang Cảnh báo bất
+    thường) được cảnh báo kèm tên đơn vị và để trống % doanh thu. Dữ liệu prod đã sửa: đơn giá một đợt
+    giao của Yên Bái (56.200 → 56,2 — làm Tập đoàn lên 129%), Hà Tĩnh - Bolikhamxai về khu vực Lào.
 - **Trợ lý AI chắc hơn khi chỉnh phương án nháp + nhanh hơn** (25/09/2026, 0.4.89).
   - Trợ lý không còn được báo "đã hoàn tác / đã đưa vào bảng" khi thực ra chưa làm: hệ thống tự kiểm
     và bắt làm lại; vẫn không làm được thì câu trả lời ghi rõ "phương án chưa thay đổi".
