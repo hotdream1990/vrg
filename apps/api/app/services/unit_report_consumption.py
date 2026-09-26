@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services import config_repo
 from app.services import unit_report_rows as rows_mod
+from app.services.anomaly_types import THRESHOLDS, vn_num
 from app.services.unit_report_query import (
     CHANNEL_LABELS, CONTRACT_LABELS, GROUPERS, avg, filter_scope, label_of, merge_rollup,
     merge_scope, merge_view, sort_groups, split_csv, year_plan_by_group,
@@ -26,7 +28,10 @@ def _new_consumption(key: str, region: str | None) -> dict[str, Any]:
             # Số lần giao CHƯA TÍNH ĐƯỢC doanh thu (thiếu tỷ giá hoặc thiếu đơn giá) — nơi đem doanh
             # thu so kế hoạch cần biết để để trống % như Báo cáo tổng hợp (`total_revenue_vnd` ra
             # None vì BẤT KỲ dòng nào thiếu), thay vì báo tỷ lệ thấp hơn thực tế.
-            "no_revenue_lines": 0}
+            "no_revenue_lines": 0,
+            # Số dòng bán có đơn giá vượt trần — nghi gõ ĐỒNG vào ô TRIỆU đồng (xem `is_bad_price`).
+            # Doanh thu vẫn cộng như đã khai (không tự sửa số), nơi so kế hoạch dựa cờ này để trống %.
+            "bad_price_lines": 0}
 
 
 #: Giá trị enum → ô cộng dồn. Giá trị lạ/thiếu đi vào ô "chưa khai" riêng, KHÔNG dồn vào ô nào
@@ -43,12 +48,52 @@ def _feed_consumption(g: dict, r: dict) -> None:
     if ch:
         g[ch] += qty
     g["lines"] += 1
+    g["bad_price_lines"] += 1 if r.get("bad_price") else 0
     g["_days"].add((r["company"], r["as_of"]))
     if r["revenue_vnd"] is not None:
         g["revenue_vnd"] += r["revenue_vnd"]
         g["_rev_qty"] += qty
     elif qty:
         g["no_revenue_lines"] += 1
+
+
+#: Khoá ngưỡng DÙNG CHUNG với luật "Giá bán sai đơn vị tính" của màn Cảnh báo bất thường — admin sửa
+#: một chỗ ở Cấu hình hệ thống thì dashboard và trang cảnh báo cùng đổi, không có hai mức trần.
+_PRICE_CEILING_KEY = "ANOMALY_SALE_PRICE_MAX"
+
+
+def sale_price_ceiling() -> float:
+    """Trần đơn giá bán quy đổi (triệu đ/tấn) đang áp dụng: đã lưu thì lấy, chưa thì mặc định."""
+    default = float(THRESHOLDS[_PRICE_CEILING_KEY]["default"])
+    try:
+        return float(config_repo.get_value(_PRICE_CEILING_KEY) or default) or default
+    except (TypeError, ValueError):
+        return default
+
+
+def is_bad_price(r: dict, ceiling: float) -> bool:
+    """Đơn giá quy về triệu đ/tấn vượt trần → gần như chắc chắn gõ nhầm đơn vị tính.
+
+    VND: ô đơn giá đã là triệu đ/tấn. Ngoại tệ: quy đổi bằng tỷ giá CỦA CHÍNH DÒNG đó; thiếu tỷ giá
+    thì KHÔNG xét — dòng đó đã nằm ngoài doanh thu (cảnh báo thiếu tỷ giá riêng), đoán tỷ giá để soi
+    giá là bịa dữ kiện. Cùng công thức với `anomaly_rules._wrong_sale_price`.
+    """
+    price = r.get("price")
+    if price is None:
+        return False
+    if (r.get("ccy") or "VND") == "VND":
+        return price > ceiling
+    return bool(r.get("fx")) and price * r["fx"] / 1_000_000 > ceiling
+
+
+def _bad_price_warning(rows: list[dict], ceiling: float) -> str | None:
+    bad = [r for r in rows if r.get("bad_price")]
+    if not bad:
+        return None
+    names = list(dict.fromkeys(r["company"] for r in bad))
+    shown = ", ".join(names[:5]) + ("…" if len(names) > 5 else "")
+    return (f"{len(bad)} dòng bán có đơn giá vượt {vn_num(ceiling)} triệu đ/tấn (nghi nhập đồng thay "
+            f"cho triệu đồng) — doanh thu & giá bán BQ đang bị đội lên: {shown}.")
 
 
 def _close_consumption(g: dict) -> dict[str, Any]:
@@ -97,6 +142,8 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
         if vals := split_csv(val):
             keep = set(vals)
             rows = [r for r in rows if r[field] in keep]
+    ceiling = sale_price_ceiling()
+    rows = [{**r, "bad_price": is_bad_price(r, ceiling)} for r in rows]
 
     total = _new_consumption("Tổng cộng", None)
     for r in rows:
@@ -105,6 +152,8 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
         warnings.append(f"{n} dòng bán bằng USD nhưng thiếu tỷ giá — chưa tính vào doanh thu & giá bán BQ.")
     if (n := sum(1 for r in rows if r["revenue_vnd"] is None and r["qty"] and not r.get("missing_fx"))):
         warnings.append(f"{n} dòng bán chưa có đơn giá — chưa tính vào doanh thu & giá bán BQ.")
+    if msg := _bad_price_warning(rows, ceiling):
+        warnings.append(msg)
 
     # Kế hoạch là chỉ tiêu NĂM → lấy theo năm của ngày CUỐI kỳ. Kỳ vắt qua 2 năm thì tử số có cả
     # sản lượng năm trước trong khi mẫu số chỉ là kế hoạch 1 năm → phải nói rõ, đừng để đọc nhầm.
@@ -118,7 +167,7 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
                         f"đầu từ năm {date_from[:4]} — chỉ để tham khảo.")
 
     base = {"kind": "consumption", "date_from": date_from, "date_to": date_to, "group_by": group_by,
-            "totals": totals, "warnings": warnings}
+            "totals": totals, "warnings": warnings, "price_ceiling": ceiling}
     if group_by == "none":
         rows.sort(key=lambda r: (r["as_of"], r["company"]))
         # Chế độ CHI TIẾT trả từng lần bán nên số dòng tăng theo ngày (đã hơn 3.000) → cắt trang.

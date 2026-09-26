@@ -1,7 +1,7 @@
 """Chuẩn hoá + KIỂM TRA NGHIỆP VỤ một HỢP ĐỒNG MẸ (HĐNT/HĐDH) trước khi ghi.
 
-Hợp đồng mẹ là HỒ SƠ GỐC ký với khách hàng — nó KHÔNG vào báo cáo sản lượng nào (tiêu thụ và
-"đã ký HĐ chưa giao" vẫn tính trên `sales_contract`). Vì vậy ràng buộc ở đây nới hơn hợp đồng bán:
+Hợp đồng mẹ là HỒ SƠ GỐC ký với khách hàng — nó KHÔNG vào tiêu thụ hay "đã ký HĐ chưa giao" (vẫn
+tính trên `sales_contract`); cam kết của nó chỉ dùng cho "còn phải giao" (`contract_backlog`). Vì vậy ràng buộc ở đây nới hơn hợp đồng bán:
 số lượng được để trống, vì HĐ nguyên tắc thường chỉ chốt chủng loại. Ngược lại, những gì làm hồ
 sơ vô nghĩa thì BẮT BUỘC: số hợp đồng, loại hợp đồng, khách hàng và ít nhất một chủng loại.
 

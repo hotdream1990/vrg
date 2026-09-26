@@ -183,7 +183,8 @@ _GRADE_SQL = ("COALESCE(NULLIF(e->>'grade', ''), '(chưa khai)') AS grade, "
 #: mà số hợp đồng thì tăng đều (đã hơn 3.000) — quét cả bảng 30 lần là treo màn hình.
 _BLOCK3_SQL = """
 WITH parent AS (
-    SELECT id, company, code, customer_id, sign_date, expiry_date, lines, delivered_at
+    SELECT id, company, code, customer_id, sign_date, expiry_date, lines, delivered_at,
+           contract_type, master_id
     FROM sales_contract
     WHERE parent_id IS NULL
       AND (sign_date IS NULL OR sign_date <= CAST(:d AS date))
@@ -204,7 +205,7 @@ WITH parent AS (
                 count(*) FILTER (WHERE qty_dry = 0) AS no_dry FROM done_g GROUP BY 1, 2
 ), dtot AS (SELECT id, sum(qty_sale) AS qty_sale FROM done_g GROUP BY 1)
 SELECT p.id, p.company, p.code, p.customer_id, p.sign_date, p.expiry_date,
-       c.grade, c.qty AS commit_wet, c.qty_dry AS commit_dry,
+       p.contract_type, p.master_id, c.grade, c.qty AS commit_wet, c.qty_dry AS commit_dry,
        COALESCE(dtot.qty_sale, 0) AS done_sale_total,
        COALESCE(d.qty, 0) AS done_wet, COALESCE(d.qty_sale, 0) AS done_sale,
        COALESCE(d.qty_dry, 0) AS done_dry, COALESCE(d.no_dry, 0) AS done_no_dry
@@ -307,6 +308,9 @@ def undelivered_on(as_of: str, companies: list[str] | None = None,
         acc["items"].append({
             "id": head["id"], "code": head["code"], "parent_id": None,
             "customer_id": head["customer_id"],
+            # Loại HĐ + hồ sơ mẹ: `contract_backlog` cần để chia phần chưa giao theo HĐ chuyến /
+            # HĐ dài hạn mà không đếm trùng phụ lục đã tính ở cấp hợp đồng mẹ.
+            "contract_type": head["contract_type"] or None, "master_id": head["master_id"],
             "sign_date": str(head["sign_date"]) if head["sign_date"] else None,
             "expiry_date": str(head["expiry_date"]) if head["expiry_date"] else None,
             "qty": sum(float(r["commit_wet"] or 0) for r in lines),

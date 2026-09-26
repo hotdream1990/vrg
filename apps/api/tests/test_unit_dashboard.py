@@ -265,13 +265,13 @@ def test_chi_tieu_don_vi_khong_co_bang_con(env):
 def test_don_vi_chua_giao_ke_hoach_khong_vao_tu_so(env):
     """D mua 9.000 tấn mà chưa được giao kế hoạch: cộng vào tử số thì khu vực "đạt 910%".
 
-    % chỉ tính trên rổ đơn vị được giao (E: 100 / 1.000 = 10%), tổng cả khu vực vẫn được nói ra.
+    % chỉ tính trên rổ đơn vị được giao (E: 100 / 1.000 = 10%), tổng cả khu vực trả ở `scope_done`.
     """
     rep = _get(env["admin"], "targets", "region", REGION_2)
     item = next(i for i in rep["items"] if i["key"] == "purchase")
     assert (item["done"], item["plan"], item["units_planned"]) == (100, 1000, 1)
     assert item["pct"] == pytest.approx(10)
-    assert "9.100,0 tấn" in item["note"]
+    assert item["scope_done"] == pytest.approx(9100)
     rows = {r["label"]: r for r in rep["breakdown"]}
     assert rows[UNIT_D]["purchase_pct"] is None and rows[UNIT_E]["purchase_pct"] == pytest.approx(10)
 
@@ -291,6 +291,25 @@ def test_lan_giao_thieu_don_gia_thi_de_trong_phan_tram_doanh_thu(env):
     rev = next(i for i in _get(env["admin"], "targets", "unit", UNIT_A)["items"]
                if i["key"] == "revenue")
     assert rev["pct"] is None and "đơn giá" in rev["note"]
+
+
+def test_don_gia_sai_don_vi_tinh_thi_canh_bao_va_de_trong_phan_tram_doanh_thu(env):
+    """Phản hồi 26/09/2026: một đợt giao nhập 56.200 (đồng/kg) vào ô triệu đ/tấn đẩy doanh thu cả
+    Tập đoàn lên 129%. Dashboard phải nêu tên đơn vị, để trống % doanh thu (cả dòng khu vực chứa
+    đơn vị đó) và vẫn cho biết tổng cả phạm vi qua `scope_done`."""
+    _deliver(env["admin"], UNIT_A, "DB-A9", D1, "SVR 3L", 1, 56200)
+    con = _get(env["admin"], "consumption", "unit", UNIT_A)
+    assert con["totals"]["bad_price_lines"] == 1
+    assert any("triệu đ/tấn" in w and UNIT_A in w for w in con["warnings"])   # trần: cấu hình admin
+    rev = next(i for i in _get(env["admin"], "targets", "unit", UNIT_A)["items"]
+               if i["key"] == "revenue")
+    assert rev["pct"] is None and UNIT_A in rev["note"] and "sai đơn vị tính" in rev["note"]
+    assert rev["scope_done"] == pytest.approx(0.7 + 56.2)
+    region = _get(env["admin"], "targets")
+    assert next(i for i in region["items"] if i["key"] == "revenue")["pct"] is None
+    assert {r["label"]: r for r in region["breakdown"]}[UNIT_A]["revenue_pct"] is None
+    # Dòng giá đúng (40 triệu đ/tấn) không bị nêu oan.
+    assert _get(env["admin"], "consumption", "unit", UNIT_B)["totals"]["bad_price_lines"] == 0
 
 
 def test_ngay_sai_dinh_dang_va_ky_qua_dai_bi_tu_choi(env):

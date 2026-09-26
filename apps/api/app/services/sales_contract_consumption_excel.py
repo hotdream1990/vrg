@@ -18,20 +18,8 @@ from typing import Any
 
 from app.core.market_meta import CONTRACT_TYPES, DRY_REQUIRED_GRADES, SALE_CHANNELS
 from app.services import sales_contract_calc as calc, sales_contract_report, unit_analytics_excel
+from app.services.sales_contract_consumption_summary import SUMMARY_COLS, summary
 from app.services.unit_analytics_excel import Col
-
-SUMMARY_COLS: list[Col] = [
-    ("deliveries", "Số lần giao", "lần"),
-    # Sản lượng tiêu thụ đã là QUY KHÔ (xem `sales_contract_calc.sale_qty`) → nói rõ ngay ở tiêu đề,
-    # và cột kế bên trả lại số cân thực tế của chủng loại còn nước thay vì lặp lại số khô.
-    ("qty", "Sản lượng tiêu thụ", "tấn quy khô"),
-    ("qty_wet", "Trong đó: SL chưa quy khô", "tấn"),
-    ("qty_export", SALE_CHANNELS["export"], "tấn"),
-    ("qty_domestic", SALE_CHANNELS["domestic"], "tấn"),
-    ("qty_internal", SALE_CHANNELS["internal"], "tấn"),
-    ("revenue_ty", "Doanh thu", "tỷ đồng"),
-    ("remaining", "Đã ký HĐ chưa giao (cuối kỳ)", "tấn quy khô"),
-]
 
 #: Mỗi dòng = MỘT chủng loại của MỘT lần giao. Thứ tự cột theo mạch soát số: giao khi nào · của ai ·
 #: theo hợp đồng nào · hàng gì · bao nhiêu · giá nào · chứng từ nào.
@@ -83,32 +71,6 @@ CONTRACT_COLS: list[Col] = [
 
 def _dong(v: float | None) -> float | None:
     return None if v is None else round(v, 2)
-
-
-def _summary(rep: dict[str, Any]) -> tuple[list[dict], dict, bool]:
-    """Dòng theo đơn vị + dòng Tổng cộng của sheet tổng hợp (đúng bảng đang hiện trên web)."""
-    rows, totals = [], {k: 0.0 for k, _, _ in SUMMARY_COLS}
-    missing_fx = False
-    for name in sorted(set(rep["by_company"]) | set(rep["undelivered"])):
-        c = rep["by_company"].get(name) or {}
-        ch = c.get("by_channel") or {}
-        rev = c.get("revenue")
-        missing_fx = missing_fx or (name in rep["by_company"] and rev is None)
-        row = {
-            "label": name, "deliveries": c.get("deliveries", 0),
-            "qty": c.get("qty", 0.0), "qty_wet": c.get("qty_wet", 0.0),
-            "qty_export": ch.get("export", 0.0), "qty_domestic": ch.get("domestic", 0.0),
-            "qty_internal": ch.get("internal", 0.0),
-            # Doanh thu để TRỐNG khi thiếu tỷ giá — không quy về 0 để khỏi đọc nhầm là "bán không thu tiền".
-            "revenue_ty": None if rev is None else rev / 1_000_000_000,
-            "remaining": (rep["undelivered"].get(name) or {}).get("qty", 0.0),
-        }
-        rows.append(row)
-        for k, _, _ in SUMMARY_COLS:
-            v = row.get(k)
-            if isinstance(v, (int, float)):
-                totals[k] += v
-    return rows, totals, missing_fx
 
 
 def _detail(deliveries: list[dict[str, Any]], names: dict[str, str]) -> list[dict]:
@@ -207,7 +169,7 @@ def _by_contract(deliveries: list[dict[str, Any]], names: dict[str, str]) -> lis
 def build(date_from: str, date_to: str, rep: dict[str, Any], companies: list[str] | None,
           customer_ids: list[int] | None, grades: list[str] | None) -> bytes:
     """Dựng file Excel của Báo cáo tiêu thụ: sheet tổng hợp + sheet chi tiết dòng bán."""
-    rows, totals, missing_fx = _summary(rep)
+    rows, totals, missing_fx = summary(rep)
     # Đọc lại các lần giao cho sheet chi tiết (bảng tổng hợp đã cộng mất chi tiết). Cùng tham số lọc
     # nên chắc chắn cùng tập dữ liệu; xuất file là thao tác lẻ nên một lượt đọc nữa không đáng kể.
     deliveries = sales_contract_report.deliveries(date_from, date_to, companies, customer_ids, grades)
@@ -218,6 +180,8 @@ def build(date_from: str, date_to: str, rep: dict[str, Any], companies: list[str
         note += f" Chỉ tính chủng loại: {', '.join(grades)}."
     if missing_fx:
         note += " ⚠ Có lần giao thiếu tỷ giá → doanh thu để trống, KHÔNG tính là 0."
+    note += (f" Phải giao tính tại {date_to}: HĐ dài hạn theo cam kết HĐ mẹ còn hiệu lực (gồm cả phần"
+             " chưa ký phụ lục), nên “Tổng phải giao” khác “Đã ký HĐ chưa giao (khối 3)”.")
     detail_note = (
         f"{len(detail)} dòng bán của {len(deliveries)} lần giao — cùng bộ lọc với sheet tổng hợp nên "
         "cộng cột “SL tính tiêu thụ” ra đúng sản lượng tiêu thụ. SL tính tiêu thụ = quy khô nếu dòng "

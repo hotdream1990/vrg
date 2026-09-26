@@ -25,11 +25,13 @@ from app.core.market_meta import (
     SALE_CURRENCIES,
     UNIT_GRADES,
 )
+from app.core.edit_window import today
 from app.core.permissions import LEVEL_EDIT
 from app.core.security import cap_or_member_scope
 from app.schemas.sales_contract import CompletionIn, ContractIn, DeliveryTypeIn
 from app.services.unit_report_query import roll_by_company
 from app.services import (
+    contract_backlog,
     contract_files,
     customer_repo,
     master_contract_repo,
@@ -188,13 +190,26 @@ def _consumption(scope_companies: list[str] | None, date_from: str, date_to: str
         sales_contract_report.consumption(date_from, date_to, companies, customer_ids, grades))
     # Bảng "tách theo khách hàng" chỉ cần tên của các khách CÓ trong kỳ ("0" = chưa gán khách).
     shown = sorted({int(k) for c in by_company.values() for k in c["by_customer"] if k != "0"})
+    # Số THỜI ĐIỂM (chưa giao · còn phải giao) tính tại min(đến ngày, hôm nay), như Dashboard: kỳ
+    # "cả năm" chọn tới 31/12 thì mọi HĐ mẹ hết hạn trước 31/12 bị coi là đã hết hạn từ hôm nay.
+    as_of = min(date_to, today().isoformat())
+    # Lọc chủng loại áp cho CẢ cột "đã ký HĐ chưa giao" — không thì bảng có cột đã lọc
+    # đứng cạnh cột chưa lọc, người đọc tưởng số vênh nhau.
+    block3 = sales_contract_report.undelivered_on(as_of, companies, grades)
+    # Còn phải giao tách HĐ chuyến / HĐ dài hạn theo cam kết HĐ mẹ (26/09/2026). Dùng lại khối 3
+    # vừa tính (bản CHƯA gộp sáp nhập) thay vì quét lại; gộp đơn vị cũ như cột `undelivered`.
+    backlog = contract_backlog.roll(
+        contract_backlog.backlog_on(as_of, companies, grades, block3=block3))
+    # Tên khách của các HĐ mẹ trong khối "HĐ dài hạn theo HĐ mẹ" — khách chưa có giao hàng trong kỳ
+    # vẫn phải hiện tên.
+    shown = sorted({*shown, *(i["customer_id"] for b in backlog.values() for i in b["items"]
+                              if i.get("customer_id"))})
     return {
         "date_from": date_from, "date_to": date_to,
         "by_company": by_company,
-        # Lọc chủng loại áp cho CẢ cột "đã ký HĐ chưa giao" — không thì bảng có cột đã lọc
-        # đứng cạnh cột chưa lọc, người đọc tưởng số vênh nhau.
-        "undelivered": roll_by_company(
-            sales_contract_report.undelivered_on(date_to, companies, grades)),
+        "undelivered": roll_by_company(block3),
+        "backlog": backlog,
+        "backlog_as_of": as_of,
         "customers": {str(i): n for i, n in customer_repo.names_by_id(companies, shown).items()},
     }
 

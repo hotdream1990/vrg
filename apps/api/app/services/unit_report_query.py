@@ -193,7 +193,8 @@ PLAN_DIMS = ("company", "region")
 
 def year_plan_by_group(plan_key: str, group_by: str, companies: list[str] | None,
                        regions: list[str] | None, year: int,
-                       split_merged: bool = False) -> tuple[dict[str, float], float]:
+                       split_merged: bool = False,
+                       keep_zero: bool = False) -> tuple[dict[str, float], float]:
     """Chỉ tiêu NĂM `plan_key` của màn "Kế hoạch năm" → ({khoá nhóm: tấn}, tổng theo bộ lọc).
 
     Mẫu số lấy theo DANH SÁCH ĐƠN VỊ khớp bộ lọc, không phải theo đơn vị có phát sinh số liệu:
@@ -202,6 +203,9 @@ def year_plan_by_group(plan_key: str, group_by: str, companies: list[str] | None
 
     Khi GỘP đơn vị đã sáp nhập, chỉ tiêu của đơn vị cũ cộng vào đơn vị hiện hành: tử số đã gồm sản
     lượng của đơn vị cũ, mẫu số bỏ chỉ tiêu của họ ra thì % thực hiện tự đẹp lên.
+
+    `keep_zero=True` giữ cả đơn vị ĐÃ NHẬP số 0 (khoá có mặt, giá trị 0) — cần khi phải phân biệt
+    "đơn vị không khai thác" (nhập 0) với "đơn vị chưa nhập kế hoạch" (ô trống).
     """
     units = report_units(split_merged=True)     # luôn xét cả đơn vị đã sáp nhập…
     roll = {} if split_merged else member_unit_merge.rollup_map()   # …rồi quy về đơn vị hiện hành
@@ -220,8 +224,9 @@ def year_plan_by_group(plan_key: str, group_by: str, companies: list[str] | None
             continue
         if view and cur not in view:      # đơn vị cũ đã gộp về đơn vị KHÁC bộ lọc → không tính
             continue
-        n = (plans.get(u["name"]) or {}).get(plan_key) or 0.0
-        if not n:
+        raw = (plans.get(u["name"]) or {}).get(plan_key)
+        n = raw or 0.0
+        if not n and not (keep_zero and raw is not None):
             continue
         total += n
         if group_by in PLAN_DIMS:

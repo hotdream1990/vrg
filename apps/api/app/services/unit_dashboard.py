@@ -30,7 +30,10 @@ _PURCHASE_TOTALS = ("qty_latex", "qty_cup", "qty_lace", "qty_finished", "qty_mat
 _PURCHASE_TREND = ("qty_latex", "qty_cup", "qty_lace", "qty_finished", "price_latex_avg")
 _CON_QTY = ("qty", "qty_long_term", "qty_spot", "qty_unknown_type", "qty_export",
             "qty_domestic", "qty_internal", "revenue_ty")
-_CON_TOTALS = (*_CON_QTY, "avg_price_trieu", "lines", "days", "no_revenue_lines")
+#: `bad_price_lines` = dòng bán nghi sai đơn vị tính (đơn giá vượt trần) — thẻ KPI Doanh thu đọc để
+#: báo số đang bị đội lên, thay vì hiện 4.500 tỷ ảo như một con số thật (phản hồi 26/09/2026).
+_CON_TOTALS = (*_CON_QTY, "avg_price_trieu", "lines", "days", "no_revenue_lines", "bad_price_lines")
+_CON_BREAKDOWN = ("qty", "revenue_ty", "avg_price_trieu", "bad_price_lines")
 _STOCK_TOTALS = ("not_warehoused", "warehoused", "total", "material", "signed_undelivered",
                  "tradable", "age_days", "dates")
 _STOCK_BREAKDOWN = ("total", "signed_undelivered", "tradable", "material", "as_of")
@@ -124,7 +127,7 @@ def consumption_block(sc: dict[str, Any], date_from: str, date_to: str,
         "trend": _trend(trend["rows"], _CON_QTY, date_from, date_to, bucket, today),
         "by_grade": _desc([{"grade": r["key"], **_pick(r, ("qty", "revenue_ty", "avg_price_trieu"))}
                            for r in grade["rows"]], "qty"),
-        "breakdown": [{"label": r["key"], **_pick(r, ("qty", "revenue_ty", "avg_price_trieu"))}
+        "breakdown": [{"label": r["key"], **_pick(r, _CON_BREAKDOWN)}
                       for r in _ordered(sc, base["rows"])] if child else [],
         "warnings": _data_warnings(base["warnings"]),
     }

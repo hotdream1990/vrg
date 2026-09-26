@@ -19,6 +19,7 @@ from app.core.edit_window import today
 from app.core.security import cap_or_member_scope
 from app.routers.unit_scorecard import assert_dates, stock_day
 from app.services import unit_dashboard as svc
+from app.services import unit_dashboard_outlook as outlook_svc
 from app.services import unit_dashboard_scope as scope_svc
 from app.services import unit_dashboard_targets as targets_svc
 from app.services import user_repo
@@ -105,3 +106,9 @@ def stock_series(view: str = Query("warehouse", pattern=_VIEW),
 def targets(q: dict = Depends(_params)) -> dict:
     """Chỉ tiêu năm: thực hiện lũy kế từ 01/01 đến hết kỳ (không quá hôm nay) so với kế hoạch."""
     return targets_svc.targets_block(q["sc"], q["date_to"], q["today"])
+
+
+@router.get("/outlook")
+def outlook(q: dict = Depends(_params)) -> dict:
+    """Tiến độ bán hàng năm: HĐ dài hạn theo HĐ mẹ · còn phải giao · so KH bán hàng · DT dự kiến."""
+    return outlook_svc.outlook_block(q["sc"], q["date_to"], q["today"])

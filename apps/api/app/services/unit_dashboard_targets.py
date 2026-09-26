@@ -7,7 +7,9 @@ Ba chỉ tiêu, cùng quy ước với Báo cáo tổng hợp:
 - Thu mua: tử số = mủ NGUYÊN LIỆU (nước + chén + dây, quy khô), không gồm thành phẩm mua ngoài.
 - Tiêu thụ: kế hoạch chỉ đặt cho HĐ CHUYẾN → so với sản lượng HĐ chuyến, không so tổng tiêu thụ.
 - Doanh thu (tỷ đồng): đơn vị có lần giao chưa tính được doanh thu (thiếu tỷ giá hoặc đơn giá) thì
-  doanh thu đang THIẾU → % để trống.
+  doanh thu đang THIẾU → % để trống. Đơn vị có dòng bán ĐƠN GIÁ VƯỢT TRẦN (nghi gõ đồng vào ô triệu
+  đồng) thì doanh thu đang bị ĐỘI LÊN → cũng để trống % (26/09/2026: một đợt giao nhập 56.200 thay
+  cho 56,2 đẩy cả Tập đoàn lên 129%, một khu vực lên 1.257%).
 
 ⚠ Tử số và mẫu số cùng MỘT RỔ ĐƠN VỊ — các đơn vị ĐƯỢC GIAO chỉ tiêu đó (kể cả đơn vị chưa làm
 được gì: bỏ họ ra là % tự đẹp lên). Đơn vị chưa được giao mà vẫn có số thì KHÔNG vào tử số: đo trên
@@ -22,10 +24,10 @@ from typing import Any
 
 from app.services import unit_report_consumption as con
 from app.services import unit_report_purchase as pur
+from app.services.anomaly_types import vn_num
 from app.services.unit_report_query import (
     NO_REGION_LABEL, region_of_units, split_csv, year_plan_by_group,
 )
-from app.services.weekly_ai_compose import vn
 
 #: (khoá, nhãn, đơn vị, cột kế hoạch năm, trường thực hiện, bảng nguồn, lời giải thích)
 _ITEMS = (
@@ -55,16 +57,29 @@ def _progress(planned: list[str], plan: dict[str, float], done: dict[str, float 
     return {"done": got, "plan": plan_sum, "pct": pct, "units_planned": len(planned)}
 
 
-def _note(base: str, prog: dict[str, Any], scope_done: float, unit: str, missing: int) -> str:
-    parts = [base] if base else []
-    if missing:
-        parts.append(f"{missing} lần giao chưa tính được doanh thu (thiếu tỷ giá hoặc đơn giá) — "
-                     f"doanh thu đang thiếu phần đó nên chưa tính % kế hoạch.")
-    # So sánh có dung sai: hai tổng số thực cộng theo hai thứ tự khác nhau có thể lệch ở số lẻ xa.
-    if prog["plan"] and scope_done - (prog["done"] or 0.0) > 1e-6:
-        parts.append(f"% chỉ tính trên {prog['units_planned']} đơn vị đã giao kế hoạch; cả phạm vi "
-                     f"thực hiện {vn(scope_done)} {unit}.")
-    return " ".join(parts)
+def _revenue_issues(planned: list[str], con_rows: dict[str, dict], ceiling: float | None,
+                    ) -> list[str]:
+    """Lý do % doanh thu để trống — chỉ xét rổ đơn vị ĐƯỢC GIAO kế hoạch (rổ tính %)."""
+    got = [con_rows[c] for c in planned if c in con_rows]
+    out = []
+    if missing := sum(r.get("no_revenue_lines") or 0 for r in got):
+        out.append(f"{missing} lần giao chưa tính được doanh thu (thiếu tỷ giá hoặc đơn giá) — "
+                   f"doanh thu đang thiếu phần đó nên chưa tính % kế hoạch.")
+    bad = {c: con_rows[c]["bad_price_lines"] for c in planned
+           if (con_rows.get(c) or {}).get("bad_price_lines")}
+    if bad:
+        # Nêu TÊN đơn vị: người đọc phải biết gọi ai sửa, câu chung chung thì không ai nhận việc.
+        names = ", ".join(list(bad)[:5]) + ("…" if len(bad) > 5 else "")
+        out.append(f"{sum(bad.values())} dòng bán của {names} có đơn giá vượt "
+                   f"{vn_num(ceiling or 0)} triệu đ/tấn — nghi sai đơn vị tính, sửa xong mới tính "
+                   f"% kế hoạch.")
+    return out
+
+
+def _note(base: str, issues: list[str]) -> str:
+    # Rổ đơn vị có KH (`units_planned`) và tổng cả phạm vi (`scope_done`) là ô số riêng — web đặt
+    # cạnh nhau; lặp lại thành câu ở đây thì cùng một ý hiện hai lần (phản hồi 26/09/2026).
+    return " ".join([base, *issues] if base else issues)
 
 
 def targets_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any]:
@@ -78,7 +93,9 @@ def targets_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any
     reps = {"purchase": pur.purchase_report(start, end, group_by="company", **f),
             "consumption": con.consumption_report(start, end, group_by="company", **f)}
     rows = {src: {r["key"]: r for r in rep["rows"]} for src, rep in reps.items()}
-    blocked = {k for k, r in rows["consumption"].items() if r.get("no_revenue_lines")}
+    con_rows = rows["consumption"]
+    blocked = {k for k, r in con_rows.items()
+               if r.get("no_revenue_lines") or r.get("bad_price_lines")}
     region_of = region_of_units()
 
     items, per_item = [], {}
@@ -86,14 +103,18 @@ def targets_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any
         plan = year_plan_by_group(plan_key, "company", comps, regs, year, f["split_merged"])[0]
         done = {k: r.get(field) for k, r in rows[src].items()}
         stop = blocked if key == "revenue" else set()
-        prog = _progress([c for c in plan if plan[c]], plan, done, stop)
-        missing = sum(rows["consumption"][c].get("no_revenue_lines") or 0
-                      for c in plan if c in stop) if key == "revenue" else 0
+        planned = [c for c in plan if plan[c]]
+        prog = _progress(planned, plan, done, stop)
+        issues = (_revenue_issues(planned, con_rows, reps["consumption"].get("price_ceiling"))
+                  if key == "revenue" else [])
         scope_done = reps[src]["totals"].get(field) or 0.0
         items.append({"key": key, "label": label, "unit": unit, "done": prog["done"],
                       "plan": prog["plan"], "pct": prog["pct"],
                       "units_planned": prog["units_planned"],
-                      "note": _note(base, prog, scope_done, unit, missing)})
+                      # Tổng CẢ phạm vi (kể cả đơn vị chưa giao kế hoạch) — web hiện cạnh `done`
+                      # của rổ tính %, để hai số khác rổ không bị đọc như lệch nhau.
+                      "scope_done": scope_done,
+                      "note": _note(base, issues)})
         per_item[key] = (plan, done, stop)
 
     return {

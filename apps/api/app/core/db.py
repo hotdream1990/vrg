@@ -377,8 +377,9 @@ CREATE INDEX IF NOT EXISTS ix_sales_contract_delivered ON sales_contract (delive
 -- CÔNG THỨC GIÁ (HĐDH có công thức, HĐNT không có phần này) + bản scan.
 -- ⚠ Nối hồ sơ CHỈ là liên kết (chốt 24/08/2026): hợp đồng vẫn tự khai khách hàng của chính nó,
 -- gắn/gỡ hồ sơ KHÔNG đụng tới bất kỳ số liệu nào của hợp đồng.
--- ⚠ Bảng này KHÔNG vào bất kỳ báo cáo sản lượng nào — tiêu thụ và "đã ký HĐ chưa giao" vẫn tính
--- trên `sales_contract`; cộng cả hai cấp là đếm sản lượng hai lần.
+-- ⚠ Bảng này KHÔNG vào tiêu thụ hay "đã ký HĐ chưa giao" (khối 3) — hai số đó vẫn tính trên
+-- `sales_contract`; cộng cả hai cấp là đếm sản lượng hai lần. Cam kết của hồ sơ CHỈ dùng cho "còn
+-- phải giao" (`contract_backlog`, 26/09/2026), nơi phụ lục của hồ sơ được tính ở cấp hồ sơ thay thế.
 CREATE TABLE IF NOT EXISTS master_contract (
     id            bigserial PRIMARY KEY,
     company       text NOT NULL,        -- đơn vị ký (khớp member_unit)
