@@ -67,7 +67,7 @@ export default function SupportThreadPage() {
       content: ctx?.side === "hq"
         ? `Khép thẻ thì đơn vị KHÔNG phản hồi thêm được trong thẻ này.${unitSilent ? " Đơn vị chưa phản hồi lần nào." : ""}`
         : "Khép thẻ thì KHÔNG phản hồi thêm được trong thẻ này, và đơn vị không tự mở lại được. "
-          + "Còn kết quả cần báo, vui lòng gửi phản hồi trước.",
+          + "Còn điều gì cần trao đổi, vui lòng gửi phản hồi trước rồi mới khép.",
       okText: "Khép thẻ", cancelText: "Quay lại",
       onOk: () => applyStatus("closed"),
     });

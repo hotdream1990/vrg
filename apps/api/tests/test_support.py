@@ -319,11 +319,18 @@ def test_don_vi_khep_duoc_yeu_cau_cua_minh_nhung_khong_tu_mo_lai(env) -> None:
                           "body": "Đề nghị cấp thêm."}, headers=env["a"])
     tid = r.json()["thread_id"]
 
+    # Đơn vị khác không đụng được thẻ dù biết id — phạm vi được kiểm TRƯỚC luật khép/mở.
+    assert client.put(f"/api/support/threads/{tid}/status", json={"status": "closed"},
+                      headers=env["b"]).status_code == 404
     assert client.put(f"/api/support/threads/{tid}/status", json={"status": "closed"},
                       headers=env["a"]).status_code == 200
     assert client.put(f"/api/support/threads/{tid}/status", json={"status": "open"},
                       headers=env["a"]).status_code == 403
+    # Tập đoàn chỉ có mức Xem cũng không mở lại được.
+    client.put("/api/users/sp_hq", json={"permissions": ["support:view"]}, headers=env["admin"])
     assert client.put(f"/api/support/threads/{tid}/status", json={"status": "open"},
-                      headers=env["hq"]).status_code == 200
+                      headers=_bearer("sp_hq", "pass123")).status_code == 403
+    assert client.put(f"/api/support/threads/{tid}/status", json={"status": "open"},
+                      headers=env["admin"]).status_code == 200
 
     client.delete(f"/api/support/threads/{tid}", headers=env["admin"])
