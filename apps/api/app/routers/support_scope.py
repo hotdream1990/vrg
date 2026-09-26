@@ -55,6 +55,26 @@ def assert_hq(scope: Scope) -> None:
         raise HTTPException(403, "Chỉ dành cho Tập đoàn.")
 
 
+def assert_may_set_status(scope: Scope, thread: dict, status: str) -> None:
+    """Ai được khép / mở lại thẻ nào.
+
+    - Tập đoàn: khép và mở lại mọi thẻ.
+    - Đơn vị: chỉ KHÉP được yêu cầu do chính mình gửi lên. Thẻ Tập đoàn gửi xuống (thông báo ·
+      nhắc lịch · cảnh báo) cần đơn vị phản hồi kết quả ngay trong thẻ, nên việc khép để Tập đoàn
+      làm — 26/09/2026 có 6/63 đơn vị bấm "Đánh dấu đã xong" (tưởng là "đã nhận") rồi mất luôn ô
+      phản hồi của thông báo cần trả lời.
+    - Mở lại: chỉ Tập đoàn (mỗi thẻ = một trường hợp, việc mới thì đơn vị mở thẻ mới).
+    """
+    if scope[2] == support_repo.HQ:
+        return
+    if status != "closed":
+        raise HTTPException(403, "Chỉ Tập đoàn mở lại được thẻ đã khép — có việc mới, vui lòng "
+                                 "gửi yêu cầu mới.")
+    if thread.get("kind") != support_repo.KIND_REQUEST:
+        raise HTTPException(403, "Thông báo của Tập đoàn do Tập đoàn khép lại. Vui lòng phản hồi "
+                                 "kết quả ngay trong thông báo này.")
+
+
 def can_write(scope: Scope) -> bool:
     """Có được gửi/phản hồi không (để UI ẩn nút thay vì mời bấm rồi báo lỗi)."""
     from app.core.permissions import has_cap

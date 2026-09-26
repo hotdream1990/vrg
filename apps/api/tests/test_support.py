@@ -284,3 +284,46 @@ def test_the_khep_lai_la_khep_han_phai_mo_the_moi(env) -> None:
 
     for t in (tid, r2.json()["thread_id"]):
         client.delete(f"/api/support/threads/{t}", headers=env["admin"])
+
+
+def test_don_vi_khong_tu_khep_the_tap_doan_gui_xuong(env) -> None:
+    """Thẻ Tập đoàn gửi xuống: đơn vị phản hồi kết quả NGAY TRONG THẺ, việc khép để Tập đoàn làm.
+
+    26/09/2026: 6/63 đơn vị bấm "Đánh dấu đã xong" trên thông báo cần trả lời (tưởng là "đã nhận")
+    → thẻ khép, mất ô phản hồi. Server phải chặn, không chỉ ẩn nút.
+    """
+    subject = "Kiểm tra tài khoản lãnh đạo"
+    client.post("/api/support/announcements",
+                json={"subject": subject, "body": "Đề nghị phản hồi kết quả.",
+                      "scope": "units", "units": [UNIT_A]}, headers=env["hq"])
+    rows = client.get("/api/support/threads", headers=env["a"]).json()["rows"]
+    tid = next(x["id"] for x in rows if x["subject"] == subject)
+
+    r = client.put(f"/api/support/threads/{tid}/status", json={"status": "closed"},
+                   headers=env["a"])
+    assert r.status_code == 403
+    # Thẻ vẫn mở → đơn vị vẫn phản hồi kết quả được.
+    assert client.post(f"/api/support/threads/{tid}/reply", json={"body": "Đã đăng nhập được."},
+                       headers=env["a"]).status_code == 200
+    # Tập đoàn nhận phản hồi xong thì khép.
+    assert client.put(f"/api/support/threads/{tid}/status", json={"status": "closed"},
+                      headers=env["hq"]).status_code == 200
+
+    client.delete(f"/api/support/threads/{tid}", headers=env["admin"])
+
+
+def test_don_vi_khep_duoc_yeu_cau_cua_minh_nhung_khong_tu_mo_lai(env) -> None:
+    """Yêu cầu do đơn vị gửi lên thì đơn vị tự khép được; MỞ LẠI chỉ Tập đoàn (server chặn)."""
+    r = client.post("/api/support/requests",
+                    json={"company": UNIT_A, "subject": "Cấp thêm tài khoản",
+                          "body": "Đề nghị cấp thêm."}, headers=env["a"])
+    tid = r.json()["thread_id"]
+
+    assert client.put(f"/api/support/threads/{tid}/status", json={"status": "closed"},
+                      headers=env["a"]).status_code == 200
+    assert client.put(f"/api/support/threads/{tid}/status", json={"status": "open"},
+                      headers=env["a"]).status_code == 403
+    assert client.put(f"/api/support/threads/{tid}/status", json={"status": "open"},
+                      headers=env["hq"]).status_code == 200
+
+    client.delete(f"/api/support/threads/{tid}", headers=env["admin"])

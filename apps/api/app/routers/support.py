@@ -10,7 +10,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 
 from app.core.security import require_admin
 from app.routers.support_scope import (
-    Scope, ScopeDep, assert_hq, assert_may_write, can_write, display_name, store,
+    Scope, ScopeDep, assert_hq, assert_may_set_status, assert_may_write, can_write, display_name,
+    store,
 )
 from app.schemas.support import AnnounceCreate, ReplyCreate, StatusUpdate, UnitRequestCreate
 from app.services import (
@@ -159,10 +160,11 @@ def reply(thread_id: int, body: ReplyCreate, scope: ScopeDep) -> dict:
 
 @router.put("/threads/{thread_id}/status")
 def set_status(thread_id: int, body: StatusUpdate, scope: ScopeDep) -> dict:
-    """Đóng / mở lại luồng (cả hai bên đều làm được với luồng trong phạm vi của mình)."""
+    """Khép / mở lại luồng — luật theo bên ở `assert_may_set_status`."""
     _, companies, _ = scope
     assert_may_write(scope)
-    _thread_in_scope(thread_id, scope)
+    thread = _thread_in_scope(thread_id, scope)
+    assert_may_set_status(scope, thread, body.status)
     support_repo.set_status(thread_id, body.status, companies)
     return {"ok": True, "status": body.status}
 
