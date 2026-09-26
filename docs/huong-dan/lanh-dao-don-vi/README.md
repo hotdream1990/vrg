@@ -57,12 +57,12 @@ Bấm vào tiêu đề thẻ để mở toàn bộ nội dung. Thẻ được đ
 *Hình 3. Nội dung một thông báo và chỗ trả lời*
 
 1. **Nội dung tin** — người gửi, bên gửi (Tập đoàn hoặc tên đơn vị), thời điểm gửi và nội dung. Nếu có tệp đính kèm, tệp nằm ngay dưới nội dung: ảnh xem trực tiếp, tệp khác bấm để tải về.
-2. **Ô Phản hồi** — gõ nội dung trả lời Tập đoàn.
-3. **Đính kèm file / hình ảnh** — gửi kèm văn bản, bảng tính hoặc ảnh chụp (ngay dưới ô phản hồi).
+2. **Lời dặn màu đỏ** — nhắc phản hồi kết quả ngay trong thông báo này.
+3. **Ô Phản hồi** — gõ kết quả hoặc nội dung trả lời Tập đoàn. Cần gửi kèm văn bản, bảng tính hoặc ảnh chụp thì bấm **Đính kèm file / hình ảnh** ngay dưới ô.
 4. **Gửi phản hồi** — gửi trả lời. Tập đoàn nhận được ngay trong thẻ này.
-5. **Đánh dấu đã xong** — khép thẻ khi việc đã giải quyết xong (xem mục 6).
 
-> Trả lời ngay trong thẻ, đừng mở thẻ mới cho cùng một việc — mọi trao đổi của một việc nằm gọn một chỗ để hai bên dễ theo dõi.
+> - Thông báo không có nút **Đánh dấu đã xong**. Tập đoàn khép thẻ sau khi nhận được phản hồi của đơn vị.
+> - Trả lời ngay trong thẻ, đừng mở thẻ mới cho cùng một việc — mọi trao đổi của một việc nằm gọn một chỗ để hai bên dễ theo dõi.
 
 ## 4. Gửi yêu cầu hỗ trợ lên Tập đoàn
 
@@ -93,16 +93,17 @@ Tập đoàn trả lời ngay trong thẻ. Tin của đơn vị nằm bên phả
 *Hình 5. Trao đổi qua lại trong một thẻ*
 
 1. Đọc trả lời của Tập đoàn ở phần trên.
-2. Cần nói thêm thì gõ vào ô **Phản hồi** rồi bấm **Gửi phản hồi**.
-3. Việc đã xong thì bấm **Đánh dấu đã xong** để khép thẻ.
+2. Cần nói thêm thì gõ vào ô **Phản hồi**.
+3. Bấm **Gửi phản hồi** để gửi.
+4. Việc đã xong thì bấm **Đánh dấu đã xong** để khép thẻ (xem mục 6).
 
 > Có tin mới, hệ thống gửi email báo về hòm thư của bạn (xem mục 8) và thẻ hiện nhãn **Mới** trong hộp thư.
 
 ## 6. Khép một trường hợp
 
-**Vị trí:** Trong thẻ ▸ nút “Đánh dấu đã xong”
+**Vị trí:** Trong thẻ yêu cầu hỗ trợ ▸ nút “Đánh dấu đã xong”
 
-Mỗi thẻ theo dõi đúng một việc. Việc xong thì khép thẻ lại để hộp thư chỉ còn những việc đang chờ xử lý.
+Mỗi thẻ theo dõi đúng một việc. Đơn vị chỉ khép được **yêu cầu hỗ trợ do mình gửi lên**; thông báo và tin nhắc lịch do Tập đoàn khép. Bấm **Đánh dấu đã xong**, hệ thống hỏi lại, bấm **Khép thẻ** để xác nhận.
 
 ![Hình 6. Thẻ đã khép](img/06-the-da-dong.png)
 
@@ -112,7 +113,8 @@ Mỗi thẻ theo dõi đúng một việc. Việc xong thì khép thẻ lại đ
 2. Thẻ đã khép **không nhận thêm phản hồi**.
 3. Có việc mới, bấm **Gửi yêu cầu mới** ngay tại đây.
 
-> Bấm nhầm nút khép? Đơn vị không tự mở lại được — nhờ Tập đoàn mở lại hộ, hoặc gửi một yêu cầu mới.
+> - Khép rồi là **không phản hồi thêm được** trong thẻ đó. Còn kết quả cần báo thì gửi phản hồi trước rồi mới khép.
+> - Bấm nhầm nút khép? Đơn vị không tự mở lại được — nhờ Tập đoàn mở lại hộ, hoặc gửi một yêu cầu mới.
 
 ## 7. Tin nhắc lịch
 
@@ -124,9 +126,10 @@ Tập đoàn đặt lịch nhắc các việc định kỳ (ví dụ nhắc nộ
 
 *Hình 7. Một tin nhắc lịch*
 
-1. Mở tin nhắc để xem Tập đoàn yêu cầu việc gì, hạn khi nào.
-2. Cần báo lại tình hình thì trả lời ngay trong thẻ như tin thường.
-3. Đã làm xong việc được nhắc thì bấm **Đánh dấu đã xong**.
+1. **Nội dung tin nhắc** — Tập đoàn yêu cầu việc gì, hạn khi nào.
+2. **Lời dặn màu đỏ** — nhắc phản hồi kết quả ngay trong tin nhắc này.
+3. **Ô Phản hồi** — gõ kết quả, ví dụ “Đã nộp báo cáo tuần”.
+4. **Gửi phản hồi** — Tập đoàn nhận được ngay trong thẻ và khép thẻ khi việc đã xong.
 
 > Lịch nhắc do Tập đoàn đặt và điều chỉnh; đơn vị chỉ nhận tin, không cần cấu hình gì.
 
@@ -332,6 +335,7 @@ Các câu hỏi lãnh đạo đơn vị hay gặp khi mới dùng hệ thống.
 | Cảnh báo báo giá sai nhưng số thật sự đúng | Cảnh báo chỉ là dấu hiệu cần kiểm tra. Nếu đã đối chiếu và số đúng thì báo Tập đoàn qua Hỗ trợ & Thông báo. |
 | Muốn sửa số đã nhập nhưng kỳ đã khoá | Nhắc nhân viên nhập liệu gửi **Đề nghị sửa số liệu**; Tập đoàn duyệt xong số mới được cập nhật. |
 | Không nhận được email báo tin mới | Xem hộp thư rác trước; vẫn không có thì báo Tập đoàn kiểm tra địa chỉ email gắn với tài khoản. |
-| Lỡ bấm “Đánh dấu đã xong” khi việc chưa xong | Đơn vị không tự mở lại được; nhờ Tập đoàn mở lại hoặc gửi yêu cầu mới. |
+| Không thấy nút “Đánh dấu đã xong” trong thông báo | Đúng thiết kế: thông báo do Tập đoàn khép. Đơn vị chỉ cần phản hồi kết quả ngay trong thông báo. |
+| Lỡ khép yêu cầu hỗ trợ khi việc chưa xong | Đơn vị không tự mở lại được; nhờ Tập đoàn mở lại hoặc gửi yêu cầu mới. |
 | Không thấy mục Thu mua trong menu | Đơn vị không được giao kế hoạch thu mua nên hệ thống ẩn mục này. |
 | Đơn vị vừa sáp nhập, muốn xem số cũ | Số liệu trước sáp nhập vẫn còn trong hệ thống và được gộp vào đơn vị nhận; cần bóc tách riêng thì đề nghị Tập đoàn hỗ trợ. |

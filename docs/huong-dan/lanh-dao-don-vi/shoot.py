@@ -70,6 +70,16 @@ THREAD = f"""(() => {{
   return window.__annotate([msg, box, send, done]);
 }})()"""
 
+#: Thẻ Tập đoàn gửi xuống (thông báo · nhắc lịch): đơn vị KHÔNG có nút khép, thay bằng lời dặn đỏ
+#: "phản hồi kết quả ngay trong thông báo".
+THREAD_FROM_HQ = f"""(() => {{
+  const msg = document.querySelector('.sp-msg');
+  const note = document.querySelector('.sp-compose .form-note');
+  const box = document.querySelector('textarea.sp-textarea');
+  const send = {btn('Gửi phản hồi')};
+  return window.__annotate([msg, note, box, send]);
+}})()"""
+
 COMPOSER = """(() => {
   const m = [...document.querySelectorAll('.ant-modal')].pop();
   if (!m) return 0;
@@ -215,14 +225,14 @@ def main() -> int:
         # ── Phần 1: hộp thư với Tập đoàn ─────────────────────────────────────────────────────
         shot(f"{WEB}/ho-tro", MENU, "01-menu.png", wait_for=".ant-menu")
         shot(f"{WEB}/ho-tro", INBOX, "02-hop-thu.png", wait_for=".sp-item")
-        shot(f"{WEB}/ho-tro/{ids['announce']}", THREAD, "03-nhan-thong-bao.png",
+        shot(f"{WEB}/ho-tro/{ids['announce']}", THREAD_FROM_HQ, "03-nhan-thong-bao.png",
              wait_for=".sp-msg")
         shot(f"{WEB}/ho-tro", COMPOSER, "04-gui-yeu-cau.png", wait_for=".sp-item",
              setup=open_composer)
         shot(f"{WEB}/ho-tro/{ids['request']}", THREAD, "05-tap-doan-tra-loi.png",
              wait_for=".sp-msg")
         shot(f"{WEB}/ho-tro/{ids['closed']}", CLOSED, "06-the-da-dong.png", wait_for=".sp-compose")
-        shot(f"{WEB}/ho-tro/{ids['reminder']}", THREAD, "07-nhac-lich.png",
+        shot(f"{WEB}/ho-tro/{ids['reminder']}", THREAD_FROM_HQ, "07-nhac-lich.png",
              wait_for=".sp-msg")
 
         # ── Phần 2: xem số liệu của đơn vị ───────────────────────────────────────────────────
