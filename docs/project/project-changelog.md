@@ -172,6 +172,16 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     khai gì). Giá bình quân · bản tin · báo cáo **không đổi** — số 0 vẫn không vào kho giá.
 
 ### Changed
+- **Đơn vị không tự khép thẻ Tập đoàn gửi xuống — phản hồi kết quả ngay trong thẻ** (26/09/2026,
+  0.4.91). Lãnh đạo Cao su Sơn La bấm *Đánh dấu đã xong* trên thông báo *Kiểm tra tài khoản Lãnh
+  đạo* (tưởng là "đã nhận") nên thẻ khép và mất ô phản hồi; cả đợt có 6/63 đơn vị khép mà chưa trả
+  lời (Tập đoàn đã mở lại cả 6 thẻ). Thay luật 29/08 "đóng thẻ thì cả hai bên đều làm được".
+  - Thông báo · nhắc lịch · cảnh báo: phía đơn vị **bỏ nút khép**, thay bằng lời dặn đỏ *"Vui lòng
+    phản hồi kết quả ngay trong thông báo này"*. Tập đoàn khép sau khi nhận phản hồi.
+  - Yêu cầu hỗ trợ do đơn vị gửi: đơn vị vẫn tự khép được nhưng **hệ thống hỏi lại trước** — khép rồi
+    là không phản hồi thêm được. Tập đoàn khép thẻ cũng được hỏi lại, kèm nhắc khi đơn vị chưa trả
+    lời lần nào.
+  - Server chặn cả hai luật; luật "chỉ Tập đoàn mở lại" trước đây mới ẩn nút ở giao diện.
 - **Gợi ý giá sàn và Trợ lý AI dùng tồn kho THEO NGÀY** (24/09/2026) — thay cho tồn kho tuần
   (bảng tuần dừng ở 07/08/2026, AI đang đọc số cũ 7 tuần).
   - Số cộng thẳng từ biểu Tồn kho đơn vị tự khai (đã + chưa nhập kho), cùng cách tính với Thống kê
