@@ -3,6 +3,14 @@
 Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/).
 
 ## [Unreleased]
+### Fixed
+- **HĐ dài hạn còn phải giao chỉ tính HĐ dài hạn (HĐDH), không tính HĐ nguyên tắc** (28/09/2026).
+  - Phản ánh của Cao su Tây Ninh: đơn vị chỉ bán HĐ chuyến nhưng báo cáo tiêu thụ hiện 3.427 tấn
+    "HĐ dài hạn còn phải giao" (0% thực hiện) — đó là trọn sản lượng ghi trên 6 HĐ nguyên tắc, trong
+    khi hàng thật đã đi bằng HĐ chuyến ⇒ Tổng phải giao bị cộng hai lần (4.939 thay vì 1.512).
+  - Nay sản lượng trên HĐ nguyên tắc (chỉ là dự kiến) không vào phải giao; phụ lục của nó tính theo
+    loại của chính phụ lục (HĐ chuyến / HĐ dài hạn). Nhãn trên báo cáo tiêu thụ, Dashboard đơn vị và
+    file Excel đổi "HĐ mẹ" → "HĐDH". Toàn Tập đoàn tại 28/09: Tổng phải giao 150.818 → 124.934 tấn.
 ### Added
 - **Dashboard đơn vị: HĐ dài hạn theo HĐ mẹ · sản lượng còn phải giao · tiến độ bán hàng năm**
   (26/09/2026, 0.4.92).

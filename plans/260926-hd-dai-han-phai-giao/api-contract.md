@@ -25,7 +25,7 @@ def backlog_on(as_of: str, companies: list[str] | None = None,
   "lt_remaining": 650.0,            // = master_remaining + lt_unlinked_undelivered
   "to_deliver": 773.4,              // = spot_undelivered + lt_remaining + unknown_undelivered
   "items": [                        // từng HĐ mẹ có cam kết, xếp remaining giảm dần
-    {"id": 1, "code": "…", "master_type": "long_term|principle", "customer_id": 9,
+    {"id": 1, "code": "…", "master_type": "long_term", "customer_id": 9,
      "sign_date": "2026-01-05", "expiry_date": "2026-12-31",
      "committed": 302.4, "delivered": 120.0, "remaining": 182.4, "pct": 39.7, "expired": false}
   ]

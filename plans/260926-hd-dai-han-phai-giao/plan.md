@@ -26,7 +26,7 @@ created: 2026-09-26
 ## Quyết định
 | # | Nội dung |
 |---|---|
-| Q1 | "HĐ dài hạn theo HĐ mẹ" = mọi hồ sơ `master_contract` (HĐDH + HĐNT) CÓ sản lượng cam kết, hiệu lực chồng lên năm của ngày tính. Cam kết = Σ dòng (quy khô nếu có, không thì SL). Đã giao = mọi lần giao (≤ ngày tính) của phụ lục + đợt giao thuộc hồ sơ, gốc quy khô như tiêu thụ. |
+| Q1 | ⚠ **Đổi 28/09/2026: CHỈ HĐDH** — HĐNT không tính, phụ lục của nó theo loại của chính phụ lục (phản ánh Cao su Tây Ninh: 3.427 t HĐNT hiện thành "HĐ dài hạn" dù đơn vị chỉ bán HĐ chuyến). Bản gốc: "HĐ dài hạn theo HĐ mẹ" = mọi hồ sơ `master_contract` (HĐDH + HĐNT) CÓ sản lượng cam kết, hiệu lực chồng lên năm của ngày tính. Cam kết = Σ dòng (quy khô nếu có, không thì SL). Đã giao = mọi lần giao (≤ ngày tính) của phụ lục + đợt giao thuộc hồ sơ, gốc quy khô như tiêu thụ. |
 | Q2 | Còn phải giao của một HĐ mẹ = max(cam kết − đã giao, Σ phụ lục đã ký chưa giao); HĐ mẹ đã HẾT HẠN → 0, phần thiếu báo riêng `master_expired_short`. |
 | Q3 | Không đếm trùng: hợp đồng thuộc HĐ mẹ có cam kết → tính ở cấp HĐ mẹ; còn lại tính theo khối 3 của chính nó, chia theo `contract_type` (spot · long_term · chưa khai). |
 | Q4 | "Tổng phải giao" KHÁC "Đã ký HĐ chưa giao" (khối 3 của biểu Tồn kho): phần dài hạn theo cam kết HĐ mẹ, gồm cả sản lượng chưa ký phụ lục. Giữ nhãn khác nhau. |
