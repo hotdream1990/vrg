@@ -71,8 +71,8 @@ export default function ConsumptionReportPage() {
             Tổng hợp từ <b>các lần giao</b> ghi trên hợp đồng &amp; đợt giao — đơn vị không nhập tay
             số tiêu thụ nữa. Sản lượng tính theo <b>quy khô</b>: latex, mủ nguyên liệu và mủ dây
             lấy số quy khô, chủng loại chưa khai quy khô thì giữ nguyên số đang có. Phần phải giao lấy
-            tại ngày cuối kỳ; <b>Tổng phải giao</b> tính phần dài hạn theo <b>cam kết HĐ mẹ</b> (gồm cả phần
-            chưa ký phụ lục) nên khác số “Đã ký HĐ chưa giao” ở biểu Tồn kho. Nút <b>Xuất Excel</b> cho ra 2 sheet: tổng hợp theo đơn vị và{" "}
+            tại ngày cuối kỳ; <b>Tổng phải giao</b> tính phần dài hạn theo <b>cam kết HĐ dài hạn (HĐDH)</b> (gồm cả phần
+            chưa ký phụ lục; HĐ nguyên tắc không tính cam kết) nên khác số “Đã ký HĐ chưa giao” ở biểu Tồn kho. Nút <b>Xuất Excel</b> cho ra 2 sheet: tổng hợp theo đơn vị và{" "}
             <b>chi tiết từng dòng bán</b> (đã bật sẵn bộ lọc để soát/pivot trong Excel).
           </p>
         </div>

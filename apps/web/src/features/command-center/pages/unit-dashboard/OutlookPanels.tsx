@@ -1,4 +1,4 @@
-/* 3 khối dưới dòng phương trình của card "Tiến độ bán hàng năm": HĐ dài hạn theo HĐ mẹ · So KH bán
+/* 3 khối dưới dòng phương trình của card "Tiến độ bán hàng năm": HĐ dài hạn (HĐDH) · So KH bán
    hàng (khai thác + thu mua) · Doanh thu dự kiến.
    % so KH tính trên RỔ đơn vị có KH — khác số cả phạm vi ở dòng phương trình → luôn ghi rõ rổ, lệch
    đáng kể thì nêu kèm số cả phạm vi (phản hồi 26/09/2026). Có KH mà không ra % = vướng DỮ LIỆU
@@ -49,39 +49,39 @@ function LtPanel({ data }: { data: OutlookBlock }) {
   const lt = data.lt ?? {};
   const has = isPositive(lt.committed);
   return (
-    <Panel title="HĐ dài hạn theo HĐ mẹ" tag={has ? `${count(lt.masters)} HĐ mẹ có cam kết` : undefined}>
+    <Panel title="HĐ dài hạn (HĐDH)" tag={has ? `${count(lt.masters)} HĐDH có cam kết` : undefined}>
       {!has ? (
         <div className="ud-muted ud-small">
-          Chưa có HĐ mẹ nào có cam kết sản lượng hiệu lực trong năm {data.year}.
+          Chưa có HĐDH nào có cam kết sản lượng hiệu lực trong năm {data.year}.
         </div>
       ) : (
         <>
           <div className="ud-ol-figure">
             Đã giao <b>{fmtTon(lt.delivered)}</b> / cam kết <b>{fmtTon(lt.committed)}</b> tấn
           </div>
-          <div className="ud-muted ud-small">Lũy kế từ ngày ký HĐ mẹ (gồm cả phần giao năm trước).</div>
+          <div className="ud-muted ud-small">Lũy kế từ ngày ký HĐDH (gồm cả phần giao năm trước).</div>
           {lt.pct == null
             ? <div className="ud-muted ud-small">Chưa tính được tỷ lệ thực hiện.</div>
             : <PctProgress pct={lt.pct} />}
-          <div className="ud-ol-figure">Còn phải giao theo HĐ mẹ <b>{fmtTons(lt.remaining)}</b></div>
+          <div className="ud-ol-figure">Còn phải giao theo HĐDH <b>{fmtTons(lt.remaining)}</b></div>
         </>
       )}
       {isPositive(lt.remaining_after_year) && (
         <div className="ud-muted ud-small">
-          Trong đó {fmtTons(lt.remaining_after_year)} thuộc HĐ mẹ còn hiệu lực sau 31/12/{data.year}
+          Trong đó {fmtTons(lt.remaining_after_year)} thuộc HĐDH còn hiệu lực sau 31/12/{data.year}
           hoặc không thời hạn — chưa chắc giao hết trong năm.
         </div>
       )}
       {isPositive(lt.expired_short) && (
         <div className="ud-muted ud-small">
-          HĐ mẹ đã hết hạn: {fmtTons(lt.expired_short)} cam kết chưa ký phụ lục không còn phải giao
+          HĐDH đã hết hạn: {fmtTons(lt.expired_short)} cam kết chưa ký phụ lục không còn phải giao
           (phụ lục đã ký vẫn tính).
         </div>
       )}
       {isPositive(lt.unlinked_undelivered) && (
         <div className="ud-muted ud-small">
-          “HĐ dài hạn còn phải giao” gồm thêm {fmtTons(lt.unlinked_undelivered)} HĐ dài hạn không có
-          cam kết HĐ mẹ (tính theo phụ lục đã ký).
+          “HĐ dài hạn còn phải giao” gồm thêm {fmtTons(lt.unlinked_undelivered)} HĐ dài hạn khác
+          đã ký chưa giao (ngoài HĐDH có cam kết, kể cả phụ lục của HĐ nguyên tắc).
         </div>
       )}
     </Panel>

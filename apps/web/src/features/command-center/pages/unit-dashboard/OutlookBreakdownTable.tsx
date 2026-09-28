@@ -1,5 +1,5 @@
 /* Bảng "Tiến độ bán hàng theo khu vực / đơn vị" dưới card Tiến độ bán hàng năm. 3 nhóm cột: HĐ dài
-   hạn theo HĐ mẹ · Sản lượng cả năm so KH bán hàng · Doanh thu dự kiến so KH. Ô KH bán hàng ghi tổng
+   hạn (HĐDH) · Sản lượng cả năm so KH bán hàng · Doanh thu dự kiến so KH. Ô KH bán hàng ghi tổng
    kèm dòng nhỏ tách khai thác / thu mua. Giữ thứ tự dòng server trả — không tự sắp lại.
    Bảng rộng → cuộn ngang TRONG `.ud-table-wrap` trên màn hẹp, không kéo cả trang. */
 
@@ -37,10 +37,10 @@ function BasketCell({ basket, whole, fmt }: { basket?: Num; whole: Num; fmt: (v:
 }
 
 const GROUPS: Group[] = [
-  { label: "HĐ dài hạn theo HĐ mẹ", cols: [
-    { label: "Còn lại (tấn)", title: "Cam kết HĐ mẹ còn phải giao (HĐ mẹ còn hiệu lực)",
+  { label: "HĐ dài hạn (HĐDH)", cols: [
+    { label: "Còn lại (tấn)", title: "Cam kết HĐDH còn phải giao (HĐDH còn hiệu lực)",
       cell: (r) => fmtTon(r.lt_remaining) },
-    { label: "% thực hiện", title: "Đã giao / cam kết của các HĐ mẹ",
+    { label: "% thực hiện", title: "Đã giao / cam kết của các HĐDH",
       cell: (r) => <MiniPct pct={r.lt_pct} /> },
   ] },
   { label: "Sản lượng cả năm (tấn)", cols: [

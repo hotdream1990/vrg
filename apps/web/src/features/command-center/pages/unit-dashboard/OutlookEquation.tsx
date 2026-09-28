@@ -2,7 +2,7 @@
      Đã giao lũy kế + [HĐ chuyến đã ký chưa giao + HĐ dài hạn còn phải giao (+ HĐ chưa khai loại)]
      = Tổng bán cả năm (dự kiến).
    Nhóm giữa đóng khung = "Tổng phải giao đến cuối năm" (khác "Đã ký HĐ chưa giao" của tồn kho: phần
-   dài hạn tính theo CAM KẾT HĐ mẹ, gồm cả sản lượng chưa ký phụ lục). Số lấy nguyên từ server — web
+   dài hạn tính theo CAM KẾT HĐDH, gồm cả sản lượng chưa ký phụ lục). Số lấy nguyên từ server — web
    không tự cộng. Ô "HĐ chưa khai loại" chỉ hiện khi > 0. */
 
 import { Fragment } from "react";
@@ -32,7 +32,7 @@ export default function OutlookEquation({ data }: { data: OutlookBlock }) {
   const v = data.volume ?? {};
   const pending: Tile[] = [
     { label: "HĐ chuyến đã ký chưa giao", value: b.spot_undelivered, sub: "đã ký, chưa giao hết" },
-    { label: "HĐ dài hạn còn phải giao", value: b.lt_remaining, sub: "HĐ mẹ còn lại + HĐ dài hạn không có cam kết HĐ mẹ" },
+    { label: "HĐ dài hạn còn phải giao", value: b.lt_remaining, sub: "HĐDH còn lại + HĐ dài hạn khác đã ký chưa giao" },
   ];
   if (isPositive(b.unknown_undelivered)) {
     pending.push({ label: "HĐ chưa khai loại", value: b.unknown_undelivered,

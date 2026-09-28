@@ -10,7 +10,8 @@ import "./consumption-master-progress.css";
 type Props = { rep: ConsumptionReport; totals: BacklogTotals | null };
 
 /** "HĐ dài hạn đã giao bao nhiêu trên số đã ký từ HĐ mẹ, còn lại bao nhiêu, tỷ lệ thực hiện" (yêu cầu
- *  khách 26/09/2026). Mỗi đơn vị một dòng, bấm để xem từng HĐ mẹ. Chỉ hiện khi có đơn vị có HĐ mẹ
+ *  khách 26/09/2026). Mỗi đơn vị một dòng, bấm để xem từng HĐDH (HĐ nguyên tắc không tính — 28/09/2026).
+ *  Chỉ hiện khi có đơn vị có HĐDH
  *  mang sản lượng cam kết; API cũ (chưa có `backlog`) → không hiện gì. */
 export default function ConsumptionMasterProgress({ rep, totals }: Props) {
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -29,15 +30,15 @@ export default function ConsumptionMasterProgress({ rep, totals }: Props) {
   return (
     <>
       <div className="blt-toolbar" style={{ marginTop: 14 }}>
-        <b>Hợp đồng dài hạn theo hợp đồng mẹ</b>
+        <b>Tiến độ hợp đồng dài hạn (HĐDH)</b>
         <span style={{ color: "var(--muted)", fontSize: 13 }}>
-          tính đến {dmy(rep.backlog_as_of ?? rep.date_to)} · bấm một dòng để xem từng HĐ mẹ
+          tính đến {dmy(rep.backlog_as_of ?? rep.date_to)} · bấm một dòng để xem từng HĐDH
         </span>
       </div>
       <div className="card cmp-card">
         <table>
           <thead><tr>
-            <th>Đơn vị</th><th className="r">Số HĐ mẹ</th>
+            <th>Đơn vị</th><th className="r">Số HĐDH</th>
             <th className="r">Cam kết (tấn)</th><th className="r">Đã giao (tấn)</th>
             <th className="r">Còn phải giao (tấn)</th><th className="r">% thực hiện</th>
             {showExpired && <th className="r">Hết hạn chưa giao đủ (tấn)</th>}
@@ -87,9 +88,10 @@ export default function ConsumptionMasterProgress({ rep, totals }: Props) {
         </table>
       </div>
       <div className="cmp-note">
-        Đã giao tính lũy kế từ ngày ký HĐ mẹ. Còn phải giao của một HĐ mẹ = cam kết − đã giao (không
-        thấp hơn phần phụ lục đã ký chưa giao); HĐ mẹ đã hết hạn chỉ còn phần phụ lục đã ký chưa giao —
-        cam kết chưa ký phụ lục của nó ghi ở cột “Hết hạn chưa giao đủ”.
+        Đã giao tính lũy kế từ ngày ký HĐDH. Còn phải giao của một HĐDH = cam kết − đã giao (không
+        thấp hơn phần phụ lục đã ký chưa giao); HĐDH đã hết hạn chỉ còn phần phụ lục đã ký chưa giao —
+        cam kết chưa ký phụ lục của nó ghi ở cột “Hết hạn chưa giao đủ”. HĐ nguyên tắc không tính ở đây:
+        sản lượng ghi trên đó chỉ là dự kiến, phụ lục của nó tính theo loại của chính phụ lục.
       </div>
     </>
   );

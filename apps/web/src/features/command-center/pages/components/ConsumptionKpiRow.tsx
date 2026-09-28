@@ -5,7 +5,7 @@ import {
 type Kpi = { label: string; value: string; sub?: string };
 
 /** Phần PHẢI GIAO tách 3 thẻ theo yêu cầu khách (26/09/2026): HĐ chuyến đã ký chưa giao + HĐ dài hạn
- *  còn phải giao = tổng phải giao đến cuối năm; thêm 1 thẻ tiến độ HĐ dài hạn theo HĐ mẹ.
+ *  còn phải giao = tổng phải giao đến cuối năm; thêm 1 thẻ tiến độ HĐDH (HĐ nguyên tắc không tính).
  *  API cũ (chưa có `backlog`) → giữ 1 thẻ "Đã ký chưa giao" như trước. */
 function backlogCards(totals: ConsumptionTotals, bl: BacklogTotals | null): Kpi[] {
   if (!bl) return [{ label: "Đã ký chưa giao (tấn quy khô)", value: t3(totals.remaining) }];
@@ -13,7 +13,7 @@ function backlogCards(totals: ConsumptionTotals, bl: BacklogTotals | null): Kpi[
     { label: "HĐ chuyến đã ký chưa giao (tấn)", value: t3(bl.spot) },
     {
       label: "HĐ dài hạn còn phải giao (tấn)", value: t3(bl.lt),
-      sub: "HĐ mẹ còn lại (gồm phần chưa ký phụ lục) + HĐ dài hạn không có cam kết HĐ mẹ",
+      sub: "HĐDH còn lại (gồm phần chưa ký phụ lục) + HĐ dài hạn khác đã ký chưa giao",
     },
     {
       label: "Tổng phải giao đến cuối năm (tấn)", value: t3(bl.toDeliver),
@@ -21,10 +21,10 @@ function backlogCards(totals: ConsumptionTotals, bl: BacklogTotals | null): Kpi[
       sub: bl.unknown > 0 ? `Gồm ${t3(bl.unknown)} tấn HĐ chưa khai loại` : undefined,
     },
     {
-      label: "HĐ dài hạn theo HĐ mẹ", value: pct1(bl.pct),
+      label: "Tiến độ HĐ dài hạn (HĐDH)", value: pct1(bl.pct),
       sub: bl.committed > 0
         ? `Đã giao ${t3(bl.delivered)} / cam kết ${t3(bl.committed)} tấn (lũy kế từ ngày ký) · còn phải giao ${t3(bl.masterRemaining)}`
-        : "Chưa có HĐ mẹ nào có sản lượng cam kết",
+        : "Chưa có HĐDH nào có sản lượng cam kết",
     },
   ];
 }

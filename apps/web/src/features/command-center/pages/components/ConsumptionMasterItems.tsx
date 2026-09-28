@@ -2,10 +2,6 @@ import { dmy } from "../../../../lib/date";
 import type { BacklogItem } from "../../../../lib/sales-contract-client";
 import { pct1, t3 } from "./consumption-report-totals";
 
-const TYPE_LABEL: Record<BacklogItem["master_type"], string> = {
-  principle: "HĐNT", long_term: "HĐDH",
-};
-
 /** Thanh mini + số % thực hiện (thanh đầy ở 100%, số vẫn hiện số thật nếu giao vượt cam kết). */
 export function PctBar({ pct }: { pct: number | null }) {
   if (pct == null) return <span className="cmp-pct-text">—</span>;
@@ -23,15 +19,15 @@ type Props = {
   customers: Record<string, string>;
 };
 
-/** Danh sách HĐ mẹ có cam kết của MỘT đơn vị — mở ra khi bấm dòng đơn vị. Giữ thứ tự server
- *  (còn phải giao giảm dần). */
+/** Danh sách HĐDH có cam kết của MỘT đơn vị — mở ra khi bấm dòng đơn vị. Giữ thứ tự server
+ *  (còn phải giao giảm dần). Chỉ có HĐDH (HĐ nguyên tắc không tính) nên không cần cột Loại. */
 export default function ConsumptionMasterItems({ items, customers }: Props) {
   const nameOf = (id: number | null) => (id == null ? undefined : customers[String(id)]);
   const showCustomer = items.some((it) => nameOf(it.customer_id));
   return (
     <table className="cmp-items">
       <thead><tr>
-        <th>Số HĐ mẹ</th><th>Loại</th>
+        <th>Số HĐDH</th>
         {showCustomer && <th>Khách hàng</th>}
         <th>Hiệu lực</th>
         <th className="r">Cam kết (tấn)</th><th className="r">Đã giao (tấn)</th>
@@ -44,7 +40,6 @@ export default function ConsumptionMasterItems({ items, customers }: Props) {
               {it.code || `#${it.id}`}
               {it.expired && <span className="db-badge warn cmp-expired">hết hạn</span>}
             </td>
-            <td>{TYPE_LABEL[it.master_type] ?? it.master_type}</td>
             {showCustomer && <td>{nameOf(it.customer_id) ?? "—"}</td>}
             <td>{dmy(it.sign_date)} → {it.expiry_date ? dmy(it.expiry_date) : "không thời hạn"}</td>
             <td className="r">{t3(it.committed)}</td>

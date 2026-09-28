@@ -1,4 +1,4 @@
-/* Card "Tiến độ bán hàng năm" — trả lời: HĐ dài hạn đã giao bao nhiêu trên cam kết HĐ mẹ · còn phải
+/* Card "Tiến độ bán hàng năm" — trả lời: HĐ dài hạn đã giao bao nhiêu trên cam kết HĐDH · còn phải
    giao bao nhiêu tới cuối năm (HĐ chuyến đã ký chưa giao + HĐ dài hạn còn lại) · cả năm dự kiến bán
    bao nhiêu so KH bán hàng (khai thác + thu mua) · doanh thu dự kiến so KH doanh thu.
    Dòng phương trình = CẢ PHẠM VI; % so KH = RỔ đơn vị có KH (luôn ghi rõ rổ). Số lấy nguyên từ
@@ -22,7 +22,7 @@ export default function OutlookCard({ state }: { state: BlockState<OutlookBlock>
       id="ud-outlook" state={state} warnings={(o) => o.warnings ?? []}
       title={<><RiseOutlined style={{ marginRight: 6 }} />Tiến độ bán hàng năm {d?.year ?? ""}</>}
       sub={d && <>Tính đến {dmy(d.as_of)} · Tổng phải giao = HĐ chuyến đã ký chưa giao + HĐ dài hạn còn
-        lại theo cam kết HĐ mẹ · DT dự kiến = DT đã thực hiện + SL còn phải giao × giá bán BQ lũy kế
+        lại theo cam kết HĐDH · DT dự kiến = DT đã thực hiện + SL còn phải giao × giá bán BQ lũy kế
         của từng đơn vị.</>}
     >
       {(o) => {
