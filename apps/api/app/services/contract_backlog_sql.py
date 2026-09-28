@@ -16,16 +16,19 @@ _LINE_SQL = ("COALESCE(e->>'grade', '') AS grade, "
              "COALESCE(NULLIF(NULLIF(e->>'qty_dry', '')::numeric, 0), "
              "NULLIF(e->>'qty', '')::numeric, 0) AS sale")
 
-#: Mỗi HĐ mẹ có cam kết, hiệu lực chồng lên năm của `:d` → MỘT DÒNG MỖI CHỦNG LOẠI (có trong cam
+#: Mỗi HĐDH có cam kết, hiệu lực chồng lên năm của `:d` → MỘT DÒNG MỖI CHỦNG LOẠI (có trong cam
 #: kết HOẶC đã giao) kèm số cam kết + đã giao LŨY KẾ tới hết `:d`. Không lọc chủng loại ở SQL: một
 #: HĐ mẹ có được tính hay không là chuyện của cả hồ sơ — lọc ở đây thì phụ lục của nó nhảy sang ô
 #: "dài hạn ngoài HĐ mẹ" khi đổi bộ lọc; Python lọc lúc cộng.
 #: Đã giao = phụ lục giao-1-lần (chính nó có ngày giao) + đợt giao của phụ lục — cùng luật khối 3.
+#: CHỈ HĐDH (`long_term`): HĐ nguyên tắc là hợp đồng khung, sản lượng ghi trên đó là dự kiến — tính nó
+#: là coi cam kết HĐNT như nợ giao "dài hạn" trong khi hàng thật đi bằng HĐ chuyến (28/09/2026).
 MASTER_SQL = f"""
 WITH m AS (
     SELECT id, company, code, master_type, customer_id, sign_date, expiry_date, lines
       FROM master_contract
-     WHERE (sign_date IS NULL OR sign_date <= CAST(:d AS date))
+     WHERE master_type = 'long_term'
+       AND (sign_date IS NULL OR sign_date <= CAST(:d AS date))
        AND (expiry_date IS NULL OR expiry_date >= CAST(:y0 AS date))
        {{scope}}
 ), annex AS (

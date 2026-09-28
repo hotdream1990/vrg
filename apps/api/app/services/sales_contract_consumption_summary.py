@@ -24,7 +24,7 @@ SUMMARY_COLS: list[Col] = [
     ("qty_internal", SALE_CHANNELS["internal"], "tấn"),
     ("revenue_ty", "Doanh thu", "tỷ đồng"),
     # Khối 3 của biểu Tồn kho — tính trên hợp đồng đã ký. KHÁC "Tổng phải giao" bên dưới (phần dài
-    # hạn theo cam kết HĐ mẹ, gồm cả sản lượng chưa ký phụ lục) → hai nhãn phải khác nhau (Q4).
+    # hạn theo cam kết HĐDH, gồm cả sản lượng chưa ký phụ lục) → hai nhãn phải khác nhau (Q4).
     ("remaining", "Đã ký HĐ chưa giao (khối 3)", "tấn quy khô"),
     ("spot_undelivered", "HĐ chuyến chưa giao", "tấn quy khô"),
     ("lt_remaining", "HĐ dài hạn còn phải giao", "tấn quy khô"),
@@ -32,9 +32,9 @@ SUMMARY_COLS: list[Col] = [
     # được "Tổng phải giao" và người đọc không biết phần chênh ở đâu.
     ("unknown_undelivered", "HĐ chưa khai loại chưa giao", "tấn quy khô"),
     ("to_deliver", "Tổng phải giao", "tấn quy khô"),
-    ("master_committed", "Cam kết HĐ mẹ", "tấn quy khô"),
-    ("master_delivered", "Đã giao theo HĐ mẹ", "tấn quy khô"),
-    ("master_pct", "% thực hiện HĐ mẹ", "%"),
+    ("master_committed", "Cam kết HĐDH", "tấn quy khô"),
+    ("master_delivered", "Đã giao theo HĐDH", "tấn quy khô"),
+    ("master_pct", "% thực hiện HĐDH", "%"),
 ]
 
 _BACKLOG_KEYS = ("spot_undelivered", "lt_remaining", "unknown_undelivered", "to_deliver",

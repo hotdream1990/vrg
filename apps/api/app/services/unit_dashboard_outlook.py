@@ -50,7 +50,7 @@ def outlook_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any
         "lt": {k: whole[f"lt_{k}"] for k in ("committed", "delivered", "remaining", "pct",
                                              "masters", "expired_short", "unlinked_undelivered",
                                              "remaining_after_year")},
-        # `lt_remaining` ở đây = HĐ mẹ còn lại + HĐ dài hạn chưa gắn HĐ mẹ; ở khối `lt` chỉ là HĐ mẹ.
+        # `lt_remaining` ở đây = HĐDH còn lại + HĐ dài hạn khác đã ký chưa giao; ở khối `lt` chỉ là HĐDH.
         "backlog": {"spot_undelivered": whole["spot_undelivered"],
                     "lt_remaining": whole["backlog_lt_remaining"],
                     "unknown_undelivered": whole["unknown_undelivered"],

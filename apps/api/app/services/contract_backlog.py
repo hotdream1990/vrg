@@ -8,7 +8,10 @@ theo CAM KẾT của hợp đồng mẹ (HĐDH/HĐNT), nên gồm cả sản lư
 phụ lục. Hai con số đo hai thứ khác nhau — giữ hai nhãn khác nhau (plan 260926 Q4).
 
 Luật (plan 260926 Q1–Q3):
-  - HĐ mẹ ĐƯỢC TÍNH = có cam kết > 0, ký ≤ ngày tính, hết hạn KHÔNG trước 01/01 năm của ngày tính.
+  - HĐ mẹ ĐƯỢC TÍNH = HĐ DÀI HẠN (HĐDH) có cam kết > 0, ký ≤ ngày tính, hết hạn KHÔNG trước 01/01 năm
+    của ngày tính. HĐ NGUYÊN TẮC không tính (đổi 28/09/2026 — Cao su Tây Ninh chỉ bán HĐ chuyến dưới
+    HĐNT mà bị hiện 3.427 t "HĐ dài hạn" = trọn cam kết HĐNT): phụ lục của nó tính theo loại HĐ của
+    chính phụ lục như mọi hợp đồng không thuộc HĐ mẹ được tính.
   - Đã giao của HĐ mẹ = mọi lần giao ≤ ngày tính của phụ lục + đợt giao của phụ lục, LŨY KẾ từ ngày
     ký — cam kết là của cả đời hợp đồng, cắt theo năm là coi hàng giao năm ngoái như chưa giao.
   - Còn phải giao = max(cam kết − đã giao, Σ phụ lục đã ký chưa giao): phụ lục ký vượt cam kết thì

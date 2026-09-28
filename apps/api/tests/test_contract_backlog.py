@@ -4,7 +4,7 @@ Khoá những chỗ dễ sai nhất (plan 260926 Q1–Q4):
   1. KHÔNG đếm trùng: phụ lục của HĐ mẹ có cam kết chỉ góp ở cấp HĐ mẹ, không góp thêm vào ô chuyến
      / dài hạn ngoài HĐ mẹ.
   2. Còn phải giao = max(cam kết − đã giao, phụ lục đã ký chưa giao); HĐ mẹ hết hạn → 0 + thiếu hụt.
-  3. HĐ mẹ không có cam kết → phụ lục tính như hợp đồng thường.
+  3. HĐ mẹ không có cam kết, hoặc là HĐ NGUYÊN TẮC → phụ lục tính như hợp đồng thường.
   4. Cùng gốc QUY KHÔ với cột tiêu thụ, lọc chủng loại ở mức dòng, phạm vi đơn vị.
 Dữ liệu dựng thẳng bằng SQL: màn nhập hợp đồng có luật riêng (khách hàng, ngày không ở tương lai…)
 không liên quan tới phép tính ở đây, và ngày cố định giữ test không đổi màu theo lịch.
@@ -102,7 +102,7 @@ def test_chia_chuyen_dai_han_khong_dem_trung() -> None:
 
 def test_phu_luc_ky_vuot_cam_ket_thi_lay_phan_da_ky() -> None:
     """Cam kết 500, đã giao 300 (qua đợt giao), phụ lục còn 400 chưa giao → phải giao 400, không 200."""
-    m = _master(UNIT_A, "HDNT-1", [_ln(500)], mtype="principle")
+    m = _master(UNIT_A, "HDDH-VUOT", [_ln(500)])
     pl = _contract(UNIT_A, "PL-X", [_ln(700)], ctype="long_term", master_id=m, multi=True)
     _contract(UNIT_A, "PL-X/1", [_ln(300)], ctype=None, parent_id=pl, delivered_at="2026-04-10")
 
@@ -110,7 +110,7 @@ def test_phu_luc_ky_vuot_cam_ket_thi_lay_phan_da_ky() -> None:
     assert b["master_delivered"] == pytest.approx(300)       # đợt giao của phụ lục được đếm
     assert b["master_remaining"] == pytest.approx(400)
     assert b["lt_unlinked_undelivered"] == 0 and b["to_deliver"] == pytest.approx(400)
-    assert b["items"][0]["master_type"] == "principle"
+    assert b["items"][0]["master_type"] == "long_term"
 
 
 def test_hd_me_het_han_vao_thieu_hut_rieng() -> None:
@@ -146,7 +146,7 @@ def test_cam_ket_latex_khong_quy_kho_thi_tru_tren_mu_nuoc() -> None:
 
 def test_hd_me_vat_sang_nam_sau_bao_rieng() -> None:
     _master(UNIT_A, "HDDH-2027", [_ln(400)], expiry="2027-06-30")
-    _master(UNIT_A, "HDNT-VOHAN", [_ln(100)], expiry=None, mtype="principle")
+    _master(UNIT_A, "HDDH-VOHAN", [_ln(100)], expiry=None)
     _master(UNIT_A, "HDDH-2026", [_ln(50)])
 
     b = _bl()
@@ -155,13 +155,29 @@ def test_hd_me_vat_sang_nam_sau_bao_rieng() -> None:
 
 
 def test_hd_me_khong_cam_ket_thi_phu_luc_tinh_nhu_hop_dong_thuong() -> None:
-    m = _master(UNIT_A, "HDNT-TRONG", [_ln(None)], mtype="principle")        # chỉ chốt chủng loại
+    m = _master(UNIT_A, "HDDH-TRONG", [_ln(None)])                           # chỉ chốt chủng loại
     _contract(UNIT_A, "PL-T", [_ln(120)], ctype="long_term", master_id=m)
 
     b = _bl()
     assert b["lt_unlinked_undelivered"] == pytest.approx(120)
     assert (b["masters"], b["items"], b["master_pct"]) == (0, [], None)
     assert b["lt_remaining"] == pytest.approx(120)
+
+
+def test_hd_nguyen_tac_khong_vao_hd_dai_han() -> None:
+    """Phản hồi Cao su Tây Ninh 28/09/2026: chỉ bán HĐ chuyến dưới HĐNT mà bị hiện trọn cam kết HĐNT
+    thành "HĐ dài hạn còn phải giao". HĐNT không tính; phụ lục của nó theo loại HĐ của chính nó."""
+    nt = _master(UNIT_A, "2333NT", [_ln(1000), _ln(1000, LATEX, 600)], mtype="principle")
+    _master(UNIT_A, "89NT", [_ln(100, LATEX, 60)], mtype="principle")        # không phụ lục nào
+    _contract(UNIT_A, "CH-NT", [_ln(80)], ctype="spot", master_id=nt)
+    _contract(UNIT_A, "PL-NT", [_ln(40)], ctype="long_term", master_id=nt)
+    _contract(UNIT_A, "CH-LE", [_ln(20)], ctype="spot")
+
+    b = _bl()
+    assert (b["masters"], b["items"], b["master_committed"], b["master_pct"]) == (0, [], 0, None)
+    assert b["spot_undelivered"] == pytest.approx(100)
+    assert b["lt_remaining"] == pytest.approx(40)            # chỉ phụ lục đã ký chưa giao
+    assert b["to_deliver"] == pytest.approx(140)             # = "đã ký HĐ chưa giao", không cộng cam kết
 
 
 def test_quy_kho_latex_cung_goc_so_voi_tieu_thu() -> None:
@@ -264,7 +280,7 @@ def test_api_tieu_thu_tra_backlog_va_file_excel_co_cot_phai_giao() -> None:
         row = dict(zip(head, [c.value for c in ws[7]], strict=True))
         assert row["Tổng phải giao"] == pytest.approx(625)
         assert row["HĐ dài hạn còn phải giao"] == pytest.approx(600)
-        assert row["% thực hiện HĐ mẹ"] == pytest.approx(40)
+        assert row["% thực hiện HĐDH"] == pytest.approx(40)
         assert row["Đã ký HĐ chưa giao (khối 3)"] == pytest.approx(25)
     finally:
         _wipe()
