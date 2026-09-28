@@ -116,6 +116,10 @@ ghi/xoá phải hỏi user trước.
 
 ## Bẫy đã trả giá
 
+- ⛔ **Build web NGOÀI Dockerfile (image vá) phải là `VITE_API_URL="" pnpm build`** — `http.ts` rơi về
+  `http://localhost:8390` khi biến không được đặt. 0.4.93 (28/09/2026) quên ⇒ web prod gọi localhost, **không
+  ai đăng nhập được ~2h40'**, `/health` vẫn `healthy` nên script deploy không bắt được. Trước khi push:
+  `cat apps/web/dist/assets/*.js | grep -c localhost:8390` PHẢI = 0; sau deploy kiểm lại trên bundle công khai.
 - **`DOCKER_CONFIG` trỏ vào volume của Dokploy** (`DOCKER_CONFIG_PATH` trong file env) — thiếu là `pull` bị **403** (auth registry
   nằm trong volume của Dokploy, không phải `~/.docker`).
 - **Chỉ tag version, KHÔNG `latest`** — Dokploy pull theo tag, tag trùng thì không kéo bản mới.
