@@ -3,15 +3,15 @@
 Phục vụ tư vấn điều chỉnh giá sàn nên MỌI số phải xem được ở 3 cấp: TỔNG Tập đoàn · KHU VỰC ·
 ĐƠN VỊ. Không viết SQL mới — bọc lại đúng service mà màn "Thống kê số liệu" (`unit_analytics.py`)
 và Dashboard (`series.py`) đang dùng, để không bao giờ lệch số với các màn đó.
+Kế hoạch năm & % thực hiện tách riêng ở `unit_plan_progress.py` (bọc Dashboard đơn vị).
 """
 
 from __future__ import annotations
 
-from datetime import date
 from typing import Any
 
 from app.services import member_unit_merge
-from app.services import unit_daily_repo as udr
+from app.services import unit_report_purchase as pur
 from app.services import unit_report_query as urq
 from app.services import unit_report_rows as urr
 from app.services import unit_report_status as urs
@@ -19,6 +19,7 @@ from app.services import unit_series_consumption as usc
 from app.services import unit_series_purchase as usp
 from app.services import unit_series_stock as uss
 
+from . import unit_plan_progress
 from ._common import clamp_from, cols, days_ago, dmy, err, num, safe_date, table, today
 
 #: Đơn vị "độ" của giá thu mua: mủ nước tính theo TSC, mủ chén/mủ dây theo DRC (unit_report_query).
@@ -65,6 +66,10 @@ def _bad_revenue_note(bad_days: list[str]) -> str | None:
            f"bị LOẠI khỏi tổng, CẦN người kiểm tra chứng từ: {shown}.")
 
 
+def _r1(v: float | None) -> float | None:
+    return round(v, 1) if v is not None else None
+
+
 def _ranked(totals: dict[str, float], limit: int = 15) -> list[tuple[str, float]]:
     """Top N nhóm theo giá trị giảm dần — giữ summary gọn cho LLM (quy tắc ≤15 dòng)."""
     return sorted(totals.items(), key=lambda kv: -kv[1])[:limit]
@@ -76,16 +81,7 @@ def _ranked(totals: dict[str, float], limit: int = 15) -> list[tuple[str, float]
 # liệu" dù số có thật (đo trên prod: Cao su Bình Long 407 tấn/53 ngày biến mất hoàn toàn).
 # Ngoài ra phải `roll_by_company` để cộng phần của đơn vị ĐÃ SÁP NHẬP vào đơn vị hiện hành — đúng
 # quy ước mọi bảng thống kê của dự án (Mang Yang → Chư Sê thiếu 126,7 tấn nếu quên).
-def _purchase_by_company(date_from: str, date_to: str, material: str) -> dict[str, float]:
-    qty_key = usp.MATERIALS[material][0]
-    out: dict[str, float] = {}
-    for e in udr.in_range("purchase", date_from, date_to, attach_contracts=False):
-        qty = num(e["fields"].get(qty_key))
-        if qty:                       # sản lượng 0 = "có tổ chức mua nhưng không mua được"
-            out[e["company"]] = out.get(e["company"], 0.0) + qty
-    return urq.roll_by_company(out)
-
-
+# Thu mua thì lấy thẳng bảng Thống kê thu mua (`unit_report_purchase`) — cùng nguồn với Dashboard.
 def _consumption_by_company(date_from: str, date_to: str) -> dict[str, float]:
     out: dict[str, float] = {}
     for r in urr.consumption_rows(date_from, date_to)["rows"]:
@@ -132,13 +128,13 @@ def _unit_purchase(args: dict) -> dict:
     company = str(args.get("company") or "").strip()
     if company:
         group_by = "company"
-    if group_by == "company":
-        totals = _purchase_by_company(date_from, date_to, material)
-    else:
-        vol = usp.purchase_volume_series(date_from, date_to, material,
-                                         "region" if group_by == "total" else group_by)
-        totals = _sum_values(vol["rows"])
-    total_qty = round(sum(totals.values()), 3)
+    # Bảng Thống kê thu mua — cùng nguồn Dashboard: đã gộp đơn vị sáp nhập, giá BQ GIA QUYỀN.
+    rep = pur.purchase_report(date_from, date_to,
+                              group_by="company" if group_by == "company" else "region")
+    qty_f, px_f, unit_px = f"qty_{material}", f"price_{material}_avg", f"đồng/độ {_DO_TYPE[material]}"
+    by_key = {r["key"]: r for r in rep["rows"]}
+    totals = {k: r[qty_f] for k, r in by_key.items() if r.get(qty_f)}
+    total_qty = round(rep["totals"].get(qty_f) or 0.0, 3)
     if company:
         hit = _pick_company(totals, company)
         if not hit:
@@ -146,16 +142,22 @@ def _unit_purchase(args: dict) -> dict:
                        f"{dmy(date_from)}–{dmy(date_to)}. Có {len(totals)} đơn vị có số trong kỳ này.")
         return {"summary": {"date_from": date_from, "date_to": date_to, "don_vi": hit[0],
                             "material_label": label, "san_luong_tan_quy_kho": round(hit[1], 3),
+                            "don_gia_binh_quan": _r1(by_key[hit[0]].get(px_f)), "don_vi_gia": unit_px,
                             "ghi_chu": hit[2] or "Đã gộp số liệu của đơn vị đã sáp nhập vào đơn vị hiện hành."},
                 "artifact": None,
-                "source": f"unit_daily_report · thu mua {label} · {hit[0]} · {date_from}→{date_to}"}
+                "source": f"unit_report_purchase · thu mua {label} · {hit[0]} · {date_from}→{date_to}"}
 
+    # BQ = bình quân GIA QUYỀN theo sản lượng (khớp Dashboard/Thống kê). Trung bình cộng giá các
+    # đơn vị từng lệch 3,7% (mủ chén T9/2026: 527,8 vs 548,3 đ/độ) vì đơn vị mua ít kéo ngang đơn vị
+    # mua nhiều. Dải thấp nhất–cao nhất vẫn lấy từ chuỗi giá ngày của các đơn vị khai đều.
     px = usp.purchase_series(date_from, date_to, basket="steady")
     daily = [r[material] for r in px["rows"] if r[material]["units"]]
     price = {"min": round(min(d["min"] for d in daily), 1) if daily else None,
              "max": round(max(d["max"] for d in daily), 1) if daily else None,
-             "avg": round(sum(d["avg"] for d in daily) / len(daily), 1) if daily else None,
-             "so_ngay_co_gia": len(daily), "don_vi": f"đồng/độ {_DO_TYPE[material]}"}
+             "avg": _r1(rep["totals"].get(px_f)),
+             "so_ngay_co_gia": len(daily), "don_vi": unit_px,
+             "cach_tinh": "avg = bình quân gia quyền theo sản lượng (như Dashboard); min/max = giá "
+                          "thấp nhất/cao nhất một đơn vị khai đều trong kỳ."}
 
     top = _ranked(totals) if group_by != "total" else []
     art = table(f"Sản lượng thu mua {label} theo {group_by} ({date_from}→{date_to})",
@@ -169,7 +171,7 @@ def _unit_purchase(args: dict) -> dict:
                                     if group_by == "company" else None),
                         "top_nhom": [{"nhom": k, "san_luong_tan": round(v, 3)} for k, v in top] or None},
             "artifact": art,
-            "source": f"unit_series_purchase · thu mua {label} · {date_from}→{date_to}"}
+            "source": f"unit_report_purchase · thu mua {label} · {date_from}→{date_to}"}
 
 
 # ── 2. Tiêu thụ ───────────────────────────────────────────────────────────────
@@ -252,76 +254,6 @@ def _unit_stock(args: dict) -> dict:
             "artifact": art, "source": f"unit_series_stock · tồn kho ngày {as_of} (ảnh chụp, không cộng dồn)"}
 
 
-# ── 4. Kế hoạch năm & % thực hiện ─────────────────────────────────────────────
-def _unit_plan_progress(args: dict) -> dict:
-    year = int(args.get("year") or today()[:4])
-    group_by = args.get("group_by") if args.get("group_by") in ("region", "company") else "region"
-    cur = date.fromisoformat(today())
-    if year > cur.year:
-        return err(f"Chưa có số liệu thực hiện cho năm {year} (năm tương lai).")
-
-    plan_qty, plan_qty_total = urq.year_plan_by_group("plan_tonnes", group_by, None, None, year)
-    plan_rev, plan_rev_total = urq.year_plan_by_group("plan_revenue_ty", group_by, None, None, year)
-    _, plan_exploit_total = urq.year_plan_by_group("plan_exploit_tonnes", group_by, None, None, year)
-    # Kế hoạch doanh thu năm còn RẤT ít đơn vị khai (đo 2026: 1/67) trong khi thực hiện lấy TOÀN
-    # TẬP ĐOÀN — % thực hiện vì vậy có thể vọt lên vô nghĩa (mẫu số quá hẹp), PHẢI nói rõ tỷ lệ khai.
-    # Tử và mẫu cùng MỘT tập (đơn vị đang hoạt động) — đếm cả kế hoạch của đơn vị đã sáp nhập/ngừng
-    # vào tử số thì tỷ lệ "đã khai" có thể vượt 100% (vd 65/64).
-    active = {u["name"] for u in urq.report_units()}
-    n_units_total = len(active)
-    year_plans = [p for c, p in udr.year_plan(year).items() if c in active]
-    n_rev_plan = sum(1 for p in year_plans if p.get("plan_revenue_ty"))
-    n_exploit_plan = sum(1 for p in year_plans if p.get("plan_exploit_tonnes"))
-
-    y_from, y_to = f"{year}-01-01", (f"{year}-12-31" if year < cur.year else today())
-    actual_qty: dict[str, float] = {}
-    for material in usp.MATERIALS:                       # latex+cup+lace = đúng rổ so kế hoạch
-        vol = usp.purchase_volume_series(y_from, y_to, material, group_by)
-        for k, v in _sum_values(vol["rows"]).items():
-            actual_qty[k] = actual_qty.get(k, 0.0) + v
-    actual_qty_total = round(sum(actual_qty.values()), 3)
-
-    rev = usc.consumption_series(y_from, y_to, "region")  # doanh thu chỉ tách được ở mức Tập đoàn
-    actual_rev_vnd, bad_days = _safe_revenue(rev["rows"])
-    actual_rev_total_ty = round(actual_rev_vnd / 1e9, 2)
-    missing = sum(r.get("revenue_missing_lines") or 0 for r in rev["rows"])
-
-    keys = sorted(set(plan_qty) | set(actual_qty))[:15]
-    rows = [{"nhom": k, "ke_hoach_tan": plan_qty.get(k) or None,
-            "thuc_hien_tan": round(actual_qty.get(k, 0.0), 3) or None,
-            "pct_thuc_hien": round(actual_qty.get(k, 0.0) / plan_qty[k] * 100, 1) if plan_qty.get(k) else None}
-           for k in keys]
-    art = table(f"Kế hoạch & thực hiện thu mua {year} theo {group_by}",
-               cols(("nhom", "Nhóm"), ("ke_hoach_tan", "Kế hoạch (tấn)"),
-                    ("thuc_hien_tan", "Thực hiện (tấn)"), ("pct_thuc_hien", "% thực hiện")), rows)
-    return {"summary": {
-        "year": year, "group_by": group_by, "ky_thuc_hien": f"{y_from} → {y_to}",
-        # Khai thác CHỈ có chỉ tiêu — hệ thống chưa thu số thực hiện khai thác, KHÔNG suy % từ thu mua.
-        "khai_thac": {"ke_hoach_tan": round(plan_exploit_total, 3) or None,
-                      "so_don_vi_da_khai": f"{n_exploit_plan}/{n_units_total}",
-                      "ghi_chu": "Chưa có số liệu thực hiện khai thác trong hệ thống — chỉ có kế "
-                                 "hoạch, không tính được % thực hiện."},
-        "san_luong_thu_mua": {"ke_hoach_tan_quy_kho": round(plan_qty_total, 3) or None,
-                              "thuc_hien_tan_quy_kho": actual_qty_total,
-                              "pct_thuc_hien": round(actual_qty_total / plan_qty_total * 100, 1)
-                              if plan_qty_total else None},
-        "doanh_thu": {"ke_hoach_ty_dong": round(plan_rev_total, 2) or None,
-                     "thuc_hien_ty_dong_toan_tap_doan": actual_rev_total_ty,
-                     "pct_thuc_hien": round(actual_rev_total_ty / plan_rev_total * 100, 1)
-                     if plan_rev_total else None,
-                     "ghi_chu": " ".join(filter(None, [
-                         f"Doanh thu thực hiện mới tách được ở mức TOÀN TẬP ĐOÀN, chưa chia theo "
-                         f"{group_by} (nguồn hiện có không đủ).",
-                         f"Chỉ {n_rev_plan}/{n_units_total} đơn vị đã khai kế hoạch doanh thu năm — "
-                         "% thực hiện doanh thu vì vậy CHƯA đại diện, đừng dùng để kết luận."
-                         if n_rev_plan < n_units_total else None,
-                         f"{missing} dòng bán USD thiếu tỷ giá chưa tính." if missing else None,
-                         _bad_revenue_note(bad_days)]))},
-        "top_nhom_san_luong": rows},
-            "artifact": art,
-            "source": f"unit_report_query.year_plan_by_group + unit_series_purchase/consumption · năm {year}"}
-
-
 # ── 5. Tình trạng nộp báo cáo ─────────────────────────────────────────────────
 def _submission_status(args: dict) -> dict:
     kind = args.get("kind") if args.get("kind") in ("purchase", "consumption") else "purchase"
@@ -381,11 +313,12 @@ TOOLS: dict[str, dict[str, Any]] = {
             "as_of": {"type": "string", "description": "Ngày chốt YYYY-MM-DD, mặc định hôm nay"},
             "group_by": {"type": "string", "enum": list(_STOCK_GROUPS),
                         "description": "Cách chia tồn kho, mặc định structure (đã ký/tồn tự do)"}}}}},
-    "get_unit_plan_progress": {"run": _unit_plan_progress, "schema": {
+    "get_unit_plan_progress": {"run": unit_plan_progress.run, "schema": {
         "name": "get_unit_plan_progress",
         "description": "Chỉ tiêu kế hoạch NĂM và % thực hiện: sản lượng thu mua (TẤN QUY KHÔ) chia theo "
-                      "khu vực/đơn vị; doanh thu (TỶ ĐỒNG) chỉ có mức toàn Tập đoàn; kế hoạch khai "
-                      "thác (tấn) chỉ có chỉ tiêu, chưa có số thực hiện.",
+                      "khu vực/đơn vị (đủ mọi đơn vị, cùng số Dashboard đơn vị); doanh thu (TỶ ĐỒNG) "
+                      "chỉ có mức toàn Tập đoàn; % tính trên rổ đơn vị ĐƯỢC GIAO kế hoạch; kế hoạch "
+                      "khai thác (tấn) chỉ có chỉ tiêu, chưa có số thực hiện.",
         "parameters": {"type": "object", "properties": {
             "year": {"type": "integer", "description": "Năm kế hoạch, mặc định năm hiện tại"},
             "group_by": {"type": "string", "enum": ["region", "company"],
