@@ -4,6 +4,19 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Fixed
+- **Dashboard đơn vị: sửa theo đợt rà chéo với các màn khác** (29/09/2026, 0.4.98).
+  - Tồn kho: ngày chốt "Tự động" nay là ngày gần nhất đủ đơn vị khai (trước lấy hôm nay → sáng nào
+    KPI Tập đoàn cũng tụt, vd 6.113 t thay vì 56.667 t); thẻ ghi ngày + "x/y đơn vị có số". Một đơn
+    vị: ngày cuối có số trong kỳ, tính cả cờ "không phát sinh", hiện "số cũ N ngày".
+  - "Đã ký HĐ chưa giao" của đơn vị nhận sáp nhập gồm cả hợp đồng đơn vị cũ (Lộc Ninh 1.295,7 →
+    1.492,7 t, khớp Báo cáo tổng hợp). Khai tồn 0 hiện 0, không còn "—".
+  - Thẻ giá: giá BQ của loại mủ có sản lượng lớn nhất (Chư Sê chỉ mua mủ chén trước đây luôn "—").
+  - Trợ lý AI: % KH thu mua từng đơn vị khớp Dashboard (trước sai 26/38 đơn vị); % doanh thu 213% →
+    80,6%; giá BQ tính gia quyền.
+  - Thống kê tiêu thụ (màn + Excel): thêm KH doanh thu và % thực hiện. Ngày "không thu mua" không
+    còn đếm trùng ở đơn vị nhận sáp nhập.
+  - Xem MỘT đơn vị: khối Chỉ tiêu hiện số của chính đơn vị, bỏ dòng "Cả phạm vi…". Vạch tiến độ
+    ghi rõ chia đều theo ngày, chưa tính mùa vụ.
 - **Kế hoạch năm thêm ô Kế hoạch hàng hóa — KH bán hàng đủ 3 nguồn** (29/09/2026).
   - Phản ánh của Cao su Tân Biên: bán hàng gồm khai thác 3.500 + thu mua 1.000 + hàng hóa (thành
     phẩm mua ngoài để bán lại) 5.000 tấn, nhưng Kế hoạch năm chỉ có 2 ô. Để riêng thì *So kế hoạch
