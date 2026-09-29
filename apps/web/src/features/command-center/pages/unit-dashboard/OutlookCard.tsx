@@ -1,6 +1,6 @@
 /* Card "Tiến độ bán hàng năm" — trả lời: HĐ dài hạn đã giao bao nhiêu trên cam kết HĐDH · còn phải
    giao bao nhiêu tới cuối năm (HĐ chuyến đã ký chưa giao + HĐ dài hạn còn lại) · cả năm dự kiến bán
-   bao nhiêu so KH bán hàng (khai thác + thu mua) · doanh thu dự kiến so KH doanh thu.
+   bao nhiêu so KH bán hàng (khai thác + thu mua + hàng hóa) · doanh thu dự kiến so KH doanh thu.
    Dòng phương trình = CẢ PHẠM VI; % so KH = RỔ đơn vị có KH (luôn ghi rõ rổ). Số lấy nguyên từ
    server (plans/260926-hd-dai-han-phai-giao/api-contract.md mục 4) — web không tự cộng lại. */
 

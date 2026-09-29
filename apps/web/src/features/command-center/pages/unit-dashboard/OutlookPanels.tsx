@@ -1,5 +1,5 @@
 /* 3 khối dưới dòng phương trình của card "Tiến độ bán hàng năm": HĐ dài hạn (HĐDH) · So KH bán
-   hàng (khai thác + thu mua) · Doanh thu dự kiến.
+   hàng (khai thác + thu mua + hàng hóa) · Doanh thu dự kiến.
    % so KH tính trên RỔ đơn vị có KH — khác số cả phạm vi ở dòng phương trình → luôn ghi rõ rổ, lệch
    đáng kể thì nêu kèm số cả phạm vi (phản hồi 26/09/2026). Có KH mà không ra % = vướng DỮ LIỆU
    (thiếu tỷ giá, đơn giá sai đơn vị tính…) → `note` server tô cảnh báo. */

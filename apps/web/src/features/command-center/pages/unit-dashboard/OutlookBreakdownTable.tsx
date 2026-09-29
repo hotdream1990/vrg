@@ -52,7 +52,7 @@ const GROUPS: Group[] = [
       cell: (r) => fmtTon(r.to_deliver) },
     { label: "Bán cả năm", title: "Dự kiến = đã giao lũy kế + còn phải giao; dòng có KH ghi số của các đơn vị có KH (tử số của % KH)",
       cell: (r) => <BasketCell basket={r.qty_basket_projected} whole={r.projected} fmt={fmtTon} /> },
-    { label: "KH (KT + TM)", title: "KH bán hàng = KH khai thác (KT) + KH thu mua (TM)",
+    { label: "KH (KT + TM + HH)", title: "KH bán hàng = KH khai thác (KT) + KH thu mua (TM) + KH hàng hóa (HH)",
       cell: (r) => <PlanCell r={r} /> },
     { label: "% KH", title: "Bán cả năm (dự kiến) / KH bán hàng",
       cell: (r) => <MiniPct pct={r.qty_pct} /> },
