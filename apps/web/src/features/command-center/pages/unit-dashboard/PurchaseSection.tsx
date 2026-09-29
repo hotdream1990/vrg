@@ -47,6 +47,18 @@ function MaterialTable({ d }: { d: PurchaseBlock }) {
   );
 }
 
+/* `days`/`no_purchase_days` đếm cặp (đơn vị × ngày). Xem MỘT đơn vị thì đó đúng là số ngày; xem Tập
+   đoàn/khu vực mà vẫn ghi "ngày" thì ra "748 ngày có số liệu" trong tháng 29 ngày (rà chéo 29/09/2026)
+   → gọi là LƯỢT KHAI và nói rõ cách đếm. */
+function daysNote(d: PurchaseBlock): string {
+  const t = d.totals;
+  if (d.scope.scope === "unit") {
+    return `${fmtNum(t.days)} ngày có số liệu · ${fmtNum(t.no_purchase_days)} ngày khai “không thu mua”.`;
+  }
+  return `${fmtNum(t.days)} lượt khai có số liệu · ${fmtNum(t.no_purchase_days)} lượt khai “không thu mua”`
+    + " (mỗi đơn vị khai một ngày tính một lượt).";
+}
+
 function PurchaseBody({ d }: { d: PurchaseBlock }) {
   const labels = d.trend.map((r) => bucketLabel(r.as_of));
   const grades = d.finished_by_grade;
@@ -76,8 +88,7 @@ function PurchaseBody({ d }: { d: PurchaseBlock }) {
             </div>
           )}
           <p className="ud-note">
-            {fmtNum(d.totals.days)} ngày có số liệu · {fmtNum(d.totals.no_purchase_days)} ngày khai
-            “không thu mua”. Mủ nước/chén/dây không chia chủng loại — chỉ thành phẩm mua ngoài có chủng loại.
+            {daysNote(d)} Mủ nước/chén/dây không chia chủng loại — chỉ thành phẩm mua ngoài có chủng loại.
           </p>
         </div>
         <div>

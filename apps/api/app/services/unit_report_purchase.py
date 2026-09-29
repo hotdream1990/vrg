@@ -35,13 +35,19 @@ def _new_purchase(key: str, region: str | None) -> dict[str, Any]:
     return {"key": key, "label": key, "region": region,
             **{f"qty_{m}": 0.0 for m in rows_mod.MATERIALS},
             "_w": {m: [0.0, 0.0] for m in _QTY_MATERIALS}, "_fin": [0.0, 0.0],
-            "_days": set(), "no_purchase_days": 0}
+            "_days": set(), "_bought": set(), "_no_days": set()}
 
 
 def _close_purchase(g: dict) -> dict[str, Any]:
     w, fin = g.pop("_w"), g.pop("_fin")
-    days = g.pop("_days")
+    days, bought = g.pop("_days"), g.pop("_bought")
     g["days"] = len(days)
+    # Ngày "không thu mua" = cặp (đơn vị hiện hành, ngày) KHÁC NHAU, trừ ngày đã có số thu mua. Sau
+    # khi gộp sáp nhập, đơn vị cũ và đơn vị nhận cùng khai một ngày vẫn chỉ là MỘT ngày; bên này khai
+    # "không mua" mà bên kia có mua thì ngày đó là ngày CÓ số (Lộc Ninh từng ra 201 ngày có số + 154
+    # ngày không mua trong kỳ 272 ngày — thực chỉ 84 ngày khai không mua khác nhau). Chỉ trừ ngày có
+    # sản lượng > 0: ô khai 0 tấn vẫn sinh dòng, trừ cả nó là bỏ oan ngày "không mua" (Hà Tĩnh mất 41).
+    g["no_purchase_days"] = len(g.pop("_no_days") - bought) or None
     g["qty_total"] = sum(g[f"qty_{m}"] for m in rows_mod.MATERIALS)
     # Tách riêng phần đem so kế hoạch, để người đọc bảng thấy luôn tử số thay vì phải tự cộng.
     g["qty_material"] = sum(g[f"qty_{m}"] for m in _PLAN_MATERIALS) or None
@@ -58,7 +64,6 @@ def _close_purchase(g: dict) -> dict[str, Any]:
     for m in rows_mod.MATERIALS:
         g[f"qty_{m}"] = g[f"qty_{m}"] or None
     g["qty_total"] = g["qty_total"] or None
-    g["no_purchase_days"] = g["no_purchase_days"] or None
     return g
 
 
@@ -72,6 +77,8 @@ def _feed_purchase(g: dict, r: dict) -> None:
     m, qty = r["material"], r["qty"] or 0.0
     g[f"qty_{m}"] += qty
     g["_days"].add((r["company"], r["as_of"]))
+    if qty > 0:
+        g["_bought"].add((r["company"], r["as_of"]))
     if m == "finished":
         if r["revenue_vnd"] is not None and qty:
             g["_fin"][0] += r["revenue_vnd"]
@@ -122,12 +129,12 @@ def purchase_report(date_from: str, date_to: str, *, companies: str | None = Non
                 continue
             k = key_of(pseudo)
             g = groups.get(k) or groups.setdefault(k, _new_purchase(k, pseudo["region"] if group_by == "company" else None))
-            g["no_purchase_days"] += 1
+            g["_no_days"].add((p["company"], p["as_of"]))
 
     total = _new_purchase("Tổng cộng", None)
     for r in rows:
         _feed_purchase(total, r)
-    total["no_purchase_days"] = sum(g["no_purchase_days"] for g in groups.values())
+    total["_no_days"] = set().union(*(g["_no_days"] for g in groups.values()))
     out_rows = [_close_purchase(g) for g in sort_groups(groups, group_by)]
     totals = _close_purchase(total)
 

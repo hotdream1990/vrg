@@ -84,7 +84,11 @@ def _latest_stock(by_src: dict[str, list[dict]]) -> tuple[list[dict], str | None
 def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
                    sold: list[dict] | None = None) -> dict[str, Any]:
     acc: dict[str, float] = {}
-    no_days = 0        # số ngày đơn vị KHÔNG tổ chức thu mua (khác ngày có mua nhưng được 0 tấn)
+    # Ngày đơn vị KHÔNG tổ chức thu mua (khác ngày có mua nhưng được 0 tấn). Đếm theo NGÀY khác nhau,
+    # bỏ ngày đã có số thu mua: dòng đời đơn vị nhận sáp nhập gồm cả bản ghi của đơn vị cũ, cùng một
+    # ngày hai bên cùng khai "không mua" vẫn chỉ là một ngày (cùng luật `unit_report_purchase`).
+    no_days: set[str] = set()
+    bought_days: set[str] = set()
     # bình quân gia quyền: Σ(giá ngày × sản lượng ngày) ÷ Σ(sản lượng ngày)
     wsum = {"latex": 0.0, "cup": 0.0, "lace": 0.0}
     wqty = {"latex": 0.0, "cup": 0.0, "lace": 0.0}
@@ -98,7 +102,10 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
             _add(acc, "finished_qty", ln.get("qty"))
 
         if f.get("no_purchase") is True:
-            no_days += 1
+            no_days.add(e["as_of"])
+        if any(_num(f.get(k)) for k in ("latex_wet", "coagulum", "lace")) or any(
+                _num(ln.get("qty")) for ln in f.get("finished") or []):
+            bought_days.add(e["as_of"])
         day_px = prices.get((e["company"], e["as_of"]), {})
         for slot, qty_key in (("latex", "latex_wet"), ("cup", "coagulum"), ("lace", "lace")):
             px, qty = _num(day_px.get(slot)), _num(f.get(qty_key))
@@ -139,7 +146,7 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
         # Kế hoạch HÀNG HÓA (thành phẩm mua ngoài) — chỉ tiêu riêng, không cộng vào kế hoạch thu mua.
         "plan_goods_tonnes": _num(plan.get("plan_goods_tonnes")),
         "consumption": consumption,
-        "no_purchase_days": no_days or None,
+        "no_purchase_days": len(no_days - bought_days) or None,
         "revenue_ty": (revenue / TY) if revenue is not None else None,
         # giá bán bình quân = doanh thu ÷ sản lượng tiêu thụ (triệu đ/tấn)
         "avg_sell_price": (r / TRIEU if (r := _ratio(revenue, consumption)) is not None else None),
@@ -296,7 +303,10 @@ def period_report(kind: str, date_from: str, date_to: str,
                                        contract_consumption.get(name)))
         rows.append({
             "company": name, "region": u.get("region"),
-            "days": len(ent), "last_day": max((e["as_of"] for e in ent), default=None),
+            # NGÀY khác nhau, không phải số bản ghi: dòng đời đơn vị nhận sáp nhập gồm cả bản ghi của
+            # đơn vị cũ (Lộc Ninh từng ra 503 "ngày có số" trong kỳ 271 ngày).
+            "days": len({e["as_of"] for e in ent}),
+            "last_day": max((e["as_of"] for e in ent), default=None),
             **data,
         })
     return {"kind": kind, "date_from": date_from, "date_to": date_to,
