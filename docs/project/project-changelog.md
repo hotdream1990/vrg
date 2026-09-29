@@ -4,6 +4,17 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Fixed
+- **Kế hoạch năm thêm ô Kế hoạch hàng hóa — KH bán hàng đủ 3 nguồn** (29/09/2026).
+  - Phản ánh của Cao su Tân Biên: bán hàng gồm khai thác 3.500 + thu mua 1.000 + hàng hóa (thành
+    phẩm mua ngoài để bán lại) 5.000 tấn, nhưng Kế hoạch năm chỉ có 2 ô. Để riêng thì *So kế hoạch
+    bán hàng* ra 10.191 / 4.500 = 226,5%; gộp vào thu mua thì chỉ tiêu *Thu mua mủ nguyên liệu* ra
+    1.319 / 6.000 = 22% (Ban TTKD giao Tân Biên 1.000 tấn thu mua nguyên liệu).
+  - Nay **KH bán hàng = KH khai thác + KH thu mua + KH hàng hóa**; khối *Chỉ tiêu năm* có thêm dòng
+    *Hàng hóa* (thành phẩm mua ngoài so với KH hàng hóa — chỉ hiện khi phạm vi có KH hoặc có số);
+    chỉ tiêu thu mua giữ nguyên rổ mủ nguyên liệu. Đơn vị có mua thành phẩm mà KH hàng hóa trống/0
+    được nêu tên trong ghi chú. Ô mới có ở màn Kế hoạch năm, biểu Excel và Báo cáo theo kỳ.
+  - Prod 29/09: 7 đơn vị có mua thành phẩm (14.122 tấn), 3 đơn vị đã nhập KH khai thác bị % ảo
+    (Tân Biên, Đồng Nai, Hòa Bình). Với Tân Biên nhập KH hàng hóa 5.000 → 10.191 / 9.500 = 107,3%.
 - **HĐ dài hạn còn phải giao chỉ tính HĐ dài hạn (HĐDH), không tính HĐ nguyên tắc** (28/09/2026).
   - Phản ánh của Cao su Tây Ninh: đơn vị chỉ bán HĐ chuyến nhưng báo cáo tiêu thụ hiện 3.427 tấn
     "HĐ dài hạn còn phải giao" (0% thực hiện) — đó là trọn sản lượng ghi trên 6 HĐ nguyên tắc, trong

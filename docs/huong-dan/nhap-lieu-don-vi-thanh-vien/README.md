@@ -25,6 +25,7 @@ Số tiêu thụ **không còn nhập tay theo ngày** — hệ thống tự tí
 > - **Từ 22/08/2026 — tỷ giá chỉ bắt buộc khi đã điền Ngày giao.** Lúc ký hợp đồng chưa ai biết tỷ giá ngày giao hàng, nên ô này để trống vẫn lưu được; ô ghi *“khi giao”* thay vì *“bắt buộc”*. Khi chưa có tỷ giá thì **doanh thu tạm để trống**, không tính bằng 0.
 > - **Từ 24/08/2026 — có thêm mục Hợp đồng mẹ (HĐNT/HĐDH)** trong nhóm Quản lý hợp đồng (mục 8). Kèm theo đó, **HĐ dài hạn nay là *phụ lục* của một hợp đồng mẹ nên bắt buộc chọn hồ sơ mới lưu được**; **HĐ chuyến không đổi gì** — ô hợp đồng mẹ không hiện. Hợp đồng dài hạn đã nhập trước đây vẫn còn nguyên và vẫn lên báo cáo bình thường, chỉ khi **sửa** mới phải chọn hồ sơ — cứ dọn dần, không phải làm gấp.
 > - **Từ 24/08/2026 — Kế hoạch năm có thêm ô Kế hoạch doanh thu (tỷ đồng)** — xem mục 16.
+> - **Từ 29/09/2026 — Kế hoạch năm có thêm ô Kế hoạch hàng hóa** (thành phẩm mua của đơn vị khác để bán lại) — xem mục 16.
 > - **Từ 17/09/2026 — Nhu cầu thị trường nhập theo phiếu** thay cho ô chữ theo ngày: mỗi lần khách hỏi mua là một phiếu có khách hàng, chủng loại, số lượng, đơn giá, thời gian giao và kết quả — xem mục 15. Nội dung đã nhập trước đó được chuyển sang phiếu, không phải nhập lại.
 
 ## 2. Đăng nhập và các mục trên menu
@@ -361,6 +362,7 @@ Số liệu nhập một lần cho cả năm, cập nhật khi có điều chỉ
 4. **HĐ dài hạn / HĐ chuyến năm trước chuyển sang** (tấn).
 5. **Kế hoạch doanh thu** — chỉ tiêu doanh thu cả năm, đơn vị **TỶ ĐỒNG**. Đây là ô TIỀN duy nhất của bảng (các ô còn lại đều là **tấn**) — nhập nhầm sang tấn là % thực hiện sai hàng nghìn lần.
 
+> - Kế hoạch bán hàng = **khai thác + thu mua + hàng hóa**. Ô **Kế hoạch thu mua** chỉ gồm mủ nguyên liệu (mủ nước, mủ chén, mủ dây). Thành phẩm mua của đơn vị khác để bán lại thì nhập ở ô **Kế hoạch hàng hóa**, không cộng vào thu mua. Không kinh doanh hàng hóa thì nhập 0.
 > - Ô **Kế hoạch thu mua** chính là công tắc: có số **> 0** thì đơn vị mới thấy màn **Báo cáo thu mua**; để trống hoặc **0** = đơn vị không tổ chức thu mua.
 > - Ô **Kế hoạch tiêu thụ — HĐ chuyến** dùng để đối chiếu **% thực hiện** trên báo cáo kỳ; ô này KHÔNG bật/tắt màn nào.
 > - Kế hoạch doanh thu dùng để tính **% thực hiện** ở màn *Thống kê tiêu thụ* của Ban TTKD (= doanh thu trong kỳ / kế hoạch năm). Để trống ô này = không đặt chỉ tiêu, không phải đặt bằng 0.
