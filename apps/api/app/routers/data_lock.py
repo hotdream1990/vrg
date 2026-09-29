@@ -65,17 +65,6 @@ def _fully_confirmed(company: str, done: set[str] | dict, mm: dict[str, list[str
     return company in done and all(m in done for m in mm.get(company, []))
 
 
-def _merged_cell(company: str, c: dict | None) -> dict:
-    """Đơn vị đã sáp nhập trong dòng đơn vị nhận của bảng theo dõi: trạng thái + số CỘNG ĐƯỢC.
-
-    Tồn kho không kèm: là số thời điểm, kho đơn vị cũ đã nằm trong số khai của đơn vị nhận.
-    """
-    snap = (c or {}).get("snapshot") or {}
-    return {"company": company, "confirmed": c is not None,
-            "total_purchase": (snap.get("purchase") or {}).get("total_purchase"),
-            "total_consumption": (snap.get("consumption") or {}).get("total_consumption")}
-
-
 def _assert_company(username: str, company: str) -> None:
     units = _my_units(username)
     if units is not None and company not in units:
@@ -146,13 +135,8 @@ def summary(company: str = Query(...), round_id: int | None = Query(None),
     if not rnd:
         raise HTTPException(404, "Chưa có đợt chốt số liệu nào.")
     prev = _prev_lock_date(company, rnd["lock_date"])
-    confirms = data_lock_repo.confirms_of_round(rnd["id"])
-    # Đơn vị đã sáp nhập vào đơn vị này: bấm xác nhận là chốt kèm (xem `_with_merged`) nên phải bày
-    # số của họ ra cùng — không thì đơn vị chốt thứ mình không nhìn thấy.
-    merged = [{**m, "confirmed": m["company"] in confirms}
-              for m in data_lock_summary.merged_summaries(company, rnd["lock_date"])]
-    return {"round": rnd, **data_lock_summary.summary(company, rnd["lock_date"], prev),
-            "merged_units": merged}
+    # Đơn vị nhận sáp nhập: số đã GỘP cả đơn vị cũ (`merged_units` = tên họ, để màn hình ghi rõ).
+    return {"round": rnd, **data_lock_summary.summary(company, rnd["lock_date"], prev)}
 
 
 @router.post("/confirm")
@@ -241,7 +225,7 @@ def status(round_id: int | None = Query(None),
     for u in report_units():
         name = u["name"]
         c = confirms.get(name)
-        merged = [_merged_cell(m, confirms.get(m)) for m in mm.get(name, [])]
+        merged = [{"company": m, "confirmed": m in confirms} for m in mm.get(name, [])]
         rows.append({
             "company": name,
             "region": u.get("region"),
@@ -252,6 +236,7 @@ def status(round_id: int | None = Query(None),
             "by_admin": bool((c or {}).get("by_admin")),
             "locked_until": locked.get(name),
             # Con số đơn vị đã xác nhận — để Ban đối chiếu ngay trên bảng, không phải mở từng đơn vị.
+            # Đơn vị nhận sáp nhập: ảnh chụp đã là số GỘP (từ 0.4.96), không cộng thêm đơn vị cũ.
             "snapshot": (c or {}).get("snapshot"),
         })
     total, done = len(rows), sum(1 for r in rows if r["confirmed"])

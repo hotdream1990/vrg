@@ -20,21 +20,6 @@ const n3 = (v: unknown) =>
   (typeof v === "number" && Number.isFinite(v) ? v.toLocaleString("vi-VN", { maximumFractionDigits: 3 }) : "—");
 
 /** Form tạo/sửa một đợt chốt (chỉ quản trị). */
-/** Ô số của dòng đơn vị nhận = số của chính nó + số đã chốt của đơn vị đã sáp nhập vào nó (cộng
- *  dồn được), kèm dòng nhỏ phần của đơn vị cũ — cùng cách Báo cáo tổng hợp gộp. */
-function SumCell({ own, parts }: { own: number | null | undefined; parts: (number | null)[] }) {
-  const merged = parts.reduce<number>((s, v) => s + (v ?? 0), 0);
-  const total = own == null && !merged ? null : (own ?? 0) + merged;
-  return (
-    <td className="r">
-      {n3(total)}
-      {merged > 0 && (
-        <div style={{ fontSize: 11, color: "var(--muted)" }}>gồm {n3(merged)} đã sáp nhập</div>
-      )}
-    </td>
-  );
-}
-
 function RoundForm({ initial, onClose, onSaved }: {
   initial?: LockRound | null; onClose: () => void; onSaved: () => void;
 }) {
@@ -250,10 +235,9 @@ export default function DataLockPage() {
                 </td>
                 <td>{stamp(r.confirmed_at)}</td>
                 <td>{r.confirmed_by ?? "—"}</td>
-                <SumCell own={r.snapshot?.purchase?.total_purchase}
-                  parts={r.merged_units.map((m) => m.total_purchase)} />
-                <SumCell own={r.snapshot?.consumption?.total_consumption}
-                  parts={r.merged_units.map((m) => m.total_consumption)} />
+                {/* Ảnh chụp của đơn vị nhận sáp nhập đã là số GỘP — không cộng thêm đơn vị cũ. */}
+                <td className="r">{n3(r.snapshot?.purchase?.total_purchase)}</td>
+                <td className="r">{n3(r.snapshot?.consumption?.total_consumption)}</td>
                 <td className="r">{n3(r.snapshot?.stock?.stock_finished as number)}</td>
                 <td>
                   <button className="btn" disabled={!round}

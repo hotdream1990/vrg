@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import {
   type LockSummary, confirmLock, fetchLockSummary,
 } from "../../../lib/data-lock-client";
-import DataLockMergedUnits from "./DataLockMergedUnits";
 
 type Props = {
   company: string;
@@ -112,6 +111,13 @@ export default function DataLockConfirmModal({ company, roundId, readOnly, onClo
             . Đã nhập <b>{data.days_entered.consumption}</b> ngày biểu Tồn kho
             {data.has_purchase_plan && <>, <b>{data.days_entered.purchase}</b> ngày biểu Thu mua</>}.
           </div>
+          {/* Đơn vị đã sáp nhập: số liệu cũng sáp nhập — mọi ô dưới đây là số GỘP, khớp Báo cáo
+              tổng hợp và báo cáo thu mua/tiêu thụ đơn vị đang xem (chủ dự án chốt 29/09/2026). */}
+          {!!data.merged_units?.length && (
+            <div style={{ fontSize: 13, marginTop: 4 }}>
+              Số liệu dưới đây <b>đã gộp cả đơn vị đã sáp nhập</b>: {data.merged_units.join(", ")}.
+            </div>
+          )}
 
           {data.missing_total > 0 && (
             <div className="blt-error" style={{ marginTop: 10, fontSize: 12.5 }}>
@@ -165,13 +171,11 @@ export default function DataLockConfirmModal({ company, roundId, readOnly, onClo
             <Kpi label="Doanh thu (tỷ đồng)" value={n3(c.revenue_ty)} />
           </Block>
 
-          <DataLockMergedUnits own={data} merged={data.merged_units ?? []} readOnly={readOnly} />
-
           {!readOnly && (
             <div className="form-note" style={{ marginTop: 14, fontSize: 12.5 }}>
               Bấm <b>Xác nhận chốt số liệu</b> nghĩa là đơn vị xác nhận các con số trên đã đúng đến
               hết ngày <b>{dmy(data.lock_date)}</b>
-              {!!data.merged_units?.length && <> — gồm cả số của đơn vị đã sáp nhập ở bảng trên</>}.
+              {!!data.merged_units?.length && <> (gồm cả đơn vị đã sáp nhập)</>}.
               Sau khi chốt, <b>đơn vị không sửa được số liệu
               của những ngày này nữa</b> — cần điều chỉnh thì báo Ban TTKD để chuyên viên sửa hộ.
             </div>

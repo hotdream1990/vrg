@@ -50,9 +50,9 @@ def period_start(lock_date: str, prev_lock: str | None) -> str:
 
 
 def _rows_by_company(kind: str, companies: list[str], date_from: str,
-                     date_to: str) -> dict[str, dict[str, Any]]:
+                     date_to: str, split_merged: bool = True) -> dict[str, dict[str, Any]]:
     rep = unit_period_report.period_report(kind, date_from, date_to, companies=companies,
-                                           split_merged=True)
+                                           split_merged=split_merged)
     return {r["company"]: r for r in rep["rows"]}
 
 
@@ -73,9 +73,19 @@ def summary_many(companies: list[str], lock_date: str,
     date_from = period_start(lock_date, prev_lock)
     year = int(lock_date[:4])
     planned = unit_daily_repo.companies_with_purchase_plan(year)
+    mm = merged_map()
 
     pur_rows = _rows_by_company("purchase", companies, date_from, lock_date)
     con_rows = _rows_by_company("consumption", companies, date_from, lock_date)
+    # Đơn vị NHẬN sáp nhập: số GỘP cả đơn vị đã sáp nhập vào nó — đúng số Báo cáo tổng hợp và
+    # báo cáo thu mua của đơn vị đang hiện (chủ dự án 29/09/2026: "đơn vị đã sáp nhập thì số liệu
+    # cũng sáp nhập"). Bản 0.4.95 bày riêng từng pháp nhân đã làm rơi 126,734 t thu mua của Mang
+    # Yang ở bảng chốt của Chư sê. Số NGÀY đã nhập vẫn lấy của riêng đơn vị (bản gộp đếm bản ghi
+    # của cả hai → ra quá số ngày trong kỳ).
+    receivers = [c for c in companies if mm.get(c)]
+    pur_all = _rows_by_company("purchase", receivers, date_from, lock_date, False) if receivers else {}
+    con_all = (_rows_by_company("consumption", receivers, date_from, lock_date, False)
+               if receivers else {})
     miss_pur = _missing_by_company("purchase", companies, date_from, lock_date)
     # Tồn kho rà từ mốc bắt đầu thu thập (xem STOCK_TRACKED_FROM); kỳ chốt kết thúc trước mốc đó
     # thì không có gì để đòi.
@@ -85,10 +95,14 @@ def summary_many(companies: list[str], lock_date: str,
 
     out: dict[str, dict[str, Any]] = {}
     for company in companies:
-        has_plan = company in planned
-        pur = pur_rows.get(company, {}) if has_plan else {}
-        con = con_rows.get(company, {})
-        mp = miss_pur.get(company, []) if has_plan else []
+        # Kế hoạch của cả dòng đời: đơn vị cũ có kế hoạch mà đơn vị nhận chưa khai thì số thu mua
+        # gộp vẫn phải hiện. Ngày THIẾU thì chỉ đòi đơn vị có kế hoạch của chính nó.
+        has_plan = bool({company, *mm.get(company, [])} & planned)
+        own_pur = pur_rows.get(company, {})
+        own_con = con_rows.get(company, {})
+        pur = pur_all.get(company, own_pur) if has_plan else {}
+        con = con_all.get(company, own_con)
+        mp = miss_pur.get(company, []) if company in planned else []
         mc = miss_con.get(company, [])
         # CHỈ trả vài ngày gần nhất: kỳ chốt đầu tiên tính từ 01/01 nên đơn vị nhập thưa có thể
         # thiếu vài trăm ngày — đổ hết danh sách ra bảng xác nhận thì không ai đọc nổi. Con số cần
@@ -99,8 +113,10 @@ def summary_many(companies: list[str], lock_date: str,
             "date_from": date_from,
             "prev_lock_date": prev_lock,
             "has_purchase_plan": has_plan,
-            "days_entered": {"purchase": pur.get("days") or 0,
-                             "consumption": con.get("days") or 0},
+            # Đơn vị đã sáp nhập vào đơn vị này — số bên dưới đã gộp cả họ.
+            "merged_units": mm.get(company, []),
+            "days_entered": {"purchase": (own_pur.get("days") or 0) if has_plan else 0,
+                             "consumption": own_con.get("days") or 0},
             "purchase": {k: pur.get(k) for k in PURCHASE_KEYS},
             "consumption": {k: con.get(k) for k in CONSUMPTION_KEYS},
             "stock": {k: con.get(k) for k in STOCK_KEYS},
@@ -147,11 +163,10 @@ def merged_map() -> dict[str, list[str]]:
 
 
 def merged_summaries(company: str, lock_date: str) -> list[dict[str, Any]]:
-    """Số sẽ chốt kèm của từng đơn vị đã sáp nhập vào `company`.
+    """Ảnh chụp số RIÊNG của từng đơn vị đã sáp nhập vào `company` — lưu vào dòng khoá kèm.
 
-    Mỗi pháp nhân giữ KỲ CHỐT RIÊNG (đầu kỳ = hôm sau lần chốt trước của chính nó): đơn vị cũ có
-    thể được khoá hộ tới ngày sáp nhập, còn đơn vị nhận chốt tới một mốc khác — gộp chung một kỳ
-    là bỏ sót hoặc chốt trùng những ngày nằm giữa hai mốc.
+    Màn hình KHÔNG bày số này (bảng chốt của đơn vị nhận đã hiện số gộp); nó chỉ là dấu vết theo
+    từng pháp nhân trong `unit_data_lock`, tính theo kỳ chốt riêng của chính đơn vị cũ.
     """
     units = merged_units(company)
     prevs = data_lock_repo.locked_before_map(units, lock_date)

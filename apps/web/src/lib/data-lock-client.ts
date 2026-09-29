@@ -51,20 +51,16 @@ export type LockSummary = {
   /** Mốc bắt đầu rà ngày thiếu của từng biểu (tồn kho có ngoại lệ — xem `STOCK_TRACKED_FROM`). */
   missing_from: { purchase: string; consumption: string };
   missing_total: number;
-  /** Đơn vị đã SÁP NHẬP vào đơn vị này — xác nhận chốt là chốt KÈM họ, mỗi đơn vị một kỳ riêng.
-   *  Chỉ có ở `/summary`; ảnh chụp đã lưu (snapshot) của từng đơn vị không mang khoá này. */
-  merged_units?: (Omit<LockSummary, "round" | "merged_units"> & { confirmed: boolean })[];
+  /** Đơn vị đã SÁP NHẬP vào đơn vị này — mọi con số ở trên đã GỘP cả họ (như Báo cáo tổng hợp),
+   *  và xác nhận chốt là chốt luôn phần của họ. Ảnh chụp cũ (trước 0.4.96) không có khoá này. */
+  merged_units?: string[];
 };
 
 export type LockStatusRow = {
   company: string;
   region: string | null;
   /** Đơn vị đã SÁP NHẬP vào đơn vị này — không có dòng riêng, được chốt kèm đơn vị nhận. */
-  merged_units: {
-    company: string; confirmed: boolean;
-    /** Số đơn vị cũ đã chốt (theo ảnh chụp) — cộng vào dòng đơn vị nhận cho khớp Báo cáo tổng hợp. */
-    total_purchase: number | null; total_consumption: number | null;
-  }[];
+  merged_units: { company: string; confirmed: boolean }[];
   /** Đã chốt xong CẢ đơn vị này lẫn các đơn vị đã sáp nhập vào nó. */
   confirmed: boolean;
   confirmed_at: string | null;

@@ -1,8 +1,9 @@
-"""CHỐT KÈM đơn vị đã sáp nhập (phản ánh của Chư prông 29/09/2026).
+"""CHỐT KÈM đơn vị đã sáp nhập (phản ánh của Chư prông và Chư sê 29/09/2026).
 
 Hợp đồng ký trước sáp nhập đứng tên đơn vị cũ nhưng do đơn vị nhận giao nốt; tài khoản đơn vị chỉ
 gán đơn vị nhận nên không ai phía đơn vị chốt được dòng của đơn vị cũ. Khoá lại:
-  - bảng chốt của đơn vị nhận bày kèm số của đơn vị cũ, theo kỳ chốt RIÊNG của đơn vị cũ;
+  - bảng chốt của đơn vị nhận hiện số GỘP cả đơn vị cũ ("đã sáp nhập thì số liệu cũng sáp nhập"),
+    kể cả khi đơn vị cũ không có kế hoạch thu mua năm (ca Mang Yang → Chư sê);
   - đơn vị nhận xác nhận → đơn vị cũ cũng chốt, có ảnh chụp riêng;
   - Ban khoá hộ / mở khoá đơn vị nhận → đơn vị cũ đi cùng; mở khoá riêng đơn vị cũ không kéo ai.
 """
@@ -28,7 +29,8 @@ TODAY = date.today()
 # Ngày chốt sát hôm nay CÓ CHỦ Ý — xem ghi chú cùng chỗ ở test_data_lock.py.
 LOCK = (TODAY - timedelta(days=1)).isoformat()
 D_MERGE = (TODAY - timedelta(days=20)).isoformat()
-PREV_OLD = (TODAY - timedelta(days=25)).isoformat()   # đơn vị cũ từng được khoá hộ tới ngày này
+OLD_DAY = (TODAY - timedelta(days=25)).isoformat()    # ngày đơn vị cũ còn tự nhập (trước sáp nhập)
+NEW_DAY = (TODAY - timedelta(days=5)).isoformat()
 
 
 @pytest.fixture(autouse=True)
@@ -45,7 +47,8 @@ def _login(username: str, password: str) -> dict[str, str]:
 def _cleanup(h: dict[str, str]) -> None:
     client.delete(f"/api/users/{USER}", headers=h)
     with session_scope() as db:
-        db.execute(text("DELETE FROM unit_data_lock WHERE company = ANY(:c)"), {"c": [NEW, OLD]})
+        for tbl in ("unit_data_lock", "unit_daily_report", "unit_purchase_plan"):
+            db.execute(text(f"DELETE FROM {tbl} WHERE company = ANY(:c)"), {"c": [NEW, OLD]})
         db.execute(text("DELETE FROM data_lock_round WHERE note LIKE 'ZZ MERGE%'"))
     for u in (OLD, NEW):
         try:
@@ -84,18 +87,27 @@ def _status(h: dict[str, str], rid: int) -> dict[str, dict]:
                 "snapshot": (got.get(c) or {}).get("snapshot")} for c in (NEW, OLD)}
 
 
-def test_summary_lists_merged_unit_with_its_own_period(env) -> None:
+def test_summary_shows_merged_figures_like_the_consolidated_report(env) -> None:
+    """Ca Chư sê: đơn vị cũ (Mang Yang) có mủ chén nhập TRƯỚC sáp nhập, không có kế hoạch năm.
+    Bản 0.4.95 bày riêng từng pháp nhân và bỏ trống thu mua của đơn vị cũ ⇒ bảng chốt 1.828,974 t
+    trong khi báo cáo thu mua 1.955,708 t. Nay bảng chốt ra đúng số gộp."""
     h, mh = env
-    # Đợt cũ Ban đã khoá hộ riêng đơn vị cũ ⇒ kỳ của đơn vị cũ nối tiếp mốc đó, KHÔNG theo đơn vị nhận.
-    old_rnd = _round(h, PREV_OLD, "ZZ MERGE old")
-    client.post("/api/data-lock/lock", headers=h, json={"round_id": old_rnd["id"], "companies": [OLD]})
+    year = int(LOCK[:4])
+    with session_scope() as db:
+        db.execute(text("INSERT INTO unit_purchase_plan (year, company, plan_tonnes) "
+                        "VALUES (:y, :c, 100)"), {"y": year, "c": NEW})
+        for day, comp, qty in ((OLD_DAY, OLD, 12.5), (NEW_DAY, NEW, 30.0)):
+            db.execute(text("INSERT INTO unit_daily_report (as_of, company, kind, payload) "
+                            "VALUES (CAST(:d AS date), :c, 'purchase', CAST(:p AS jsonb))"),
+                       {"d": day, "c": comp, "p": f'{{"coagulum": {qty}}}'})
     rnd = _round(h, LOCK)
 
     got = client.get(f"/api/data-lock/summary?company={NEW}&round_id={rnd['id']}", headers=mh).json()
-    assert got["company"] == NEW and got["date_from"] == f"{LOCK[:4]}-01-01"
-    [m] = got["merged_units"]
-    assert m["company"] == OLD and m["confirmed"] is False
-    assert m["date_from"] == (date.fromisoformat(PREV_OLD) + timedelta(days=1)).isoformat()
+    assert got["merged_units"] == [OLD]
+    assert got["has_purchase_plan"] is True
+    assert got["purchase"]["coagulum"] == pytest.approx(42.5)          # 30 + 12,5 của đơn vị cũ
+    assert got["purchase"]["pct_plan"] == pytest.approx(42.5)          # ÷ kế hoạch 100 t
+    assert got["days_entered"]["purchase"] == 1                        # ngày của RIÊNG đơn vị nhận
 
 
 def test_member_confirm_also_locks_the_merged_unit(env) -> None:
@@ -109,9 +121,10 @@ def test_member_confirm_also_locks_the_merged_unit(env) -> None:
     assert st[OLD]["confirmed_by"] == USER and st[OLD]["by_admin"] is False
     assert st[OLD]["snapshot"]["company"] == OLD           # ảnh chụp RIÊNG của đơn vị cũ
 
-    # Bảng chốt đọc lại: đơn vị cũ hiện "đã chốt".
-    got = client.get(f"/api/data-lock/summary?company={NEW}&round_id={rnd['id']}", headers=mh).json()
-    assert got["merged_units"][0]["confirmed"] is True
+    # Bảng theo dõi của Ban: dòng đơn vị nhận "đã chốt" và ghi đơn vị cũ đã chốt kèm.
+    rows = client.get(f"/api/data-lock/status?round_id={rnd['id']}", headers=h).json()["rows"]
+    row = next(r for r in rows if r["company"] == NEW)
+    assert row["confirmed"] is True and row["merged_units"] == [{"company": OLD, "confirmed": True}]
 
 
 def test_admin_lock_and_unlock_carry_the_merged_unit(env) -> None:
@@ -205,9 +218,9 @@ def test_impersonated_confirm_is_recorded_as_the_admin(env) -> None:
         assert st[c]["by_admin"] is True and st[c]["confirmed_by"] == "admin"
 
 
-def test_status_row_and_banner_carry_the_merged_units_numbers(env) -> None:
-    """Dòng đơn vị nhận mang số đã chốt của đơn vị cũ (để cộng như Báo cáo tổng hợp); banner trả
-    mốc khoá đơn vị cũ cho màn Đề nghị sửa hợp đồng đứng tên họ."""
+def test_status_row_and_banner_carry_the_merged_units(env) -> None:
+    """Dòng đơn vị nhận ghi kèm đơn vị cũ (đã chốt hay chưa); banner trả mốc khoá đơn vị cũ cho màn
+    Đề nghị sửa hợp đồng đứng tên họ."""
     from app.services import data_lock_repo
 
     h, mh = env
@@ -217,7 +230,7 @@ def test_status_row_and_banner_carry_the_merged_units_numbers(env) -> None:
                                                           "purchase": {"total_purchase": 1}})
     rows = client.get(f"/api/data-lock/status?round_id={rnd['id']}", headers=h).json()["rows"]
     [m] = next(r for r in rows if r["company"] == NEW)["merged_units"]
-    assert m == {"company": OLD, "confirmed": True, "total_purchase": 1, "total_consumption": 2.5}
+    assert m == {"company": OLD, "confirmed": True}
 
     cur = client.get("/api/data-lock/current", headers=mh).json()
     assert cur["merged_locked_until"] == {OLD: LOCK}
