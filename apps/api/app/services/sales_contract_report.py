@@ -259,6 +259,45 @@ def _remaining_by_grade(rows: list[dict[str, Any]]) -> tuple[float, dict[str, fl
     return total, by_grade
 
 
+def _block3_lines(as_of: str, scope: str, params: dict[str, Any]) -> dict[int, list[dict[str, Any]]]:
+    """Dòng cam kết/đã giao của khối 3 tại ngày `as_of`, gom theo hợp đồng → `_remaining_by_grade`."""
+    ensure_schema()
+    sql = _BLOCK3_SQL.format(scope=scope, grade_sql=_GRADE_SQL)
+    with session_scope() as db:
+        # Tắt JIT cho RIÊNG truy vấn này. `jsonb_array_elements` làm Postgres ước lượng 243.000
+        # dòng trong khi thực tế ~2.600 → vượt `jit_above_cost` nên nó biên dịch lại toàn bộ mỗi
+        # lượt gọi rồi vứt đi. Đo trên prod 21/09/2026: Emission 56ms trong Execution 144ms;
+        # tắt JIT còn 66ms/lượt. Khối này bị gọi MỘT LẦN MỖI NGÀY của ảnh chụp nên 60 ngày là
+        # gần 4 giây chỉ để biên dịch. `SET LOCAL` chỉ áp trong giao dịch hiện tại.
+        db.execute(text("SET LOCAL jit = off"))
+        rows = db.execute(text(sql), {"d": as_of, **params}).mappings().all()
+    per_contract: dict[int, list[dict[str, Any]]] = {}
+    for r in rows:
+        per_contract.setdefault(r["id"], []).append(dict(r))
+    return per_contract
+
+
+#: "Ngày tính" xa nhất cho khối 3 = tính HẾT mọi lần giao, bỏ mọi hợp đồng đã chốt hoàn thành —
+#: đúng nghĩa cột "Còn phải giao" của màn Hợp đồng (không cắt theo ngày nào).
+_FOREVER = "9999-12-31"
+
+
+def remaining_dry_by_id(ids: list[int]) -> dict[int, float]:
+    """{id hợp đồng: phần CHƯA GIAO theo đúng gốc số của khối 3} — số "quy khô" ở màn Hợp đồng.
+
+    Màn Hợp đồng ghi sản lượng bằng SL CHƯA QUY KHÔ (số trên hợp đồng) còn báo cáo và bảng chốt số
+    liệu đọc khối 3 QUY KHÔ, nên với latex/mủ nguyên liệu hai con số "còn phải giao" lệch nhau
+    (Chư prông hỏi 29/09/2026: 2.251,95 so với 2.151,95). Tính bằng CHÍNH `_BLOCK3_SQL` +
+    `_remaining_by_grade` — viết lại công thức trừ khô/nước lần thứ hai là mầm lệch số. Tính tới
+    HIỆN TẠI (mọi lần giao), nên chỉ bằng đúng "Đã ký HĐ chưa giao" của bảng chốt khi từ ngày chốt
+    tới nay chưa ký/giao thêm hợp đồng nào.
+    """
+    if not ids:
+        return {}
+    per_contract = _block3_lines(_FOREVER, "AND id = ANY(:ids)", {"ids": [int(i) for i in ids]})
+    return {cid: _remaining_by_grade(lines)[0] for cid, lines in per_contract.items()}
+
+
 def undelivered_on(as_of: str, companies: list[str] | None = None,
                    grades: list[str] | None = None) -> dict[str, dict[str, Any]]:
     """{đơn vị: {qty, by_grade, items}} — ĐÃ KÝ HĐ CHƯA GIAO tại ngày `as_of` (khối 3).
@@ -272,25 +311,12 @@ def undelivered_on(as_of: str, companies: list[str] | None = None,
     thành phẩm thì chính số lượng đã là số khô) — cùng đơn vị tính với cột sản lượng tiêu thụ đứng
     ngay bên cạnh, và KHÔNG quy đổi theo tỷ lệ nào cả — xem `_remaining_by_grade`.
     """
-    ensure_schema()
-    scope, params = "", {"d": as_of}
     if companies is not None:
         if not companies:
             return {}
-        scope, params["cs"] = "AND company = ANY(:cs)", list(companies)
-    sql = _BLOCK3_SQL.format(scope=scope, grade_sql=_GRADE_SQL)
-    with session_scope() as db:
-        # Tắt JIT cho RIÊNG truy vấn này. `jsonb_array_elements` làm Postgres ước lượng 243.000
-        # dòng trong khi thực tế ~2.600 → vượt `jit_above_cost` nên nó biên dịch lại toàn bộ mỗi
-        # lượt gọi rồi vứt đi. Đo trên prod 21/09/2026: Emission 56ms trong Execution 144ms;
-        # tắt JIT còn 66ms/lượt. Khối này bị gọi MỘT LẦN MỖI NGÀY của ảnh chụp nên 60 ngày là
-        # gần 4 giây chỉ để biên dịch. `SET LOCAL` chỉ áp trong giao dịch hiện tại.
-        db.execute(text("SET LOCAL jit = off"))
-        rows = db.execute(text(sql), params).mappings().all()
-
-    per_contract: dict[int, list[dict[str, Any]]] = {}
-    for r in rows:
-        per_contract.setdefault(r["id"], []).append(dict(r))
+        per_contract = _block3_lines(as_of, "AND company = ANY(:cs)", {"cs": list(companies)})
+    else:
+        per_contract = _block3_lines(as_of, "", {})
 
     out: dict[str, dict[str, Any]] = {}
     for lines in per_contract.values():
@@ -361,7 +387,8 @@ def parents_with_progress(companies: list[str] | None = None, *,
                           channels: list[str] | None = None,
                           master_ids: list[int] | None = None,
                           only_unlinked: bool = False,
-                          limit: int = 25, offset: int = 0) -> dict[str, Any]:
+                          limit: int = 25, offset: int = 0,
+                          with_dry: bool = False) -> dict[str, Any]:
     """MỘT TRANG hợp đồng kèm tiến độ giao → `{"rows": [...], "total": <tổng khớp lọc>}`.
 
     Lọc · tính tiến độ · sắp xếp · cắt trang đều làm Ở SQL. Danh sách hợp đồng dài thêm mỗi ngày
@@ -380,6 +407,10 @@ def parents_with_progress(companies: list[str] | None = None, *,
     vì phải mở modal chi tiết của hồ sơ.
     `only_unlinked` = chỉ hợp đồng CHƯA gắn hợp đồng mẹ — dùng cho ô chọn phụ lục ở màn hợp đồng
     mẹ: bày cả hợp đồng đã thuộc hồ sơ khác chỉ để người dùng chọn rồi bị chặn.
+
+    `with_dry` = kèm `remaining_dry_qty` (dòng + tổng) — CHỈ màn Hợp đồng cần. Tốn thêm một lượt
+    quét CTE + khối 3 cho mọi hợp đồng còn nợ khớp lọc; Trợ lý AI gọi hàm này trong vòng lặp chỉ
+    để lấy tổng nên không bật.
 
     `channels` lọc theo HÌNH THỨC TIÊU THỤ (xuất khẩu / trong nước / nội bộ) — dùng `[""]` để tìm
     các hợp đồng CHƯA KHAI hình thức. Hình thức nằm ở LẦN GIAO chứ không ở hợp đồng, nên hợp đồng
@@ -507,10 +538,17 @@ def parents_with_progress(companies: list[str] | None = None, *,
                count(*) FILTER (WHERE delivered_rev IS NULL) AS delivered_revenue_missing
         FROM scored WHERE {keep}
     """
+    # Id của MỌI hợp đồng khớp lọc còn nợ hàng — để tính cột "quy khô" cho cả dòng Tổng cộng.
+    ids_sql = f"""{sql}
+        SELECT id FROM scored WHERE {keep} AND completed_at IS NULL
+    """
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(text(page_sql), params).mappings().all()
         agg = db.execute(text(sum_sql), params).mappings().first()
+        open_ids = ([int(r[0]) for r in db.execute(text(ids_sql), params).all()]
+                    if with_dry else [])
+    dry = remaining_dry_by_id(open_ids)
     out = []
     for r in rows:
         item = _row(r)
@@ -522,9 +560,14 @@ def parents_with_progress(companies: list[str] | None = None, *,
         # ("30.0") làm web tính toán/so sánh sai. Ép float ngay tại đây.
         for k in ("delivered_qty", "pending_qty", "remaining_qty", "over_qty"):
             item[k] = float(item[k] or 0)
+        if with_dry:
+            item["remaining_dry_qty"] = dry.get(item["id"], 0.0)
         out.append(item)
     _attach_delivered_revenue(out)
-    return {"rows": out, "total": int(agg["n"]), "totals": _totals(agg)}
+    totals = _totals(agg)
+    if with_dry:
+        totals["remaining_dry_qty"] = sum(dry.values())
+    return {"rows": out, "total": int(agg["n"]), "totals": totals}
 
 
 def _totals(agg) -> dict[str, Any]:

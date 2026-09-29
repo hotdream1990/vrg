@@ -85,8 +85,11 @@ export type ContractRow = Contract & {
   delivered_qty: number;
   /** Đã lập đợt nhưng CHƯA điền ngày giao — phần này NẰM TRONG `remaining_qty`. */
   pending_qty: number;
-  /** Còn phải giao = sản lượng hợp đồng − đã giao. */
+  /** Còn phải giao = sản lượng hợp đồng − đã giao (SL CHƯA QUY KHÔ — số ghi trên hợp đồng). */
   remaining_qty: number;
+  /** Còn phải giao theo gốc số của báo cáo & bảng chốt số liệu (latex/mủ NL = QUY KHÔ) — khác
+   *  `remaining_qty` chỉ ở hợp đồng có dòng quy khô. */
+  remaining_dry_qty: number;
   /** Phần giao VƯỢT sản lượng hợp đồng (thực giao được lệch, trần 110%). */
   over_qty: number;
   /** Thành tiền của HÀNG ĐÃ GIAO, quy về ĐỒNG — khác `revenue` (tiền ghi trên hợp đồng) vì sản
@@ -171,6 +174,8 @@ export type ContractTotals = {
   delivered_qty: number;
   pending_qty: number;
   remaining_qty: number;
+  /** Như `remaining_qty` nhưng theo gốc QUY KHÔ — khớp "Đã ký HĐ chưa giao" ở bảng chốt số liệu. */
+  remaining_dry_qty: number;
   over_qty: number;
   children: number;
   revenue: number;

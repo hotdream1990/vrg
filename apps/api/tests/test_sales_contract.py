@@ -1721,3 +1721,35 @@ def test_locked_edit_guard_covers_every_number_bearing_field(env) -> None:
     assert lock.is_safe_edit({**base, "payment_qty": 5}, {**base, "payment_qty": 5.0})
     # Ô bỏ trống: "" và None là một, nếu không mở form rồi bấm Lưu là bị báo đổi số liệu.
     assert lock.is_safe_edit({**base, "to_company": None}, {**base, "to_company": ""})
+
+
+def test_list_shows_dry_remaining_that_matches_block_3(env, cus) -> None:
+    """Màn Hợp đồng ghi "còn phải giao" bằng SL CHƯA QUY KHÔ, bảng chốt/báo cáo đọc khối 3 QUY KHÔ.
+
+    Chư prông hỏi 29/09/2026 vì hai màn lệch 100 tấn (2 HĐ latex). Nay mỗi dòng + dòng Tổng cộng
+    kèm `remaining_dry_qty` — phải bằng ĐÚNG khối 3, vì chính khối 3 là số đơn vị đem ra đối chiếu.
+    """
+    from app.services import sales_contract_report
+
+    h = env
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "KHO-LX", "delivery_type": "single", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY,
+        "lines": [_line(grade="LATEX", qty=210.0, qty_dry=126.0)]}, headers=h)
+    m = client.put("/api/sales-contracts", json={
+        "company": UNIT, "code": "KHO-SVR", "delivery_type": "multi", "contract_type": "spot",
+        "customer_id": cus, "sign_date": YESTERDAY, "lines": [_line(qty=100.0)]},
+        headers=h).json()["contract"]
+    client.put("/api/sales-contracts", json={
+        "company": UNIT, "parent_id": m["id"], "code": "Đợt 01", "delivered_at": TODAY,
+        "channel": "domestic", "lines": [_line(qty=60.0)]}, headers=h)
+
+    r = client.get(f"/api/sales-contracts?company={UNIT}&page_size=200", headers=h).json()
+    by_code = {c["code"]: c for c in r["contracts"]}
+    assert (by_code["KHO-LX"]["remaining_qty"], by_code["KHO-LX"]["remaining_dry_qty"]) == (210, 126)
+    # Thành phẩm: nước = khô ⇒ hai số trùng nhau.
+    assert by_code["KHO-SVR"]["remaining_qty"] == by_code["KHO-SVR"]["remaining_dry_qty"] == 40
+    assert r["totals"]["remaining_qty"] == pytest.approx(250)
+    assert r["totals"]["remaining_dry_qty"] == pytest.approx(166)
+    assert r["totals"]["remaining_dry_qty"] == pytest.approx(
+        sales_contract_report.undelivered_on(TODAY, [UNIT])[UNIT]["qty"])

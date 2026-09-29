@@ -161,7 +161,7 @@ def list_contracts(scope: Scope, company: str | None = Query(None),
         companies, customer_ids=customer_id, status=None if status == "all" else status,
         q=q, date_from=date_from, date_to=date_to, channels=channel,
         master_ids=master_id, only_unlinked=unlinked,
-        limit=page_size, offset=(page - 1) * page_size)
+        limit=page_size, offset=(page - 1) * page_size, with_dry=True)
     rows = res["rows"]
     # Chỉ tra tên của đúng những khách xuất hiện TRONG TRANG — danh mục cả Tập đoàn rất dài.
     names = customer_repo.names_by_id(companies, sorted({

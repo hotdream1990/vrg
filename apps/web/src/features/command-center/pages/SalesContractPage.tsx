@@ -32,6 +32,15 @@ const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 }
 /** Tiền quy VNĐ, hiện theo TRIỆU ĐỒNG. null = có dòng ngoại tệ thiếu tỷ giá → "—", KHÔNG hiện 0
  *  (0 sẽ bị đọc là bán không thu tiền). */
 const money = (n: number | null) => (n == null ? "—" : t3(n / 1_000_000));
+/** Dòng phụ "quy khô" dưới cột Còn phải giao — chỉ hiện khi lệch với số chưa quy khô (latex/mủ NL).
+ *  Màn này ghi SL chưa quy khô như trên hợp đồng, còn báo cáo và bảng chốt số liệu tính quy khô:
+ *  không bày cả hai thì đơn vị đối chiếu hai màn thấy lệch mà không biết vì sao (Chư prông, 29/09/2026). */
+function DryNote({ wet, dry }: { wet: number; dry: number }) {
+  if (Math.abs(wet - dry) <= 1e-6) return null;
+  return <div style={{ fontSize: 11, color: "var(--muted)", fontWeight: 400 }}>quy khô {t3(dry)}</div>;
+}
+const DRY_HINT = "Số chưa quy khô, như ghi trên hợp đồng. Dòng nhỏ \"quy khô\" (latex, mủ nguyên liệu) "
+  + "tính cùng cách với ô \"Đã ký HĐ chưa giao\" của báo cáo và bảng chốt số liệu (tính tới hôm nay).";
 /** Đã giao đủ sản lượng hợp đồng (chưa chốt hoàn thành) — cùng luật với bộ lọc "Đã giao đủ". */
 const fullyDelivered = (r: ContractRow) => !r.completed_at && r.remaining_qty <= 1e-9;
 /** Giao tới mức này (so với sản lượng hợp đồng) thì coi như ĐẠT — mời chốt hoàn thành ngay ở
@@ -228,7 +237,8 @@ export default function SalesContractPage() {
             <th>Ngày ký</th><th className="r">SL hợp đồng (tấn)</th><th className="r">Thành tiền (tr.đ)</th>
             <th className="r">TT đã giao (tr.đ)</th>
             <th className="r">Đã giao</th>
-            <th className="r">Còn phải giao</th><th className="r">Đợt giao</th><th>Trạng thái</th>
+            <th className="r" title={DRY_HINT}>Còn phải giao</th>
+            <th className="r">Đợt giao</th><th>Trạng thái</th>
             <th className="r" style={{ width: 160 }}>Thao tác</th>
           </tr></thead>
           <tbody>
@@ -291,6 +301,7 @@ export default function SalesContractPage() {
                   {/* Còn phải giao = SL hợp đồng − đã giao. Còn hàng là trạng thái BÌNH THƯỜNG của
                       hợp đồng mới ký — chỉ tô cảnh báo khi đã QUÁ THỜI HẠN. */}
                   <span className={overdue(r) ? "chip warn" : "chip"}>{t3(r.remaining_qty)}</span>
+                  <DryNote wet={r.remaining_qty} dry={r.remaining_dry_qty} />
                   {r.pending_qty > 0 && (
                     <div style={{ fontSize: 11, color: "var(--muted)" }}>
                       chờ giao {t3(r.pending_qty)}
@@ -377,7 +388,10 @@ export default function SalesContractPage() {
                   {missingNote(totals.delivered_revenue_missing)}
                 </td>
                 <td className="r">{t3(totals.delivered_qty)}</td>
-                <td className="r">{t3(totals.remaining_qty)}</td>
+                <td className="r" title={DRY_HINT}>
+                  {t3(totals.remaining_qty)}
+                  <DryNote wet={totals.remaining_qty} dry={totals.remaining_dry_qty} />
+                </td>
                 <td className="r">{totals.children.toLocaleString("vi-VN")}</td>
                 <td colSpan={2} />
               </tr>
