@@ -34,6 +34,7 @@ const PURCHASE_COLS: Col[] = [
   { key: "plan_exploit_tonnes", label: "Kế hoạch khai thác", unit: "tấn", note: "số liệu năm" },
   { key: "plan_tonnes", label: "Kế hoạch thu mua", unit: "tấn", note: "số liệu năm" },
   { key: "pct_plan", label: "% thực hiện KH", unit: "%", note: "= TH / KH" },
+  { key: "plan_goods_tonnes", label: "Kế hoạch hàng hóa", unit: "tấn", note: "thành phẩm mua ngoài" },
   { key: "consumption", label: "SL tiêu thụ mủ thu mua", unit: "tấn", note: "cộng dồn" },
   { key: "finished_sold_qty", label: "SL tiêu thụ mủ thành phẩm", unit: "tấn", note: "cộng dồn" },
   { key: "revenue_ty", label: "Doanh thu", unit: "tỷ đồng", note: "cộng dồn" },

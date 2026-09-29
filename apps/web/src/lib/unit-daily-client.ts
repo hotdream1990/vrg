@@ -90,6 +90,9 @@ export type YearPlanRow = {
    *  Chỉ là chỉ tiêu: chưa có số thực hiện khai thác nên KHÔNG tính % và không bật/tắt màn nào. */
   plan_exploit_tonnes: number | null;
   plan_tonnes: number | null;        // kế hoạch thu mua năm (tấn) — >0 là CÔNG TẮC bật màn Thu mua
+  /** Kế hoạch HÀNG HÓA năm (tấn) — thành phẩm mua ngoài để bán lại. Chỉ tiêu riêng, KHÔNG cộng vào
+   *  thu mua (chỉ tiêu thu mua của Ban TTKD chỉ tính mủ nguyên liệu). */
+  plan_goods_tonnes: number | null;
   plan_sales_spot_tonnes: number | null;  // kế hoạch TIÊU THỤ cho HĐ chuyến (tấn)
   signed_lt_tonnes: number | null;   // tổng SL đã ký HĐ dài hạn (tấn)
   carry_lt_tonnes: number | null;    // HĐ dài hạn năm trước chuyển sang (tấn)

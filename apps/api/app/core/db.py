@@ -590,6 +590,10 @@ ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_revenue_ty double p
 -- Kế hoạch KHAI THÁC năm (chốt 24/09/2026) — TẤN, mủ từ vườn cây của CHÍNH đơn vị (khác thu mua =
 -- mua của dân). NULL = chưa khai. Chưa có số thực hiện khai thác ⇒ chỉ lưu/hiện, không tính %.
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_exploit_tonnes double precision;
+-- Kế hoạch HÀNG HÓA cao su năm (chốt 29/09/2026) — TẤN thành phẩm MUA NGOÀI để bán lại (Tân Biên:
+-- khai thác 3.500 + thu mua 1.000 + hàng hóa 5.000). Không gộp vào `plan_tonnes`: chỉ tiêu thu mua
+-- của Ban TTKD chỉ tính mủ nguyên liệu. NULL = chưa khai.
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_goods_tonnes double precision;
 -- Hợp đồng tồn kho: đính kèm NHIỀU file. Cột file/filename cũ giữ nguyên = file ĐẦU danh sách.
 ALTER TABLE unit_stock_contract ADD COLUMN IF NOT EXISTS files jsonb NOT NULL DEFAULT '[]'::jsonb;
 -- Đã được script chuyển sang bảng hợp đồng 2 cấp `sales_contract` chưa. Bản ghi CŨ vẫn giữ nguyên

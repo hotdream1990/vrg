@@ -59,7 +59,8 @@ def _contract(h: dict[str, str], company: str, code: str, qty: float, price: flo
 
 def _cleanup(h: dict[str, str]) -> None:
     with session_scope() as db:
-        for tbl in ("unit_purchase_plan", "sales_contract", "master_contract", "unit_customer"):
+        for tbl in ("unit_daily_report", "unit_purchase_plan", "sales_contract", "master_contract",
+                    "unit_customer"):
             db.execute(text(f"DELETE FROM {tbl} WHERE company = ANY(:u)"), {"u": UNITS})
     for n in UNITS:
         client.delete(f"/api/member-units/{n}", headers=h)
@@ -172,3 +173,32 @@ def test_zero_exploit_plan_is_a_complete_plan(env):
     assert (v["units_planned"], v["units_missing_exploit"]) == (2, 0)
     assert v["plan_total"] == pytest.approx(2300)
     assert v["pct"] == pytest.approx(650 / 2300 * 100)
+
+
+def test_goods_plan_completes_sales_plan(env):
+    """Tân Biên 29/09/2026: bán cả hàng hóa (thành phẩm mua ngoài) mà KH bán hàng chỉ có khai thác +
+    thu mua → % ảo 226%. KH hàng hóa là ô riêng: vào KH bán hàng, KHÔNG vào chỉ tiêu thu mua."""
+    r = client.put("/api/unit-daily/report", headers=env, json={
+        "kind": "purchase", "company": UNIT_A, "as_of": TODAY,
+        "fields": {"finished": [{"grade": "SVR 3L", "qty": 400, "price": 50}]}})
+    assert r.status_code == 200, r.text
+    # Có mua thành phẩm mà chưa nhập KH hàng hóa → nói rõ % đang cao hơn thực tế.
+    v = _get(env, "region", REGION)["volume"]
+    assert v["plan_total"] == pytest.approx(1500) and not v["plan_goods"]
+    assert UNIT_A in v["note"] and "KH hàng hóa" in v["note"]
+
+    assert client.put("/api/unit-daily/plan", headers=env, json={
+        "year": YEAR, "company": UNIT_A, "plan_goods_tonnes": 400}).status_code == 200
+    v = _get(env, "region", REGION)["volume"]
+    assert (v["plan_exploit"], v["plan_purchase"], v["plan_goods"], v["plan_total"]) == \
+        (1000, 500, 400, 1900)
+    assert v["pct"] == pytest.approx(600 / 1900 * 100)
+    assert v["note"] == ""
+
+    items = {i["key"]: i for i in client.get(
+        "/api/unit-dashboard/targets", headers=env,
+        params={"scope": "unit", "key": UNIT_A, "date_from": f"{YEAR}-01-01",
+                "date_to": f"{YEAR}-12-31"}).json()["items"]}
+    assert (items["goods"]["done"], items["goods"]["plan"]) == (400, 400)
+    # Chỉ tiêu thu mua giữ nguyên rổ mủ nguyên liệu — 400 t thành phẩm không vào tử số.
+    assert items["purchase"]["plan"] == 500 and not items["purchase"]["done"]

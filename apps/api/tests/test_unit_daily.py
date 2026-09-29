@@ -125,7 +125,7 @@ def test_unit_daily_member_and_editor_flow() -> None:
                             "signed_lt_tonnes": 1500, "carry_lt_tonnes": 40, "carry_spot_tonnes": 15},
                       headers=eh).status_code == 200
     pl = client.get(f"/api/unit-daily/plan?year={date.today().year}", headers=eh)
-    assert pl.json()["plans"][unit] == {"plan_exploit_tonnes": None,
+    assert pl.json()["plans"][unit] == {"plan_exploit_tonnes": None, "plan_goods_tonnes": None,
                                         "plan_tonnes": 2000, "signed_lt_tonnes": 1500,
                                         "carry_lt_tonnes": 40, "carry_spot_tonnes": 15,
                                         "plan_sales_spot_tonnes": None,

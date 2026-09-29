@@ -36,6 +36,7 @@ _PURCHASE_COLS: list[tuple[str, str, str, str]] = [
     ("plan_exploit_tonnes", "Kế hoạch khai thác", "số liệu năm", "tấn"),
     ("plan_tonnes", "Kế hoạch thu mua", "số liệu năm", "tấn"),
     ("pct_plan", "% thực hiện kế hoạch", "= thực hiện / kế hoạch", "%"),
+    ("plan_goods_tonnes", "Kế hoạch hàng hóa (thành phẩm mua ngoài)", "số liệu năm", "tấn"),
     ("consumption", "Sản lượng tiêu thụ mủ thu mua", "cộng dồn", "tấn"),
     ("finished_sold_qty", "Sản lượng tiêu thụ mủ thành phẩm", "cộng dồn", "tấn"),
     ("revenue_ty", "Doanh thu tiêu thụ mủ thu mua", "cộng dồn", "tỷ đồng"),

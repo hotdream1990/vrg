@@ -3,7 +3,6 @@
    Không có vạch tiến độ thời gian: đây là số CẢ NĂM dự kiến / cam kết, không phải lũy kế tới hôm nay. */
 
 import { Progress } from "antd";
-import { Fragment } from "react";
 
 import { fmtPct } from "./dashboard-format";
 
@@ -47,14 +46,16 @@ export function MiniEquation({ terms, unit, lead }: MiniEquationProps) {
   return (
     <div className="ud-mini-eq">
       {lead && <span className="ud-mini-eq-lead">{lead}</span>}
+      {/* Dấu +/= đi LIỀN số hạng sau nó: phương trình 4 số hạng xuống dòng thì không để "=" treo
+          cuối dòng trên, tổng rơi xuống dòng dưới. */}
       {terms.map((t, i) => (
-        <Fragment key={t.label}>
+        <span key={t.label} className="ud-mini-eq-item">
           {i > 0 && <span className="ud-eq-op" aria-hidden>{i === last ? "=" : "+"}</span>}
           <span className={`ud-mini-eq-term${i === last ? " is-total" : ""}`}>
             <span>{t.label}</span>
             <b>{t.value}</b>
           </span>
-        </Fragment>
+        </span>
       ))}
       <span className="ud-mini-eq-unit">{unit}</span>
     </div>

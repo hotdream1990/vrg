@@ -154,6 +154,8 @@ SPECS: dict[str, Spec] = {
          # Khai thác (vườn cây của chính đơn vị) đứng TRƯỚC thu mua (mua của dân) — chốt 24/09/2026.
          Col("plan_exploit_tonnes", "Kế hoạch khai thác", "tấn", width=20),
          Col("plan_tonnes", "Kế hoạch thu mua", "tấn", width=20),
+         # Hàng hóa = thành phẩm MUA NGOÀI để bán lại — tách khỏi thu mua nguyên liệu (29/09/2026).
+         Col("plan_goods_tonnes", "Kế hoạch hàng hóa (thành phẩm mua ngoài)", "tấn", width=30),
          Col("plan_sales_spot_tonnes", "Kế hoạch tiêu thụ (HĐ chuyến)", "tấn", width=26),
          Col("plan_revenue_ty", "Kế hoạch doanh thu", "tỷ đồng", width=22),
          Col("signed_lt_tonnes", "HĐ dài hạn đã ký", "tấn", width=20),

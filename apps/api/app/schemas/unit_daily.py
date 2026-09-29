@@ -46,6 +46,8 @@ class PurchasePlanEdit(BaseModel):
     # Kế hoạch KHAI THÁC năm (tấn) — mủ từ vườn cây của chính đơn vị; chỉ là chỉ tiêu, chưa tính %.
     plan_exploit_tonnes: PlanNum | None = None
     plan_tonnes: PlanNum | None = None        # kế hoạch thu mua năm (tấn)
+    # Kế hoạch HÀNG HÓA cao su (tấn) — thành phẩm mua ngoài để bán lại; tách khỏi thu mua nguyên liệu.
+    plan_goods_tonnes: PlanNum | None = None
     signed_lt_tonnes: PlanNum | None = None   # tổng SL đã ký HĐ dài hạn năm (tấn)
     carry_lt_tonnes: PlanNum | None = None    # SL tiêu thụ HĐ dài hạn năm trước chuyển sang (tấn)
     carry_spot_tonnes: PlanNum | None = None  # SL tiêu thụ HĐ chuyến năm trước chuyển sang (tấn)

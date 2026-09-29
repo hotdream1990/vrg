@@ -1,6 +1,6 @@
 /* Bảng "Tiến độ bán hàng theo khu vực / đơn vị" dưới card Tiến độ bán hàng năm. 3 nhóm cột: HĐ dài
    hạn (HĐDH) · Sản lượng cả năm so KH bán hàng · Doanh thu dự kiến so KH. Ô KH bán hàng ghi tổng
-   kèm dòng nhỏ tách khai thác / thu mua. Giữ thứ tự dòng server trả — không tự sắp lại.
+   kèm dòng nhỏ tách khai thác / thu mua / hàng hóa. Giữ thứ tự dòng server trả — không tự sắp lại.
    Bảng rộng → cuộn ngang TRONG `.ud-table-wrap` trên màn hẹp, không kéo cả trang. */
 
 import type { ReactNode } from "react";
@@ -12,13 +12,17 @@ import { MiniPct } from "./OutlookBars";
 type Col = { label: string; title: string; cell: (r: OutlookBreakdownRow) => ReactNode };
 type Group = { label: string; cols: Col[] };
 
-/** Ô KH bán hàng: tổng + "KT … · TM …" (KT "—" = đơn vị chưa nhập KH khai thác, ngoài rổ %). */
+/** Ô KH bán hàng: tổng + "KT … · TM … · HH …" (KT "—" = đơn vị chưa nhập KH khai thác, ngoài rổ %;
+ *  HH chỉ ghi khi có — đa số đơn vị không kinh doanh hàng hóa). */
 function PlanCell({ r }: { r: OutlookBreakdownRow }) {
   if (r.plan_total == null && r.plan_exploit == null && r.plan_purchase == null) return <>—</>;
   return (
     <>
       <div>{fmtTon(r.plan_total)}</div>
-      <div className="ud-cell-sub">KT {fmtTon(r.plan_exploit)} · TM {fmtTon(r.plan_purchase)}</div>
+      <div className="ud-cell-sub">
+        KT {fmtTon(r.plan_exploit)} · TM {fmtTon(r.plan_purchase)}
+        {!!r.plan_goods && <> · HH {fmtTon(r.plan_goods)}</>}
+      </div>
     </>
   );
 }

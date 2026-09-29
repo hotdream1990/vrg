@@ -23,7 +23,8 @@ const LABELS: Record<string, string> = {
   as_of: "Ngày", start_date: "Ngày bắt đầu tồn kho", delivery_date: "Lịch giao",
   delivered_date: "Ngày giao thực tế", filename: "File đính kèm",
   plan_exploit_tonnes: "Kế hoạch khai thác năm",
-  plan_tonnes: "Kế hoạch thu mua năm", signed_lt_tonnes: "SL đã ký HĐ dài hạn",
+  plan_tonnes: "Kế hoạch thu mua năm", plan_goods_tonnes: "Kế hoạch hàng hóa năm",
+  signed_lt_tonnes: "SL đã ký HĐ dài hạn",
   plan_sales_spot_tonnes: "Kế hoạch tiêu thụ (HĐ chuyến)", plan_revenue_ty: "Kế hoạch doanh thu (tỷ đồng)",
   carry_lt_tonnes: "Chuyển sang (HĐ dài hạn)", carry_spot_tonnes: "Chuyển sang (HĐ chuyến)",
   full_name: "Họ tên", role: "Vai trò", is_active: "Đang hoạt động",
@@ -72,7 +73,7 @@ const isEmpty = (v: unknown) => v === null || v === undefined || v === "";
 /** Ô quan trọng lên trước (Postgres lưu jsonb không giữ thứ tự khoá nên phải tự sắp). */
 const PRIORITY = [
   "price", "fob_usd", "domestic_vnd", "ton_kho", "ton_kho_hd", "plan_exploit_tonnes", "plan_tonnes",
-  "qty", "content", "value", "grade", "code", "role", "is_active",
+  "plan_goods_tonnes", "qty", "content", "value", "grade", "code", "role", "is_active",
 ];
 const rank = (path: string): number => {
   const key = (path.split(".").pop() ?? path).replace(/\[\d+\]$/, "");

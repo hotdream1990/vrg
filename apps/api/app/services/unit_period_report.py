@@ -136,6 +136,8 @@ def _purchase_rows(entries: list[dict], prices: dict, plan: dict,
         "plan_exploit_tonnes": _num(plan.get("plan_exploit_tonnes")),
         "plan_tonnes": plan_tonnes,
         "pct_plan": (total / plan_tonnes * 100) if plan_tonnes else None,
+        # Kế hoạch HÀNG HÓA (thành phẩm mua ngoài) — chỉ tiêu riêng, không cộng vào kế hoạch thu mua.
+        "plan_goods_tonnes": _num(plan.get("plan_goods_tonnes")),
         "consumption": consumption,
         "no_purchase_days": no_days or None,
         "revenue_ty": (revenue / TY) if revenue is not None else None,

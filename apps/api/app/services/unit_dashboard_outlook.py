@@ -4,7 +4,9 @@ Bốn câu hỏi, cùng một ngày tính `as_of = min(đến ngày, hôm nay)`:
   1. HĐ dài hạn: đã giao bao nhiêu trên sản lượng CAM KẾT của hợp đồng mẹ, còn lại bao nhiêu.
   2. Còn phải giao đến cuối năm = HĐ chuyến đã ký chưa giao + HĐ dài hạn còn lại (`contract_backlog`).
   3. Bán cả năm (dự kiến) = đã giao lũy kế + còn phải giao, so với KH BÁN HÀNG = KH KHAI THÁC + KH
-     THU MUA (cột "KH Sản xuất + Thu mua" của biểu Ban TTKD — chủ dự án chốt 26/09/2026).
+     THU MUA + KH HÀNG HÓA. Bản 26/09/2026 chỉ lấy 2 ô đầu (cột "KH Sản xuất + Thu mua" của biểu Ban
+     TTKD — Ban TTKD chưa từng điền) nên đơn vị mua thành phẩm bên ngoài để bán lại bị % ảo: sản
+     lượng bán có hàng hóa, kế hoạch thì không (Tân Biên phản ánh 29/09/2026).
   4. Doanh thu dự kiến = doanh thu lũy kế + SL còn phải giao × giá bán BQ lũy kế của CHÍNH đơn vị đó.
      Đơn vị chưa có giá BQ (chưa giao lần nào trong năm) → phần đó CHƯA ĐỊNH GIÁ, không mượn giá đơn
      vị khác (cùng tinh thần "không lấy số chỗ khác lấp chỗ trống").
@@ -21,6 +23,7 @@ from typing import Any
 
 from app.services import contract_backlog as cb
 from app.services import unit_report_consumption as con
+from app.services import unit_report_purchase as pur
 from app.services.unit_dashboard_outlook_calc import aggregate, label_fn, unit_metrics
 from app.services.unit_report_query import region_of_units, split_csv, year_plan_by_group
 
@@ -37,10 +40,13 @@ def outlook_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any
 
     sold = {r["key"]: r for r in con.consumption_report(
         f"{year}-01-01", as_of, group_by="company", **f)["rows"]}
+    bought = {r["key"]: r.get("qty_finished") or 0.0 for r in pur.purchase_report(
+        f"{year}-01-01", as_of, group_by="company", **f)["rows"]}
     back = cb.roll(cb.backlog_on(as_of, sc["units"]), f["split_merged"])
     plans = {"exploit": plan("plan_exploit_tonnes", keep_zero=True),
-             "purchase": plan("plan_tonnes"), "revenue": plan("plan_revenue_ty")}
-    units = {c: unit_metrics(c, sold.get(c) or {}, back.get(c) or {}, plans)
+             "purchase": plan("plan_tonnes"), "goods": plan("plan_goods_tonnes", keep_zero=True),
+             "revenue": plan("plan_revenue_ty")}
+    units = {c: unit_metrics(c, sold.get(c) or {}, back.get(c) or {}, plans, bought.get(c) or 0.0)
              for c in {*sold, *back, *(k for p in plans.values() for k in p)}}
 
     whole = aggregate(list(units.values()))
@@ -57,6 +63,7 @@ def outlook_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any
                     "to_deliver": whole["to_deliver"]},
         "volume": {"delivered_ytd": whole["delivered_ytd"], "projected": whole["projected"],
                    "plan_exploit": whole["plan_exploit"], "plan_purchase": whole["plan_purchase"],
+                   "plan_goods": whole["plan_goods"],
                    "plan_total": whole["plan_total"], "basket_projected": whole["qty_basket_projected"],
                    "pct": whole["qty_pct"], "units_planned": whole["qty_units_planned"],
                    "units_missing_exploit": whole["units_missing_exploit"],
@@ -89,7 +96,7 @@ def _breakdown(sc: dict[str, Any], units: dict[str, dict[str, Any]], label_of) -
                     "spot_undelivered": a["spot_undelivered"], "to_deliver": a["to_deliver"],
                     "delivered_ytd": a["delivered_ytd"], "projected": a["projected"],
                     "plan_exploit": a["plan_exploit"], "plan_purchase": a["plan_purchase"],
-                    "plan_total": a["plan_total"], "qty_basket_projected": a["qty_basket_projected"],
+                    "plan_goods": a["plan_goods"], "plan_total": a["plan_total"], "qty_basket_projected": a["qty_basket_projected"],
                     "qty_pct": a["qty_pct"], "revenue_projected": a["revenue_projected"],
                     "plan_revenue": a["plan_revenue"],
                     "revenue_basket_projected": a["revenue_basket_projected"],

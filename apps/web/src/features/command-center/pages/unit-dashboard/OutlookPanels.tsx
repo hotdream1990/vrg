@@ -98,13 +98,15 @@ function VolumePanel({ data, single }: Props) {
       </div>
       <PlanProgress
         plan={v.plan_total} pct={v.pct} note={v.note}
-        noPlan={single ? `Chưa có KH bán hàng năm ${data.year} (khai thác + thu mua).`
+        noPlan={single ? `Chưa có KH bán hàng năm ${data.year} (khai thác + thu mua + hàng hóa).`
           : "Chưa đơn vị nào đủ KH khai thác + thu mua để so."}
       />
       {anyNum(v.plan_exploit, v.plan_purchase, v.plan_total) && (
         <MiniEquation unit="tấn" terms={[
           { label: "KH khai thác", value: fmtTon(v.plan_exploit) },
           { label: "KH thu mua", value: fmtTon(v.plan_purchase) },
+          // Hàng hóa = thành phẩm mua ngoài bán lại — sản lượng bán có phần này nên KH cũng phải có.
+          { label: "KH hàng hóa", value: fmtTon(v.plan_goods) },
           { label: "KH bán hàng", value: fmtTon(v.plan_total) },
         ]} />
       )}

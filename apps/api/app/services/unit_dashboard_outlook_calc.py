@@ -18,14 +18,19 @@ _MAX_NAMES = 5
 
 
 def unit_metrics(c: str, sold: dict[str, Any], back: dict[str, Any],
-                 plans: dict[str, dict[str, float]]) -> dict[str, Any]:
-    """Số của MỘT đơn vị. `sold` = dòng thống kê tiêu thụ lũy kế, `back` = Backlog tại ngày tính."""
+                 plans: dict[str, dict[str, float]], bought_goods: float = 0.0) -> dict[str, Any]:
+    """Số của MỘT đơn vị. `sold` = dòng thống kê tiêu thụ lũy kế, `back` = Backlog tại ngày tính,
+    `bought_goods` = tấn thành phẩm MUA NGOÀI lũy kế (biểu Thu mua) — để biết đơn vị có kinh doanh
+    hàng hóa mà chưa nhập KH hàng hóa không."""
     delivered = sold.get("qty") or 0.0
     to_deliver = back.get("to_deliver") or 0.0
     avg = sold.get("avg_price_trieu")          # triệu đ/tấn; None = chưa có lần giao có doanh thu
     exploit = plans["exploit"].get(c)          # None = CHƯA NHẬP; 0 = đơn vị không khai thác
     purchase = plans["purchase"].get(c) or 0.0
-    plan_total = (exploit or 0.0) + purchase
+    goods = plans["goods"].get(c)              # None = CHƯA NHẬP; 0 = không kinh doanh hàng hóa
+    # Sản lượng bán gồm cả hàng hóa (thành phẩm mua ngoài bán lại) → kế hoạch phải đủ 3 nguồn, thiếu
+    # nguồn nào là % KH bán hàng đội lên (Tân Biên 29/09/2026: bán 10.191 / KH 4.500 = 226%).
+    plan_total = (exploit or 0.0) + purchase + (goods or 0.0)
     # Đơn giá nghi sai đơn vị tính (56.200 thay cho 56,2) kéo giá BQ lên cả nghìn lần — đem nhân với
     # phần còn phải giao là nhân cái sai lên thêm → phần đó CHƯA ĐỊNH GIÁ, giống đơn vị chưa có giá.
     bad = bool(sold.get("bad_price_lines"))
@@ -48,9 +53,11 @@ def unit_metrics(c: str, sold: dict[str, Any], back: dict[str, Any],
         "to_deliver": to_deliver,
         "delivered_ytd": delivered,
         "projected": delivered + to_deliver,
-        "exploit": exploit, "purchase": purchase, "plan_total": plan_total,
+        "exploit": exploit, "purchase": purchase, "goods": goods or 0.0, "plan_total": plan_total,
         "in_qty_basket": exploit is not None and plan_total > _EPS,
-        "missing_exploit": exploit is None and purchase > _EPS,
+        "missing_exploit": exploit is None and (purchase > _EPS or (goods or 0.0) > _EPS),
+        # Nhập 0 (hoặc bỏ trống) mà vẫn mua thành phẩm về bán → KH bán hàng thiếu phần hàng hóa.
+        "missing_goods": bought_goods > _EPS and (goods or 0.0) <= _EPS,
         "plan_revenue": plans["revenue"].get(c) or 0.0,
         "revenue_ytd": revenue_ytd,
         "revenue_expected_rest": rest,
@@ -78,6 +85,10 @@ def _qty_note(qb: list[dict]) -> str:
     # web tự đặt cạnh nhau; ghi lại thành câu ở đây là nói hai lần.
     if not qb:
         return "Chưa đơn vị nào nhập đủ KH khai thác + KH thu mua — chưa so được với KH bán hàng."
+    if miss := [m for m in qb if m["missing_goods"]]:
+        return (f"{_names(miss)} có mua thành phẩm bên ngoài nhưng KH hàng hóa đang trống hoặc bằng "
+                f"0 — sản lượng bán có phần hàng hóa mà kế hoạch thì không, nên % KH bán hàng có "
+                f"thể cao hơn thực tế.")
     return ""
 
 
@@ -119,6 +130,7 @@ def aggregate(ms: list[dict[str, Any]]) -> dict[str, Any]:
         "delivered_ytd": total("delivered_ytd"), "projected": projected,
         "plan_exploit": sum(m["exploit"] or 0.0 for m in qb) if qb else None,
         "plan_purchase": sum(m["purchase"] for m in qb) if qb else None,
+        "plan_goods": sum(m["goods"] for m in qb) if qb else None,
         "plan_total": plan_total if qb else None,
         "qty_basket_projected": qty_basket if qb else None,
         "qty_pct": _pct(qty_basket, plan_total) if qb else None,

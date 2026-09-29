@@ -397,6 +397,15 @@ def companies_with_purchase_plan(year: int | None = None) -> set[str]:
     return {r["company"] for r in rows if (r["plan_tonnes"] or 0) > 0}
 
 
+# Các ô số liệu năm = cột của `unit_purchase_plan` (tên cột lấy từ ĐÂY, không từ input → không chèn SQL).
+# Mọi câu SELECT số liệu năm dựng từ bộ này: thêm ô mới chỉ sửa MỘT chỗ.
+PLAN_FIELDS: tuple[str, ...] = (
+    "plan_exploit_tonnes", "plan_tonnes", "plan_goods_tonnes", "signed_lt_tonnes", "carry_lt_tonnes",
+    "carry_spot_tonnes", "plan_sales_spot_tonnes", "plan_revenue_ty",
+)
+_PLAN_COLS = ", ".join(PLAN_FIELDS)
+
+
 def year_plan(year: int, companies: list[str] | None = None) -> dict[str, dict[str, float | None]]:
     """Số liệu NĂM (nhập 1 lần, không theo ngày) → {company: {plan_tonnes, signed_lt_tonnes}}.
 
@@ -405,25 +414,12 @@ def year_plan(year: int, companies: list[str] | None = None) -> dict[str, dict[s
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(
-            text("SELECT company, plan_exploit_tonnes, plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, "
-                 "       carry_spot_tonnes, plan_sales_spot_tonnes, plan_revenue_ty "
-                 "FROM unit_purchase_plan WHERE year = :y"),
+            text(f"SELECT company, {_PLAN_COLS} FROM unit_purchase_plan WHERE year = :y"),
             {"y": year},
         ).mappings().all()
     keep = set(companies) if companies is not None else None
-    return {r["company"]: {"plan_exploit_tonnes": r["plan_exploit_tonnes"],
-                           "plan_tonnes": r["plan_tonnes"], "signed_lt_tonnes": r["signed_lt_tonnes"],
-                           "carry_lt_tonnes": r["carry_lt_tonnes"], "carry_spot_tonnes": r["carry_spot_tonnes"],
-                           "plan_sales_spot_tonnes": r["plan_sales_spot_tonnes"],
-                           "plan_revenue_ty": r["plan_revenue_ty"]}
+    return {r["company"]: {k: r[k] for k in PLAN_FIELDS}
             for r in rows if keep is None or r["company"] in keep}
-
-
-# Các ô số liệu năm = cột của `unit_purchase_plan` (tên cột lấy từ ĐÂY, không từ input → không chèn SQL).
-PLAN_FIELDS: tuple[str, ...] = (
-    "plan_exploit_tonnes", "plan_tonnes", "signed_lt_tonnes", "carry_lt_tonnes",
-    "carry_spot_tonnes", "plan_sales_spot_tonnes", "plan_revenue_ty",
-)
 
 
 def set_year_plan(year: int, company: str, plan_tonnes: float | None, signed_lt_tonnes: float | None,
@@ -431,15 +427,16 @@ def set_year_plan(year: int, company: str, plan_tonnes: float | None, signed_lt_
                   plan_sales_spot_tonnes: float | None,
                   plan_revenue_ty: float | None,
                   updated_by: str | None, *,
-                  plan_exploit_tonnes: float | None = None) -> None:
-    """Đặt TRỌN dòng số liệu năm của 1 đơn vị (ghi đè cả 7 ô; None = xoá ô đó).
+                  plan_exploit_tonnes: float | None = None,
+                  plan_goods_tonnes: float | None = None) -> None:
+    """Đặt TRỌN dòng số liệu năm của 1 đơn vị (ghi đè mọi ô; None = xoá ô đó).
 
     Chỉ còn cho script/test dựng số liệu. Endpoint và nhập Excel dùng `save_year_plan` để ô người
     dùng KHÔNG gửi lên thì giữ nguyên.
     """
     save_year_plan(year, company, {
         "plan_exploit_tonnes": plan_exploit_tonnes, "plan_tonnes": plan_tonnes,
-        "signed_lt_tonnes": signed_lt_tonnes, "carry_lt_tonnes": carry_lt_tonnes,
+        "plan_goods_tonnes": plan_goods_tonnes, "signed_lt_tonnes": signed_lt_tonnes, "carry_lt_tonnes": carry_lt_tonnes,
         "carry_spot_tonnes": carry_spot_tonnes, "plan_sales_spot_tonnes": plan_sales_spot_tonnes,
         "plan_revenue_ty": plan_revenue_ty}, updated_by)
 
@@ -492,8 +489,6 @@ def set_plan(year: int, company: str, plan_tonnes: float | None, updated_by: str
 def _plan_snapshot(db, year: int, company: str) -> dict[str, Any] | None:  # noqa: ANN001
     """Số liệu năm hiện có của 1 đơn vị (None nếu chưa có) — giá trị TRƯỚC khi sửa."""
     row = db.execute(
-        text("SELECT plan_exploit_tonnes, plan_tonnes, signed_lt_tonnes, carry_lt_tonnes, "
-             "       carry_spot_tonnes, plan_sales_spot_tonnes, plan_revenue_ty "
-             "FROM unit_purchase_plan WHERE year = :y AND company = :c"),
+        text(f"SELECT {_PLAN_COLS} FROM unit_purchase_plan WHERE year = :y AND company = :c"),
         {"y": year, "c": company}).mappings().first()
     return dict(row) if row else None

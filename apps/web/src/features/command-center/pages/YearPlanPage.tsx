@@ -1,5 +1,6 @@
 /* Kế hoạch năm — số liệu lớn NHẬP 1 LẦN cho cả năm (không nhập hàng ngày), cập nhật khi có thay đổi:
-   kế hoạch khai thác (cột đầu) + kế hoạch thu mua năm + tổng sản lượng đã ký hợp đồng dài hạn…
+   kế hoạch khai thác (cột đầu) + kế hoạch thu mua năm + kế hoạch hàng hóa + tổng sản lượng đã ký
+   hợp đồng dài hạn…
    Đơn vị thành viên: chỉ đơn vị của mình · Chuyên viên có quyền `unit_daily`: mọi đơn vị. */
 
 import { ProfileOutlined } from "@ant-design/icons";
@@ -38,7 +39,8 @@ export default function YearPlanPage() {
   }, [role, year]);
   useEffect(() => { load(); }, [load]);
 
-  const EMPTY: YearPlanRow = { plan_exploit_tonnes: null, plan_tonnes: null, plan_sales_spot_tonnes: null,
+  const EMPTY: YearPlanRow = { plan_exploit_tonnes: null, plan_tonnes: null, plan_goods_tonnes: null,
+    plan_sales_spot_tonnes: null,
     signed_lt_tonnes: null, carry_lt_tonnes: null, carry_spot_tonnes: null,
     plan_revenue_ty: null };
 
@@ -92,6 +94,13 @@ export default function YearPlanPage() {
         <span style={{ color: "var(--muted)", fontSize: 13 }}>{units.length} đơn vị</span>
         <ExcelImportBar kind="plan" role={role} label="Kế hoạch năm" onDone={load} />
       </div>
+      {/* Tân Biên 29/09/2026: gộp hàng hóa vào thu mua thì sai chỉ tiêu thu mua, bỏ trống thì KH bán
+          hàng thiếu phần hàng hóa → mỗi nguồn một ô. */}
+      <p className="form-note" style={{ margin: "0 0 12px" }}>
+        Kế hoạch bán hàng = khai thác + thu mua + hàng hóa. <b>Thu mua</b> chỉ gồm mủ nguyên liệu (mủ
+        nước, mủ chén, mủ dây — quy khô). <b>Hàng hóa</b> là thành phẩm mua của đơn vị khác để bán lại —
+        nhập vào ô riêng, không cộng vào thu mua. Không kinh doanh hàng hóa thì nhập 0.
+      </p>
 
       <Spin spinning={loading}>
         <div className="card" style={{ padding: 0, overflow: "auto" }}>
@@ -103,6 +112,7 @@ export default function YearPlanPage() {
                 {/* Khai thác = mủ từ vườn cây của chính đơn vị; thu mua = mua của dân → 2 chỉ tiêu riêng. */}
                 <th className="r" style={{ width: 220 }}>Kế hoạch khai thác (tấn)</th>
                 <th className="r" style={{ width: 240 }}>Kế hoạch thu mua (tấn)</th>
+                <th className="r" style={{ width: 240 }}>Kế hoạch hàng hóa — thành phẩm mua ngoài (tấn)</th>
                 <th className="r" style={{ width: 240 }}>Kế hoạch tiêu thụ — HĐ chuyến (tấn)</th>
                 <th className="r" style={{ width: 220 }}>HĐ dài hạn đã ký (tấn)</th>
                 <th className="r" style={{ width: 220 }}>HĐ dài hạn 2025 chuyển sang (tấn)</th>
@@ -126,6 +136,9 @@ export default function YearPlanPage() {
                       {numInput(r.plan_tonnes, (v) => setCell(u, "plan_tonnes", v), !canEdit)}
                     </td>
                     <td onBlur={() => canEdit && save(u)}>
+                      {numInput(r.plan_goods_tonnes, (v) => setCell(u, "plan_goods_tonnes", v), !canEdit)}
+                    </td>
+                    <td onBlur={() => canEdit && save(u)}>
                       {numInput(r.plan_sales_spot_tonnes, (v) => setCell(u, "plan_sales_spot_tonnes", v), !canEdit)}
                     </td>
                     <td onBlur={() => canEdit && save(u)}>
@@ -144,7 +157,7 @@ export default function YearPlanPage() {
                 );
               })}
               {units.length === 0 && !loading && (
-                <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
+                <tr><td colSpan={10} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                   Chưa có đơn vị nào.
                 </td></tr>
               )}
@@ -154,6 +167,7 @@ export default function YearPlanPage() {
                   <td>Tổng cộng</td>
                   <td className="r">{fmtNum(total("plan_exploit_tonnes"), 3)}</td>
                   <td className="r">{fmtNum(total("plan_tonnes"), 3)}</td>
+                  <td className="r">{fmtNum(total("plan_goods_tonnes"), 3)}</td>
                   <td className="r">{fmtNum(total("plan_sales_spot_tonnes"), 3)}</td>
                   <td className="r">{fmtNum(total("signed_lt_tonnes"), 3)}</td>
                   <td className="r">{fmtNum(total("carry_lt_tonnes"), 3)}</td>

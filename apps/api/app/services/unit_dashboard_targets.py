@@ -5,6 +5,8 @@ nào cũng "đạt 8%" — con số đúng mà vô nghĩa. Mốc so tiến độ
 
 Ba chỉ tiêu, cùng quy ước với Báo cáo tổng hợp:
 - Thu mua: tử số = mủ NGUYÊN LIỆU (nước + chén + dây, quy khô), không gồm thành phẩm mua ngoài.
+- Hàng hóa: thành phẩm MUA NGOÀI để bán lại (biểu Thu mua, phần thành phẩm) so với KH hàng hóa —
+  chỉ tiêu riêng, không gộp vào thu mua (chỉ tiêu thu mua của Ban TTKD chỉ tính mủ nguyên liệu).
 - Tiêu thụ: kế hoạch chỉ đặt cho HĐ CHUYẾN → so với sản lượng HĐ chuyến, không so tổng tiêu thụ.
 - Doanh thu (tỷ đồng): đơn vị có lần giao chưa tính được doanh thu (thiếu tỷ giá hoặc đơn giá) thì
   doanh thu đang THIẾU → % để trống. Đơn vị có dòng bán ĐƠN GIÁ VƯỢT TRẦN (nghi gõ đồng vào ô triệu
@@ -33,10 +35,15 @@ from app.services.unit_report_query import (
 _ITEMS = (
     ("purchase", "Thu mua mủ nguyên liệu", "tấn", "plan_tonnes", "qty_material", "purchase",
      "Mủ nước + mủ chén + mủ dây (quy khô), không gồm thành phẩm mua ngoài."),
+    ("goods", "Hàng hóa (thành phẩm mua ngoài)", "tấn", "plan_goods_tonnes", "qty_finished",
+     "purchase", "Thành phẩm mua của đơn vị khác để bán lại — chỉ tiêu riêng, không tính vào thu mua."),
     ("sales_spot", "Tiêu thụ HĐ chuyến", "tấn", "plan_sales_spot_tonnes", "qty_spot", "consumption",
      "Kế hoạch tiêu thụ chỉ giao cho hợp đồng chuyến."),
     ("revenue", "Doanh thu", "tỷ đồng", "plan_revenue_ty", "revenue_ty", "consumption", ""),
 )
+
+#: Chỉ tiêu chỉ một số đơn vị có — phạm vi không có cả KH lẫn số thực hiện thì không hiện.
+_OPTIONAL = frozenset({"goods"})
 
 
 def time_pct(day: str) -> float:
@@ -108,6 +115,11 @@ def targets_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any
         issues = (_revenue_issues(planned, con_rows, reps["consumption"].get("price_ceiling"))
                   if key == "revenue" else [])
         scope_done = reps[src]["totals"].get(field) or 0.0
+        per_item[key] = (plan, done, stop)
+        # Đa số đơn vị không kinh doanh hàng hóa: không KH, không số thì bỏ hẳn dòng, khỏi hiện
+        # "Chưa giao chỉ tiêu" cho một việc đơn vị không làm.
+        if key in _OPTIONAL and prog["plan"] is None and not scope_done:
+            continue
         items.append({"key": key, "label": label, "unit": unit, "done": prog["done"],
                       "plan": prog["plan"], "pct": prog["pct"],
                       "units_planned": prog["units_planned"],
@@ -115,7 +127,6 @@ def targets_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any
                       # của rổ tính %, để hai số khác rổ không bị đọc như lệch nhau.
                       "scope_done": scope_done,
                       "note": _note(base, issues)})
-        per_item[key] = (plan, done, stop)
 
     return {
         "scope": sc["public"], "year": year, "date_from": start, "date_to": end,

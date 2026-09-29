@@ -1,4 +1,5 @@
-/* Bảng "Tiến độ theo khu vực / đơn vị" dưới card Chỉ tiêu năm: 3 cột % lũy kế, mỗi ô một thanh mini.
+/* Bảng "Tiến độ theo khu vực / đơn vị" dưới card Chỉ tiêu năm: mỗi chỉ tiêu một cột % lũy kế, mỗi ô
+   một thanh mini. Cột Hàng hóa chỉ hiện khi có dòng được giao KH (đa số đơn vị không kinh doanh).
    Ô chậm hơn tiến độ thời gian quá 10 điểm % tô vàng để nhìn ra ai chậm. Giữ thứ tự dòng server trả
    (cùng thứ tự khu vực/đơn vị như các màn khác) — không tự sắp lại. */
 
@@ -15,6 +16,7 @@ type Props = {
 
 const COLS: { field: keyof Omit<Row, "label">; label: string }[] = [
   { field: "purchase_pct", label: "Thu mua" },
+  { field: "goods_pct", label: "Hàng hóa" },
   { field: "sales_spot_pct", label: "Tiêu thụ HĐ chuyến" },
   { field: "revenue_pct", label: "Doanh thu" },
 ];
@@ -35,6 +37,7 @@ function PctCell({ pct, timePct }: { pct: number | null; timePct: number }) {
 }
 
 export default function TargetsBreakdownTable({ rows, timePct, childLabel }: Props) {
+  const cols = COLS.filter((c) => c.field !== "goods_pct" || rows.some((r) => r.goods_pct != null));
   return (
     <div className="ud-table-wrap">
       <div className="ud-mini-title">
@@ -45,14 +48,14 @@ export default function TargetsBreakdownTable({ rows, timePct, childLabel }: Pro
         <thead>
           <tr>
             <th>{childLabel}</th>
-            {COLS.map((c) => <th key={c.field} className="r">{c.label} (%)</th>)}
+            {cols.map((c) => <th key={c.field} className="r">{c.label} (%)</th>)}
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.label}>
               <td>{r.label}</td>
-              {COLS.map((c) => <PctCell key={c.field} pct={r[c.field]} timePct={timePct} />)}
+              {cols.map((c) => <PctCell key={c.field} pct={r[c.field]} timePct={timePct} />)}
             </tr>
           ))}
         </tbody>

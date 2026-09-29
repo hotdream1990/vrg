@@ -97,7 +97,7 @@ export type DashStockSeries = Omit<StockSeries, "start_floor"> & {
   scope: ScopeInfo; date_from: string; date_to: string; start_floor: string | null;
 };
 
-export type TargetKey = "purchase" | "sales_spot" | "revenue";
+export type TargetKey = "purchase" | "goods" | "sales_spot" | "revenue";
 
 export type TargetsBlock = {
   scope: ScopeInfo; year: number;
@@ -109,7 +109,7 @@ export type TargetsBlock = {
   items: { key: TargetKey; label: string; unit: string;
            done: Num; plan: Num; pct: Num; units_planned: number; note: string;
            scope_done?: Num }[];
-  breakdown: { label: string; purchase_pct: Num; sales_spot_pct: Num; revenue_pct: Num }[];
+  breakdown: { label: string; purchase_pct: Num; goods_pct: Num; sales_spot_pct: Num; revenue_pct: Num }[];
   warnings: string[];
 };
 
@@ -127,11 +127,11 @@ export type OutlookLt = { committed: Num; delivered: Num; remaining: Num; pct: N
 export type OutlookBacklog = { spot_undelivered: Num; lt_remaining: Num; unknown_undelivered: Num;
                                to_deliver: Num };
 
-/** KH bán hàng = KH khai thác + KH thu mua. delivered_ytd/projected: cả phạm vi; plan_* ·
+/** KH bán hàng = KH khai thác + KH thu mua + KH hàng hóa. delivered_ytd/projected: cả phạm vi; plan_* ·
  *  basket_projected · pct: rổ `units_planned` đơn vị đã nhập KH khai thác. */
 export type OutlookVolume = {
-  delivered_ytd: Num; projected: Num; plan_exploit: Num; plan_purchase: Num; plan_total: Num;
-  basket_projected: Num; pct: Num; units_planned: Num; units_missing_exploit: Num; note: string;
+  delivered_ytd: Num; projected: Num; plan_exploit: Num; plan_purchase: Num; plan_goods: Num;
+  plan_total: Num; basket_projected: Num; pct: Num; units_planned: Num; units_missing_exploit: Num; note: string;
 };
 
 /** DT dự kiến = đã thực hiện + SL còn phải giao × giá bán BQ lũy kế của chính đơn vị.
@@ -145,7 +145,8 @@ export type OutlookBreakdownRow = {
   label: string;
   lt_committed: Num; lt_delivered: Num; lt_remaining: Num; lt_pct: Num;
   spot_undelivered: Num; to_deliver: Num; delivered_ytd: Num; projected: Num;
-  plan_exploit: Num; plan_purchase: Num; plan_total: Num; qty_basket_projected?: Num; qty_pct: Num;
+  plan_exploit: Num; plan_purchase: Num; plan_goods: Num; plan_total: Num; qty_basket_projected?: Num;
+  qty_pct: Num;
   revenue_projected: Num; plan_revenue: Num; revenue_basket_projected?: Num; revenue_pct: Num;
 };
 
