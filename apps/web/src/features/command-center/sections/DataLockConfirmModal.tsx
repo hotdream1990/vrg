@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   type LockSummary, confirmLock, fetchLockSummary,
 } from "../../../lib/data-lock-client";
+import DataLockMergedUnits from "./DataLockMergedUnits";
 
 type Props = {
   company: string;
@@ -148,7 +149,8 @@ export default function DataLockConfirmModal({ company, roundId, readOnly, onClo
             <Kpi label="Chưa nhập kho (tấn)" value={n3(s.stock_not_warehoused)} />
             <Kpi label="Đã nhập kho (tấn)" value={n3(s.stock_warehoused)} />
             <Kpi label="Tồn nguyên liệu (tấn)" value={n3(s.stock_material)} />
-            <Kpi label="Đã ký HĐ chưa giao (tấn)" value={n3(s.stock_finished_hd)} />
+            {/* QUY KHÔ (latex/mủ NL) — màn Hợp đồng ghi số chưa quy khô, ghi rõ để đối chiếu được. */}
+            <Kpi label="Đã ký HĐ chưa giao (tấn quy khô)" value={n3(s.stock_finished_hd)} />
           </Block>
 
           <Block title="Tiêu thụ (cộng dồn trong kỳ)"
@@ -163,10 +165,14 @@ export default function DataLockConfirmModal({ company, roundId, readOnly, onClo
             <Kpi label="Doanh thu (tỷ đồng)" value={n3(c.revenue_ty)} />
           </Block>
 
+          <DataLockMergedUnits own={data} merged={data.merged_units ?? []} readOnly={readOnly} />
+
           {!readOnly && (
             <div className="form-note" style={{ marginTop: 14, fontSize: 12.5 }}>
               Bấm <b>Xác nhận chốt số liệu</b> nghĩa là đơn vị xác nhận các con số trên đã đúng đến
-              hết ngày <b>{dmy(data.lock_date)}</b>. Sau khi chốt, <b>đơn vị không sửa được số liệu
+              hết ngày <b>{dmy(data.lock_date)}</b>
+              {!!data.merged_units?.length && <> — gồm cả số của đơn vị đã sáp nhập ở bảng trên</>}.
+              Sau khi chốt, <b>đơn vị không sửa được số liệu
               của những ngày này nữa</b> — cần điều chỉnh thì báo Ban TTKD để chuyên viên sửa hộ.
             </div>
           )}

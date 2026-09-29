@@ -34,7 +34,8 @@ export default function EditRequestSubmitModal({ draft, blockedMessage, onSubmit
     fetchLockCurrent()
       .then((r) => {
         const unit = r.units.find((u) => u.company === draft.company);
-        if (alive) setLockedUntil(unit?.locked_until ?? null);
+        // HĐ đứng tên đơn vị ĐÃ SÁP NHẬP: không có trong `units` nhưng vẫn bị chốt kèm đơn vị nhận.
+        if (alive) setLockedUntil(unit?.locked_until ?? r.merged_locked_until?.[draft.company] ?? null);
       })
       .catch(() => { if (alive) setLockedUntil(null); });
     return () => { alive = false; };

@@ -316,3 +316,26 @@ def test_my_own_previous_round_does_shorten_my_period(env) -> None:
     s = client.get(f"/api/data-lock/summary?company={UNIT}&round_id={rnd['id']}", headers=mh).json()
     assert s["prev_lock_date"] == older
     assert s["date_from"] == (TODAY - timedelta(days=2)).isoformat()
+
+
+def test_only_the_units_own_account_can_confirm(env) -> None:
+    """XÁC NHẬN là cam kết của chính đơn vị. Trước 29/09/2026 ai có cap `unit_daily` — kể cả mức
+    CHỈ XEM — cũng chốt (tức khoá) được số liệu mọi đơn vị; quản trị muốn khoá thì dùng Khoá hộ."""
+    h, mh = env
+    rnd = _round(h)
+    body = {"round_id": rnd["id"], "company": UNIT}
+    client.delete("/api/users/zz_lock_viewer", headers=h)
+    client.post("/api/users", json={"username": "zz_lock_viewer", "password": "pass123",
+                                    "role": "editor", "permissions": ["unit_daily:view"]}, headers=h)
+    try:
+        vh = {"Authorization": "Bearer " + client.post("/api/auth/login", json={
+            "username": "zz_lock_viewer", "password": "pass123"}).json()["access_token"]}
+        # Chuyên viên vẫn XEM được bảng số liệu sẽ chốt, nhưng không bấm chốt thay đơn vị.
+        assert client.get(f"/api/data-lock/summary?company={UNIT}&round_id={rnd['id']}",
+                          headers=vh).status_code == 200
+        assert client.post("/api/data-lock/confirm", json=body, headers=vh).status_code == 403
+        assert client.post("/api/data-lock/confirm", json=body, headers=h).status_code == 403
+        assert _save_day(mh, INSIDE).status_code == 200          # chưa ai chốt được → vẫn sửa
+        assert client.post("/api/data-lock/confirm", json=body, headers=mh).status_code == 200
+    finally:
+        client.delete("/api/users/zz_lock_viewer", headers=h)

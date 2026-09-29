@@ -20,6 +20,21 @@ const n3 = (v: unknown) =>
   (typeof v === "number" && Number.isFinite(v) ? v.toLocaleString("vi-VN", { maximumFractionDigits: 3 }) : "—");
 
 /** Form tạo/sửa một đợt chốt (chỉ quản trị). */
+/** Ô số của dòng đơn vị nhận = số của chính nó + số đã chốt của đơn vị đã sáp nhập vào nó (cộng
+ *  dồn được), kèm dòng nhỏ phần của đơn vị cũ — cùng cách Báo cáo tổng hợp gộp. */
+function SumCell({ own, parts }: { own: number | null | undefined; parts: (number | null)[] }) {
+  const merged = parts.reduce<number>((s, v) => s + (v ?? 0), 0);
+  const total = own == null && !merged ? null : (own ?? 0) + merged;
+  return (
+    <td className="r">
+      {n3(total)}
+      {merged > 0 && (
+        <div style={{ fontSize: 11, color: "var(--muted)" }}>gồm {n3(merged)} đã sáp nhập</div>
+      )}
+    </td>
+  );
+}
+
 function RoundForm({ initial, onClose, onSaved }: {
   initial?: LockRound | null; onClose: () => void; onSaved: () => void;
 }) {
@@ -207,9 +222,11 @@ export default function DataLockPage() {
               <tr key={r.company}>
                 <td>
                   {r.company}
-                  {r.merged_into && (
+                  {/* Đơn vị đã sáp nhập không đứng dòng riêng (không còn ai để đốc thúc) — ghi
+                      trong dòng đơn vị nhận, vì đơn vị nhận bấm chốt là chốt kèm luôn phần này. */}
+                  {r.merged_units.length > 0 && (
                     <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                      đã sáp nhập vào {r.merged_into}
+                      gồm {r.merged_units.map((m) => m.company).join(", ")} (đã sáp nhập)
                     </div>
                   )}
                 </td>
@@ -219,32 +236,45 @@ export default function DataLockPage() {
                     ? <span style={{ color: "var(--accent-2)" }}>
                         <CheckCircleFilled /> Đã chốt{r.by_admin ? " (Ban khoá)" : ""}
                       </span>
-                    : <span style={{ color: "var(--danger)" }}>
-                        <WarningFilled /> Chưa xác nhận
-                      </span>}
+                    : r.confirmed_at
+                      // Đơn vị nhận đã chốt (trước khi có chốt kèm) nhưng phần đơn vị cũ thì chưa —
+                      // đơn vị bấm lại ở banner, hoặc Ban khoá hộ dòng này, là chốt nốt phần đó.
+                      ? <span style={{ color: "var(--warn, #d48806)" }}
+                          title={"Chưa chốt: " + r.merged_units.filter((m) => !m.confirmed)
+                            .map((m) => m.company).join(", ")}>
+                          <WarningFilled /> Còn phần đã sáp nhập
+                        </span>
+                      : <span style={{ color: "var(--danger)" }}>
+                          <WarningFilled /> Chưa xác nhận
+                        </span>}
                 </td>
                 <td>{stamp(r.confirmed_at)}</td>
                 <td>{r.confirmed_by ?? "—"}</td>
-                <td className="r">{n3(r.snapshot?.purchase?.total_purchase)}</td>
-                <td className="r">{n3(r.snapshot?.consumption?.total_consumption)}</td>
+                <SumCell own={r.snapshot?.purchase?.total_purchase}
+                  parts={r.merged_units.map((m) => m.total_purchase)} />
+                <SumCell own={r.snapshot?.consumption?.total_consumption}
+                  parts={r.merged_units.map((m) => m.total_consumption)} />
                 <td className="r">{n3(r.snapshot?.stock?.stock_finished as number)}</td>
                 <td>
                   <button className="btn" disabled={!round}
                     onClick={() => round && setView({ company: r.company, roundId: round.id })}>
                     Xem số
                   </button>
-                  {isAdmin && round && !round.cancelled_at && (
-                    r.confirmed
-                      ? <button className="btn" disabled={busy} style={{ marginLeft: 6 }}
-                          title="Mở khoá để đơn vị nhập bù / sửa"
-                          onClick={() => act(() => unlockUnits(round.id, [r.company]))}>
-                          <UnlockOutlined />
-                        </button>
-                      : <button className="btn" disabled={busy} style={{ marginLeft: 6 }}
-                          title="Khoá hộ đơn vị này"
-                          onClick={() => act(() => lockUnits(round.id, [r.company]))}>
-                          <LockOutlined />
-                        </button>
+                  {/* Dòng "còn phần đã sáp nhập" (đơn vị nhận đã chốt, đơn vị cũ chưa) có CẢ hai nút:
+                      khoá hộ để chốt nốt phần cũ, hoặc mở khoá cả cặp cho đơn vị làm lại. */}
+                  {isAdmin && round && !round.cancelled_at && r.confirmed_at && (
+                    <button className="btn" disabled={busy} style={{ marginLeft: 6 }}
+                      title="Mở khoá để đơn vị nhập bù / sửa (kèm đơn vị đã sáp nhập)"
+                      onClick={() => act(() => unlockUnits(round.id, [r.company]))}>
+                      <UnlockOutlined />
+                    </button>
+                  )}
+                  {isAdmin && round && !round.cancelled_at && !r.confirmed && (
+                    <button className="btn" disabled={busy} style={{ marginLeft: 6 }}
+                      title="Khoá hộ đơn vị này (kèm đơn vị đã sáp nhập)"
+                      onClick={() => act(() => lockUnits(round.id, [r.company]))}>
+                      <LockOutlined />
+                    </button>
                   )}
                 </td>
               </tr>

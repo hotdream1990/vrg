@@ -36,15 +36,27 @@ def _round_row(r) -> dict[str, Any]:
 
 # ── Đợt chốt ──────────────────────────────────────────────────────────────────
 def list_rounds(limit: int = 20) -> list[dict[str, Any]]:
-    """Các đợt chốt mới nhất, kèm số đơn vị đã xác nhận (để trang theo dõi khỏi gọi 2 lần)."""
+    """Các đợt chốt mới nhất (số đơn vị đã chốt do router đếm — xem `confirmed_companies`)."""
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(text(
-            f"SELECT {', '.join('r.' + c for c in _ROUND_COLS.split(', '))}, "
-            "       (SELECT count(*) FROM unit_data_lock l WHERE l.round_id = r.id) AS locked "
-            "  FROM data_lock_round r ORDER BY r.lock_date DESC, r.id DESC LIMIT :n"),
+            f"SELECT {_ROUND_COLS} FROM data_lock_round ORDER BY lock_date DESC, id DESC LIMIT :n"),
             {"n": limit}).mappings().all()
         return [_round_row(r) for r in rows]
+
+
+def confirmed_companies(round_ids: list[int]) -> dict[int, set[str]]:
+    """{đợt: các đơn vị đã có xác nhận} — không kéo ảnh chụp (nặng) như `confirms_of_round`."""
+    if not round_ids:
+        return {}
+    ensure_schema()
+    with session_scope() as db:
+        rows = db.execute(text("SELECT round_id, company FROM unit_data_lock "
+                               " WHERE round_id = ANY(:ids)"), {"ids": list(round_ids)}).all()
+    out: dict[int, set[str]] = {int(i): set() for i in round_ids}
+    for rid, company in rows:
+        out[int(rid)].add(company)
+    return out
 
 
 def current_round() -> dict[str, Any] | None:
@@ -128,12 +140,14 @@ def confirm(round_id: int, company: str, username: str | None, *,
 
     ensure_schema()
     with session_scope() as db:
-        db.execute(text(
+        n = db.execute(text(
             "INSERT INTO unit_data_lock (round_id, company, locked_by, by_admin, snapshot) "
             "VALUES (:r, :c, :u, :a, CAST(:s AS jsonb)) "
             "ON CONFLICT (round_id, company) DO NOTHING"),
             {"r": round_id, "c": company, "u": username, "a": by_admin,
-             "s": json.dumps(snapshot or {}, ensure_ascii=False)})
+             "s": json.dumps(snapshot or {}, ensure_ascii=False)}).rowcount
+    if not n:       # đã có xác nhận (bấm lại / chốt kèm lần 2) → không ghi nhật ký "tạo" giả
+        return
     audit_repo.log("unit_data_lock", "create", f"{round_id}|{company}",
                    after={"by_admin": by_admin}, company=company)
 

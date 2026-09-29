@@ -18,7 +18,9 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from app.services import unit_daily_repo, unit_period_report, unit_report_status
+from app.services import (
+    data_lock_repo, member_unit_merge, unit_daily_repo, unit_period_report, unit_report_status,
+)
 
 #: Chỉ tiêu hiện trong bảng xác nhận — gọn để đơn vị đọc được trong một màn, không phải cả báo cáo.
 PURCHASE_KEYS = ("latex_wet", "coagulum", "lace", "finished_qty", "total_purchase",
@@ -119,3 +121,38 @@ def summary(company: str, lock_date: str, prev_lock: str | None = None) -> dict[
     thiếu số (chốt xong là hết tự sửa). Không chặn: thiếu ngày vẫn được chốt, chỉ cảnh báo.
     """
     return summary_many([company], lock_date, prev_lock).get(company, {})
+
+
+def merged_units(company: str) -> list[str]:
+    """Các đơn vị đã SÁP NHẬP vào `company` (kể cả gián tiếp) — chốt KÈM khi đơn vị nhận chốt.
+
+    Vì sao phải kéo theo (phản ánh của Chư prông 29/09/2026): hợp đồng ký trước sáp nhập vẫn đứng
+    tên đơn vị cũ và do người của đơn vị nhận giao nốt, nhưng tài khoản chỉ gán đơn vị nhận — không
+    ai phía đơn vị chốt được dòng của đơn vị cũ. Chốt riêng đơn vị nhận thì lần giao đó vừa không
+    có trong số đơn vị xác nhận, vừa không bị khoá.
+    """
+    return member_unit_merge.lineage(company)[1:]
+
+
+def merged_map() -> dict[str, list[str]]:
+    """{đơn vị nhận: [đơn vị đã sáp nhập vào nó]} cho MỌI đơn vị — đọc DB một lần.
+
+    Dùng khi xét nhiều đơn vị cùng lúc (banner của Ban, khoá hộ cả loạt): gọi `merged_units` từng
+    đơn vị là mỗi đơn vị một lượt đọc danh mục.
+    """
+    out: dict[str, list[str]] = {}
+    for src, dst in sorted(member_unit_merge.rollup_map().items()):
+        out.setdefault(dst, []).append(src)
+    return out
+
+
+def merged_summaries(company: str, lock_date: str) -> list[dict[str, Any]]:
+    """Số sẽ chốt kèm của từng đơn vị đã sáp nhập vào `company`.
+
+    Mỗi pháp nhân giữ KỲ CHỐT RIÊNG (đầu kỳ = hôm sau lần chốt trước của chính nó): đơn vị cũ có
+    thể được khoá hộ tới ngày sáp nhập, còn đơn vị nhận chốt tới một mốc khác — gộp chung một kỳ
+    là bỏ sót hoặc chốt trùng những ngày nằm giữa hai mốc.
+    """
+    units = merged_units(company)
+    prevs = data_lock_repo.locked_before_map(units, lock_date)
+    return [summary(u, lock_date, prevs.get(u)) for u in units]
