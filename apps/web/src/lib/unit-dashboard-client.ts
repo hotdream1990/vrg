@@ -74,19 +74,29 @@ export type ConsumptionBlock = {
   warnings: string[];
 };
 
+/** Độ phủ + đơn vị đang dùng số CŨ (tick "không phát sinh tồn kho" → giữ lần khai gần nhất,
+ *  `as_of` = ngày khai thật). `stale` vắng = API cũ. */
+export type DashStockCoverage = StockCoverage & {
+  stale?: { company: string; as_of: string; age_days: number }[];
+};
+
 export type StockBlock = {
-  scope: ScopeInfo; as_of: string;
+  /** `as_of` = ngày chốt · `auto_as_of` = server tự lấy (ngày cuối của biểu đồ diễn biến, đã đủ
+   *  đơn vị khai) vì người dùng để "Tự động". */
+  scope: ScopeInfo; as_of: string; auto_as_of?: boolean;
   totals: {
     not_warehoused: Num; warehoused: Num; total: Num; material: Num;
     signed_undelivered: Num;
     tradable: Num;                  // có thể ÂM: đã ký giao nhiều hơn tồn đang có
+    /** `dates` = NGÀY KHAI thật của các số đang cộng · `age_days` = số cũ nhất (ngày). */
     age_days: Num; dates: string[];
   };
   by_grade: { grade: string; qty: number }[];
-  coverage: StockCoverage | null;
+  coverage: DashStockCoverage | null;
   latest_stock_day: string | null;
+  /** `as_of` = ngày khai (null khi nhóm gồm nhiều ngày) · `age_days` = số cũ nhất trong nhóm. */
   breakdown: { label: string; total: Num; signed_undelivered: Num; tradable: Num;
-               material: Num; as_of: string | null }[];
+               material: Num; as_of: string | null; age_days?: Num }[];
   warnings: string[];
 };
 
@@ -159,7 +169,8 @@ export type OutlookBlock = {
   breakdown?: OutlookBreakdownRow[]; items?: BacklogItem[]; warnings?: string[];
 };
 
-/** Tham số chung của các endpoint số liệu. `asOf` rỗng = server tự lấy min(đến ngày, hôm nay). */
+/** Tham số chung của các endpoint số liệu. `asOf` rỗng = server tự lấy ngày gần nhất đã đủ đơn vị
+ *  khai tồn kho (ngày cuối của biểu đồ diễn biến tồn kho). */
 export type DashQuery = {
   scope: DashScope;
   key: string | null;

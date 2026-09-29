@@ -33,13 +33,19 @@ _MAX_NAMES = 12
 def _new_group(key: str, region: str | None) -> dict[str, Any]:
     return {"key": key, "label": key, "region": region, "not_warehoused": 0.0,
             "warehoused": 0.0, "material": 0.0, "signed_undelivered": 0.0,
-            "by_grade": {}, "_dates": set(), "_ages": set()}
+            "by_grade": {}, "_dates": set(), "_ages": set(), "_has": set()}
 
 
 def _feed(g: dict, r: dict, with_grade: bool) -> None:
     qty = r["qty"] or 0.0
-    g["_dates"].add(r["as_of"])
+    # NGÀY KHAI thật (số giữ theo cờ "không phát sinh" mang ngày của lần khai cũ), không phải ngày
+    # ảnh chụp — lấy ngày ảnh chụp thì số cũ 29 ngày vẫn hiện "ngày lấy số = ngày chốt" (sửa 29/09/2026).
+    g["_dates"].add(r.get("source_as_of") or r["as_of"])
     g["_ages"].add(r["age_days"])
+    if r["block"] != _CONTRACT:        # khối nào có dòng KHAI (kể cả khai 0) — khác hẳn "chưa có số"
+        g["_has"].add("record")
+        if r["qty"] is not None:
+            g["_has"].add(_BLOCK_KEY.get(r["block"], "material"))
     if r["block"] == "stock_material":
         g["material"] += qty
         return
@@ -59,13 +65,18 @@ def _close(g: dict) -> dict[str, Any]:
     # Số ngày cũ NHẤT trong nhóm: luôn đúng dù nhóm gồm mấy ngày, và là con số người xem cần
     # (nhóm có số cũ 8 ngày thì cả nhóm đáng ngờ, không phải chỉ dòng đó).
     g["age_days"] = max(g.pop("_ages"), default=None)
-    g["total"] = (g["not_warehoused"] + g["warehoused"]) or None
+    # Khối ĐÃ KHAI bằng 0 thì hiện 0; khối không có dòng khai nào mới là None ("—" = chưa có số).
+    # Trước 29/09/2026 mọi số 0 đều thành "—": Hàng Gòn khai 0 cả 3 chủng loại vẫn như chưa nộp.
+    has, signed = g.pop("_has"), g["signed_undelivered"]
+    finished = bool(has & {"not_warehoused", "warehoused"})
+    g["total"] = (g["not_warehoused"] + g["warehoused"]) if finished else None
     # Tồn CÓ THỂ GIAO DỊCH = tồn thành phẩm − đã ký HĐ chưa giao. Có thể ÂM (đã ký nhiều hơn lượng
     # đang có trong kho) — giữ nguyên dấu âm, cắt về 0 là giấu mất phần đang thiếu hàng để giao.
-    signed = g["signed_undelivered"]
-    g["tradable"] = ((g["total"] or 0.0) - signed) if (g["total"] is not None or signed) else None
-    for k in ("not_warehoused", "warehoused", "material", "signed_undelivered"):
-        g[k] = g[k] or None
+    g["tradable"] = ((g["total"] or 0.0) - signed) if (finished or signed) else None
+    for k in ("not_warehoused", "warehoused", "material"):
+        g[k] = g[k] if k in has else None
+    # Đã ký chưa giao do HỆ THỐNG tính: đơn vị có bản ghi tồn mà không còn hợp đồng dở thì là 0 thật.
+    g["signed_undelivered"] = signed if (signed or "record" in has) else None
     g["by_grade"] = {k: v for k, v in sorted(g["by_grade"].items()) if v}
     return g
 
@@ -134,14 +145,18 @@ def _coverage(snap: list[dict], no_stock: dict[str, str], comps: list[str] | Non
 
     got: dict[str, dict[str, Any]] = {}
     for r in snap:
-        got.setdefault(r["company"], {"as_of": r["as_of"], "age_days": r["age_days"]})
+        got.setdefault(r["company"], {"as_of": r.get("source_as_of") or r["as_of"],
+                                      "age_days": r["age_days"]})
     rest = [u for u in units if u["name"] not in got]
     empty = [{"company": u["name"], "as_of": no_stock[u["name"]]}
              for u in rest if u["name"] in no_stock]
     missing = [{"company": u["name"], "has_factory": bool(u.get("has_factory", True))}
                for u in rest if u["name"] not in no_stock]
+    # Đơn vị đang dùng số CŨ (tick "không phát sinh" → giữ lần khai gần nhất), cũ nhất lên đầu.
+    stale = sorted(({"company": c, **v} for c, v in got.items() if v["age_days"]),
+                   key=lambda s: -s["age_days"])
     return {"units_expected": len(units), "units_counted": len(got),
-            "no_stock": empty, "missing": missing}
+            "no_stock": empty, "missing": missing, "stale": stale}
 
 
 def _names(items: list[dict], key: str = "company") -> str:
@@ -177,7 +192,8 @@ def stock_report(as_of: str, days_back: int = 0, *, companies: str | None = None
     # ảnh chụp tại ngày chốt (mỗi đơn vị 1 dòng số mới nhất của mình).
     raw = unit_report_rows.stock_rows(as_of, merge_scope(comps, split_merged),
                                       all_days=group_by == "day",
-                                      days_back=days_back if group_by == "day" else 0)
+                                      days_back=days_back if group_by == "day" else 0,
+                                      merged_contracts=not split_merged)
     rows = raw["rows"]
     # "Số mới nhất của từng đơn vị" phải chọn TRÊN TÊN ĐƠN VỊ GỐC rồi mới gộp: gộp trước thì ảnh
     # chụp của đơn vị cũ và đơn vị mới tranh nhau một chỗ, chỉ một cái sống sót → mất tồn kho.

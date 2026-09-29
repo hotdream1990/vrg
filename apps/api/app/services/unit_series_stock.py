@@ -135,9 +135,11 @@ def stock_series(date_from: str, date_to: str, group_by: str = "warehouse",
         group_by = "warehouse"
     days = days_between(date_from, date_to)
     # Chỉ 2 cách xem dùng tới khối "đã ký HĐ chưa giao"; 3 cách còn lại (kho · chủng loại ·
-    # khu vực) không đụng tới `signed`, mà khối đó là phần đắt nhất của cả chuỗi.
+    # khu vực) không đụng tới `signed`, mà khối đó là phần đắt nhất của cả chuỗi. Chuỗi luôn xem
+    # GỘP → hợp đồng của đơn vị đã sáp nhập tính vào đơn vị nhận, khớp khối Tồn kho tại ngày chốt.
     raw = unit_report_rows.stock_rows(date_to, companies, all_days=True, days_back=len(days) - 1,
-                                      with_contracts=group_by in ("structure", "free_grade"))
+                                      with_contracts=group_by in ("structure", "free_grade"),
+                                      merged_contracts=True)
     stock, wh, signed, regions = _collect(raw["rows"])
     pairs = member_unit_merge.merge_pairs()
     roll = member_unit_merge.rollup_map()

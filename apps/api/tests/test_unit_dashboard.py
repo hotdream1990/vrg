@@ -332,3 +332,80 @@ def test_don_vi_co_ke_hoach_ngoai_khung_van_co_dong_tien_do(env):
         with session_scope() as db:
             db.execute(text("DELETE FROM unit_purchase_plan WHERE company = '_zz_db_f'"))
         client.delete("/api/member-units/_zz_db_f", headers=h)
+
+
+# ── Rà chéo 29/09/2026 — nhánh tồn kho (A1 · A2 · A6 · C2) ─────────────────────
+def _stock_day(h: dict, company: str, day: str, fields: dict) -> None:
+    r = client.put("/api/unit-daily/report", headers=h,
+                   json={"kind": "consumption", "company": company, "as_of": day, "fields": fields})
+    assert r.status_code == 200, r.text
+
+
+def test_ngay_chot_tu_dong_la_ngay_cuoi_du_do_phu_cua_bieu_do(env):
+    """A1: để "Tự động" thì KHÔNG lấy hôm nay (đơn vị được nhập tới 11:00 hôm sau → sáng nào KPI
+    cũng tụt) mà lấy ngày cuối của biểu đồ diễn biến — cùng luật cắt đuôi chưa đủ đơn vị khai."""
+    h, today = env["admin"], date.today().isoformat()
+    _stock_day(h, UNIT_A, today, {"stock_warehoused": [{"grade": "SVR 10", "qty": 5}]})  # 1/2 đơn vị
+    auto = _get(h, "stock", date_to=today)
+    series = _get(h, "stock-series", date_to=today, view="warehouse")
+    assert auto["auto_as_of"] is True and auto["as_of"] == D1 == series["rows"][-1]["as_of"]
+    assert auto["totals"]["total"] == 1050 and auto["coverage"]["units_counted"] == 2
+    # Chọn tay thì giữ đúng ngày đã chọn, kể cả khi ngày đó mới 1 đơn vị khai.
+    picked = _get(h, "stock", date_to=today, as_of=today)
+    assert picked["auto_as_of"] is False and picked["as_of"] == today
+    assert picked["totals"]["total"] == 5
+    # Một đơn vị: ngày khai gần nhất của chính nó.
+    assert _get(h, "stock", "unit", UNIT_A, date_to=today)["as_of"] == today
+
+
+def test_da_ky_chua_giao_gom_hop_dong_cua_don_vi_da_sap_nhap(env):
+    """A2: đơn vị cũ thôi khai tồn sau sáp nhập nên hợp đồng dở của họ từng rơi mất khỏi "Đã ký HĐ
+    chưa giao" của đơn vị nhận (Lộc Ninh 28/09/2026 thiếu 196,9 t của Bình Long)."""
+    from app.services import member_unit_merge
+
+    h = env["admin"]
+    r = client.put("/api/sales-contracts", headers=h, json={
+        "company": UNIT_C, "code": "DB-C1", "customer_id": _customer(h, UNIT_C),
+        "delivery_type": "single", "contract_type": "spot", "sign_date": D0, "start_date": D0,
+        "channel": "domestic", "lines": [{"grade": "SVR 3L", "qty": 120, "price": 40, "ccy": "VND"}]})
+    assert r.status_code == 200, r.text
+    member_unit_merge.merge(UNIT_C, UNIT_A, D0)
+    try:
+        t = _get(h, "stock", "unit", UNIT_A, as_of=D1)["totals"]
+        assert t["signed_undelivered"] == 120 and t["tradable"] == 1000 - 120
+        region = _get(h, "stock", as_of=D1)
+        assert {b["label"]: b for b in region["breakdown"]}[UNIT_A]["signed_undelivered"] == 120
+        # Xem TÁCH: hợp đồng của đơn vị cũ không cộng vào đơn vị nhận.
+        split = client.get("/api/unit-daily/analytics/stock", headers=h, params={
+            "as_of": D1, "companies": UNIT_A, "group_by": "company", "split_merged": True}).json()
+        assert split["totals"]["signed_undelivered"] == 0
+    finally:
+        member_unit_merge.unmerge(UNIT_C)
+
+
+def test_khai_0_hien_0_con_chua_khai_moi_la_trong(env):
+    """C2: khối ĐÃ KHAI bằng 0 phải hiện 0 — trang ghi "— là chưa có số"; khối không khai → None."""
+    h = env["admin"]
+    _stock_day(h, UNIT_C, D1, {"stock_warehoused": [{"grade": "SVR 10", "qty": 0}],
+                               "stock_material": 0})
+    rows = {b["label"]: b for b in _get(h, "stock", as_of=D1)["breakdown"]}
+    assert (rows[UNIT_C]["total"], rows[UNIT_C]["material"], rows[UNIT_C]["tradable"]) == (0, 0, 0)
+    assert rows[UNIT_C]["signed_undelivered"] == 0
+    assert rows[UNIT_B]["material"] is None                        # B không khai tồn nguyên liệu
+    b = next(r for r in client.get("/api/unit-daily/analytics/stock", headers=h, params={
+        "as_of": D1, "companies": UNIT_B, "group_by": "company"}).json()["rows"])
+    assert b["not_warehoused"] is None and b["warehoused"] == 50   # khối trống = chưa khai
+
+
+def test_so_giu_theo_khong_phat_sinh_hien_ngay_khai_that(env):
+    """A6: số giữ theo cờ "không phát sinh" phải mang NGÀY KHAI thật + số ngày cũ, không phải ngày
+    chốt (Dầu Tiếng Lai Châu 28/09/2026 dùng số khai 30/08 mà vẫn hiện "28/09")."""
+    h = env["admin"]
+    _stock_day(h, UNIT_E, D0, {"stock_warehoused": [{"grade": "SVR 10", "qty": 70}]})
+    _stock_day(h, UNIT_E, D1, {"no_stock": True})
+    unit = _get(h, "stock", "unit", UNIT_E, as_of=D1)
+    assert unit["totals"]["total"] == 70
+    assert unit["totals"]["dates"] == [D0] and unit["totals"]["age_days"] == 1
+    region = _get(h, "stock", "region", REGION_2, as_of=D1)
+    assert {b["label"]: b for b in region["breakdown"]}[UNIT_E]["as_of"] == D0
+    assert region["coverage"]["stale"] == [{"company": UNIT_E, "as_of": D0, "age_days": 1}]

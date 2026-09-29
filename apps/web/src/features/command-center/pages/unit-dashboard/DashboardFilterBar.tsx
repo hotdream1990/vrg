@@ -51,8 +51,8 @@ const searchable = {
 export default function DashboardFilterBar({ catalog, value, onChange, onReload, loading }: Props) {
   const patch = (p: Partial<DashFilters>) => onChange({ ...value, ...p });
 
-  // Đổi kỳ thì ngày chốt tồn kho về "tự động" (cuối kỳ mới) — giữ ngày chốt cũ dễ xem tồn của một
-  // ngày nằm ngoài kỳ mà không để ý.
+  // Đổi kỳ thì ngày chốt tồn kho về "tự động" (ngày đủ số gần nhất của kỳ mới) — giữ ngày chốt cũ
+  // dễ xem tồn của một ngày nằm ngoài kỳ mà không để ý.
   const pickPreset = (p: DashPreset) => {
     const r = presetRange(p, catalog.today);
     patch(r ? { preset: p, from: r.from, to: r.to, asOf: "" } : { preset: p });
@@ -93,7 +93,8 @@ export default function DashboardFilterBar({ catalog, value, onChange, onReload,
       <DateInput value={value.to} style={{ width: 140 }}
                  onChange={(v) => patch({ to: v, preset: "Tự chọn", asOf: "" })} />
 
-      <Tooltip title="Tồn kho là số THỜI ĐIỂM. Để trống = tự lấy ngày cuối kỳ (không quá hôm nay).">
+      <Tooltip title={"Tồn kho là số THỜI ĐIỂM. Để trống = tự lấy ngày gần nhất đã đủ đơn vị khai "
+                      + "(cùng ngày cuối của biểu đồ diễn biến tồn kho). Chọn ngày thì xem đúng ngày đó."}>
         <span className="ud-inline">
           <b className="ud-inline-label">Chốt tồn kho</b>
           <DateInput value={value.asOf} allowClear placeholder="Tự động" style={{ width: 140 }}

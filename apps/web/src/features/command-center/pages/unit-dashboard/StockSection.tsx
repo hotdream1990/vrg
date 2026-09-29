@@ -19,19 +19,29 @@ type Props = {
   onPickAsOf: (iso: string) => void;
 };
 
-/** Ghi chú ngày lấy số khi ảnh chụp gom từ ngày khác ngày chốt (đơn vị tick "không phát sinh tồn
- *  kho" thì giữ số lần khai gần nhất) — người xem phải biết số không cùng một ngày. */
-function datesNote(d: StockBlock): string | null {
+/** Liệt kê tối đa ngần này đơn vị dùng số cũ — dài hơn thì gộp phần đuôi. */
+const MAX_STALE_LISTED = 4;
+
+/** Ghi chú SỐ CŨ: đơn vị tick "không phát sinh tồn kho" thì giữ số lần khai gần nhất — người xem phải
+ *  biết số đó khai ngày nào, cũ bao nhiêu ngày (như cột "Số cũ" ở màn Thống kê tồn kho). */
+function staleNote(d: StockBlock): string | null {
   const { dates, age_days: age } = d.totals;
-  const other = dates.filter((x) => x !== d.as_of);
-  if (!other.length) return null;
-  const list = dates.length > 4 ? `${dates.slice(0, 4).map(dmy).join(", ")}…` : dates.map(dmy).join(", ");
-  return `Số lấy từ ngày ${list}${age ? ` — số cũ nhất cách ngày chốt ${age} ngày` : ""}.`;
+  if (!age) return null;
+  if (d.scope.scope === "unit") {
+    return `Số cũ ${age} ngày: đơn vị tick “không phát sinh tồn kho”, số lấy từ lần khai ngày ${dmy(dates[0])}.`;
+  }
+  const stale = d.coverage?.stale ?? [];
+  if (!stale.length) return `Có số lấy từ ngày ${dates.map(dmy).join(", ")} — số cũ nhất ${age} ngày.`;
+  const shown = stale.slice(0, MAX_STALE_LISTED)
+    .map((s) => `${s.company} (khai ${dmy(s.as_of)}, cũ ${s.age_days} ngày)`).join(" · ");
+  const more = stale.length > MAX_STALE_LISTED ? ` …và ${stale.length - MAX_STALE_LISTED} đơn vị khác` : "";
+  return `${stale.length} đơn vị dùng số cũ (tick “không phát sinh tồn kho” → giữ số lần khai gần nhất): `
+    + `${shown}${more}.`;
 }
 
 function StockBody({ d, onPickAsOf }: { d: StockBlock; onPickAsOf: Props["onPickAsOf"] }) {
   const hint = d.latest_stock_day;
-  const note = datesNote(d);
+  const note = staleNote(d);
   const breakdown = sortDesc(d.breakdown, (r) => r.total);
   // Đơn vị/khu vực đã ký nhiều hơn lượng đang có — nêu tên ngay, đừng để nằm trong tooltip.
   const short = d.breakdown.filter((r) => r.tradable != null && r.tradable < 0);
@@ -52,7 +62,16 @@ function StockBody({ d, onPickAsOf }: { d: StockBlock; onPickAsOf: Props["onPick
         />
       )}
       <StockStats totals={d.totals} />
-      {note && <p className="ud-note">{note}</p>}
+      {d.auto_as_of && (
+        <p className="ud-note">
+          {d.scope.scope === "unit"
+            ? "Ngày chốt tự lấy: ngày khai tồn kho gần nhất của đơn vị."
+            : "Ngày chốt tự lấy: ngày gần nhất đã đủ đơn vị khai — trùng ngày cuối của biểu đồ diễn biến "
+              + "tồn kho (đơn vị được nhập tới 11:00 hôm sau nên hôm nay thường chưa đủ số)."}
+          {" "}Chọn ngày khác ở ô “Chốt tồn kho”.
+        </p>
+      )}
+      {note && <p className="ud-note ud-warn">{note}</p>}
       {d.scope.scope !== "unit" && d.coverage && <StockCoverageBar asOf={d.as_of} coverage={d.coverage} />}
       {short.length > 0 && (
         <p className="ud-note ud-neg">
@@ -73,7 +92,8 @@ function StockBody({ d, onPickAsOf }: { d: StockBlock; onPickAsOf: Props["onPick
                 `Đã ký HĐ chưa giao: ${withUnit(fmtTon(r.signed_undelivered), "tấn")}`,
                 `Có thể giao dịch: ${withUnit(fmtTon(r.tradable), "tấn")}`,
                 `Tồn nguyên liệu: ${withUnit(fmtTon(r.material), "tấn quy khô")}`,
-                ...(r.as_of && r.as_of !== d.as_of ? [`Số lấy ngày ${dmy(r.as_of)}`] : []),
+                ...(r.age_days ? [r.as_of ? `Số khai ngày ${dmy(r.as_of)} — cũ ${r.age_days} ngày`
+                                          : `Có số cũ tới ${r.age_days} ngày`] : []),
               ];
             }}
           />

@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.edit_window import today
 from app.core.security import cap_or_member_scope
-from app.routers.unit_scorecard import assert_dates, stock_day
+from app.routers.unit_scorecard import assert_dates
 from app.services import unit_dashboard as svc
 from app.services import unit_dashboard_outlook as outlook_svc
 from app.services import unit_dashboard_scope as scope_svc
@@ -50,7 +50,8 @@ def _params(scope: str = Query("group", pattern=_SCOPE),
             date_from: str = Query(..., pattern=_DATE, description="Từ ngày YYYY-MM-DD"),
             date_to: str = Query(..., pattern=_DATE, description="Đến ngày YYYY-MM-DD"),
             as_of: str | None = Query(None, pattern=_DATE,
-                                      description="Ngày chốt tồn kho; mặc định = đến ngày"),
+                                      description="Ngày chốt tồn kho; trống = ngày cuối của biểu "
+                                                  "đồ diễn biến (đã đủ đơn vị khai)"),
             own: list[str] | None = Depends(_viewer)) -> dict[str, Any]:
     assert_dates(date_from, date_to, as_of)
     if (date.fromisoformat(date_to) - date.fromisoformat(date_from)).days >= MAX_PERIOD_DAYS:
@@ -63,8 +64,8 @@ def _params(scope: str = Query("group", pattern=_SCOPE),
         raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    return {"sc": sc, "date_from": date_from, "date_to": date_to,
-            "as_of": stock_day(date_to, as_of), "today": today().isoformat()}
+    return {"sc": sc, "date_from": date_from, "date_to": date_to, "as_of": as_of,
+            "today": today().isoformat()}
 
 
 @router.get("/scopes")
@@ -91,8 +92,9 @@ def consumption(q: dict = Depends(_params)) -> dict:
 
 @router.get("/stock")
 def stock(q: dict = Depends(_params)) -> dict:
-    """Tồn kho TẠI ngày chốt (số thời điểm, không cộng dồn theo kỳ)."""
-    return svc.stock_block(q["sc"], q["as_of"])
+    """Tồn kho TẠI ngày chốt (số thời điểm, không cộng dồn theo kỳ) — trống = tự lấy, xem `stock_day`."""
+    day, auto = svc.stock_day(q["sc"], q["date_from"], q["date_to"], q["as_of"], q["today"])
+    return svc.stock_block(q["sc"], day, auto)
 
 
 @router.get("/stock-series")

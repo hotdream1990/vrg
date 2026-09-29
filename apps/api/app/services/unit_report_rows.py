@@ -17,7 +17,9 @@ from datetime import date, timedelta
 from typing import Any
 
 from app.core.market_meta import PURCHASE_PRICE_UNIT, PURCHASE_SOURCE_UNIT as UNIT_SRC
-from app.services import member_unit_repo, price_repo, unit_daily_fields, unit_daily_repo
+from app.services import (
+    member_unit_merge, member_unit_repo, price_repo, unit_daily_fields, unit_daily_repo,
+)
 
 TRIEU = 1_000_000       # 1 triệu đồng
 
@@ -215,7 +217,8 @@ CARRY_LOOKBACK_DAYS = 30
 
 
 def stock_rows(as_of: str, companies: list[str] | None = None, all_days: bool = False,
-               days_back: int = 0, with_contracts: bool = True) -> dict[str, Any]:
+               days_back: int = 0, with_contracts: bool = True,
+               merged_contracts: bool = False) -> dict[str, Any]:
     """Tồn kho tại NGÀY CHỐT `as_of` — ảnh chụp, KHÔNG cộng dồn giữa các ngày.
 
     Quy tắc lấy số của một đơn vị cho một ngày (chốt với chủ đề án 21/08/2026):
@@ -229,7 +232,8 @@ def stock_rows(as_of: str, companies: list[str] | None = None, all_days: bool = 
     Mỗi dòng mang `age_days` = số ngày đã cũ (0 = khai đúng ngày) để người xem biết số thuộc ngày nào.
 
     `days_back` chỉ mở rộng PHẠM VI NGÀY trả về khi `all_days=True` (xem diễn biến tồn) — nó không
-    còn dùng để đắp số cũ cho ngày thiếu.
+    còn dùng để đắp số cũ cho ngày thiếu. `merged_contracts=True` (xem GỘP): hợp đồng của đơn vị đã
+    sáp nhập cộng vào đơn vị nhận — xem `_undelivered_by_snapshot`.
 
     Trả về:
     - `rows`     → mỗi dòng = 1 chủng loại trong 1 khối (chưa nhập kho / đã nhập kho / đã ký HĐ
@@ -278,7 +282,8 @@ def stock_rows(as_of: str, companies: list[str] | None = None, all_days: bool = 
     # Khối "đã ký HĐ chưa giao" phải hỏi hợp đồng MỘT LẦN MỖI NGÀY của ảnh chụp — cửa sổ 60 ngày
     # của biểu đồ Dashboard tốn ~5,8s chỉ cho khối này. Người gọi nào không dùng tới nó
     # (`unit_series_stock` với cách xem kho/chủng loại/khu vực) thì tắt đi.
-    undelivered = _undelivered_by_snapshot([e for e, _ in kept.values()]) if with_contracts else {}
+    undelivered = (_undelivered_by_snapshot([e for e, _ in kept.values()], merged_contracts)
+                   if with_contracts else {})
     rows: list[dict[str, Any]] = []
     for entry, day in kept.values():
         base = _base(entry, meta)
@@ -301,18 +306,31 @@ def stock_rows(as_of: str, companies: list[str] | None = None, all_days: bool = 
     return {"rows": rows, "no_stock": no_stock}
 
 
-def _undelivered_by_snapshot(entries) -> dict[tuple[str, str], dict[str, float]]:
+def _undelivered_by_snapshot(entries, merged: bool = False) -> dict[tuple[str, str], dict[str, float]]:
     """{(ngày, đơn vị): {chủng loại: đã ký chưa giao}} — tính tại ĐÚNG ngày của số tồn kho.
 
     Cùng ngày với số tồn thì phép trừ "tồn thành phẩm − đã ký chưa giao" mới có nghĩa: lấy hợp đồng
     của ngày chốt trừ tồn kho của ngày khác là ghép số hai thời điểm. Đơn vị nào KHÔNG có số tồn
     trong cửa sổ thì cũng không lấy hợp đồng của họ — nếu không, nhóm chỉ có phần trừ.
+
+    `merged=True` (xem GỘP): hợp đồng dở dang của đơn vị ĐÃ SÁP NHẬP cộng vào đơn vị nhận ở những
+    ngày kho của họ đã nằm trong số tồn của đơn vị nhận (`member_unit_merge.superseded_in` — cùng
+    luật bỏ ảnh chụp trùng). Đơn vị cũ thôi khai tồn nên trước đây hợp đồng của họ rơi mất: Lộc Ninh
+    28/09/2026 thiếu 196,9 tấn của Bình Long so với Báo cáo tổng hợp (sửa 29/09/2026).
     """
     by_date: dict[str, list[str]] = {}
     for e in entries:
         by_date.setdefault(e["as_of"], []).append(e["company"])
+    pairs = member_unit_merge.merge_pairs() if merged else []
     out: dict[tuple[str, str], dict[str, float]] = {}
     for d, comps in by_date.items():
-        for company, data in unit_daily_repo.contracts_on(d, comps).items():
-            out[(d, company)] = data.get("by_grade") or {}
+        absorbed = member_unit_merge.superseded_in(pairs, dict.fromkeys(comps, d)) if pairs else set()
+        into = {src: dst for src, dst, _ in pairs if src in absorbed}
+        for company, data in unit_daily_repo.contracts_on(d, [*set(comps), *into]).items():
+            # Đơn vị cũ lỡ còn ảnh chụp riêng hôm đó thì ảnh chụp ấy bị bỏ vì trùng kho — dòng hợp
+            # đồng của nó đi theo, nên ghi cho cả hai phía cũng không cộng trùng.
+            for owner in {company if company in comps else None, into.get(company)} - {None}:
+                acc = out.setdefault((d, owner), {})
+                for grade, qty in (data.get("by_grade") or {}).items():
+                    acc[grade] = acc.get(grade, 0.0) + (_num(qty) or 0.0)
     return out
