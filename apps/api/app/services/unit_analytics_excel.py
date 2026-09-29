@@ -57,6 +57,11 @@ _PLAN_COLS: list[Col] = [
     ("plan_sales_spot_tonnes", "KH tiêu thụ HĐ chuyến", "tấn (chỉ tiêu năm)"),
     ("pct_plan_sales_spot", "% thực hiện KH tiêu thụ", "% (= HĐ chuyến / KH)"),
 ]
+#: % KH doanh thu tính trên RỔ đơn vị được giao KH (cùng luật Dashboard) — xem `_attach_plan`.
+_REVENUE_PLAN_COLS: list[Col] = [
+    ("plan_revenue_ty", "KH doanh thu năm", "tỷ đồng (chỉ tiêu năm)"),
+    ("pct_plan_revenue", "% thực hiện KH doanh thu", "% (= DT đơn vị có KH / KH)"),
+]
 #: % KH thu mua so sản lượng mủ NGUYÊN LIỆU của kỳ đang xem với chỉ tiêu CẢ NĂM — nói rõ trong nhãn
 #: để không ai đọc nhầm thành luỹ kế từ đầu năm (kỳ mặc định của màn Thống kê là TUẦN).
 _PURCHASE_PLAN_COLS: list[Col] = [
@@ -75,7 +80,8 @@ def _with_plan(cols: list[Col], after: str, plan_cols: list[Col], group_by: str)
 
 def consumption_cols(group_by: str) -> list[Col]:
     """Cột bảng Tiêu thụ — kế hoạch đứng ngay sau "HĐ chuyến" (tử số của % nằm cạnh mẫu số)."""
-    return _with_plan(CONSUMPTION_COLS, "qty_spot", _PLAN_COLS, group_by)
+    cols = _with_plan(CONSUMPTION_COLS, "qty_spot", _PLAN_COLS, group_by)
+    return _with_plan(cols, "revenue_ty", _REVENUE_PLAN_COLS, group_by)
 
 
 def purchase_cols(group_by: str) -> list[Col]:

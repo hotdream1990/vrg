@@ -30,14 +30,17 @@ const SUMMARY_COLS: StatsCol[] = [
 ];
 
 /* Kế hoạch tiêu thụ là chỉ tiêu NĂM của TỪNG ĐƠN VỊ và chỉ đặt cho HĐ CHUYẾN → chỉ hiện khi nhóm
-   theo đơn vị/khu vực (nhóm theo ngày/chủng loại thì cả cột rỗng), và % so với riêng HĐ chuyến. */
+   theo đơn vị/khu vực (nhóm theo ngày/chủng loại thì cả cột rỗng), và % so với riêng HĐ chuyến.
+   % KH doanh thu theo RỔ đơn vị được giao KH doanh thu như Dashboard (ở cấp khu vực/Tổng cộng, cột
+   Doanh thu vẫn là tổng cả nhóm); để TRỐNG khi đơn vị trong rổ có lần giao thiếu tỷ giá/đơn giá
+   hoặc đơn giá vượt trần — lý do đã nêu ở dòng cảnh báo phía trên. */
 const PLAN_DIMS = new Set(["company", "region"]);
 const PLAN_COLS: StatsCol[] = [
   { key: "plan_sales_spot_tonnes", label: "KH tiêu thụ HĐ chuyến", unit: "tấn", note: "chỉ tiêu năm" },
   { key: "pct_plan_sales_spot", label: "% thực hiện KH", unit: "%", note: "= HĐ chuyến / KH" },
   { key: "plan_revenue_ty", label: "KH doanh thu", unit: "tỷ đồng", note: "chỉ tiêu năm" },
   { key: "pct_plan_revenue", label: "% thực hiện KH doanh thu", unit: "%",
-    note: "= doanh thu kỳ / KH năm" },
+    note: "= DT đơn vị có KH / KH năm · — nếu thiếu/sai giá" },
 ];
 
 const withPlanCols = (cols: StatsCol[]): StatsCol[] => {

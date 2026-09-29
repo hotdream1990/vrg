@@ -3,7 +3,8 @@
 Nguồn số: các LẦN GIAO của hợp đồng (chốt 02/08/2026). Dòng nhập USD thiếu tỷ giá không được tính
 vào doanh thu/giá BQ (không đoán số) và được cảnh báo.
 
-Kèm % THỰC HIỆN so với kế hoạch tiêu thụ (chỉ tiêu NĂM ở màn "Kế hoạch năm") — xem `_spot_plan`.
+Kèm % THỰC HIỆN so với kế hoạch tiêu thụ HĐ chuyến và kế hoạch doanh thu (chỉ tiêu NĂM ở màn
+"Kế hoạch năm") — xem `_attach_plan`.
 """
 
 from __future__ import annotations
@@ -31,7 +32,9 @@ def _new_consumption(key: str, region: str | None) -> dict[str, Any]:
             "no_revenue_lines": 0,
             # Số dòng bán có đơn giá vượt trần — nghi gõ ĐỒNG vào ô TRIỆU đồng (xem `is_bad_price`).
             # Doanh thu vẫn cộng như đã khai (không tự sửa số), nơi so kế hoạch dựa cờ này để trống %.
-            "bad_price_lines": 0}
+            "bad_price_lines": 0,
+            # Rổ % KH doanh thu: chỉ dòng của đơn vị ĐƯỢC GIAO KH doanh thu — xem `_attach_plan`.
+            "_plan_rev": 0.0, "_plan_blocked": False}
 
 
 #: Giá trị enum → ô cộng dồn. Giá trị lạ/thiếu đi vào ô "chưa khai" riêng, KHÔNG dồn vào ô nào
@@ -40,7 +43,7 @@ _TYPE_BUCKET = {"long_term": "qty_long_term", "spot": "qty_spot"}
 _CHANNEL_BUCKET = {"export": "qty_export", "domestic": "qty_domestic", "internal": "qty_internal"}
 
 
-def _feed_consumption(g: dict, r: dict) -> None:
+def _feed_consumption(g: dict, r: dict, rev_planned: frozenset[str] = frozenset()) -> None:
     qty = r["qty"] or 0.0
     g["qty"] += qty
     g[_TYPE_BUCKET.get(r["contract"] or "", "qty_unknown_type")] += qty
@@ -55,6 +58,9 @@ def _feed_consumption(g: dict, r: dict) -> None:
         g["_rev_qty"] += qty
     elif qty:
         g["no_revenue_lines"] += 1
+    if r["company"] in rev_planned:
+        g["_plan_rev"] += r["revenue_vnd"] or 0.0
+        g["_plan_blocked"] |= bool(r.get("bad_price") or (r["revenue_vnd"] is None and qty))
 
 
 #: Khoá ngưỡng DÙNG CHUNG với luật "Giá bán sai đơn vị tính" của màn Cảnh báo bất thường — admin sửa
@@ -115,10 +121,22 @@ def _close_consumption(g: dict) -> dict[str, Any]:
 _PLAN_KEY = "plan_sales_spot_tonnes"
 
 
-def _attach_plan(g: dict, plan: float | None) -> None:
-    """Gắn chỉ tiêu + % thực hiện vào 1 dòng. Chưa giao kế hoạch thì để TRỐNG, không ghi 0%."""
-    g["plan_sales_spot_tonnes"] = plan or None
-    g["pct_plan_sales_spot"] = ((g["qty_spot"] or 0.0) / plan * 100) if plan else None
+def _attach_plan(g: dict, spot_plan: float | None, revenue_plan: float | None,
+                 partial: bool = False) -> None:
+    """Gắn chỉ tiêu + % thực hiện vào 1 dòng. Chưa giao kế hoạch thì để TRỐNG, không ghi 0%.
+
+    % KH doanh thu (tỷ đồng) cùng luật Dashboard (`unit_dashboard_targets._progress`): tử số chỉ gồm
+    doanh thu của đơn vị ĐƯỢC GIAO KH doanh thu (đo prod 29/09/2026: 27/62 đơn vị có KH — chia doanh
+    thu cả Tập đoàn cho KH của 27 đơn vị ra 213% thay vì 80,6%). Đơn vị trong rổ có lần giao thiếu tỷ
+    giá/đơn giá (doanh thu đang THIẾU) hoặc đơn giá vượt trần (doanh thu đang bị ĐỘI LÊN) thì để
+    TRỐNG — không coi là 0, không báo một tỷ lệ sai. % KH chuyến vẫn Σ/Σ cả nhóm (chờ chốt luật rổ).
+    """
+    rev, blocked = g.pop("_plan_rev"), g.pop("_plan_blocked")
+    g["plan_sales_spot_tonnes"] = spot_plan or None
+    g["pct_plan_sales_spot"] = ((g["qty_spot"] or 0.0) / spot_plan * 100) if spot_plan else None
+    g["plan_revenue_ty"] = revenue_plan or None
+    g["pct_plan_revenue"] = (rev / 1_000_000_000 / revenue_plan * 100
+                             if revenue_plan and not blocked and not partial else None)
 
 
 def consumption_report(date_from: str, date_to: str, *, companies: str | None = None,
@@ -145,9 +163,23 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
     ceiling = sale_price_ceiling()
     rows = [{**r, "bad_price": is_bad_price(r, ceiling)} for r in rows]
 
+    # Kế hoạch là chỉ tiêu NĂM → lấy theo năm của ngày CUỐI kỳ. Kỳ vắt qua 2 năm thì tử số có cả
+    # sản lượng năm trước trong khi mẫu số chỉ là kế hoạch 1 năm → phải nói rõ, đừng để đọc nhầm.
+    year = int(date_to[:4])
+    plan_by_key, plan_total = year_plan_by_group(_PLAN_KEY, group_by, comps, regs, year,
+                                                 split_merged)
+    rev_unit, rev_plan_total = year_plan_by_group("plan_revenue_ty", "company", comps, regs, year,
+                                                  split_merged)
+    rev_plan_by_key = rev_unit if group_by == "company" else year_plan_by_group(
+        "plan_revenue_ty", group_by, comps, regs, year, split_merged)[0]
+    rev_planned = frozenset(c for c, v in rev_unit.items() if v)
+    # Lọc chủng loại / loại HĐ / hình thức / nguồn mủ thì doanh thu chỉ còn một phần, mẫu số vẫn là
+    # KH cả năm → % KH doanh thu để TRỐNG (cùng cách màn Thu mua khi lọc loại mủ/chủng loại).
+    partial = any(split_csv(v) for v in (grades, contract, channel, source))
+
     total = _new_consumption("Tổng cộng", None)
     for r in rows:
-        _feed_consumption(total, r)
+        _feed_consumption(total, r, rev_planned)
     if (n := sum(1 for r in rows if r.get("missing_fx"))):
         warnings.append(f"{n} dòng bán bằng USD nhưng thiếu tỷ giá — chưa tính vào doanh thu & giá bán BQ.")
     if (n := sum(1 for r in rows if r["revenue_vnd"] is None and r["qty"] and not r.get("missing_fx"))):
@@ -155,16 +187,11 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
     if msg := _bad_price_warning(rows, ceiling):
         warnings.append(msg)
 
-    # Kế hoạch là chỉ tiêu NĂM → lấy theo năm của ngày CUỐI kỳ. Kỳ vắt qua 2 năm thì tử số có cả
-    # sản lượng năm trước trong khi mẫu số chỉ là kế hoạch 1 năm → phải nói rõ, đừng để đọc nhầm.
-    year = int(date_to[:4])
-    plan_by_key, plan_total = year_plan_by_group(_PLAN_KEY, group_by, comps, regs, year,
-                                                 split_merged)
     totals = _close_consumption(total)
-    _attach_plan(totals, plan_total)
-    if plan_total and date_from[:4] != date_to[:4]:
-        warnings.append(f"% kế hoạch tiêu thụ đang so với chỉ tiêu NĂM {year}, trong khi kỳ xem bắt "
-                        f"đầu từ năm {date_from[:4]} — chỉ để tham khảo.")
+    _attach_plan(totals, plan_total, rev_plan_total, partial)
+    if (plan_total or rev_plan_total) and date_from[:4] != date_to[:4]:
+        warnings.append(f"% kế hoạch tiêu thụ / doanh thu đang so với chỉ tiêu NĂM {year}, trong khi "
+                        f"kỳ xem bắt đầu từ năm {date_from[:4]} — chỉ để tham khảo.")
 
     base = {"kind": "consumption", "date_from": date_from, "date_to": date_to, "group_by": group_by,
             "totals": totals, "warnings": warnings, "price_ceiling": ceiling}
@@ -187,10 +214,11 @@ def consumption_report(date_from: str, date_to: str, *, companies: str | None = 
         if k is None:
             continue
         g = groups.get(k) or groups.setdefault(k, _new_consumption(k, r.get("region") if group_by == "company" else None))
-        _feed_consumption(g, r)
+        _feed_consumption(g, r, rev_planned)
     out: list[dict[str, Any]] = []
     for g in sort_groups(groups, group_by):
         row = _close_consumption(g)
-        _attach_plan(row, plan_by_key.get(row["key"]))     # nhóm khác đơn vị/khu vực → để trống
+        # Nhóm khác đơn vị/khu vực → để trống.
+        _attach_plan(row, plan_by_key.get(row["key"]), rev_plan_by_key.get(row["key"]), partial)
         out.append(row)
     return {**base, "detail": False, "rows": out}

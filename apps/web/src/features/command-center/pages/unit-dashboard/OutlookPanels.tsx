@@ -110,6 +110,14 @@ function VolumePanel({ data, single }: Props) {
           { label: "KH bán hàng", value: fmtTon(v.plan_total) },
         ]} />
       )}
+      {/* Tân Biên 29/09/2026 thấy "3 kế hoạch" (KH HĐ chuyến · KH bán hàng · tổng tự tính) mà không
+          biết cái nào so với cái nào — nói thẳng phạm vi của từng con số. */}
+      {isPositive(v.plan_total) && (
+        <div className="ud-muted ud-small">
+          KH bán hàng là tổng cả năm, mọi loại hợp đồng — khác “KH tiêu thụ HĐ chuyến” ở khối Chỉ tiêu
+          năm (chỉ phần giao cho hợp đồng chuyến).
+        </div>
+      )}
       {!single && isPositive(v.units_planned) && (
         <div className="ud-muted ud-small">
           Tính trên {count(v.units_planned)} đơn vị đã nhập KH khai thác
