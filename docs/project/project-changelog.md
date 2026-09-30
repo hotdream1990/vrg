@@ -40,8 +40,10 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
   - Trước đây sửa tăng sản lượng hợp đồng là "đã ký HĐ chưa giao" đổi ngược về tận ngày ký. Ví dụ
     ký 10 tấn ngày 10, ngày 15 thêm 6 tấn: đúng ra 10–14 chưa giao 10 tấn, từ 15 là 16 tấn.
   - Khi SỬA hợp đồng, mỗi dòng có ô **Hiệu lực từ** (lúc thêm mới không có, đợt giao không có).
-    Tăng = thêm dòng mới với phần tăng + ngày điều chỉnh; giảm = sửa thẳng số của dòng. Để trống
-    = theo ngày ký; chỉ nhận từ ngày ký trở đi, hợp đồng giao 1 lần đã giao thì không sau ngày giao.
+    Tăng = thêm dòng mới với phần tăng + ngày điều chỉnh; giảm = sửa thẳng số của dòng (số mới tính
+    từ ngày hiệu lực của dòng đó). Để trống = theo ngày ký; chỉ nhận từ ngày ký trở đi. Không cho
+    giao (HĐ giao 1 lần, hoặc đợt giao có chủng loại đó) và không cho hoàn thành TRƯỚC ngày hiệu
+    lực của dòng — nếu không phần tách theo chủng loại ghi sai tên trong những ngày ở giữa.
   - "Đã ký HĐ chưa giao" theo ngày (lưới nhập ngày, thống kê tồn kho, báo cáo kỳ, bảng chốt số
     liệu, snapshot tuần, dashboard, còn phải giao, tồn kho Tập đoàn, trợ lý AI) chỉ cộng dòng đã có
     hiệu lực. Số "còn phải giao" hiện tại ở màn Hợp đồng vẫn tính mọi dòng.
