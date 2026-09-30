@@ -1,0 +1,140 @@
+{
+  "key": "phu_rieng",
+  "label": "Nhà máy Phú Riềng",
+  "power": [
+    {"label": "Volt AB", "unit": "V", "tag": "PM - VoltAB"},
+    {"label": "Volt BC", "unit": "V", "tag": "PM - VoltBC"},
+    {"label": "Volt CA", "unit": "V", "tag": "PM - VoltCA"},
+    {"label": "Current A", "unit": "A", "tag": "PM - CurrentA"},
+    {"label": "Current B", "unit": "A", "tag": "PM - CurrentB"},
+    {"label": "Current C", "unit": "A", "tag": "PM - CurrentC"},
+    {"label": "Power", "unit": "kW", "tag": "PM - Power"}
+  ],
+  "areas": [
+    {
+      "key": "khu-mu-vao", "label": "Khu mủ vào", "width": 1800, "height": 900, "usage_box": {"x": 1280, "y": 7, "w": 482, "h": 131},
+      "nodes": [
+        {"id": "MLM1", "kind": "mixer", "x": 38, "y": 188, "w": 98, "h": 81, "angle": 0, "label": "MLM1", "label_pos": "top", "info_xy": [40, 115], "metrics": [{"key": "hz", "tag": "MLM1 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "MLM1 - Current", "unit": "A"}], "status_tag": "MLM1 - Running Status", "temps": []},
+        {"id": "MLM2", "kind": "mixer", "x": 152, "y": 128, "w": 120, "h": 111, "angle": 0, "label": "MLM2", "label_pos": "top", "info_xy": [212, 84], "metrics": [{"key": "hz", "tag": "MLM2 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "MLM2 - Current", "unit": "A"}], "status_tag": "MLM2 - Running Status", "temps": []},
+        {"id": "MLM3", "kind": "mixer", "x": 308, "y": 128, "w": 114, "h": 111, "angle": 0, "label": "MLM3", "label_pos": "top", "info_xy": [363, 84], "metrics": [{"key": "hz", "tag": "MLM3 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "MLM3 - Current", "unit": "A"}], "status_tag": "MLM3 - Running Status", "temps": []},
+        {"id": "BTTL1", "kind": "conveyor", "x": 380, "y": 145, "w": 359, "h": 22, "angle": -26.1, "label": "BTTL1", "label_pos": "left", "info_xy": [580, 5], "metrics": [{"key": "hz", "tag": "BTTL1 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "BTTL1 - Current", "unit": "A"}], "status_tag": "BTTL1 - Running Status", "temps": []},
+        {"id": "CM1", "kind": "crusher", "variant": "mill", "x": 712, "y": 67, "w": 64, "h": 205, "angle": 0, "label": "CM1", "label_pos": "top", "info_xy": [782, 61], "temps_xy": [793, 138], "temps_cols": 1, "metrics": [{"key": "hz", "tag": "CM1 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "CM1 - Current", "unit": "A"}], "status_tag": "CM1 - Running Status", "temps": [{"label": "Trái", "tag": "CM1 - Main Left Temperature"}, {"label": "Phải", "tag": "CM1 - Main Right Temperature"}]},
+        {"id": "MLM4", "kind": "mixer", "x": 38, "y": 471, "w": 98, "h": 81, "angle": 0, "label": "MLM4", "label_pos": "top", "info_xy": [44, 394], "metrics": [{"key": "hz", "tag": "MLM4 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "MLM4 - Current", "unit": "A"}], "status_tag": "MLM4 - Running Status", "temps": []},
+        {"id": "MLM5", "kind": "mixer", "x": 154, "y": 408, "w": 118, "h": 113, "angle": 0, "label": "MLM5", "label_pos": "top", "info_xy": [213, 364], "metrics": [{"key": "hz", "tag": "MLM5 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "MLM5 - Current", "unit": "A"}], "status_tag": "MLM5 - Running Status", "temps": []},
+        {"id": "MLM6", "kind": "mixer", "x": 304, "y": 408, "w": 118, "h": 113, "angle": 0, "label": "MLM6", "label_pos": "top", "info_xy": [363, 364], "metrics": [{"key": "hz", "tag": "MLM6 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "MLM6 - Current", "unit": "A"}], "status_tag": "MLM6 - Running Status", "temps": []},
+        {"id": "BTTL2", "kind": "conveyor", "x": 379, "y": 434, "w": 359, "h": 22, "angle": -26.9, "label": "BTTL2", "label_pos": "left", "info_xy": [576, 293], "metrics": [{"key": "hz", "tag": "BTTL2 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "BTTL2 - Current", "unit": "A"}], "status_tag": "BTTL2 - Running Status", "temps": []},
+        {"id": "CM2", "kind": "crusher", "variant": "mill", "x": 712, "y": 350, "w": 64, "h": 203, "angle": 0, "label": "CM2", "label_pos": "top", "info_xy": [782, 339], "temps_xy": [793, 419], "temps_cols": 1, "metrics": [{"key": "hz", "tag": "CM2 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "CM2 - Current", "unit": "A"}], "status_tag": "CM2 - Running Status", "temps": [{"label": "Trái", "tag": "CM2 - Main Left Temperature"}, {"label": "Phải", "tag": "CM2 - Main Right Temperature"}]},
+        {"id": "QM1", "kind": "tank", "x": 812, "y": 482, "w": 280, "h": 69, "angle": 0, "label": "QM1", "label_pos": "top", "info_xy": [916, 371], "metrics": [{"key": "hz", "tag": "QM1 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "QM1 - Current", "unit": "A"}], "status_tag": "QM1 - Running Status", "temps": []},
+        {"id": "VT1", "kind": "screw", "x": 960, "y": 388, "w": 232, "h": 28, "angle": -46.0, "label": "VT1", "label_pos": "left", "info_xy": [1080, 230], "metrics": [{"key": "hz", "tag": "VT1 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "VT1 - Current", "unit": "A"}], "status_tag": "VT1 - Running Status", "temps": []},
+        {"id": "CM3", "kind": "crusher", "variant": "mill", "x": 1158, "y": 350, "w": 64, "h": 203, "angle": 0, "label": "CM3", "label_pos": "top", "info_xy": [1226, 338], "temps_xy": [1233, 419], "temps_cols": 1, "metrics": [{"key": "hz", "tag": "CM3 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "CM3 - Current", "unit": "A"}], "status_tag": "CM3 - Running Status", "temps": [{"label": "Trái", "tag": "CM3 - Main Left Temperature"}, {"label": "Phải", "tag": "CM3 - Main Right Temperature"}]},
+        {"id": "QM2", "kind": "tank", "x": 1255, "y": 482, "w": 277, "h": 69, "angle": 0, "label": "QM2", "label_pos": "top", "info_xy": [1356, 371], "metrics": [{"key": "hz", "tag": "QM2 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "QM2 - Current", "unit": "A"}], "status_tag": "QM2 - Running Status", "temps": []},
+        {"id": "VT2", "kind": "screw", "x": 1404, "y": 394, "w": 228, "h": 28, "angle": -43.6, "label": "VT2", "label_pos": "left", "info_xy": [1526, 239], "metrics": [{"key": "hz", "tag": "VT2 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "VT2 - Current", "unit": "A"}], "status_tag": "VT2 - Running Status", "temps": []},
+        {"id": "C3T1", "kind": "crusher", "variant": "creper", "x": 1590, "y": 383, "w": 123, "h": 168, "angle": 0, "label": "C3T1", "label_pos": "top", "info_xy": [1664, 318], "temps_xy": [1580, 576], "temps_cols": 2, "metrics": [{"key": "hz", "tag": "C3T1 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "C3T1 - Current", "unit": "A"}], "status_tag": "C3T1 - Running Status", "temps": [{"label": "Trên trái", "tag": "C3T1 - Upper Left Temperture"}, {"label": "Trên phải", "tag": "C3T1 - Upper Right Temperture"}, {"label": "Dưới trái", "tag": "C3T1 - Lower Left Temperature"}, {"label": "Dưới phải", "tag": "C3T1 - Lower Right Temperature"}]},
+        {"id": "BTCS1", "kind": "conveyor", "x": 34, "y": 729, "w": 235, "h": 20, "angle": -25.7, "label": "BTCS1", "label_pos": "left", "info_xy": [208, 576], "metrics": [{"key": "hz", "tag": "BTCS1- Frequence", "unit": "Hz"}, {"key": "a", "tag": "BTCS1 - Current", "unit": "A"}], "status_tag": "BTCS1 - Running Status", "temps": []},
+        {"id": "CCS1", "kind": "crusher", "variant": "creper", "x": 225, "y": 704, "w": 127, "h": 139, "angle": 0, "label": "CCS1", "label_pos": "top", "info_xy": [318, 637], "temps_xy": [223, 848], "temps_cols": 2, "metrics": [{"key": "hz", "tag": "CCS1 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "CCS1 - Current", "unit": "A"}], "status_tag": "CCS1 - Running Status", "temps": [{"label": "Trên trái", "tag": "CCS1 - Upper Left Temperature"}, {"label": "Trên phải", "tag": "CCS1 - Upper Right Temperature"}, {"label": "Dưới trái", "tag": "CCS1 - Lower Left Temperature"}, {"label": "Dưới phải", "tag": "CCS1 - Lower Right Temperture"}]},
+        {"id": "BTCS2", "kind": "conveyor", "x": 264, "y": 729, "w": 235, "h": 20, "angle": -25.7, "label": "BTCS2", "label_pos": "left", "info_xy": [439, 576], "metrics": [{"key": "hz", "tag": "BTCS2 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "BTCS2 - Current", "unit": "A"}], "status_tag": "BTCS2 - Running Status", "temps": []},
+        {"id": "CCS2", "kind": "crusher", "variant": "creper", "x": 455, "y": 704, "w": 130, "h": 139, "angle": 0, "label": "CCS2", "label_pos": "top", "info_xy": [546, 637], "temps_xy": [462, 848], "temps_cols": 2, "metrics": [{"key": "hz", "tag": "CCS2 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "CCS2 - Current", "unit": "A"}], "status_tag": "CCS2 - Running Status", "temps": [{"label": "Trên trái", "tag": "CCS2 - Upper Left Temperature"}, {"label": "Trên phải", "tag": "CCS2 - Upper Right Temperature"}, {"label": "Dưới trái", "tag": "CCS2 - Lower Left Temperature"}, {"label": "Dưới phải", "tag": "CCS2 - Lower Right Temperature"}]},
+        {"id": "BTCS3", "kind": "conveyor", "x": 494, "y": 727, "w": 236, "h": 20, "angle": -25.6, "label": "BTCS3", "label_pos": "left", "info_xy": [669, 576], "metrics": [{"key": "hz", "tag": "BTCS3 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "BTCS3 - Current", "unit": "A"}], "status_tag": "BTCS3 - Running Status", "temps": []},
+        {"id": "TL1", "kind": "conveyor", "x": 702, "y": 722, "w": 46, "h": 21, "angle": 0, "label": "TL1", "label_pos": "top", "info_xy": [598, 758], "metrics": [{"key": "hz", "tag": "TL1 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "TL1 - Current", "unit": "A"}], "status_tag": "TL1 - Running Status", "temps": []},
+        {"id": "CC1", "kind": "crusher", "x": 752, "y": 697, "w": 120, "h": 55, "angle": 0, "label": "CC1", "label_pos": "top", "info_xy": [822, 630], "temps_xy": [740, 649], "temps_cols": 1, "metrics": [{"key": "hz", "tag": "CC1 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "CC1 - Current", "unit": "A"}], "status_tag": "CC1 - Running Status", "temps": [{"label": "Trái", "tag": "CC1 - Main Left Temperature"}, {"label": "Phải", "tag": "CC1 - Main Right Temperature"}]},
+        {"id": "BC1", "kind": "pump", "x": 1156, "y": 710, "w": 58, "h": 133, "angle": 0, "label": "BC1", "label_pos": "left", "info_xy": [1094, 714], "metrics": [], "status_tag": "BC1 - Running Status", "temps": []}
+      ],
+      "decor": [
+        {"kind": "basin", "x": 27, "y": 196, "w": 568, "h": 76},
+        {"kind": "basin", "x": 27, "y": 477, "w": 568, "h": 78},
+        {"kind": "basin", "x": 705, "y": 762, "w": 440, "h": 78},
+        {"kind": "pipe", "points": [[1606, 333], [1606, 398]]},
+        {"kind": "pipe", "points": [[1713, 510], [1774, 510], [1774, 567], [23, 567], [23, 752], [65, 752]]},
+        {"kind": "arrow_text", "points": [[40, 752], [66, 752]]},
+        {"kind": "arrow_text", "x": 1606, "y": 641, "text": "Đến vít tải ngang", "points": [[1184, 714], [1184, 641], [1602, 641]], "text_xy": [1606, 641]},
+        {"kind": "arrow_text", "x": 1606, "y": 793, "text": "Từ vít tải ngang", "points": [[1145, 793], [1600, 793], [1584, 793]], "text_xy": [1606, 793]},
+        {"kind": "badge", "x": 682, "y": 139, "text": "pID"},
+        {"kind": "badge", "x": 682, "y": 420, "text": "pID"},
+        {"kind": "badge", "x": 1126, "y": 421, "text": "pID"},
+        {"kind": "badge", "x": 1557, "y": 452, "text": "pID"},
+        {"kind": "badge", "x": 194, "y": 781, "text": "pID"},
+        {"kind": "badge", "x": 424, "y": 781, "text": "pID"},
+        {"kind": "badge", "x": 886, "y": 718, "text": "pID"}
+      ],
+      "links": []
+    },
+    {
+      "key": "vit-tai-ngang", "label": "Vít tải ngang", "hidden": true, "width": 1800, "height": 900,
+      "nodes": [
+        {"id": "VTN", "kind": "screw", "x": 165, "y": 316, "w": 470, "h": 28, "angle": 0, "label": "VTN", "label_pos": "top", "metrics": [{"key": "hz", "tag": "VTN - Frequence", "unit": "Hz"}, {"key": "a", "tag": "VTN - Current", "unit": "A"}], "status_tag": "VTN - Running Status", "temps": []},
+        {"id": "C3T2", "kind": "crusher", "x": 660, "y": 260, "w": 150, "h": 150, "angle": 0, "label": "C3T2", "label_pos": "top", "metrics": [{"key": "hz", "tag": "C3T2 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "C3T2 - Current", "unit": "A"}], "status_tag": "C3T2 - Running Status", "temps": [{"label": "Trên trái", "tag": "C3T2 - Upper Left Temperature"}, {"label": "Trên phải", "tag": "C3T2 - Upper Right Temperature"}, {"label": "Dưới trái", "tag": "C3T2 - Lower Left Temperature"}, {"label": "Dưới phải", "tag": "C3T2 - Lower Right Temperature"}]},
+        {"id": "BTCS4", "kind": "conveyor", "x": 913, "y": 340, "w": 195, "h": 24, "angle": -29.2, "label": "BTCS4", "label_pos": "left", "metrics": [{"key": "hz", "tag": "BTCS4 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "BTCS4 - Current", "unit": "A"}], "status_tag": "BTCS4 - Running Status", "temps": []},
+        {"id": "CCS3", "kind": "crusher", "x": 1095, "y": 310, "w": 120, "h": 120, "angle": 0, "label": "CCS3", "label_pos": "top", "metrics": [{"key": "hz", "tag": "CCS3 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "CCS3 - Current", "unit": "A"}], "status_tag": "CCS3 - Running Status", "temps": [{"label": "Trên trái", "tag": "CCS3 - Upper Left Temperature"}, {"label": "Trên phải", "tag": "CCS3 - Upper Right Temperature"}, {"label": "Dưới trái", "tag": "CCS3 - Lower Left Temperature"}, {"label": "Dưới phải", "tag": "CCS3 - Lower Right Temperature"}]},
+        {"id": "BTCS5", "kind": "conveyor", "x": 1323, "y": 340, "w": 195, "h": 24, "angle": -29.2, "label": "BTCS5", "label_pos": "left", "metrics": [{"key": "hz", "tag": "BTCS5 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "BTCS5 - Current", "unit": "A"}], "status_tag": "BTCS5 - Running Status", "temps": []},
+        {"id": "CCS4", "kind": "crusher", "x": 1505, "y": 310, "w": 120, "h": 120, "angle": 0, "label": "CCS4", "label_pos": "top", "metrics": [{"key": "hz", "tag": "CCS4 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "CCS4 - Current", "unit": "A"}], "status_tag": "CCS4 - Running Status", "temps": [{"label": "Trên trái", "tag": "CCS4 - Upper Left Temperature"}, {"label": "Trên phải", "tag": "CCS4 - Upper Right Temperature"}, {"label": "Dưới trái", "tag": "CCS4 - Lower Left Temperature"}, {"label": "Dưới phải", "tag": "CCS4 - Lower Right Temperature"}]},
+        {"id": "BTCS6", "kind": "conveyor", "x": 118, "y": 750, "w": 195, "h": 24, "angle": -29.2, "label": "BTCS6", "label_pos": "left", "metrics": [{"key": "hz", "tag": "BTCS6 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "BTCS6 - Current", "unit": "A"}], "status_tag": "BTCS6 - Running Status", "temps": []},
+        {"id": "CCS5", "kind": "crusher", "x": 300, "y": 720, "w": 120, "h": 120, "angle": 0, "label": "CCS5", "label_pos": "top", "metrics": [{"key": "hz", "tag": "CCS5 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "CCS5 - Current", "unit": "A"}], "status_tag": "CCS5 - Running Status", "temps": [{"label": "Trên trái", "tag": "CCS5 - Upper Left Temperature"}, {"label": "Trên phải", "tag": "CCS5 - Upper Right Temperature"}, {"label": "Dưới trái", "tag": "CCS5 - Lower Left Temperature"}, {"label": "Dưới phải", "tag": "CCS5 - Lower Right Temperature"}]},
+        {"id": "BTCS7", "kind": "conveyor", "x": 528, "y": 750, "w": 195, "h": 24, "angle": -29.2, "label": "BTCS7", "label_pos": "left", "metrics": [{"key": "hz", "tag": "BTCS7 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "BTCS7 - Current", "unit": "A"}], "status_tag": "BTCS7 - Running Status", "temps": []},
+        {"id": "CC2", "kind": "crusher", "x": 710, "y": 700, "w": 150, "h": 70, "angle": 0, "label": "CC2", "label_pos": "top", "metrics": [{"key": "hz", "tag": "CC2 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "CC2 - Current", "unit": "A"}], "status_tag": "CC2 - Running Status", "temps": [{"label": "Trái", "tag": "CC2 - Main Left Temperature"}, {"label": "Phải", "tag": "CC2 - Main Right Temperature"}]},
+        {"id": "TL2", "kind": "conveyor", "x": 890, "y": 740, "w": 100, "h": 18, "angle": 0, "label": "TL2", "label_pos": "top", "metrics": [{"key": "hz", "tag": "TL2 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "TL2 - Current", "unit": "A"}], "status_tag": "TL2 - Running Status", "temps": []},
+        {"id": "BC2", "kind": "pump", "x": 1060, "y": 700, "w": 60, "h": 90, "angle": 0, "label": "BC2", "label_pos": "right", "metrics": [], "status_tag": "BC2 - Running Status", "temps": []}
+      ],
+      "decor": [
+        {"kind": "basin", "x": 700, "y": 775, "w": 330, "h": 80},
+        {"kind": "pipe", "points": [[1625, 370], [1780, 370], [1780, 540], [18, 540], [18, 810], [120, 810]]},
+        {"kind": "arrow_text", "x": 41, "y": 330, "text": "Từ khu mủ vào", "points": [[10, 330], [35, 330]]},
+        {"kind": "arrow_text", "x": 1116, "y": 640, "text": "Đến hầm sấy", "points": [[1090, 700], [1090, 640], [1110, 640]]}
+      ],
+      "links": [["VTN", "C3T2"], ["C3T2", "BTCS4"], ["BTCS4", "CCS3"], ["CCS3", "BTCS5"], ["BTCS5", "CCS4"], ["BTCS6", "CCS5"], ["CCS5", "BTCS7"], ["BTCS7", "CC2"], ["CC2", "BC2"]]
+    },
+    {
+      "key": "ham-say", "label": "Hầm sấy", "hidden": true, "width": 1800, "height": 900,
+      "nodes": [
+        {"id": "TKMM1", "kind": "mixer", "x": 200, "y": 110, "w": 100, "h": 100, "angle": 0, "label": "TKMM1", "label_pos": "top", "metrics": [{"key": "hz", "tag": "TKMM1 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "TKMM1 - Current", "unit": "A"}], "status_tag": "TKMM1 - Running Status", "temps": []},
+        {"id": "TKMM2", "kind": "mixer", "x": 340, "y": 110, "w": 100, "h": 100, "angle": 0, "label": "TKMM2", "label_pos": "top", "metrics": [{"key": "hz", "tag": "TKMM2 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "TKMM2 - Current", "unit": "A"}], "status_tag": "TKMM2 - Running Status", "temps": []},
+        {"id": "BTCLM1", "kind": "conveyor", "x": 480, "y": 150, "w": 180, "h": 22, "angle": 0, "label": "BTCLM1", "label_pos": "top", "metrics": [], "status_tag": "BTCLM1 - Running Status", "temps": []},
+        {"id": "BTCLM2", "kind": "conveyor", "x": 700, "y": 150, "w": 180, "h": 22, "angle": 0, "label": "BTCLM2", "label_pos": "top", "metrics": [], "status_tag": "BTCLM2 - Running Status", "temps": []},
+        {"id": "BTCLM3", "kind": "conveyor", "x": 920, "y": 150, "w": 180, "h": 22, "angle": 0, "label": "BTCLM3", "label_pos": "top", "metrics": [{"key": "hz", "tag": "BTCLM3 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "BTCLM3 - Current", "unit": "A"}], "status_tag": "BTCLM3 - Running Status", "temps": []},
+        {"id": "BTCLM4", "kind": "conveyor", "x": 1140, "y": 150, "w": 180, "h": 22, "angle": 0, "label": "BTCLM4", "label_pos": "top", "metrics": [{"key": "hz", "tag": "BTCLM4 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "BTCLM4 - Current", "unit": "A"}], "status_tag": "BTCLM4 - Running Status", "temps": []},
+        {"id": "XDT", "kind": "motor", "x": 20, "y": 440, "w": 80, "h": 80, "angle": 0, "label": "XDT", "label_pos": "bottom", "metrics": [], "status_tag": "XDT_bOutAuto", "temps": []},
+        {"id": "Z01", "kind": "zone", "x": 130, "y": 410, "w": 115, "h": 150, "angle": 0, "label": "Z01", "label_pos": "top", "metrics": [], "status_tag": null, "temps": [{"label": "Buồng", "tag": "Z01 - Champer Temperature"}]},
+        {"id": "Z02", "kind": "zone", "x": 255, "y": 410, "w": 115, "h": 150, "angle": 0, "label": "Z02", "label_pos": "top", "metrics": [], "status_tag": null, "temps": [{"label": "Buồng", "tag": "Z02 - Champer Temperature"}]},
+        {"id": "Z03", "kind": "zone", "x": 380, "y": 410, "w": 115, "h": 150, "angle": 0, "label": "Z03", "label_pos": "top", "metrics": [], "status_tag": null, "temps": [{"label": "Buồng", "tag": "Z03 - Champer Temperature"}]},
+        {"id": "Z04", "kind": "zone", "x": 505, "y": 410, "w": 115, "h": 150, "angle": 0, "label": "Z04", "label_pos": "top", "metrics": [], "status_tag": null, "temps": [{"label": "Buồng", "tag": "Z04 - Champer Temperature"}]},
+        {"id": "Z05", "kind": "zone", "x": 630, "y": 410, "w": 115, "h": 150, "angle": 0, "label": "Z05", "label_pos": "top", "metrics": [], "status_tag": null, "temps": [{"label": "Buồng", "tag": "Z05 - Champer Temperature"}]},
+        {"id": "Z06", "kind": "zone", "x": 755, "y": 410, "w": 115, "h": 150, "angle": 0, "label": "Z06", "label_pos": "top", "metrics": [], "status_tag": null, "temps": [{"label": "Buồng", "tag": "Z06 - Champer Temperature"}]},
+        {"id": "Z07", "kind": "zone", "x": 880, "y": 410, "w": 115, "h": 150, "angle": 0, "label": "Z07", "label_pos": "top", "metrics": [], "status_tag": null, "temps": [{"label": "Buồng", "tag": "Z07 - Champer Temperature"}]},
+        {"id": "Z08", "kind": "zone", "x": 1005, "y": 410, "w": 115, "h": 150, "angle": 0, "label": "Z08", "label_pos": "top", "metrics": [], "status_tag": null, "temps": [{"label": "Buồng", "tag": "Z08 - Champer Temperature"}]},
+        {"id": "Z09", "kind": "zone", "x": 1130, "y": 410, "w": 115, "h": 150, "angle": 0, "label": "Z09", "label_pos": "top", "metrics": [], "status_tag": null, "temps": [{"label": "Buồng", "tag": "Z09 - Champer Temperature"}]},
+        {"id": "Z10", "kind": "zone", "x": 1255, "y": 410, "w": 115, "h": 150, "angle": 0, "label": "Z10", "label_pos": "top", "metrics": [], "status_tag": null, "temps": [{"label": "Buồng", "tag": "Z10 - Champer Temperature"}]},
+        {"id": "Z11", "kind": "zone", "x": 1380, "y": 410, "w": 115, "h": 150, "angle": 0, "label": "Z11", "label_pos": "top", "metrics": [], "status_tag": null, "temps": [{"label": "Buồng", "tag": "Z11 - Champer Temperature"}]},
+        {"id": "Z12", "kind": "zone", "x": 1505, "y": 410, "w": 115, "h": 150, "angle": 0, "label": "Z12", "label_pos": "top", "metrics": [], "status_tag": null, "temps": [{"label": "Buồng", "tag": "Z12 - Champer Temperature"}]},
+        {"id": "QC01", "kind": "fan", "x": 170, "y": 670, "w": 100, "h": 100, "angle": 0, "label": "QC01", "label_pos": "right", "metrics": [{"key": "hz", "tag": "QC01 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "QC01 - Current", "unit": "A"}, {"key": "vib", "tag": "QC01 - Vibration", "unit": "mm/s"}], "status_tag": "QC01 - Running Status", "temps": []},
+        {"id": "QC02", "kind": "fan", "x": 430, "y": 670, "w": 100, "h": 100, "angle": 0, "label": "QC02", "label_pos": "right", "metrics": [{"key": "hz", "tag": "QC02 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "QC02 - Current", "unit": "A"}, {"key": "vib", "tag": "QC02 - Vibration", "unit": "mm/s"}], "status_tag": "QC02 - Running Status", "temps": []},
+        {"id": "QN01", "kind": "fan", "x": 690, "y": 670, "w": 100, "h": 100, "angle": 0, "label": "QN01", "label_pos": "right", "metrics": [{"key": "hz", "tag": "QN01 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "QN01 - Current", "unit": "A"}], "status_tag": "QN01 - Running Status", "temps": []},
+        {"id": "QN02", "kind": "fan", "x": 950, "y": 670, "w": 100, "h": 100, "angle": 0, "label": "QN02", "label_pos": "right", "metrics": [{"key": "hz", "tag": "QN02 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "QN02 - Current", "unit": "A"}], "status_tag": "QN02 - Running Status", "temps": []},
+        {"id": "QHL", "kind": "fan", "x": 1210, "y": 670, "w": 100, "h": 100, "angle": 0, "label": "QHL", "label_pos": "right", "metrics": [{"key": "hz", "tag": "QHL - Frequence", "unit": "Hz"}, {"key": "a", "tag": "QHL - Current", "unit": "A"}], "status_tag": "QHL - Running Status", "temps": []},
+        {"id": "QK", "kind": "fan", "x": 1470, "y": 670, "w": 100, "h": 100, "angle": 0, "label": "QK", "label_pos": "right", "metrics": [{"key": "hz", "tag": "QK - Frequence", "unit": "Hz"}, {"key": "a", "tag": "QK - Current", "unit": "A"}], "status_tag": "QK - Running Status", "temps": []}
+      ],
+      "decor": [
+        {"kind": "basin", "x": 120, "y": 390, "w": 1520, "h": 190},
+        {"kind": "pipe", "points": [[1320, 161], [1360, 161], [1360, 300], [60, 300], [60, 440]]},
+        {"kind": "pipe", "points": [[220, 670], [220, 580]]},
+        {"kind": "pipe", "points": [[480, 670], [480, 580]]},
+        {"kind": "pipe", "points": [[740, 670], [740, 580]]},
+        {"kind": "pipe", "points": [[1000, 670], [1000, 580]]},
+        {"kind": "pipe", "points": [[1260, 670], [1260, 580]]},
+        {"kind": "pipe", "points": [[1520, 670], [1520, 580]]},
+        {"kind": "arrow_text", "x": 41, "y": 160, "text": "Từ vít tải ngang", "points": [[10, 160], [35, 160]]},
+        {"kind": "arrow_text", "x": 1671, "y": 485, "text": "Đến đóng gói", "points": [[1640, 485], [1665, 485]]}
+      ],
+      "links": [["TKMM1", "TKMM2"], ["TKMM2", "BTCLM1"], ["BTCLM1", "BTCLM2"], ["BTCLM2", "BTCLM3"], ["BTCLM3", "BTCLM4"], ["XDT", "Z01"]]
+    },
+    {
+      "key": "dong-goi", "label": "Đóng gói", "hidden": true, "width": 1200, "height": 450,
+      "nodes": [
+        {"id": "SR", "kind": "motor", "x": 150, "y": 170, "w": 120, "h": 120, "angle": 0, "label": "SR", "label_pos": "top", "metrics": [{"key": "hz", "tag": "SR- Frequence", "unit": "Hz"}, {"key": "a", "tag": "SR - Current", "unit": "A"}], "status_tag": "SR - Running Status", "temps": []},
+        {"id": "RobotTotalCount", "kind": "counter", "x": 600, "y": 150, "w": 300, "h": 160, "angle": 0, "label": "Số bành", "label_pos": "top", "metrics": [{"key": "count", "tag": "RobotTotalCount", "unit": "bành"}], "status_tag": null, "temps": []}
+      ],
+      "decor": [
+        {"kind": "arrow_text", "x": 41, "y": 230, "text": "Từ hầm sấy", "points": [[10, 230], [35, 230]]}
+      ],
+      "links": [["SR", "RobotTotalCount"]]
+    }
+  ]
+}

@@ -55,6 +55,14 @@ def test_cache_key_includes_config_version_and_period() -> None:
     assert len(calls) == 4
 
 
+def test_cache_key_includes_scope() -> None:
+    """Sơ đồ vận hành đọc tag KHÁC nhau theo khu cùng kỳ (None, None) → mỗi khu một ô cache."""
+    calls: list = []
+    for scope in ("plant:khu-mu-vao", "plant:ham-say", "plant:khu-mu-vao", ""):
+        guard.read(F, None, None, _reader(calls), scope=scope)
+    assert len(calls) == 3
+
+
 def test_errors_are_not_cached() -> None:
     calls: list = []
 
@@ -129,3 +137,52 @@ def test_resolve_period_future_from_and_clamp_to() -> None:
 def test_query_bounds_past_period_adds_one_hour_today_uses_scada_clock() -> None:
     assert query_bounds(date(2026, 9, 1), date(2026, 9, 2), TODAY) == (START, END)
     assert query_bounds(date(2026, 9, 1), TODAY, TODAY) == (START, None)
+
+
+# ── Lượt đọc "sống" (poll): bận thì trả số vừa đọc · lỗi thì nhớ ngắn ──
+
+def test_live_read_returns_last_good_when_factory_busy(monkeypatch) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr(guard, "_clock", lambda: clock[0])
+    monkeypatch.setattr(guard, "LIVE_LOCK_WAIT_S", 0.01)
+    calls: list = []
+    first = guard.read(F, None, None, _reader(calls), ttl=5, scope="plant", live=True)
+    clock[0] += 6  # cache 5 s đã hết
+    lock = guard.factory_lock(F["id"])
+    lock.acquire()  # một lượt đọc khác (vd /meters/daily) đang giữ SCADA
+    try:
+        assert guard.read(F, None, None, _reader(calls), ttl=5, scope="plant", live=True) == first
+        assert len(calls) == 1  # không chờ, không đọc lại
+        with pytest.raises(guard.ScadaBusyError):  # lượt đọc thường (không live) vẫn báo bận
+            guard.read(F, START, END, _reader(calls))
+    finally:
+        lock.release()
+
+
+def test_live_read_without_previous_value_is_busy(monkeypatch) -> None:
+    monkeypatch.setattr(guard, "LIVE_LOCK_WAIT_S", 0.01)
+    lock = guard.factory_lock(F["id"])
+    lock.acquire()
+    try:
+        with pytest.raises(guard.ScadaBusyError):
+            guard.read(F, None, None, _reader([]), ttl=5, scope="plant", live=True)
+    finally:
+        lock.release()
+
+
+def test_live_read_error_is_remembered_briefly(monkeypatch) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr(guard, "_clock", lambda: clock[0])
+    calls: list = []
+
+    def boom(factory, start, end):
+        calls.append(1)
+        raise RuntimeError("SCADA mất kết nối")
+    for _ in range(3):
+        with pytest.raises(RuntimeError):
+            guard.read(F, None, None, boom, ttl=5, scope="plant", live=True)
+    assert len(calls) == 1  # 2 nhịp poll sau dùng lỗi đã nhớ, không mở lại kết nối
+    clock[0] += guard.LIVE_ERROR_TTL_S + 0.1
+    with pytest.raises(RuntimeError):
+        guard.read(F, None, None, boom, ttl=5, scope="plant", live=True)
+    assert len(calls) == 2

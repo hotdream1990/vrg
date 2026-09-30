@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from app.services import scada_client, scada_connection_check, scada_factory_repo as repo
 from app.services import scada_daily_meters as dm
 from app.services import scada_day_samples
+from app.services import scada_plant_layout as plant
 from app.services import scada_read_guard as guard
 
 router = APIRouter(prefix="/api/smart-factory/admin", tags=["smart-factory-admin"])
@@ -32,6 +33,13 @@ class FactoryIn(BaseModel):
     water_tag: str | None = None
     bales_tag: str | None = None
     enabled: bool = True
+    layout_key: str | None = None  # khoá sơ đồ vận hành (plant_layouts/<khoá>.json); null = không có
+
+
+def _data(body: FactoryIn) -> dict:
+    """Form KHÔNG gửi `layout_key` (form cấu hình chưa có ô này) → bỏ khỏi dữ liệu để lưu nhà máy
+    không vô tình xoá sơ đồ đã gán; gửi null/"" mới là gỡ sơ đồ."""
+    return body.model_dump(exclude=None if "layout_key" in body.model_fields_set else {"layout_key"})
 
 
 def _save(fn, *args) -> dict | None:  # noqa: ANN001 - create/update của repo
@@ -50,6 +58,12 @@ def _get(factory_id: int) -> dict:
     return factory
 
 
+@router.get("/layouts")
+def list_layouts() -> dict:
+    """Các sơ đồ vận hành có sẵn (file bố cục trong code) cho ô chọn ở form nhà máy."""
+    return {"layouts": plant.layout_options()}
+
+
 @router.get("/factories")
 def list_factories() -> dict:
     return {"factories": [repo.public_view(f) for f in repo.list_factories()]}
@@ -57,12 +71,12 @@ def list_factories() -> dict:
 
 @router.post("/factories")
 def create_factory(body: FactoryIn) -> dict:
-    return {"factory": repo.public_view(_save(repo.create_factory, body.model_dump()))}
+    return {"factory": repo.public_view(_save(repo.create_factory, _data(body)))}
 
 
 @router.put("/factories/{factory_id}")
 def update_factory(factory_id: int, body: FactoryIn) -> dict:
-    factory = _save(repo.update_factory, factory_id, body.model_dump())
+    factory = _save(repo.update_factory, factory_id, _data(body))
     if factory is None:
         raise HTTPException(404, "Không tìm thấy nhà máy.")
     return {"factory": repo.public_view(factory)}

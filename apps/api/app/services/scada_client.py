@@ -71,9 +71,11 @@ def _tags(factory: dict) -> list[str]:
     return tags
 
 
-def _read(factory: dict, *builders: tuple) -> list[list[hsql.RawRow]]:
-    """Dựng từng câu (hàm dựng, *tham số sau linked server/tags) rồi chạy trên MỘT kết nối."""
-    tags = _tags(factory)
+def _read(factory: dict, *builders: tuple,
+          tags: list[str] | None = None) -> list[list[hsql.RawRow]]:
+    """Dựng từng câu (hàm dựng, *tham số sau linked server/tags) rồi chạy trên MỘT kết nối.
+    `tags=None` → tag điện · nước · bành đã khai của nhà máy; khác None → đúng danh sách đó."""
+    tags = _tags(factory) if tags is None else tags
     try:
         sqls = [fn(factory["linked_server"], tags, *args) for fn, *args in builders]
     except ValueError as exc:
@@ -89,9 +91,11 @@ def read_meters(factory: dict, start: datetime,
     return hourly, latest
 
 
-def read_latest(factory: dict) -> list[hsql.RawRow]:
-    """Chỉ mẫu theo phút 10' gần nhất — số lũy kế thời gian thực (dòng cuối = lúc GetDate())."""
-    return _read(factory, (hsql.latest_query,))[0]
+def read_latest(factory: dict, tags: list[str] | None = None,
+                minutes: int = hsql.LATEST_MINUTES) -> list[hsql.RawRow]:
+    """Chỉ mẫu theo phút `minutes` phút gần nhất (dòng cuối = lúc GetDate()). Mặc định tag điện ·
+    nước · bành của nhà máy; sơ đồ vận hành truyền tag của một khu."""
+    return _read(factory, (hsql.latest_query, minutes), tags=tags)[0]
 
 
 #: Một câu: phiên bản + giờ máy SQL Server kèm múi (kiểm múi giờ/đồng hồ — mốc ngày dựa vào nó).

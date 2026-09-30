@@ -47,7 +47,8 @@ export type DailyMeters = {
   intensity: Intensity | null;
 };
 
-export type FactoryBrief = { id: number; name: string; metrics: MetricKey[] };
+/** `layout_key` khác null = nhà máy có Sơ đồ vận hành (bố cục khai sẵn ở server). */
+export type FactoryBrief = { id: number; name: string; metrics: MetricKey[]; layout_key?: string | null };
 
 /** Cấu hình kết nối một nhà máy (mật khẩu KHÔNG bao giờ trả về — chỉ biết đã đặt hay chưa). */
 export type ScadaFactory = {
@@ -55,6 +56,8 @@ export type ScadaFactory = {
   username: string; password_set: boolean;
   database: string; linked_server: string;
   energy_tags: string[]; water_tag: string | null; bales_tag: string | null;
+  /** Bố cục Sơ đồ vận hành (vd "phu_rieng") — null = nhà máy không có sơ đồ. */
+  layout_key: string | null;
   enabled: boolean; updated_at: string | null; updated_by: string | null;
 };
 
@@ -99,6 +102,65 @@ export const fetchDailyMeters = (factoryId: number, from: string, to: string) =>
 export const downloadDailyMetersXlsx = (factory: { id: number; name: string }, from: string, to: string) =>
   downloadAuthed(`${BASE}/meters/daily.xlsx?${rangeQuery(factory.id, from, to)}`,
     `chi-so-dien-nuoc-banh_${slug(factory.name)}_${from}_${to}.xlsx`);
+
+// ── Sơ đồ vận hành (mimic SCADA) — plans/260930-nha-may-thong-minh-scada/so-do-van-hanh-contract.md ──
+
+export type PlantNodeKind =
+  "mixer" | "conveyor" | "screw" | "crusher" | "tank" | "pump" | "fan" | "zone" | "motor" | "counter";
+
+type Pt = [number, number];
+
+/** Thiết bị trên sơ đồ: (x, y) = góc trên-trái khung w×h theo toạ độ của khu; `angle` xoay quanh tâm khung.
+ *  v2 (so-do-van-hanh-contract-v2.md): `info_xy` / `temps_xy` = góc trên-trái khối nhãn + Hz/A · khối nhiệt độ
+ *  (toạ độ tuyệt đối, không xoay; có thì bỏ qua `label_pos`); `variant` chọn dáng máy cán. */
+export type PlantNode = {
+  id: string; kind: PlantNodeKind; x: number; y: number; w: number; h: number; angle?: number;
+  label: string; label_pos?: "top" | "bottom" | "left" | "right";
+  metrics?: { key: string; tag: string; unit: string }[];
+  status_tag?: string | null;
+  temps?: { label: string; tag: string }[];
+  info_xy?: Pt; temps_xy?: Pt; temps_cols?: 1 | 2;
+  variant?: "mill" | "creper";
+};
+
+/** Nét trang trí: basin (bể) · pipe (đường ống theo `points`) · arrow_text (mũi tên + chữ; `text_xy` = chỗ
+ *  đặt chữ, neo trái) · badge (ô chữ nhỏ viền đậm tại góc trên-trái x, y — vd "pID"). */
+export type PlantDecor = {
+  kind: "basin" | "pipe" | "arrow_text" | "badge";
+  x?: number; y?: number; w?: number; h?: number; points?: Pt[]; text?: string; text_xy?: Pt;
+};
+
+/** `usage_box` có → vẽ bảng "Thống kê tiêu thụ trong ngày" ngay trong khung tại hình chữ nhật đó;
+ *  `hidden` → khu tạm ẩn (server bỏ khỏi bố cục; web cũng lọc cho chắc). */
+export type PlantArea = {
+  key: string; label: string; width: number; height: number; hidden?: boolean;
+  nodes: PlantNode[]; decor?: PlantDecor[]; links?: [string, string][];
+  usage_box?: { x: number; y: number; w: number; h: number };
+};
+
+export type PlantLayout = {
+  key: string;
+  power: { label: string; unit: string; tag: string }[];
+  areas: PlantArea[];
+};
+
+/** Số mới nhất của một tag — `at` giờ nhà máy; tag chưa có số thì vắng mặt hoặc `value` null. */
+export type PlantReading = { value: number | null; at: string | null };
+export type PlantValues = Record<string, PlantReading>;
+
+export const fetchPlantLayout = (factoryId: number) =>
+  apiFetch<{ factory: { id: number; name: string }; layout: PlantLayout }>(
+    `${BASE}/plant/layout?factory_id=${factoryId}`);
+
+/** Số mới nhất của mọi tag trong khu + tag điện (`power`). `fetched_at` = giờ VN của máy chủ app lúc trả
+ *  lời (cùng khuôn `at`) — so với `at` mới nhất để biết số đã cũ (SCADA ngừng ghi). */
+export const fetchPlantLive = (factoryId: number, area: string) =>
+  apiFetch<{ area: string; values: PlantValues; fetched_at?: string | null }>(
+    `${BASE}/plant/live?${new URLSearchParams({ factory_id: String(factoryId), area }).toString()}`);
+
+/** Các bố cục Sơ đồ vận hành server có sẵn (chỉ admin) — cho ô chọn trong form cấu hình. */
+export const fetchPlantLayouts = () =>
+  apiFetch<{ layouts: { key: string; label: string }[] }>(`${BASE}/admin/layouts`);
 
 export const fetchScadaFactories = () => apiFetch<{ factories: ScadaFactory[] }>(ADMIN);
 

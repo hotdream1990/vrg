@@ -2,8 +2,10 @@
 — thuần hàm, không I/O (kết nối nằm ở `scada_client`).
 
 OPENQUERY KHÔNG nhận tham số/biến → buộc phải ghép chuỗi. Chống injection bằng 3 lớp:
-  1. Định danh (tag, linked server) phải khớp regex nghiêm TRƯỚC khi ghép (không có `'`, `]`,
-     khoảng trắng, `;`…) — sai là ném `ValueError`, không bao giờ "làm sạch rồi dùng tiếp".
+  1. Định danh (tag, linked server) phải khớp regex nghiêm TRƯỚC khi ghép (không có `'`, `"`, `]`,
+     `;`, xuống dòng…) — sai là ném `ValueError`, không bao giờ "làm sạch rồi dùng tiếp".
+     Tag được phép có DẤU CÁCH ở giữa (tag thật Phú Riềng: `MLM1 - Frequence`, `PM - VoltAB`) vì
+     tag luôn nằm trong `[...]` — dấu cách không phá được ngoặc vuông lẫn chuỗi nháy đơn ngoài.
   2. Tag luôn nằm trong ngoặc vuông `[Tag]`; chuỗi truy vấn trong nằm trong nháy đơn, nháy đơn
      bên trong nhân đôi (dạng tương đương mẫu của khách mà KHÔNG cần `SET QUOTED_IDENTIFIER OFF`).
   3. Ngày giờ do code tự format từ `datetime` — không nhận chuỗi từ người dùng.
@@ -17,8 +19,10 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-#: Tên tag Historian (vd `PM_EnergyReal0`, `Line1.Water$Total`).
-TAG_RE = re.compile(r"^[A-Za-z0-9_.$#-]{1,128}$")
+#: Tên tag Historian (vd `PM_EnergyReal0`, `Line1.Water$Total`, `MLM1 - Frequence`). Dấu cách
+#: chỉ ở GIỮA tên (đầu/cuối có dấu cách = gõ nhầm — ô nhập cũng cắt bỏ) và chỉ ký tự " ":
+#: tab/xuống dòng vẫn bị chặn.
+TAG_RE = re.compile(r"^[A-Za-z0-9_.$#-](?:[A-Za-z0-9 _.$#-]{0,126}[A-Za-z0-9_.$#-])?$")
 #: Linked server / database — chặt hơn tag vì đứng NGOÀI ngoặc vuông.
 IDENT_RE = re.compile(r"^[A-Za-z0-9_]{1,128}$")
 
@@ -33,7 +37,8 @@ RawRow = tuple[datetime, dict[str, float | None]]
 
 
 def valid_tag(tag: str | None) -> bool:
-    return isinstance(tag, str) and bool(TAG_RE.fullmatch(tag))
+    # Cấm thêm "--" cho chắc (không thoát được [..] nhưng không tag thật nào cần — review 01/10/2026).
+    return isinstance(tag, str) and bool(TAG_RE.fullmatch(tag)) and "--" not in tag
 
 
 def valid_ident(name: str | None) -> bool:
@@ -85,9 +90,12 @@ def range_query(linked_server: str, tags: list[str], start: datetime,
     return _wrap(linked_server, tags, HOURLY_MS, clause)
 
 
-def latest_query(linked_server: str, tags: list[str]) -> str:
-    """Mẫu theo PHÚT của `LATEST_MINUTES` phút gần nhất — lấy dòng cuối có số làm số mới nhất."""
-    clause = f"DateTime >= DateAdd(mi,-{LATEST_MINUTES},GetDate()) AND DateTime <= GetDate()"
+def latest_query(linked_server: str, tags: list[str], minutes: int = LATEST_MINUTES) -> str:
+    """Mẫu theo PHÚT của `minutes` phút gần nhất — lấy dòng cuối có số làm số mới nhất. Sơ đồ vận
+    hành đọc ~100 tag mỗi 5 giây nên dùng cửa sổ ngắn hơn (ít dòng hơn cho Historian)."""
+    if not isinstance(minutes, int) or isinstance(minutes, bool) or not 1 <= minutes <= 60:
+        raise ValueError("Cửa sổ số mới nhất phải là số phút nguyên 1–60")
+    clause = f"DateTime >= DateAdd(mi,-{minutes},GetDate()) AND DateTime <= GetDate()"
     return _wrap(linked_server, tags, MINUTE_MS, clause)
 
 

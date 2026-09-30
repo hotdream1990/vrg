@@ -36,6 +36,19 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     loại của chính phụ lục (HĐ chuyến / HĐ dài hạn). Nhãn trên báo cáo tiêu thụ, Dashboard đơn vị và
     file Excel đổi "HĐ mẹ" → "HĐDH". Toàn Tập đoàn tại 28/09: Tổng phải giao 150.818 → 124.934 tấn.
 ### Added
+- **Nhà máy thông minh — Sơ đồ vận hành (mimic SCADA)** (01/10/2026, chỉ local — CHƯA deploy, chưa commit).
+  - Menu *Nhà máy thông minh → Sơ đồ vận hành*: 4 khu như màn RELCO (Khu mủ vào · Vít tải ngang · Hầm sấy ·
+    Đóng gói), vẽ lại thiết bị kiểu RELCO (máng thép, máy khuấy, băng tải, máy cán, hồ, bơm, quạt, buồng sấy);
+    mỗi thiết bị có đèn chạy/dừng, Hz, A, nhiệt độ ổ trục (≥ 70 °C tô cam); chạy = xanh + chuyển động nhẹ.
+  - Thanh điện (Volt AB/BC/CA · Current A/B/C · Power) + ô Tiêu thụ trong ngày (hôm qua/hôm nay × điện, nước,
+    bành). Số tự làm mới 5 giây/lần; mất kết nối hoặc số cũ > 90 giây thì cả sơ đồ chuyển xám.
+  - Đọc 209 tag thật của Historian Phú Riềng (tên có dấu cách); MỘT truy vấn/5 giây cho cả nhà máy, bận thì
+    trả số vừa đọc. Bố cục là file JSON trong code, gán cho nhà máy ở tab SCADA nhà máy (ô "Sơ đồ vận hành").
+  - Bản v2 (01/10/2026 sáng): chỉ hiện khu **Khu mủ vào** (3 khu kia giữ bố cục nhưng ẩn, `hidden: true`),
+    vẽ lại sát màn RELCO — tháp cán CM có rotor, bể QM có lược khuấy ngang, máy 2 trục CCS/C3T, xanh neon khi
+    chạy, đèn "!" đỏ cho băng tải/vít tải đang dừng, nhãn "pID", mũi tên Đến/Từ vít tải ngang. Tạm ẩn thanh
+    điện + ô tiêu thụ trong ngày (bật lại bằng hằng `SHOW_POWER_AND_USAGE`). Menu: Sơ đồ vận hành xếp trên
+    Giám sát chỉ số.
 - **Nhà máy thông minh — Chỉ số điện · nước · số bành theo ngày từ SCADA** (30/09/2026, chưa deploy).
   - Nhóm menu mới *Nhà máy thông minh* → *Giám sát chỉ số*: số lũy kế điện · nước · số bành thời
     gian thực (tự cập nhật 10 giây/lần) · biểu đồ cột theo ngày · bảng · Excel (mặc định 30 ngày, tối

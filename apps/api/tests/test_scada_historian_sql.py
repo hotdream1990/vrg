@@ -36,6 +36,18 @@ def test_latest_query_uses_minute_resolution_last_10_minutes() -> None:
     assert sql.startswith("SELECT * FROM OPENQUERY(INSQL, 'SELECT DateTime, [Water_TotalVolume]")
 
 
+def test_latest_query_custom_window_for_plant_screen() -> None:
+    sql = hsql.latest_query("INSQL", ["MLM1 - Frequence"], 3)
+    assert "DateTime >= DateAdd(mi,-3,GetDate()) AND DateTime <= GetDate()" in sql
+    assert "[MLM1 - Frequence]" in sql and "wwResolution = 60000" in sql
+
+
+@pytest.mark.parametrize("minutes", [0, 61, -1, True, "3", 2.5])
+def test_latest_query_window_must_be_small_int(minutes) -> None:
+    with pytest.raises(ValueError):
+        hsql.latest_query("INSQL", ["Water_TotalVolume"], minutes)
+
+
 def test_inner_quotes_are_doubled_and_balanced() -> None:
     """Chuỗi trong OPENQUERY chỉ có nháy đơn nhân đôi — bỏ 2 nháy bao ngoài phải còn số chẵn."""
     sql = hsql.range_query("INSQL", TAGS, datetime(2026, 9, 1), None)
@@ -44,8 +56,12 @@ def test_inner_quotes_are_doubled_and_balanced() -> None:
 
 
 @pytest.mark.parametrize("bad", [
-    "Tag]; DROP TABLE x--", "Tag'", "Tag Name", "Tag;", "", "a" * 129, "Tag[1]", "Tag\n",
+    "Tag]; DROP TABLE x--", "Tag'", "Tag;", "", "a" * 129, "Tag[1]", "Tag\n",
     "Tag,Other", "Tag/*",
+    # Dấu cách chỉ hợp lệ Ở GIỮA; ký tự phá được `[...]` hoặc chuỗi nháy đơn vẫn bị chặn dù có cách.
+    " Tag", "Tag ", "  ", "MLM1 - Freq]", "MLM1 - Freq'", 'MLM1 - "Freq"', "MLM1 -\tFreq",
+    "MLM1 - Freq; DROP", "PM - Volt\nAB", "MLM1 - Freq]' OR 1=1 --",
+    "MLM1 -- Freq", "Tag--x",  # "--" bị cấm thêm cho chắc (không tag thật nào có)
 ])
 def test_bad_tag_rejected(bad: str) -> None:
     assert not hsql.valid_tag(bad)
@@ -55,7 +71,12 @@ def test_bad_tag_rejected(bad: str) -> None:
         hsql.latest_query("INSQL", ["Ok_Tag", bad])
 
 
-@pytest.mark.parametrize("good", ["PM_EnergyReal0", "Line1.Water$Total", "A-B#1", "x" * 128])
+@pytest.mark.parametrize("good", [
+    "PM_EnergyReal0", "Line1.Water$Total", "A-B#1", "x" * 128,
+    # Tag thật Phú Riềng có dấu cách (kể cả tên gõ sai của nhà máy).
+    "MLM1 - Frequence", "PM - VoltAB", "Z01 - Champer Temperature", "BTCS1- Frequence",
+    "C3T1 - Upper Left Temperture", "a" + " " * 126 + "b",
+])
 def test_good_tag_accepted(good: str) -> None:
     assert hsql.valid_tag(good)
     assert f"[{good}]" in hsql.latest_query("INSQL", [good])

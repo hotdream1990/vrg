@@ -52,6 +52,7 @@ import StockStatsPage from "./features/command-center/pages/analytics/StockStats
 import UnitScorecardPage from "./features/command-center/pages/scorecard/UnitScorecardPage";
 import UnitDashboardPage from "./features/command-center/pages/unit-dashboard/UnitDashboardPage";
 import FactoryMetersPage from "./features/command-center/pages/smart-factory/FactoryMetersPage";
+import PlantDiagramPage from "./features/command-center/pages/smart-factory/plant/PlantDiagramPage";
 import SubmissionStatusPage from "./features/command-center/pages/analytics/SubmissionStatusPage";
 import UnitDailyPage from "./features/command-center/pages/UnitDailyPage";
 import YearPlanPage from "./features/command-center/pages/YearPlanPage";
@@ -268,9 +269,10 @@ export default function App() {
                   <Route element={<RequireCap caps={["bulletin_weekly"]} />}>
                     <Route path="/ban-tin/tuan" element={<WeeklyReportPage />} />
                   </Route>
-                  {/* Nhà máy thông minh — chỉ số điện · nước · số bành đọc từ SCADA */}
+                  {/* Nhà máy thông minh — chỉ số điện · nước · số bành + sơ đồ vận hành, đọc từ SCADA */}
                   <Route element={<RequireCap caps={["smart_factory"]} />}>
                     <Route path="/nha-may-thong-minh/chi-so" element={<FactoryMetersPage />} />
+                    <Route path="/nha-may-thong-minh/so-do-van-hanh" element={<PlantDiagramPage />} />
                   </Route>
                   {/* Khu quản trị — chỉ admin (chặn viewer/editor gõ thẳng URL) */}
                   <Route element={<RequireRole roles={["admin"]} />}>

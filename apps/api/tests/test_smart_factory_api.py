@@ -204,7 +204,8 @@ def test_admin_crud_masks_password(admin) -> None:
 @pytest.mark.parametrize("patch", [
     {"energy_tags": ["A", "B", "C"]}, {"energy_tags": ["A", "B"]}, {"water_tag": "Water]; DROP"},
     {"bales_tag": "Bales'"}, {"linked_server": "IN-SQL"}, {"database": "Run time"},
-    {"energy_tags": ["R0", "R1", "R2", "R 3"]}, {"password": ""}, {"name": "  "}, {"host": ""},
+    {"energy_tags": ["R0", "R1", "R2", "R]3"]}, {"water_tag": "Water - Total'"},
+    {"bales_tag": "Bales\tCount"}, {"password": ""}, {"name": "  "}, {"host": ""},
     {"port": 70000}, {"host": "10.0.0.5 extra"},
     # Tag trùng nhau (không phân biệt hoa thường), giữa mọi tag điện/nước/bành.
     {"water_tag": "pm_energyreal0"}, {"bales_tag": "WATER_TOTALVOLUME"},
@@ -282,7 +283,8 @@ def test_meters_daily_with_fake_scada(admin, monkeypatch) -> None:
                       json=body(f"{PREFIX} tắt", enabled=False), headers=admin).json()["factory"]
     listed = client.get("/api/smart-factory/factories", headers=h).json()["factories"]
     mine = [x for x in listed if x["name"].startswith(PREFIX)]
-    assert mine == [{"id": f["id"], "name": f["name"], "metrics": ["energy", "water", "bales"]}]
+    assert mine == [{"id": f["id"], "name": f["name"], "metrics": ["energy", "water", "bales"],
+                     "layout_key": None}]
 
     calls: list = []
     monkeypatch.setattr(scada_client, "read_meters", _fake_reader(calls))

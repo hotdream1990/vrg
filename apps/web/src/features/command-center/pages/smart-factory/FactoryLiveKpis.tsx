@@ -2,42 +2,36 @@
    `POLL_MS` (server cache ngắn dùng chung — SCADA không bị hỏi dồn); tab ẩn thì tạm dừng. Lỗi thì giữ
    số lần trước (mờ) và thử lại ở nhịp sau — số lũy kế cũ vẫn đúng tới thời điểm ghi bên dưới. */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { type LiveMeters, fetchLiveMeters } from "../../../../lib/smart-factory-client";
-import { fmtReading } from "./smart-factory-format";
+import { fmtReading, hms } from "./smart-factory-format";
+import { useVisiblePoll } from "./use-visible-poll";
 
 const POLL_MS = 10_000;
 
 /** `YYYY-MM-DDTHH:MM:SS` → "21:51:30 30/09" (giờ nhà máy, cắt chuỗi). */
-const stamp = (ts: string | null) => (ts ? `${ts.slice(11, 19)} ${ts.slice(8, 10)}/${ts.slice(5, 7)}` : "—");
+const stamp = (ts: string | null) => (ts ? `${hms(ts)} ${ts.slice(8, 10)}/${ts.slice(5, 7)}` : "—");
 
 export default function FactoryLiveKpis({ factoryId, count }: { factoryId: number; count: number }) {
   const [live, setLive] = useState<LiveMeters | null>(null);
-  const [failed, setFailed] = useState(false);
+  // Lỗi gắn với nhà máy đã lỗi → đổi nhà máy thì thôi báo lỗi cũ.
+  const [failedId, setFailedId] = useState<number | null>(null);
 
-  useEffect(() => {
-    let alive = true;
-    // Lần đầu luôn đọc (mở ở tab nền vẫn có số); các nhịp sau bỏ qua khi tab đang ẩn.
-    const poll = (force = false) => {
-      if (document.hidden && !force) return;
-      fetchLiveMeters(factoryId)
-        .then((d) => { if (alive) { setLive(d); setFailed(false); } })
-        .catch(() => { if (alive) setFailed(true); });
-    };
-    setLive(null);
-    poll(true);
-    const timer = window.setInterval(() => poll(), POLL_MS);
-    const onShow = () => { if (!document.hidden) poll(); };
-    document.addEventListener("visibilitychange", onShow);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", onShow);
-    };
-  }, [factoryId]);
+  useVisiblePoll(async (alive) => {
+    try {
+      const d = await fetchLiveMeters(factoryId);
+      if (!alive()) return undefined;
+      setLive(d);
+      setFailedId(null);
+    } catch {
+      if (alive()) setFailedId(factoryId);
+    }
+    return undefined;
+  }, POLL_MS, String(factoryId));
 
   const shown = live?.factory.id === factoryId ? live : null;
+  const failed = failedId === factoryId;
   return (
     <div className="kpi-row sf-kpi-row">
       {shown ? shown.metrics.map((m) => {

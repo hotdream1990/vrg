@@ -556,6 +556,9 @@ CREATE TABLE IF NOT EXISTS scada_factory (
     updated_at    timestamptz NOT NULL DEFAULT now(),
     updated_by    text
 );
+-- Sơ đồ vận hành (mimic SCADA): khoá bố cục = tên file apps/api/app/services/plant_layouts/<khoá>.json
+-- (bản vẽ dây chuyền nằm trong code, không trong DB); NULL = nhà máy chưa có sơ đồ.
+ALTER TABLE scada_factory ADD COLUMN IF NOT EXISTS layout_key text;
 
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
 -- Job chạy theo NGÀY TRONG TUẦN (rỗng/NULL = chạy hằng ngày như trước). Vd 'fri' = tối thứ Sáu

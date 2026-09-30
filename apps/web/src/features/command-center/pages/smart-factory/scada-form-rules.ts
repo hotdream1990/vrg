@@ -29,7 +29,8 @@ const TAG_FIELDS: { key: string; name: NamePath; short: string }[] = [
 export type ScadaFormValues = {
   name: string; host: string; port: number; username: string; password?: string;
   database: string; linked_server: string;
-  energy_tags: (string | undefined)[]; water_tag?: string; bales_tag?: string; enabled: boolean;
+  energy_tags: (string | undefined)[]; water_tag?: string; bales_tag?: string;
+  layout_key?: string; enabled: boolean;
 };
 
 export function initialValues(f: ScadaFactory | null): ScadaFormValues {
@@ -37,14 +38,15 @@ export function initialValues(f: ScadaFactory | null): ScadaFormValues {
     return {
       name: "", host: "", port: 1433, username: "", password: "",
       database: "Runtime", linked_server: "INSQL",
-      energy_tags: DEFAULT_ENERGY_TAGS, water_tag: "Water_TotalVolume", bales_tag: "", enabled: true,
+      energy_tags: DEFAULT_ENERGY_TAGS, water_tag: "Water_TotalVolume", bales_tag: "", layout_key: "",
+      enabled: true,
     };
   }
   return {
     name: f.name, host: f.host, port: f.port, username: f.username, password: "",
     database: f.database, linked_server: f.linked_server,
     energy_tags: ENERGY_SLOTS.map((_, i) => f.energy_tags[i] ?? ""),
-    water_tag: f.water_tag ?? "", bales_tag: f.bales_tag ?? "",
+    water_tag: f.water_tag ?? "", bales_tag: f.bales_tag ?? "", layout_key: f.layout_key ?? "",
     enabled: f.enabled,
   };
 }
@@ -60,6 +62,7 @@ export const toInput = (v: ScadaFormValues): ScadaFactoryInput => ({
   database: v.database.trim(), linked_server: v.linked_server.trim(),
   energy_tags: (v.energy_tags ?? []).map(norm).filter(Boolean),
   water_tag: blankToNull(v.water_tag), bales_tag: blankToNull(v.bales_tag),
+  layout_key: blankToNull(v.layout_key),
   enabled: v.enabled,
 });
 

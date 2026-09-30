@@ -1,0 +1,73 @@
+/* Sơ đồ vận hành — class tiền tố `pl-`; dùng biến màu của command-center.css.
+   Khung trang · thanh điện · tiêu thụ · ô số · tooltip. Thiết bị/trang trí/đèn: plant-devices.css. */
+
+.pl-page .page-title { flex-wrap: wrap; gap: 8px 16px; }
+.pl-head-end { display: inline-flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; margin-left: auto; }
+
+/* ── Thanh điện dưới sơ đồ (kiểu thanh đáy RELCO): nhãn nhỏ · ô số trắng viền · đơn vị ─────────── */
+.pl-power { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 8px; padding: 6px 12px;
+  background: #cdefed; border: 1px solid #8fc4c1; border-radius: 6px; }
+.pl-power-item { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; }
+.pl-power-label { color: #1f2937; font-size: 11.5px; }
+.pl-power-box { min-width: 58px; padding: 1px 7px; text-align: center; background: #fff; border: 1px solid #4b5563;
+  border-radius: 3px; font-weight: 700; color: #1e3a8a; font-variant-numeric: tabular-nums; }
+.pl-power-box.empty { border-style: dashed; color: var(--muted); font-weight: 400; }
+.pl-power-unit { color: #1f2937; font-weight: 600; min-width: 14px; }
+
+/* ── Ô tiêu thụ trên trang (chỉ khu không khai usage_box) ───────────────── */
+.pl-usage { margin-bottom: 14px; padding: 10px 14px; }
+.pl-usage-title { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+.pl-usage-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pl-usage-table th { font-weight: 500; color: var(--muted); text-align: right; padding: 2px 6px; white-space: nowrap;
+  text-transform: none; letter-spacing: normal; font-size: 12px; background: none; border: 0; }
+.pl-usage-table tbody th { text-align: left; padding-left: 0; }
+.pl-usage-table td.pl-num-cell { text-align: right; padding: 2px 6px; border: 0; font-weight: 600; color: #1e3a8a;
+  font-variant-numeric: tabular-nums; }
+
+/* Mất kết nối / số cũ → giữ số nhưng làm mờ; sơ đồ thì xám hẳn (đèn/thân máy không còn xanh "đang chạy"). */
+.pl-stale .pl-power-box, .pl-stale .pl-num-cell { opacity: .5; }
+
+/* Bảng "Thống kê tiêu thụ trong ngày" trong khung sơ đồ (usage_box). */
+.pl-usagebox-frame { fill: #fff; stroke: #374151; stroke-width: 2; }
+.pl-usagebox-title, .pl-usagebox-head { font-weight: 700; fill: #111827; }
+.pl-usagebox-num { font-weight: 700; fill: #1d3a9e; font-variant-numeric: tabular-nums; }
+.pl-usagebox.stale .pl-usagebox-num { opacity: .5; }
+
+/* ── Khung sơ đồ ────────────────────────────────────────────────────────── */
+.pl-area-card { padding: 4px 12px 12px; }
+.pl-area-card .ant-tabs { margin-bottom: 4px; }
+.pl-area-card .ant-tabs-nav { margin-bottom: 8px; }
+.pl-stamp { display: inline-flex; align-items: center; font-size: 12px; color: var(--muted);
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Nền khung xám như màn RELCO. */
+.pl-scroll { overflow-x: auto; overflow-y: hidden; border: 1px solid #b9c0bb; border-radius: 8px;
+  background: #d3d8d3; }
+.pl-svg { display: block; width: 100%; height: auto; }
+@media (max-width: 768px) { .pl-svg { min-width: var(--pl-min-w); } }
+.pl-stamp-word { margin-right: 4px; }
+@media (max-width: 575.98px) { .pl-stamp-word { display: none; } }
+.pl-svg text { font-family: inherit; }
+
+.pl-label { font-size: 13.5px; font-weight: 700; fill: #111827; }
+
+.pl-box rect { fill: #fff; stroke: #4b5563; stroke-width: 1.2; }
+.pl-box.empty rect { stroke-dasharray: 3 2; }
+.pl-box.hot rect { fill: #fff7ed; stroke: #f59e0b; }
+.pl-num { font-size: 12.5px; font-weight: 600; fill: #1e3a8a; font-variant-numeric: tabular-nums; }
+.pl-box.empty .pl-num { fill: var(--muted); font-weight: 400; }
+.pl-box.hot .pl-num { fill: #c2410c; }
+.pl-unit { font-size: 12px; font-weight: 600; fill: #1f2937; }
+
+.pl-tile rect { fill: #fff; stroke: #94a3b8; stroke-width: 1.5; }
+.pl-tile.zone rect { fill: #fff7ed; stroke: #fdba74; }
+.pl-tile.empty rect { stroke-dasharray: 5 4; }
+.pl-tile-label { font-size: 12px; font-weight: 700; fill: var(--muted); }
+.pl-tile.zone .pl-tile-label { fill: #9a3412; }
+.pl-tile-num { font-weight: 700; fill: #1e3a8a; font-variant-numeric: tabular-nums; }
+.pl-tile.empty .pl-tile-num { fill: var(--muted); font-weight: 400; }
+
+/* ── Tooltip ────────────────────────────────────────────────────────────── */
+.pl-tip { font-size: 12px; min-width: 220px; }
+.pl-tip-title { font-weight: 700; margin-bottom: 4px; }
+.pl-tip-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; font-variant-numeric: tabular-nums; }
+.pl-tip-at { opacity: .7; }

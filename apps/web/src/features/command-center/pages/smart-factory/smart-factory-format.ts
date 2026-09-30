@@ -47,6 +47,9 @@ export const withUnit = (text: string, unit: string) => (text === "—" ? text :
 /** "2026-09-30T15:39:00" → "15:39". */
 export const hhmm = (ts?: string | null) => (ts ? ts.slice(11, 16) : "");
 
+/** "2026-09-30T22:47:39" → "22:47:39". */
+export const hms = (ts?: string | null) => (ts ? ts.slice(11, 19) : "");
+
 /** "2026-09-30T15:39:00" → "15:39 30/09/2026". */
 export const stampLocal = (ts?: string | null) => (ts ? `${hhmm(ts)} ${dmy(ts)}` : "—");
 

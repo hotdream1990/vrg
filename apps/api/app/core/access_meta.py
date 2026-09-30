@@ -57,6 +57,7 @@ PAGES: dict[str, str] = {
     "/tro-ly-ai/lich-su": "Trợ lý AI — lịch sử hỏi đáp",
     # Nhà máy thông minh
     "/nha-may-thong-minh/chi-so": "Nhà máy thông minh — Giám sát chỉ số",
+    "/nha-may-thong-minh/so-do-van-hanh": "Nhà máy thông minh — Sơ đồ vận hành",
     # Hỗ trợ
     "/ho-tro": "Hỗ trợ & Thông báo",
     "/ho-tro/nhac-lich": "Nhắc lịch",

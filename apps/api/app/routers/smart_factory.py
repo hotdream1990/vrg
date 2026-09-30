@@ -2,13 +2,11 @@
 
 Quyền: `smart_factory` (gắn ở main.py). Endpoint là `def` đồng bộ → FastAPI chạy trong threadpool,
 truy vấn SQL Server chậm không chặn event loop; khoá theo nhà máy + cache 60s ở `scada_read_guard`
-(bận quá lâu → 429). SCADA lỗi → 502: admin thấy lý do chi tiết, người khác thấy câu ngắn (lý do
-có host/tài khoản/linked server — hạ tầng OT, không đưa cho mọi người có quyền xem); chi tiết ghi log.
+(bận quá lâu → 429). SCADA lỗi → 502 theo vai trò — xem `smart_factory_shared.guarded_read`.
 """
 
 from __future__ import annotations
 
-import logging
 import re
 from datetime import date, datetime, time, timedelta
 
@@ -16,13 +14,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from app.core.security import get_current_user
 from app.core.vn_text import fold
-from app.services import scada_client, scada_factory_repo as repo, user_repo
+from app.routers.smart_factory_shared import enabled_factory, guarded_read
+from app.services import scada_client, scada_factory_repo as repo
 from app.services import scada_daily_meters as dm
 from app.services import scada_meters_excel as xls
-from app.services import scada_read_guard as guard
 
 router = APIRouter(prefix="/api/smart-factory", tags=["smart-factory"])
-logger = logging.getLogger("vrg.scada")
 
 DEFAULT_DAYS = 30
 MAX_DAYS = 92
@@ -33,7 +30,8 @@ NO_TAGS = "Nhà máy chưa khai tag nào — admin vào Cấu hình kết nối 
 @router.get("/factories")
 def factories() -> dict:
     """Nhà máy đang bật — KHÔNG lộ thông tin kết nối."""
-    return {"factories": [{"id": f["id"], "name": f["name"], "metrics": dm.factory_metrics(f)}
+    return {"factories": [{"id": f["id"], "name": f["name"], "metrics": dm.factory_metrics(f),
+                           "layout_key": f.get("layout_key")}  # có → web mở được Sơ đồ vận hành
                           for f in repo.list_factories(enabled_only=True)]}
 
 
@@ -70,32 +68,11 @@ def query_bounds(d0: date, d1: date, today: date) -> tuple[datetime, datetime | 
     return start, datetime.combine(d1 + timedelta(days=1), time()) + timedelta(hours=1)
 
 
-def _is_admin(username: str) -> bool:
-    return (user_repo.get_user(username) or {}).get("role") == "admin"
-
-
 def _factory(factory_id: int) -> dict:
-    factory = repo.get_factory(factory_id)
-    if not factory or not factory["enabled"]:
-        raise HTTPException(404, "Không tìm thấy nhà máy (hoặc nhà máy đang tắt).")
+    factory = enabled_factory(factory_id)
     if not dm.factory_metrics(factory):
         raise HTTPException(400, NO_TAGS)
     return factory
-
-
-def _guarded_read(factory: dict, username: str, *args, **kw):  # noqa: ANN002, ANN003
-    """`guard.read` + quy lỗi: bận → 429; SCADA lỗi → 502 (admin thấy chi tiết, người khác câu ngắn)."""
-    try:
-        return guard.read(factory, *args, **kw)
-    except guard.ScadaBusyError as exc:
-        raise HTTPException(429, str(exc)) from exc
-    except scada_client.ScadaError as exc:
-        # Thông điệp đã bỏ phần chi tiết nếu lặp mật khẩu (scada_errors.friendly_error).
-        logger.warning("[scada] Đọc số liệu nhà máy «%s» lỗi: %s", factory["name"], exc)
-        detail = str(exc) if _is_admin(username) else (
-            f"Chưa đọc được số liệu SCADA của nhà máy «{factory['name']}» — đã ghi nhận, "
-            "vui lòng báo quản trị viên.")
-        raise HTTPException(502, detail) from exc
 
 
 def _report(factory_id: int, date_from: str | None, date_to: str | None, username: str) -> dict:
@@ -103,7 +80,7 @@ def _report(factory_id: int, date_from: str | None, date_to: str | None, usernam
     now = dm.vn_now()
     d0, d1 = resolve_period(date_from, date_to, now.date())
     start, end = query_bounds(d0, d1, now.date())
-    hourly, latest = _guarded_read(factory, username, start, end, scada_client.read_meters)
+    hourly, latest = guarded_read(factory, username, start, end, scada_client.read_meters)
     return dm.build_report(factory, hourly, latest, d0, d1, now)
 
 
@@ -112,8 +89,8 @@ def meters_live(factory_id: int = Query(...), username: str = Depends(get_curren
     """Số LŨY KẾ thời gian thực (điện · nước · số bành) tới lúc đọc — web hỏi lại mỗi ~10 giây;
     cache `LIVE_TTL_S` giây dùng chung mọi người xem nên SCADA chỉ bị hỏi tối đa 1 lần/`LIVE_TTL_S`."""
     factory = _factory(factory_id)
-    rows = _guarded_read(factory, username, None, None,
-                         lambda f, _s, _e: scada_client.read_latest(f), ttl=LIVE_TTL_S)
+    rows = guarded_read(factory, username, None, None,
+                        lambda f, _s, _e: scada_client.read_latest(f), ttl=LIVE_TTL_S, live=True)
     metrics = dm.factory_metrics(factory)
     latest = dm.latest_of(dm.to_samples(rows, factory, metrics), metrics)
     values = {m: {"value": dm.round_metric(m, latest[m][1]) if m in latest else None,

@@ -2,15 +2,15 @@
    Mật khẩu không bao giờ trả về từ server: khi sửa, để trống = giữ mật khẩu cũ — trừ khi đổi máy chủ,
    cổng hoặc tài khoản (phải nhập lại). Tag điện là 4 ô cố định R0..R3 để không thể đảo thứ tự. */
 
-import { Alert, Form, Input, InputNumber, Modal, Switch } from "antd";
-import { useState } from "react";
+import { Alert, Form, Input, InputNumber, Modal, Select, Switch } from "antd";
+import { useEffect, useState } from "react";
 
 import {
-  type ScadaFactory, createScadaFactory, updateScadaFactory,
+  type ScadaFactory, createScadaFactory, fetchPlantLayouts, updateScadaFactory,
 } from "../../../../lib/smart-factory-client";
 import {
-  DEFAULT_ENERGY_TAGS, ENERGY_SLOTS, type ScadaFormValues, identRule, initialValues, passwordRule,
-  tagItemProps, toInput,
+  DEFAULT_ENERGY_TAGS, ENERGY_SLOTS, type ScadaFormValues, identRule, initialValues,
+  passwordRule, tagItemProps, toInput,
 } from "./scada-form-rules";
 import { errText } from "./smart-factory-format";
 
@@ -22,10 +22,30 @@ type Props = {
 
 const required = (msg: string) => ({ required: true, whitespace: true, message: msg });
 
+type Option = { value: string; label: string };
+/** "" = nhà máy không có Sơ đồ vận hành. */
+const NO_LAYOUT: Option = { value: "", label: "(không)" };
+
+/** Bố cục Sơ đồ vận hành server có sẵn. Lỗi tải → chỉ còn "(không)" (mã đang gán vẫn hiện nguyên văn). */
+function useLayoutOptions() {
+  const [options, setOptions] = useState<Option[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetchPlantLayouts()
+      .then(({ layouts }) => {
+        if (alive) setOptions([NO_LAYOUT, ...layouts.map((l) => ({ value: l.key, label: l.label }))]);
+      })
+      .catch(() => { if (alive) setOptions([NO_LAYOUT]); });
+    return () => { alive = false; };
+  }, []);
+  return options;
+}
+
 export default function ScadaFactoryFormModal({ factory, onClose, onSaved }: Props) {
   const [form] = Form.useForm<ScadaFormValues>();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const layoutOptions = useLayoutOptions();
   const editing = factory != null;
 
   const submit = async (v: ScadaFormValues) => {
@@ -108,6 +128,11 @@ export default function ScadaFactoryFormModal({ factory, onClose, onSaved }: Pro
           <Form.Item label="Tag số bành" {...tagItemProps("bales")}
             extra={<span className="form-note">Tên tag bộ đếm số bành trong Historian — bỏ trống nếu chưa có</span>}>
             <Input className="sf-code" allowClear />
+          </Form.Item>
+        </div>
+        <div className="sf-form-grid">
+          <Form.Item label="Sơ đồ vận hành" name="layout_key">
+            <Select options={layoutOptions ?? [NO_LAYOUT]} loading={!layoutOptions} />
           </Form.Item>
         </div>
         <Form.Item label="Bật đọc số liệu" name="enabled" valuePropName="checked">

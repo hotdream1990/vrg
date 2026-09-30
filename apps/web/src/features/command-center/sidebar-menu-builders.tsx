@@ -13,6 +13,7 @@ import {
   CustomerServiceOutlined,
   DashboardOutlined,
   DeleteOutlined,
+  DeploymentUnitOutlined,
   DiffOutlined,
   EditOutlined,
   ExperimentOutlined,
@@ -94,6 +95,9 @@ const ITEM = {
   assistantHistory: { key: "/tro-ly-ai/lich-su", icon: <HistoryOutlined />, label: "Lịch sử hỏi đáp" },
   myEditRequests: { key: "/de-nghi-sua", icon: <DiffOutlined />, label: "Đề nghị sửa số liệu" },
   factoryMeters: { key: "/nha-may-thong-minh/chi-so", icon: <ControlOutlined />, label: "Giám sát chỉ số" },
+  plantDiagram: {
+    key: "/nha-may-thong-minh/so-do-van-hanh", icon: <DeploymentUnitOutlined />, label: "Sơ đồ vận hành",
+  },
 };
 
 /** "Duyệt đề nghị sửa" kèm số đề nghị đang chờ (Badge ẩn khi 0). */
@@ -152,6 +156,7 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean, pendingEditRequ
     // vẫn còn để tra cứu bằng đường dẫn, chỉ thôi bày ra cho người dùng thường.
   ]));
   items.push(...group("smart-factory", <ClusterOutlined />, "Nhà máy thông minh", [
+    can("smart_factory") && ITEM.plantDiagram,
     can("smart_factory") && ITEM.factoryMeters,
     // Cấu hình kết nối SCADA nằm ở Quản trị → Cấu hình hệ thống → tab "SCADA nhà máy".
   ]));
@@ -202,6 +207,7 @@ function buildExecutiveMenu(can: (cap: Cap) => boolean) {
       can("unit_daily") && ITEM.submission,
     ]),
     ...group("smart-factory", <ClusterOutlined />, "Nhà máy thông minh", [
+      can("smart_factory") && ITEM.plantDiagram,
       can("smart_factory") && ITEM.factoryMeters,
     ]),
     ...group("data-market", <FundOutlined />, "Số liệu thị trường (chỉ xem)", [
