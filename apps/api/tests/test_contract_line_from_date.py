@@ -104,8 +104,11 @@ def test_effective_date_rules(env) -> None:
     # Ngày sai định dạng → chặn, không lặng lẽ bỏ qua.
     r = _save(h, {**c, "lines": [_line(10.0, from_date="15/09/2026")]})
     assert r.status_code == 400 and "không hợp lệ" in r.json()["detail"]
-    # Trùng ngày ký → lưu trống (dòng mặc định đi theo ngày ký).
+    # Trùng ngày ký vẫn giữ nguyên (không quy về trống — xem test ngày ký 10 → 15 → 10).
     r = _save(h, {**c, "lines": [_line(10.0, from_date="2026-09-10")]})
+    assert r.status_code == 200 and r.json()["contract"]["lines"][0]["from_date"] == "2026-09-10"
+    # Để trống → không ghi khoá (bản ghi cũ lưu lại không đổi JSON).
+    r = _save(h, {**c, "lines": [_line(10.0, from_date=None)]})
     assert r.status_code == 200 and "from_date" not in r.json()["contract"]["lines"][0]
 
     # Đợt giao KHÔNG có ngày hiệu lực theo dòng — ngày của đợt là ngày giao.
@@ -174,3 +177,53 @@ def test_edit_request_payload_keeps_the_effective_date() -> None:
     p = parse(ContractIn, {"company": "X", "code": "HD", "lines": [
         {"grade": SVR, "qty": 6, "from_date": "2026-09-15"}]}).model_dump()
     assert p["lines"][0]["from_date"] == "2026-09-15"
+
+
+def test_fixing_a_mistyped_sign_date_keeps_the_line_date(env) -> None:
+    """Sửa nhầm ngày ký 10 → 15 rồi sửa lại 10: dòng "từ 15" vẫn là từ 15 (rà soát 30/09/2026)."""
+    h, cus = env
+    c = _contract(h, cus, lines=[_line(10.0), _line(6.0, from_date="2026-09-15")])
+    c = _save(h, {**c, "sign_date": "2026-09-15"}).json()["contract"]
+    back = _save(h, {**c, "sign_date": "2026-09-10"})
+    assert back.status_code == 200, back.text
+    assert back.json()["contract"]["lines"][1]["from_date"] == "2026-09-15"
+    assert _block3(h, "2026-09-14") == pytest.approx(10.0)
+
+
+def test_batch_cannot_deliver_a_grade_before_its_line_is_effective(env) -> None:
+    """Chủng loại thêm sau (SVR 3L từ 15/09) mà đợt giao 12/09 đã có SVR 3L → chặn cả hai chiều:
+    thêm đợt giao, và dời ngày hiệu lực ra sau một đợt đã giao."""
+    h, cus = env
+    c = _contract(h, cus, lines=[_line(10.0), {**_line(6.0, from_date="2026-09-15"), "grade": "SVR 3L"}])
+    early = {"parent_id": c["id"], "code": "Đ1", "delivered_at": "2026-09-12", "channel": "export",
+             "lines": [{**_line(6.0), "grade": "SVR 3L"}]}
+    r = _save(h, early)
+    assert r.status_code == 400 and "hiệu lực từ 15/09/2026" in r.json()["detail"]
+    # Chủng loại đã có từ ngày ký thì giao lúc nào cũng được.
+    assert _save(h, {**early, "lines": [_line(4.0)]}).status_code == 200
+    ok = _save(h, {**early, "code": "Đ2", "delivered_at": "2026-09-16"})
+    assert ok.status_code == 200, ok.text
+    moved = _save(h, {**c, "lines": [_line(10.0), {**_line(6.0, from_date="2026-09-17"), "grade": "SVR 3L"}]})
+    assert moved.status_code == 400 and "Đợt giao Đ2" in moved.json()["detail"]
+
+
+def test_completion_cannot_precede_a_line_effective_date(env) -> None:
+    h, cus = env
+    c = _contract(h, cus, lines=[_line(10.0), _line(6.0, from_date="2026-09-20")])
+    r = client.put(f"/api/sales-contracts/{c['id']}/completion",
+                   json={"completed_at": "2026-09-13"}, headers=h)
+    assert r.status_code == 400 and "20/09/2026" in r.json()["detail"]
+    ok = client.put(f"/api/sales-contracts/{c['id']}/completion",
+                    json={"completed_at": "2026-09-20"}, headers=h)
+    assert ok.status_code == 200, ok.text
+
+
+def test_a_malformed_date_written_by_hand_does_not_break_reports(env) -> None:
+    """Mọi đường ghi đều kiểm ngày, nhưng một chuỗi hỏng ghi bằng SQL tay không được làm sập MỌI
+    báo cáo dùng khối 3 — dòng đó coi như theo ngày ký."""
+    h, cus = env
+    c = _contract(h, cus)
+    with session_scope() as db:
+        db.execute(text("UPDATE sales_contract SET lines = jsonb_set(lines, '{0,from_date}', "
+                        "'\"15/09/2026\"') WHERE id = :i"), {"i": c["id"]})
+    assert _block3(h, "2026-09-10") == pytest.approx(10.0)

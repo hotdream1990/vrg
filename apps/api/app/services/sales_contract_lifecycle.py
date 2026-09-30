@@ -25,6 +25,7 @@ from sqlalchemy import text
 from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import DELIVERY_TYPES
 from app.services import audit_repo, sales_contract_lock, sales_contract_repo as repo
+from app.services import sales_contract_line_dates as line_dates
 
 #: Các ô CHỈ thuộc về một lần giao — khi hợp đồng chuyển sang giao nhiều lần thì chúng đi theo
 #: đợt giao, không được để lại trên hợp đồng (để lại là sản lượng bị đếm hai lần).
@@ -82,6 +83,11 @@ def set_completion(contract_id: int, completed_at: str | None, companies: list[s
             raise ValueError("Ngày hoàn thành không thể ở tương lai — hợp đồng chưa kết thúc.")
         if before["sign_date"] and day.isoformat() < before["sign_date"]:
             raise ValueError("Ngày hoàn thành không thể trước ngày ký hợp đồng.")
+        # Dòng hiệu lực SAU ngày hoàn thành sẽ không bao giờ vào "đã ký HĐ chưa giao" mà vẫn nằm
+        # trong sản lượng/thành tiền của hợp đồng — hai con số kể hai câu chuyện khác nhau.
+        if (latest := line_dates.latest_start(before["lines"])) and day.isoformat() < latest:
+            raise ValueError(f"Hợp đồng có dòng hiệu lực từ {_dmy(latest)} — ngày hoàn thành "
+                             "phải từ ngày đó trở đi.")
     # Ghi lần giao TRƯỚC khi chốt: hợp đồng đã chốt thì `repo.save` khoá không cho sửa nữa.
     if (day is not None and before.get("delivery_type") == "single"
             and not before.get("delivered_at") and not before.get("parent_id")):

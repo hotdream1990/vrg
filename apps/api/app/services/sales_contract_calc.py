@@ -15,6 +15,7 @@ from datetime import date
 from typing import Any
 
 from app.core.market_meta import DRY_REQUIRED_GRADES, SALE_CURRENCIES, UNIT_GRADES
+from app.services import sales_contract_line_dates as line_dates
 
 TRIEU = 1_000_000
 _CCY = frozenset(SALE_CURRENCIES)
@@ -31,43 +32,12 @@ def _num(v) -> float | None:
     return None if f is not None and not math.isfinite(f) else f
 
 
-def _dmy(d: date) -> str:
-    return d.strftime("%d/%m/%Y")
-
-
-def _from_date(ln: dict, where: str, sign_date: date | None,
-               delivered_at: date | None) -> str | None:
-    """NGÀY HIỆU LỰC của một dòng hợp đồng (chốt 30/09/2026) — None = theo ngày ký.
-
-    Hợp đồng ký 10 tấn ngày 10, ngày 15 thêm 6 tấn: đơn vị thêm DÒNG MỚI 6 tấn hiệu lực từ 15 ⇒
-    "đã ký HĐ chưa giao" 10–14 là 10 tấn, từ 15 là 16 tấn (không khai ngày thì 16 tấn tính ngược
-    về tận ngày ký). Giảm thì sửa thẳng số của dòng — không có dòng âm (chủ dự án chọn).
-    Trùng ngày ký ⇒ lưu None: dòng mặc định phải đi theo ngày ký khi ngày ký được sửa về sau.
-    """
-    s = str(ln.get("from_date") or "").strip()[:10]
-    if not s:
-        return None
-    try:
-        d = date.fromisoformat(s)
-    except ValueError as exc:
-        raise ValueError(f"{where}: ngày hiệu lực không hợp lệ (YYYY-MM-DD).") from exc
-    if sign_date and d < sign_date:
-        raise ValueError(f"{where}: ngày hiệu lực {_dmy(d)} trước ngày ký hợp đồng "
-                         f"{_dmy(sign_date)} — chỉ được từ ngày ký trở đi.")
-    # Hợp đồng giao 1 lần: lần giao gồm MỌI dòng, dòng nào hiệu lực sau ngày giao là dòng hàng
-    # được giao trước khi có trong hợp đồng.
-    if delivered_at and d > delivered_at:
-        raise ValueError(f"{where}: ngày hiệu lực {_dmy(d)} sau ngày giao {_dmy(delivered_at)} — "
-                         "hàng đã giao thì dòng phải có hiệu lực từ ngày giao trở về trước.")
-    return None if sign_date and d == sign_date else d.isoformat()
-
-
 def clean_lines(lines, require_fx: bool = True, *, dated: bool = False,
                 sign_date: date | None = None,
                 delivered_at: date | None = None) -> list[dict[str, Any]]:
     """Lọc/kiểm tra danh sách dòng chi tiết. Raise ValueError với thông báo tiếng Việt.
 
-    `dated` — dòng của HỢP ĐỒNG được mang NGÀY HIỆU LỰC (`from_date`, xem `_from_date`), kiểm theo
+    `dated` — dòng của HỢP ĐỒNG được mang NGÀY HIỆU LỰC (`from_date`, xem `line_dates.parse`), kiểm theo
     `sign_date` và (hợp đồng giao 1 lần đã giao) `delivered_at`. Đợt giao KHÔNG có: ngày của đợt
     chính là ngày giao, nên khoá này bị bỏ đi (lần chuyển giao 1 lần → nhiều lần sao dòng của hợp
     đồng xuống đợt đầu tiên).
@@ -137,7 +107,7 @@ def clean_lines(lines, require_fx: bool = True, *, dated: bool = False,
         }
         # Chỉ ghi khoá khi CÓ ngày riêng: lưu lại một hợp đồng cũ không được đổi JSON của nó (nhật ký
         # sẽ báo "đổi dòng hàng" cho một lần lưu không đổi gì).
-        if dated and (fd := _from_date(ln, f"Dòng {i} ({grade})", sign_date, delivered_at)):
+        if dated and (fd := line_dates.parse(ln, f"Dòng {i} ({grade})", sign_date, delivered_at)):
             row["from_date"] = fd
         out.append(row)
     if not out:

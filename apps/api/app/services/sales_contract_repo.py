@@ -26,6 +26,7 @@ from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
 from app.services import audit_repo, contract_docs, sales_contract_calc as calc
+from app.services import sales_contract_line_dates as line_dates
 from app.services.sales_contract_code_guard import assert_code_free
 from app.services.sales_contract_clean import assert_unit_can_sign, assert_unit_exists, clean
 
@@ -188,6 +189,14 @@ def _assert_rules(db, d: dict[str, Any], company: str) -> None:
         if kids:
             _assert_within_cap(_batches_qty(db, d["id"], None), calc.total_qty(d["lines"]),
                                "Tổng các đợt giao")
+            # Dời ngày hiệu lực của dòng ra SAU một đợt đã giao chủng loại đó = đợt giao hàng
+            # chưa có trong hợp đồng (xem `line_dates.assert_batch_not_before_grade`).
+            starts = line_dates.grade_starts(d["lines"], d["sign_date"])
+            for k in db.execute(text("SELECT code, delivered_at, lines FROM sales_contract "
+                                     "WHERE parent_id = :i AND delivered_at IS NOT NULL"),
+                                {"i": d["id"]}).mappings():
+                line_dates.assert_batch_not_before_grade(
+                    starts, str(k["delivered_at"]), k["lines"], f"Đợt giao {k['code']}")
     parent = _parent_of(db, d["parent_id"]) if d["parent_id"] is not None else None
     # Quyền với hợp đồng cha TRƯỚC mọi luật khác: câu báo trùng số nêu ngày giao · sản lượng của đợt
     # đang có — kiểm sau thì đoán `parent_id` của đơn vị khác là đọc được số của họ.
@@ -201,6 +210,9 @@ def _assert_rules(db, d: dict[str, Any], company: str) -> None:
         assert_open(parent, "thêm/sửa đợt giao")
         if parent["sign_date"] and d["delivered_at"] and d["delivered_at"] < parent["sign_date"]:
             raise ValueError("Ngày giao của đợt không thể trước ngày ký hợp đồng.")
+        line_dates.assert_batch_not_before_grade(
+            line_dates.grade_starts(parent["lines"], parent["sign_date"]), d["delivered_at"],
+            d["lines"], "Đợt giao")
         done = _batches_qty(db, d["parent_id"], d["id"])
         _assert_within_cap(done + calc.total_qty(d["lines"]), parent["qty"], "Tổng các đợt giao")
 

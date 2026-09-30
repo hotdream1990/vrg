@@ -39,11 +39,15 @@ _PRICE_SQL = text("""
 
 _CONTRACT_SQL = text("""
     SELECT k.company, k.code, COALESCE(p.code, k.code) AS contract_code,
-           COALESCE(k.delivered_at, k.sign_date, p.sign_date) AS as_of, k.lines
+           COALESCE(k.delivered_at, k.sign_date, p.sign_date) AS as_of, k.lines,
+           k.delivered_at
       FROM sales_contract k
       LEFT JOIN sales_contract p ON p.id = k.parent_id
      WHERE k.company = ANY(:units)
-       AND COALESCE(k.delivered_at, k.sign_date, p.sign_date) >= CAST(:a AS date)
+       AND (COALESCE(k.delivered_at, k.sign_date, p.sign_date) >= CAST(:a AS date)
+            -- Dòng thêm gần đây vào hợp đồng ký từ lâu (ngày hiệu lực riêng, 30/09/2026).
+            OR EXISTS (SELECT 1 FROM jsonb_array_elements(k.lines) e
+                        WHERE e->>'from_date' >= CAST(:a AS text)))
      ORDER BY 4 DESC
 """)
 
@@ -150,8 +154,13 @@ def issues(units: list[str], date_from: str, editable_from: str) -> dict[str, li
             m = eb.bound_warning(_num(ln.get("price")),
                                  eb.price_bound(ln.get("ccy"), ln.get("grade")))
             if m:
-                # Dòng thêm sau khi ký thì nhắc theo NGÀY HIỆU LỰC của dòng (giá của ngày đó).
-                add(r["company"], str(ln.get("from_date") or r["as_of"]), "contract",
+                # Dòng thêm sau khi ký thì nhắc theo NGÀY HIỆU LỰC của dòng (giá của ngày đó) —
+                # trừ khi đã giao: cửa sổ sửa của hợp đồng tính theo NGÀY GIAO, lấy ngày dòng là
+                # báo "quá hạn sửa" cho một bản ghi đơn vị vẫn sửa thẳng được.
+                day = str(r["delivered_at"] or ln.get("from_date") or r["as_of"])
+                if day < date_from:
+                    continue       # dòng cũ của hợp đồng được chọn nhờ một dòng thêm gần đây
+                add(r["company"], day, "contract",
                     f"Hợp đồng {r['contract_code']} · dòng {i} · Đơn giá", m, r["code"])
     return {u: sorted(v, key=lambda x: x["as_of"], reverse=True)[:MAX_PER_UNIT]
             for u, v in out.items()}

@@ -129,9 +129,7 @@ def _wrong_sale_price(date_from: str, date_to: str, thresholds: dict[str, float]
           FROM (
             SELECT c.company,
                    COALESCE(NULLIF(c.code, ''), '(chưa có mã)') AS code,
-                   -- Dòng thêm sau khi ký (có ngày hiệu lực riêng) thì giá là giá của ngày đó.
-                   COALESCE(c.delivered_at, NULLIF(ln->>'from_date', '')::date, c.start_date,
-                            c.sign_date, c.completed_at) AS d,
+                   COALESCE(c.delivered_at, c.start_date, c.sign_date, c.completed_at) AS d,
                    COALESCE(NULLIF(ln->>'ccy', ''),
                             CASE WHEN COALESCE(u.currency, 'VND') = 'VND' THEN 'VND'
                                  ELSE COALESCE(u.currency, 'USD') END) AS ccy,

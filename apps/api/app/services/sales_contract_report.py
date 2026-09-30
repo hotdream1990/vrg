@@ -195,10 +195,12 @@ WITH parent AS (
 ), commit_g AS (
     -- Cam kết tại ngày :d chỉ gồm dòng ĐÃ CÓ HIỆU LỰC (30/09/2026): dòng thêm sau khi ký mang
     -- `from_date` riêng, trống = theo ngày ký (đã lọc ở `parent`). Không lọc thì phần tăng thêm
-    -- ngày 15 bị tính ngược về tận ngày ký.
+    -- ngày 15 bị tính ngược về tận ngày ký. CASE (không OR): Postgres không hứa thứ tự tính của
+    -- OR — một chuỗi ngày hỏng ghi bằng SQL tay sẽ làm sập MỌI báo cáo dùng khối 3.
     SELECT p.id, {grade_sql} FROM parent p CROSS JOIN LATERAL jsonb_array_elements(p.lines) e
-     WHERE NULLIF(e->>'from_date', '') IS NULL
-        OR CAST(e->>'from_date' AS date) <= CAST(:d AS date)
+     WHERE CASE WHEN e->>'from_date' ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'
+                THEN CAST(e->>'from_date' AS date) <= CAST(:d AS date)
+                ELSE TRUE END
 ), done_g AS (
     SELECT p.id, {grade_sql} FROM parent p CROSS JOIN LATERAL jsonb_array_elements(p.lines) e
      WHERE p.delivered_at IS NOT NULL AND p.delivered_at <= CAST(:d AS date)
