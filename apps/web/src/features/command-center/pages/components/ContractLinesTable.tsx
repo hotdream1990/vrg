@@ -29,7 +29,7 @@ type Props = {
   /** Có truyền (kể cả null) = hiện ô "Hiệu lực từ" từng dòng, chặn chọn trước ngày ký này. Chỉ
    *  truyền khi SỬA hợp đồng — lúc tạo mọi dòng đều theo ngày ký, form giữ tối giản. */
   signDate?: string | null;
-  /** Hạn trên của "Hiệu lực từ": ngày giao của hợp đồng giao 1 lần (giao rồi thì không tăng thêm). */
+  /** Hạn trên của "Hiệu lực từ": thời hạn hợp đồng, và ngày giao của hợp đồng giao 1 lần. */
   maxFromDate?: string | null;
   readOnly?: boolean;
   onChange: (lines: ContractLine[]) => void;

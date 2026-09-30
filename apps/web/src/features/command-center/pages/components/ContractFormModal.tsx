@@ -108,7 +108,10 @@ export default function ContractFormModal({
   const showDates = !!initial && !isChild;
   // HĐ giao 1 lần đã giao: phần tăng phải có hiệu lực TRƯỚC ngày giao, không thì là hàng chưa ký
   // mà đã giao — server cũng chặn.
-  const maxFromDate = c.delivery_type === "single" ? c.delivered_at : null;
+  const deliveredCap = c.delivery_type === "single" ? c.delivered_at : null;
+  // Không sau THỜI HẠN hợp đồng: dòng hiệu lực khi hợp đồng đã hết hạn là cam kết không bao giờ
+  // thực hiện được (thường gõ nhầm năm) — server cũng chặn.
+  const maxFromDate = [deliveredCap, c.expiry_date].filter((d): d is string => !!d).sort()[0] ?? null;
   // Đơn vị nhận hàng nội bộ = các đơn vị CÙNG NHÓM công ty mẹ–con. Rỗng = đơn vị đứng một mình,
   // không có tiêu thụ nội bộ (server cũng chặn, xem `_assert_same_group`).
   const peers = useMemo(
@@ -165,8 +168,12 @@ export default function ContractFormModal({
         if (c.sign_date && l.from_date < c.sign_date) {
           p.push(`${who}: ngày hiệu lực phải từ ngày ký ${dmy(c.sign_date)} trở đi.`);
         }
-        if (maxFromDate && l.from_date > maxFromDate) {
-          p.push(`${who}: ngày giao ${dmy(maxFromDate)} trước ngày hiệu lực ${dmy(l.from_date)} — `
+        if (c.expiry_date && l.from_date > c.expiry_date) {
+          p.push(`${who}: ngày hiệu lực ${dmy(l.from_date)} sau thời hạn hợp đồng `
+                 + `${dmy(c.expiry_date)} — gia hạn thì sửa ô Thời hạn hợp đồng trước.`);
+        }
+        if (deliveredCap && l.from_date > deliveredCap) {
+          p.push(`${who}: ngày giao ${dmy(deliveredCap)} trước ngày hiệu lực ${dmy(l.from_date)} — `
                  + "hợp đồng giao 1 lần chỉ giao được từ ngày hiệu lực của mọi dòng trở đi.");
         }
       }
