@@ -240,7 +240,7 @@ Nơi theo dõi tiến độ một hợp đồng, nhập các đợt giao và ch�
 5. **Tab Đợt giao** — danh sách các lần giao; hợp đồng giao nhiều lần mở thẳng vào tab này.
 6. **Thêm đợt giao** — ghi một lần giao mới (xem mục 12).
 
-> - **Tăng sản lượng sau khi ký:** bấm *Sửa thông tin hợp đồng* → *Thêm dòng*, chọn chủng loại, nhập **phần tăng thêm** và điền **Hiệu lực từ** = ngày điều chỉnh. Từ ngày đó phần tăng mới tính vào “đã ký HĐ chưa giao”; để trống = tính từ ngày ký. **Giảm sản lượng:** sửa thẳng số lượng của dòng — số mới tính từ ngày hiệu lực của dòng đó (kể cả các ngày đã qua). Đợt giao và ngày hoàn thành không được sớm hơn ngày hiệu lực của dòng. Ô *Hiệu lực từ* chỉ có khi sửa hợp đồng, lúc thêm mới không có.
+> - **Tăng sản lượng sau khi ký:** bấm *Sửa thông tin hợp đồng* → *Thêm dòng*, chọn chủng loại, nhập **phần tăng thêm** và điền **Hiệu lực từ** = ngày điều chỉnh. Từ ngày đó phần tăng mới tính vào “đã ký HĐ chưa giao”; để trống = tính từ ngày ký. **Giảm sản lượng:** sửa thẳng số lượng của dòng — số mới tính từ ngày hiệu lực của dòng đó (kể cả các ngày đã qua). Ngày hiệu lực không được sau **Thời hạn hợp đồng**; đợt giao và ngày hoàn thành không được sớm hơn ngày hiệu lực của dòng. Ô *Hiệu lực từ* chỉ có khi sửa hợp đồng, lúc thêm mới không có.
 > - Hợp đồng **giao 1 lần** không có tab Đợt giao: chính hợp đồng là một lần giao.
 > - Chỉ chuyển được **về** giao 1 lần khi hợp đồng chưa có đợt giao nào.
 > - Hợp đồng **đã hoàn thành** chỉ còn nút **Mở lại hợp đồng**; muốn sửa hay thêm đợt giao thì phải mở lại trước.

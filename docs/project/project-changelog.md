@@ -49,6 +49,11 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     hiệu lực. Số "còn phải giao" hiện tại ở màn Hợp đồng vẫn tính mọi dòng.
   - Luật chốt số liệu giữ nguyên (hợp đồng vẫn sửa được, chỉ lần giao bị chốt); đổi ngày hiệu lực
     được tính là đổi số liệu, bảng so sánh của đề nghị sửa và nhật ký hiện thêm ô "Hiệu lực từ".
+  - Ngày hiệu lực không được sau thời hạn hợp đồng.
+  - Trợ lý AI ("hợp đồng ký mới trong kỳ"): cam kết tính theo ngày hiệu lực từng dòng — phần bổ
+    sung vào kỳ có hiệu lực, không dồn về kỳ ký; báo riêng phần bổ sung của hợp đồng ký trước kỳ.
+  - Tồn kho Tập đoàn (khi bật tự tính): lưu/xoá hợp đồng, hoàn thành/mở lại hợp đồng thì tính lại
+    mọi tuần từ ngày sớm nhất bị ảnh hưởng (trước chỉ tuần đang chạy), chạy nền không làm chậm Lưu.
 - **Dashboard đơn vị: HĐ dài hạn theo HĐ mẹ · sản lượng còn phải giao · tiến độ bán hàng năm**
   (26/09/2026, 0.4.92).
   - Thẻ mới *Tiến độ bán hàng năm*: đã giao lũy kế + HĐ chuyến đã ký chưa giao + HĐ dài hạn còn phải

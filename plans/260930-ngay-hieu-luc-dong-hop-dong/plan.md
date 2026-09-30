@@ -46,5 +46,8 @@ ngược: ngày 10 ký 10 t, ngày 15 thêm 6 t ⇒ đúng ra 10–14 chưa giao
 - Thử trên trình duyệt: HĐ 10 t ký 10/09 + dòng 6 t từ 15/09 ⇒ chưa giao 10 t (10–14/09), 16 t từ
   15/09 ở cả API lẫn Báo cáo tiêu thụ. Form tạo mới + form đợt giao không có ô ngày.
 - Rà soát 2 góc: `plans/reports/260930-review-ngay-hieu-luc-{tinh-toan,luong-sua}.md` — đã vá hết
-  lỗi xác nhận. Để lại (chưa làm): "HĐ ký mới trong kỳ" của Trợ lý vẫn tính cả phần tăng vào kỳ ký;
-  không chặn ngày hiệu lực sau thời hạn HĐ; tồn kho Tập đoàn chỉ tính lại tuần hiện hành.
+  lỗi xác nhận. 3 điểm để lại đã làm tiếp cùng ngày (chủ dự án yêu cầu): Trợ lý tính cam kết theo
+  ngày hiệu lực (`sales_contract_signed_volume.py`); chặn ngày hiệu lực sau thời hạn HĐ; tồn kho Tập
+  đoàn tính lại từ ngày sớm nhất bị ảnh hưởng (`line_dates.block3_changed_since` +
+  `inventory_auto.sync_since_async`, luồng nền, tối đa 52 tuần). Danh sách HĐ lọc "ngày ký" GIỮ
+  nguyên (là danh sách hợp đồng, cột SL là cả hợp đồng).
