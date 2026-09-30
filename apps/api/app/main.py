@@ -47,6 +47,8 @@ from app.routers import (
     schedules,
     series,
     settings as settings_router,
+    smart_factory,
+    smart_factory_admin,
     support,
     support_reminders,
     unit_analytics,
@@ -236,6 +238,10 @@ app.include_router(users.router, dependencies=[Depends(require_admin)])  # quả
 app.include_router(config.router, dependencies=[Depends(require_admin)])  # cấu hình: chỉ admin
 app.include_router(schedules.router, dependencies=[Depends(require_admin)])  # lịch chạy: chỉ admin
 app.include_router(anomalies.router, dependencies=[Depends(require_admin)])  # cảnh báo bất thường: chỉ admin
+# Nhà máy thông minh: xem chỉ số điện · nước · số bành (quyền `smart_factory`, đọc thẳng SCADA) ·
+# cấu hình kết nối SQL Server từng nhà máy (chỉ admin — có mật khẩu).
+app.include_router(smart_factory.router, dependencies=[Depends(require_cap("smart_factory"))])
+app.include_router(smart_factory_admin.router, dependencies=[Depends(require_admin)])
 
 # Phục vụ web tĩnh (image gộp) ở "/" — phải đặt SAU khi include hết router API.
 # Dev/API thuần (không có WEB_DIST_DIR): "/" trả thông tin service dạng JSON.

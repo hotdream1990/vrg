@@ -1,0 +1,48 @@
+/* Nhà máy thông minh — mọi class tiền tố `sf-` để không đụng style màn khác.
+   Dùng lại biến màu của command-center.css (--muted --accent --danger --warn --info --line --panel…). */
+
+.sf-alert { margin-bottom: 12px; }
+.sf-muted { color: var(--muted); }
+
+/* ── Thanh công cụ ──────────────────────────────────────────────────────── */
+.sf-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.sf-factory-name { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.sf-toolbar-end { margin-left: auto; display: inline-flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── KPI: số thẻ đổi theo số chỉ số của nhà máy → tự dàn cột ─────────────── */
+.kpi-row.sf-kpi-row { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.sf-kpi-row .kpi .value { font-size: 22px; font-variant-numeric: tabular-nums; }
+.sf-kpi-row .kpi .value small { font-size: 12px; font-weight: 500; color: var(--muted); }
+.sf-kpi-line { color: var(--muted); font-size: 12px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.sf-kpi-line b { color: var(--text); font-weight: 600; }
+.sf-live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px;
+  background: var(--accent, #16AF67); animation: sf-pulse 2s ease-in-out infinite; }
+.sf-live-dot.off { background: var(--muted); animation: none; }
+.sf-live-stale .value { opacity: .55; }
+@keyframes sf-pulse { 50% { opacity: .35; } }
+
+/* ── Biểu đồ ────────────────────────────────────────────────────────────── */
+
+/* ── Bảng ───────────────────────────────────────────────────────────────── */
+.sf-table-card { padding: 0; overflow: hidden; }
+.sf-table-card .ant-table-cell { font-variant-numeric: tabular-nums; }
+.sf-at { display: block; font-size: 11px; color: var(--muted); line-height: 1.2; }
+.sf-used { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.sf-flag-partial { color: var(--warn); }
+.sf-flag-reset { color: var(--danger); }
+.sf-flag-no_data { color: var(--muted); }
+.sf-flag-in_progress { color: var(--info); }
+.sf-row-today > td { background: color-mix(in srgb, var(--info) 5%, transparent); }
+.sf-summary td { font-weight: 600; background: var(--panel-2); }
+
+/* ── Cấu hình SCADA ─────────────────────────────────────────────────────── */
+.sf-panel-bar { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.sf-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.sf-tag-lines { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: center;
+  max-width: 380px; font-size: 12px; }
+.sf-form-group { font-weight: 600; font-size: 13px; margin: 6px 0 10px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--line); }
+.sf-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); column-gap: 16px; }
+.sf-form-grid .sf-wide { grid-column: 1 / -1; }
+.sf-form-grid.sf-energy-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); column-gap: 10px; }
+.sf-test-warn { margin-bottom: 8px; }

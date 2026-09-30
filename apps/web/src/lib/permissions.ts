@@ -13,7 +13,7 @@ export type Cap =
   | "inventory" | "member_unit" | "auto_data" | "market_demand" | "unit_daily"
   | "sales_contract" | "edit_request"
   | "floor_suggest" | "bulletin_daily" | "bulletin_weekly" | "market_movement" | "assistant"
-  | "support" | "audit";
+  | "support" | "audit" | "smart_factory";
 
 export type CapLevel = "view" | "edit";
 
@@ -37,6 +37,7 @@ export const DATA_CAPS: { key: Cap; label: string; hint?: string }[] = [
   { key: "assistant", label: "Trợ lý AI", hint: "hỏi đáp số liệu + tư vấn giá sàn" },
   { key: "support", label: "Hỗ trợ & Thông báo", hint: "hộp thư với lãnh đạo đơn vị + nhắc lịch" },
   { key: "audit", label: "Nhật ký hoạt động + Lịch sử truy cập", hint: "xem vết chỉnh sửa số liệu và lịch sử đăng nhập/vào trang của mọi người dùng" },
+  { key: "smart_factory", label: "Nhà máy thông minh", hint: "chỉ số điện · nước · số bành từ SCADA" },
 ];
 
 export const CAP_KEYS: Cap[] = DATA_CAPS.map((c) => c.key);
@@ -54,6 +55,7 @@ export const EXECUTIVE_CAPS = new Set<Cap>([
   "market_quote", "raw_material", "floor", "physical", "inventory", "auto_data",
   "market_demand", "unit_daily", "sales_contract",
   "floor_suggest", "bulletin_daily", "bulletin_weekly", "market_movement", "assistant",
+  "smart_factory",
 ]);
 
 /** Mục này có cho chọn mức Xem riêng không (false = chỉ 1 cấp, luôn là Sửa). */
@@ -65,6 +67,7 @@ export const CAP_GROUPS: { title: string; keys: Cap[] }[] = [
   { title: "Số liệu thị trường (thủ công)", keys: ["market_quote", "raw_material", "floor", "physical", "inventory"] },
   { title: "Số liệu đơn vị thành viên", keys: ["member_unit", "unit_daily", "market_demand", "edit_request"] },
   { title: "Quản lý hợp đồng", keys: ["sales_contract"] },
+  { title: "Nhà máy thông minh", keys: ["smart_factory"] },
   { title: "Phân tích & Bản tin", keys: ["floor_suggest", "bulletin_daily", "bulletin_weekly", "market_movement", "assistant"] },
   { title: "Hỗ trợ đơn vị thành viên", keys: ["support"] },
   { title: "Giám sát", keys: ["audit"] },

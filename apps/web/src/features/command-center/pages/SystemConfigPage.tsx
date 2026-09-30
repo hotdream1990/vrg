@@ -1,6 +1,7 @@
 import { SettingOutlined } from "@ant-design/icons";
 import { App, Button, Form, Input, Select, Space, Tabs, Tag } from "antd";
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import {
   type ConfigGroup,
@@ -11,6 +12,10 @@ import {
   sendTestEmail,
 } from "../../../lib/api-client";
 import "../../bulletin/bulletin.css";
+import ScadaFactoryPanel from "./smart-factory/ScadaFactoryPanel";
+
+/** Tab không thuộc app_config — tự lưu trong màn của nó nên ẩn nút "Lưu cấu hình". */
+const SCADA_TAB = "scada";
 
 /** Ô nhập tương ứng loại cấu hình: có options → dropdown chọn, secret → mật khẩu, còn lại → text. */
 function fieldInput(c: ConfigItem, options: string[] | null) {
@@ -36,6 +41,10 @@ export default function SystemConfigPage() {
   const [testTo, setTestTo] = useState("");     // địa chỉ nhận thư kiểm tra SMTP
   const [testing, setTesting] = useState(false);
   const [form] = Form.useForm();
+  // Tab đang mở nằm trên URL (?tab=scada) → link từ màn Giám sát chỉ số mở thẳng đúng tab.
+  const [params, setParams] = useSearchParams();
+  const activeTab = params.get("tab") || groups[0]?.id;
+  const onTab = (key: string) => setParams({ tab: key }, { replace: true });
   // Nhà cung cấp LLM đang chọn → chỉ hiện key + model đúng provider đó.
   const provider = (Form.useWatch("LLM_PROVIDER", form) as string | undefined) || "openai";
 
@@ -112,7 +121,7 @@ export default function SystemConfigPage() {
     label: g.label,
     forceRender: true, // giữ field của mọi tab trong form, đổi tab không mất dữ liệu
     children: (
-      <div style={{ paddingTop: 8 }}>
+      <div className="config-grid">
         {items
           .filter((c) => c.group === g.id && (!c.provider || c.provider === provider))
           .map((c) => (
@@ -130,10 +139,12 @@ export default function SystemConfigPage() {
             {fieldInput(c, optionsFor(c))}
           </Form.Item>
         ))}
-        {g.id === "email" && emailTester}
+        {g.id === "email" && <div className="config-wide">{emailTester}</div>}
       </div>
     ),
   }));
+  tabItems.push({ key: SCADA_TAB, label: "SCADA nhà máy", forceRender: false,
+    children: <ScadaFactoryPanel /> });
 
   return (
     <div className="main">
@@ -145,12 +156,14 @@ export default function SystemConfigPage() {
         </div>
       </div>
 
-      <div className="card" style={{ maxWidth: 640 }}>
+      <div className="card">
         <Form form={form} layout="vertical" requiredMark={false}>
-          <Tabs items={tabItems} />
-          <Button type="primary" loading={saving} onClick={onSave} style={{ marginTop: 8 }}>
-            Lưu cấu hình
-          </Button>
+          <Tabs items={tabItems} activeKey={activeTab} onChange={onTab} />
+          {activeTab !== SCADA_TAB && (
+            <Button type="primary" loading={saving} onClick={onSave} style={{ marginTop: 8 }}>
+              Lưu cấu hình
+            </Button>
+          )}
         </Form>
       </div>
     </div>

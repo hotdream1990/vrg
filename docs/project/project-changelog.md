@@ -36,6 +36,22 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     loại của chính phụ lục (HĐ chuyến / HĐ dài hạn). Nhãn trên báo cáo tiêu thụ, Dashboard đơn vị và
     file Excel đổi "HĐ mẹ" → "HĐDH". Toàn Tập đoàn tại 28/09: Tổng phải giao 150.818 → 124.934 tấn.
 ### Added
+- **Nhà máy thông minh — Chỉ số điện · nước · số bành theo ngày từ SCADA** (30/09/2026, chưa deploy).
+  - Nhóm menu mới *Nhà máy thông minh* → *Giám sát chỉ số*: số lũy kế điện · nước · số bành thời
+    gian thực (tự cập nhật 10 giây/lần) · biểu đồ cột theo ngày · bảng · Excel (mặc định 30 ngày, tối
+    đa 92). Kết nối SCADA khai ở *Cấu hình hệ thống* → tab *SCADA nhà máy* (chỉ admin, nhiều nhà máy,
+    nút Kiểm tra kết nối báo giờ máy SCADA + số mới nhất). Quyền mới `smart_factory` (Lãnh đạo Tập
+    đoàn có sẵn).
+  - *Cấu hình hệ thống* giãn hết bề ngang màn hình lớn (ô nhập xếp 2–3 cột, màn hẹp về 1 cột).
+  - Đọc thẳng SQL Server của AVEVA Historian qua `OPENQUERY(INSQL, …WideHistory…)` — CHỈ truy vấn
+    đọc, không lưu số SCADA. Chỉ số ngày D = số lúc 00:00 ngày D+1 − số lúc 00:00 ngày D (mẫu Cyclic
+    theo giờ) nên cộng các ngày = cả kỳ; hệ cũ RELCO lấy lần ghi đầu/cuối trong ngày.
+  - Điện ghép 4 thanh ghi 16-bit `(R0<<48 | R1<<32 | R2<<16 | R3)/1000`, mask `& 0xFFFF` cho thanh ghi
+    bị lưu thành số âm. Ô thiếu mốc 00:00 → cờ *partial* (không mượn số ngày khác); bộ đếm giảm > 1%
+    trong ngày → cờ *reset*, không tính tiêu thụ (lùi nhỏ hơn là nhiễu đo).
+  - Đối chiếu số thật Phú Riềng 09/2026 với màn RELCO: điện, nước, số bành (tag `RobotTotalCount`)
+    khớp từng ngày (lệch ≤ 0,002 do mốc chốt 00:00:00 so với 00:00:04).
+  - Deploy: thêm thư viện `pymssql`; máy chủ VRG phải vào được mạng Tailscale của nhà máy.
 - **Hợp đồng: ngày hiệu lực theo từng dòng chủng loại** (30/09/2026).
   - Trước đây sửa tăng sản lượng hợp đồng là "đã ký HĐ chưa giao" đổi ngược về tận ngày ký. Ví dụ
     ký 10 tấn ngày 10, ngày 15 thêm 6 tấn: đúng ra 10–14 chưa giao 10 tấn, từ 15 là 16 tấn.

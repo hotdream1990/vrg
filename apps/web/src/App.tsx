@@ -51,6 +51,7 @@ import PurchaseStatsPage from "./features/command-center/pages/analytics/Purchas
 import StockStatsPage from "./features/command-center/pages/analytics/StockStatsPage";
 import UnitScorecardPage from "./features/command-center/pages/scorecard/UnitScorecardPage";
 import UnitDashboardPage from "./features/command-center/pages/unit-dashboard/UnitDashboardPage";
+import FactoryMetersPage from "./features/command-center/pages/smart-factory/FactoryMetersPage";
 import SubmissionStatusPage from "./features/command-center/pages/analytics/SubmissionStatusPage";
 import UnitDailyPage from "./features/command-center/pages/UnitDailyPage";
 import YearPlanPage from "./features/command-center/pages/YearPlanPage";
@@ -267,11 +268,18 @@ export default function App() {
                   <Route element={<RequireCap caps={["bulletin_weekly"]} />}>
                     <Route path="/ban-tin/tuan" element={<WeeklyReportPage />} />
                   </Route>
+                  {/* Nhà máy thông minh — chỉ số điện · nước · số bành đọc từ SCADA */}
+                  <Route element={<RequireCap caps={["smart_factory"]} />}>
+                    <Route path="/nha-may-thong-minh/chi-so" element={<FactoryMetersPage />} />
+                  </Route>
                   {/* Khu quản trị — chỉ admin (chặn viewer/editor gõ thẳng URL) */}
                   <Route element={<RequireRole roles={["admin"]} />}>
                     <Route path="/quan-tri/nguoi-dung" element={<UserManagementPage />} />
                     <Route path="/quan-tri/cau-hinh" element={<SystemConfigPage />} />
                     <Route path="/quan-tri/lich-chay" element={<SchedulePage />} />
+                    {/* Cấu hình SCADA đã về tab trong Cấu hình hệ thống — giữ đường dẫn cũ cho link đã lưu. */}
+                    <Route path="/nha-may-thong-minh/cau-hinh-scada"
+                      element={<Navigate to="/quan-tri/cau-hinh?tab=scada" replace />} />
                   </Route>
                   {/* Cảnh báo bất thường: quản trị xem toàn hệ thống, lãnh đạo đơn vị xem đơn vị mình
                       (server tự thu hẹp phạm vi theo vai trò — xem routers/member_anomalies.py). */}

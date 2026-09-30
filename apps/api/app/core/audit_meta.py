@@ -30,6 +30,7 @@ ENTITIES: dict[str, str] = {
     "config": "Cấu hình hệ thống",
     "schedule": "Lịch chạy",
     "edit_request": "Đề nghị sửa số liệu",
+    "scada_factory": "Cấu hình SCADA nhà máy",
 }
 
 #: Loại thao tác → nhãn hiển thị.

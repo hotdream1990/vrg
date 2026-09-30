@@ -37,6 +37,8 @@ DATA_CAPS: dict[str, str] = {
     "audit": "Nhật ký hoạt động + Lịch sử truy cập (vết chỉnh sửa số liệu · ai vào trang nào)",
     # 1 cấp, KHÔNG thuộc EXECUTIVE_CAPS: duyệt là thao tác GHI số liệu thay đơn vị (15/09/2026).
     "edit_request": "Duyệt đề nghị sửa số liệu của đơn vị",
+    # 1 cấp, chỉ đọc (số đọc thẳng từ SCADA); cấu hình kết nối nhà máy là việc riêng của admin.
+    "smart_factory": "Nhà máy thông minh (chỉ số điện · nước · số bành từ SCADA)",
 }
 CAP_KEYS = frozenset(DATA_CAPS)
 
@@ -54,6 +56,7 @@ EXECUTIVE_CAPS = frozenset({
     "market_quote", "raw_material", "floor", "physical", "inventory", "auto_data",
     "market_demand", "unit_daily", "sales_contract",
     "floor_suggest", "bulletin_daily", "bulletin_weekly", "market_movement", "assistant",
+    "smart_factory",
 })
 
 LEVEL_VIEW = "view"

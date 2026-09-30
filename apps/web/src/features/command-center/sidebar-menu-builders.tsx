@@ -7,7 +7,9 @@ import {
   CameraOutlined,
   CheckSquareOutlined,
   ClockCircleOutlined,
+  ClusterOutlined,
   ContactsOutlined,
+  ControlOutlined,
   CustomerServiceOutlined,
   DashboardOutlined,
   DeleteOutlined,
@@ -51,7 +53,7 @@ type MenuItems = NonNullable<Parameters<typeof Menu>[0]["items"]>;
 
 /** Nhóm menu mở sẵn khi vào trang (khớp key của các `group` bên dưới). */
 export const DEFAULT_OPEN_KEYS = ["data-auto", "data-manual", "data-market", "data-unit", "contracts",
-  "stats", "reports", "support", "analysis", "admin"];
+  "stats", "smart-factory", "reports", "support", "analysis", "admin"];
 
 /** Gom một nhóm menu, tự bỏ qua khi tài khoản không được cấp mục con nào. */
 function group(key: string, icon: JSX.Element, label: string, children: unknown[]): MenuItems {
@@ -91,6 +93,7 @@ const ITEM = {
   assistant: { key: "/tro-ly-ai", icon: <RobotOutlined />, label: "Trợ lý AI" },
   assistantHistory: { key: "/tro-ly-ai/lich-su", icon: <HistoryOutlined />, label: "Lịch sử hỏi đáp" },
   myEditRequests: { key: "/de-nghi-sua", icon: <DiffOutlined />, label: "Đề nghị sửa số liệu" },
+  factoryMeters: { key: "/nha-may-thong-minh/chi-so", icon: <ControlOutlined />, label: "Giám sát chỉ số" },
 };
 
 /** "Duyệt đề nghị sửa" kèm số đề nghị đang chờ (Badge ẩn khi 0). */
@@ -148,6 +151,10 @@ function buildMenu(can: (cap: Cap) => boolean, isAdmin: boolean, pendingEditRequ
     // "Hợp đồng cũ (trước 30/07)" ĐÃ ẨN khỏi menu (20/08/2026) — dữ liệu và route `/thong-ke-hop-dong`
     // vẫn còn để tra cứu bằng đường dẫn, chỉ thôi bày ra cho người dùng thường.
   ]));
+  items.push(...group("smart-factory", <ClusterOutlined />, "Nhà máy thông minh", [
+    can("smart_factory") && ITEM.factoryMeters,
+    // Cấu hình kết nối SCADA nằm ở Quản trị → Cấu hình hệ thống → tab "SCADA nhà máy".
+  ]));
   items.push(...group("support", <CustomerServiceOutlined />, "Hỗ trợ đơn vị thành viên", [
     can("support") && { key: "/ho-tro", icon: <NotificationOutlined />, label: "Hỗ trợ & Thông báo" },
     // Xem được hộp thư là xem được lịch nhắc; thao tác tạo/sửa/gửi vẫn cần mức Sửa (server chặn).
@@ -193,6 +200,9 @@ function buildExecutiveMenu(can: (cap: Cap) => boolean) {
       can("unit_daily") && ITEM.statStock,
       can("unit_daily") && ITEM.statConsumption,
       can("unit_daily") && ITEM.submission,
+    ]),
+    ...group("smart-factory", <ClusterOutlined />, "Nhà máy thông minh", [
+      can("smart_factory") && ITEM.factoryMeters,
     ]),
     ...group("data-market", <FundOutlined />, "Số liệu thị trường (chỉ xem)", [
       can("auto_data") && ITEM.priceBoard,

@@ -536,6 +536,27 @@ CREATE TABLE IF NOT EXISTS unit_week_snapshot (
     taken_by    text NOT NULL              -- 'job' = tự động · username = admin bấm "Chụp ngay"
 );
 
+-- NHÀ MÁY THÔNG MINH (chốt 30/09/2026): cấu hình kết nối SQL Server của SCADA (AVEVA/Wonderware
+-- Historian, linked server INSQL) — 1 dòng / nhà máy. Số điện · nước · số bành đọc THẲNG từ SCADA
+-- mỗi lần xem, KHÔNG lưu vào Postgres. `password` là bí mật: API không bao giờ trả ra.
+-- `energy_tags` = [] (không đo điện) · [tag kWh] · [R0, R1, R2, R3] (4 thanh ghi 16-bit, cao → thấp).
+CREATE TABLE IF NOT EXISTS scada_factory (
+    id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name          text NOT NULL UNIQUE,
+    host          text NOT NULL,
+    port          integer NOT NULL DEFAULT 1433,
+    username      text NOT NULL,
+    password      text NOT NULL,
+    database_name text NOT NULL DEFAULT 'Runtime',
+    linked_server text NOT NULL DEFAULT 'INSQL',
+    energy_tags   text[] NOT NULL DEFAULT '{}',
+    water_tag     text,
+    bales_tag     text,
+    enabled       boolean NOT NULL DEFAULT true,
+    updated_at    timestamptz NOT NULL DEFAULT now(),
+    updated_by    text
+);
+
 -- Migration idempotent cho DB đã tồn tại (CREATE IF NOT EXISTS không thêm cột mới).
 -- Job chạy theo NGÀY TRONG TUẦN (rỗng/NULL = chạy hằng ngày như trước). Vd 'fri' = tối thứ Sáu
 -- cho job chốt tồn kho Tập đoàn theo tuần.
