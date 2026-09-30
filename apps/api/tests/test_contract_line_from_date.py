@@ -285,3 +285,32 @@ def test_assistant_counts_a_top_up_in_the_period_it_takes_effect(env) -> None:
     s = _contract_summary({"date_from": "2031-09-01", "date_to": "2031-09-30"})["summary"]
     assert s["so_hop_dong"] == 0 and s["tong_cam_ket_tan"] == 6.0
     assert s["trong_do_bo_sung_hd_ky_truoc_tan"] == 6.0
+
+
+def test_background_resync_runs_one_worker_and_merges_bursts(monkeypatch) -> None:
+    """Lưu dồn dập trong lúc đang tính: không mở thêm luồng, gộp thành MỘT lượt từ ngày sớm nhất."""
+    import threading
+    import time
+
+    from app.services import inventory_auto
+
+    gate, calls = threading.Event(), []
+
+    def slow(day, by=None):
+        calls.append(day)
+        if len(calls) == 1:
+            gate.wait(5)
+        return []
+
+    monkeypatch.setattr(inventory_auto, "enabled", lambda: True)
+    monkeypatch.setattr(inventory_auto, "sync_since", slow)
+    inventory_auto.sync_since_async("2026-09-20")
+    time.sleep(0.2)                                   # luồng đầu đang chạy, chặn ở `gate`
+    for day in ("2026-09-15", "2026-09-10", "2026-09-18"):
+        inventory_auto.sync_since_async(day)
+    gate.set()
+    for _ in range(50):
+        if not inventory_auto._worker_running:
+            break
+        time.sleep(0.1)
+    assert calls == ["2026-09-20", "2026-09-10"]

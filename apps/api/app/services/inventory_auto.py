@@ -202,26 +202,54 @@ def sync_since(day: str, by: str | None = None) -> list[str]:
 
     Phần "đã có HĐ" suy từ hợp đồng: thêm một dòng hiệu lực 15/09 đổi mọi tuần từ 15/09, sửa lần
     giao 02/09 đổi mọi tuần từ 02/09. Trước 30/09/2026 chỉ tính lại tuần đang chạy nên tuần cũ vẫn
-    giữ số trước khi sửa cho tới khi chuyên viên bấm "Tính lại N tuần". Tuần nhập tay không bị đè.
+    giữ số trước khi sửa (đo prod 30/09: 6/8 tuần tự tính lệch phần "đã có HĐ", tuần 18/09 thiếu
+    680 tấn). Tuần nhập tay bỏ qua TRƯỚC khi tính — không tốn công tính một số sẽ không được ghi.
     """
     if not enabled():
         return []
-    return [a for a in anchors_since(day) if apply_week(a, by=by)["written"]]
+    out: list[str] = []
+    for a in anchors_since(day):
+        cur = inventory_repo.get(a)
+        if cur and (cur.get("source") or "") != AUTO_SOURCE:
+            continue
+        if apply_week(a, by=by)["written"]:
+            out.append(a)
+    return out
 
 
-def sync_since_async(day: str | None, by: str | None = None) -> None:
-    """`sync_since` ở luồng nền: mỗi tuần mất 0,1–0,4 giây (đo bản sao prod 30/09/2026), sửa một
-    hợp đồng cũ có thể đụng vài chục tuần — người bấm Lưu không phải chờ."""
+#: Hàng đợi GỘP của `sync_since_async`: chỉ MỘT luồng nền chạy tại một thời điểm; các lần lưu
+#: đến trong lúc nó chạy chỉ dời mốc "tính lại từ ngày" về ngày sớm nhất. Đơn vị lưu dồn dập vài
+#: chục hợp đồng thì máy chủ tính lại một lượt, không phải vài chục luồng song song.
+_queue_lock = threading.Lock()
+_pending_day: str | None = None
+_worker_running = False
+
+
+def sync_since_async(day: str | None) -> None:
+    """`sync_since` ở luồng nền — người bấm Lưu không phải chờ (mỗi tuần 0,1–0,4 giây)."""
+    global _pending_day, _worker_running
     if not day or not enabled():
         return
+    with _queue_lock:
+        _pending_day = day if _pending_day is None else min(_pending_day, day)
+        if _worker_running:
+            return
+        _worker_running = True
+    threading.Thread(target=_drain, daemon=True).start()
 
-    def run() -> None:
+
+def _drain() -> None:
+    global _pending_day, _worker_running
+    while True:
+        with _queue_lock:
+            day, _pending_day = _pending_day, None
+            if day is None:
+                _worker_running = False
+                return
         try:
-            sync_since(day, by)
+            sync_since(day)
         except Exception as exc:                   # noqa: BLE001 - luồng nền, chỉ ghi log
             logger.warning("Không tính lại được tồn kho Tập đoàn từ %s: %s", day, exc)
-
-    threading.Thread(target=run, daemon=True).start()
 
 
 def recompute(weeks: int = DEFAULT_RECOMPUTE_WEEKS, *, force: bool = False,
