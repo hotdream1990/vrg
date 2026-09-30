@@ -214,7 +214,8 @@ export default function ContractLinesTable({
             <b>Tăng sản lượng sau khi ký</b>: bấm <b>Thêm dòng</b>, chọn chủng loại, nhập{" "}
             <b>phần tăng thêm</b> và điền <b>Hiệu lực từ</b> = ngày điều chỉnh — từ ngày đó phần tăng
             mới tính vào “đã ký HĐ chưa giao”. Để trống = tính từ ngày ký.{" "}
-            <b>Giảm sản lượng</b>: sửa thẳng số lượng của dòng.
+            <b>Giảm sản lượng</b>: sửa thẳng số lượng của dòng — số mới tính từ ngày hiệu lực
+            của dòng đó (kể cả các ngày đã qua).
           </>
         )}
       </div>

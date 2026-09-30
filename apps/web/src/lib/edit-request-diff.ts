@@ -123,9 +123,9 @@ function project(req: Pick<EditRequest, "op" | "payload">, o: Obj | null, side: 
       return side === "payload" ? { as_of: p.to_date } : { as_of: o?.fields ? p.as_of : null };
     case "contract_save":
       // Bản ghi lưu có thêm số suy ra (qty, revenue…) — chỉ so các khoá đơn vị gửi lên.
-      return side === "payload" ? p : pickKeys(o, p);
+      return withSignDefault(side === "payload" ? p : pickKeys(o, p));
     case "contract_delete":
-      return side === "payload" ? null : o;
+      return side === "payload" ? null : withSignDefault(o);
     case "contract_delivery_type":
       // Chỉ một ô đổi — so nguyên bản ghi thì bảng đầy những dòng không liên quan. Đổi mã sang
       // chữ ngay ở đây (như nhu cầu thị trường) để màn của ĐƠN VỊ cũng đọc được, không phụ thuộc
@@ -140,6 +140,18 @@ function project(req: Pick<EditRequest, "op" | "payload">, o: Obj | null, side: 
       return side === "payload" ? null : labelDemandCodes(o);
   }
 }
+
+/** Dòng HỢP ĐỒNG không khai "Hiệu lực từ" = theo ngày ký → ghi thành chữ, để bảng so sánh đọc là
+ *  "15/09/2026 → Theo ngày ký" thay vì "(trống)" (người duyệt không biết trống nghĩa là gì). Chỉ điền
+ *  cho dòng CÓ ở bản ghi đó — dòng mới thêm thì bên "trước" vẫn là trống. Đợt giao không có ô này. */
+function withSignDefault(o: Obj | null): Obj | null {
+  if (!o || o.parent_id || !Array.isArray(o.lines)) return o;
+  return {
+    ...o,
+    lines: o.lines.map((l) => (isObj(l) ? { ...l, from_date: l.from_date || SIGN_DATE_TEXT } : l)),
+  };
+}
+const SIGN_DATE_TEXT = "Theo ngày ký";
 
 /** Đơn giá 0 = xoá ô giá (luật `upsert_record`) → đổi thành dấu XOÁ để so như trống. */
 function clearZeroPrices(prices: Obj | null): Obj | null {

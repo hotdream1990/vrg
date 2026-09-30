@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   type ContractDetail, type ContractMeta, setContractCompletion,
 } from "../../../../lib/sales-contract-client";
+import { dmy } from "../../../../lib/date";
 import DateInput from "../../sections/DateInput";
 
 type Props = {
@@ -44,9 +45,21 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
       : `đạt ${ratio.toFixed(1)}% sản lượng hợp đồng`;
 
   const submit = async () => {
+    // Server chặn chốt trước ngày hiệu lực muộn nhất: dòng đó sẽ không bao giờ vào "đã ký HĐ chưa
+    // giao" mà vẫn nằm trong sản lượng hợp đồng.
+    if (minGiao && day < minGiao) {
+      setErr(`Ngày hoàn thành phải từ ${dmy(minGiao)} trở đi — hợp đồng có dòng hiệu lực từ ngày đó.`);
+      return;
+    }
     if (needDelivery && !noDelivery) {
       if (!channel) { setErr("Chọn Hình thức tiêu thụ, hoặc tích “hợp đồng huỷ / không giao nữa”."); return; }
       if (channel === "internal" && !toCompany) { setErr("Chọn đơn vị nhận hàng."); return; }
+      // Ngày giao để trống thì lấy ngày hoàn thành — lịch chỉ chặn ngày CHỌN, không chặn giá trị
+      // mặc định này, nên phải kiểm lại ở đây thay vì đợi server báo lỗi.
+      if (!noDelivery && minGiao && (giaoDay || day) < minGiao) {
+        setErr(`Ngày giao phải từ ${dmy(minGiao)} trở đi — hợp đồng có dòng hiệu lực từ ngày đó.`);
+        return;
+      }
     }
     setBusy(true); setErr("");
     try {
@@ -124,7 +137,7 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
       )}
 
       <label className="form-field" style={{ display: "block", marginTop: 12 }}>Ngày hoàn thành *
-        <DateInput value={day} onChange={(v) => setDay(v)} />
+        <DateInput value={day} onChange={(v) => setDay(v)} minDate={minGiao || undefined} />
       </label>
 
       <p className="form-note" style={{ fontSize: 12, marginTop: 10 }}>

@@ -175,12 +175,13 @@ export default function ContractFormModal({
     return p;
   };
 
-  /** "Hiệu lực từ" gửi lên: đợt giao bỏ hẳn khoá; sửa hợp đồng thì trùng ngày ký/trống = null (dòng
-   *  đi theo ngày ký, đổi ngày ký là dòng đổi theo); tạo mới thì không thêm khoá — thân gửi y như cũ. */
+  /** "Hiệu lực từ" gửi lên: đợt giao bỏ hẳn khoá; sửa hợp đồng thì trống = null (theo ngày ký);
+   *  tạo mới thì không thêm khoá — thân gửi y như cũ. Ngày TRÙNG ngày ký vẫn giữ nguyên: sửa nhầm
+   *  ngày ký rồi sửa lại không được làm dòng "từ 15" lặng lẽ thành "theo ngày ký". */
   const fromDateOut = (l: ContractLine): ContractLine => {
     if (isChild) return { ...l, from_date: undefined };
     if (!showDates) return l;
-    return { ...l, from_date: l.from_date && l.from_date !== c.sign_date ? l.from_date : null };
+    return { ...l, from_date: l.from_date || null };
   };
 
   const submit = async () => {
@@ -324,7 +325,8 @@ export default function ContractFormModal({
         <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
           Kể cả khi <b>số liệu đã chốt</b>, các nội dung sau vẫn sửa và lưu được bình thường:{" "}
           <b>{meta.editable_when_locked.map((f) => f.label).join(" · ")}</b>. Còn sản lượng, đơn
-          giá, ngày giao, hình thức tiêu thụ, khách hàng và loại hợp đồng là các ô làm đổi số đã báo
+          giá, ngày hiệu lực của dòng, ngày giao, hình thức tiêu thụ, khách hàng và loại hợp đồng là các
+          ô làm đổi số đã báo
           cáo — {canEditUnitData
             ? <>bấm <b>Lưu</b>, hệ thống mở hộp gửi <b>đề nghị sửa</b>, Ban duyệt xong mới đổi.</>
             : "phải nhờ Ban TTKD sửa hộ."}
