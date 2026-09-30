@@ -10,6 +10,7 @@ import {
   MAX_OVER_RATIO,
   saveContract,
 } from "../../../../lib/sales-contract-client";
+import { dmy } from "../../../../lib/date";
 import { DIRECT_SAVED_IN_REQUEST_MODE, useEditRequest } from "../../../../lib/use-edit-request";
 import { useAuth } from "../../../auth/AuthContext";
 import CustomerPicker from "../../sections/CustomerPicker";
@@ -102,6 +103,12 @@ export default function ContractFormModal({
   const isDelivery = !!c.delivered_at;
   // Bản ghi này có phải MỘT LẦN GIAO không: đợt giao, hoặc hợp đồng giao trọn 1 lần.
   const isBatch = isChild || c.delivery_type === "single";
+  // "Hiệu lực từ" từng dòng: chỉ khi SỬA hợp đồng (kể cả đề nghị sửa) — lúc tạo mọi dòng theo ngày
+  // ký nên form giữ tối giản; đợt giao không có ngày này (ngày của đợt là ngày giao).
+  const showDates = !!initial && !isChild;
+  // HĐ giao 1 lần đã giao: phần tăng phải có hiệu lực TRƯỚC ngày giao, không thì là hàng chưa ký
+  // mà đã giao — server cũng chặn.
+  const maxFromDate = c.delivery_type === "single" ? c.delivered_at : null;
   // Đơn vị nhận hàng nội bộ = các đơn vị CÙNG NHÓM công ty mẹ–con. Rỗng = đơn vị đứng một mình,
   // không có tiêu thụ nội bộ (server cũng chặn, xem `_assert_same_group`).
   const peers = useMemo(
@@ -153,9 +160,27 @@ export default function ContractFormModal({
       if (isDelivery && l.ccy !== "VND" && !l.fx) {
         p.push(`${at}: đã có ngày giao thì bán bằng ${l.ccy} phải nhập tỷ giá.`);
       }
+      if (showDates && l.from_date) {
+        const who = l.grade ? `${at} (${l.grade})` : at;
+        if (c.sign_date && l.from_date < c.sign_date) {
+          p.push(`${who}: ngày hiệu lực phải từ ngày ký ${dmy(c.sign_date)} trở đi.`);
+        }
+        if (maxFromDate && l.from_date > maxFromDate) {
+          p.push(`${who}: ngày giao ${dmy(maxFromDate)} trước ngày hiệu lực ${dmy(l.from_date)} — `
+                 + "hợp đồng giao 1 lần chỉ giao được từ ngày hiệu lực của mọi dòng trở đi.");
+        }
+      }
     });
     if (overCap) p.push(`Giảm sản lượng đợt giao xuống tối đa ${t3(Math.max(0, cap))} tấn.`);
     return p;
+  };
+
+  /** "Hiệu lực từ" gửi lên: đợt giao bỏ hẳn khoá; sửa hợp đồng thì trùng ngày ký/trống = null (dòng
+   *  đi theo ngày ký, đổi ngày ký là dòng đổi theo); tạo mới thì không thêm khoá — thân gửi y như cũ. */
+  const fromDateOut = (l: ContractLine): ContractLine => {
+    if (isChild) return { ...l, from_date: undefined };
+    if (!showDates) return l;
+    return { ...l, from_date: l.from_date && l.from_date !== c.sign_date ? l.from_date : null };
   };
 
   const submit = async () => {
@@ -165,7 +190,7 @@ export default function ContractFormModal({
     try {
       const body: Contract = {
         ...c,
-        lines: c.lines.filter((l) => l.grade || l.qty != null),
+        lines: c.lines.filter((l) => l.grade || l.qty != null).map(fromDateOut),
         parent_id: isChild ? parent!.id : null,
         // Đợt giao đi theo hợp đồng, KHÔNG nối thẳng vào hợp đồng mẹ (server cũng ép NULL) —
         // nối cả hai cấp là cộng đôi sản lượng đã ký của hợp đồng mẹ.
@@ -342,6 +367,7 @@ export default function ContractFormModal({
 
       <h4 style={{ margin: "14px 0 6px" }}>Chi tiết {isChild ? "đợt giao" : "hợp đồng"}</h4>
       <ContractLinesTable lines={c.lines} meta={meta} requireFx={isDelivery}
+        signDate={showDates ? c.sign_date : undefined} maxFromDate={maxFromDate}
         currencies={currencies} onChange={(lines) => set({ lines })} />
 
       {/* Tổng của cả hợp đồng/đợt giao — quy về VNĐ để cộng được các dòng khác loại tiền.

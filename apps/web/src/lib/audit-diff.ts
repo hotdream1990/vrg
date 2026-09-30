@@ -16,6 +16,7 @@ const UNIT_DAILY_LABELS: Record<string, string> = Object.fromEntries(
 const LABELS: Record<string, string> = {
   price: "Đơn giá", currency: "Loại tiền", unit: "Đơn vị tính", contract: "Kỳ hạn",
   qty: "Số lượng", grade: "Chủng loại", code: "Số HĐ/PL", ccy: "Loại tiền", fx: "Tỷ giá",
+  from_date: "Hiệu lực từ",   // ngày hiệu lực của dòng hợp đồng (trống = theo ngày ký)
   ton_kho: "Tồn kho thành phẩm", ton_kho_hd: "Tồn kho đã có hợp đồng",
   note: "Ghi chú", content: "Nội dung", source: "Nguồn",
   fob_usd: "Giá FOB (USD)", domestic_vnd: "Giá nội địa (VNĐ)", title: "Tiêu đề",

@@ -47,7 +47,7 @@ const money = (n: number | null) =>
 
 /** Lũy kế bảng dòng chi tiết hợp đồng — CHỈ cộng sản lượng: thành tiền của mỗi dòng theo nguyên tệ
  *  của chính nó, cộng chung nhiều loại tiền lại thành một số là số vô nghĩa. Một dòng thì khỏi cộng. */
-function LinesTotal({ lines }: { lines: Contract["lines"] }) {
+function LinesTotal({ lines, dated }: { lines: Contract["lines"]; dated: boolean }) {
   if (lines.length < 2) return null;
   const qty = lines.reduce((s, ln) => s + (ln.qty ?? 0), 0);
   const dry = lines.reduce((s, ln) => s + (ln.qty_dry ?? 0), 0);
@@ -58,7 +58,7 @@ function LinesTotal({ lines }: { lines: Contract["lines"] }) {
         <td className="r">{t3(qty)}</td>
         {/* Chủng loại không có quy khô → "—" như từng dòng, hiện 0 sẽ bị đọc là khai thiếu. */}
         <td className="r">{dry > 0 ? t3(dry) : "—"}</td>
-        <td colSpan={3} />
+        <td colSpan={dated ? 4 : 3} />
       </tr>
     </tfoot>
   );
@@ -134,6 +134,9 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
   const c = d?.contract;
   const multi = c?.delivery_type === "multi";
   const done = !!c?.completed_at;
+  // Cột "Hiệu lực từ" chỉ hiện khi có dòng khai ngày riêng — hợp đồng thường mọi dòng theo ngày ký,
+  // thêm một cột toàn chữ "Ngày ký" chỉ làm rối bảng.
+  const dated = !!c?.lines.some((ln) => ln.from_date);
   // Cửa sổ sửa CHỈ áp cho lần giao, mốc là ngày giao — hợp đồng sửa được suốt vòng đời.
   const { isEditable } = useEditWindow();
   const locked = (deliveredAt: string | null) => !!deliveredAt && !isEditable(deliveredAt);
@@ -307,6 +310,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                             <th>Chủng loại</th><th className="r">SL chưa quy khô (tấn)</th>
                             <th className="r">Quy khô (tấn)</th>
                             <th className="r">Đơn giá</th><th>Loại tiền</th><th className="r">Thành tiền</th>
+                            {dated && <th>Hiệu lực từ</th>}
                           </tr></thead>
                           <tbody>
                             {c.lines.map((ln, i) => (
@@ -322,10 +326,16 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                                     ? "—"
                                     : `${t3(lineAmount(ln) as number)} ${ln.ccy === "VND" ? "tr.đ" : ln.ccy}`}
                                 </td>
+                                {dated && (
+                                  <td>
+                                    {ln.from_date ? dmy(ln.from_date)
+                                      : <span style={{ color: "var(--muted)" }}>Ngày ký</span>}
+                                  </td>
+                                )}
                               </tr>
                             ))}
                           </tbody>
-                          <LinesTotal lines={c.lines} />
+                          <LinesTotal lines={c.lines} dated={dated} />
                         </table>
                       </div>
                     </>

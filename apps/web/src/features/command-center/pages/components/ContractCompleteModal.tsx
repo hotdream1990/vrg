@@ -32,6 +32,8 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
   const [channel, setChannel] = useState("");
   const [toCompany, setToCompany] = useState("");
   const peers = meta.internal_targets?.[c.company] ?? [];
+  // Không giao trước ngày hiệu lực muộn nhất của các dòng — server chặn, chặn luôn trên lịch.
+  const minGiao = c.lines.reduce((m, l) => (l.from_date && l.from_date > m ? l.from_date : m), "");
 
   const short = d.remaining_qty > 1e-9;
   // Giao thiếu thì nói "đạt x%" (số dương, dễ đọc); giao vượt mới nói "+x% so với hợp đồng".
@@ -90,7 +92,7 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
               gap: 10 }}>
               <label className="form-field">Ngày giao
-                <DateInput value={giaoDay || day} onChange={setGiaoDay} />
+                <DateInput value={giaoDay || day} onChange={setGiaoDay} minDate={minGiao || undefined} />
               </label>
               <label className="form-field">Hình thức tiêu thụ *
                 <select className="blt-date-input" value={channel}

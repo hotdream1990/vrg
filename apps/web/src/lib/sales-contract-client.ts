@@ -32,6 +32,10 @@ export type ContractLine = {
   price: number | null;
   ccy: string;
   fx: number | null;
+  /** "Hiệu lực từ" (YYYY-MM-DD) — CHỈ dòng của hợp đồng, đợt giao không có. null/không có khoá =
+   *  theo ngày ký. Dùng khi TĂNG sản lượng sau khi ký: dòng tăng thêm chỉ vào "đã ký HĐ chưa giao"
+   *  từ ngày này. Server lưu null khi trùng ngày ký. */
+  from_date?: string | null;
 };
 
 /** Loại hợp đồng: dài hạn | chuyến. null = chưa khai (bản ghi chuyển từ cơ chế cũ). */

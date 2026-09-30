@@ -4,6 +4,7 @@ import {
   FX_USD_VND, TONNES_CONTRACT, boundWarning, fxWarning, priceBound,
 } from "../../../../lib/entry-bounds";
 import type { ContractLine, ContractMeta } from "../../../../lib/sales-contract-client";
+import DateInput from "../../sections/DateInput";
 import NumInput from "../../sections/NumInput";
 
 const fmtAmount = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
@@ -25,6 +26,11 @@ type Props = {
   /** Bản ghi ĐÃ CÓ NGÀY GIAO → tỷ giá là bắt buộc. Chưa giao thì chưa ai biết tỷ giá ngày giao,
    *  ép nhập chỉ tổ bắt đơn vị bịa số (chốt 22/08/2026) — phải khớp `require_fx` ở server. */
   requireFx?: boolean;
+  /** Có truyền (kể cả null) = hiện ô "Hiệu lực từ" từng dòng, chặn chọn trước ngày ký này. Chỉ
+   *  truyền khi SỬA hợp đồng — lúc tạo mọi dòng đều theo ngày ký, form giữ tối giản. */
+  signDate?: string | null;
+  /** Hạn trên của "Hiệu lực từ": ngày giao của hợp đồng giao 1 lần (giao rồi thì không tăng thêm). */
+  maxFromDate?: string | null;
   readOnly?: boolean;
   onChange: (lines: ContractLine[]) => void;
 };
@@ -68,11 +74,13 @@ function Field({ label, w, children }: { label: string; w: number; children: Rea
  * áp dụng cho dòng đó thì ẩn hẳn thay vì để một ô trống khiến người nhập tưởng còn thiếu số:
  *   - Quy khô: chỉ latex và mủ nguyên liệu (thành phẩm bán ra vốn đã là hàng khô).
  *   - Tỷ giá: chỉ dòng bán bằng ngoại tệ.
+ *   - Hiệu lực từ: chỉ khi SỬA hợp đồng (`signDate`), không bao giờ ở đợt giao.
  */
 export default function ContractLinesTable({
-  lines, meta, currencies, requireFx = false, readOnly, onChange,
+  lines, meta, currencies, requireFx = false, signDate, maxFromDate, readOnly, onChange,
 }: Props) {
   const dry = new Set(meta.dry_required);
+  const dated = signDate !== undefined;
   const set = (i: number, patch: Partial<ContractLine>) =>
     onChange(lines.map((ln, k) => (k === i ? { ...ln, ...patch } : ln)));
 
@@ -154,6 +162,14 @@ export default function ContractLinesTable({
                   style={{ background: "transparent", fontWeight: 500 }}
                   value={amount(i) == null ? "—" : fmtAmount(amount(i) as number)} />
               </Field>
+              {dated && (
+                <Field label="Hiệu lực từ" w={140}>
+                  <DateInput value={ln.from_date ?? ""} readOnly={readOnly} allowClear
+                    minDate={signDate ?? undefined} maxDate={maxFromDate ?? undefined}
+                    placeholder="theo ngày ký" style={{ width: "100%" }}
+                    onChange={(v) => set(i, { from_date: v || null })} />
+                </Field>
+              )}
               {!readOnly && (
                 <button className="btn" title="Xoá dòng" disabled={lines.length <= 1}
                   style={{ marginBottom: 1 }}
@@ -190,6 +206,17 @@ export default function ContractLinesTable({
         Với các chủng loại đó: <b>SL chưa quy khô</b> là số để tính <b>thành tiền</b> (đơn giá là giá
         theo tấn hàng chưa quy khô), còn{" "}
         <b>sản lượng tiêu thụ trên báo cáo lấy theo số quy khô</b>.
+        {/* Tăng = dòng MỚI có ngày hiệu lực, không sửa số dòng cũ: sửa số dòng cũ là đổi luôn số
+            "đã ký chưa giao" của mọi ngày trước ngày điều chỉnh (chốt 30/09/2026). */}
+        {dated && (
+          <>
+            <br />
+            <b>Tăng sản lượng sau khi ký</b>: bấm <b>Thêm dòng</b>, chọn chủng loại, nhập{" "}
+            <b>phần tăng thêm</b> và điền <b>Hiệu lực từ</b> = ngày điều chỉnh — từ ngày đó phần tăng
+            mới tính vào “đã ký HĐ chưa giao”. Để trống = tính từ ngày ký.{" "}
+            <b>Giảm sản lượng</b>: sửa thẳng số lượng của dòng.
+          </>
+        )}
       </div>
     </div>
   );
