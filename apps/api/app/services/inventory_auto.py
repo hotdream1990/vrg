@@ -24,11 +24,15 @@ rõ độ phủ (bao nhiêu đơn vị có số): thiếu đơn vị mà không 
 
 from __future__ import annotations
 
+import logging
+import threading
 from datetime import date, timedelta
 from typing import Any
 
 from app.core.edit_window import today
 from app.services import config_repo, inventory_repo
+
+logger = logging.getLogger("vrg.inventory_auto")
 
 #: Công tắc tổng — để ở `app_config` (KHÔNG khai trong `CONFIG_SPEC`: đây là công tắc nghiệp vụ
 #: của chuyên viên ngay trong màn Tồn kho, không phải cấu hình hệ thống của admin).
@@ -182,17 +186,42 @@ def sync_for_date(as_of: str, by: str | None = None) -> list[str]:
     return [a for a in anchors_for(as_of) if apply_week(a, by=by)["written"]]
 
 
-def sync_current_week(by: str | None = None) -> list[str]:
-    """Móc gọi khi HỢP ĐỒNG BÁN đổi (thêm/sửa/xoá đợt giao) — chỉ tính lại TUẦN ĐANG CHẠY.
+def anchors_since(day: str) -> list[str]:
+    """Các tuần chốt từ tuần chứa `day` tới tuần gần nhất đã qua — tối đa `MAX_RECOMPUTE_WEEKS`
+    tuần gần nhất. `day` ở tương lai (dòng hợp đồng hiệu lực sau này) ⇒ chưa tuần nào đổi."""
+    start, a = anchor_on_or_after(date.fromisoformat(day[:10])), last_anchor()
+    out: list[str] = []
+    while a >= start and len(out) < MAX_RECOMPUTE_WEEKS:
+        out.append(a.isoformat())
+        a -= timedelta(days=7)
+    return sorted(out)
 
-    Phần "đã có HĐ" suy từ hợp đồng nên một đợt giao mới về lý thuyết đụng mọi tuần từ ngày ký trở
-    đi; tính lại hết mỗi lần lưu thì quá nặng và cũng vô ích (tuần cũ đã chốt). Tuần đang chạy giữ
-    cho số mới nhất luôn đúng; muốn dựng lại tuần cũ thì bấm "Tính lại N tuần" ở màn Tồn kho.
+
+def sync_since(day: str, by: str | None = None) -> list[str]:
+    """Móc gọi khi HỢP ĐỒNG BÁN đổi — tính lại mọi tuần từ ngày sớm nhất bị ảnh hưởng.
+
+    Phần "đã có HĐ" suy từ hợp đồng: thêm một dòng hiệu lực 15/09 đổi mọi tuần từ 15/09, sửa lần
+    giao 02/09 đổi mọi tuần từ 02/09. Trước 30/09/2026 chỉ tính lại tuần đang chạy nên tuần cũ vẫn
+    giữ số trước khi sửa cho tới khi chuyên viên bấm "Tính lại N tuần". Tuần nhập tay không bị đè.
     """
     if not enabled():
         return []
-    a = last_anchor().isoformat()
-    return [a] if apply_week(a, by=by)["written"] else []
+    return [a for a in anchors_since(day) if apply_week(a, by=by)["written"]]
+
+
+def sync_since_async(day: str | None, by: str | None = None) -> None:
+    """`sync_since` ở luồng nền: mỗi tuần mất 0,1–0,4 giây (đo bản sao prod 30/09/2026), sửa một
+    hợp đồng cũ có thể đụng vài chục tuần — người bấm Lưu không phải chờ."""
+    if not day or not enabled():
+        return
+
+    def run() -> None:
+        try:
+            sync_since(day, by)
+        except Exception as exc:                   # noqa: BLE001 - luồng nền, chỉ ghi log
+            logger.warning("Không tính lại được tồn kho Tập đoàn từ %s: %s", day, exc)
+
+    threading.Thread(target=run, daemon=True).start()
 
 
 def recompute(weeks: int = DEFAULT_RECOMPUTE_WEEKS, *, force: bool = False,

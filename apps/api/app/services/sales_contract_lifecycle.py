@@ -129,6 +129,9 @@ def set_completion(contract_id: int, completed_at: str | None, companies: list[s
                    + ("hoàn thành" if day else "mở lại"),
                    before=before, after=after, as_of=after.get("completed_at"),
                    company=before["company"])
+    # Hoàn thành: hợp đồng rời "đã ký HĐ chưa giao" từ ngày chốt; mở lại: quay về từ ngày chốt cũ.
+    changed = [d for d in (day.isoformat() if day else None, before.get("completed_at")) if d]
+    repo.sync_group_inventory(min(changed) if changed else None)
     return after
 
 

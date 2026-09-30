@@ -18,7 +18,8 @@ def _dmy(d: date | str) -> str:
     return f"{s[8:10]}/{s[5:7]}/{s[:4]}"
 
 
-def parse(ln: dict, where: str, sign_date: date | None, delivered_at: date | None) -> str | None:
+def parse(ln: dict, where: str, sign_date: date | None, delivered_at: date | None,
+          expiry: date | None = None) -> str | None:
     """Ngày hiệu lực của một dòng (YYYY-MM-DD) hoặc None = theo ngày ký. Raise ValueError nếu sai.
 
     Trùng ngày ký vẫn GIỮ nguyên, không quy về trống: sửa nhầm ngày ký rồi sửa lại (10 → 15 → 10)
@@ -39,6 +40,11 @@ def parse(ln: dict, where: str, sign_date: date | None, delivered_at: date | Non
     if delivered_at and d > delivered_at:
         raise ValueError(f"{where}: ngày hiệu lực {_dmy(d)} sau ngày giao {_dmy(delivered_at)} — "
                          "hàng đã giao thì dòng phải có hiệu lực từ ngày giao trở về trước.")
+    # Dòng hiệu lực sau khi hợp đồng đã hết hạn là cam kết không bao giờ thực hiện được — thường là
+    # gõ nhầm năm. Gia hạn hợp đồng thì sửa luôn ô Thời hạn.
+    if expiry and d > expiry:
+        raise ValueError(f"{where}: ngày hiệu lực {_dmy(d)} sau thời hạn hợp đồng {_dmy(expiry)} — "
+                         "hợp đồng gia hạn thì sửa ô Thời hạn hợp đồng trước.")
     return d.isoformat()
 
 
@@ -80,3 +86,36 @@ def assert_batch_not_before_grade(starts: dict[str, str], delivered_at: str | No
                 f"{what} ngày {_dmy(day)} có {g} nhưng dòng {g} của hợp đồng hiệu lực từ "
                 f"{_dmy(start)} — sửa ngày hiệu lực của dòng trên hợp đồng (không sau ngày giao) "
                 "hoặc sửa ngày giao.")
+
+
+def _footprint(r: dict[str, Any] | None) -> list[tuple[str, tuple]]:
+    """Những gì một bản ghi góp vào "đã ký HĐ chưa giao": (ngày bắt đầu góp, dòng sản lượng).
+
+    Hợp đồng góp CAM KẾT từ ngày hiệu lực của từng dòng; lần giao (đợt giao, hoặc hợp đồng giao 1
+    lần đã giao) góp phần TRỪ từ ngày giao. Chỉ sản lượng — đơn giá/tỷ giá không đụng tới khối này.
+    """
+    if not r:
+        return []
+    out: list[tuple[str, tuple]] = []
+    lines = r.get("lines") or []
+    qty = [(ln.get("grade") or "", float(ln.get("qty") or 0), float(ln.get("qty_dry") or 0))
+           for ln in lines]
+    if not r.get("parent_id"):
+        sign = str(r.get("sign_date") or "")[:10]
+        out += [(str(ln.get("from_date") or "")[:10] or sign, ("c", *q)) for ln, q in zip(lines, qty)]
+    if r.get("delivered_at"):
+        out += [(str(r["delivered_at"])[:10], ("d", *q)) for q in qty]
+    return out
+
+
+def block3_changed_since(before: dict[str, Any] | None, after: dict[str, Any] | None) -> str | None:
+    """Ngày SỚM NHẤT mà "đã ký HĐ chưa giao" có thể đổi vì lần ghi này — None = không ngày nào đổi.
+
+    So hai "dấu chân" (`_footprint`) của bản cũ và bản mới: thêm một dòng hiệu lực 15/09 thì chỉ các
+    ngày từ 15/09 đổi, dù hợp đồng ký từ năm ngoái; sửa ghi chú thì không ngày nào đổi.
+    """
+    from collections import Counter
+
+    old, new = Counter(_footprint(before)), Counter(_footprint(after))
+    days = [d for d, _ in (old - new) + (new - old) if d]
+    return min(days) if days else None

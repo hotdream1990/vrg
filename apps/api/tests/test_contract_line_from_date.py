@@ -227,3 +227,61 @@ def test_a_malformed_date_written_by_hand_does_not_break_reports(env) -> None:
         db.execute(text("UPDATE sales_contract SET lines = jsonb_set(lines, '{0,from_date}', "
                         "'\"15/09/2026\"') WHERE id = :i"), {"i": c["id"]})
     assert _block3(h, "2026-09-10") == pytest.approx(10.0)
+
+
+def test_line_cannot_start_after_contract_expiry(env) -> None:
+    h, cus = env
+    c = _contract(h, cus, expiry_date="2026-12-31")
+    r = _save(h, {**c, "lines": [*c["lines"], _line(6.0, from_date="2027-01-05")]})
+    assert r.status_code == 400 and "sau thời hạn hợp đồng" in r.json()["detail"]
+
+
+def test_saving_a_contract_resyncs_group_inventory_from_the_first_changed_day(env, monkeypatch) -> None:
+    """Tồn kho Tập đoàn tính lại TỪ ngày sớm nhất bị ảnh hưởng, không chỉ tuần đang chạy."""
+    from app.services import inventory_auto
+
+    seen: list = []
+    monkeypatch.setattr(inventory_auto, "sync_since_async", lambda day, by=None: seen.append(day))
+    h, cus = env
+    c = _contract(h, cus)
+    assert seen[-1] == "2026-09-10"                                   # tạo mới: từ ngày ký
+    _save(h, {**c, "lines": [*c["lines"], _line(6.0, from_date="2026-09-15")]})
+    assert seen[-1] == "2026-09-15"                                   # chỉ từ ngày của dòng thêm
+    c = client.get(f"/api/sales-contracts/{c['id']}", headers=h).json()["contract"]
+    _save(h, {**c, "note": "chỉ sửa ghi chú"})
+    assert seen[-1] is None                                           # không đổi sản lượng nào
+
+
+def test_block3_footprint_and_week_range() -> None:
+    from app.services import inventory_auto, sales_contract_line_dates as ld
+
+    base = {"parent_id": None, "sign_date": "2026-09-10", "delivered_at": None,
+            "lines": [{"grade": SVR, "qty": 10.0}]}
+    more = {**base, "lines": [*base["lines"], {"grade": SVR, "qty": 6.0, "from_date": "2026-09-15"}]}
+    assert ld.block3_changed_since(base, more) == "2026-09-15"
+    assert ld.block3_changed_since(base, {**base, "sign_date": "2026-09-12"}) == "2026-09-10"
+    assert ld.block3_changed_since(base, {**base, "note": "x"}) is None
+    batch = {"parent_id": 1, "delivered_at": "2026-09-20", "lines": [{"grade": SVR, "qty": 4.0}]}
+    assert ld.block3_changed_since(batch, None) == "2026-09-20"
+    assert ld.block3_changed_since(None, {**batch, "delivered_at": None}) is None   # đợt chưa giao
+    far = "2999-01-01"
+    assert inventory_auto.anchors_since(far) == []                   # dòng hiệu lực tương lai
+    weeks = inventory_auto.anchors_since("2000-01-01")
+    assert len(weeks) == inventory_auto.MAX_RECOMPUTE_WEEKS and weeks == sorted(weeks)
+
+
+def test_assistant_counts_a_top_up_in_the_period_it_takes_effect(env) -> None:
+    """"Hợp đồng ký mới trong kỳ" của Trợ lý: phần bổ sung tính vào kỳ CÓ HIỆU LỰC, không dồn về kỳ ký."""
+    from app.services import sales_contract_signed_volume as sv
+    from app.services.assistant_tools.contract_tools import _contract_summary
+
+    h, cus = env
+    c = _contract(h, cus, sign_date="2031-08-20", lines=[_line(10.0)])
+    _save(h, {**c, "lines": [*c["lines"], _line(6.0, from_date="2031-09-15")]})
+    aug = sv.by_company("2031-08-01", "2031-08-31", [UNIT])[UNIT]
+    sep = sv.by_company("2031-09-01", "2031-09-30", [UNIT])[UNIT]
+    assert (aug["qty"], aug["topup_qty"]) == (10.0, 0.0)
+    assert (sep["qty"], sep["topup_qty"], sep["topup_contracts"]) == (6.0, 6.0, 1)
+    s = _contract_summary({"date_from": "2031-09-01", "date_to": "2031-09-30"})["summary"]
+    assert s["so_hop_dong"] == 0 and s["tong_cam_ket_tan"] == 6.0
+    assert s["trong_do_bo_sung_hd_ky_truoc_tan"] == 6.0

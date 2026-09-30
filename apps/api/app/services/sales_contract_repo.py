@@ -245,7 +245,7 @@ def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
     audit_repo.log("sales_contract", "update" if before else "create", label,
                    before=before, after=saved, as_of=saved.get("delivered_at") or saved.get("sign_date"),
                    company=company)
-    _sync_group_inventory()
+    sync_group_inventory(line_dates.block3_changed_since(before, saved))
     return saved
 
 
@@ -304,18 +304,18 @@ def delete(contract_id: int, companies: list[str] | None) -> bool:
         db.execute(text("DELETE FROM sales_contract WHERE id = :i"), {"i": contract_id})
     audit_repo.log("sales_contract", "delete", (before or {}).get("code") or f"#{contract_id}",
                    before=before, as_of=(before or {}).get("sign_date"), company=cur)
-    _sync_group_inventory()
+    sync_group_inventory(line_dates.block3_changed_since(before, None))
     return True
 
 
-def _sync_group_inventory() -> None:
-    """Hợp đồng/đợt giao đổi → tính lại phần "đã có HĐ" của tuần đang chạy ở Tồn kho Tập đoàn.
-
-    Chỉ chạy khi chuyên viên đã bật tự tính; lỗi ở đây không được làm hỏng thao tác lưu hợp đồng.
+def sync_group_inventory(since: str | None) -> None:
+    """Hợp đồng/đợt giao đổi → tính lại phần "đã có HĐ" của Tồn kho Tập đoàn TỪ ngày sớm nhất bị
+    ảnh hưởng (`since`, None = lần ghi không đổi sản lượng nào). Chỉ chạy khi chuyên viên đã bật tự
+    tính, chạy ở luồng nền; lỗi ở đây không được làm hỏng thao tác lưu hợp đồng.
     """
     from app.services import inventory_auto
 
     try:
-        inventory_auto.sync_current_week()
+        inventory_auto.sync_since_async(since)
     except Exception as exc:                       # noqa: BLE001 - không chặn luồng nhập liệu
         logger.warning("Không cập nhật được tồn kho Tập đoàn: %s", exc)

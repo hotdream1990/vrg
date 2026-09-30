@@ -229,7 +229,8 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         # Ngày hiệu lực theo dòng (30/09/2026) chỉ có ở HỢP ĐỒNG; giao 1 lần đã giao thì dòng nào
         # cũng phải hiệu lực trước ngày giao.
         "lines": calc.clean_lines(row.get("lines"), require_fx=delivered, dated=not is_child,
-                                  sign_date=sign, delivered_at=None if is_child else delivered_at),
+                                  sign_date=sign, delivered_at=None if is_child else delivered_at,
+                                  expiry=expiry),
         "delivered": delivered,
         "delivered_at": delivered_at.isoformat() if delivered_at else None,
         "channel": channel,
