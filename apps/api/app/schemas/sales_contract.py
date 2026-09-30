@@ -29,6 +29,9 @@ class ContractLineIn(BaseModel):
     price: float | None = None        # VNĐ: triệu đ/tấn · ngoại tệ: /tấn
     ccy: str = "VND"
     fx: float | None = None           # tỷ giá quy về VNĐ (bắt buộc khi ccy ≠ VND)
+    # Ngày HIỆU LỰC của dòng (30/09/2026) — CHỈ dòng của hợp đồng, trống = theo ngày ký. Thiếu ô này
+    # ở schema thì `model_dump()` nuốt mất, DB luôn NULL mà không ai báo (bẫy từng gặp với master_id).
+    from_date: str | None = None
 
 
 class ContractIn(BaseModel):

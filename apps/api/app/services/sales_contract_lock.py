@@ -28,7 +28,8 @@ from typing import Any
 #:   start_date         — ô cũ của vòng đời đợt giao; vẫn khoá để bản ghi cũ không bị lay.
 #:   delivered_at       — MỐC ghi nhận tiêu thụ: dời ngày là chuyển sản lượng sang kỳ khác.
 #:   channel·to_company — cơ cấu XK / trong nước / nội bộ và đơn vị nhận hàng nội bộ.
-#:   lines              — chủng loại · sản lượng · quy khô · đơn giá · loại tiền · tỷ giá.
+#:   lines              — chủng loại · sản lượng · quy khô · đơn giá · loại tiền · tỷ giá · ngày
+#:                        hiệu lực của dòng (`from_date`, 30/09/2026).
 #:   payment_qty        — sản lượng thanh toán (số lượng, đơn vị đã xác nhận cùng đợt chốt).
 #:   premium·premium_ccy— khoản tiền cộng thêm của hàng có chứng chỉ.
 STAT_FIELDS: tuple[str, ...] = (
@@ -73,11 +74,19 @@ def _txt(v: Any) -> str | None:
     return s or None
 
 
-def _lines_key(lines: Any) -> tuple:
-    """Khoá so sánh của các dòng chi tiết — đúng 6 ô quyết định sản lượng và doanh thu.
+def _from_key(ln: dict, sign_date: Any, is_child: bool) -> str | None:
+    """Ngày hiệu lực của dòng về một dạng: đợt giao không có ô này, trùng ngày ký = để trống
+    (server lưu NULL) — form gửi đúng ngày ký thì vẫn phải so ra BẰNG bản trong DB."""
+    d = (_txt(ln.get("from_date")) or "")[:10] or None
+    return None if is_child or d == (_txt(sign_date) or "")[:10] else d
 
-    Không so nguyên dict: bản trong DB đã qua `sales_contract_calc.clean_lines` nên chỉ còn 6 khoá,
-    còn payload từ form có thể mang thêm ô phụ; so nguyên dict là lần lưu nào cũng báo "đã đổi".
+
+def _lines_key(lines: Any, sign_date: Any = None, is_child: bool = False) -> tuple:
+    """Khoá so sánh của các dòng chi tiết — 6 ô quyết định sản lượng và doanh thu + NGÀY HIỆU LỰC
+    (30/09/2026: dời ngày hiệu lực là dời phần "đã ký HĐ chưa giao" sang ngày khác).
+
+    Không so nguyên dict: bản trong DB đã qua `sales_contract_calc.clean_lines` nên chỉ còn đúng các
+    khoá đó, còn payload từ form có thể mang thêm ô phụ; so nguyên dict là lần lưu nào cũng báo "đã đổi".
     """
     out = []
     for ln in lines if isinstance(lines, list) else []:
@@ -86,6 +95,7 @@ def _lines_key(lines: Any) -> tuple:
         out.append((
             _txt(ln.get("grade")), _num(ln.get("qty")), _num(ln.get("qty_dry")),
             _num(ln.get("price")), _txt(ln.get("ccy")) or "VND", _num(ln.get("fx")),
+            _from_key(ln, sign_date, is_child),
         ))
     return tuple(out)
 
@@ -98,7 +108,7 @@ def stat_snapshot(row: dict[str, Any]) -> dict[str, Any]:
     snap: dict[str, Any] = {}
     for f in STAT_FIELDS:
         if f == "lines":
-            snap[f] = _lines_key(row.get(f))
+            snap[f] = _lines_key(row.get(f), row.get("sign_date"), bool(row.get("parent_id")))
         elif f in _NUM_FIELDS:
             snap[f] = _num(row.get(f))
         else:

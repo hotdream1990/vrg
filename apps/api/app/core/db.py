@@ -341,6 +341,8 @@ CREATE INDEX IF NOT EXISTS ix_unit_customer_company ON unit_customer (company, i
 -- Tiêu thụ = tổng các ĐỢT ĐÃ GIAO; "đã ký HĐ chưa giao" (khối 3) = SL cam kết của HỢP ĐỒNG
 -- − tổng đã giao, tính tới khi hợp đồng được đánh dấu HOÀN THÀNH (`completed_at`).
 -- `lines` jsonb: [{grade, qty, qty_dry, price, ccy, fx, cost}] — nhiều chủng loại trên 1 hợp đồng.
+--   Dòng của HỢP ĐỒNG có thể mang `from_date` (ngày hiệu lực, 30/09/2026) — trống = ngày ký; khối 3
+--   tại ngày D chỉ cộng dòng hiệu lực ≤ D. Đợt giao không có khoá này.
 CREATE TABLE IF NOT EXISTS sales_contract (
     id            bigserial PRIMARY KEY,
     company       text NOT NULL,        -- đơn vị bán (khớp member_unit)

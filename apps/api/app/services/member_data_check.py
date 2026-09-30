@@ -150,7 +150,8 @@ def issues(units: list[str], date_from: str, editable_from: str) -> dict[str, li
             m = eb.bound_warning(_num(ln.get("price")),
                                  eb.price_bound(ln.get("ccy"), ln.get("grade")))
             if m:
-                add(r["company"], str(r["as_of"]), "contract",
+                # Dòng thêm sau khi ký thì nhắc theo NGÀY HIỆU LỰC của dòng (giá của ngày đó).
+                add(r["company"], str(ln.get("from_date") or r["as_of"]), "contract",
                     f"Hợp đồng {r['contract_code']} · dòng {i} · Đơn giá", m, r["code"])
     return {u: sorted(v, key=lambda x: x["as_of"], reverse=True)[:MAX_PER_UNIT]
             for u, v in out.items()}

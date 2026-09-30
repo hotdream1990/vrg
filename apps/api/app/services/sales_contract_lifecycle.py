@@ -193,14 +193,18 @@ def _move_delivery_to_batch(db, contract: dict[str, Any], username: str | None) 
     """Sao lần giao đang nằm trên hợp đồng xuống một ĐỢT GIAO mới (INSERT … SELECT cho gọn + đúng).
 
     Bản sao giữ nguyên dòng chi tiết: đây chính là hàng đã giao. Riêng `files` (hợp đồng đã ký)
-    ở lại hợp đồng vì đó là chứng từ cấp hợp đồng, không phải của đợt.
+    ở lại hợp đồng vì đó là chứng từ cấp hợp đồng, không phải của đợt. Ngày hiệu lực của dòng
+    (`from_date`) cũng ở lại hợp đồng — đợt giao không có ô này, ngày của đợt là ngày giao.
     """
     cols = ", ".join(_BATCH_COLS)
     code = _unique_code(db, contract["id"], f"{contract['code']}-Đợt ")
+    batch_lines = ("(SELECT COALESCE(jsonb_agg(e.v - 'from_date' ORDER BY e.n), '[]'::jsonb) "
+                   "FROM jsonb_array_elements(COALESCE(lines, '[]'::jsonb)) "
+                   "WITH ORDINALITY AS e(v, n))")
     db.execute(text(
         f"INSERT INTO sales_contract (company, parent_id, code, delivery_type, lines, delivered, "
         f" {cols}, note, updated_by) "
-        f"SELECT company, id, :code, 'single', lines, delivered, {cols}, :note, :by "
+        f"SELECT company, id, :code, 'single', {batch_lines}, delivered, {cols}, :note, :by "
         f"FROM sales_contract WHERE id = :i"),
         {"code": code, "note": f"Tách từ hợp đồng {contract['code']} khi chuyển sang giao nhiều lần",
          "by": username, "i": contract["id"]})

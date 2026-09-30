@@ -6,6 +6,8 @@ Hai con số hệ thống tự tính (chốt 30/07/2026), đơn vị KHÔNG nh�
   - **Khối 3** = sản lượng CỦA HỢP ĐỒNG − tổng đã giao tính tới ngày báo cáo (chốt 05/08/2026),
     cho tới khi hợp đồng được đánh dấu HOÀN THÀNH. Trước đây chỉ đếm phần đã chia thành đợt; nay
     tính trên hợp đồng vì đơn vị KHÔNG nhập hợp đồng khung — mỗi hợp đồng là một lô hàng thật.
+    Sản lượng hợp đồng tại một ngày chỉ gồm các dòng ĐÃ CÓ HIỆU LỰC tới ngày đó (`from_date` của
+    dòng, trống = ngày ký — 30/09/2026). Số "còn phải giao" hiện tại thì tính mọi dòng.
 Sản lượng đọc từ dòng chi tiết nên tách được theo chủng loại; doanh thu quy về ĐỒNG (xem `calc`).
 """
 
@@ -191,7 +193,12 @@ WITH parent AS (
       AND (completed_at IS NULL OR completed_at > CAST(:d AS date))
       {scope}
 ), commit_g AS (
+    -- Cam kết tại ngày :d chỉ gồm dòng ĐÃ CÓ HIỆU LỰC (30/09/2026): dòng thêm sau khi ký mang
+    -- `from_date` riêng, trống = theo ngày ký (đã lọc ở `parent`). Không lọc thì phần tăng thêm
+    -- ngày 15 bị tính ngược về tận ngày ký.
     SELECT p.id, {grade_sql} FROM parent p CROSS JOIN LATERAL jsonb_array_elements(p.lines) e
+     WHERE NULLIF(e->>'from_date', '') IS NULL
+        OR CAST(e->>'from_date' AS date) <= CAST(:d AS date)
 ), done_g AS (
     SELECT p.id, {grade_sql} FROM parent p CROSS JOIN LATERAL jsonb_array_elements(p.lines) e
      WHERE p.delivered_at IS NOT NULL AND p.delivered_at <= CAST(:d AS date)

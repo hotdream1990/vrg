@@ -226,7 +226,10 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         "start_date": start.isoformat() if start else None,
         # Quy khô ép ở MỌI trạng thái (kể cả hợp đồng chưa giao); TỶ GIÁ thì chỉ ép khi bản ghi
         # đã có NGÀY GIAO — lúc ký hợp đồng chưa biết tỷ giá ngày giao (chốt 22/08/2026).
-        "lines": calc.clean_lines(row.get("lines"), require_fx=delivered),
+        # Ngày hiệu lực theo dòng (30/09/2026) chỉ có ở HỢP ĐỒNG; giao 1 lần đã giao thì dòng nào
+        # cũng phải hiệu lực trước ngày giao.
+        "lines": calc.clean_lines(row.get("lines"), require_fx=delivered, dated=not is_child,
+                                  sign_date=sign, delivered_at=None if is_child else delivered_at),
         "delivered": delivered,
         "delivered_at": delivered_at.isoformat() if delivered_at else None,
         "channel": channel,
