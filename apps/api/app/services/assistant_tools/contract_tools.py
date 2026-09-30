@@ -18,6 +18,7 @@ from typing import Any
 
 from app.core.market_meta import MASTER_CONTRACT_TYPES
 from app.services import customer_repo, master_contract_repo, member_unit_merge, sales_contract_report
+from app.services import sales_contract_signed_volume
 from app.services import unit_report_query as urq
 
 from ._common import clamp_from, cols, days_ago, dmy, err, safe_date, table, today
@@ -32,6 +33,12 @@ _ROWS_CAP = 5000
 #: (không giới hạn ngày ký). Hỏi "đã ký chưa giao tại ngày X" phải dùng đúng tool kia.
 _REMAINING_NOTE = ("Cột 'còn phải giao' tính tại THỜI ĐIỂM HIỆN TẠI cho các hợp đồng KÝ trong kỳ hỏi, "
                    "KHÁC ảnh chụp một ngày cụ thể — muốn ảnh chụp thì dùng get_undelivered_volume.")
+
+#: Cam kết tính theo NGÀY HIỆU LỰC từng dòng (30/09/2026) còn đã giao/còn phải giao là tiến độ của
+#: các hợp đồng KÝ trong kỳ — hai vế không cộng khớp nhau khi có hợp đồng bổ sung sản lượng.
+_SIGNED_NOTE = ("'Cam kết' = sản lượng CÓ HIỆU LỰC trong kỳ theo từng dòng hợp đồng: gồm phần hợp đồng "
+                "ký trước kỳ bổ sung thêm trong kỳ, KHÔNG gồm phần hợp đồng ký trong kỳ bổ sung sau kỳ. "
+                "Đã giao/còn phải giao là tiến độ của các hợp đồng KÝ trong kỳ.")
 
 
 def _top(totals: dict[str, float], limit: int = 15) -> list[tuple[str, float]]:
@@ -180,12 +187,14 @@ def _contract_summary(args: dict) -> dict:
     date_from = clamp_from(date_from, date_to)
     group_by = args.get("group_by") if args.get("group_by") in ("total", "company") else "total"
 
+    vol = sales_contract_signed_volume.by_company(date_from, date_to)
     if group_by == "total":
         res = sales_contract_report.parents_with_progress(None, date_from=date_from, date_to=date_to, limit=1)
-        if not res["total"]:
+        if not res["total"] and not vol:
             return err(f"Không có hợp đồng nào KÝ trong kỳ {dmy(date_from)}–{dmy(date_to)}.")
         t = res["totals"]
-        notes = [_REMAINING_NOTE]
+        topup = sum(v["topup_qty"] for v in vol.values())
+        notes = [_REMAINING_NOTE, _SIGNED_NOTE]
         if t["revenue_missing"]:
             notes.append(f"{int(t['revenue_missing'])} hợp đồng thiếu đơn giá/tỷ giá — KHÔNG nằm "
                          "trong doanh thu hợp đồng ở trên.")
@@ -195,7 +204,10 @@ def _contract_summary(args: dict) -> dict:
         return {"summary": {
             "date_from": date_from, "date_to": date_to, "loc_theo": "ngày KÝ hợp đồng",
             "don_vi": "tấn quy khô · doanh thu VNĐ (ghi trên hợp đồng, khác tiền thực đã thu)",
-            "so_hop_dong": res["total"], "tong_cam_ket_tan": round(t["qty"], 3),
+            "so_hop_dong": res["total"],
+            "tong_cam_ket_tan": round(sum(v["qty"] for v in vol.values()), 3),
+            "trong_do_bo_sung_hd_ky_truoc_tan": round(topup, 3) or None,
+            "so_hd_ky_truoc_co_bo_sung": sum(v["topup_contracts"] for v in vol.values()) or None,
             "da_giao_tan": round(t["delivered_qty"], 3), "dang_cho_giao_tan": round(t["pending_qty"], 3),
             "con_phai_giao_tan": round(t["remaining_qty"], 3),
             "giao_vuot_hop_dong_tan": round(t["over_qty"], 3) or None,
@@ -208,14 +220,22 @@ def _contract_summary(args: dict) -> dict:
     res = sales_contract_report.parents_with_progress(None, date_from=date_from, date_to=date_to,
                                                        limit=_ROWS_CAP)
     rows = res["rows"]
-    if not rows:
+    if not rows and not vol:
         return err(f"Không có hợp đồng nào KÝ trong kỳ {dmy(date_from)}–{dmy(date_to)}.")
     agg: dict[str, dict[str, float]] = {}
+
+    def acc(company: str) -> dict[str, float]:
+        return agg.setdefault(company, {"n": 0, "qty": 0.0, "topup_qty": 0.0, "delivered_qty": 0.0,
+                                        "remaining_qty": 0.0, "revenue": 0.0, "revenue_missing": 0})
+
+    # Cam kết theo ngày hiệu lực của dòng (xem `_SIGNED_NOTE`) — đơn vị chỉ có hợp đồng cũ bổ sung
+    # trong kỳ vẫn có dòng, với 0 hợp đồng ký mới.
+    for company, v in vol.items():
+        acc(company)["qty"] += v["qty"]
+        acc(company)["topup_qty"] += v["topup_qty"]
     for r in rows:
-        a = agg.setdefault(r["company"], {"n": 0, "qty": 0.0, "delivered_qty": 0.0,
-                                          "remaining_qty": 0.0, "revenue": 0.0, "revenue_missing": 0})
+        a = acc(r["company"])
         a["n"] += 1
-        a["qty"] += r["qty"]
         a["delivered_qty"] += r["delivered_qty"]
         a["remaining_qty"] += r["remaining_qty"]
         if r["revenue"] is None:
@@ -227,16 +247,18 @@ def _contract_summary(args: dict) -> dict:
     # Cờ thiếu tỷ giá phải gắn vào TỪNG DÒNG: chỉ báo một con số tổng ở ghi chú thì người đọc so
     # doanh thu giữa các đơn vị mà không biết đơn vị nào đang bị thiếu — dễ xếp hạng nhầm.
     rows_out = [{"don_vi": k, "so_hop_dong": int(v["n"]), "cam_ket_tan": round(v["qty"], 3),
+                "bo_sung_hd_ky_truoc_tan": round(v["topup_qty"], 3) or None,
                 "da_giao_tan": round(v["delivered_qty"], 3), "con_lai_tan": round(v["remaining_qty"], 3),
                 "doanh_thu_vnd": round(v["revenue"], 0),
                 "hd_thieu_ty_gia": int(v["revenue_missing"]) or None} for k, v in ranked]
     art = table(f"Bức tranh hợp đồng theo đơn vị (ký {dmy(date_from)}→{dmy(date_to)})",
                cols(("don_vi", "Đơn vị"), ("so_hop_dong", "Số HĐ"), ("cam_ket_tan", "Cam kết (tấn)"),
+                    ("bo_sung_hd_ky_truoc_tan", "Trong đó bổ sung HĐ ký trước (tấn)"),
                     ("da_giao_tan", "Đã giao (tấn)"), ("con_lai_tan", "Còn lại (tấn)"),
                     ("doanh_thu_vnd", "Doanh thu (VNĐ)"),
                     ("hd_thieu_ty_gia", "HĐ thiếu tỷ giá")), rows_out)
     total_missing = sum(int(v["revenue_missing"]) for v in agg.values())
-    notes = [_REMAINING_NOTE]
+    notes = [_REMAINING_NOTE, _SIGNED_NOTE]
     if res["total"] > len(rows):
         notes.append(f"Chỉ lấy {len(rows)}/{res['total']} hợp đồng khớp kỳ (đã đạt trần truy vấn) — "
                      "số theo đơn vị có thể THIẾU, thu hẹp khoảng ngày để chính xác hơn.")
@@ -374,7 +396,8 @@ TOOLS: dict[str, dict[str, Any]] = {
     "get_contract_summary": {"run": _contract_summary, "schema": {
         "name": "get_contract_summary",
         "description": "Bức tranh hợp đồng bán hàng trong kỳ, lọc theo NGÀY KÝ (khác ngày giao): số "
-                      "hợp đồng, tổng cam kết, đã giao, còn phải giao (TẤN QUY KHÔ), doanh thu (VNĐ).",
+                      "hợp đồng, tổng cam kết (theo NGÀY HIỆU LỰC từng dòng, gồm phần hợp đồng cũ bổ "
+                      "sung trong kỳ), đã giao, còn phải giao (TẤN QUY KHÔ), doanh thu (VNĐ).",
         "parameters": {"type": "object", "properties": {
             "date_from": {"type": "string", "description": "Từ ngày KÝ YYYY-MM-DD, mặc định 30 ngày gần nhất"},
             "date_to": {"type": "string", "description": "Đến ngày KÝ YYYY-MM-DD, mặc định hôm nay"},
