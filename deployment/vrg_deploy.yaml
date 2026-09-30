@@ -59,6 +59,29 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Cổng ra DUY NHẤT tới SCADA nhà máy (AVEVA Historian SQL Server) qua Tailscale — chỉ container này
+  # vào tailnet, host và các dự án khác trên Dokploy KHÔNG. Chế độ egress proxy của image chính thức:
+  # app gọi `scada-gw:1433` → chuyển tiếp tới máy SCADA được share (TS_TAILNET_TARGET_IP). Không mở
+  # cổng ra ngoài, không gắn dokploy-network. Lần đầu: `docker logs <container>` có link đăng nhập —
+  # đăng nhập bằng tài khoản ĐÃ NHẬN share (không dùng auth key có tag: máy gắn tag không vào được
+  # máy được share), rồi tắt Key expiry của máy `vrg-scada-gw` trên trang quản trị Tailscale.
+  scada-gw:
+    image: 'tailscale/tailscale:${TS_IMAGE_TAG:-stable}'
+    hostname: scada-gw
+    environment:
+      TS_HOSTNAME: vrg-scada-gw
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: 'false'                                  # egress proxy bắt buộc mạng kernel
+      TS_TAILNET_TARGET_IP: '${SCADA_TAILNET_IP:-100.123.202.42}'
+      TS_AUTH_ONCE: 'true'
+    volumes:
+      - scada-gw-state:/var/lib/tailscale                    # giữ danh tính — restart không đăng nhập lại
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+
 volumes:
   db-data:
   contract-files:
@@ -66,3 +89,4 @@ volumes:
   bulletin-out:
   bulletin-custom:
   weekly-out:
+  scada-gw-state:
