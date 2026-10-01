@@ -186,3 +186,24 @@ def test_live_read_error_is_remembered_briefly(monkeypatch) -> None:
     with pytest.raises(RuntimeError):
         guard.read(F, None, None, boom, ttl=5, scope="plant", live=True)
     assert len(calls) == 2
+
+
+def test_live_read_short_outage_serves_last_good_then_errors(monkeypatch) -> None:
+    """Đứt mạng ngắn (đo prod 01/10/2026: 20–60 s): vẫn trả số đọc được gần nhất; quá
+    `LIVE_STALE_OK_S` giây mới báo lỗi để web chuyển "Mất kết nối"."""
+    clock = [1000.0]
+    monkeypatch.setattr(guard, "_clock", lambda: clock[0])
+    calls: list = []
+    good = guard.read(F, None, None, _reader(calls), ttl=5, scope="plant", live=True)
+
+    def boom(factory, start, end):
+        calls.append("boom")
+        raise RuntimeError("Tailscale đứt")
+    clock[0] += 6  # cache 5 s hết hạn, SCADA bắt đầu lỗi
+    assert guard.read(F, None, None, boom, ttl=5, scope="plant", live=True) == good
+    clock[0] += 4  # trong 10 s nhớ lỗi: không mở lại kết nối, vẫn trả số cũ
+    assert guard.read(F, None, None, boom, ttl=5, scope="plant", live=True) == good
+    assert calls.count("boom") == 1
+    clock[0] = 1000.0 + guard.LIVE_STALE_OK_S + 1  # số cũ quá hạn → báo lỗi thật
+    with pytest.raises(RuntimeError):
+        guard.read(F, None, None, boom, ttl=5, scope="plant", live=True)

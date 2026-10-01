@@ -151,18 +151,21 @@ def test_read_latest_queries_given_tags_with_spaces(monkeypatch) -> None:
     sqls: list[str] = []
 
     @contextmanager
-    def fake_connect(factory):
+    def fake_connect(factory, login_timeout=None):
+        timeouts.append(login_timeout)
         yield None, []
 
     def fake_query(session, factory, sql, params=None):
         sqls.append(sql)
         return [{"DateTime": T1, "mlm1 - frequence": 41.56, "PM - Power": None}]
 
+    timeouts: list = []
     monkeypatch.setattr(scada_client, "_connect", fake_connect)
     monkeypatch.setattr(scada_client, "_query", fake_query)
     f = {"linked_server": "INSQL", "energy_tags": [], "water_tag": None, "bales_tag": None}
     rows = scada_client.read_latest(f, ["MLM1 - Frequence", "PM - Power"], minutes=3)
     assert rows == [(T1, {"MLM1 - Frequence": 41.56, "PM - Power": None})]
+    assert timeouts == [scada_client.LIVE_LOGIN_TIMEOUT_S] == [5]  # lượt đọc tự động chỉ chờ kết nối 5 s
     assert "[MLM1 - Frequence], [PM - Power]" in sqls[0] and "DateAdd(mi,-3,GetDate())" in sqls[0]
     with pytest.raises(scada_client.ScadaError):  # không truyền tag → vẫn đòi tag đã khai như cũ
         scada_client.read_latest(f)

@@ -35,15 +35,22 @@ def _collect_messages(conn: Any) -> list[str]:
     return msgs
 
 
+#: Chờ đăng nhập SQL Server. Lượt đọc TỰ ĐỘNG (poll 5–10 s: sơ đồ vận hành, số lũy kế) chỉ chờ
+#: `LIVE_LOGIN_TIMEOUT_S` — đo prod 01/10/2026: đứt Tailscale 20–60 s làm mỗi lượt kẹt 10 s, giữ khoá nhà
+#: máy khiến màn khác báo "đang bận"; lúc thông thì mở kết nối chỉ ~90 ms nên 5 s vẫn dư.
+LOGIN_TIMEOUT_S = 10
+LIVE_LOGIN_TIMEOUT_S = 5
+
+
 @contextmanager
-def _connect(factory: dict) -> Iterator[tuple[Any, list[str]]]:
+def _connect(factory: dict, login_timeout: int = LOGIN_TIMEOUT_S) -> Iterator[tuple[Any, list[str]]]:
     try:
         conn = pymssql.connect(
             server=factory["host"], port=str(factory["port"]), user=factory["username"],
             password=factory["password"], database=factory["database_name"],
             # timeout 30s: dưới ngưỡng 100s của Cloudflare và không giữ luồng API quá lâu khi
             # SCADA/VPN chậm (xem scada_read_guard — khoá theo nhà máy + cache).
-            login_timeout=10, timeout=30, appname="VRG-SmartFactory")
+            login_timeout=login_timeout, timeout=30, appname="VRG-SmartFactory")
     except pymssql.Error as exc:
         raise ScadaError(friendly_error(exc, factory, connected=False)) from exc
     try:
@@ -71,8 +78,8 @@ def _tags(factory: dict) -> list[str]:
     return tags
 
 
-def _read(factory: dict, *builders: tuple,
-          tags: list[str] | None = None) -> list[list[hsql.RawRow]]:
+def _read(factory: dict, *builders: tuple, tags: list[str] | None = None,
+          login_timeout: int = LOGIN_TIMEOUT_S) -> list[list[hsql.RawRow]]:
     """Dựng từng câu (hàm dựng, *tham số sau linked server/tags) rồi chạy trên MỘT kết nối.
     `tags=None` → tag điện · nước · bành đã khai của nhà máy; khác None → đúng danh sách đó."""
     tags = _tags(factory) if tags is None else tags
@@ -80,7 +87,7 @@ def _read(factory: dict, *builders: tuple,
         sqls = [fn(factory["linked_server"], tags, *args) for fn, *args in builders]
     except ValueError as exc:
         raise ScadaError(f"Cấu hình nhà máy không hợp lệ: {exc}") from exc
-    with _connect(factory) as session:
+    with _connect(factory, login_timeout) as session:
         return [hsql.map_rows(_query(session, factory, sql), tags) for sql in sqls]
 
 
@@ -94,8 +101,10 @@ def read_meters(factory: dict, start: datetime,
 def read_latest(factory: dict, tags: list[str] | None = None,
                 minutes: int = hsql.LATEST_MINUTES) -> list[hsql.RawRow]:
     """Chỉ mẫu theo phút `minutes` phút gần nhất (dòng cuối = lúc GetDate()). Mặc định tag điện ·
-    nước · bành của nhà máy; sơ đồ vận hành truyền tag của một khu."""
-    return _read(factory, (hsql.latest_query, minutes), tags=tags)[0]
+    nước · bành của nhà máy; sơ đồ vận hành truyền tag của một khu. Chỉ dùng cho lượt đọc tự động
+    → chờ kết nối `LIVE_LOGIN_TIMEOUT_S`."""
+    return _read(factory, (hsql.latest_query, minutes), tags=tags,
+                 login_timeout=LIVE_LOGIN_TIMEOUT_S)[0]
 
 
 #: Một câu: phiên bản + giờ máy SQL Server kèm múi (kiểm múi giờ/đồng hồ — mốc ngày dựa vào nó).
