@@ -20,6 +20,7 @@ from sqlalchemy import text
 from app.core import vn_text
 from app.core.db import ensure_schema, session_scope
 from app.services import sales_contract_calc as calc
+from app.services import sales_contract_group as grp
 from app.services.sales_contract_repo import _COLS, _row
 
 _SELECT = f"SELECT {', '.join(_COLS)} FROM sales_contract"
@@ -88,12 +89,17 @@ def deliveries(date_from: str, date_to: str, companies: list[str] | None = None,
         r["parent_code"] = r["code"]
     parent_ids = sorted({r["parent_id"] for r in rows if r["parent_id"] is not None})
     if parent_ids:
-        owner = {p["id"]: (p["customer_id"], p["contract_type"], p["code"])
+        owner = {p["id"]: (p["customer_id"], p["contract_type"], p["code"], p["master_id"])
                  for p in _fetch(None, ["id = ANY(:ps)"], {"ps": parent_ids})}
         for r in rows:
             if r["parent_id"] is not None:
-                r["customer_id"], r["contract_type"], r["parent_code"] = owner.get(
-                    r["parent_id"], (None, None, None))
+                (r["customer_id"], r["contract_type"], r["parent_code"],
+                 r["master_id"]) = owner.get(r["parent_id"], (None, None, None, None))
+    # Nhóm báo cáo (chuyến · HĐNT · dài hạn) theo HỒ SƠ MẸ của hợp đồng — `contract_type` giữ
+    # nguyên loại tự khai cho cột "Loại HĐ" từng hợp đồng (xem `sales_contract_group`).
+    mtypes = grp.master_types(r["master_id"] for r in rows)
+    for r in rows:
+        r["contract_group"] = grp.group_of(r["contract_type"], mtypes.get(r["master_id"]))
     if customer_ids:
         keep = set(customer_ids)
         rows = [r for r in rows if r.get("customer_id") in keep]
@@ -156,9 +162,9 @@ def consumption(date_from: str, date_to: str, companies: list[str] | None = None
             acc["revenue"] += c["revenue"]
         ch = c.get("channel") or "domestic"
         acc["by_channel"][ch] = acc["by_channel"].get(ch, 0.0) + c["qty"]
-        # Loại hợp đồng lấy từ mẹ (đã gắn ở `deliveries`); dữ liệu chưa khai gom vào khoá rỗng
-        # thay vì dồn vào một loại — dồn là làm sai chỉ tiêu dài hạn/chuyến.
-        ct = c.get("contract_type") or ""
+        # NHÓM hợp đồng (chuyến · HĐNT · dài hạn — đã gắn ở `deliveries`); chưa khai gom vào khoá
+        # rỗng thay vì dồn vào một nhóm — dồn là làm sai chỉ tiêu dài hạn/chuyến.
+        ct = c.get("contract_group") or ""
         acc["by_type"][ct] = acc["by_type"].get(ct, 0.0) + c["qty"]
         # Mẫu báo cáo cần ô chéo (dài hạn × xuất khẩu, chuyến × trong nước…) nên giữ luôn bảng chéo.
         acc["by_type_channel"][f"{ct}|{ch}"] = acc["by_type_channel"].get(f"{ct}|{ch}", 0.0) + c["qty"]
@@ -186,8 +192,9 @@ _GRADE_SQL = ("COALESCE(NULLIF(e->>'grade', ''), '(chưa khai)') AS grade, "
 _BLOCK3_SQL = """
 WITH parent AS (
     SELECT id, company, code, customer_id, sign_date, expiry_date, lines, delivered_at,
-           contract_type, master_id
-    FROM sales_contract
+           contract_type, master_id,
+           (SELECT m.master_type FROM master_contract m WHERE m.id = s.master_id) AS master_type
+    FROM sales_contract s
     WHERE parent_id IS NULL
       AND (sign_date IS NULL OR sign_date <= CAST(:d AS date))
       AND (completed_at IS NULL OR completed_at > CAST(:d AS date))
@@ -214,7 +221,8 @@ WITH parent AS (
                 count(*) FILTER (WHERE qty_dry = 0) AS no_dry FROM done_g GROUP BY 1, 2
 ), dtot AS (SELECT id, sum(qty_sale) AS qty_sale FROM done_g GROUP BY 1)
 SELECT p.id, p.company, p.code, p.customer_id, p.sign_date, p.expiry_date,
-       p.contract_type, p.master_id, c.grade, c.qty AS commit_wet, c.qty_dry AS commit_dry,
+       p.contract_type, p.master_id, p.master_type, c.grade, c.qty AS commit_wet,
+       c.qty_dry AS commit_dry,
        COALESCE(dtot.qty_sale, 0) AS done_sale_total,
        COALESCE(d.qty, 0) AS done_wet, COALESCE(d.qty_sale, 0) AS done_sale,
        COALESCE(d.qty_dry, 0) AS done_dry, COALESCE(d.no_dry, 0) AS done_no_dry
@@ -343,9 +351,10 @@ def undelivered_on(as_of: str, companies: list[str] | None = None,
         acc["items"].append({
             "id": head["id"], "code": head["code"], "parent_id": None,
             "customer_id": head["customer_id"],
-            # Loại HĐ + hồ sơ mẹ: `contract_backlog` cần để chia phần chưa giao theo HĐ chuyến /
-            # HĐ dài hạn mà không đếm trùng phụ lục đã tính ở cấp hợp đồng mẹ.
+            # Loại HĐ + hồ sơ mẹ + nhóm: `contract_backlog` cần để chia phần chưa giao theo HĐ
+            # chuyến / HĐNT / HĐ dài hạn mà không đếm trùng phụ lục đã tính ở cấp hợp đồng mẹ.
             "contract_type": head["contract_type"] or None, "master_id": head["master_id"],
+            "contract_group": grp.group_of(head["contract_type"], head["master_type"]),
             "sign_date": str(head["sign_date"]) if head["sign_date"] else None,
             "expiry_date": str(head["expiry_date"]) if head["expiry_date"] else None,
             "qty": sum(float(r["commit_wet"] or 0) for r in lines),

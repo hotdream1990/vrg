@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from app.services import member_unit_merge, member_unit_repo, unit_daily_repo
+from app.services.sales_contract_group import GROUP_LABELS
 from app.services.unit_report_rows import MATERIAL_LABELS, SOURCE_LABELS
 
 #: Nhãn cho ô CHƯA KHAI — hiện rõ là thiếu dữ liệu, thay vì để chuỗi rỗng hay đoán bừa một loại.
@@ -21,7 +22,8 @@ UNKNOWN_LABEL = "(chưa khai)"
 #: hoạch không khớp được với dòng sản lượng và % hiện ra trống.
 NO_REGION_LABEL = "(Chưa gán khu vực)"
 
-CONTRACT_LABELS = {"long_term": "HĐ dài hạn", "spot": "HĐ chuyến"}
+#: Nhóm hợp đồng của màn Thống kê — xếp theo HỒ SƠ MẸ (`sales_contract_group`, chốt 01/10/2026).
+CONTRACT_LABELS = GROUP_LABELS
 # Đủ 3 hình thức của cơ chế hợp đồng — thiếu "internal" thì tiêu thụ nội bộ hiện ra chuỗi thô.
 CHANNEL_LABELS = {"export": "XK / UTXK", "domestic": "Tiêu thụ trong nước",
                   "internal": "Tiêu thụ nội bộ"}

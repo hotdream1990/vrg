@@ -89,7 +89,8 @@ def build(as_of: str, report: dict[str, Any] | None = None) -> bytes:
     year = int(as_of[:4])
     report = report or unit_period_report.period_report(
         "consumption", f"{year}-01-01", as_of)
-    data = {r["company"]: r for r in report.get("rows") or []}
+    # Mẫu Ban TTKD chỉ có cột dài hạn / chuyến → HĐ nguyên tắc gộp vào cột chuyến (chốt 01/10/2026).
+    data = {r["company"]: unit_period_report.ban_ttkd_view(r) for r in report.get("rows") or []}
     units = member_unit_repo.list_units(include_inactive=True)
 
     wb = Workbook()

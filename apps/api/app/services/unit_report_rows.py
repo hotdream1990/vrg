@@ -186,9 +186,10 @@ def _delivery_rows(date_from: str, date_to: str, companies: list[str] | None,
                          if qty_wet is not None and _num(ln.get("price")) is not None and fx else None))
             out.append({
                 **base, "source": "contract", "code": d.get("code"),
-                # Loại HỢP ĐỒNG (dài hạn/chuyến) — KHÔNG lấy `delivery_type` (loại GIAO): suy từ đó
-                # thì mọi hợp đồng đều rơi vào "HĐ chuyến". Chưa khai loại → để trống, không đoán.
-                "contract": d.get("contract_type") or "",
+                # NHÓM HỢP ĐỒNG (chuyến · HĐNT · dài hạn, theo hồ sơ mẹ — `sales_contract_group`) —
+                # KHÔNG lấy `delivery_type` (loại GIAO): suy từ đó thì mọi hợp đồng đều rơi vào "HĐ
+                # chuyến". Chưa khai loại → để trống, không đoán.
+                "contract": d.get("contract_group") or "",
                 "channel": d.get("channel") or "domestic",
                 "grade": str(ln.get("grade") or "").strip() or "—",
                 "qty": qty, "price": _num(ln.get("price")),

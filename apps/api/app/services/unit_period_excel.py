@@ -14,6 +14,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+from app.services.unit_period_report import ban_ttkd_view
+
 _HEAD_FILL = PatternFill("solid", fgColor="D9E7D5")
 _TOTAL_FILL = PatternFill("solid", fgColor="F2F2F2")
 _THIN = Side(style="thin", color="9AA5A0")
@@ -50,11 +52,11 @@ _CONSUMPTION_COLS: list[tuple[str, str, str, str]] = [
     ("signed_lt_tonnes", "Tổng SL đã ký HĐ dài hạn", "số liệu năm", "tấn"),
     ("plan_sales_spot_tonnes", "Kế hoạch tiêu thụ — HĐ chuyến", "số liệu năm", "tấn"),
     ("pct_plan_sales_spot", "% thực hiện KH tiêu thụ (HĐ chuyến)",
-     "= tiêu thụ HĐ chuyến / kế hoạch", "%"),
+     "= tiêu thụ HĐ chuyến (không gồm HĐ nguyên tắc) / kế hoạch", "%"),
     ("lt_export", "HĐ dài hạn — XK/UTXK", "cộng dồn", "tấn"),
     ("lt_domestic", "HĐ dài hạn — Tiêu thụ trong nước", "cộng dồn", "tấn"),
-    ("spot_export", "HĐ chuyến — XK/UTXK", "cộng dồn", "tấn"),
-    ("spot_domestic", "HĐ chuyến — Tiêu thụ trong nước", "cộng dồn", "tấn"),
+    ("spot_export", "HĐ chuyến — XK/UTXK", "cộng dồn — gồm cả HĐ nguyên tắc", "tấn"),
+    ("spot_domestic", "HĐ chuyến — Tiêu thụ trong nước", "cộng dồn — gồm cả HĐ nguyên tắc", "tấn"),
     ("total_consumption", "Tổng tiêu thụ", "= 4 cột trên (cũ) + sản lượng hợp đồng (mới)", "tấn"),
     ("export_total", "Tổng XK/UTXK", "= dài hạn + chuyến + hợp đồng", "tấn"),
     ("domestic_total", "Tổng Tiêu thụ trong nước", "= dài hạn + chuyến + hợp đồng", "tấn"),
@@ -112,7 +114,8 @@ def build_period_xlsx(report: dict) -> bytes:
     kind = report["kind"]
     grades: list[str] = report.get("grades") or []
     cols, units = _columns(kind, grades)
-    rows: list[dict] = report.get("rows") or []
+    # Mẫu Ban TTKD chỉ có cột dài hạn / chuyến → HĐ nguyên tắc gộp vào cột chuyến (chốt 01/10/2026).
+    rows: list[dict] = [ban_ttkd_view(r) for r in report.get("rows") or []]
 
     wb = Workbook()
     ws = wb.active

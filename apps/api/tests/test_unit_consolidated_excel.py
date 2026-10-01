@@ -80,3 +80,13 @@ def test_moi_chung_loai_deu_co_cho_trong_bieu() -> None:
     """Chủng loại mới thêm vào hệ thống mà quên xếp nhóm thì vẫn hiện ở "Ngoại lệ", không rơi mất."""
     row = {"stock_by_grade": {g: 1.0 for g in UNIT_GRADES}, "stock_hd_by_grade": {}}
     assert sum(c or 0 for c in grade_cells(row)) == len(UNIT_GRADES)
+
+
+def test_hd_nguyen_tac_gop_vao_cot_hd_chuyen(monkeypatch) -> None:
+    """Mẫu Ban TTKD chỉ có 2 cột dài hạn / chuyến → HĐ nguyên tắc cộng vào cột CHUYẾN (01/10/2026),
+    cột dài hạn giữ nguyên."""
+    monkeypatch.setattr(mod.member_unit_repo, "list_units", lambda include_inactive=False: UNITS[:1])
+    row = {**ROW_A, "principle_export": 5.0, "principle_domestic": 7.0, "principle_total": 12.0}
+    ws = openpyxl.load_workbook(io.BytesIO(mod.build("2026-09-17", {"rows": [row]}))).worksheets[0]
+    assert (ws["H8"].value, ws["I8"].value) == (10.0, 20.0)
+    assert (ws["J8"].value, ws["K8"].value) == (35.0, 47.0)

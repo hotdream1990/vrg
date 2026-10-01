@@ -76,6 +76,7 @@ CONSUMPTION: list[Col] = [
     _c("qty", "Tổng tiêu thụ", "tấn", "consumption", "qty", note="cộng dồn", compare=True),
     _c("qty_long_term", "HĐ dài hạn", "tấn", "consumption", "qty_long_term", compare=True),
     _c("qty_spot", "HĐ chuyến", "tấn", "consumption", "qty_spot", compare=True),
+    _c("qty_principle", "HĐ nguyên tắc", "tấn", "consumption", "qty_principle", compare=True),
     _c("qty_unknown_type", "HĐ chưa khai loại", "tấn", "consumption", "qty_unknown_type"),
     _c("qty_export", "Xuất khẩu / UTXK", "tấn", "consumption", "qty_export", compare=True),
     _c("qty_domestic", "Trong nước", "tấn", "consumption", "qty_domestic", compare=True),

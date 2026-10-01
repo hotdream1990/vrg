@@ -27,7 +27,7 @@ PURCHASE_KEYS = ("latex_wet", "coagulum", "lace", "finished_qty", "total_purchas
                  "price_latex_avg", "price_cup_avg", "price_lace_avg",
                  "no_purchase_days", "plan_tonnes", "pct_plan")
 CONSUMPTION_KEYS = ("total_consumption", "export_total", "domestic_total", "internal_total",
-                    "lt_total", "spot_total", "revenue_ty", "avg_sell_price")
+                    "lt_total", "spot_total", "principle_total", "revenue_ty", "avg_sell_price")
 STOCK_KEYS = ("stock_as_of", "stock_finished", "stock_not_warehoused", "stock_warehoused",
               "stock_material", "stock_finished_hd")
 

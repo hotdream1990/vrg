@@ -19,6 +19,7 @@ from typing import Any
 from app.core.market_meta import CONTRACT_TYPES, DRY_REQUIRED_GRADES, SALE_CHANNELS
 from app.services import sales_contract_calc as calc, sales_contract_report, unit_analytics_excel
 from app.services.sales_contract_consumption_summary import SUMMARY_COLS, summary
+from app.services.sales_contract_group import GROUP_LABELS
 from app.services.unit_analytics_excel import Col
 
 #: Mỗi dòng = MỘT chủng loại của MỘT lần giao. Thứ tự cột theo mạch soát số: giao khi nào · của ai ·
@@ -30,6 +31,9 @@ DETAIL_COLS: list[Col] = [
     ("batch_code", "Đợt giao", ""),
     ("customer", "Khách hàng", ""),
     ("contract_type", "Loại HĐ", ""),
+    # NHÓM báo cáo (theo hồ sơ mẹ) — khớp cột HĐ chuyến / HĐNT / HĐ dài hạn của màn Thống kê; "Loại HĐ"
+    # là loại tự khai, mọi phụ lục đều "Phụ lục hợp đồng mẹ" nên không tách được HĐNT với HĐDH.
+    ("contract_group", "Nhóm HĐ", ""),
     ("channel", "Hình thức tiêu thụ", ""),
     ("to_company", "Đơn vị nhận (nội bộ)", ""),
     ("grade", "Chủng loại", ""),
@@ -56,6 +60,9 @@ CONTRACT_COLS: list[Col] = [
     ("contract_code", "Số hợp đồng", ""),
     ("customer", "Khách hàng", ""),
     ("contract_type", "Loại HĐ", ""),
+    # NHÓM báo cáo (theo hồ sơ mẹ) — khớp cột HĐ chuyến / HĐNT / HĐ dài hạn của màn Thống kê; "Loại HĐ"
+    # là loại tự khai, mọi phụ lục đều "Phụ lục hợp đồng mẹ" nên không tách được HĐNT với HĐDH.
+    ("contract_group", "Nhóm HĐ", ""),
     ("channel", "Hình thức tiêu thụ", ""),
     ("to_company", "Đơn vị nhận (nội bộ)", ""),
     ("grade", "Chủng loại", ""),
@@ -90,6 +97,7 @@ def _detail(deliveries: list[dict[str, Any]], names: dict[str, str]) -> list[dic
                 "batch_code": r.get("code") if is_batch else None,
                 "customer": names.get(str(r.get("customer_id") or 0)) or "(chưa gán khách hàng)",
                 "contract_type": CONTRACT_TYPES.get(r.get("contract_type") or ""),
+                "contract_group": GROUP_LABELS.get(r.get("contract_group") or ""),
                 "channel": SALE_CHANNELS.get(r.get("channel") or ""),
                 "to_company": r.get("to_company"),
                 "grade": grade,
@@ -131,6 +139,7 @@ def _by_contract(deliveries: list[dict[str, Any]], names: dict[str, str]) -> lis
                     "company": r["company"], "contract_code": code, "grade": grade,
                     "customer": names.get(str(r.get("customer_id") or 0)) or "(chưa gán khách hàng)",
                     "contract_type": CONTRACT_TYPES.get(r.get("contract_type") or ""),
+                    "contract_group": GROUP_LABELS.get(r.get("contract_group") or ""),
                     "to_company": r.get("to_company"),
                     "qty_wet": 0.0, "qty": 0.0, "revenue_vnd": 0.0,
                     "_channels": set(), "_ids": set(), "_days": set(),

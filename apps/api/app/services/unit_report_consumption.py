@@ -23,7 +23,7 @@ from app.services.unit_report_rows import SOURCE_LABELS, TRIEU
 
 def _new_consumption(key: str, region: str | None) -> dict[str, Any]:
     return {"key": key, "label": key, "region": region, "qty": 0.0,
-            "qty_long_term": 0.0, "qty_spot": 0.0, "qty_unknown_type": 0.0,
+            "qty_long_term": 0.0, "qty_spot": 0.0, "qty_principle": 0.0, "qty_unknown_type": 0.0,
             "qty_export": 0.0, "qty_domestic": 0.0, "qty_internal": 0.0,
             "revenue_vnd": 0.0, "_rev_qty": 0.0, "lines": 0, "_days": set(),
             # Số lần giao CHƯA TÍNH ĐƯỢC doanh thu (thiếu tỷ giá hoặc thiếu đơn giá) — nơi đem doanh
@@ -39,7 +39,7 @@ def _new_consumption(key: str, region: str | None) -> dict[str, Any]:
 
 #: Giá trị enum → ô cộng dồn. Giá trị lạ/thiếu đi vào ô "chưa khai" riêng, KHÔNG dồn vào ô nào
 #: khác: dồn "single/multi" vào "HĐ chuyến" từng làm chỉ tiêu HĐ dài hạn về 0.
-_TYPE_BUCKET = {"long_term": "qty_long_term", "spot": "qty_spot"}
+_TYPE_BUCKET = {"long_term": "qty_long_term", "spot": "qty_spot", "principle": "qty_principle"}
 _CHANNEL_BUCKET = {"export": "qty_export", "domestic": "qty_domestic", "internal": "qty_internal"}
 
 
@@ -109,7 +109,7 @@ def _close_consumption(g: dict) -> dict[str, Any]:
     price = avg(g["revenue_vnd"], rev_qty)
     g["avg_price_trieu"] = (price / TRIEU) if price is not None else None
     g["revenue_ty"] = (g["revenue_vnd"] / 1_000_000_000) or None
-    for k in ("qty", "qty_long_term", "qty_spot", "qty_unknown_type",
+    for k in ("qty", "qty_long_term", "qty_spot", "qty_principle", "qty_unknown_type",
               "qty_export", "qty_domestic", "qty_internal", "revenue_vnd"):
         g[k] = g[k] or None
     return g
@@ -117,7 +117,8 @@ def _close_consumption(g: dict) -> dict[str, Any]:
 
 #: Kế hoạch tiêu thụ CHỈ đặt cho HĐ CHUYẾN → % thực hiện so với sản lượng HĐ chuyến, KHÔNG so với
 #: tổng tiêu thụ (so tổng thì đơn vị nào cũng "vượt kế hoạch" giả tạo vì HĐ dài hạn được cộng vào
-#: tử số mà không có trong mẫu số). Cùng quy ước với "Báo cáo tổng hợp" — xem `unit_period_report`.
+#: tử số mà không có trong mẫu số). HĐ nguyên tắc cũng KHÔNG vào tử số (chủ dự án chốt 01/10/2026:
+#: "HĐ chuyến là HĐ chuyến, nguyên tắc là riêng"). Cùng quy ước với "Báo cáo tổng hợp".
 _PLAN_KEY = "plan_sales_spot_tonnes"
 
 

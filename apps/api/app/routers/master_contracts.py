@@ -18,7 +18,9 @@ from app.core.market_meta import MASTER_CONTRACT_TYPES
 from app.core.permissions import LEVEL_EDIT
 from app.core.security import cap_or_member_scope
 from app.schemas.master_contract import AnnexLinkIn, MasterContractIn
-from app.services import customer_repo, master_contract_annexes, master_contract_repo
+from app.services import (
+    customer_repo, master_contract_annexes, master_contract_repo, sales_contract_group,
+)
 
 router = APIRouter(prefix="/api/master-contracts", tags=["master-contracts"])
 
@@ -82,7 +84,8 @@ def link_annexes(master_id: int, body: AnnexLinkIn, scope: EditScope) -> dict:
     """Gắn các hợp đồng ĐÃ CÓ vào hợp đồng mẹ này (`attach=false` là gỡ ra).
 
     Chiều ngược của ô "Hợp đồng mẹ" ở form hợp đồng — cần cho việc dọn hồ sơ cũ, vì hàng nghìn hợp
-    đồng đã nhập trước khi có cấp hợp đồng mẹ. Gắn/gỡ CHỈ đổi liên kết, không đụng số liệu.
+    đồng đã nhập trước khi có cấp hợp đồng mẹ. Gắn/gỡ đổi liên kết + loại hợp đồng (Phụ lục / chưa
+    khai), không đụng sản lượng hay khách hàng — xem `master_contract_annexes`.
     """
     username, companies = scope
     try:
@@ -100,6 +103,12 @@ def save_master(body: MasterContractIn, scope: EditScope) -> dict:
     """Thêm mới (không có id) hoặc cập nhật 1 hợp đồng mẹ."""
     username, companies = scope
     _assert_company(companies, body.company)
+    # Đổi HĐNT ↔ HĐDH là dời MỌI phụ lục sang cột khác của báo cáo (nhóm theo hồ sơ mẹ, 01/10/2026)
+    # → phụ lục có lần giao trong kỳ đã chốt thì tài khoản đơn vị bị chặn.
+    old = master_contract_repo.get(body.id) if body.id else None
+    if old and old.get("master_type") != body.master_type:
+        sales_contract_group.assert_regroup_fences(
+            username, old["company"], [a["id"] for a in master_contract_annexes.annexes(body.id)])
     try:
         return {"master": master_contract_repo.save(body.model_dump(), body.company, username)}
     except ValueError as exc:

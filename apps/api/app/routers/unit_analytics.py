@@ -134,7 +134,7 @@ _CONSUMPTION_GROUPS = "^(company|region|grade|contract|channel|source|day|none)$
 def consumption(date_from: str = Query(...), date_to: str = Query(...),
                 companies: str | None = Query(None), regions: str | None = Query(None),
                 grades: str | None = Query(None),
-                contract: str | None = Query(None, description="long_term,spot"),
+                contract: str | None = Query(None, description="spot,principle,long_term"),
                 channel: str | None = Query(None, description="export,domestic"),
                 source: str | None = Query(None, description="sales (mủ thu mua), sales_own (mủ khai thác)"),
                 group_by: str = Query("company", pattern=_CONSUMPTION_GROUPS),

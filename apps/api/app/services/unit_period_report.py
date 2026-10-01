@@ -169,14 +169,16 @@ def _consumption_rows(by_src: dict[str, list[dict]], plan: dict,
     c_export = by_channel.get("export", 0.0)
     c_domestic = by_channel.get("domestic", 0.0)
     c_internal = by_channel.get("internal", 0.0)
-    # Chỉ tiêu dài hạn/chuyến lấy từ `contract_type` của hợp đồng mẹ. Lần giao chưa khai loại nằm
-    # ở khoá "" — KHÔNG dồn vào một loại nào, nếu không hai chỉ tiêu này sai.
+    # Chỉ tiêu dài hạn/chuyến/HĐNT theo NHÓM hợp đồng (hồ sơ mẹ trước, loại tự khai sau — xem
+    # `sales_contract_group`). Lần giao chưa khai loại nằm ở khoá "" — KHÔNG dồn vào nhóm nào.
     by_type = contract.get("by_type") or {}
     lt_total = by_type.get("long_term", 0.0)
     spot_total = by_type.get("spot", 0.0)
+    pr_total = by_type.get("principle", 0.0)
     tc = contract.get("by_type_channel") or {}
     lt_e, lt_d = tc.get("long_term|export", 0.0), tc.get("long_term|domestic", 0.0)
     sp_e, sp_d = tc.get("spot|export", 0.0), tc.get("spot|domestic", 0.0)
+    pr_e, pr_d = tc.get("principle|export", 0.0), tc.get("principle|domestic", 0.0)
 
     total = c_qty
     revenue = None if (has_contract and c_revenue is None) else (c_revenue if has_contract else None)
@@ -208,6 +210,7 @@ def _consumption_rows(by_src: dict[str, list[dict]], plan: dict,
         "signed_lt_tonnes": _num(plan.get("signed_lt_tonnes")),
         # Kế hoạch TIÊU THỤ chỉ đặt cho HĐ CHUYẾN → % thực hiện so với tiêu thụ của riêng loại
         # hợp đồng đó, KHÔNG so với tổng tiêu thụ (so tổng là luôn vượt kế hoạch một cách giả tạo).
+        # HĐ nguyên tắc không vào tử số (chốt 01/10/2026), kể cả ở biểu Excel gộp HĐNT vào cột chuyến.
         "plan_sales_spot_tonnes": _num(plan.get("plan_sales_spot_tonnes")),
         "pct_plan_sales_spot": ((spot_total / p_sales * 100)
                                 if (p_sales := _num(plan.get("plan_sales_spot_tonnes"))) else None),
@@ -221,6 +224,8 @@ def _consumption_rows(by_src: dict[str, list[dict]], plan: dict,
         "lt_total": lt_total or None,
         "spot_export": sp_e or None, "spot_domestic": sp_d or None,
         "spot_total": spot_total or None,
+        "principle_export": pr_e or None, "principle_domestic": pr_d or None,
+        "principle_total": pr_total or None,
         "total_consumption": total or None,
         "export_total": c_export or None,
         "domestic_total": c_domestic or None,
@@ -241,6 +246,23 @@ def _consumption_rows(by_src: dict[str, list[dict]], plan: dict,
         "carry_lt_tonnes": _num(plan.get("carry_lt_tonnes")),
         "carry_spot_tonnes": _num(plan.get("carry_spot_tonnes")),
     }
+
+
+#: Cặp cột (chuyến, HĐNT) gộp lại trên biểu Excel mẫu Ban TTKD — mẫu chỉ có HĐ dài hạn / HĐ chuyến.
+_BAN_TTKD_SPOT = (("spot_export", "principle_export"), ("spot_domestic", "principle_domestic"),
+                  ("spot_total", "principle_total"))
+
+
+def ban_ttkd_view(row: dict[str, Any]) -> dict[str, Any]:
+    """Dòng báo cáo kỳ theo mẫu Ban TTKD: cột HĐ chuyến GỒM CẢ HĐ nguyên tắc (chủ dự án chốt
+    01/10/2026 — trước khi có hồ sơ mẹ, đơn vị vẫn nhập đơn hàng HĐNT là HĐ chuyến). Màn hình tách
+    riêng 3 nhóm; chỉ biểu Excel xuất theo mẫu mới gộp. `pct_plan_sales_spot` giữ nguyên (HĐ chuyến
+    thật / kế hoạch)."""
+    out = dict(row)
+    for spot, pr in _BAN_TTKD_SPOT:
+        if row.get(pr):
+            out[spot] = (row.get(spot) or 0.0) + row[pr]
+    return out
 
 
 def period_report(kind: str, date_from: str, date_to: str,

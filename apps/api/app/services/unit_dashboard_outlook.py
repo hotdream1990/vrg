@@ -2,7 +2,8 @@
 
 Bốn câu hỏi, cùng một ngày tính `as_of = min(đến ngày, hôm nay)`:
   1. HĐ dài hạn: đã giao bao nhiêu trên sản lượng CAM KẾT của hợp đồng mẹ, còn lại bao nhiêu.
-  2. Còn phải giao đến cuối năm = HĐ chuyến đã ký chưa giao + HĐ dài hạn còn lại (`contract_backlog`).
+  2. Còn phải giao đến cuối năm = HĐ chuyến đã ký chưa giao + HĐ nguyên tắc đã ký chưa giao + HĐ dài
+     hạn còn lại (`contract_backlog`).
   3. Bán cả năm (dự kiến) = đã giao lũy kế + còn phải giao, so với KH BÁN HÀNG = KH KHAI THÁC + KH
      THU MUA + KH HÀNG HÓA. Bản 26/09/2026 chỉ lấy 2 ô đầu (cột "KH Sản xuất + Thu mua" của biểu Ban
      TTKD — Ban TTKD chưa từng điền) nên đơn vị mua thành phẩm bên ngoài để bán lại bị % ảo: sản
@@ -56,8 +57,11 @@ def outlook_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any
         "lt": {k: whole[f"lt_{k}"] for k in ("committed", "delivered", "remaining", "pct",
                                              "masters", "expired_short", "unlinked_undelivered",
                                              "remaining_after_year")},
-        # `lt_remaining` ở đây = HĐDH còn lại + HĐ dài hạn khác đã ký chưa giao; ở khối `lt` chỉ là HĐDH.
+        # `lt_remaining` ở đây = HĐDH còn lại + phụ lục dài hạn ngoài HĐDH có cam kết đã ký chưa giao;
+        # ở khối `lt` chỉ là HĐDH.
+        # `principle_undelivered` = phụ lục/hợp đồng thuộc HĐ nguyên tắc đã ký chưa giao (01/10/2026).
         "backlog": {"spot_undelivered": whole["spot_undelivered"],
+                    "principle_undelivered": whole["principle_undelivered"],
                     "lt_remaining": whole["backlog_lt_remaining"],
                     "unknown_undelivered": whole["unknown_undelivered"],
                     "to_deliver": whole["to_deliver"]},
@@ -93,7 +97,12 @@ def _breakdown(sc: dict[str, Any], units: dict[str, dict[str, Any]], label_of) -
         out.append({"label": label,
                     "lt_committed": a["lt_committed"], "lt_delivered": a["lt_delivered"],
                     "lt_remaining": a["lt_remaining"], "lt_pct": a["lt_pct"],
-                    "spot_undelivered": a["spot_undelivered"], "to_deliver": a["to_deliver"],
+                    "spot_undelivered": a["spot_undelivered"],
+                    "principle_undelivered": a["principle_undelivered"],
+                    # Ô dài hạn của "còn phải giao" (HĐDH + phụ lục dài hạn ngoài HĐDH có cam kết) —
+                    # `lt_remaining` ở trên chỉ là HĐDH; thiếu ô này thì các cột không cộng ra to_deliver.
+                    "backlog_lt_remaining": a["backlog_lt_remaining"],
+                    "unknown_undelivered": a["unknown_undelivered"], "to_deliver": a["to_deliver"],
                     "delivered_ytd": a["delivered_ytd"], "projected": a["projected"],
                     "plan_exploit": a["plan_exploit"], "plan_purchase": a["plan_purchase"],
                     "plan_goods": a["plan_goods"], "plan_total": a["plan_total"], "qty_basket_projected": a["qty_basket_projected"],

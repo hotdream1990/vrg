@@ -31,7 +31,7 @@ _PURCHASE_TOTALS = ("qty_latex", "qty_cup", "qty_lace", "qty_finished", "qty_mat
                     "qty_total", "price_latex_avg", "price_cup_avg", "price_lace_avg",
                     "price_finished_avg", "days", "no_purchase_days")
 _PURCHASE_TREND = ("qty_latex", "qty_cup", "qty_lace", "qty_finished", "price_latex_avg")
-_CON_QTY = ("qty", "qty_long_term", "qty_spot", "qty_unknown_type", "qty_export",
+_CON_QTY = ("qty", "qty_long_term", "qty_spot", "qty_principle", "qty_unknown_type", "qty_export",
             "qty_domestic", "qty_internal", "revenue_ty")
 #: `bad_price_lines` = dòng bán nghi sai đơn vị tính (đơn giá vượt trần) — thẻ KPI Doanh thu đọc để
 #: báo số đang bị đội lên, thay vì hiện 4.500 tỷ ảo như một con số thật (phản hồi 26/09/2026).

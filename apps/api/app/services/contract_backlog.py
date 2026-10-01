@@ -19,7 +19,8 @@ Luật (plan 260926 Q1–Q3):
     chưa ký phụ lục báo riêng `master_expired_short`. HĐ mẹ còn hiệu lực sau 31/12 (hoặc không thời
     hạn) → phần còn lại của nó báo thêm ở `master_remaining_after_year` (chưa chắc giao trong năm).
   - KHÔNG đếm trùng: hợp đồng thuộc HĐ mẹ được tính chỉ góp ở cấp HĐ mẹ; mọi hợp đồng còn lại tính
-    theo khối 3 của chính nó, chia theo loại HĐ (chuyến · dài hạn · chưa khai).
+    theo khối 3 của chính nó, chia theo NHÓM HĐ (chuyến · HĐ nguyên tắc · dài hạn · chưa khai —
+    `sales_contract_group`, 01/10/2026): phụ lục của HĐNT vào ô HĐNT riêng, không vào "dài hạn".
 Gốc số: trừ trên QUY KHÔ khi cả cam kết lẫn mọi lần giao của chủng loại đều có khai, không thì trên
 mủ nước (`_master_totals`, cùng luật khối 3).
 """
@@ -37,13 +38,15 @@ from app.services.contract_backlog_sql import MASTER_SQL
 from app.services.unit_report_query import roll_by_company
 
 _EPS = 1e-9
-#: Loại HĐ của hợp đồng KHÔNG thuộc HĐ mẹ được tính → ô cộng dồn. Chưa khai loại vào ô riêng,
-#: không dồn vào loại nào — dồn là làm sai con số chuyến/dài hạn (cùng luật với báo cáo tiêu thụ).
-_BUCKET = {"spot": "spot_undelivered", "long_term": "lt_unlinked_undelivered"}
+#: Nhóm HĐ của hợp đồng KHÔNG thuộc HĐ mẹ được tính → ô cộng dồn. Chưa khai loại vào ô riêng,
+#: không dồn vào nhóm nào — dồn là làm sai con số chuyến/dài hạn (cùng luật với báo cáo tiêu thụ).
+_BUCKET = {"spot": "spot_undelivered", "principle": "principle_undelivered",
+           "long_term": "lt_unlinked_undelivered"}
 
 
 def _empty() -> dict[str, Any]:
-    return {"spot_undelivered": 0.0, "lt_unlinked_undelivered": 0.0, "unknown_undelivered": 0.0,
+    return {"spot_undelivered": 0.0, "principle_undelivered": 0.0,
+            "lt_unlinked_undelivered": 0.0, "unknown_undelivered": 0.0,
             "master_committed": 0.0, "master_delivered": 0.0, "master_remaining": 0.0,
             "master_expired_short": 0.0, "master_remaining_after_year": 0.0,
             "masters": 0, "master_pct": None,
@@ -127,7 +130,8 @@ def finalize(b: dict[str, Any]) -> dict[str, Any]:
     lt_remaining = b["master_remaining"] + b["lt_unlinked_undelivered"]
     committed = b["master_committed"]
     return {**b, "lt_remaining": lt_remaining,
-            "to_deliver": b["spot_undelivered"] + lt_remaining + b["unknown_undelivered"],
+            "to_deliver": (b["spot_undelivered"] + b["principle_undelivered"] + lt_remaining
+                           + b["unknown_undelivered"]),
             "master_pct": b["master_delivered"] / committed * 100 if committed > _EPS else None,
             "items": sorted(b["items"], key=lambda i: -i["remaining"]),
             "masters": len(b["items"])}
@@ -156,7 +160,7 @@ def backlog_on(as_of: str, companies: list[str] | None = None,
             if mid in counted:          # phụ lục của HĐ mẹ được tính → chỉ góp ở cấp HĐ mẹ
                 annex_open[mid] = annex_open.get(mid, 0.0) + it["remaining"]
                 continue
-            key = _BUCKET.get(it.get("contract_type") or "", "unknown_undelivered")
+            key = _BUCKET.get(it.get("contract_group") or "", "unknown_undelivered")
             out.setdefault(company, _empty())[key] += it["remaining"]
 
     day = date.fromisoformat(as_of)

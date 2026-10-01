@@ -14,6 +14,7 @@ from typing import Any
 
 from app.core.market_meta import CONTRACT_TYPES, SALE_CHANNELS
 from app.services import customer_repo, sales_contract_report
+from app.services.sales_contract_group import GROUP_LABELS
 
 #: Trần số dòng một trang — chặn client tự nâng `page_size` để kéo cả bảng về.
 MAX_PAGE_SIZE = 200
@@ -42,6 +43,8 @@ def _shape(r: dict[str, Any], names: dict[int, str]) -> dict[str, Any]:
         "batch_code": r.get("code") if is_batch else None,
         "customer_name": names.get(r.get("customer_id") or 0),
         "contract_type": CONTRACT_TYPES.get(r.get("contract_type") or ""),
+        # Nhóm báo cáo theo hồ sơ mẹ (HĐ chuyến · HĐ nguyên tắc · HĐ dài hạn) — khớp màn Thống kê.
+        "contract_group": GROUP_LABELS.get(r.get("contract_group") or ""),
         "channel": SALE_CHANNELS.get(r.get("channel") or ""),
         "grades": _grades(r.get("lines")),
         "qty": r["qty"],

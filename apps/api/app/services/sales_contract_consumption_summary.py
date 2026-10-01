@@ -27,6 +27,7 @@ SUMMARY_COLS: list[Col] = [
     # hạn theo cam kết HĐDH, gồm cả sản lượng chưa ký phụ lục) → hai nhãn phải khác nhau (Q4).
     ("remaining", "Đã ký HĐ chưa giao (khối 3)", "tấn quy khô"),
     ("spot_undelivered", "HĐ chuyến chưa giao", "tấn quy khô"),
+    ("principle_undelivered", "HĐ nguyên tắc chưa giao", "tấn quy khô"),
     ("lt_remaining", "HĐ dài hạn còn phải giao", "tấn quy khô"),
     # Hợp đồng chưa khai loại vẫn là nợ giao thật: thiếu cột này thì chuyến + dài hạn không cộng ra
     # được "Tổng phải giao" và người đọc không biết phần chênh ở đâu.
@@ -37,7 +38,8 @@ SUMMARY_COLS: list[Col] = [
     ("master_pct", "% thực hiện HĐDH", "%"),
 ]
 
-_BACKLOG_KEYS = ("spot_undelivered", "lt_remaining", "unknown_undelivered", "to_deliver",
+_BACKLOG_KEYS = ("spot_undelivered", "principle_undelivered", "lt_remaining",
+                 "unknown_undelivered", "to_deliver",
                  "master_committed", "master_delivered", "master_pct")
 
 

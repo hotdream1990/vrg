@@ -56,7 +56,7 @@ def _cleanup(h: dict[str, str]) -> None:
     with session_scope() as db:
         db.execute(text("DELETE FROM unit_data_lock WHERE company = :c"), {"c": UNIT})
         db.execute(text("DELETE FROM data_lock_round WHERE note = :n"), {"n": "ZZ TEST"})
-        for tbl in ("unit_daily_report", "unit_purchase_plan", "sales_contract"):
+        for tbl in ("unit_daily_report", "unit_purchase_plan", "sales_contract", "master_contract"):
             db.execute(text(f"DELETE FROM {tbl} WHERE company = :c"), {"c": UNIT})
         db.execute(text("DELETE FROM unit_customer WHERE company = :c"), {"c": UNIT})
     member_unit_repo.delete_unit(UNIT)
@@ -339,3 +339,44 @@ def test_only_the_units_own_account_can_confirm(env) -> None:
         assert client.post("/api/data-lock/confirm", json=body, headers=mh).status_code == 200
     finally:
         client.delete("/api/users/zz_lock_viewer", headers=h)
+
+
+def test_regroup_of_locked_delivery_is_blocked(env) -> None:
+    """Báo cáo xếp nhóm theo HỒ SƠ MẸ (01/10/2026) nên gắn/gỡ hồ sơ hay đổi HĐNT ↔ HĐDH dời sản
+    lượng giữa cột chuyến · HĐNT · dài hạn. Lần giao trong kỳ đã chốt → đơn vị bị chặn, quản trị thì
+    không; lần giao sau ngày chốt vẫn gắn bình thường."""
+    h, mh = env
+    cus = client.put("/api/customers", json={"company": UNIT, "name": "KH đổi nhóm"},
+                     headers=h).json()["id"]
+    line = [{"grade": "SVR 10 / CSR 10", "qty": 10.0, "price": 40.0, "ccy": "VND"}]
+    nt = {"company": UNIT, "code": "NT-RG", "master_type": "principle", "customer_id": cus,
+          "lines": [{"grade": "SVR 10 / CSR 10"}]}
+    nt["id"] = client.put("/api/master-contracts", headers=h, json=nt).json()["master"]["id"]
+
+    def _hd(code: str, day: str) -> int:
+        r = client.put("/api/sales-contracts", headers=mh, json={
+            "company": UNIT, "code": code, "customer_id": cus, "contract_type": "spot",
+            "delivery_type": "single", "sign_date": INSIDE, "delivered_at": day,
+            "channel": "domestic", "lines": line})
+        assert r.status_code == 200, r.text
+        return r.json()["contract"]["id"]
+
+    locked, fresh = _hd("HD-RG-1", INSIDE), _hd("HD-RG-2", OUTSIDE)
+    rnd = _round(h)
+    client.post("/api/data-lock/confirm", headers=mh, json={"round_id": rnd["id"], "company": UNIT})
+
+    link = lambda hh, ids, attach=True: client.put(  # noqa: E731
+        f"/api/master-contracts/{nt['id']}/annexes", headers=hh,
+        json={"contract_ids": ids, "attach": attach})
+    assert link(mh, [locked]).status_code == 403            # chuyến → HĐNT trong kỳ đã chốt
+    assert link(mh, [fresh]).status_code == 200             # giao sau ngày chốt: được
+    assert link(h, [locked]).status_code == 200             # quản trị sửa hộ: được
+    assert link(mh, [locked], attach=False).status_code == 403
+    # Đổi HĐNT → HĐDH dời cả phụ lục đã chốt sang cột dài hạn.
+    flip = {**nt, "master_type": "long_term"}
+    assert client.put("/api/master-contracts", headers=mh, json=flip).status_code == 403
+    # Quản trị gỡ phụ lục đã chốt ra (về "chưa khai loại") → hồ sơ chỉ còn phụ lục sau ngày chốt.
+    assert link(h, [locked], attach=False).status_code == 200
+    assert client.get(f"/api/sales-contracts/{locked}", headers=h).json()["contract"][
+        "contract_type"] is None
+    assert client.put("/api/master-contracts", headers=mh, json=flip).status_code == 200

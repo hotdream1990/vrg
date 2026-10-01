@@ -279,24 +279,30 @@ def _link(h, master_id: int, ids: list[int], attach: bool = True):
 
 
 def test_attach_existing_contract_only_sets_the_link(env) -> None:
-    """Gắn hợp đồng ĐÃ CÓ vào hồ sơ — chỉ đổi liên kết, KHÔNG đụng số liệu của hợp đồng."""
+    """Gắn hợp đồng ĐÃ CÓ vào hồ sơ — đổi liên kết + loại thành Phụ lục, KHÔNG đụng số liệu.
+
+    Loại đổi theo (chốt 01/10/2026): HĐ chuyến không có hợp đồng mẹ — giữ "HĐ chuyến" thì form sửa
+    chặn mà không có ô gỡ (76 hợp đồng từng kẹt). Gỡ thì về "chưa khai loại": để nguyên "Phụ lục"
+    là lặng lẽ dồn hợp đồng vào cột dài hạn của báo cáo."""
     h = env
     own, master_cus = _customer(h, UNIT, "KH riêng của HĐ"), _customer(h)
     m = _master(h, master_cus, code="HDDH-GAN", master_type="long_term")
     c = _annex(h, None, code="HD-CO-SAN", customer_id=own).json()["contract"]
-    assert c["master_id"] is None and c["customer_id"] == own
+    assert c["master_id"] is None and c["customer_id"] == own and c["contract_type"] == "spot"
 
     r = _link(h, m["id"], [c["id"]])
     assert r.status_code == 200, r.text
     assert r.json()["count"] == 1 and len(r.json()["annexes"]) == 1
     after = client.get(f"/api/sales-contracts/{c['id']}", headers=h).json()["contract"]
-    # Khách hàng + sản lượng của hợp đồng giữ NGUYÊN sau khi gắn.
+    # Khách hàng + sản lượng của hợp đồng giữ NGUYÊN sau khi gắn; loại thành Phụ lục.
     assert after["master_id"] == m["id"] and after["customer_id"] == own
     assert after["qty"] == pytest.approx(c["qty"])
+    assert after["contract_type"] == "long_term"
 
     assert _link(h, m["id"], [c["id"]], attach=False).status_code == 200
     off = client.get(f"/api/sales-contracts/{c['id']}", headers=h).json()["contract"]
     assert off["master_id"] is None and off["customer_id"] == own
+    assert off["contract_type"] is None
 
 
 def test_attach_rejects_other_unit_batch_and_taken_contract(env) -> None:

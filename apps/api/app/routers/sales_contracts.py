@@ -38,6 +38,7 @@ from app.services import (
     member_unit_merge,
     member_unit_repo,
     sales_contract_consumption_excel,
+    sales_contract_group,
     sales_contract_delivery_history,
     sales_contract_lifecycle,
     sales_contract_lock,
@@ -333,6 +334,10 @@ def save_contract(body: ContractIn, scope: EditScope) -> dict:
     if not sales_contract_lock.is_safe_edit(old, payload):
         sales_contract_lock.assert_delivery_fences(username, body.id, body.delivered_at,
                                                    body.company, old=old)
+    # Đổi hồ sơ mẹ / loại HĐ làm hợp đồng đổi NHÓM báo cáo (chuyến · HĐNT · dài hạn) → mọi lần giao
+    # của nó (kể cả đợt giao bên trong) đổi cột; kỳ đã chốt thì đơn vị phải gửi «Đề nghị sửa».
+    if old and sales_contract_group.regrouped(old, payload):
+        sales_contract_group.assert_regroup_fences(username, body.company, [body.id])
     try:
         return {"contract": sales_contract_repo.save(payload, body.company, username)}
     except ValueError as exc:

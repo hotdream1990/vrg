@@ -4,7 +4,8 @@ Khoá những chỗ dễ sai nhất (plan 260926 Q1–Q4):
   1. KHÔNG đếm trùng: phụ lục của HĐ mẹ có cam kết chỉ góp ở cấp HĐ mẹ, không góp thêm vào ô chuyến
      / dài hạn ngoài HĐ mẹ.
   2. Còn phải giao = max(cam kết − đã giao, phụ lục đã ký chưa giao); HĐ mẹ hết hạn → 0 + thiếu hụt.
-  3. HĐ mẹ không có cam kết, hoặc là HĐ NGUYÊN TẮC → phụ lục tính như hợp đồng thường.
+  3. HĐ mẹ không có cam kết → phụ lục tính như hợp đồng thường; HĐ NGUYÊN TẮC → cam kết không tính,
+     mọi hợp đồng gắn nó vào ô HĐNT riêng (01/10/2026).
   4. Cùng gốc QUY KHÔ với cột tiêu thụ, lọc chủng loại ở mức dòng, phạm vi đơn vị.
 Dữ liệu dựng thẳng bằng SQL: màn nhập hợp đồng có luật riêng (khách hàng, ngày không ở tương lai…)
 không liên quan tới phép tính ở đây, và ngày cố định giữ test không đổi màu theo lịch.
@@ -166,7 +167,9 @@ def test_hd_me_khong_cam_ket_thi_phu_luc_tinh_nhu_hop_dong_thuong() -> None:
 
 def test_hd_nguyen_tac_khong_vao_hd_dai_han() -> None:
     """Phản hồi Cao su Tây Ninh 28/09/2026: chỉ bán HĐ chuyến dưới HĐNT mà bị hiện trọn cam kết HĐNT
-    thành "HĐ dài hạn còn phải giao". HĐNT không tính; phụ lục của nó theo loại HĐ của chính nó."""
+    thành "HĐ dài hạn còn phải giao" → cam kết HĐNT không tính.
+    Phản hồi Dầu Tiếng Việt Lào 01/10/2026: đơn hàng thuộc HĐNT lưu lẫn "HĐ chuyến"/"Phụ lục" thì
+    nửa vào chuyến, nửa vào dài hạn → MỌI hợp đồng gắn HĐNT vào ô HĐNT riêng, bất kể loại tự khai."""
     nt = _master(UNIT_A, "2333NT", [_ln(1000), _ln(1000, LATEX, 600)], mtype="principle")
     _master(UNIT_A, "89NT", [_ln(100, LATEX, 60)], mtype="principle")        # không phụ lục nào
     _contract(UNIT_A, "CH-NT", [_ln(80)], ctype="spot", master_id=nt)
@@ -175,8 +178,9 @@ def test_hd_nguyen_tac_khong_vao_hd_dai_han() -> None:
 
     b = _bl()
     assert (b["masters"], b["items"], b["master_committed"], b["master_pct"]) == (0, [], 0, None)
-    assert b["spot_undelivered"] == pytest.approx(100)
-    assert b["lt_remaining"] == pytest.approx(40)            # chỉ phụ lục đã ký chưa giao
+    assert b["spot_undelivered"] == pytest.approx(20)        # chỉ HĐ chuyến không gắn hồ sơ
+    assert b["principle_undelivered"] == pytest.approx(120)  # cả 2 hợp đồng thuộc HĐNT
+    assert b["lt_remaining"] == 0                            # không có HĐDH nào
     assert b["to_deliver"] == pytest.approx(140)             # = "đã ký HĐ chưa giao", không cộng cam kết
 
 
