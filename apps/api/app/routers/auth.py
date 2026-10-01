@@ -6,6 +6,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.core.entry_types import clean_entry_types, user_entry_types
 from app.core.security import (
     UNIT_ROLES,
     create_access_token,
@@ -30,7 +31,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 def _user_out(user: dict, **extra) -> UserOut:
-    """Bọc dict user → UserOut, kèm cờ `member_has_purchase_plan`.
+    """Bọc dict user → UserOut, kèm cờ `member_has_purchase_plan` + loại nhập liệu.
 
     Tài khoản gắn đơn vị (nhập liệu + lãnh đạo) chỉ hiện menu "Thu mua" khi có ≥1 đơn vị ĐƯỢC
     GIAO KẾ HOẠCH thu mua — suy thẳng từ số ở màn "Kế hoạch năm" (chốt 03/08/2026, xem
@@ -40,7 +41,9 @@ def _user_out(user: dict, **extra) -> UserOut:
     if user.get("role") in UNIT_ROLES:
         plan_units = unit_daily_repo.companies_with_purchase_plan()
         has_plan = any(u in plan_units for u in user.get("member_units") or [])
-    return UserOut(**user, member_has_purchase_plan=has_plan, **extra)
+    # Web ẩn màn ngoài phần việc theo danh sách này — chỉ member có, thứ tự chuẩn của danh mục.
+    types = clean_entry_types(user_entry_types(user))
+    return UserOut(**{**user, "entry_types": types}, member_has_purchase_plan=has_plan, **extra)
 
 
 @router.post("/login", response_model=TokenResponse)

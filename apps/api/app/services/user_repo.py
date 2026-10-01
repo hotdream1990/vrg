@@ -13,19 +13,44 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.db import ensure_schema, session_scope
+from app.core.entry_types import ENTRY_TYPES, clean_entry_types
 from app.core.permissions import clean_caps
 from app.core.security import UNIT_ROLES, hash_password, verify_password
 from app.services import audit_repo
 
 
+#: Cột của mọi dict user trả ra ngoài (KHÔNG có password_hash) — một chỗ, thêm cột khỏi sót nơi nào.
+_USER_COLS = "username, full_name, email, role, is_active, permissions, member_units, entry_types"
+ENTRY_TYPES_REQUIRED = "Tài khoản nhập liệu đơn vị phải được giao ít nhất một loại nhập liệu"
+
+
 def _norm(row: Any) -> dict[str, Any]:
-    """Chuẩn hoá 1 dòng app_user → dict, đảm bảo `permissions`/`member_units` luôn là list."""
+    """Chuẩn hoá 1 dòng app_user → dict, đảm bảo `permissions`/`member_units`/`entry_types` là list."""
     d = dict(row)
     if "permissions" in d:
         d["permissions"] = list(d["permissions"] or [])
     if "member_units" in d:
         d["member_units"] = list(d["member_units"] or [])
+    if "entry_types" in d:
+        # Chỉ tài khoản nhập liệu (member) có loại; vai trò khác trả rỗng dù cột vẫn mang mặc định.
+        d["entry_types"] = clean_entry_types(d["entry_types"]) if d.get("role") == "member" else []
     return d
+
+
+def _entry_types_for(role: str, raw: list[str] | None, current: list[str] | None = None) -> list[str]:
+    """Loại nhập liệu sẽ LƯU. Chỉ role member có (vai trò khác lưu rỗng).
+
+    Không chỉ định (`raw` None) → giữ loại đang có; chưa có (tạo mới / vừa chuyển sang member) thì
+    giao đủ 3 loại — đúng mặc định của cột, không ai tự dưng mất quyền. Chỉ định mà rỗng → lỗi.
+    """
+    if role != "member":
+        return []
+    if raw is None:
+        return clean_entry_types(current) or list(ENTRY_TYPES)
+    types = clean_entry_types(raw)
+    if not types:
+        raise ValueError(ENTRY_TYPES_REQUIRED)
+    return types
 
 
 def _clean_units(units: list[str] | None) -> list[str]:
@@ -62,8 +87,7 @@ def get_user(username: str) -> dict[str, Any] | None:
     ensure_schema()
     with session_scope() as db:
         row = db.execute(
-            text("SELECT username, full_name, email, role, is_active, permissions, member_units "
-                 "FROM app_user WHERE username = :u"),
+            text(f"SELECT {_USER_COLS} FROM app_user WHERE username = :u"),
             {"u": username},
         ).mappings().first()
         return _norm(row) if row else None
@@ -73,8 +97,7 @@ def list_users() -> list[dict[str, Any]]:
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(
-            text("SELECT username, full_name, email, role, is_active, permissions, member_units "
-                 "FROM app_user ORDER BY created_at"),
+            text(f"SELECT {_USER_COLS} FROM app_user ORDER BY created_at"),
         ).mappings().all()
         return [_norm(r) for r in rows]
 
@@ -88,25 +111,30 @@ def _count_active_admins(db) -> int:  # noqa: ANN001 - session nội bộ
 def create_user(username: str, password: str, full_name: str | None, role: str,
                 permissions: list[str] | None = None,
                 member_units: list[str] | None = None,
-                email: str | None = None) -> dict[str, Any]:
-    """Tạo tài khoản mới. Raise ValueError nếu username đã tồn tại.
+                email: str | None = None,
+                entry_types: list[str] | None = None) -> dict[str, Any]:
+    """Tạo tài khoản mới. Raise ValueError nếu username đã tồn tại / member không còn loại nào.
 
     `permissions` chỉ có ý nghĩa với editor; `member_units` gắn cho các vai trò gắn đơn vị
-    (`UNIT_ROLES`: đơn vị thành viên nhập liệu + lãnh đạo đơn vị).
+    (`UNIT_ROLES`: đơn vị thành viên nhập liệu + lãnh đạo đơn vị); `entry_types` chỉ cho member
+    (None = đủ 3 loại — xem `_entry_types_for`).
     """
     ensure_schema()
     u = username.strip()
     role = role or "admin"
     units = _clean_units(member_units) if role in UNIT_ROLES else []
+    types = _entry_types_for(role, entry_types)
     with session_scope() as db:
         if db.execute(text("SELECT 1 FROM app_user WHERE username = :u"), {"u": u}).first():
             raise ValueError(f"Tài khoản '{u}' đã tồn tại")
         db.execute(
-            text("INSERT INTO app_user (username, password_hash, full_name, email, role, permissions, member_units) "
-                 "VALUES (:u, :p, :f, :e, :r, CAST(:perms AS jsonb), CAST(:units AS jsonb))"),
+            text("INSERT INTO app_user (username, password_hash, full_name, email, role, permissions, "
+                 "member_units, entry_types) VALUES (:u, :p, :f, :e, :r, CAST(:perms AS jsonb), "
+                 "CAST(:units AS jsonb), CAST(:types AS jsonb))"),
             {"u": u, "p": hash_password(password), "f": full_name,
              "e": (email or "").strip() or None, "r": role,
-             "perms": json.dumps(clean_caps(permissions)), "units": json.dumps(units)},
+             "perms": json.dumps(clean_caps(permissions)), "units": json.dumps(units),
+             "types": json.dumps(types)},
         )
     created = get_user(u)
     audit_repo.log("user", "create", u, after=created, note=f"Vai trò: {role}")
@@ -114,7 +142,9 @@ def create_user(username: str, password: str, full_name: str | None, role: str,
 
 
 def update_user(username: str, fields: dict[str, Any]) -> dict[str, Any] | None:
-    """Cập nhật full_name/role/is_active/permissions/member_units. Chặn khoá/hạ quyền admin cuối cùng."""
+    """Cập nhật full_name/role/is_active/permissions/member_units/entry_types.
+
+    Chặn khoá/hạ quyền admin cuối cùng; member phải còn ≥1 loại nhập liệu (ValueError)."""
     allowed = {k: v for k, v in fields.items() if k in ("full_name", "email", "role", "is_active")}
     if "email" in allowed:
         allowed["email"] = (allowed["email"] or "").strip() or None
@@ -123,7 +153,8 @@ def update_user(username: str, fields: dict[str, Any]) -> dict[str, Any] | None:
     before = get_user(username)
     with session_scope() as db:
         cur = db.execute(
-            text("SELECT role, is_active, member_units FROM app_user WHERE username = :u"), {"u": username},
+            text("SELECT role, is_active, member_units, entry_types FROM app_user WHERE username = :u"),
+            {"u": username},
         ).mappings().first()
         if not cur:
             return None
@@ -148,6 +179,10 @@ def update_user(username: str, fields: dict[str, Any]) -> dict[str, Any] | None:
             member_units = []
         sets.append("member_units = CAST(:member_units AS jsonb)")
         params["member_units"] = json.dumps(member_units)
+        # Loại nhập liệu: gửi kèm → thay hẳn; không gửi → giữ loại của tài khoản member đang có.
+        keep = cur["entry_types"] if cur["role"] == "member" else None
+        sets.append("entry_types = CAST(:entry_types AS jsonb)")
+        params["entry_types"] = json.dumps(_entry_types_for(final_role, fields.get("entry_types"), keep))
         if sets:
             db.execute(text(f"UPDATE app_user SET {', '.join(sets)} WHERE username = :u"), params)
     after = get_user(username)
@@ -167,9 +202,13 @@ def delete_user(username: str) -> bool:
         if cur["role"] == "admin" and cur["is_active"] and _count_active_admins(db) <= 1:
             raise ValueError("Không thể xoá quản trị viên cuối cùng")
         before = _norm(db.execute(
-            text("SELECT username, full_name, email, role, is_active, permissions, member_units "
-                 "FROM app_user WHERE username = :u"), {"u": username}).mappings().first())
+            text(f"SELECT {_USER_COLS} FROM app_user WHERE username = :u"),
+            {"u": username}).mappings().first())
         db.execute(text("DELETE FROM app_user WHERE username = :u"), {"u": username})
+        # Username = email nên có thể được cấp lại cho NGƯỜI KHÁC: dọn trình duyệt nhận push + dấu
+        # "đã đọc" của chủ cũ, kẻo máy chủ cũ nhận thông báo của chủ mới.
+        for table in ("push_subscription", "support_read"):
+            db.execute(text(f"DELETE FROM {table} WHERE username = :u"), {"u": username})
     audit_repo.log("user", "delete", username, before=before)
     return True
 
@@ -229,12 +268,9 @@ def authenticate(username: str, password: str) -> dict[str, Any] | None:
     ensure_schema()
     with session_scope() as db:
         row = db.execute(
-            text("SELECT username, password_hash, full_name, email, role, is_active, permissions, member_units "
-                 "FROM app_user WHERE username = :u"),
+            text(f"SELECT {_USER_COLS}, password_hash FROM app_user WHERE username = :u"),
             {"u": username},
         ).mappings().first()
     if not row or not row["is_active"] or not verify_password(password, row["password_hash"]):
         return None
-    return {"username": row["username"], "full_name": row["full_name"], "email": row["email"],
-            "role": row["role"],
-            "permissions": list(row["permissions"] or []), "member_units": list(row["member_units"] or [])}
+    return {k: v for k, v in _norm(row).items() if k != "password_hash"}

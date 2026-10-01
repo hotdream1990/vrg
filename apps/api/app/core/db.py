@@ -665,6 +665,52 @@ BEGIN
     ALTER TABLE app_user DROP COLUMN member_unit;
   END IF;
 END $$;
+-- LOẠI NHẬP LIỆU của tài khoản đơn vị (role member, chốt 01/10/2026) — purchase (Thu mua) ·
+-- stock (Tồn kho) · contract (Hợp đồng & tiêu thụ), chọn nhiều. Mặc định ĐỦ 3 loại để mọi tài
+-- khoản đang chạy giữ nguyên quyền. Danh mục + hàng rào ở app/core/entry_types.py.
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS entry_types jsonb NOT NULL
+  DEFAULT '["purchase","stock","contract"]'::jsonb;
+-- NGƯỜI NHẬN trong đơn vị của một thẻ Hỗ trợ & Thông báo (chốt 01/10/2026) — leader (lãnh đạo đơn
+-- vị) và/hoặc chuyên viên theo loại nhập liệu. Thẻ chỉ hiện với đúng nhóm được chọn. Thẻ cũ và lịch
+-- nhắc cũ vốn chỉ dành cho lãnh đạo nên mặc định leader.
+ALTER TABLE support_thread ADD COLUMN IF NOT EXISTS audience jsonb NOT NULL
+  DEFAULT '["leader"]'::jsonb;
+ALTER TABLE support_reminder ADD COLUMN IF NOT EXISTS audience jsonb NOT NULL
+  DEFAULT '["leader"]'::jsonb;
+-- ĐÃ ĐỌC theo TỪNG NGƯỜI ở phía đơn vị: một thẻ giờ có nhiều nhóm người nhận, lãnh đạo mở thẻ không
+-- được làm tắt chuông của chuyên viên. Phía Tập đoàn vẫn dùng hq_read_at (hộp thư chung của Ban).
+-- Tạo lần đầu thì chép mốc đọc cũ (unit_read_at) sang cho lãnh đạo của đơn vị — không thì mọi thẻ
+-- đã đọc bỗng thành chưa đọc. Chỉ chép ĐÚNG MỘT lần, lúc bảng vừa được tạo.
+DO $$
+BEGIN
+  IF to_regclass('support_read') IS NULL THEN
+    CREATE TABLE support_read (
+        thread_id bigint NOT NULL,
+        username  text NOT NULL,
+        read_at   timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (thread_id, username)
+    );
+    INSERT INTO support_read (thread_id, username, read_at)
+      SELECT t.id, u.username, t.unit_read_at
+        FROM support_thread t
+        JOIN app_user u ON u.role = 'leader' AND u.member_units @> jsonb_build_array(t.company)
+       WHERE t.unit_read_at IS NOT NULL
+      ON CONFLICT DO NOTHING;
+  END IF;
+END $$;
+-- WEB PUSH (chốt 01/10/2026): mỗi trình duyệt đã bấm "Cho phép thông báo" là một dòng. `endpoint`
+-- là địa chỉ do dịch vụ push của trình duyệt cấp (duy nhất), p256dh + auth là khoá mã hoá nội dung.
+-- Dịch vụ push trả 404/410 = trình duyệt đã huỷ đăng ký → xoá dòng (app/services/web_push.py).
+CREATE TABLE IF NOT EXISTS push_subscription (
+    endpoint   text PRIMARY KEY,
+    username   text NOT NULL,
+    p256dh     text NOT NULL,
+    auth       text NOT NULL,
+    user_agent text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    last_ok_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS ix_push_subscription_user ON push_subscription (username);
 -- Nhu cầu thị trường RÚT GỌN (chốt 17/09/2026): thời gian giao + kết quả thành Ô CHỮ; bỏ tình trạng,
 -- số hợp đồng, ngày ký, giá tạm tính, cặp ngày giao. Gộp giá trị cũ thành chữ rồi bỏ cột (idempotent).
 ALTER TABLE market_demand_item ADD COLUMN IF NOT EXISTS delivery_time text NOT NULL DEFAULT '';

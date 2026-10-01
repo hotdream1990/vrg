@@ -23,9 +23,16 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ValidationError
 
 from app.core.edit_window import BLOCK_HEADER
+from app.core.entry_types import CONTRACT, DAILY_KIND_ENTRY_TYPE, assert_entry_type, has_entry_type
+from app.services.unit_daily_fields import CONSUMPTION_SALES_KEYS
 
 REASON_MIN, REASON_MAX = 5, 2000
 Guard = Callable[[], None]
+#: Loại nhập liệu mà thao tác đòi (chốt 01/10/2026) — đề nghị sửa đi đúng phần việc của màn gốc.
+#: Biểu ngày theo `kind` của payload; op mới thêm mà quên khai ở đây thì `prepare` ném KeyError
+#: (đóng chặt, không lọt) và test `test_member_entry_types` báo ngay.
+_OP_TYPE = {"contract_save": CONTRACT, "contract_delete": CONTRACT, "contract_delivery_type": CONTRACT,
+            "demand_save": CONTRACT, "demand_delete": CONTRACT}
 
 
 @dataclass(frozen=True)
@@ -142,11 +149,48 @@ def clean_reason(reason: str | None) -> str:
     return text
 
 
+def entry_type_of(op_key: str, clean: dict) -> str:
+    """Loại nhập liệu của một đề nghị (payload đã chuẩn hoá)."""
+    if op_key in ("daily_report", "daily_move"):
+        return DAILY_KIND_ENTRY_TYPE[clean["kind"]]
+    return _OP_TYPE[op_key]
+
+
+def sales_locked(user: dict, kind: str) -> bool:
+    """Biểu Tồn kho (`consumption`) còn giữ ô TIÊU THỤ CŨ (`CONSUMPTION_SALES_KEYS`) — tài khoản
+    đơn vị KHÔNG có loại Hợp đồng & tiêu thụ thì không được đổi các ô đó."""
+    return kind == "consumption" and not has_entry_type(user, CONTRACT)
+
+
+def keep_stored_sales(fields: dict, stored: dict | None) -> dict:
+    """Thay ô tiêu thụ cũ trong `fields` bằng đúng giá trị ĐANG LƯU (`stored`); chưa lưu thì bỏ.
+
+    KHÔNG 403: form Tồn kho gửi lại nguyên mảng/ô tiêu thụ cũ đã lưu, chặn cứng là CV Tồn kho không
+    lưu nổi phần của mình (cùng ý với `_plan_allowed` của Kế hoạch năm).
+    """
+    out = {k: v for k, v in (fields or {}).items() if k not in CONSUMPTION_SALES_KEYS}
+    return {**out, **{k: v for k, v in (stored or {}).items() if k in CONSUMPTION_SALES_KEYS}}
+
+
+def member_daily_fields(user: dict, kind: str, as_of: str, company: str, fields: dict) -> dict:
+    """`fields` của biểu ngày mà tài khoản này được phép ghi (ghi thẳng `PUT /api/member/daily-report`)."""
+    if not sales_locked(user, kind):
+        return fields
+    from app.services.edit_request_ops_daily import _day_fields   # import vòng: module con dùng helper ở đây
+
+    return keep_stored_sales(fields, _day_fields(kind, as_of, company))
+
+
 def prepare(op_key: str, payload: Any, user: dict) -> dict[str, Any]:
-    """Dựng đề nghị từ payload thô: chuẩn hoá → ảnh chụp → quyền đơn vị → luật nghiệp vụ → câu chặn."""
+    """Dựng đề nghị từ payload thô: chuẩn hoá → loại nhập liệu → ảnh chụp → quyền đơn vị → luật
+    nghiệp vụ → câu chặn. Loại nhập liệu chỉ kiểm LÚC GỬI — Ban duyệt không bị ảnh hưởng."""
     op = get_op(op_key)
     clean = op.validate(payload)
+    assert_entry_type(user, entry_type_of(op_key, clean))
     before = op.snapshot(clean)
+    if op_key == "daily_report" and sales_locked(user, clean["kind"]):
+        # Nội dung lưu chờ duyệt cũng mang ô tiêu thụ ĐANG LƯU, không phải số tài khoản gửi lên.
+        clean = {**clean, "fields": keep_stored_sales(clean["fields"], (before or {}).get("fields"))}
     company = op.company(clean, before)
     op.check_scope(user, company, clean)
     if op.precheck:

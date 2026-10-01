@@ -11,6 +11,7 @@ bị nhắc oan hoặc yên tâm nhầm trong khi Ban TTKD vẫn thấy thiếu.
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from datetime import date, timedelta
 from typing import Any
 
@@ -18,12 +19,19 @@ from sqlalchemy import text
 
 from app.core import edit_window
 from app.core.db import ensure_schema, session_scope
+from app.core.entry_types import CONTRACT, PURCHASE, STOCK
 from app.services import member_data_check, unit_daily_repo
 from app.services import unit_daily_fields as fields
 
 #: Đợt giao mở lâu mà chưa điền ngày giao = nhiều khả năng đơn vị quên đóng đợt. Dưới ngưỡng này
 #: là chuyện bình thường (hàng đang gom trong kho), nhắc sớm chỉ gây nhiễu.
 PENDING_AFTER_DAYS = 7
+
+#: Nhóm việc → loại nhập liệu phụ trách (chốt 01/10/2026). Tài khoản nhập liệu chỉ được nhắc phần
+#: việc của mình — nhắc chuyện người khác làm thì tổng "còn thiếu" không bao giờ về 0 với họ.
+#: `data_checks` lọc theo `kind` của từng ô (trùng tên loại: purchase · stock · contract).
+_GROUP_TYPE = {"purchase_missing": PURCHASE, "year_plan_missing": PURCHASE, "stock_missing": STOCK,
+               "pending_batches": CONTRACT, "completed_no_delivery": CONTRACT, "missing_fx": CONTRACT}
 
 _PENDING_SQL = text("""
     SELECT k.id, k.company, k.code, p.code AS contract_code, k.updated_at::date AS since,
@@ -155,7 +163,24 @@ def _pending_batches(units: list[str], today: date) -> dict[str, list[dict[str, 
     return out
 
 
-def checklist(units: list[str]) -> dict[str, Any]:
+def _row_total(row: dict[str, Any]) -> int:
+    """Số việc còn thiếu của một đơn vị. Kế hoạch năm PHẢI cộng vào: tổng = 0 thì banner chuyển
+    sang dòng xanh "Đã nhập đủ" và KHÔNG hiện phần chi tiết nữa → việc còn thiếu biến mất."""
+    return (sum(len(row[k]) for k in _GROUP_TYPE if k != "year_plan_missing")
+            + len(row["data_checks"]) + (1 if row["year_plan_missing"] else 0))
+
+
+def _only_types(row: dict[str, Any], types: Collection[str]) -> dict[str, Any]:
+    """Bỏ khỏi dòng các nhóm việc KHÔNG thuộc loại nhập liệu được giao."""
+    out = {**row, "needs_purchase": row["needs_purchase"] and PURCHASE in types,
+           "data_checks": [c for c in row["data_checks"] if c["kind"] in types]}
+    for key, entry_type in _GROUP_TYPE.items():
+        if entry_type not in types:
+            out[key] = False if key == "year_plan_missing" else []
+    return out
+
+
+def checklist(units: list[str], entry_types: Collection[str] | None = None) -> dict[str, Any]:
     """Việc còn thiếu của TỪNG đơn vị được gán cho tài khoản.
 
     Ba nhóm: (1) ngày chưa nhập biểu Thu mua · (2) ngày chưa nhập biểu Tồn kho ·
@@ -167,6 +192,9 @@ def checklist(units: list[str]) -> dict[str, Any]:
     Rà có thể XA HƠN cửa sổ sửa → trả kèm `editable_from` (đã tính giờ chốt, chung mọi biểu) để
     giao diện phân biệt ngày còn tự sửa được với ngày đã khoá (đơn vị phải nhờ Ban TTKD nhập hộ),
     không hứa hão là bấm vào sửa được.
+
+    `entry_types` = loại nhập liệu của tài khoản member → chỉ giữ nhóm việc thuộc các loại đó (xem
+    `_GROUP_TYPE`); None = không lọc (lãnh đạo đơn vị).
     """
     units = list(units)
     today = edit_window.today()
@@ -192,7 +220,7 @@ def checklist(units: list[str]) -> dict[str, Any]:
     no_fx = _missing_fx(units, today, editable_from)
     closed_no_giao = _completed_no_delivery(units, year_start)
 
-    rows, total = [], 0
+    rows = []
     for u in units:
         needs_purchase = u in planned
         miss_p = [d for d in days if needs_purchase and (u, d) not in done["purchase"]]
@@ -200,17 +228,12 @@ def checklist(units: list[str]) -> dict[str, Any]:
         # "Chưa khai kế hoạch năm NAY" — `companies_with_purchase_plan` cố ý dùng lại số năm
         # trước để đơn vị không mất màn Thu mua đầu năm, nên phải hỏi riêng năm hiện tại.
         plan_missing = (plan_now.get(u) or {}).get("plan_tonnes") is None
-        # Kế hoạch năm PHẢI cộng vào tổng: tổng = 0 thì banner chuyển sang dòng xanh "Đã nhập đủ"
-        # và KHÔNG hiện phần chi tiết nữa → việc còn thiếu biến mất khỏi màn hình.
-        total += (len(miss_p) + len(miss_s) + len(pending.get(u, []))
-                  + len(no_fx.get(u, [])) + len(checks.get(u, []))
-                  + len(closed_no_giao.get(u, []))
-                  + (1 if plan_missing else 0))
-        rows.append({"company": u, "needs_purchase": needs_purchase,
-                     "purchase_missing": miss_p, "stock_missing": miss_s,
-                     "year_plan_missing": plan_missing, "year": today.year,
-                     "pending_batches": pending.get(u, []),
-                     "missing_fx": no_fx.get(u, []),
-                     "completed_no_delivery": closed_no_giao.get(u, []),
-                     "data_checks": checks.get(u, [])})
-    return {**base, "days": days, "units": rows, "total_missing": total}
+        row = {"company": u, "needs_purchase": needs_purchase,
+               "purchase_missing": miss_p, "stock_missing": miss_s,
+               "year_plan_missing": plan_missing, "year": today.year,
+               "pending_batches": pending.get(u, []),
+               "missing_fx": no_fx.get(u, []),
+               "completed_no_delivery": closed_no_giao.get(u, []),
+               "data_checks": checks.get(u, [])}
+        rows.append(row if entry_types is None else _only_types(row, entry_types))
+    return {**base, "days": days, "units": rows, "total_missing": sum(_row_total(r) for r in rows)}

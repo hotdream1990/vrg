@@ -151,6 +151,12 @@ _SALE_CHANNELS = {"export", "domestic"}   # hình thức: XK/UTXK | Tiêu thụ 
 # của hợp đồng (`sales_contract`). Form không nhập nữa, nhưng tầng lưu trữ VẪN nhận/giữ nguyên để
 # không mất số liệu đã khai — xoá key ở đây là mất sạch lịch sử khi đơn vị lưu lại ngày cũ.
 SALE_TABLES: tuple[str, ...] = ("sales", "sales_own")
+#: Mọi khoá TIÊU THỤ CŨ trong bản ghi `consumption` (2 mảng bán · `revenue` · `sales_ccy` ·
+#: `sales_migrated` · `purchased_sold_*` · `finished_sold_*`) — thuộc loại Hợp đồng & tiêu thụ, KHÔNG
+#: thuộc Tồn kho (chốt 01/10/2026). `fx_revenue` dùng chung cho đơn giá tồn kho → để phía Tồn kho.
+CONSUMPTION_SALES_KEYS: frozenset[str] = frozenset(
+    k for k in (*SALE_TABLES, *CONSUMPTION_FIELDS, *CONSUMPTION_TEXT, *CONSUMPTION_FLAGS)
+    if k == "revenue" or k.startswith(("sales", "purchased_sold_", "finished_sold_")))
 # 3 Ô đính kèm mỗi dòng bán, mỗi ô nhận NHIỀU file:
 #   (khoá danh sách, khoá file lưu server, khoá tên gốc hiển thị)
 # Cặp khoá phẳng (file, filename) = file ĐẦU danh sách, giữ lại để bản ghi cũ + Excel vẫn đọc được.

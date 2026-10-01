@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.core.entry_types import clean_entry_types
 from app.core.security import UNIT_ROLES, get_current_user
 from app.schemas.auth import PasswordReset, UserCreate, UserOut, UserUpdate
 from app.services import user_repo
@@ -22,9 +23,13 @@ def create_user(body: UserCreate):
     """Tạo tài khoản mới."""
     if body.role in UNIT_ROLES and not [u for u in body.member_units if (u or "").strip()]:
         raise HTTPException(400, "Tài khoản gắn đơn vị thành viên phải chọn ít nhất một đơn vị.")
+    # Không gửi loại = đủ 3 loại; gửi mà không còn loại hợp lệ nào thì báo ngay (repo cũng chặn).
+    if body.role == "member" and body.entry_types is not None and not clean_entry_types(body.entry_types):
+        raise HTTPException(400, user_repo.ENTRY_TYPES_REQUIRED)
     try:
         user = user_repo.create_user(body.username, body.password, body.full_name, body.role,
-                                     body.permissions, body.member_units, body.email)
+                                     body.permissions, body.member_units, body.email,
+                                     body.entry_types)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
     return UserOut(**user)

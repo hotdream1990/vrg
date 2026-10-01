@@ -10,6 +10,7 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
+from app.core.entry_types import CONTRACT, assert_entry_type
 from app.core.permissions import LEVEL_EDIT, LEVEL_VIEW, effective_caps, has_cap
 
 _bearer = HTTPBearer(auto_error=False)
@@ -251,6 +252,10 @@ def require_cap_edit(cap: str):
     return require_cap(cap, LEVEL_EDIT)
 
 
+#: Quyền dùng chung với đơn vị → loại nhập liệu đơn vị phải được giao mới được GHI.
+_CAP_ENTRY_TYPE = {"sales_contract": CONTRACT}
+
+
 def cap_or_member_scope(cap: str, level: str = LEVEL_VIEW):
     """Factory dependency cho màn hình dùng CHUNG giữa đơn vị thành viên và chuyên viên.
 
@@ -270,6 +275,9 @@ def cap_or_member_scope(cap: str, level: str = LEVEL_VIEW):
             units = list(u.get("member_units") or [])
             if not units:
                 raise HTTPException(403, "Tài khoản chưa được gán đơn vị thành viên — liên hệ quản trị.")
+            # Ghi phải đúng loại nhập liệu được giao (vd sales_contract = Hợp đồng & tiêu thụ).
+            if level == LEVEL_EDIT and cap in _CAP_ENTRY_TYPE:
+                assert_entry_type(u, _CAP_ENTRY_TYPE[cap])
             # Nhận sáp nhập là nhận cả phần việc dở dang của đơn vị cũ: hợp đồng chưa giao hết,
             # khách hàng của những hợp đồng đó. Không mở phạm vi thì 3 hợp đồng dở dang của đơn vị
             # cũ không ai thấy để thêm đợt giao (phát hiện 27/08/2026). Ghi vẫn bị các hàng rào cũ

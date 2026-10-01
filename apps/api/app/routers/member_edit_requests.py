@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.core.entry_types import assert_entry_type
 from app.core.security import get_unit_user
 from app.schemas.edit_request import EditRequestIn
 from app.services import audit_repo, edit_request_notify, edit_request_ops, edit_request_repo, member_unit_merge
@@ -66,6 +67,15 @@ def my_request(req_id: int, member: dict = Depends(get_unit_user)) -> dict:
 @router.post("/{req_id}/cancel")
 def cancel_request(req_id: int, member: dict = Depends(get_unit_user)) -> dict:
     req = _mine(member, req_id)
+    # Chỉ huỷ được đề nghị thuộc loại nhập liệu mình được giao (cùng đơn vị nhưng khác phần việc → 403).
+    # Đề nghị cũ có op đã bỏ / payload thiếu `kind` thì không suy được loại → cho huỷ như trước
+    # (không trả 500); đề nghị đó cũng không duyệt được nữa.
+    try:
+        entry_type = edit_request_ops.entry_type_of(req["op"], req["payload"] or {})
+    except KeyError:
+        entry_type = None
+    if entry_type:
+        assert_entry_type(member, entry_type)
     if not edit_request_repo.cancel(req_id):
         raise HTTPException(409, "Đề nghị này không còn chờ duyệt — không huỷ được.")
     audit_repo.log("edit_request", "cancel", f"#{req_id}", company=req["company"],
