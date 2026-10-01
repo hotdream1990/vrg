@@ -18,6 +18,8 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     CV Hợp đồng & tiêu thụ — thẻ chỉ hiện với đúng nhóm được chọn (kể cả lãnh đạo). Chuyên viên đơn vị
     vào được hộp thư, tự gửi yêu cầu (lãnh đạo + đồng nghiệp cùng loại cùng thấy). "Đã đọc" phía đơn vị
     tính theo từng người. Thẻ và lịch nhắc cũ, cảnh báo tự động giữ người nhận là lãnh đạo.
+  - 0.4.106: service worker đăng ký kèm số phiên bản (`/sw.js?v=…`) — Cloudflare ghi đè `no-cache` của
+    server thành "trình duyệt giữ 4 giờ", nên bản sửa thông báo sau này phải tới máy người dùng ngay.
 
 ### Fixed
 - **Tách nhóm HĐ nguyên tắc (HĐNT) khỏi HĐ chuyến / HĐ dài hạn trên mọi báo cáo** (01/10/2026).

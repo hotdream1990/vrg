@@ -12,7 +12,9 @@ import { API, apiFetch } from "./http";
 /** Trạng thái công tắc trên máy này. */
 export type PushState = "unsupported" | "ios-home-screen" | "denied" | "on" | "off";
 
-const SW_URL = "/sw.js";
+// Gắn số phiên bản: Cloudflare ghi đè `no-cache` của server thành "trình duyệt giữ 4 giờ" cho file
+// .js tên cố định → mỗi bản deploy là một đường dẫn mới, trình duyệt buộc phải tải sw.js mới ngay.
+const SW_URL = `/sw.js?v=${encodeURIComponent(__APP_VERSION__)}`;
 const DETACH_TIMEOUT_MS = 2500;   // đăng xuất không bao giờ phải chờ lâu hơn chừng này
 // Tài khoản đã tự tắt trên máy này → đừng tự bật lại. Theo TỪNG tài khoản: người trước tắt không làm người sau mất.
 const OPT_OUT_PREFIX = "vrg_push_off:";
