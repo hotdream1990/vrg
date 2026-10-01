@@ -1,9 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { type User, fetchMe, impersonateUser, login as apiLogin } from "../../lib/auth-client";
+import {
+  type User, fetchMe, hasEntryType as userHasEntryType, impersonateUser, login as apiLogin,
+} from "../../lib/auth-client";
 import {
   clearAdminToken, clearToken, getAdminToken, getToken, setAdminToken, setToken,
 } from "../../lib/auth-token";
+import type { EntryType } from "../../lib/entry-types";
 import { clearSessionProposals } from "../../lib/floor-proposal-client";
 import { type Cap, effectiveCaps, hasCap } from "../../lib/permissions";
 import ImpersonationBanner from "./ImpersonationBanner";
@@ -17,6 +20,9 @@ type AuthCtx = {
   isUnitAccount: boolean;
   // Trong nhóm trên, chỉ `member` được nhập/sửa; lãnh đạo đơn vị CHỈ XEM (server cũng chặn).
   canEditUnitData: boolean;
+  // Tài khoản nhập liệu (`member`) được giao loại `t` (Thu mua · Tồn kho · Hợp đồng & tiêu thụ) —
+  // màn ngoài loại bị ẩn (server chặn ghi). Lãnh đạo đơn vị và tài khoản Tập đoàn luôn false.
+  hasEntryType: (t: EntryType) => boolean;
   can: (cap: Cap) => boolean; // TRUY CẬP mục dữ liệu (mức Xem trở lên) — dùng cho menu + gác route
   canEditCap: (cap: Cap) => boolean; // được NHẬP/SỬA mục dữ liệu (mức Sửa) — dùng để khoá form/nút
   login: (username: string, password: string) => Promise<void>;
@@ -52,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const canEdit = user?.role === "admin" || user?.role === "editor";
   const isUnitAccount = user?.role === "member" || user?.role === "leader";
   const canEditUnitData = user?.role === "member";
+  const hasEntryType = (t: EntryType) => userHasEntryType(user, t);
   const caps = useMemo(() => effectiveCaps(user?.role, user?.permissions), [user?.role, user?.permissions]);
   const can = (cap: Cap) => hasCap(caps, cap);
   const canEditCap = (cap: Cap) => hasCap(caps, cap, "edit");
@@ -78,7 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider value={{
-      user, loading, canEdit, isUnitAccount, canEditUnitData, can, canEditCap, login, logout, refreshUser,
+      user, loading, canEdit, isUnitAccount, canEditUnitData, hasEntryType, can, canEditCap, login, logout,
+      refreshUser,
       isImpersonating, impersonate, stopImpersonation,
     }}>
       <ImpersonationBanner />

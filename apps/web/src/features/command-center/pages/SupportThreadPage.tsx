@@ -13,6 +13,7 @@ import { useAuth } from "../../auth/AuthContext";
 import SupportComposer from "../sections/SupportComposer";
 import { AttachmentList } from "../sections/SupportAttachments";
 import SupportMessageBody from "../sections/SupportMessageBody";
+import { AudienceTags } from "../sections/SupportAudience";
 import SupportReplyBox from "../sections/SupportReplyBox";
 import { KIND_COLOR, KIND_LABEL, stampVN } from "../sections/support-format";
 import "../../bulletin/bulletin.css";
@@ -118,6 +119,7 @@ export default function SupportThreadPage() {
             <Tag color={KIND_COLOR[thread.kind]}>
               {KIND_LABEL[thread.kind]}
             </Tag>
+            <AudienceTags audience={thread.audience} />
             {isHq && <b style={{ marginRight: 10 }}>{thread.company}</b>}
             Mở lúc {stampVN(thread.created_at)}
             {closed && <Tag style={{ marginLeft: 8 }}>Đã đóng</Tag>}

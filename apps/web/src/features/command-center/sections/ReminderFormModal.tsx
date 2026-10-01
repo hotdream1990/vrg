@@ -2,12 +2,14 @@ import { DatePicker, Modal, Radio, Select, message } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { useState } from "react";
 
+import type { Audience } from "../../../lib/entry-types";
 import {
   type Attachment, type Reminder, type SupportContext,
   createReminder, updateReminder,
 } from "../../../lib/support-client";
 import { AttachmentPicker } from "./SupportAttachments";
-import { REPEAT_LABEL } from "./support-format";
+import { AudiencePicker } from "./SupportAudience";
+import { REPEAT_LABEL, audienceOf } from "./support-format";
 import "../support.css";
 
 const REPEAT_OPTIONS = Object.entries(REPEAT_LABEL).map(([value, label]) => ({ value, label }));
@@ -27,6 +29,7 @@ export default function ReminderFormModal({ ctx, reminder, onClose, onSaved }: P
   const [scope, setScope] = useState<"all" | "units" | "region">(reminder?.scope ?? "all");
   const [units, setUnits] = useState<string[]>(reminder?.units ?? []);
   const [region, setRegion] = useState<string | undefined>(reminder?.region ?? undefined);
+  const [audience, setAudience] = useState<Audience[]>(audienceOf(reminder?.audience));
   const [repeat, setRepeat] = useState(reminder?.repeat_rule ?? "once");
   const [nextAt, setNextAt] = useState<Dayjs | null>(
     reminder ? dayjs(reminder.next_at) : dayjs().add(1, "hour").startOf("hour"),
@@ -38,8 +41,9 @@ export default function ReminderFormModal({ ctx, reminder, onClose, onSaved }: P
     if (!nextAt) { message.error("Chọn thời điểm nhắc."); return; }
     if (scope === "units" && !units.length) { message.error("Chọn ít nhất một đơn vị."); return; }
     if (scope === "region" && !region) { message.error("Chọn khu vực."); return; }
+    if (!audience.length) { message.error("Chọn ít nhất một nhóm người nhận."); return; }
     const payload = {
-      title: title.trim(), body, files, scope, units, region: region ?? null,
+      title: title.trim(), body, files, scope, units, region: region ?? null, audience,
       repeat_rule: repeat as Reminder["repeat_rule"],
       next_at: nextAt.toISOString(), enabled: reminder?.enabled ?? true,
     };
@@ -67,7 +71,7 @@ export default function ReminderFormModal({ ctx, reminder, onClose, onSaved }: P
           value={body} onChange={(e) => setBody(e.target.value)} />
 
         <div>
-          <div className="sp-label" style={{ marginBottom: 6 }}>Nhắc tới</div>
+          <div className="sp-label" style={{ marginBottom: 6 }}>Đơn vị nhận</div>
           <Radio.Group value={scope} onChange={(e) => setScope(e.target.value)}>
             <Radio.Button value="all">Tất cả đơn vị</Radio.Button>
             <Radio.Button value="region">Theo khu vực</Radio.Button>
@@ -83,6 +87,7 @@ export default function ReminderFormModal({ ctx, reminder, onClose, onSaved }: P
             value={units} onChange={setUnits}
             options={ctx.units.map((u) => ({ value: u, label: u }))} />
         )}
+        <AudiencePicker value={audience} onChange={setAudience} disabled={busy} />
 
         <div className="sp-row">
           <label className="sp-label">Thời điểm nhắc:&nbsp;

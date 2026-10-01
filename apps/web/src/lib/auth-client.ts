@@ -2,15 +2,28 @@
 
 import { API } from "./api-client";
 import { authHeaders } from "./auth-token";
+import { ENTRY_TYPES, type EntryType } from "./entry-types";
 import { apiFetch } from "./http";
 
 export type User = {
   username: string; full_name: string | null; role: string; email?: string | null;
   permissions?: string[]; member_units?: string[];
   member_has_purchase_plan?: boolean; // role=member: có đơn vị được giao KH thu mua → hiện menu "Báo cáo thu mua"
+  entry_types?: EntryType[]; // role=member: loại nhập liệu được giao (vai trò khác: [])
   impersonated_by?: string | null; // username admin đang đăng nhập hộ (null = phiên bình thường)
 };
 export type LoginResult = { access_token: string; token_type: string; user: User };
+
+/** Loại nhập liệu của tài khoản `member`. Phiên cũ chưa có trường này = đủ 3 loại (mặc định
+ *  khi chia loại 01/10/2026 — không ai mất quyền). Vai trò khác: không có loại nào. */
+export function memberEntryTypes(user: User | null | undefined): EntryType[] {
+  if (user?.role !== "member") return [];
+  return user.entry_types?.length ? user.entry_types : ENTRY_TYPES;
+}
+
+/** Tài khoản nhập liệu đơn vị có được giao loại `t` không (lãnh đạo · Tập đoàn luôn false). */
+export const hasEntryType = (user: User | null | undefined, t: EntryType): boolean =>
+  memberEntryTypes(user).includes(t);
 
 /** Đăng nhập → trả token + user. Ném lỗi (message tiếng Việt) nếu sai. */
 export async function login(username: string, password: string): Promise<LoginResult> {

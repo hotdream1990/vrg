@@ -7,6 +7,7 @@ import {
   type BatchRow, type SupportContext, type ThreadKind, type ThreadRow,
   fetchBatches, fetchSupportContext, fetchThreads,
 } from "../../../lib/support-client";
+import { AudienceTags } from "../sections/SupportAudience";
 import SupportComposer from "../sections/SupportComposer";
 import { KIND_COLOR, KIND_LABEL, stampVN } from "../sections/support-format";
 import "../../bulletin/bulletin.css";
@@ -27,7 +28,7 @@ const STATUS_OPTIONS = [
   { value: "closed", label: "Đã đóng" },
 ];
 
-/** Hỗ trợ & Thông báo — hộp thư hai chiều Tập đoàn ↔ lãnh đạo đơn vị thành viên.
+/** Hỗ trợ & Thông báo — hộp thư hai chiều Tập đoàn ↔ đơn vị thành viên (lãnh đạo · chuyên viên).
  *
  *  Một component cho cả hai phía: `context.side` (server quyết định) đổi khay hiển thị và nút soạn.
  *  Phía đơn vị không bao giờ nhận được luồng của đơn vị khác — lọc nằm ở server, không ở đây. */
@@ -74,7 +75,7 @@ export default function SupportPage() {
 
   const composeLabel = isHq ? "Soạn thông báo" : "Gửi yêu cầu hỗ trợ";
   const subtitle = isHq
-    ? "Hộp thư với lãnh đạo các đơn vị thành viên. Thông báo gửi cho nhiều đơn vị được tách thành từng luồng riêng — các đơn vị không thấy nội dung và phản hồi của nhau."
+    ? "Hộp thư với các đơn vị thành viên (lãnh đạo đơn vị và chuyên viên nhập liệu). Thông báo gửi cho nhiều đơn vị được tách thành từng luồng riêng — các đơn vị không thấy nội dung và phản hồi của nhau."
     : "Trao đổi trực tiếp với Tập đoàn: gửi yêu cầu hỗ trợ, nhận thông báo và nhắc lịch. Chỉ đơn vị của bạn đọc được các trao đổi này.";
 
   const total = sentBox ? batches.total : threads.total;
@@ -94,6 +95,7 @@ export default function SupportPage() {
                 <div className="sp-item-meta">
                   <Tag color={KIND_COLOR[b.kind]}>{KIND_LABEL[b.kind]}</Tag>
                   <span>{b.unit_count} đơn vị nhận</span>
+                  <span><AudienceTags audience={b.audience} /></span>
                   {b.unread_count > 0 && <span>{b.unread_count} phản hồi chưa đọc</span>}
                   <span>Người gửi: {b.created_by === "system" ? "Hệ thống (tự động)" : b.created_by ?? "—"}</span>
                 </div>

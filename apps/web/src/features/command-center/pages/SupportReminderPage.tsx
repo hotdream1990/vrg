@@ -11,7 +11,8 @@ import {
   deleteReminder, fetchReminders, fetchSupportContext, runReminder, updateReminder,
 } from "../../../lib/support-client";
 import ReminderFormModal from "../sections/ReminderFormModal";
-import { REPEAT_LABEL, SCOPE_LABEL, stampVN } from "../sections/support-format";
+import { AudienceTags } from "../sections/SupportAudience";
+import { REPEAT_LABEL, SCOPE_LABEL, audienceOf, stampVN } from "../sections/support-format";
 import "../../bulletin/bulletin.css";
 import "../support.css";
 
@@ -39,7 +40,7 @@ export default function SupportReminderPage() {
 
   const toggle = async (r: Reminder, enabled: boolean) => {
     try {
-      await updateReminder(r.id, { ...r, enabled });
+      await updateReminder(r.id, { ...r, audience: audienceOf(r.audience), enabled });
       load();
     } catch (e) {
       message.error((e as Error).message);
@@ -85,6 +86,7 @@ export default function SupportReminderPage() {
           <Tag>{SCOPE_LABEL[v] ?? v}</Tag>
           {v === "region" && r.region && <div style={{ fontSize: 12 }}>{r.region}</div>}
           <div style={{ color: "var(--muted)", fontSize: 12 }}>{r.target_count ?? 0} đơn vị</div>
+          <div style={{ marginTop: 4 }}><AudienceTags audience={r.audience} /></div>
         </div>
       ),
     },

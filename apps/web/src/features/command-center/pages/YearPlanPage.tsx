@@ -1,13 +1,16 @@
 /* Kế hoạch năm — số liệu lớn NHẬP 1 LẦN cho cả năm (không nhập hàng ngày), cập nhật khi có thay đổi:
    kế hoạch khai thác (cột đầu) + kế hoạch thu mua năm + kế hoạch hàng hóa + tổng sản lượng đã ký
    hợp đồng dài hạn…
-   Đơn vị thành viên: chỉ đơn vị của mình · Chuyên viên có quyền `unit_daily`: mọi đơn vị. */
+   Đơn vị thành viên: chỉ đơn vị của mình · Chuyên viên có quyền `unit_daily`: mọi đơn vị.
+   Tài khoản nhập liệu đơn vị chỉ sửa ô thuộc loại được giao: ô thu mua ↔ Thu mua, các ô còn lại ↔
+   Hợp đồng & tiêu thụ (server bỏ qua ô ngoài loại, giữ nguyên số đã lưu). */
 
 import { ProfileOutlined } from "@ant-design/icons";
 import { Select, Spin, message } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../../auth/AuthContext";
+import { ENTRY_TYPE_LABEL, type EntryType } from "../../../lib/entry-types";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import { type Role, type YearPlanRow, fetchYearPlan, saveYearPlan } from "../../../lib/unit-daily-client";
 import { fmtNum } from "../../../lib/unit-daily-fields";
@@ -17,12 +20,37 @@ import "../../bulletin/bulletin.css";
 
 const YEARS = 6; // năm hiện tại + 2 năm trước/sau để chọn
 
+type PlanField = { key: keyof YearPlanRow; title: string; width: number };
+
+const PLAN_FIELDS: PlanField[] = [
+  // Khai thác = mủ từ vườn cây của chính đơn vị; thu mua = mua của dân → 2 chỉ tiêu riêng.
+  { key: "plan_exploit_tonnes", title: "Kế hoạch khai thác (tấn)", width: 220 },
+  { key: "plan_tonnes", title: "Kế hoạch thu mua (tấn)", width: 240 },
+  { key: "plan_goods_tonnes", title: "Kế hoạch hàng hóa — thành phẩm mua ngoài (tấn)", width: 240 },
+  { key: "plan_sales_spot_tonnes", title: "Kế hoạch tiêu thụ — HĐ chuyến (tấn)", width: 240 },
+  { key: "signed_lt_tonnes", title: "HĐ dài hạn đã ký (tấn)", width: 220 },
+  { key: "carry_lt_tonnes", title: "HĐ dài hạn 2025 chuyển sang (tấn)", width: 220 },
+  { key: "carry_spot_tonnes", title: "HĐ chuyến 2025 chuyển sang (tấn)", width: 220 },
+  // Ô TIỀN duy nhất của bảng — ghi rõ TỶ ĐỒNG ngay trên tiêu đề, cột còn lại đều là tấn nên không
+  // ghi thì chắc chắn có người nhập nhầm sang tấn.
+  { key: "plan_revenue_ty", title: "Kế hoạch doanh thu (tỷ đồng)", width: 220 },
+];
+
+/** Loại nhập liệu phụ trách từng ô (khớp backend `PUT /api/member/plan`). */
+const fieldEntryType = (key: keyof YearPlanRow): EntryType => (key === "plan_tonnes" ? "purchase" : "contract");
+
 export default function YearPlanPage() {
-  const { isUnitAccount, canEditUnitData, canEditCap } = useAuth();
+  const { user, isUnitAccount, canEditUnitData, canEditCap, hasEntryType } = useAuth();
   const role: Role = isUnitAccount ? "member" : "hq";
   // Chuyên viên chỉ được cấp mức Xem → khoá ô nhập (đơn vị thành viên không xét cap).
   // Lãnh đạo đơn vị: chỉ xem.
   const canEdit = canEditUnitData || canEditCap("unit_daily");
+  const isMember = user?.role === "member";
+  const canEditField = (key: keyof YearPlanRow) =>
+    canEdit && (!isMember || hasEntryType(fieldEntryType(key)));
+  // Ô ngoài phần việc của tài khoản nhập liệu (vd chuyên viên Thu mua nhìn ô hợp đồng) → báo rõ.
+  const lockedTypes = isMember
+    ? (["purchase", "contract"] as EntryType[]).filter((t) => !hasEntryType(t)) : [];
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(thisYear);
   const [units, setUnits] = useState<string[]>([]);
@@ -83,6 +111,12 @@ export default function YearPlanPage() {
             hoặc <b>0</b> = đơn vị không tổ chức thu mua.
             {role === "member" ? " Chỉ hiện đơn vị của bạn." : " Xem/sửa mọi đơn vị."}
           </p>
+          {canEdit && lockedTypes.length > 0 && (
+            <p>
+              Ô thuộc phần việc {lockedTypes.map((t) => `"${ENTRY_TYPE_LABEL[t]}"`).join(", ")} chỉ xem —
+              tài khoản của bạn không được giao loại nhập liệu này.
+            </p>
+          )}
         </div>
       </div>
 
@@ -109,17 +143,9 @@ export default function YearPlanPage() {
               <tr>
                 <th style={{ width: 60 }}>#</th>
                 <th>Đơn vị</th>
-                {/* Khai thác = mủ từ vườn cây của chính đơn vị; thu mua = mua của dân → 2 chỉ tiêu riêng. */}
-                <th className="r" style={{ width: 220 }}>Kế hoạch khai thác (tấn)</th>
-                <th className="r" style={{ width: 240 }}>Kế hoạch thu mua (tấn)</th>
-                <th className="r" style={{ width: 240 }}>Kế hoạch hàng hóa — thành phẩm mua ngoài (tấn)</th>
-                <th className="r" style={{ width: 240 }}>Kế hoạch tiêu thụ — HĐ chuyến (tấn)</th>
-                <th className="r" style={{ width: 220 }}>HĐ dài hạn đã ký (tấn)</th>
-                <th className="r" style={{ width: 220 }}>HĐ dài hạn 2025 chuyển sang (tấn)</th>
-                <th className="r" style={{ width: 220 }}>HĐ chuyến 2025 chuyển sang (tấn)</th>
-                {/* Ô TIỀN duy nhất của bảng — ghi rõ TỶ ĐỒNG ngay trên tiêu đề, cột còn lại đều
-                    là tấn nên không ghi thì chắc chắn có người nhập nhầm sang tấn. */}
-                <th className="r" style={{ width: 220 }}>Kế hoạch doanh thu (tỷ đồng)</th>
+                {PLAN_FIELDS.map((f) => (
+                  <th key={f.key} className="r" style={{ width: f.width }}>{f.title}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -129,35 +155,17 @@ export default function YearPlanPage() {
                   <tr key={u} style={{ opacity: savingUnit === u ? 0.6 : 1 }}>
                     <td>{i + 1}</td>
                     <td style={{ fontWeight: 500 }}>{u}</td>
-                    <td onBlur={() => canEdit && save(u)}>
-                      {numInput(r.plan_exploit_tonnes, (v) => setCell(u, "plan_exploit_tonnes", v), !canEdit)}
-                    </td>
-                    <td onBlur={() => canEdit && save(u)}>
-                      {numInput(r.plan_tonnes, (v) => setCell(u, "plan_tonnes", v), !canEdit)}
-                    </td>
-                    <td onBlur={() => canEdit && save(u)}>
-                      {numInput(r.plan_goods_tonnes, (v) => setCell(u, "plan_goods_tonnes", v), !canEdit)}
-                    </td>
-                    <td onBlur={() => canEdit && save(u)}>
-                      {numInput(r.plan_sales_spot_tonnes, (v) => setCell(u, "plan_sales_spot_tonnes", v), !canEdit)}
-                    </td>
-                    <td onBlur={() => canEdit && save(u)}>
-                      {numInput(r.signed_lt_tonnes, (v) => setCell(u, "signed_lt_tonnes", v), !canEdit)}
-                    </td>
-                    <td onBlur={() => canEdit && save(u)}>
-                      {numInput(r.carry_lt_tonnes, (v) => setCell(u, "carry_lt_tonnes", v), !canEdit)}
-                    </td>
-                    <td onBlur={() => canEdit && save(u)}>
-                      {numInput(r.carry_spot_tonnes, (v) => setCell(u, "carry_spot_tonnes", v), !canEdit)}
-                    </td>
-                    <td onBlur={() => canEdit && save(u)}>
-                      {numInput(r.plan_revenue_ty, (v) => setCell(u, "plan_revenue_ty", v), !canEdit)}
-                    </td>
+                    {PLAN_FIELDS.map(({ key }) => (
+                      <td key={key} onBlur={() => canEditField(key) && save(u)}>
+                        {numInput(r[key], (v) => setCell(u, key, v), !canEditField(key))}
+                      </td>
+                    ))}
                   </tr>
                 );
               })}
               {units.length === 0 && !loading && (
-                <tr><td colSpan={10} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
+                <tr><td colSpan={PLAN_FIELDS.length + 2}
+                  style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                   Chưa có đơn vị nào.
                 </td></tr>
               )}
@@ -165,14 +173,7 @@ export default function YearPlanPage() {
                 <tr style={{ fontWeight: 600, background: "rgba(125,125,125,.08)" }}>
                   <td />
                   <td>Tổng cộng</td>
-                  <td className="r">{fmtNum(total("plan_exploit_tonnes"), 3)}</td>
-                  <td className="r">{fmtNum(total("plan_tonnes"), 3)}</td>
-                  <td className="r">{fmtNum(total("plan_goods_tonnes"), 3)}</td>
-                  <td className="r">{fmtNum(total("plan_sales_spot_tonnes"), 3)}</td>
-                  <td className="r">{fmtNum(total("signed_lt_tonnes"), 3)}</td>
-                  <td className="r">{fmtNum(total("carry_lt_tonnes"), 3)}</td>
-                  <td className="r">{fmtNum(total("carry_spot_tonnes"), 3)}</td>
-                  <td className="r">{fmtNum(total("plan_revenue_ty"), 3)}</td>
+                  {PLAN_FIELDS.map(({ key }) => <td key={key} className="r">{fmtNum(total(key), 3)}</td>)}
                 </tr>
               )}
             </tbody>

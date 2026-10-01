@@ -59,6 +59,7 @@ import YearPlanPage from "./features/command-center/pages/YearPlanPage";
 import UserManagementPage from "./features/command-center/pages/UserManagementPage";
 import VrgFloorPage from "./features/command-center/pages/VrgFloorPage";
 import { AuthProvider, useAuth } from "./features/auth/AuthContext";
+import type { EntryType } from "./lib/entry-types";
 import LoginPage from "./features/auth/LoginPage";
 import PublicPurchaseInputPage from "./features/public/PublicPurchaseInputPage";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
@@ -66,29 +67,46 @@ import RequireCap from "./features/auth/RequireCap";
 import RequireRole from "./features/auth/RequireRole";
 import { vrgTheme } from "./theme";
 
-/** Trang chủ: đơn vị thành viên → biểu nhập đầu tiên của họ (Thu mua nếu có giao KH, không thì Tồn kho); còn lại → Dashboard. */
+/** Trang chủ: tài khoản nhập liệu đơn vị → màn đầu tiên thuộc loại được giao (Thu mua nếu có giao
+ *  KH thu mua → Tồn kho → Hợp đồng → Kế hoạch năm (loại Thu mua chưa khai KH thu mua) → hộp thư);
+ *  lãnh đạo đơn vị → hộp thư; còn lại → Dashboard.
+ *  Mỗi đích ở đây đều qua được guard của chính nó — tránh vòng chuyển hướng qua lại. */
 function HomeRoute() {
-  const { user } = useAuth();
+  const { user, hasEntryType } = useAuth();
   if (user?.role === "leader") return <Navigate to="/ho-tro" replace />;
   if (user?.role === "member") {
-    return <Navigate to={user.member_has_purchase_plan ? "/bao-cao-thu-mua" : "/bao-cao-ton-kho"} replace />;
+    const to = hasEntryType("purchase") && user.member_has_purchase_plan ? "/bao-cao-thu-mua"
+      : hasEntryType("stock") ? "/bao-cao-ton-kho"
+        : hasEntryType("contract") ? "/hop-dong"
+          // Cùng điều kiện với YearPlanRoute — khai KH thu mua ở đây mới mở được màn Thu mua.
+          : hasEntryType("purchase") || hasEntryType("contract") ? "/ke-hoach-nam"
+            : "/ho-tro";
+    return <Navigate to={to} replace />;
   }
   return <DashboardPage />;
+}
+
+/** Tài khoản nhập liệu đơn vị KHÔNG được giao loại nào trong `types` → màn này ngoài phần việc
+ *  (server cũng chặn ghi). Lãnh đạo đơn vị và tài khoản Tập đoàn không xét loại. */
+function useOutsideEntryTypes(...types: EntryType[]): boolean {
+  const { user, hasEntryType } = useAuth();
+  return user?.role === "member" && !types.some(hasEntryType);
 }
 
 /** Quản lý hợp đồng (khách hàng · hợp đồng & đợt giao): tài khoản đơn vị (nhập liệu + lãnh đạo)
  *  → đơn vị mình; chuyên viên có quyền `sales_contract` → mọi đơn vị. */
 function ContractRoute({ children }: { children: React.ReactNode }) {
   const { isUnitAccount, can } = useAuth();
-  if (isUnitAccount || can("sales_contract")) return <>{children}</>;
+  const outside = useOutsideEntryTypes("contract");
+  if (!outside && (isUnitAccount || can("sales_contract"))) return <>{children}</>;
   return <Navigate to="/" replace />;
 }
 
-/** Hỗ trợ & Thông báo: lãnh đạo đơn vị (role=leader) hoặc tài khoản có quyền `support`.
- *  Tài khoản `member` (nhập liệu) KHÔNG vào — hộp thư này chỉ dành cho lãnh đạo đơn vị. */
+/** Hỗ trợ & Thông báo: tài khoản gắn đơn vị (lãnh đạo + nhập liệu — từ 01/10/2026 chuyên viên
+ *  đơn vị cũng nhận thông báo và tự mở yêu cầu) hoặc tài khoản Tập đoàn có quyền `support`. */
 function SupportRoute({ children }: { children: React.ReactNode }) {
-  const { user, can } = useAuth();
-  if (user?.role === "leader" || can("support")) return <>{children}</>;
+  const { isUnitAccount, can } = useAuth();
+  if (isUnitAccount || can("support")) return <>{children}</>;
   return <Navigate to="/" replace />;
 }
 
@@ -101,7 +119,8 @@ function MyEditRequestsRoute() {
 /** Nhu cầu thị trường (timeline): đơn vị thành viên → chỉ đơn vị của mình; chuyên viên có quyền → mọi đơn vị. */
 function MarketDemandRoute() {
   const { isUnitAccount, can } = useAuth();
-  if (isUnitAccount || can("market_demand")) return <MarketDemandTimelinePage />;
+  const outside = useOutsideEntryTypes("contract");
+  if (!outside && (isUnitAccount || can("market_demand"))) return <MarketDemandTimelinePage />;
   return <Navigate to="/" replace />;
 }
 
@@ -109,9 +128,11 @@ function MarketDemandRoute() {
 function UnitDailyRoute(props: React.ComponentProps<typeof UnitDailyPage>) {
   const { user, can, isUnitAccount } = useAuth();
   const isMember = isUnitAccount;
+  const outside = useOutsideEntryTypes(props.kind === "purchase" ? "purchase" : "stock");
   // Đơn vị thành viên KHÔNG được giao kế hoạch thu mua → không vào biểu Thu mua (kể cả gõ URL).
-  if (isMember && props.kind === "purchase" && !user?.member_has_purchase_plan) {
-    return <Navigate to="/bao-cao-ton-kho" replace />;
+  // Về trang chủ (không về thẳng Tồn kho): tài khoản có thể không được giao loại Tồn kho.
+  if (outside || (isMember && props.kind === "purchase" && !user?.member_has_purchase_plan)) {
+    return <Navigate to="/" replace />;
   }
   if (isMember || can("unit_daily")) return <UnitDailyPage {...props} />;
   return <Navigate to="/" replace />;
@@ -136,16 +157,19 @@ function PeriodReportRoute() {
 function YearPlanRoute() {
   const { can, isUnitAccount } = useAuth();
   const isMember = isUnitAccount;
+  // Ô thu mua thuộc loại Thu mua, các ô còn lại thuộc Hợp đồng & tiêu thụ.
+  const outside = useOutsideEntryTypes("purchase", "contract");
   // Mở cho MỌI đơn vị thành viên, không phụ thuộc kế hoạch thu mua đã khai hay chưa: số khai ở đây
   // mới là công tắc bật màn Thu mua, chặn ở đây thì đơn vị chưa khai bị kẹt không lối ra.
-  if (isMember || can("unit_daily")) return <YearPlanPage />;
+  if (!outside && (isMember || can("unit_daily"))) return <YearPlanPage />;
   return <Navigate to="/" replace />;
 }
 
 /** Thống kê hợp đồng (tra cứu, kể cả đã giao): đơn vị thành viên → đơn vị mình; chuyên viên có quyền → mọi đơn vị. */
 function StockContractHistoryRoute() {
   const { isUnitAccount, can } = useAuth();
-  if (isUnitAccount || can("unit_daily")) return <StockContractHistoryPage />;
+  const outside = useOutsideEntryTypes("stock");
+  if (!outside && (isUnitAccount || can("unit_daily"))) return <StockContractHistoryPage />;
   return <Navigate to="/" replace />;
 }
 

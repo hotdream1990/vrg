@@ -1,5 +1,6 @@
 /* Nhãn + định dạng dùng chung cho các màn Hỗ trợ & Thông báo. */
 
+import { DEFAULT_AUDIENCE, type Audience } from "../../../lib/entry-types";
 import type { ThreadKind } from "../../../lib/support-client";
 
 export const KIND_LABEL: Record<ThreadKind, string> = {
@@ -29,6 +30,10 @@ export const SCOPE_LABEL: Record<string, string> = {
   units: "Chọn đơn vị",
   region: "Theo khu vực",
 };
+
+/** Nhóm người nhận của thẻ / lịch nhắc — dữ liệu cũ không ghi (hoặc rỗng) = chỉ lãnh đạo đơn vị. */
+export const audienceOf = (audience: Audience[] | null | undefined): Audience[] =>
+  audience?.length ? audience : DEFAULT_AUDIENCE;
 
 /** Thời điểm ISO → 'HH:mm DD/MM/YYYY' (chuẩn VN). Chuỗi hỏng thì trả nguyên gốc. */
 export function stampVN(iso: string | null | undefined): string {

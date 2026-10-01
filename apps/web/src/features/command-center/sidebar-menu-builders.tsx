@@ -47,7 +47,8 @@ import {
 } from "@ant-design/icons";
 import { Badge, type Menu } from "antd";
 
-import type { User } from "../../lib/auth-client";
+import { type User, hasEntryType } from "../../lib/auth-client";
+import type { EntryType } from "../../lib/entry-types";
 import type { Cap } from "../../lib/permissions";
 
 type MenuItems = NonNullable<Parameters<typeof Menu>[0]["items"]>;
@@ -94,6 +95,7 @@ const ITEM = {
   assistant: { key: "/tro-ly-ai", icon: <RobotOutlined />, label: "Trợ lý AI" },
   assistantHistory: { key: "/tro-ly-ai/lich-su", icon: <HistoryOutlined />, label: "Lịch sử hỏi đáp" },
   myEditRequests: { key: "/de-nghi-sua", icon: <DiffOutlined />, label: "Đề nghị sửa số liệu" },
+  unitInbox: { key: "/ho-tro", icon: <CustomerServiceOutlined />, label: "Hỗ trợ & Thông báo" },
   factoryMeters: { key: "/nha-may-thong-minh/chi-so", icon: <ControlOutlined />, label: "Giám sát chỉ số" },
   plantDiagram: {
     key: "/nha-may-thong-minh/so-do-van-hanh", icon: <DeploymentUnitOutlined />, label: "Sơ đồ vận hành",
@@ -246,26 +248,31 @@ const ADMIN_MENU = {
 
 // Menu cho tài khoản Đơn vị thành viên — trục mới: chỉ còn 2 biểu nhập theo ngày (Thu mua · Tồn kho),
 // TIÊU THỤ chuyển sang tính từ hợp đồng nên nằm ở nhóm Báo cáo (chỉ xem).
-// "Thu mua" + "Kế hoạch năm" chỉ hiện khi đơn vị được giao kế hoạch thu mua.
-function buildMemberMenu(hasPurchasePlan: boolean) {
+// Từ 01/10/2026 mỗi tài khoản chỉ thấy màn thuộc LOẠI NHẬP LIỆU được giao (Thu mua · Tồn kho ·
+// Hợp đồng & tiêu thụ); "Thu mua" còn cần đơn vị được giao kế hoạch thu mua.
+function buildMemberMenu(user: User | null, hasPurchasePlan: boolean) {
+  const has = (t: EntryType) => hasEntryType(user, t);
   return [
     // Bức tranh thu mua · tồn kho · tiêu thụ · chỉ tiêu của chính đơn vị (server ép đúng đơn vị).
     ITEM.unitDashboard,
+    ITEM.unitInbox,
     ...group("data-manual", <EditOutlined />, "Nhập liệu số liệu", [
-      hasPurchasePlan && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Thu mua (theo ngày)" },
-      { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Tồn kho (theo ngày)" },
-      { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
-      // Kế hoạch năm mở cho MỌI đơn vị, kể cả đơn vị chưa khai số nào: chính con số ở màn này là
+      has("purchase") && hasPurchasePlan
+        && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Thu mua (theo ngày)" },
+      has("stock") && { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Tồn kho (theo ngày)" },
+      has("contract") && { key: "/nhu-cau-thi-truong", icon: <ApartmentOutlined />, label: "Nhu cầu thị trường" },
+      // Kế hoạch năm không phụ thuộc kế hoạch thu mua đã khai hay chưa: chính ô thu mua ở màn này là
       // công tắc bật màn Thu mua, khoá màn lại thì đơn vị chưa khai lần nào không bao giờ tự khai được.
-      { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
+      // Ô thu mua thuộc loại Thu mua, các ô còn lại thuộc Hợp đồng & tiêu thụ.
+      (has("purchase") || has("contract"))
+        && { key: "/ke-hoach-nam", icon: <ProfileOutlined />, label: "Kế hoạch năm" },
       // Ngày cũ đã khoá (quá hạn sửa / đã chốt) chỉ sửa được qua đề nghị Ban duyệt.
       ITEM.myEditRequests,
     ]),
-    ...group("contracts", <FileProtectOutlined />, "Quản lý hợp đồng", [
-      ITEM.customers, ITEM.masterContracts, ITEM.contracts,
-    ]),
+    ...group("contracts", <FileProtectOutlined />, "Quản lý hợp đồng",
+      has("contract") ? [ITEM.customers, ITEM.masterContracts, ITEM.contracts] : []),
     ...group("reports", <BarChartOutlined />, "Báo cáo", [
-      { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Tiêu thụ" },
+      has("contract") && { key: "/bao-cao-tieu-thu", icon: <ExportOutlined />, label: "Tiêu thụ" },
     ]),
   ];
 }
@@ -276,7 +283,7 @@ function buildMemberMenu(hasPurchasePlan: boolean) {
 function buildLeaderMenu(hasPurchasePlan: boolean) {
   return [
     ITEM.unitDashboard,
-    { key: "/ho-tro", icon: <CustomerServiceOutlined />, label: "Hỗ trợ & Thông báo" },
+    ITEM.unitInbox,
     // Chỗ nhân viên nhập sai/thiếu — để lãnh đạo nhắc đúng việc (chỉ đơn vị mình, server tự lọc).
     { key: "/canh-bao-bat-thuong", icon: <WarningOutlined />, label: "Cảnh báo bất thường" },
     ...group("data-manual", <BarChartOutlined />, "Số liệu đơn vị (chỉ xem)", [
@@ -318,7 +325,7 @@ export function buildSidebarMenu(
   const role = user?.role;
   const hasPlan = user?.member_has_purchase_plan ?? false;
   if (role === "leader") return [...buildLeaderMenu(hasPlan), PROFILE_ITEM];
-  if (role === "member") return [...buildMemberMenu(hasPlan), PROFILE_ITEM];
+  if (role === "member") return [...buildMemberMenu(user, hasPlan), PROFILE_ITEM];
   if (role === "executive") return [...buildExecutiveMenu(can), PROFILE_ITEM];
   const isAdmin = role === "admin";
   return [...buildMenu(can, isAdmin, pendingEditRequests), ...(isAdmin ? [ADMIN_MENU] : []), PROFILE_ITEM,

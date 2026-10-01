@@ -5,6 +5,7 @@
 
 import { API } from "./api-client";
 import { authHeaders } from "./auth-token";
+import type { Audience } from "./entry-types";
 import { apiFetch } from "./http";
 
 export type Side = "hq" | "unit";
@@ -25,12 +26,15 @@ export type ThreadRow = {
   id: number; company: string; kind: ThreadKind; subject: string; status: "open" | "closed";
   batch_id: string | null; created_by: string | null; created_at: string;
   last_at: string; last_side: Side; unread: boolean; message_count: number; last_body: string | null;
+  // Nhóm người nhận phía đơn vị (lãnh đạo · chuyên viên theo loại nhập liệu). Dữ liệu cũ thiếu
+  // hoặc rỗng = chỉ lãnh đạo — luôn đọc qua `audienceOf` (support-format.ts).
+  audience?: Audience[];
 };
 
 export type BatchRow = {
   group_key: string; batch_id: string | null; sample_id: number; subject: string;
   kind: ThreadKind; created_by: string | null; created_at: string; last_at: string;
-  unit_count: number; unread_count: number; open_count: number;
+  unit_count: number; unread_count: number; open_count: number; audience?: Audience[];
 };
 
 export type SupportMessage = {
@@ -45,7 +49,7 @@ export type Reminder = {
   scope: "all" | "units" | "region"; units: string[]; region: string | null;
   repeat_rule: "once" | "daily" | "weekly" | "monthly";
   next_at: string; enabled: boolean; last_sent_at: string | null;
-  created_by: string | null; created_at: string; target_count?: number;
+  created_by: string | null; created_at: string; target_count?: number; audience?: Audience[];
 };
 
 const J = { "Content-Type": "application/json" };
@@ -78,7 +82,8 @@ export const fetchBatches = (filter: { status?: string; q?: string; page?: numbe
 export const fetchThread = (id: number) =>
   apiFetch<{ thread: ThreadRow; messages: SupportMessage[] }>(`/api/support/threads/${id}`);
 
-/** Lãnh đạo đơn vị gửi yêu cầu hỗ trợ lên Tập đoàn. */
+/** Phía đơn vị (lãnh đạo · chuyên viên nhập liệu) gửi yêu cầu hỗ trợ lên Tập đoàn. Người nhận
+ *  trong đơn vị do server tự tính (lãnh đạo + chuyên viên cùng loại với người gửi). */
 export const createRequest = (body: {
   company: string; subject: string; body: string; files: Attachment[];
 }) => apiFetch<{ ok: boolean; thread_id: number }>("/api/support/requests",
@@ -87,7 +92,7 @@ export const createRequest = (body: {
 /** Tập đoàn gửi thông báo xuống 1 đơn vị · một nhóm · tất cả. */
 export const createAnnouncement = (body: {
   subject: string; body: string; files: Attachment[];
-  scope: "all" | "units" | "region"; units: string[]; region?: string | null;
+  scope: "all" | "units" | "region"; units: string[]; region?: string | null; audience: Audience[];
 }) => apiFetch<{ ok: boolean; units: string[]; threads: number }>("/api/support/announcements",
   { method: "POST", headers: J, body: JSON.stringify(body) });
 
@@ -106,7 +111,9 @@ export const deleteThread = (id: number) =>
 export const fetchReminders = () =>
   apiFetch<{ rows: Reminder[]; now: string }>("/api/support/reminders");
 
-export type ReminderEdit = Omit<Reminder, "id" | "last_sent_at" | "created_by" | "created_at" | "target_count">;
+export type ReminderEdit = Omit<
+  Reminder, "id" | "last_sent_at" | "created_by" | "created_at" | "target_count" | "audience"
+> & { audience: Audience[] };
 
 export const createReminder = (body: ReminderEdit) =>
   apiFetch<Reminder>("/api/support/reminders", { method: "POST", headers: J, body: JSON.stringify(body) });

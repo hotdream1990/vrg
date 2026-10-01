@@ -1,8 +1,11 @@
 import { LoginOutlined, PlusOutlined, SafetyOutlined } from "@ant-design/icons";
-import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip } from "antd";
+import {
+  Alert, App, Button, Checkbox, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip,
+} from "antd";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { memberEntryTypes } from "../../../lib/auth-client";
 import {
   type AppUser,
   createUser,
@@ -11,6 +14,7 @@ import {
   resetPassword,
   updateUser,
 } from "../../../lib/user-client";
+import { ENTRY_TYPE_LABEL, ENTRY_TYPES, type EntryType } from "../../../lib/entry-types";
 import { listUnits } from "../../../lib/member-unit-client";
 import { DATA_CAPS, isSplitCap, parseCap } from "../../../lib/permissions";
 import { ROLE_COLOR, ROLE_LABEL, ROLES, UNIT_ROLES } from "../../../lib/roles";
@@ -21,6 +25,8 @@ import PermissionMatrix from "../sections/PermissionMatrix";
 import "../../bulletin/bulletin.css";
 
 const CAP_LABEL: Record<string, string> = Object.fromEntries(DATA_CAPS.map((c) => [c.key, c.label]));
+
+const ENTRY_TYPE_OPTIONS = ENTRY_TYPES.map((t) => ({ value: t, label: ENTRY_TYPE_LABEL[t] }));
 
 /** Thẻ quyền trong bảng: nhãn mục + mức (Xem = xám, Sửa = xanh) — mục 1 cấp thì không hiện mức. */
 const capTag = (entry: string) => {
@@ -62,7 +68,7 @@ export default function UserManagementPage() {
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ role: "editor", is_active: true, permissions: [] });
+    form.setFieldsValue({ role: "editor", is_active: true, permissions: [], entry_types: [...ENTRY_TYPES] });
     setOpen(true);
   };
   const openEdit = (u: AppUser) => {
@@ -70,7 +76,9 @@ export default function UserManagementPage() {
     form.resetFields();
     form.setFieldsValue({ full_name: u.full_name ?? "", email: u.email ?? "", role: u.role,
       is_active: u.is_active, permissions: u.permissions ?? [],
-      member_units: u.member_units ?? [] });
+      member_units: u.member_units ?? [],
+      // Đổi vai trò khác → member thì mặc định đủ 3 loại, như lúc tạo mới.
+      entry_types: u.entry_types?.length ? u.entry_types : [...ENTRY_TYPES] });
     setOpen(true);
   };
 
@@ -78,17 +86,19 @@ export default function UserManagementPage() {
     // Quyền theo mục chỉ áp cho editor; đơn vị áp cho các vai trò gắn đơn vị (đơn vị thành viên + lãnh đạo).
     const perms = v.role === "editor" ? ((v.permissions as string[]) ?? []) : [];
     const memberUnits = UNIT_ROLES.has(v.role as string) ? ((v.member_units as string[]) ?? []) : [];
+    // Loại nhập liệu chỉ áp cho member — ô ẩn với vai trò khác nên không gửi giá trị mặc định lên.
+    const entryTypes = v.role === "member" ? ((v.entry_types as EntryType[]) ?? []) : [];
     const email = (v.email as string)?.trim() || null;
     try {
       if (creating) {
         await createUser({ username: (v.username as string).trim(), password: v.password as string,
           full_name: (v.full_name as string)?.trim() || undefined, email: email ?? undefined,
-          role: v.role as string, permissions: perms, member_units: memberUnits });
+          role: v.role as string, permissions: perms, member_units: memberUnits, entry_types: entryTypes });
         message.success("Đã tạo tài khoản");
       } else if (editing) {
         await updateUser(editing.username, { full_name: (v.full_name as string)?.trim() || null,
           email, role: v.role as string, is_active: v.is_active as boolean,
-          permissions: perms, member_units: memberUnits });
+          permissions: perms, member_units: memberUnits, entry_types: entryTypes });
         message.success("Đã cập nhật");
       }
       setOpen(false); load();
@@ -127,10 +137,14 @@ export default function UserManagementPage() {
       if (u.role === "admin") return <Tag color="green">Toàn quyền</Tag>;
       if (u.role === "executive") return <Tag color="volcano">Xem toàn bộ báo cáo · thống kê · AI</Tag>;
       if (UNIT_ROLES.has(u.role))
-        return u.member_units?.length
-          ? <Space size={[4, 4]} wrap>{u.member_units.map((n) =>
-              <Tag key={n} color={u.role === "leader" ? "purple" : "gold"}>{n}</Tag>)}</Space>
-          : <Tag color="warning">Chưa gán đơn vị</Tag>;
+        return (
+          <Space size={[4, 4]} wrap>
+            {u.member_units?.length
+              ? u.member_units.map((n) => <Tag key={n} color={u.role === "leader" ? "purple" : "gold"}>{n}</Tag>)
+              : <Tag color="warning">Chưa gán đơn vị</Tag>}
+            {memberEntryTypes(u).map((t) => <Tag key={t} color="cyan">{ENTRY_TYPE_LABEL[t]}</Tag>)}
+          </Space>
+        );
       if (u.role !== "editor") return <span style={{ color: "#999" }}>—</span>;
       if (!u.permissions?.length) return <Tag>Chưa cấp quyền</Tag>;
       return <Space size={[4, 4]} wrap>{u.permissions.map(capTag)}</Space>;
@@ -175,7 +189,7 @@ export default function UserManagementPage() {
       <div className="page-title">
         <div>
           <h2><SafetyOutlined style={{ marginRight: 8 }} />Quản trị người dùng</h2>
-          <p>Tạo & phân quyền tài khoản: <b>Quản trị viên</b> (toàn quyền) · <b>Chuyên viên nhập liệu</b> (nhập/sửa số liệu) · <b>Người xem</b> (chỉ xem) · <b>Đơn vị thành viên</b> (tự nhập giá mủ của đơn vị).</p>
+          <p>Tạo & phân quyền tài khoản: <b>Quản trị viên</b> (toàn quyền) · <b>Chuyên viên nhập liệu</b> (nhập/sửa số liệu) · <b>Người xem</b> (chỉ xem) · <b>Đơn vị thành viên</b> (nhập số liệu của đơn vị theo loại được giao).</p>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm tài khoản</Button>
       </div>
@@ -222,16 +236,25 @@ export default function UserManagementPage() {
                   message="Người xem không truy cập các mục quản lý số liệu (chỉ xem dashboard/bản tin)." />;
               if (UNIT_ROLES.has(role))
                 return (
-                  <Form.Item label="Đơn vị thành viên" name="member_units"
-                    rules={[{ required: true, message: "Chọn ít nhất một đơn vị cho tài khoản này" }]}
-                    tooltip={role === "leader"
-                      ? "Lãnh đạo đơn vị chỉ dùng mục Hỗ trợ & Thông báo, và chỉ thấy tin của các đơn vị được chọn."
-                      : "Tài khoản này chỉ xem/nhập số liệu của các đơn vị được chọn (có thể chọn nhiều)."}>
-                    <Select mode="multiple" allowClear showSearch optionFilterProp="label"
-                      placeholder="Chọn một hoặc nhiều đơn vị"
-                      options={units.map((n) => ({ value: n, label: n }))}
-                      notFoundContent="Chưa có đơn vị — thêm ở mục 'Đơn vị thành viên'." />
-                  </Form.Item>
+                  <>
+                    <Form.Item label="Đơn vị thành viên" name="member_units"
+                      rules={[{ required: true, message: "Chọn ít nhất một đơn vị cho tài khoản này" }]}
+                      tooltip={role === "leader"
+                        ? "Lãnh đạo đơn vị xem số liệu (chỉ xem) và dùng Hỗ trợ & Thông báo của các đơn vị được chọn."
+                        : "Tài khoản này chỉ xem/nhập số liệu của các đơn vị được chọn (có thể chọn nhiều)."}>
+                      <Select mode="multiple" allowClear showSearch optionFilterProp="label"
+                        placeholder="Chọn một hoặc nhiều đơn vị"
+                        options={units.map((n) => ({ value: n, label: n }))}
+                        notFoundContent="Chưa có đơn vị — thêm ở mục 'Đơn vị thành viên'." />
+                    </Form.Item>
+                    {role === "member" && (
+                      <Form.Item label="Loại nhập liệu" name="entry_types"
+                        rules={[{ required: true, type: "array", min: 1, message: "Chọn ít nhất một loại nhập liệu" }]}
+                        tooltip="Tài khoản chỉ thấy và nhập các màn thuộc loại được chọn (chọn được nhiều loại). Thông báo của Tập đoàn gửi tới chuyên viên theo đúng các loại này.">
+                        <Checkbox.Group options={ENTRY_TYPE_OPTIONS} />
+                      </Form.Item>
+                    )}
+                  </>
                 );
               return (
                 <Form.Item label="Quyền theo mục (chuyên viên nhập liệu)" name="permissions"

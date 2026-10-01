@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { type ThreadRow, fetchThreads } from "../../../lib/support-client";
+import { AudienceTags } from "../sections/SupportAudience";
 import { stampVN } from "../sections/support-format";
 import "../../bulletin/bulletin.css";
 import "../support.css";
@@ -31,7 +32,8 @@ export default function SupportBatchPage() {
   }, [batchId, page]);
   useEffect(() => { load(); }, [load]);
 
-  const subject = data.rows[0]?.subject ?? "Đợt gửi thông báo";
+  const first = data.rows[0];
+  const subject = first?.subject ?? "Đợt gửi thông báo";
 
   return (
     <div className="main">
@@ -39,6 +41,7 @@ export default function SupportBatchPage() {
         <div>
           <h2><NotificationOutlined style={{ marginRight: 8 }} />{subject}</h2>
           <p>Danh sách đơn vị đã nhận thông báo này — mỗi đơn vị một luồng trao đổi riêng.</p>
+          {first && <p>Gửi tới: <AudienceTags audience={first.audience} /></p>}
         </div>
         <div className="actions">
           <button className="btn" onClick={() => nav("/ho-tro")}><ArrowLeftOutlined /> Hộp thư</button>
