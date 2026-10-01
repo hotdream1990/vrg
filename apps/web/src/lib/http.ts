@@ -70,6 +70,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     throw new ApiError(`Không kết nối được máy chủ (${API}) — kiểm tra mạng hoặc thử lại.`, 0);
   }
   if (res.status === 401) {
+    dropPushSubscription();
     onUnauthorized();
     throw new ApiError("Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.", 401);
   }
@@ -82,6 +83,13 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   }
   if ((init?.method ?? "GET") !== "GET") notifyDataSaved(path);
   return (await res.json()) as T;
+}
+
+/** Hết phiên ⇒ huỷ đăng ký Web Push của trình duyệt này: máy dùng chung, người sau không được nhận
+ *  thông báo của người trước. Nạp động (push-client dùng lại http → tránh vòng import); cố gắng hết
+ *  sức, không bao giờ ném lỗi, không giữ chân lần chuyển về /login. */
+function dropPushSubscription(): void {
+  import("./push-client").then((m) => m.unsubscribeBrowserOnly()).catch(() => undefined);
 }
 
 /** Sự kiện "vừa ghi số liệu" — phát ở ĐÂY thay vì ở từng màn nhập, để bảng nhắc việc của đơn vị

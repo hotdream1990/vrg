@@ -1,0 +1,23 @@
+/* Chuông thông báo ở header (NotificationBell) — bảng thả xuống + công tắc Web Push. */
+
+.notif-panel { width: min(360px, calc(100vw - 32px)); }
+.notif-head { font-weight: 600; padding: 2px 4px 8px; border-bottom: 1px solid var(--line); }
+.notif-list { max-height: min(420px, 60vh); overflow-y: auto; }
+
+.notif-row {
+  display: block; width: 100%; text-align: left; border: 0; background: transparent;
+  padding: 8px 4px; border-bottom: 1px solid var(--line); cursor: pointer; font: inherit; color: inherit;
+}
+.notif-row:hover, .notif-row:focus-visible { background: var(--panel-2); outline: none; }
+.notif-row-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.notif-time { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.notif-subject {
+  margin-top: 2px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.notif-meta { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notif-empty { padding: 12px 0; text-align: center; }
+.notif-foot { text-align: center; padding-top: 4px; }
+
+.notif-push { margin-top: 6px; padding: 10px 4px 2px; border-top: 1px solid var(--line); }
+.notif-push-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.notif-push-hint { margin-top: 4px; font-size: 12px; line-height: 1.45; }

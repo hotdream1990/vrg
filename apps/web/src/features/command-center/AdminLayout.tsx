@@ -6,16 +6,18 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { Avatar, Dropdown, Layout, Menu, Typography } from "antd";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { fetchEditRequestPendingCount } from "../../lib/edit-request-client";
 import { DATA_SAVED_EVENT } from "../../lib/http";
+import { detachPush } from "../../lib/push-client";
 import { VRG } from "../../theme";
 import { useAuth } from "../auth/AuthContext";
 import { IMPERSONATION_BANNER_HEIGHT } from "../auth/ImpersonationBanner";
 import MemberChecklistBanner from "./sections/MemberChecklistBanner";
 import MemberDataLockBanner from "./sections/MemberDataLockBanner";
+import NotificationBell from "./sections/NotificationBell";
 import { DEFAULT_OPEN_KEYS, buildSidebarMenu } from "./sidebar-menu-builders";
 import { UnsavedGuardProvider, useUnsavedGuardHost } from "./unsaved-guard";
 import { useAccessBeacon } from "./use-access-beacon";
@@ -45,19 +47,20 @@ export default function AdminLayout() {
   // (ghi vào `/api/edit-requests`) — mọi lần lưu số liệu khác không đổi con số này, không poll.
   const [pendingEdits, setPendingEdits] = useState(0);
   const canReview = user?.role !== "member" && user?.role !== "leader" && can("edit_request");
-  useEffect(() => {
+  // Chuông thông báo dùng lại con số này (+ gọi tải lại khi service worker báo có push mới).
+  const refreshPending = useCallback(() => {
     if (!canReview) { setPendingEdits(0); return; }
-    const refresh = () => {
-      fetchEditRequestPendingCount().then((r) => setPendingEdits(r.count)).catch(() => undefined);
-    };
+    fetchEditRequestPendingCount().then((r) => setPendingEdits(r.count)).catch(() => undefined);
+  }, [canReview]);
+  useEffect(() => {
     const onSaved = (e: Event) => {
       const path = (e as CustomEvent<{ path?: string }>).detail?.path ?? "";
-      if (path.startsWith("/api/edit-requests")) refresh();
+      if (path.startsWith("/api/edit-requests")) refreshPending();
     };
-    refresh();
+    refreshPending();
     window.addEventListener(DATA_SAVED_EVENT, onSaved);
     return () => window.removeEventListener(DATA_SAVED_EVENT, onSaved);
-  }, [canReview, pathname]);
+  }, [refreshPending, pathname]);
 
   const menuItems = buildSidebarMenu(user, can, pendingEdits);
 
@@ -144,24 +147,31 @@ export default function AdminLayout() {
                 </Typography.Text>
               )}
             </div>
-            <Dropdown
-              menu={{
-                items: [
-                  { key: "profile", icon: <IdcardOutlined />, label: "Hồ sơ cá nhân" },
-                  { type: "divider" },
-                  { key: "logout", icon: <LogoutOutlined />, label: "Đăng xuất", danger: true },
-                ],
-                onClick: ({ key }) => {
-                  if (key === "profile") { unsavedGuard.guard(() => nav("/ho-so")); return; }
-                  unsavedGuard.guard(() => { logout(); nav("/login", { replace: true }); });
-                },
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                <Avatar size="small" style={{ background: VRG.primary }} icon={<UserOutlined />} />
-                {!broken && <span style={{ color: "#16241d" }}>{user?.full_name || user?.username || "Admin"}</span>}
-              </div>
-            </Dropdown>
+            <div style={{ display: "flex", alignItems: "center", gap: broken ? 8 : 16, flex: "0 0 auto" }}>
+              <NotificationBell pendingEdits={pendingEdits} canReview={canReview} onPushed={refreshPending} />
+              <Dropdown
+                menu={{
+                  items: [
+                    { key: "profile", icon: <IdcardOutlined />, label: "Hồ sơ cá nhân" },
+                    { type: "divider" },
+                    { key: "logout", icon: <LogoutOutlined />, label: "Đăng xuất", danger: true },
+                  ],
+                  onClick: ({ key }) => {
+                    if (key === "profile") { unsavedGuard.guard(() => nav("/ho-so")); return; }
+                    // Gỡ Web Push của máy này TRƯỚC khi xoá token (cần token để báo server); tối đa
+                    // vài giây — mạng chậm cũng không giữ người dùng lại ở màn đăng xuất.
+                    unsavedGuard.guard(() => {
+                      void detachPush().finally(() => { logout(); nav("/login", { replace: true }); });
+                    });
+                  },
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <Avatar size="small" style={{ background: VRG.primary }} icon={<UserOutlined />} />
+                  {!broken && <span style={{ color: "#16241d" }}>{user?.full_name || user?.username || "Admin"}</span>}
+                </div>
+              </Dropdown>
+            </div>
           </Header>
 
           <Content style={{ overflow: "auto" }}>

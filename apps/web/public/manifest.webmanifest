@@ -1,0 +1,14 @@
+{
+  "name": "VRG Command",
+  "short_name": "VRG",
+  "description": "Hệ thống Dự báo & Quản trị Giá Cao su — VRG",
+  "lang": "vi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#0B6B3A",
+  "background_color": "#f4f6f5",
+  "icons": [
+    { "src": "/logo-vrg.png", "sizes": "247x249", "type": "image/png", "purpose": "any" }
+  ]
+}
