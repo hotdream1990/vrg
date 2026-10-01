@@ -43,6 +43,7 @@ from app.routers import (
     prices,
     public_purchase,
     purchase_auto_sync,
+    push,
     sales_contracts,
     schedules,
     series,
@@ -220,6 +221,8 @@ app.include_router(access_log.router)  # Lịch sử truy cập (ghi: mọi user
 # — router tự nhận diện bên nào và ép phạm vi đơn vị, nên không gác cap ở đây.
 app.include_router(support.router)
 app.include_router(support_reminders.router)  # nhắc lịch — cùng phạm vi truy cập (support_scope)
+# Web Push (chuông thông báo): mọi tài khoản đã đăng nhập đăng ký trình duyệt của mình — router tự gác.
+app.include_router(push.router)
 app.include_router(assistant.router, dependencies=[Depends(require_cap("assistant"))])  # Trợ lý AI (hỏi đáp số liệu + tư vấn giá sàn)
 app.include_router(assistant_history.router, dependencies=[Depends(require_cap("assistant"))])  # Lịch sử hỏi–đáp Trợ lý AI (xem lại + dọn log)
 app.include_router(settings_router.router, dependencies=_protected)  # cài đặt đọc-được (cửa sổ nhập liệu)

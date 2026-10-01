@@ -16,6 +16,8 @@ from starlette.responses import FileResponse
 
 # Tiền tố thuộc về API/hệ thống — KHÔNG bao giờ trả index.html cho các path này.
 _API_PREFIXES = ("api/", "api", "health", "docs", "redoc", "openapi.json")
+# File tĩnh tên cố định cần `no-cache` như index.html (Web Push: service worker + manifest).
+_NO_CACHE_FILES = frozenset({"sw.js", "manifest.webmanifest"})
 
 
 def mount_spa(app: FastAPI, app_env: str) -> bool:
@@ -60,6 +62,10 @@ def mount_spa(app: FastAPI, app_env: str) -> bool:
         target = (dist / full_path).resolve()
         # Chống path traversal: target phải nằm trong dist và là file thật.
         if full_path and dist in target.parents and target.is_file():
+            # Service worker + manifest: tên cố định (không mã băm) → phải hỏi lại mỗi lần như
+            # index.html, không thì bản sw.js cũ bám trình duyệt sau khi deploy.
+            if full_path in _NO_CACHE_FILES:
+                return FileResponse(target, headers=_HTML_HEADERS)
             return FileResponse(target)
         # deep-link React Router → trả index.html (cùng luật lưu đệm với "/")
         return FileResponse(index, headers=_HTML_HEADERS)
