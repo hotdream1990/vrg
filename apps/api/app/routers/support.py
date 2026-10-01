@@ -1,4 +1,5 @@
-"""Router Hỗ trợ & Thông báo — hộp thư hai chiều giữa Tập đoàn và lãnh đạo đơn vị thành viên.
+"""Router Hỗ trợ & Thông báo — hộp thư hai chiều giữa Tập đoàn và đơn vị thành viên (lãnh đạo
+và/hoặc chuyên viên nhập liệu theo loại — nhóm người nhận `audience` của từng thẻ).
 
 Phạm vi truy cập (ai đứng bên nào, thấy đơn vị nào) nằm ở `support_scope`; nhắc lịch nằm ở
 `support_reminders`. Ở đây chỉ có luồng tin: danh sách · chi tiết · gửi · phản hồi · file đính kèm.
@@ -9,9 +10,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 
 from app.core.security import require_admin
+from app.core.entry_types import LEADER, clean_audience
 from app.routers.support_scope import (
     Scope, ScopeDep, assert_hq, assert_may_set_status, assert_may_write, can_write, display_name,
-    store,
+    require_audience, store,
 )
 from app.schemas.support import AnnounceCreate, ReplyCreate, StatusUpdate, UnitRequestCreate
 from app.services import (
@@ -23,8 +25,7 @@ router = APIRouter(prefix="/api/support", tags=["support"])
 
 
 def _thread_in_scope(thread_id: int, scope: Scope) -> dict:
-    _, companies, _ = scope
-    thread = support_repo.get_thread(thread_id, companies)
+    thread = support_repo.get_thread(thread_id, scope.companies, scope.audiences)
     if not thread:
         raise HTTPException(404, "Không tìm thấy tin trong phạm vi tài khoản.")
     return thread
@@ -33,24 +34,28 @@ def _thread_in_scope(thread_id: int, scope: Scope) -> dict:
 # ── Ngữ cảnh + danh sách ──
 @router.get("/context")
 def context(scope: ScopeDep) -> dict:
-    """Thông tin dựng màn: đứng bên nào · đơn vị được chọn · khu vực · có được gửi không."""
-    _, companies, side = scope
-    is_hq = side == support_repo.HQ
+    """Thông tin dựng màn: đứng bên nào · đơn vị được chọn · khu vực · có được gửi không ·
+    nhóm người nhận của chính tài khoản (phía đơn vị; Tập đoàn = null)."""
+    is_hq = scope.side == support_repo.HQ
     return {
-        "side": side,
+        "side": scope.side,
         "can_write": can_write(scope),
-        "units": member_unit_repo.active_names() if is_hq else companies,
+        "units": member_unit_repo.active_names() if is_hq else scope.companies,
         "regions": member_region_repo.active_names() if is_hq else [],
-        "unread": support_query.count_unread(companies, side),
+        "audiences": scope.audiences,
+        "unread": _count_unread(scope),
         "accept_label": attachment_store.ACCEPT_LABEL,
     }
 
 
+def _count_unread(scope: Scope) -> int:
+    return support_query.count_unread(scope.companies, scope.side, scope.audiences, scope.username)
+
+
 @router.get("/unread")
 def unread(scope: ScopeDep) -> dict:
-    """Số tin chưa đọc — cho huy hiệu trên menu."""
-    _, companies, side = scope
-    return {"count": support_query.count_unread(companies, side)}
+    """Số tin chưa đọc của chính người xem — cho huy hiệu trên menu."""
+    return {"count": _count_unread(scope)}
 
 
 @router.get("/threads")
@@ -65,12 +70,13 @@ def list_threads(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=support_query.MAX_PAGE_SIZE),
 ) -> dict:
-    """Hộp thư (phân trang ở server). Bên đơn vị luôn bị lọc về đúng các đơn vị được gán."""
-    _, companies, side = scope
+    """Hộp thư (phân trang ở server). Bên đơn vị luôn bị lọc về đúng các đơn vị được gán và đúng
+    các thẻ có gửi cho nhóm của người xem."""
     kinds = [kind] if kind in support_repo.KINDS else None
     return support_query.list_threads(
-        companies, side, kinds=kinds, status=status, q=q, company=company, batch_id=batch_id,
-        unread_only=unread_only, page=page, page_size=page_size,
+        scope.companies, scope.side, kinds=kinds, status=status, q=q, company=company,
+        batch_id=batch_id, unread_only=unread_only, page=page, page_size=page_size,
+        audiences=scope.audiences, username=scope.username,
     )
 
 
@@ -92,52 +98,64 @@ def list_batches(
 
 @router.get("/threads/{thread_id}")
 def get_thread(thread_id: int, scope: ScopeDep) -> dict:
-    """Chi tiết 1 luồng + toàn bộ phản hồi. Mở ra là đánh dấu đã đọc cho chính bên đang xem."""
-    _, companies, side = scope
+    """Chi tiết 1 luồng + toàn bộ phản hồi. Mở ra là đánh dấu đã đọc: Tập đoàn = cả Ban; đơn vị =
+    riêng người đang xem."""
     thread = _thread_in_scope(thread_id, scope)
-    support_repo.mark_read(thread_id, side, companies)
+    support_repo.mark_read(thread_id, scope.side, scope.companies, scope.audiences, scope.username)
     return {"thread": thread, "messages": support_repo.messages(thread_id)}
 
 
 # ── Gửi tin ──
 @router.post("/requests")
 def create_request(body: UnitRequestCreate, scope: ScopeDep) -> dict:
-    """Lãnh đạo đơn vị mở một yêu cầu hỗ trợ gửi Tập đoàn."""
-    username, companies, side = scope
-    if side != support_repo.UNIT:
-        raise HTTPException(403, "Chỉ lãnh đạo đơn vị thành viên mới gửi được yêu cầu hỗ trợ.")
-    if body.company not in (companies or []):
+    """Tài khoản đơn vị (lãnh đạo / chuyên viên nhập liệu) mở một yêu cầu hỗ trợ gửi Tập đoàn.
+
+    Người nhận phía đơn vị do server tính: lãnh đạo + loại nhập liệu của người gửi (lãnh đạo gửi →
+    chỉ lãnh đạo) — để người gửi luôn thấy lại thẻ của mình và lãnh đạo nắm được việc.
+    """
+    username = scope.username
+    if scope.side != support_repo.UNIT:
+        raise HTTPException(403, "Chỉ tài khoản đơn vị thành viên mới gửi được yêu cầu hỗ trợ.")
+    if body.company not in (scope.companies or []):
         raise HTTPException(403, "Đơn vị không thuộc quyền quản lý của tài khoản.")
+    if not scope.audiences:
+        raise HTTPException(403, "Tài khoản chưa được giao loại nhập liệu — liên hệ quản trị.")
     subject = body.subject.strip()
     files = [f.model_dump() for f in body.files]
     ids = support_repo.open_threads([body.company], support_repo.KIND_REQUEST, subject, body.body,
-                                    files, username, display_name(username), support_repo.UNIT)
-    support_notify.notify_to_hq(ids[0], body.company, subject, body.body, display_name(username))
+                                    files, username, display_name(username), support_repo.UNIT,
+                                    audience=clean_audience([LEADER, *scope.audiences]))
+    support_notify.notify_to_hq(ids[0], body.company, subject, body.body, display_name(username),
+                                is_new=True, author=username)
     return {"ok": True, "thread_id": ids[0]}
 
 
 @router.post("/announcements")
 def create_announcement(body: AnnounceCreate, scope: ScopeDep) -> dict:
-    """Tập đoàn gửi thông báo xuống 1 đơn vị · một nhóm · tất cả (mỗi đơn vị một luồng RIÊNG)."""
-    username, _, _ = scope
+    """Tập đoàn gửi thông báo xuống 1 đơn vị · một nhóm · tất cả (mỗi đơn vị một luồng RIÊNG),
+    tới nhóm người nhận đã chọn trong đơn vị (`audience`, mặc định lãnh đạo)."""
+    username = scope.username
     assert_hq(scope)
     assert_may_write(scope)
+    audience = require_audience(body.audience)
     units = support_reminder_repo.targets(body.model_dump())
     if not units:
         raise HTTPException(400, "Không có đơn vị nào trong phạm vi đã chọn.")
     subject = body.subject.strip()
     files = [f.model_dump() for f in body.files]
     ids = support_repo.open_threads(units, support_repo.KIND_ANNOUNCE, subject, body.body, files,
-                                    username, display_name(username), support_repo.HQ)
+                                    username, display_name(username), support_repo.HQ,
+                                    audience=audience)
     support_notify.notify_to_units(list(zip(ids, units, strict=True)), subject, body.body,
-                                   display_name(username))
-    return {"ok": True, "units": units, "threads": len(ids)}
+                                   display_name(username), audience=audience, actor=username)
+    return {"ok": True, "units": units, "threads": len(ids), "audience": audience}
 
 
 @router.post("/threads/{thread_id}/reply")
 def reply(thread_id: int, body: ReplyCreate, scope: ScopeDep) -> dict:
-    """Phản hồi trong luồng. Phản hồi nằm TRONG luồng nên chỉ đúng đơn vị của luồng đọc được."""
-    username, _, side = scope
+    """Phản hồi trong luồng. Phản hồi nằm TRONG luồng nên chỉ đúng đơn vị (và đúng nhóm người
+    nhận) của luồng đọc được."""
+    username, side = scope.username, scope.side
     assert_may_write(scope)
     thread = _thread_in_scope(thread_id, scope)
     # Mỗi thẻ = MỘT trường hợp: khép rồi thì không nhận thêm phản hồi, có việc mới thì mở thẻ mới.
@@ -151,21 +169,22 @@ def reply(thread_id: int, body: ReplyCreate, scope: ScopeDep) -> dict:
     excerpt = body.body or "(chỉ có file đính kèm)"
     if side == support_repo.HQ:
         support_notify.notify_to_units([(thread_id, thread["company"])], thread["subject"],
-                                       excerpt, display_name(username))
+                                       excerpt, display_name(username),
+                                       audience=thread["audience"],
+                                       push_title=support_notify.PUSH_HQ_REPLY, actor=username)
     else:
         support_notify.notify_to_hq(thread_id, thread["company"], thread["subject"], excerpt,
-                                    display_name(username))
+                                    display_name(username), author=username)
     return {"ok": True, "message": msg}
 
 
 @router.put("/threads/{thread_id}/status")
 def set_status(thread_id: int, body: StatusUpdate, scope: ScopeDep) -> dict:
     """Khép / mở lại luồng — luật theo bên ở `assert_may_set_status`."""
-    _, companies, _ = scope
     assert_may_write(scope)
     thread = _thread_in_scope(thread_id, scope)
     assert_may_set_status(scope, thread, body.status)
-    support_repo.set_status(thread_id, body.status, companies)
+    support_repo.set_status(thread_id, body.status, scope.companies, scope.audiences)
     return {"ok": True, "status": body.status}
 
 
@@ -187,14 +206,10 @@ def upload_file(file: UploadFile, scope: ScopeDep) -> dict:
 
 @router.get("/file/{name}")
 def get_file(name: str, scope: ScopeDep, filename: str | None = Query(None)):
-    """Tải đính kèm. Chặn tải chéo: file phải thuộc luồng nằm trong phạm vi tài khoản."""
-    _, companies, side = scope
-    owners = support_repo.companies_of_file(name)
-    if not owners:
-        # File vừa upload cho tin/lịch nhắc chưa gửi: chỉ Tập đoàn (người đang soạn) xem lại được.
-        if side == support_repo.HQ:
-            return store.serve(name, filename)
-        raise HTTPException(404, "Không tìm thấy file đính kèm.")
-    if companies is not None and not owners & set(companies):
+    """Tải đính kèm. Chặn tải chéo: phía đơn vị chỉ tải được file thuộc luồng mình được xem
+    (đúng đơn vị + đúng nhóm người nhận). Tập đoàn tải mọi file — kể cả file vừa upload cho
+    tin/lịch nhắc chưa gửi (người đang soạn xem lại)."""
+    if scope.side != support_repo.HQ and not support_query.file_visible(
+            name, scope.companies, scope.audiences):
         raise HTTPException(404, "Không tìm thấy file trong phạm vi tài khoản.")
     return store.serve(name, filename)

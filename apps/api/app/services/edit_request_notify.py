@@ -1,10 +1,11 @@
-"""Email của «Đề nghị sửa số liệu quá khứ».
+"""Email + Web Push của «Đề nghị sửa số liệu quá khứ».
 
 - Đơn vị GỬI (hoặc cập nhật) đề nghị → mọi tài khoản đang hoạt động có quyền `edit_request`
   (quản trị luôn có). Một email chung cho người duyệt — họ là người của Ban, không lộ chéo đơn vị.
 - Ban DUYỆT / TỪ CHỐI → người gửi, kèm ghi chú và (nếu có) lời nhắc chốt số liệu đã bị gỡ.
 
-Email KHÔNG BAO GIỜ làm hỏng nghiệp vụ (xem `mailer`): mọi lỗi ở đây chỉ ghi log.
+Web Push tới đúng những người nhận email đó, đi ĐỘC LẬP với email (chưa cấu hình SMTP vẫn báo).
+Email/push KHÔNG BAO GIỜ làm hỏng nghiệp vụ (xem `mailer`): mọi lỗi ở đây chỉ ghi log.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from typing import Any
 
 from app.core.permissions import effective_caps, has_cap
 from app.services import mailer, user_repo
-from app.services.support_notify import address
+from app.services.support_notify import address, push
 
 logger = logging.getLogger("vrg.edit_request")
 
@@ -22,12 +23,15 @@ _CAP = "edit_request"
 _FOOTER = "Email tự động từ Hệ thống Dự báo & Quản trị Giá Cao su — vui lòng không trả lời email này."
 
 
+def reviewers() -> list[dict]:
+    """Tài khoản đang hoạt động có quyền duyệt đề nghị sửa."""
+    return [u for u in user_repo.list_users()
+            if u.get("is_active", True)
+            and has_cap(effective_caps(u.get("role", ""), u.get("permissions")), _CAP)]
+
+
 def reviewer_recipients() -> list[str]:
-    out = []
-    for u in user_repo.list_users():
-        if u.get("is_active", True) and has_cap(effective_caps(u.get("role", ""), u.get("permissions")), _CAP):
-            out.append(address(u))
-    return [a for a in out if a]
+    return [a for a in (address(u) for u in reviewers()) if a]
 
 
 def _dmy(iso: str) -> str:
@@ -46,10 +50,14 @@ def _who(req: dict[str, Any]) -> str:
 
 def notify_submitted(req: dict[str, Any], replaced: bool) -> None:
     try:
-        to = reviewer_recipients()
+        users = reviewers()
+        verb = "cập nhật" if replaced else "gửi"
+        push([u["username"] for u in users], f"Đề nghị sửa số liệu — {req['company']}",
+             req["title"], f"Đơn vị vừa {verb} đề nghị, đang chờ duyệt.",
+             f"/duyet-de-nghi-sua/{req['id']}", f"edit-request-{req['id']}", req.get("requested_by"))
+        to = [a for a in (address(u) for u in users) if a]
         if not to:
             return
-        verb = "cập nhật" if replaced else "gửi"
         body = "\n".join([
             f"Đơn vị {req['company']} vừa {verb} đề nghị sửa số liệu, đang chờ duyệt.", "",
             f"Đơn vị: {req['company']}", f"Người gửi: {_who(req)}", f"Nội dung: {req['title']}",
@@ -65,10 +73,14 @@ def notify_submitted(req: dict[str, Any], replaced: bool) -> None:
 def notify_result(req: dict[str, Any]) -> None:
     try:
         user = user_repo.get_user(req["requested_by"])
-        to = [address(user)] if user and user.get("is_active", True) else []
-        if not [a for a in to if a]:
+        if not user or not user.get("is_active", True):
             return
         approved = req["status"] == "approved"
+        push([user["username"]], f"Đề nghị sửa số liệu {'đã được duyệt' if approved else 'bị từ chối'}",
+             req["title"], req.get("review_note") or "", "/de-nghi-sua", f"edit-request-{req['id']}")
+        to = [a for a in [address(user)] if a]
+        if not to:
+            return
         lines = [f"Đề nghị sửa số liệu của đơn vị {req['company']} đã được "
                  f"{'DUYỆT' if approved else 'TỪ CHỐI'}.", "",
                  f"Nội dung: {req['title']}", f"Lý do đơn vị gửi: {req['reason']}"]

@@ -23,7 +23,7 @@ from app.core.market_meta import PURCHASE_SOURCE_UNIT
 from app.main import app
 from app.services import (
     anomaly_notify, anomaly_rules, mailer, member_unit_repo, price_repo, support_notify,
-    unit_daily_repo, user_repo,
+    unit_daily_repo, user_repo, web_push,
 )
 from app.services.anomaly_notify_content import AlertContext, compose
 
@@ -38,6 +38,8 @@ LEADER = "_zz_an_leader"
 NOW = datetime(2026, 7, 26, 11, 5, tzinfo=VN)      # sau giờ chốt 11:00, cửa sổ 1 ngày ⇒ d0 = 25/07
 BATCH = "alert-2026-07-26"
 LINK = "/canh-bao-bat-thuong?date_from=2026-01-01&date_to=2026-07-25"
+#: Web Push đã "gửi" trong test (ghi lại, không gửi thật).
+PUSHED: list[dict] = []
 
 
 def _units(include_inactive: bool = True) -> list[dict]:
@@ -57,8 +59,9 @@ def _run_mark() -> int:
 
 def _wipe(run_mark: int) -> None:
     with session_scope() as db:
-        db.execute(text("DELETE FROM support_message WHERE thread_id IN "
-                        "(SELECT id FROM support_thread WHERE company = ANY(:u))"), {"u": list(UNITS)})
+        for child in ("support_message", "support_read"):
+            db.execute(text(f"DELETE FROM {child} WHERE thread_id IN "
+                            "(SELECT id FROM support_thread WHERE company = ANY(:u))"), {"u": list(UNITS)})
         db.execute(text("DELETE FROM support_thread WHERE company = ANY(:u)"), {"u": list(UNITS)})
         for table, col in (("unit_daily_report", "company"), ("fact_price", "grade"),
                            ("unit_purchase_plan", "company")):
@@ -104,6 +107,9 @@ def env(monkeypatch):
     monkeypatch.setattr(mailer, "send", _record)
     monkeypatch.setattr(mailer, "send_async", _record)
     monkeypatch.setattr(support_notify, "_in_background", lambda fn, *a: fn(*a))   # chạy đồng bộ
+    PUSHED.clear()
+    monkeypatch.setattr(web_push, "send_batch_async", lambda items: PUSHED.extend(
+        {"to": list(usernames), "title": title, "url": url} for usernames, title, _b, url, _t in items))
 
     unit_daily_repo.upsert("purchase", "2026-07-20", DIRTY, {"latex_wet": 5.0, "coagulum": 2.5}, "t")
     _price(DIRTY, "2026-07-20", "purchase", 25000)          # mủ nước: gõ nhầm đồng/kg
@@ -121,7 +127,7 @@ def env(monkeypatch):
 def _threads() -> list[dict]:
     with session_scope() as db:
         return [dict(r) for r in db.execute(text(
-            "SELECT t.id, t.company, t.kind, t.subject, t.batch_id, t.created_by, m.author, "
+            "SELECT t.id, t.company, t.kind, t.subject, t.batch_id, t.created_by, t.audience, m.author, "
             "m.author_name, m.body FROM support_thread t JOIN support_message m ON m.thread_id = t.id "
             "WHERE t.company = ANY(:u) ORDER BY t.id"), {"u": list(UNITS)}).mappings().all()]
 
@@ -179,6 +185,10 @@ def test_job_sends_one_thread_per_unit_with_issues(env) -> None:
     assert f"https://vrg.example.vn{LINK}" in env[0]["body"]
     assert env[0]["result"][0] is False
     assert res["alerts"]["no_leader"] == [] and res["alerts"]["clean"] == 1
+    # Web Push: chỉ lãnh đạo đơn vị (nhóm người nhận của cảnh báo), mở đúng luồng.
+    assert t["audience"] == ["leader"]
+    assert PUSHED == [{"to": [LEADER], "title": support_notify.PUSH_ALERT,
+                       "url": f"/ho-tro/{t['id']}"}]
 
 
 def test_rerun_same_day_does_not_duplicate(env) -> None:

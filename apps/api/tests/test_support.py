@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 from app.core.db import db_healthy
 from app.main import app
-from app.services import support_reminder_repo, user_repo
+from app.services import mailer, support_reminder_repo, user_repo, web_push
 
 pytestmark = pytest.mark.skipif(not db_healthy(), reason="DB không sẵn sàng")
 
@@ -24,8 +24,11 @@ ACCOUNTS = ("sp_lead_a", "sp_lead_b", "sp_hq", "sp_none", "sp_member")
 
 
 @pytest.fixture(autouse=True)
-def _seed():
+def _seed(monkeypatch):
     user_repo.seed_admin()
+    # DB dev là bản sao prod: không gửi email / thông báo trình duyệt thật tới người của Ban.
+    monkeypatch.setattr(mailer, "send_async", lambda *a, **k: None)
+    monkeypatch.setattr(web_push, "send_batch_async", lambda *a, **k: None)   # send_async đi qua đây
 
 
 def _bearer(username: str, password: str) -> dict[str, str]:
@@ -74,15 +77,18 @@ def env():
 
 
 def test_vai_tro_lanh_dao_duoc_gan_don_vi(env) -> None:
-    """Lãnh đạo đơn vị phải được gán đơn vị; tài khoản nhập liệu và người không quyền bị chặn."""
+    """Tài khoản đơn vị (lãnh đạo · nhập liệu) đứng phía đơn vị; người không quyền bị chặn."""
     ctx = client.get("/api/support/context", headers=env["a"]).json()
-    assert ctx["side"] == "unit" and ctx["units"] == [UNIT_A]
+    assert ctx["side"] == "unit" and ctx["units"] == [UNIT_A] and ctx["audiences"] == ["leader"]
 
     ctx_hq = client.get("/api/support/context", headers=env["hq"]).json()
-    assert ctx_hq["side"] == "hq" and UNIT_A in ctx_hq["units"]
+    assert ctx_hq["side"] == "hq" and UNIT_A in ctx_hq["units"] and ctx_hq["audiences"] is None
 
-    # `member` (nhập liệu của chính đơn vị đó) và editor không quyền đều KHÔNG vào được hộp thư.
-    assert client.get("/api/support/context", headers=env["member"]).status_code == 403
+    # `member` (nhập liệu, mặc định đủ 3 loại) vào hộp thư phía đơn vị từ 01/10/2026 — chỉ thấy
+    # thẻ gửi cho loại của mình (xem test_support_audience.py).
+    ctx_m = client.get("/api/support/context", headers=env["member"]).json()
+    assert ctx_m["side"] == "unit" and ctx_m["units"] == [UNIT_A]
+    assert ctx_m["audiences"] == ["purchase", "stock", "contract"]
     assert client.get("/api/support/context", headers=env["none"]).status_code == 403
 
     # Tạo tài khoản lãnh đạo mà không chọn đơn vị → chặn ngay từ lúc tạo.

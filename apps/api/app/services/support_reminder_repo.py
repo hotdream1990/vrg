@@ -27,7 +27,7 @@ REPEAT_RULES = ("once", "daily", "weekly", "monthly")
 SCOPES = ("all", "units", "region")
 
 _COLS = ("id, title, body, files, scope, units, region, repeat_rule, next_at, enabled, "
-         "last_sent_at, created_by, created_at")
+         "last_sent_at, created_by, created_at, audience")
 
 
 def now() -> datetime:
@@ -57,6 +57,7 @@ def _row(row: Any) -> dict[str, Any]:
     d = dict(row)
     d["files"] = list(d.get("files") or [])
     d["units"] = list(d.get("units") or [])
+    d["audience"] = support_repo.audience_of(d.get("audience"))
     return d
 
 
@@ -82,8 +83,9 @@ def create(data: dict[str, Any], by: str) -> dict[str, Any]:
     with session_scope() as db:
         rid = db.execute(
             text("INSERT INTO support_reminder "
-                 "(title, body, files, scope, units, region, repeat_rule, next_at, enabled, created_by) "
-                 "VALUES (:t, :b, CAST(:f AS jsonb), :s, CAST(:u AS jsonb), :r, :rr, :n, :e, :by) "
+                 "(title, body, files, scope, units, region, repeat_rule, next_at, enabled, created_by, "
+                 "audience) VALUES (:t, :b, CAST(:f AS jsonb), :s, CAST(:u AS jsonb), :r, :rr, :n, :e, "
+                 ":by, CAST(:aud AS jsonb)) "
                  "RETURNING id"),
             _params(data) | {"by": by},
         ).scalar()
@@ -100,7 +102,7 @@ def update(reminder_id: int, data: dict[str, Any]) -> dict[str, Any] | None:
         db.execute(
             text("UPDATE support_reminder SET title = :t, body = :b, files = CAST(:f AS jsonb), "
                  "scope = :s, units = CAST(:u AS jsonb), region = :r, repeat_rule = :rr, "
-                 "next_at = :n, enabled = :e WHERE id = :i"),
+                 "next_at = :n, enabled = :e, audience = CAST(:aud AS jsonb) WHERE id = :i"),
             _params(data) | {"i": reminder_id},
         )
     after = get_reminder(reminder_id)
@@ -125,6 +127,7 @@ def _params(data: dict[str, Any]) -> dict[str, Any]:
         "s": data.get("scope") or "all", "u": json.dumps(data.get("units") or []),
         "r": data.get("region"), "rr": data.get("repeat_rule") or "once",
         "n": data["next_at"], "e": bool(data.get("enabled", True)),
+        "aud": json.dumps(support_repo.audience_of(data.get("audience"))),
     }
 
 
@@ -150,19 +153,24 @@ def targets(reminder: dict[str, Any]) -> list[str]:
 
 
 def dispatch(reminder: dict[str, Any]) -> int:
-    """Phát 1 lịch nhắc ngay → trả số đơn vị đã nhận (0 nếu phạm vi rỗng)."""
+    """Phát 1 lịch nhắc ngay → trả số đơn vị đã nhận (0 nếu phạm vi rỗng).
+
+    Luồng sinh ra mang đúng nhóm người nhận của lịch (`audience`) — email/push cũng chỉ tới nhóm đó.
+    """
     units = targets(reminder)
     if not units:
         logger.warning("[nhắc lịch] '%s' không có đơn vị nào trong phạm vi — bỏ qua", reminder["title"])
         return 0
+    audience = support_repo.audience_of(reminder.get("audience"))
     ids = support_repo.open_threads(
         units, support_repo.KIND_REMINDER, reminder["title"], reminder.get("body") or "",
         reminder.get("files"), "system", "Nhắc lịch tự động", support_repo.HQ,
-        reminder_id=reminder["id"],
+        reminder_id=reminder["id"], audience=audience,
     )
     support_notify.notify_to_units(
         list(zip(ids, units, strict=True)), reminder["title"], reminder.get("body") or "",
-        "Ban Thị trường Kinh doanh (nhắc lịch tự động)",
+        "Ban Thị trường Kinh doanh (nhắc lịch tự động)", audience=audience,
+        push_title=support_notify.PUSH_REMINDER,
     )
     return len(ids)
 

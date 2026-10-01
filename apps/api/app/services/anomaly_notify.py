@@ -28,6 +28,7 @@ from sqlalchemy import text
 
 from app.core import edit_window
 from app.core.db import ensure_schema, session_scope
+from app.core.entry_types import DEFAULT_AUDIENCE
 from app.services import (
     anomaly_scope, mailer, member_unit_merge, member_unit_repo, price_repo, support_notify,
     support_repo, user_repo,
@@ -46,6 +47,8 @@ JOB_SOURCE = "anomaly-notify"
 JOB_DEFAULT = (12, 0, None)
 AUTHOR = "system"
 AUTHOR_NAME = "Hệ thống VRG (tự động)"
+#: Cảnh báo tự động chỉ gửi LÃNH ĐẠO đơn vị (như trước khi có nhóm người nhận — chốt 01/10/2026).
+AUDIENCE = DEFAULT_AUDIENCE
 SENDER_LABEL = "Hệ thống cảnh báo tự động (sau giờ chốt nhập liệu)"
 BATCH_PREFIX = "alert-"
 _NAMES_IN_NOTE = 5
@@ -112,28 +115,33 @@ def _create(batch: str, messages: dict[str, dict]) -> tuple[list[tuple[int, str]
         created = [
             (support_repo.insert_thread(db, unit, support_repo.KIND_ALERT, msg["subject"],
                                         msg["body"], None, AUTHOR, AUTHOR_NAME, support_repo.HQ,
-                                        batch), unit)
+                                        batch, audience=AUDIENCE), unit)
             for unit, msg in messages.items() if unit not in done]
     return created, sorted(u for u in messages if u in done)
 
 
 def _email(created: list[tuple[int, str]], messages: dict[str, dict]) -> None:
     """Email cho lãnh đạo từng đơn vị (bản tóm tắt + link tuyệt đối) — gửi TUẦN TỰ cả đợt trong
-    một luồng nền (`support_notify.send_batch`). Lỗi mail không làm hỏng job: tin đã lưu."""
+    một luồng nền (`support_notify.send_batch`) — kèm Web Push (không phụ thuộc SMTP). Lỗi mail /
+    push không làm hỏng job: tin đã lưu."""
     base = mailer.base_url()
-    mails = []
+    users = user_repo.list_users()
+    mails, pushes = [], []
     for tid, unit in created:
         msg = messages[unit]
+        pushes.append(support_notify.unit_push(tid, unit, msg["subject"], "", audience=AUDIENCE,
+                                               title=support_notify.PUSH_ALERT, users=users))
         extra = (f"Xem chi tiết tại {PAGE_NAME}: {base}{msg['link']}" if base else
                  f"Xem chi tiết: đăng nhập hệ thống VRG, vào mục {PAGE_NAME}.")
         try:
             mail = support_notify.unit_email(tid, unit, msg["subject"], msg["email"],
-                                             SENDER_LABEL, extra)
+                                             SENDER_LABEL, extra, AUDIENCE, users)
         except Exception:  # noqa: BLE001 - tin đã lưu; email chỉ là kênh báo thêm
             logger.exception("[cảnh báo tự động] dựng email cho %s lỗi", unit)
             continue
         if mail:
             mails.append((unit, mail))
+    support_notify.push_batch(pushes)   # cả đợt: một luồng nền, một kết nối
     support_notify.send_batch(mails)
 
 

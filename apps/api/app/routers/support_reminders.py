@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from app.routers.support_scope import Scope, ScopeDep, assert_hq, assert_may_write
+from app.routers.support_scope import (
+    Scope, ScopeDep, assert_hq, assert_may_write, require_audience,
+)
 from app.schemas.support import ReminderEdit
 from app.services import support_reminder_repo
 
@@ -19,6 +21,11 @@ router = APIRouter(prefix="/api/support/reminders", tags=["support"])
 def _hq_writer(scope: Scope) -> None:
     assert_hq(scope)
     assert_may_write(scope)
+
+
+def _data(body: ReminderEdit) -> dict:
+    """Dữ liệu lưu lịch nhắc — nhóm người nhận bắt buộc ít nhất một (400 nếu rỗng)."""
+    return body.model_dump() | {"audience": require_audience(body.audience)}
 
 
 @router.get("")
@@ -34,13 +41,13 @@ def list_reminders(scope: ScopeDep) -> dict:
 @router.post("")
 def create_reminder(body: ReminderEdit, scope: ScopeDep) -> dict:
     _hq_writer(scope)
-    return support_reminder_repo.create(body.model_dump(), scope[0])
+    return support_reminder_repo.create(_data(body), scope.username)
 
 
 @router.put("/{reminder_id}")
 def update_reminder(reminder_id: int, body: ReminderEdit, scope: ScopeDep) -> dict:
     _hq_writer(scope)
-    out = support_reminder_repo.update(reminder_id, body.model_dump())
+    out = support_reminder_repo.update(reminder_id, _data(body))
     if not out:
         raise HTTPException(404, "Không tìm thấy lịch nhắc.")
     return out

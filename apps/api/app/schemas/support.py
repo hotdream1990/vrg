@@ -6,6 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.entry_types import DEFAULT_AUDIENCE, clean_audience
 from app.services.support_reminder_repo import REPEAT_RULES, SCOPES
 
 _MAX_SUBJECT = 200
@@ -27,8 +28,14 @@ def _clean_files(v: list[Attachment]) -> list[Attachment]:
     return v
 
 
+def _default_audience() -> list[str]:
+    return list(DEFAULT_AUDIENCE)
+
+
 class UnitRequestCreate(BaseModel):
-    """Đơn vị (lãnh đạo) mở một yêu cầu hỗ trợ gửi Tập đoàn."""
+    """Đơn vị (lãnh đạo / chuyên viên nhập liệu) mở một yêu cầu hỗ trợ gửi Tập đoàn.
+
+    Không có ô người nhận: server tự tính = lãnh đạo + loại nhập liệu của người gửi."""
 
     company: str = Field(min_length=1)
     subject: str = Field(min_length=1, max_length=_MAX_SUBJECT)
@@ -47,8 +54,12 @@ class AnnounceCreate(BaseModel):
     scope: str = "all"                 # all | units | region
     units: list[str] = Field(default_factory=list)
     region: str | None = None
+    #: Nhóm người nhận trong đơn vị: leader · purchase · stock · contract (chọn nhiều). Lọc về danh
+    #: mục chuẩn ở đây; rỗng sau khi lọc thì router trả 400 (thông điệp rõ hơn lỗi 422).
+    audience: list[str] = Field(default_factory=_default_audience)
 
     _files = field_validator("files")(_clean_files)
+    _audience = field_validator("audience")(clean_audience)
 
     @field_validator("scope")
     @classmethod
@@ -88,8 +99,10 @@ class ReminderEdit(BaseModel):
     repeat_rule: str = "once"
     next_at: datetime
     enabled: bool = True
+    audience: list[str] = Field(default_factory=_default_audience)
 
     _files = field_validator("files")(_clean_files)
+    _audience = field_validator("audience")(clean_audience)
 
     @field_validator("scope")
     @classmethod

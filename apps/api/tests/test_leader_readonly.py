@@ -144,8 +144,10 @@ def test_lanh_dao_khong_vao_duoc_hop_thu_cua_nguoi_khac_va_van_giu_ho_tro(env) -
     """Mở thêm quyền xem số liệu KHÔNG được làm hỏng hộp thư Hỗ trợ của lãnh đạo."""
     ctx = client.get("/api/support/context", headers=env["lead"])
     assert ctx.status_code == 200 and ctx.json()["units"] == [UNIT_A]
-    # Tài khoản nhập liệu vẫn KHÔNG vào hộp thư (hộp thư chỉ dành cho lãnh đạo).
-    assert client.get("/api/support/context", headers=env["mem"]).status_code == 403
+    # Tài khoản nhập liệu vào hộp thư phía đơn vị (từ 01/10/2026), đúng đơn vị được gán.
+    ctx_m = client.get("/api/support/context", headers=env["mem"])
+    assert ctx_m.status_code == 200 and ctx_m.json()["side"] == "unit"
+    assert ctx_m.json()["units"] == [UNIT_A]
 
 
 def test_lanh_dao_khong_xac_nhan_chot_so_lieu_duoc(env) -> None:
