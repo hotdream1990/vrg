@@ -3,6 +3,22 @@
 Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/).
 
 ## [Unreleased]
+### Added
+- **Chuông thông báo + Web Push · loại nhập liệu đơn vị · chọn người nhận thẻ Hỗ trợ** (01/10/2026).
+  - **Chuông** ở thanh trên cho lãnh đạo, chuyên viên đơn vị và người có quyền Hỗ trợ / duyệt đề nghị
+    sửa: số thẻ chưa đọc + đề nghị sửa chờ duyệt, bấm vào mở đúng thẻ. Tự cập nhật mỗi phút.
+  - **Web Push**: công tắc "Nhận thông báo trên máy này" trong chuông. Báo cả khi đã đóng trang (iPhone
+    phải "Thêm vào màn hình chính"). Gửi cùng lúc với email: thông báo/nhắc lịch/cảnh báo, phản hồi hai
+    chiều, đề nghị sửa mới và kết quả duyệt. Khoá VAPID tự sinh, không thêm thư viện mới.
+  - **Tài khoản nhập liệu đơn vị chia 3 loại** (chọn nhiều ở Quản trị → Người dùng): Thu mua · Tồn kho ·
+    Hợp đồng & tiêu thụ. Menu chỉ hiện màn của loại được giao; server chặn ghi ngoài loại (cả đề nghị
+    sửa và nhập Excel). Kế hoạch năm: ô KH thu mua thuộc Thu mua, các ô còn lại thuộc Hợp đồng & tiêu
+    thụ. Bảng nhắc việc chỉ nhắc phần việc của mình. Tài khoản cũ mặc định đủ 3 loại.
+  - **Hỗ trợ & Thông báo chọn người nhận** (chọn nhiều): Lãnh đạo đơn vị · CV Thu mua · CV Tồn kho ·
+    CV Hợp đồng & tiêu thụ — thẻ chỉ hiện với đúng nhóm được chọn (kể cả lãnh đạo). Chuyên viên đơn vị
+    vào được hộp thư, tự gửi yêu cầu (lãnh đạo + đồng nghiệp cùng loại cùng thấy). "Đã đọc" phía đơn vị
+    tính theo từng người. Thẻ và lịch nhắc cũ, cảnh báo tự động giữ người nhận là lãnh đạo.
+
 ### Fixed
 - **Tách nhóm HĐ nguyên tắc (HĐNT) khỏi HĐ chuyến / HĐ dài hạn trên mọi báo cáo** (01/10/2026).
   - Phản ánh của Cao su Dầu Tiếng Việt Lào: đơn vị chỉ có 3 HĐNT với Camel, không có HĐDH. Thế nhưng
