@@ -4,6 +4,26 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Fixed
+- **Tách nhóm HĐ nguyên tắc (HĐNT) khỏi HĐ chuyến / HĐ dài hạn trên mọi báo cáo** (01/10/2026).
+  - Phản ánh của Cao su Dầu Tiếng Việt Lào: đơn vị chỉ có 3 HĐNT với Camel, không có HĐDH. Thế nhưng
+    Dashboard hiện "Dài hạn 420 · chuyến 5.794" và "HĐ dài hạn còn phải giao 210". Nguyên nhân: báo cáo
+    xếp theo loại tự khai của từng hợp đồng. Trong 10 đơn hàng thuộc HĐNT, 7 cái lưu "HĐ chuyến", 3 cái
+    lưu "Phụ lục".
+  - Nay xếp theo **hồ sơ mẹ**: hợp đồng gắn HĐNT → *HĐ nguyên tắc*; gắn HĐDH → *HĐ dài hạn*; không gắn →
+    theo loại tự khai. Màn hình tách 3 nhóm (Dashboard, Thống kê tiêu thụ, Chỉ số đơn vị, Báo cáo tiêu
+    thụ, Báo cáo tổng hợp, bảng chốt số liệu). "Tổng phải giao" có thêm ô *HĐNT đã ký chưa giao*.
+  - Biểu Excel theo mẫu Ban TTKD (Báo cáo kỳ, Biểu tổng hợp gửi Tập đoàn) giữ 2 cột: HĐNT **gộp vào cột
+    HĐ chuyến**. % KH tiêu thụ HĐ chuyến chỉ tính HĐ chuyến thật, không gồm HĐNT.
+  - Dầu Tiếng Việt Lào 01/01–30/09: chuyến 4.413,6 · HĐNT 1.800,5 · dài hạn 0 tấn; KH chuyến 80,5% →
+    61,3%. Toàn Tập đoàn: 12.804 t chuyển sang nhóm HĐNT (24 đơn vị). Tổng tiêu thụ không đổi.
+  - Nút "Gắn hợp đồng có sẵn" từ nay đổi loại thành *Phụ lục hợp đồng mẹ*: HĐ chuyến không có hợp đồng mẹ,
+    trước đây gắn xong thì form sửa bị chặn. Gỡ khỏi hồ sơ thì loại về *chưa khai* để đơn vị chọn lại,
+    loại cũ ghi vào nhật ký hoạt động. 76 hợp đồng đang kẹt đổi bằng SQL một lần
+    (`plans/261001-hdnt-nhom-rieng/sql/`). Kỳ đã chốt số liệu giữ nguyên ảnh chụp cũ.
+  - Gắn/gỡ hồ sơ mẹ, đổi loại hợp đồng hay đổi HĐNT ↔ HĐDH sẽ dời sản lượng sang cột khác. Nếu hợp đồng
+    có lần giao (kể cả đợt giao) trong kỳ đã chốt thì tài khoản đơn vị bị chặn, phải gửi *Đề nghị sửa*.
+  - Lịch sử đợt giao và file Excel Báo cáo tiêu thụ có thêm cột *Nhóm HĐ*. Bảng theo khu vực của thẻ
+    Tiến độ bán hàng có thêm cột *HĐ dài hạn còn phải giao*, để các cột cộng ra đúng *Còn phải giao*.
 - **Dashboard đơn vị: sửa theo đợt rà chéo với các màn khác** (29/09/2026, 0.4.98).
   - Tồn kho: ngày chốt "Tự động" nay là ngày gần nhất đủ đơn vị khai (trước lấy hôm nay → sáng nào
     KPI Tập đoàn cũng tụt, vd 6.113 t thay vì 56.667 t); thẻ ghi ngày + "x/y đơn vị có số". Một đơn
