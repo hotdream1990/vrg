@@ -76,7 +76,8 @@ export default function MasterContractPage() {
             Hồ sơ gốc ký với khách hàng: <b>HĐ nguyên tắc</b> hoặc <b>HĐ dài hạn</b> — số hợp đồng,
             khách hàng, chủng loại kèm sản lượng cam kết, công thức giá và bản scan. Từng chuyến
             hàng vẫn nhập ở <b>Hợp đồng &amp; đợt giao</b> như bình thường, chỉ chọn thêm hợp đồng
-            mẹ này để nối vào hồ sơ — <b>không đổi</b> khách hàng hay bất kỳ số liệu nào của hợp đồng.
+            mẹ này để nối vào hồ sơ — <b>không đổi</b> khách hàng hay sản lượng; báo cáo xếp hợp
+            đồng vào nhóm <b>HĐ nguyên tắc</b> hoặc <b>HĐ dài hạn</b> theo loại hồ sơ mẹ.
           </p>
         </div>
         {canEdit && meta && (

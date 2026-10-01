@@ -126,6 +126,8 @@
 
 @media (max-width: 1100px) {
   .ud-split, .ud-split-even { grid-template-columns: minmax(0, 1fr); }
+  /* Phương trình 5–6 ô quá chật: 2 ô đầu/cuối xếp dọc, nhóm "phải giao" vẫn một hàng. */
+  .ud-eq { flex-direction: column; }
 }
 
 @media (max-width: 768px) {

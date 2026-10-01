@@ -12,7 +12,7 @@ type Props = {
   loading: boolean;
 };
 
-/** Bảng tiêu thụ theo đơn vị. Có `backlog` → 3 cột phải giao (HĐ chuyến · HĐ dài hạn · tổng), thêm
+/** Bảng tiêu thụ theo đơn vị. Có `backlog` → 4 cột phải giao (HĐ chuyến · HĐNT · HĐ dài hạn · tổng), thêm
  *  cột "HĐ chưa khai loại" khi có — tách giống file Excel để web và file cùng một số;
  *  API cũ → 1 cột "Chưa giao" (khối 3) như trước. */
 export default function ConsumptionCompanyTable({ rep, meta, companies, totals, backlog, loading }: Props) {
@@ -21,7 +21,7 @@ export default function ConsumptionCompanyTable({ rep, meta, companies, totals, 
   const bl = rep?.backlog;
   const ch = (c: string, k: string) => rows[c]?.by_channel?.[k] ?? 0;
   const unknownCol = !!backlog && backlog.unknown > 0;
-  const cols = (bl ? 11 : 9) + (unknownCol ? 1 : 0);
+  const cols = (bl ? 12 : 9) + (unknownCol ? 1 : 0);
 
   return (
     <div className="card table-scroll" style={{ padding: 0 }}>
@@ -37,6 +37,7 @@ export default function ConsumptionCompanyTable({ rep, meta, companies, totals, 
           {bl ? (
             <>
               <th className="r">HĐ chuyến chưa giao (tấn)</th>
+              <th className="r">HĐNT đã ký chưa giao (tấn)</th>
               <th className="r">HĐ dài hạn còn phải giao (tấn)</th>
               {unknownCol && <th className="r">HĐ chưa khai loại chưa giao (tấn)</th>}
               <th className="r">Tổng phải giao (tấn)</th>
@@ -57,6 +58,7 @@ export default function ConsumptionCompanyTable({ rep, meta, companies, totals, 
               {bl ? (
                 <>
                   <td className="r">{t3(bl[c]?.spot_undelivered ?? 0)}</td>
+                  <td className="r">{t3(bl[c]?.principle_undelivered ?? 0)}</td>
                   <td className="r">{t3(bl[c]?.lt_remaining ?? 0)}</td>
                   {unknownCol && <td className="r">{t3(bl[c]?.unknown_undelivered ?? 0)}</td>}
                   <td className="r" style={{ fontWeight: 600 }}>{t3(bl[c]?.to_deliver ?? 0)}</td>
@@ -89,6 +91,7 @@ export default function ConsumptionCompanyTable({ rep, meta, companies, totals, 
               {backlog ? (
                 <>
                   <td className="r">{t3(backlog.spot)}</td>
+                  <td className="r">{t3(backlog.principle)}</td>
                   <td className="r">{t3(backlog.lt)}</td>
                   {unknownCol && <td className="r">{t3(backlog.unknown)}</td>}
                   <td className="r">{t3(backlog.toDeliver)}</td>

@@ -49,10 +49,11 @@ export default function MasterContractDetailModal({ masterId, meta, canEdit, onC
 
   const refresh = () => { load(); onChanged?.(); };
 
-  /** Gỡ 1 phụ lục khỏi hồ sơ — chỉ bỏ liên kết, hợp đồng còn nguyên vẹn. */
+  /** Gỡ 1 phụ lục khỏi hồ sơ — bỏ liên kết, loại hợp đồng về "chưa khai" (server, 01/10/2026). */
   const detach = async (id: number, code: string) => {
     if (!confirm(`Gỡ “${code}” khỏi hợp đồng mẹ?\n\n`
-      + "Hợp đồng vẫn còn nguyên, chỉ thôi là phụ lục của hồ sơ này.")) return;
+      + "Hợp đồng vẫn còn nguyên, chỉ thôi là phụ lục của hồ sơ này. Loại hợp đồng về "
+      + "\"chưa khai\" — mở sửa hợp đồng để chọn lại loại.")) return;
     setBusy(true); setErr("");
     try { await linkMasterAnnexes(masterId, [id], false); refresh(); }
     catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }

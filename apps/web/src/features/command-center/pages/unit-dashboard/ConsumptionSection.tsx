@@ -23,6 +23,7 @@ const SPLITS: Record<Split, { label: string; parts: { key: QtyKey; label: string
     label: "Loại hợp đồng",
     parts: [
       { key: "qty_long_term", label: "Dài hạn", color: "#22c55e" },
+      { key: "qty_principle", label: "HĐ nguyên tắc", color: "#a78bfa" },
       { key: "qty_spot", label: "Chuyến", color: "#38bdf8" },
       { key: "qty_unknown_type", label: "Chưa khai loại HĐ", color: "#94a3b8" },
     ],

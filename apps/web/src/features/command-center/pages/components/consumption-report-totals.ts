@@ -53,7 +53,7 @@ export function sumConsumption(rep: ConsumptionReport | null, companies: string[
 }
 
 export type BacklogTotals = {
-  spot: number; unknown: number; lt: number; toDeliver: number;
+  spot: number; principle: number; unknown: number; lt: number; toDeliver: number;
   committed: number; delivered: number; masterRemaining: number; expiredShort: number;
   masters: number;
   pct: number | null;                // Σ đã giao / Σ cam kết — null khi chưa có cam kết nào
@@ -63,11 +63,12 @@ export type BacklogTotals = {
 export function sumBacklog(backlog?: Record<string, Backlog>): BacklogTotals | null {
   if (!backlog) return null;
   const acc: BacklogTotals = {
-    spot: 0, unknown: 0, lt: 0, toDeliver: 0,
+    spot: 0, principle: 0, unknown: 0, lt: 0, toDeliver: 0,
     committed: 0, delivered: 0, masterRemaining: 0, expiredShort: 0, masters: 0, pct: null,
   };
   for (const b of Object.values(backlog)) {
-    acc.spot += b.spot_undelivered; acc.unknown += b.unknown_undelivered;
+    acc.spot += b.spot_undelivered; acc.principle += b.principle_undelivered ?? 0;
+    acc.unknown += b.unknown_undelivered;
     acc.lt += b.lt_remaining; acc.toDeliver += b.to_deliver;
     acc.committed += b.master_committed; acc.delivered += b.master_delivered;
     acc.masterRemaining += b.master_remaining; acc.expiredShort += b.master_expired_short;

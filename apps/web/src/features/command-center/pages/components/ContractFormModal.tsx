@@ -317,7 +317,8 @@ export default function ContractFormModal({
           ở màn <b>Hợp đồng mẹ</b> trước); hồ sơ mẹ có thể là <b>HĐ nguyên tắc</b> hay{" "}
           <b>HĐ dài hạn</b> đều được. <b>HĐ chuyến</b> bán đứt từng chuyến nên{" "}
           <b>không có hợp đồng mẹ</b> — chọn loại đó thì ô kia không hiện. Nối hồ sơ{" "}
-          <b>không đổi</b> khách hàng hay bất kỳ số liệu nào của hợp đồng.
+          <b>không đổi</b> khách hàng hay sản lượng; báo cáo xếp hợp đồng vào nhóm{" "}
+          <b>HĐ nguyên tắc</b> hoặc <b>HĐ dài hạn</b> theo loại hồ sơ mẹ.
           {initial && <> Đổi <b>loại giao</b> bằng nút <b>Chuyển sang giao nhiều lần</b> ở màn chi
             tiết hợp đồng — lần giao đã nhập sẽ tự thành đợt giao đầu tiên, không phải nhập lại
             {requestMode && <>; bản ghi đang khoá thì nút đó cũng mở hộp <b>gửi đề nghị</b>, tính

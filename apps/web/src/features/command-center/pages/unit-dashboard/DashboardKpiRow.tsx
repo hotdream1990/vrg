@@ -5,7 +5,7 @@ import { dmy } from "../../../../lib/date";
 import type {
   ConsumptionBlock, PurchaseBlock, StockBlock,
 } from "../../../../lib/unit-dashboard-client";
-import { fmtPrice, fmtTon, fmtTy, rangeEndLabel, withUnit } from "./dashboard-format";
+import { fmtPrice, fmtTon, fmtTy, isPositive, rangeEndLabel, withUnit } from "./dashboard-format";
 import type { BlockState } from "./use-dashboard-block";
 
 type Props = {
@@ -79,9 +79,10 @@ export default function DashboardKpiRow({ purchase, consumption, stock }: Props)
       sub: `Mủ nước · chén · dây, ${dmy(d.date_from)} → ${rangeEndLabel(d.date_to)}`,
     })),
     kpiOf(mainRaw ? `Giá ${mainRaw.name} BQ` : "Giá mủ nguyên liệu BQ", purchase, rawPriceKpi),
-    kpiOf("Tiêu thụ", consumption, (d) => ({
-      value: withUnit(fmtTon(d.totals.qty), "tấn"),
-      sub: `Dài hạn ${fmtTon(d.totals.qty_long_term)} · chuyến ${fmtTon(d.totals.qty_spot)} (tấn)`,
+    kpiOf("Tiêu thụ", consumption, ({ totals: t }) => ({
+      value: withUnit(fmtTon(t.qty), "tấn"),
+      sub: `Chuyến ${fmtTon(t.qty_spot)} · HĐNT ${fmtTon(t.qty_principle)} · dài hạn ${fmtTon(t.qty_long_term)}`
+        + (isPositive(t.qty_unknown_type) ? ` · chưa khai loại ${fmtTon(t.qty_unknown_type)}` : "") + " (tấn)",
     })),
     kpiOf("Doanh thu", consumption, (d) => {
       const missing = d.totals.no_revenue_lines;

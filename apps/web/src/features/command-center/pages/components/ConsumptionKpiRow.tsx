@@ -4,16 +4,18 @@ import {
 
 type Kpi = { label: string; value: string; sub?: string };
 
-/** Phần PHẢI GIAO tách 3 thẻ theo yêu cầu khách (26/09/2026): HĐ chuyến đã ký chưa giao + HĐ dài hạn
- *  còn phải giao = tổng phải giao đến cuối năm; thêm 1 thẻ tiến độ HĐDH (HĐ nguyên tắc không tính).
+/** Phần PHẢI GIAO tách thẻ theo yêu cầu khách (26/09/2026, thêm HĐNT 01/10/2026): HĐ chuyến + HĐNT đã
+ *  ký chưa giao + HĐ dài hạn còn phải giao = tổng phải giao đến cuối năm; thêm 1 thẻ tiến độ HĐDH
+ *  (HĐ nguyên tắc không tính cam kết).
  *  API cũ (chưa có `backlog`) → giữ 1 thẻ "Đã ký chưa giao" như trước. */
 function backlogCards(totals: ConsumptionTotals, bl: BacklogTotals | null): Kpi[] {
   if (!bl) return [{ label: "Đã ký chưa giao (tấn quy khô)", value: t3(totals.remaining) }];
   return [
     { label: "HĐ chuyến đã ký chưa giao (tấn)", value: t3(bl.spot) },
+    { label: "HĐNT đã ký chưa giao (tấn)", value: t3(bl.principle), sub: "Phụ lục HĐ nguyên tắc đã ký, chưa giao hết" },
     {
       label: "HĐ dài hạn còn phải giao (tấn)", value: t3(bl.lt),
-      sub: "HĐDH còn lại (gồm phần chưa ký phụ lục) + HĐ dài hạn khác đã ký chưa giao",
+      sub: "HĐDH còn lại (gồm phần chưa ký phụ lục) + phụ lục dài hạn ngoài HĐDH có cam kết đã ký chưa giao",
     },
     {
       label: "Tổng phải giao đến cuối năm (tấn)", value: t3(bl.toDeliver),

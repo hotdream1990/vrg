@@ -23,7 +23,7 @@ const SUBTITLE: Record<ConsumptionGroupBy, string> = {
   region: "Mỗi cột = sản lượng giao trong ngày chia theo khu vực — tấn",
   company: "Mỗi cột = sản lượng giao trong ngày chia theo công ty — tấn",
   grade: "Mỗi cột = sản lượng giao trong ngày chia theo chủng loại mủ — tấn",
-  contract: "Mỗi cột = sản lượng giao trong ngày chia theo loại hợp đồng (dài hạn / chuyến) — tấn",
+  contract: "Mỗi cột = sản lượng giao trong ngày chia theo loại hợp đồng (chuyến / HĐ nguyên tắc / dài hạn) — tấn",
   channel: "Mỗi cột = sản lượng giao trong ngày chia theo hình thức (XK·UTXK / trong nước / nội bộ) — tấn",
 };
 

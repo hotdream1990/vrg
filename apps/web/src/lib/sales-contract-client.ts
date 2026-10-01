@@ -233,7 +233,8 @@ export type BacklogItem = {
  *  HĐ mẹ có cam kết tính ở cấp HĐ mẹ; còn lại tính theo loại của chính nó — không đếm trùng. */
 export type Backlog = {
   spot_undelivered: number;         // HĐ chuyến đã ký chưa giao
-  lt_unlinked_undelivered: number;  // HĐ dài hạn không thuộc HĐ mẹ có cam kết: đã ký chưa giao
+  principle_undelivered: number;    // HĐ nguyên tắc (phụ lục HĐNT) đã ký chưa giao
+  lt_unlinked_undelivered: number;  // phụ lục dài hạn ngoài HĐDH có cam kết: đã ký chưa giao
   unknown_undelivered: number;      // hợp đồng chưa khai loại
   master_committed: number;
   master_delivered: number;
@@ -243,7 +244,7 @@ export type Backlog = {
   masters: number;
   master_pct: number | null;
   lt_remaining: number;             // = master_remaining + lt_unlinked_undelivered
-  to_deliver: number;               // = spot + lt_remaining + unknown
+  to_deliver: number;               // = spot + principle + lt_remaining + unknown
   items: BacklogItem[];
 };
 
@@ -364,6 +365,8 @@ export type DeliveryHistoryRow = {
   batch_code: string | null;      // null = hợp đồng giao trọn 1 lần, không phải đợt
   customer_name: string | null;
   contract_type: string | null;
+  /** Nhóm báo cáo theo hồ sơ mẹ: HĐ chuyến · HĐ nguyên tắc · HĐ dài hạn (null = chưa khai loại). */
+  contract_group: string | null;
   channel: string | null;
   grades: string;
   qty: number;                    // đã là QUY KHÔ với latex/mủ nguyên liệu (PA1)

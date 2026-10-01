@@ -47,9 +47,12 @@ const CONSUMPTION_COLS: Col[] = [
   { key: "lt_domestic", label: "Dài hạn — Trong nước", unit: "tấn", note: "cộng dồn" },
   { key: "spot_export", label: "Chuyến — XK/UTXK", unit: "tấn", note: "cộng dồn" },
   { key: "spot_domestic", label: "Chuyến — Trong nước", unit: "tấn", note: "cộng dồn" },
-  { key: "total_consumption", label: "Tổng tiêu thụ", unit: "tấn", note: "= 4 cột trên" },
-  { key: "export_total", label: "Tổng XK/UTXK", unit: "tấn", note: "DH + chuyến" },
-  { key: "domestic_total", label: "Tổng tiêu thụ trong nước", unit: "tấn", note: "DH + chuyến" },
+  // Màn hình tách riêng HĐNT; file Excel mẫu Ban TTKD giữ 2 nhóm — HĐNT gộp vào cột Chuyến (01/10/2026).
+  { key: "principle_export", label: "HĐNT — XK/UTXK", unit: "tấn", note: "cộng dồn" },
+  { key: "principle_domestic", label: "HĐNT — Trong nước", unit: "tấn", note: "cộng dồn" },
+  { key: "total_consumption", label: "Tổng tiêu thụ", unit: "tấn", note: "= 6 cột trên" },
+  { key: "export_total", label: "Tổng XK/UTXK", unit: "tấn", note: "DH + chuyến + HĐNT" },
+  { key: "domestic_total", label: "Tổng tiêu thụ trong nước", unit: "tấn", note: "DH + chuyến + HĐNT" },
   { key: "revenue_ty", label: "Doanh thu cao su", unit: "tỷ đồng", note: "cộng dồn" },
   { key: "avg_sell_price", label: "Giá bán BQ", unit: "triệu đ/tấn", note: "= DT / TT" },
   // Ngày của ảnh chụp tồn kho: đơn vị hay nhập dòng bán trước, tồn kho cập nhật sau → ngày này
@@ -168,7 +171,8 @@ export default function PeriodReportPage() {
             Trích xuất từ số liệu nhập hàng ngày theo kỳ — <b>cộng dồn</b> sản lượng/doanh thu,
             giá tính <b>bình quân gia quyền</b>. Tồn kho là số <b>thời điểm</b>: lấy lần chốt tồn
             gần nhất của từng đơn vị trong kỳ — xem cột <b>Ngày lấy số tồn</b> (tô vàng nghĩa là
-            đơn vị đã nhập số liệu tới ngày mới hơn nhưng chưa cập nhật tồn kho).
+            đơn vị đã nhập số liệu tới ngày mới hơn nhưng chưa cập nhật tồn kho). Màn hình tách riêng
+            cột <b>HĐ nguyên tắc (HĐNT)</b>; file Excel theo mẫu Ban TTKD gộp HĐNT vào cột Chuyến.
           </p>
         </div>
       </div>

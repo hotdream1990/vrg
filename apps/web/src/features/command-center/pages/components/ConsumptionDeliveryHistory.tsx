@@ -76,7 +76,7 @@ export default function ConsumptionDeliveryHistory(p: Props) {
         <table>
           <thead><tr>
             <th>Ngày giao</th><th>Đơn vị</th><th>Số hợp đồng</th><th>Đợt</th>
-            <th>Khách hàng</th><th>Loại HĐ</th><th>Hình thức</th><th>Chủng loại</th>
+            <th>Khách hàng</th><th title="Xếp theo hồ sơ mẹ — khớp các cột HĐ chuyến / HĐNT / HĐ dài hạn của báo cáo">Nhóm HĐ</th><th>Hình thức</th><th>Chủng loại</th>
             <th className="r">Quy khô (tấn)</th><th className="r">SL chưa quy khô (tấn)</th>
             <th className="r">Doanh thu (tỷ đ)</th><th>Số hoá đơn</th>
           </tr></thead>
@@ -89,7 +89,9 @@ export default function ConsumptionDeliveryHistory(p: Props) {
                 {/* Trống = hợp đồng giao trọn 1 lần, không chia đợt */}
                 <td>{r.batch_code ?? "—"}</td>
                 <td>{r.customer_name ?? "(chưa gán khách hàng)"}</td>
-                <td>{r.contract_type ?? "—"}</td>
+                <td title={r.contract_type ? `Loại tự khai: ${r.contract_type}` : undefined}>
+                  {r.contract_group ?? "—"}
+                </td>
                 <td>{r.channel ?? "—"}</td>
                 <td>{r.grades || "—"}</td>
                 <td className="r">{t3(r.qty)}</td>

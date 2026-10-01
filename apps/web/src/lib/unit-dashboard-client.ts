@@ -52,7 +52,7 @@ export type PurchaseBlock = {
 };
 
 export type ConsumptionQtys = {
-  qty: Num; qty_long_term: Num; qty_spot: Num; qty_unknown_type: Num;
+  qty: Num; qty_long_term: Num; qty_spot: Num; qty_principle: Num; qty_unknown_type: Num;
   qty_export: Num; qty_domestic: Num; qty_internal: Num;
 };
 
@@ -128,14 +128,15 @@ export type TargetsBlock = {
    vị có KH) là hai gốc khác nhau. Khoá con để Partial: API viết song song, thiếu khoá thì hiện "—". */
 
 /** HĐ dài hạn theo HĐ mẹ có cam kết — cả phạm vi. `expired_short`: cam kết CHƯA KÝ phụ lục của HĐ mẹ
- *  đã hết hạn (KHÔNG vào phải giao) · `unlinked_undelivered`: HĐ dài hạn không có cam kết HĐ mẹ, đã ký
+ *  đã hết hạn (KHÔNG vào phải giao) · `unlinked_undelivered`: phụ lục dài hạn ngoài HĐDH có cam kết, đã ký
  *  chưa giao · `remaining_after_year`: phần còn lại thuộc HĐ mẹ còn hiệu lực sau 31/12 / không thời hạn. */
 export type OutlookLt = { committed: Num; delivered: Num; remaining: Num; pct: Num; masters: Num;
                           expired_short: Num; unlinked_undelivered: Num; remaining_after_year: Num };
 
-/** Còn phải giao đến cuối năm — cả phạm vi. to_deliver = spot + lt_remaining + unknown. */
-export type OutlookBacklog = { spot_undelivered: Num; lt_remaining: Num; unknown_undelivered: Num;
-                               to_deliver: Num };
+/** Còn phải giao đến cuối năm — cả phạm vi.
+ *  to_deliver = spot_undelivered + principle_undelivered + lt_remaining + unknown_undelivered. */
+export type OutlookBacklog = { spot_undelivered: Num; principle_undelivered: Num; lt_remaining: Num;
+                               unknown_undelivered: Num; to_deliver: Num };
 
 /** KH bán hàng = KH khai thác + KH thu mua + KH hàng hóa. delivered_ytd/projected: cả phạm vi; plan_* ·
  *  basket_projected · pct: rổ `units_planned` đơn vị đã nhập KH khai thác. */
@@ -154,7 +155,10 @@ export type OutlookRevenue = {
 export type OutlookBreakdownRow = {
   label: string;
   lt_committed: Num; lt_delivered: Num; lt_remaining: Num; lt_pct: Num;
-  spot_undelivered: Num; to_deliver: Num; delivered_ytd: Num; projected: Num;
+  spot_undelivered: Num; principle_undelivered: Num;
+  /** Ô dài hạn của "còn phải giao" — `lt_remaining` ở trên chỉ là cam kết HĐDH còn lại. */
+  backlog_lt_remaining: Num; unknown_undelivered: Num;
+  to_deliver: Num; delivered_ytd: Num; projected: Num;
   plan_exploit: Num; plan_purchase: Num; plan_goods: Num; plan_total: Num; qty_basket_projected?: Num;
   qty_pct: Num;
   revenue_projected: Num; plan_revenue: Num; revenue_basket_projected?: Num; revenue_pct: Num;

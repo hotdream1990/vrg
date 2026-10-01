@@ -80,8 +80,8 @@ function LtPanel({ data }: { data: OutlookBlock }) {
       )}
       {isPositive(lt.unlinked_undelivered) && (
         <div className="ud-muted ud-small">
-          “HĐ dài hạn còn phải giao” gồm thêm {fmtTons(lt.unlinked_undelivered)} HĐ dài hạn khác
-          đã ký chưa giao (ngoài HĐDH có cam kết, kể cả phụ lục của HĐ nguyên tắc).
+          “HĐ dài hạn còn phải giao” gồm thêm {fmtTons(lt.unlinked_undelivered)} phụ lục dài hạn
+          ngoài HĐDH có cam kết, đã ký chưa giao.
         </div>
       )}
     </Panel>

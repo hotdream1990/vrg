@@ -20,6 +20,7 @@ const SUMMARY_COLS: StatsCol[] = [
   { key: "qty", label: "Tổng sản lượng", unit: "tấn", note: "theo bộ lọc" },
   { key: "qty_long_term", label: "HĐ dài hạn", unit: "tấn", note: "cộng dồn" },
   { key: "qty_spot", label: "HĐ chuyến", unit: "tấn", note: "cộng dồn" },
+  { key: "qty_principle", label: "HĐ nguyên tắc", unit: "tấn", note: "cộng dồn" },
   { key: "qty_unknown_type", label: "HĐ chưa khai loại", unit: "tấn", note: "cần bổ sung" },
   { key: "qty_export", label: "XK / UTXK", unit: "tấn", note: "cộng dồn" },
   { key: "qty_domestic", label: "Tiêu thụ trong nước", unit: "tấn", note: "cộng dồn" },
@@ -44,7 +45,8 @@ const PLAN_COLS: StatsCol[] = [
 ];
 
 const withPlanCols = (cols: StatsCol[]): StatsCol[] => {
-  const i = cols.findIndex((c) => c.key === "qty_spot") + 1;   // chèn ngay cạnh cột HĐ chuyến
+  // Chèn ngay cạnh cột HĐ chuyến (KH chỉ đặt cho HĐ chuyến) — cột HĐ nguyên tắc lùi ra sau.
+  const i = cols.findIndex((c) => c.key === "qty_spot") + 1;
   return [...cols.slice(0, i), ...PLAN_COLS, ...cols.slice(i)];
 };
 

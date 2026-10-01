@@ -19,7 +19,7 @@ export type StatsFilters = {
   from: string; to: string;
   companies: string[]; regions: string[]; grades: string[];
   materials?: string[];      // thu mua: latex | cup | finished
-  contract?: string[];       // tiêu thụ: long_term | spot
+  contract?: string[];       // tiêu thụ: spot | principle | long_term (nhóm theo hồ sơ mẹ)
   channel?: string[];        // tiêu thụ: export | domestic
   groupBy: string;
   /** Chế độ CHI TIẾT (groupBy="none") cắt trang ở server — trang đang xem. */

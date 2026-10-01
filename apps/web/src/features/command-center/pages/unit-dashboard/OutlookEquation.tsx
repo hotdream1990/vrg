@@ -1,9 +1,10 @@
 /* Dòng phương trình sản lượng CẢ PHẠM VI của card "Tiến độ bán hàng năm":
-     Đã giao lũy kế + [HĐ chuyến đã ký chưa giao + HĐ dài hạn còn phải giao (+ HĐ chưa khai loại)]
+     Đã giao lũy kế + [HĐ chuyến + HĐNT đã ký chưa giao + HĐ dài hạn còn phải giao (+ HĐ chưa khai loại)]
      = Tổng bán cả năm (dự kiến).
    Nhóm giữa đóng khung = "Tổng phải giao đến cuối năm" (khác "Đã ký HĐ chưa giao" của tồn kho: phần
    dài hạn tính theo CAM KẾT HĐDH, gồm cả sản lượng chưa ký phụ lục). Số lấy nguyên từ server — web
-   không tự cộng. Ô "HĐ chưa khai loại" chỉ hiện khi > 0. */
+   không tự cộng. Ba nhóm chuyến · HĐNT · dài hạn luôn hiện (kể cả = 0); ô "HĐ chưa khai loại" chỉ hiện
+   khi > 0. */
 
 import { Fragment } from "react";
 
@@ -32,11 +33,12 @@ export default function OutlookEquation({ data }: { data: OutlookBlock }) {
   const v = data.volume ?? {};
   const pending: Tile[] = [
     { label: "HĐ chuyến đã ký chưa giao", value: b.spot_undelivered, sub: "đã ký, chưa giao hết" },
-    { label: "HĐ dài hạn còn phải giao", value: b.lt_remaining, sub: "HĐDH còn lại + HĐ dài hạn khác đã ký chưa giao" },
+    { label: "HĐNT đã ký chưa giao", value: b.principle_undelivered, sub: "phụ lục HĐNT đã ký, chưa giao hết" },
+    { label: "HĐ dài hạn còn phải giao", value: b.lt_remaining, sub: "HĐDH còn lại + phụ lục dài hạn ngoài HĐDH có cam kết" },
   ];
   if (isPositive(b.unknown_undelivered)) {
     pending.push({ label: "HĐ chưa khai loại", value: b.unknown_undelivered,
-                   sub: "đã ký chưa giao, chưa khai chuyến / dài hạn" });
+                   sub: "đã ký chưa giao, chưa khai loại hợp đồng" });
   }
   return (
     <div className="ud-eq">

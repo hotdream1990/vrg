@@ -167,6 +167,8 @@ export default function DataLockConfirmModal({ company, roundId, readOnly, onClo
             <Kpi label="Trong nước (tấn)" value={n3(c.domestic_total)} />
             <Kpi label="Nội bộ (tấn)" value={n3(c.internal_total)} />
             <Kpi label="HĐ dài hạn (tấn)" value={n3(c.lt_total)} />
+            {/* Ảnh chụp trước 01/10/2026 không có khoá này → "—"; khi đó HĐNT còn nằm trong 2 ô kia. */}
+            <Kpi label="HĐ nguyên tắc (tấn)" value={n3(c.principle_total)} />
             <Kpi label="HĐ chuyến (tấn)" value={n3(c.spot_total)} />
             <Kpi label="Doanh thu (tỷ đồng)" value={n3(c.revenue_ty)} />
           </Block>

@@ -81,8 +81,9 @@ export default function MasterAnnexPickerModal({ master, meta, onClose, onLinked
       </div>
 
       <p className="form-note" style={{ fontSize: 12, margin: "0 0 8px" }}>
-        Gắn vào hồ sơ <b>chỉ tạo liên kết</b> — khách hàng, loại hợp đồng và mọi số liệu của hợp
-        đồng giữ nguyên. Danh sách chỉ hiện hợp đồng của <b>{master.company}</b> chưa thuộc hồ sơ nào.
+        Gắn vào hồ sơ thì loại hợp đồng thành <b>Phụ lục hợp đồng mẹ</b> và báo cáo xếp sản lượng vào
+        nhóm <b>{master.master_type === "principle" ? "HĐ nguyên tắc" : "HĐ dài hạn"}</b>; khách hàng và
+        sản lượng giữ nguyên. Danh sách chỉ hiện hợp đồng của <b>{master.company}</b> chưa thuộc hồ sơ nào.
       </p>
 
       <div className="card table-scroll" style={{ padding: 0, maxHeight: 360 }}>

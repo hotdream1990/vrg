@@ -42,13 +42,19 @@ function BasketCell({ basket, whole, fmt }: { basket?: Num; whole: Num; fmt: (v:
 
 const GROUPS: Group[] = [
   { label: "HĐ dài hạn (HĐDH)", cols: [
-    { label: "Còn lại (tấn)", title: "Cam kết HĐDH còn phải giao (HĐDH còn hiệu lực)",
+    { label: "Còn lại (tấn)", title: "Cam kết HĐDH còn lại (gồm phần chưa ký phụ lục)",
       cell: (r) => fmtTon(r.lt_remaining) },
     { label: "% thực hiện", title: "Đã giao / cam kết của các HĐDH",
       cell: (r) => <MiniPct pct={r.lt_pct} /> },
   ] },
   { label: "Sản lượng cả năm (tấn)", cols: [
-    { label: "Còn phải giao", title: "HĐ chuyến đã ký chưa giao + HĐ dài hạn còn phải giao (+ HĐ chưa khai loại)",
+    { label: "HĐ chuyến chưa giao", title: "HĐ chuyến đã ký, chưa giao hết",
+      cell: (r) => fmtTon(r.spot_undelivered) },
+    { label: "HĐNT chưa giao", title: "Phụ lục HĐ nguyên tắc đã ký, chưa giao hết",
+      cell: (r) => fmtTon(r.principle_undelivered) },
+    { label: "HĐ dài hạn còn phải giao", title: "Cam kết HĐDH còn lại + phụ lục dài hạn ngoài HĐDH có cam kết đã ký chưa giao",
+      cell: (r) => fmtTon(r.backlog_lt_remaining) },
+    { label: "Còn phải giao", title: "HĐ chuyến + HĐNT + HĐ dài hạn còn phải giao (+ HĐ chưa khai loại)",
       cell: (r) => fmtTon(r.to_deliver) },
     { label: "Bán cả năm", title: "Dự kiến = đã giao lũy kế + còn phải giao; dòng có KH ghi số của các đơn vị có KH (tử số của % KH)",
       cell: (r) => <BasketCell basket={r.qty_basket_projected} whole={r.projected} fmt={fmtTon} /> },
