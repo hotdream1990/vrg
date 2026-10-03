@@ -21,6 +21,7 @@ export type StatsFilters = {
   materials?: string[];      // thu mua: latex | cup | finished
   contract?: string[];       // tiêu thụ: spot | principle | long_term (nhóm theo hồ sơ mẹ)
   channel?: string[];        // tiêu thụ: export | domestic
+  source?: string[];         // tiêu thụ: exploit (khai thác) | purchase (thu mua)
   groupBy: string;
   /** Chế độ CHI TIẾT (groupBy="none") cắt trang ở server — trang đang xem. */
   page?: number;
@@ -87,6 +88,7 @@ export function statsQuery(f: StatsFilters): string {
   put("materials", f.materials);
   put("contract", f.contract);
   put("channel", f.channel);
+  put("source", f.source);
   if (f.splitMerged) p.set("split_merged", "true");
   if (f.groupBy === "none") {
     p.set("page", String(f.page ?? 1));

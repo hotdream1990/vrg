@@ -32,6 +32,8 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
   const [giaoDay, setGiaoDay] = useState("");            // để trống = lấy đúng ngày hoàn thành
   const [channel, setChannel] = useState("");
   const [toCompany, setToCompany] = useState("");
+  // Nguồn tiêu thụ (khai thác / thu mua) — lấy sẵn nếu đã chọn ở form hợp đồng, không thì để trống.
+  const [source, setSource] = useState(c.source ?? "");
   const peers = meta.internal_targets?.[c.company] ?? [];
   // Không giao trước ngày hiệu lực muộn nhất của các dòng — server chặn, chặn luôn trên lịch.
   const minGiao = c.lines.reduce((m, l) => (l.from_date && l.from_date > m ? l.from_date : m), "");
@@ -53,6 +55,7 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
     }
     if (needDelivery && !noDelivery) {
       if (!channel) { setErr("Chọn Hình thức tiêu thụ, hoặc tích “hợp đồng huỷ / không giao nữa”."); return; }
+      if (!source) { setErr("Chọn Nguồn tiêu thụ: khai thác hay thu mua."); return; }
       if (channel === "internal" && !toCompany) { setErr("Chọn đơn vị nhận hàng."); return; }
       // Ngày giao để trống thì lấy ngày hoàn thành — lịch chỉ chặn ngày CHỌN, không chặn giá trị
       // mặc định này, nên phải kiểm lại ở đây thay vì đợi server báo lỗi.
@@ -66,7 +69,8 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
       await setContractCompletion(c.id as number, day, needDelivery
         ? (noDelivery
           ? { no_delivery: true }
-          : { delivered_at: giaoDay || day, channel, to_company: channel === "internal" ? toCompany : null })
+          : { delivered_at: giaoDay || day, channel, source,
+              to_company: channel === "internal" ? toCompany : null })
         : undefined);
       onDone(); onClose();
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
@@ -93,7 +97,7 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
         <div className="card" style={{ marginTop: 12, padding: 12 }}>
           <div style={{ fontSize: 13, marginBottom: 8 }}>
             <b>Hợp đồng giao 1 lần chưa có ngày giao.</b> Chốt hoàn thành nghĩa là{" "}
-            <b>hàng đã giao</b> — điền nốt hai ô dưới đây để <b>{t3(c.qty)} tấn</b> vào tiêu thụ.
+            <b>hàng đã giao</b> — điền nốt các ô dưới đây để <b>{t3(c.qty)} tấn</b> vào tiêu thụ.
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13,
             marginBottom: noDelivery ? 0 : 10 }}>
@@ -125,6 +129,14 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
                   </select>
                 </label>
               )}
+              <label className="form-field">Nguồn tiêu thụ *
+                <select className="blt-date-input" value={source}
+                  onChange={(e) => setSource(e.target.value)}>
+                  <option value="">— khai thác hay thu mua —</option>
+                  {Object.entries(meta.sources ?? {})
+                    .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </label>
             </div>
           )}
           {noDelivery && (

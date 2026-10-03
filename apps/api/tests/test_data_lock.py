@@ -160,7 +160,7 @@ def test_delivery_locked_but_contract_still_updatable(env) -> None:
     old = client.put("/api/sales-contracts", headers=mh, json={
         "company": UNIT, "code": "HD-LOCK-1", "customer_id": cus, "contract_type": "spot",
         "delivery_type": "single", "sign_date": INSIDE, "delivered_at": INSIDE,
-        "channel": "domestic", "lines": line})
+        "channel": "domestic", "source": "exploit", "lines": line})
     assert old.status_code == 200, old.text
     cid = old.json()["contract"]["id"]
 
@@ -172,7 +172,8 @@ def test_delivery_locked_but_contract_still_updatable(env) -> None:
     edit = client.put("/api/sales-contracts", headers=mh, json={
         "id": cid, "company": UNIT, "code": "HD-LOCK-1", "customer_id": cus,
         "contract_type": "spot", "delivery_type": "single", "sign_date": INSIDE,
-        "delivered_at": INSIDE, "channel": "domestic", "lines": [{**line[0], "qty": 99.0}]})
+        "delivered_at": INSIDE, "channel": "domestic",
+        "source": "exploit", "lines": [{**line[0], "qty": 99.0}]})
     assert edit.status_code == 403 and "đã được chốt" in edit.json()["detail"]
     assert client.delete(f"/api/sales-contracts/{cid}", headers=mh).status_code == 403
 
@@ -180,13 +181,14 @@ def test_delivery_locked_but_contract_still_updatable(env) -> None:
     fresh = client.put("/api/sales-contracts", headers=mh, json={
         "company": UNIT, "code": "HD-LOCK-2", "customer_id": cus, "contract_type": "spot",
         "delivery_type": "single", "sign_date": INSIDE, "delivered_at": OUTSIDE,
-        "channel": "domestic", "lines": line})
+        "channel": "domestic", "source": "exploit", "lines": line})
     assert fresh.status_code == 200, fresh.text
     # …nhưng không được khai LÙI ngày giao vào vùng đã chốt.
     back = client.put("/api/sales-contracts", headers=mh, json={
         "id": fresh.json()["contract"]["id"], "company": UNIT, "code": "HD-LOCK-2",
         "customer_id": cus, "contract_type": "spot", "delivery_type": "single",
-        "sign_date": INSIDE, "delivered_at": INSIDE, "channel": "domestic", "lines": line})
+        "sign_date": INSIDE, "delivered_at": INSIDE, "channel": "domestic",
+        "source": "exploit", "lines": line})
     assert back.status_code == 403
 
 
@@ -357,7 +359,7 @@ def test_regroup_of_locked_delivery_is_blocked(env) -> None:
         r = client.put("/api/sales-contracts", headers=mh, json={
             "company": UNIT, "code": code, "customer_id": cus, "contract_type": "spot",
             "delivery_type": "single", "sign_date": INSIDE, "delivered_at": day,
-            "channel": "domestic", "lines": line})
+            "channel": "domestic", "source": "exploit", "lines": line})
         assert r.status_code == 200, r.text
         return r.json()["contract"]["id"]
 

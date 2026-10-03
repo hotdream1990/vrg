@@ -29,12 +29,13 @@ from app.services import sales_contract_line_dates as line_dates
 
 #: Các ô CHỈ thuộc về một lần giao — khi hợp đồng chuyển sang giao nhiều lần thì chúng đi theo
 #: đợt giao, không được để lại trên hợp đồng (để lại là sản lượng bị đếm hai lần).
-_BATCH_COLS = ("delivered_at", "channel", "to_company", "invoice_no", "invoice_docs",
+_BATCH_COLS = ("delivered_at", "channel", "to_company", "source", "invoice_no", "invoice_docs",
                "payment_date", "payment_qty", "payment_docs", "start_date")
 
 _CLEAR_BATCH = ("delivered = false, delivered_at = NULL, channel = NULL, to_company = NULL, "
-                "invoice_no = NULL, invoice_docs = '[]'::jsonb, payment_date = NULL, "
-                "payment_qty = NULL, payment_docs = '[]'::jsonb, start_date = NULL")
+                "source = NULL, invoice_no = NULL, invoice_docs = '[]'::jsonb, "
+                "payment_date = NULL, payment_qty = NULL, payment_docs = '[]'::jsonb, "
+                "start_date = NULL")
 
 
 def _load(contract_id: int, companies: list[str] | None) -> dict[str, Any]:
@@ -63,9 +64,10 @@ def set_completion(contract_id: int, completed_at: str | None, companies: list[s
     """Chốt hoàn thành (`completed_at`) hoặc MỞ LẠI hợp đồng (`completed_at=None`).
 
     HỢP ĐỒNG GIAO 1 LẦN CHƯA CÓ NGÀY GIAO (chốt 27/08/2026): chốt hoàn thành chính là ghi nhận
-    ĐÃ GIAO — ghi luôn ngày giao (mặc định = ngày hoàn thành) + hình thức tiêu thụ, để đơn vị khỏi
-    phải làm hai bước và khỏi hiểu nhầm "Hoàn thành" là cách khai đã giao. Đơn vị Thanh Hoá từng
-    mất 198,66 tấn khỏi tiêu thụ vì hiểu nhầm đúng chỗ này.
+    ĐÃ GIAO — ghi luôn ngày giao (mặc định = ngày hoàn thành) + hình thức + NGUỒN tiêu thụ (khai
+    thác / thu mua, 03/10/2026), để đơn vị khỏi phải làm hai bước và khỏi hiểu nhầm "Hoàn thành"
+    là cách khai đã giao. Đơn vị Thanh Hoá từng mất 198,66 tấn khỏi tiêu thụ vì hiểu nhầm đúng
+    chỗ này.
 
     ⚠ Hợp đồng HUỶ / không giao nữa phải gửi `no_delivery=True`: tự gán ngày giao cho hợp đồng huỷ
     là đẻ ra tiêu thụ ảo — lỗi ngược lại, cũng sai như nhau. Thiếu cả hai thì BÁO LỖI chứ không tự
@@ -93,11 +95,11 @@ def set_completion(contract_id: int, completed_at: str | None, companies: list[s
             and not before.get("delivered_at") and not before.get("parent_id")):
         if delivery.get("no_delivery"):
             pass                                   # huỷ/không giao — chốt suông, không ghi gì thêm
-        elif not delivery.get("channel"):
+        elif not delivery.get("channel") or not delivery.get("source"):
             raise ValueError(
-                "Hợp đồng giao 1 lần chưa có ngày giao. Chọn Hình thức tiêu thụ để chốt hoàn thành "
-                "và ghi nhận đã giao; nếu hợp đồng huỷ / không giao nữa thì tích ô "
-                "“không ghi lần giao”.")
+                "Hợp đồng giao 1 lần chưa có ngày giao. Chọn Hình thức tiêu thụ và Nguồn tiêu thụ "
+                "(khai thác / thu mua) để chốt hoàn thành và ghi nhận đã giao; nếu hợp đồng huỷ / "
+                "không giao nữa thì tích ô “không ghi lần giao”.")
         else:
             delivered_at = delivery.get("delivered_at") or day.isoformat()
             # Ghi ngày giao ở đây cũng là KHAI LẦN GIAO → phải qua đúng hai hàng rào thời gian như
@@ -110,7 +112,8 @@ def set_completion(contract_id: int, completed_at: str | None, companies: list[s
             repo.save({**before,
                        "delivered_at": delivered_at,
                        "channel": delivery["channel"],
-                       "to_company": delivery.get("to_company")},
+                       "to_company": delivery.get("to_company"),
+                       "source": delivery["source"]},
                       before["company"], username)
             before = _load(contract_id, companies)
 

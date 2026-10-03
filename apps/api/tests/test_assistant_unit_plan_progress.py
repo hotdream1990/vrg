@@ -80,7 +80,7 @@ def _deliver(h: dict[str, str], company: str, code: str, qty: float, price: floa
         "company": company, "code": code, "customer_id": _customer(h, company),
         "delivery_type": "single",
         "contract_type": "spot", "sign_date": _iso(D1), "start_date": _iso(D1),
-        "delivered_at": _iso(D1), "channel": "domestic",
+        "delivered_at": _iso(D1), "channel": "domestic", "source": "exploit",
         "lines": [{"grade": "SVR 3L", "qty": qty, "price": price, "ccy": "VND"}]})
     assert r.status_code == 200, r.text
 

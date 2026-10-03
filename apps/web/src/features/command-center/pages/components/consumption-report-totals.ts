@@ -29,6 +29,8 @@ export type ConsumptionTotals = {
   qty: number; qty_wet: number; revenue: number | null; deliveries: number;
   remaining: number;                 // khối 3 cũ — chỉ dùng khi API chưa trả `backlog`
   channels: Record<string, number>;
+  /** Nguồn tiêu thụ: exploit (khai thác) · purchase (thu mua). */
+  sources: Record<string, number>;
 };
 
 export function sumConsumption(rep: ConsumptionReport | null, companies: string[]): ConsumptionTotals {
@@ -37,6 +39,7 @@ export function sumConsumption(rep: ConsumptionReport | null, companies: string[
     // Hình thức tiêu thụ chỉ có ở dòng từng đơn vị — không cộng thì cả bảng thiếu tổng XK /
     // trong nước / nội bộ, đúng 3 con số hay bị hỏi nhất.
     channels: { export: 0, domestic: 0, internal: 0 },
+    sources: { exploit: 0, purchase: 0 },
   };
   if (!rep) return acc;
   for (const c of companies) {
@@ -44,6 +47,7 @@ export function sumConsumption(rep: ConsumptionReport | null, companies: string[
     if (r) {
       acc.qty += r.qty; acc.qty_wet += r.qty_wet; acc.deliveries += r.deliveries;
       for (const k of Object.keys(acc.channels)) acc.channels[k] += r.by_channel?.[k] ?? 0;
+      for (const k of Object.keys(acc.sources)) acc.sources[k] += r.by_source?.[k] ?? 0;
       if (r.revenue == null) acc.revenue = null;
       else if (acc.revenue != null) acc.revenue += r.revenue;
     }

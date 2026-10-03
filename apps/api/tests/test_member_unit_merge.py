@@ -361,7 +361,7 @@ def test_old_contracts_keep_running_but_no_new_ones() -> None:
     # Đợt giao của hợp đồng cũ: vẫn ghi được.
     sales_contract_repo.save(
         {"code": "DOT-1", "parent_id": parent["id"], "start_date": D_AFTER, "delivered_at": D_AFTER,
-         "channel": "domestic",
+         "channel": "domestic", "source": "exploit",
          "lines": [{"grade": "SVR 3L", "qty": 40, "price": 30}]}, OLD, "test")
 
     # Hợp đồng MỚI ở đơn vị đã sáp nhập: chặn, kèm câu chỉ sang đơn vị nhận.
@@ -404,7 +404,7 @@ def test_contract_screens_sum_the_old_unit_into_the_new_one() -> None:
         sales_contract_repo.save(
             {"code": f"HD-{unit}", "delivery_type": "single", "contract_type": "spot",
              "sign_date": D_BEFORE, "start_date": D_BEFORE, "customer_id": khach,
-             "delivered_at": D_BEFORE, "channel": "domestic",
+             "delivered_at": D_BEFORE, "channel": "domestic", "source": "exploit",
              "lines": [{"grade": "SVR 3L", "qty": qty, "price": 30}]}, unit, "test")
     merge.merge(OLD, NEW, D_MERGE)
 

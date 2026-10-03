@@ -132,7 +132,7 @@ def test_bad_cert_or_currency_is_rejected(env) -> None:
     parent = _contract(h, cus, code="HD-CERT-M", delivery_type="multi").json()["contract"]
     dg = client.put("/api/sales-contracts", headers=h, json={
         "company": UNIT, "parent_id": parent["id"], "code": "DG-X", "customer_id": cus,
-        "delivery_type": "single", "delivered_at": TODAY, "channel": "export",
+        "delivery_type": "single", "delivered_at": TODAY, "channel": "export", "source": "exploit",
         "certs": ["SAI"], "lines": LINE})
     assert dg.status_code == 400 and "không có trong danh mục" in dg.json()["detail"]
 
@@ -148,7 +148,7 @@ def test_multi_contract_declares_certs_on_each_delivery(env) -> None:
 
     batch = client.put("/api/sales-contracts", headers=h, json={
         "company": UNIT, "parent_id": parent["id"], "code": "DG-01", "customer_id": cus,
-        "delivery_type": "single", "delivered_at": TODAY, "channel": "export",
+        "delivery_type": "single", "delivered_at": TODAY, "channel": "export", "source": "exploit",
         "certs": ["PEFC"], "premium": 999, "premium_ccy": "USD", "lines": LINE})
     assert batch.status_code == 200, batch.text
     assert batch.json()["contract"]["certs"] == ["PEFC"]
@@ -157,7 +157,7 @@ def test_multi_contract_declares_certs_on_each_delivery(env) -> None:
     # Đợt thứ hai khai mức khác — hai đợt không đè lên nhau.
     b2 = client.put("/api/sales-contracts", headers=h, json={
         "company": UNIT, "parent_id": parent["id"], "code": "DG-02", "customer_id": cus,
-        "delivery_type": "single", "delivered_at": TODAY, "channel": "export",
+        "delivery_type": "single", "delivered_at": TODAY, "channel": "export", "source": "exploit",
         "certs": ["EUDR"], "premium": 45, "premium_ccy": "USD", "lines": LINE})
     assert b2.status_code == 200, b2.text
     assert b2.json()["contract"]["premium"] == 45.0

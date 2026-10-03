@@ -4,6 +4,19 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Nguồn tiêu thụ của lần giao: Khai thác / Thu mua** (03/10/2026).
+  - Lần giao nay ghi rõ hàng bán ra là mủ **khai thác** (vườn cây của đơn vị) hay mủ **thu mua**. Ô
+    *Nguồn tiêu thụ* nằm cạnh *Hình thức tiêu thụ*: hợp đồng giao 1 lần khai trên chính hợp đồng, giao
+    nhiều lần khai ở **từng đợt giao**. Hợp đồng/đợt chưa có ngày giao **chưa bắt buộc**; điền ngày giao
+    (chốt thành tiêu thụ) thì **bắt buộc chọn**, server chặn nếu thiếu — không tự gán mặc định.
+  - **Hoàn thành hợp đồng** giao 1 lần chưa có ngày giao (= ghi nhận đã giao) cũng hỏi nguồn. Chuyển
+    sang giao nhiều lần: nguồn đi theo lần giao xuống đợt giao đầu tiên.
+  - **Dữ liệu cũ**: mọi lần giao đã có ngày giao trước bản này được gán **Khai thác** (một lần, lúc thêm
+    cột `sales_contract.source`). Đề nghị sửa gửi trước bản này vẫn duyệt được (giữ nguồn đang lưu).
+  - Báo cáo: *Báo cáo tiêu thụ* thêm 2 cột *Nguồn khai thác · Nguồn thu mua* (web + Excel; sheet chi
+    tiết và theo hợp đồng có cột *Nguồn tiêu thụ*); *Lịch sử đợt giao* có cột *Nguồn*; *Thống kê tiêu
+    thụ* lọc + nhóm theo nguồn, có 2 cột tách nguồn. Đổi nguồn của lần giao đã chốt số liệu phải qua
+    **đề nghị sửa** (như đổi hình thức tiêu thụ).
 - **Chuông thông báo + Web Push · loại nhập liệu đơn vị · chọn người nhận thẻ Hỗ trợ** (01/10/2026).
   - **Chuông** ở thanh trên cho lãnh đạo, chuyên viên đơn vị và người có quyền Hỗ trợ / duyệt đề nghị
     sửa: số thẻ chưa đọc + đề nghị sửa chờ duyệt, bấm vào mở đúng thẻ. Tự cập nhật mỗi phút.

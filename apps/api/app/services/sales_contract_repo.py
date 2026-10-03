@@ -35,7 +35,7 @@ logger = logging.getLogger("vrg.sales_contract")
 _COLS = ("id", "company", "parent_id", "master_id", "code", "customer_id",
          "delivery_type", "contract_type",
          "sign_date", "expiry_date", "start_date", "lines", "delivered", "delivered_at", "channel",
-         "to_company", "invoice_no", "invoice_docs", "payment_date", "payment_qty",
+         "to_company", "source", "invoice_no", "invoice_docs", "payment_date", "payment_qty",
          "payment_docs", "files", "note", "completed_at", "certs", "premium", "premium_ccy")
 _DATE_COLS = ("sign_date", "expiry_date", "start_date", "delivered_at", "payment_date",
               "completed_at")
@@ -92,7 +92,7 @@ def assert_open(contract: dict[str, Any], what: str) -> None:
 _INSERT = text(
     "INSERT INTO sales_contract (company, parent_id, master_id, code, customer_id, "
     " delivery_type, contract_type, sign_date, "
-    " expiry_date, start_date, lines, delivered, delivered_at, channel, to_company, "
+    " expiry_date, start_date, lines, delivered, delivered_at, channel, to_company, source, "
     " invoice_no, invoice_docs, payment_date, "
     " payment_qty, payment_docs, files, note, certs, premium, premium_ccy, updated_by) "
     "VALUES (:company, :parent_id, :master_id, :code, :customer_id, :delivery_type, "
@@ -100,7 +100,7 @@ _INSERT = text(
     " CAST(:sign_date AS date), "
     " CAST(:expiry_date AS date), CAST(:start_date AS date), CAST(:lines AS jsonb), :delivered, "
     " CAST(:delivered_at AS date), "
-    " :channel, :to_company, :invoice_no, CAST(:invoice_docs AS jsonb), "
+    " :channel, :to_company, :source, :invoice_no, CAST(:invoice_docs AS jsonb), "
     " CAST(:payment_date AS date), :payment_qty, "
     " CAST(:payment_docs AS jsonb), CAST(:files AS jsonb), :note, "
     " CAST(:certs AS jsonb), :premium, :premium_ccy, :by) RETURNING id")
@@ -113,7 +113,7 @@ _UPDATE = text(
     " expiry_date = CAST(:expiry_date AS date), start_date = CAST(:start_date AS date), "
     " lines = CAST(:lines AS jsonb), "
     " delivered = :delivered, delivered_at = CAST(:delivered_at AS date), channel = :channel, "
-    " to_company = :to_company, invoice_no = :invoice_no, "
+    " to_company = :to_company, source = :source, invoice_no = :invoice_no, "
     " invoice_docs = CAST(:invoice_docs AS jsonb), "
     " payment_date = CAST(:payment_date AS date), "
     " payment_qty = :payment_qty, "

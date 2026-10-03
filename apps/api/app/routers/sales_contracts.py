@@ -15,6 +15,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile
 
 from app.core.market_meta import (
+    CONSUMPTION_SOURCES,
     CONTRACT_CERTS,
     CONTRACT_TYPES,
     DELIVERY_TYPES,
@@ -105,6 +106,8 @@ def meta(scope: Scope) -> dict:
         "grades": list(UNIT_GRADES),
         "dry_required": sorted(DRY_REQUIRED_GRADES),
         "channels": SALE_CHANNELS,
+        # Nguồn tiêu thụ của lần giao: khai thác · thu mua (03/10/2026).
+        "sources": CONSUMPTION_SOURCES,
         "delivery_types": DELIVERY_TYPES,
         "contract_types": CONTRACT_TYPES,
         # Ô vẫn sửa được sau khi đơn vị đã chốt số liệu — form hiện đúng danh sách này, không
@@ -356,7 +359,8 @@ def set_completion(contract_id: int, body: CompletionIn, scope: EditScope) -> di
         return {"contract": sales_contract_lifecycle.set_completion(
             contract_id, body.completed_at, companies, username,
             delivery={"delivered_at": body.delivered_at, "channel": body.channel,
-                      "to_company": body.to_company, "no_delivery": body.no_delivery})}
+                      "to_company": body.to_company, "source": body.source,
+                      "no_delivery": body.no_delivery})}
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:

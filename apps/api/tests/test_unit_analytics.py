@@ -81,7 +81,7 @@ def _deliver(h: dict[str, str], company: str, code: str, day: str, ctype: str, c
         "company": company, "code": code, "customer_id": _customer(h, company),
         "delivery_type": "single", "contract_type": ctype, "sign_date": day, "start_date": day,
         "master_id": _master_for(h, company) if ctype == "long_term" else None,
-        "delivered_at": day, "channel": channel,
+        "delivered_at": day, "channel": channel, "source": "exploit",
         "lines": [{"grade": grade, "qty": qty, "price": price, "ccy": ccy, "fx": fx}]}, headers=h)
     assert r.status_code == 200, r.text
 
@@ -293,7 +293,7 @@ def test_internal_channel_is_not_counted_as_domestic(seeded) -> None:
     r = client.put("/api/sales-contracts", json={
         "company": UNIT_B, "code": "HD-INT", "customer_id": cus, "delivery_type": "single",
         "contract_type": "spot", "sign_date": D0, "start_date": D0, "delivered_at": D0,
-        "channel": "internal", "to_company": UNIT_A,
+        "channel": "internal", "source": "exploit", "to_company": UNIT_A,
         "lines": [{"grade": "SVR 10 / CSR 10", "qty": 7, "price": 25, "ccy": "VND"}]}, headers=h)
     assert r.status_code == 200, r.text
 
@@ -329,6 +329,7 @@ def _sign(h: dict, code: str, day: str, qty: float, grade: str = "SVR 3L") -> No
     r = client.put("/api/sales-contracts", json={
         "company": UNIT_A, "code": code, "customer_id": _customer(h, UNIT_A),
         "delivery_type": "single", "contract_type": "long_term", "channel": "export",
+        "source": "exploit",
         "master_id": _master_for(h, UNIT_A),   # HĐ dài hạn phải thuộc hồ sơ mẹ (24/08/2026)
         "sign_date": day, "start_date": day,
         "lines": [{"grade": grade, "qty": qty, "price": 30, "ccy": "VND"}]}, headers=h)

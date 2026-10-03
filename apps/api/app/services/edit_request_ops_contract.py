@@ -13,7 +13,9 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from app.core.market_meta import CONTRACT_TYPES, DELIVERY_TYPES, SALE_CHANNELS
+from app.core.market_meta import (
+    CONSUMPTION_SOURCES, CONTRACT_TYPES, DELIVERY_TYPES, SALE_CHANNELS,
+)
 from app.schemas.edit_request import ContractDeleteRequest, ContractDeliveryTypeRequest
 from app.schemas.sales_contract import ContractIn
 from app.services import (
@@ -57,7 +59,8 @@ def _labels(rows: list[dict | None]) -> dict[str, dict[str, str]]:
     out = {"customer_id": customer_repo.names_by_id(None, ids=customers) if customers else {},
            "parent_id": {i: c for i, c in parents.items() if c},
            "master_id": master_contract_repo.codes_by_id(None, ids=ids("master_id")),
-           "delivery_type": DELIVERY_TYPES, "contract_type": CONTRACT_TYPES, "channel": SALE_CHANNELS}
+           "delivery_type": DELIVERY_TYPES, "contract_type": CONTRACT_TYPES,
+           "channel": SALE_CHANNELS, "source": CONSUMPTION_SOURCES}
     return {field: {str(k): str(v) for k, v in m.items()} for field, m in out.items() if m}
 
 
@@ -66,6 +69,16 @@ def _save_validate(payload: Any) -> dict:
     row = parse(ContractIn, payload).model_dump()
     row["code"] = str(row.get("code") or "").strip()
     return row
+
+
+def _legacy_source(p: dict) -> dict:
+    """Đề nghị gửi TRƯỚC khi có ô «Nguồn tiêu thụ» (03/10/2026) không mang khoá `source` — giữ nguồn
+    đang lưu của bản ghi; lần giao chưa có nguồn thì tính KHAI THÁC như mọi lần giao cũ. Không vậy
+    thì Ban bấm Duyệt vướng "Thiếu nguồn tiêu thụ" ở một đề nghị không ai sửa được nữa."""
+    if "source" in p or not p.get("delivered_at"):
+        return p
+    cur = sales_contract_repo.get(p["id"]) if p.get("id") else None
+    return {**p, "source": (cur or {}).get("source") or "exploit"}
 
 
 def _save_snapshot(p: dict) -> dict | None:
@@ -85,7 +98,7 @@ def _save_precheck(p: dict, _before: dict | None) -> None:
     dòng chi tiết, trùng số hợp đồng/đợt giao, hợp đồng cha, hạn mức sản lượng, hợp đồng đã hoàn
     thành… Sai thì báo ngay lúc gửi; lúc duyệt chạy lại để bắt thay đổi xảy ra sau khi gửi."""
     try:
-        sales_contract_repo.validate(p, p["company"])
+        sales_contract_repo.validate(_legacy_source(p), p["company"])
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -104,7 +117,7 @@ def _save_blocked(username: str, p: dict, before: dict | None) -> list[str]:
 
 def _save_apply(p: dict, requester: str, company: str) -> dict:
     try:
-        return {"contract": sales_contract_repo.save(p, company, requester)}
+        return {"contract": sales_contract_repo.save(_legacy_source(p), company, requester)}
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 

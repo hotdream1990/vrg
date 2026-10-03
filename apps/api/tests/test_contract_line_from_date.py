@@ -85,7 +85,7 @@ def test_added_line_counts_only_from_its_effective_date(env) -> None:
 
     # Đợt giao 4 tấn ngày 12 trừ vào cả hai giai đoạn.
     kid = _save(h, {"parent_id": c["id"], "code": "Đ1", "delivered_at": "2026-09-12",
-                    "channel": "export", "lines": [_line(4.0)]})
+                    "channel": "export", "source": "exploit", "lines": [_line(4.0)]})
     assert kid.status_code == 200, kid.text
     assert _block3(h, "2026-09-12") == pytest.approx(6.0)
     assert _block3(h, "2026-09-15") == pytest.approx(12.0)
@@ -121,7 +121,8 @@ def test_single_delivered_contract_line_cannot_start_after_delivery(env) -> None
     h, cus = env
     body = {"code": "HD-1L", "delivery_type": "single", "contract_type": "spot",
             "customer_id": cus, "sign_date": "2026-09-10", "delivered_at": "2026-09-12",
-            "channel": "export", "lines": [_line(10.0), _line(6.0, from_date="2026-09-15")]}
+            "channel": "export",
+            "source": "exploit", "lines": [_line(10.0), _line(6.0, from_date="2026-09-15")]}
     r = _save(h, body)
     assert r.status_code == 400 and "sau ngày giao" in r.json()["detail"]
     ok = _save(h, {**body, "lines": [_line(10.0), _line(6.0, from_date="2026-09-12")]})
@@ -145,7 +146,7 @@ def test_switch_to_multi_keeps_dates_on_the_contract_not_the_batch(env) -> None:
     h, cus = env
     c = _save(h, {"code": "HD-SW", "delivery_type": "single", "contract_type": "spot",
                   "customer_id": cus, "sign_date": "2026-09-10", "delivered_at": "2026-09-20",
-                  "channel": "export",
+                  "channel": "export", "source": "exploit",
                   "lines": [_line(10.0), _line(6.0, from_date="2026-09-15")]}).json()["contract"]
     r = client.put(f"/api/sales-contracts/{c['id']}/delivery-type",
                    json={"delivery_type": "multi"}, headers=h)
@@ -196,6 +197,7 @@ def test_batch_cannot_deliver_a_grade_before_its_line_is_effective(env) -> None:
     h, cus = env
     c = _contract(h, cus, lines=[_line(10.0), {**_line(6.0, from_date="2026-09-15"), "grade": "SVR 3L"}])
     early = {"parent_id": c["id"], "code": "Đ1", "delivered_at": "2026-09-12", "channel": "export",
+        "source": "exploit",
              "lines": [{**_line(6.0), "grade": "SVR 3L"}]}
     r = _save(h, early)
     assert r.status_code == 400 and "hiệu lực từ 15/09/2026" in r.json()["detail"]

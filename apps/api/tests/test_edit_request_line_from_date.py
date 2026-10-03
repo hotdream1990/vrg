@@ -30,6 +30,7 @@ def test_line_date_change_on_locked_delivery_goes_through_request(env) -> None:
     c = client.put("/api/sales-contracts", headers=e["admin"], json={
         "company": UNIT, "code": "HD-HL", "customer_id": cus, "contract_type": "spot",
         "delivery_type": "single", "sign_date": SIGN, "delivered_at": OLD, "channel": "domestic",
+        "source": "exploit",
         "lines": [LINE, {**LINE, "qty": 6.0, "from_date": ADDED}]}).json()["contract"]
     lock_round(e["admin"], OLD)
     # Form gửi lại mọi dòng: dòng không ngày thành `from_date: null` — vẫn là sửa an toàn.

@@ -47,6 +47,8 @@ CONSUMPTION_COLS: list[Col] = [
     ("qty_export", "XK / UTXK", "tấn"),
     ("qty_domestic", "Tiêu thụ trong nước", "tấn"),
     ("qty_internal", "Tiêu thụ nội bộ", "tấn"),
+    ("qty_exploit", "Nguồn khai thác", "tấn"),
+    ("qty_purchase", "Nguồn thu mua", "tấn"),
     ("revenue_ty", "Doanh thu", "tỷ đồng"),
     ("avg_price_trieu", "Giá bán bình quân", "triệu đ/tấn"),
     ("lines", "Số dòng bán", "dòng"),
@@ -91,7 +93,7 @@ def purchase_cols(group_by: str) -> list[Col]:
 
 
 CONSUMPTION_DETAIL_COLS: list[Col] = [
-    ("as_of", "Ngày", ""), ("company", "Đơn vị", ""), ("source_label", "Nguồn mủ", ""),
+    ("as_of", "Ngày", ""), ("company", "Đơn vị", ""), ("source_label", "Nguồn tiêu thụ", ""),
     ("code", "Số HĐ/PL", ""), ("contract_label", "Loại HĐ", ""), ("channel_label", "Hình thức", ""),
     ("grade", "Chủng loại", ""), ("qty", "Số lượng", "tấn"), ("price", "Đơn giá", ""),
     ("ccy", "Loại tiền", ""), ("revenue_vnd", "Doanh thu", "đồng"),
@@ -111,7 +113,7 @@ STOCK_COLS: list[Col] = [
 
 GROUP_LABELS = {"company": "Đơn vị", "region": "Khu vực", "grade": "Chủng loại", "day": "Ngày",
                 "material": "Loại mủ", "contract": "Loại HĐ", "channel": "Hình thức",
-                "source": "Nguồn mủ", "none": "Chi tiết"}
+                "source": "Nguồn tiêu thụ", "none": "Chi tiết"}
 
 
 def _head(ws, row: int, col: int, value: Any, *, bold: bool = True, size: int = 10) -> None:

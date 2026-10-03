@@ -325,7 +325,7 @@ def test_completed_contract_without_any_delivery_is_flagged() -> None:
         assert client.put(f"/api/sales-contracts/{cid}", headers=h, json={
             "id": cid, "company": UNIT, "code": "HD-CHOT-NHAM", "customer_id": cus,
             "contract_type": "spot", "delivery_type": "single", "sign_date": today.isoformat(),
-            "delivered_at": today.isoformat(), "channel": "domestic",
+            "delivered_at": today.isoformat(), "channel": "domestic", "source": "exploit",
             "lines": [{"grade": "SVR 10 / CSR 10", "qty": 198.66, "price": 40.0, "ccy": "VND"}],
         }).status_code in (400, 404, 405)   # không sửa thẳng được khi đang ở trạng thái hoàn thành
         assert client.put(f"/api/sales-contracts/{cid}/completion", headers=h,
@@ -335,7 +335,7 @@ def test_completed_contract_without_any_delivery_is_flagged() -> None:
         assert client.put("/api/sales-contracts", headers=h, json={
             "id": cid, "company": UNIT, "code": "HD-CHOT-NHAM", "customer_id": cus,
             "contract_type": "spot", "delivery_type": "single", "sign_date": today.isoformat(),
-            "delivered_at": today.isoformat(), "channel": "domestic",
+            "delivered_at": today.isoformat(), "channel": "domestic", "source": "exploit",
             "lines": [{"grade": "SVR 10 / CSR 10", "qty": 198.66, "price": 40.0, "ccy": "VND"}],
         }).status_code == 200
         u = client.get("/api/member/checklist", headers=mh).json()["units"][0]

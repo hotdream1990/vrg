@@ -55,8 +55,9 @@ const CONTRACT_LABELS: Record<string, string> = {
   customer_id: "Khách hàng", parent_id: "Hợp đồng gốc", master_id: "Hợp đồng mẹ",
   delivery_type: "Hình thức giao", contract_type: "Loại hợp đồng", sign_date: "Ngày ký",
   expiry_date: "Ngày hết hạn", start_date: "Ngày mở đợt", delivered_at: "Ngày giao",
-  channel: "Hình thức tiêu thụ", to_company: "Đơn vị nhận nội bộ", invoice_no: "Số hoá đơn",
-  invoice_docs: "Hoá đơn", payment_date: "Ngày thanh toán", payment_qty: "Sản lượng thanh toán",
+  channel: "Hình thức tiêu thụ", to_company: "Đơn vị nhận nội bộ", source: "Nguồn tiêu thụ",
+  invoice_no: "Số hoá đơn", invoice_docs: "Hoá đơn", payment_date: "Ngày thanh toán",
+  payment_qty: "Sản lượng thanh toán",
   payment_docs: "Chứng từ thanh toán", files: "Bộ hợp đồng", completed_at: "Ngày hoàn thành",
   certs: "Chứng chỉ", premium: "Premium", premium_ccy: "Loại tiền premium",
 };

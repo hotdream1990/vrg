@@ -39,6 +39,7 @@ def test_add_and_remove_files_directly_and_via_request(env) -> None:
                          headers=e["admin"]).json()["id"]
         body = {"company": UNIT, "code": "HD-ER-FILE", "customer_id": cus, "contract_type": "spot",
                 "delivery_type": "single", "sign_date": OLD, "delivered_at": OLD, "channel": "domestic",
+                "source": "exploit",
                 "lines": [{"grade": "SVR 10 / CSR 10", "qty": 10.0, "price": 40.0, "ccy": "VND"}],
                 "files": [a, b]}
         cid = client.put("/api/sales-contracts", headers=e["admin"], json=body).json()["contract"]["id"]

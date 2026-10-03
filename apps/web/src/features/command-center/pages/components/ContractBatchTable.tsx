@@ -84,7 +84,7 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, canReq
       <table>
         <thead><tr>
           <th>Số đợt</th><th>Ngày giao</th><th>Hoá đơn</th>
-          <th>Hình thức</th><th>Đơn vị nhận</th>
+          <th>Hình thức</th><th>Đơn vị nhận</th><th>Nguồn</th>
           <th className="r">SL chưa quy khô (tấn)</th><th className="r">Quy khô (tấn)</th>
           <th className="r">Thành tiền (tr.đ)</th>
           <th>Chứng chỉ · Premium</th>
@@ -101,6 +101,7 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, canReq
               <td><DocCell no={k.invoice_no} docs={k.invoice_docs} /></td>
               <td>{k.channel ? meta.channels[k.channel] : "—"}</td>
               <td>{k.to_company ?? "—"}</td>
+              <td>{k.source ? meta.sources?.[k.source] ?? k.source : "—"}</td>
               <td className="r">{t3(k.qty)}</td>
               {/* Chủng loại thành phẩm không có quy khô → để "—". Hiện số 0 làm người đọc tưởng
                   đợt này khai thiếu quy khô. */}
@@ -140,7 +141,7 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, canReq
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr><td colSpan={canEdit ? 12 : 11} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>
+            <tr><td colSpan={canEdit ? 13 : 12} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>
               Chưa có đợt giao nào — hợp đồng chưa giao lần nào.
             </td></tr>
           )}
@@ -150,7 +151,7 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, canReq
         {rows.length > 0 && (
           <tfoot>
             <tr style={{ fontWeight: 600 }}>
-              <td colSpan={5}>
+              <td colSpan={6}>
                 Lũy kế {rows.length} đợt
                 {pending > 0 && (
                   <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: 12 }}>

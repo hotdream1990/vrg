@@ -16,8 +16,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.core.market_meta import CONTRACT_TYPES, DRY_REQUIRED_GRADES, SALE_CHANNELS
+from app.core.market_meta import (
+    CONSUMPTION_SOURCES, CONTRACT_TYPES, DRY_REQUIRED_GRADES, SALE_CHANNELS,
+)
 from app.services import sales_contract_calc as calc, sales_contract_report, unit_analytics_excel
+from app.services.sales_contract_report import source_of
 from app.services.sales_contract_consumption_summary import SUMMARY_COLS, summary
 from app.services.sales_contract_group import GROUP_LABELS
 from app.services.unit_analytics_excel import Col
@@ -36,6 +39,7 @@ DETAIL_COLS: list[Col] = [
     ("contract_group", "Nhóm HĐ", ""),
     ("channel", "Hình thức tiêu thụ", ""),
     ("to_company", "Đơn vị nhận (nội bộ)", ""),
+    ("source", "Nguồn tiêu thụ", ""),
     ("grade", "Chủng loại", ""),
     # 3 cột sản lượng đứng cạnh nhau để đọc được ngay quan hệ chưa-quy-khô → khô → số vào báo cáo.
     # Ô "Quy khô" TRỐNG ở dòng latex/mủ nguyên liệu = đơn vị chưa khai (lọc ra là thấy hết).
@@ -65,6 +69,7 @@ CONTRACT_COLS: list[Col] = [
     ("contract_group", "Nhóm HĐ", ""),
     ("channel", "Hình thức tiêu thụ", ""),
     ("to_company", "Đơn vị nhận (nội bộ)", ""),
+    ("source", "Nguồn tiêu thụ", ""),
     ("grade", "Chủng loại", ""),
     ("deliveries", "Số lần giao", "lần"),
     ("first_at", "Giao từ ngày", ""),
@@ -100,6 +105,7 @@ def _detail(deliveries: list[dict[str, Any]], names: dict[str, str]) -> list[dic
                 "contract_group": GROUP_LABELS.get(r.get("contract_group") or ""),
                 "channel": SALE_CHANNELS.get(r.get("channel") or ""),
                 "to_company": r.get("to_company"),
+                "source": CONSUMPTION_SOURCES.get(source_of(r)),
                 "grade": grade,
                 # Số chưa quy khô chỉ có nghĩa với chủng loại còn nước; thành phẩm bán ra đã là
                 # hàng khô nên để trống, hiện lại số lượng ở đây là mời người đọc cộng hai lần.
@@ -142,9 +148,10 @@ def _by_contract(deliveries: list[dict[str, Any]], names: dict[str, str]) -> lis
                     "contract_group": GROUP_LABELS.get(r.get("contract_group") or ""),
                     "to_company": r.get("to_company"),
                     "qty_wet": 0.0, "qty": 0.0, "revenue_vnd": 0.0,
-                    "_channels": set(), "_ids": set(), "_days": set(),
+                    "_channels": set(), "_sources": set(), "_ids": set(), "_days": set(),
                 }
             g["_channels"].add(r.get("channel") or "")
+            g["_sources"].add(source_of(r))
             g["_ids"].add(r["id"])
             if r.get("delivered_at"):
                 g["_days"].add(r["delivered_at"])
@@ -159,12 +166,16 @@ def _by_contract(deliveries: list[dict[str, Any]], names: dict[str, str]) -> lis
     out = []
     for g in acc.values():
         chans = {c for c in g.pop("_channels") if c}
+        srcs = g.pop("_sources")
         days = sorted(g.pop("_days"))
         rev = g["revenue_vnd"]
         out.append({
             **g,
             "channel": (SALE_CHANNELS.get(next(iter(chans))) if len(chans) == 1
                         else ("Nhiều hình thức" if chans else None)),
+            # Giao nhiều đợt có thể đợt khai thác, đợt thu mua — gom lại thì nói rõ, không chọn bừa.
+            "source": (CONSUMPTION_SOURCES.get(next(iter(srcs))) if len(srcs) == 1
+                       else ("Nhiều nguồn" if srcs else None)),
             "deliveries": len(g.pop("_ids")),
             "first_at": days[0] if days else None,
             "last_at": days[-1] if days else None,

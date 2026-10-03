@@ -793,7 +793,7 @@ def test_consumption_timeline_totals_come_from_contracts_not_the_old_declared_ar
     for code, d, channel, qty in (("PL-1", days[0], "export", 5.0), ("PL-2", days[1], "domestic", 7.0)):
         r = client.put("/api/sales-contracts", json={
             "company": unit, "parent_id": parent["id"], "code": code, "delivered_at": d,
-            "channel": channel, "lines": [line(qty)]}, headers=h)
+            "channel": channel, "source": "exploit", "lines": [line(qty)]}, headers=h)
         assert r.status_code == 200, r.text
 
     # Gọi thẳng `timeline_page` với BỘ LỌC ĐƠN VỊ: endpoint của chuyên viên không lọc đơn vị nên

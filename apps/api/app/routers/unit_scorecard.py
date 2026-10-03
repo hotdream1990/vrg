@@ -77,7 +77,7 @@ def scorecard(tab: str = Query("overview", pattern=_TAB_PATTERN),
               materials: str | None = Query(None, description="latex,cup,lace,finished"),
               contract: str | None = Query(None, description="spot,principle,long_term"),
               channel: str | None = Query(None, description="export,domestic,internal"),
-              source: str | None = Query(None, description="sales,sales_own"),
+              source: str | None = Query(None, description="exploit,purchase"),
               status_kind: str = Query("purchase", pattern="^(purchase|consumption)$"),
               split_merged: bool = Query(False, description="Tách riêng đơn vị đã sáp nhập"),
               username: str = Depends(_require)) -> dict:

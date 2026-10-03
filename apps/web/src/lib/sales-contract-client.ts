@@ -63,6 +63,9 @@ export type Contract = {
   delivered_at: string | null;
   channel: string | null;
   to_company: string | null;
+  /** NGUỒN TIÊU THỤ của lần giao: `exploit` khai thác · `purchase` thu mua (03/10/2026). Bắt buộc
+   *  khi có ngày giao; hợp đồng giao nhiều lần để null (khai ở từng đợt giao). */
+  source: string | null;
   /** Hoá đơn của ĐỢT GIAO: số hoá đơn + danh sách file scan. */
   invoice_no: string | null;
   invoice_docs: ContractDoc[];
@@ -118,6 +121,8 @@ export type ContractMeta = {
   certs?: string[];
   premium_currencies?: string[];
   channels: Record<string, string>;
+  /** Nguồn tiêu thụ: {exploit: "Khai thác", purchase: "Thu mua"}. */
+  sources: Record<string, string>;
   delivery_types: Record<string, string>;
   contract_types: Record<string, string>;
   /** Ô vẫn sửa được sau khi đơn vị đã CHỐT số liệu (server quyết, xem `sales_contract_lock.py`). */
@@ -203,6 +208,8 @@ export type ConsumptionSummary = {
   revenue: number | null;
   deliveries: number;
   by_channel: Record<string, number>;
+  /** Sản lượng theo nguồn tiêu thụ: exploit (khai thác) · purchase (thu mua). */
+  by_source?: Record<string, number>;
   by_grade: Record<string, number>;
   /** {id khách hàng ("0" = chưa gán): sản lượng + doanh thu} — yêu cầu C1 của khách. */
   by_customer: Record<string, { qty: number; revenue: number }>;
@@ -327,11 +334,11 @@ export const deleteContract = (id: number) =>
 /** Chốt HOÀN THÀNH hợp đồng (`completedAt = null` là mở lại) — phần chênh còn lại rời khỏi
  *  "đã ký HĐ chưa giao" kể từ ngày chốt. */
 /** Chốt hoàn thành. Hợp đồng GIAO 1 LẦN chưa có ngày giao thì chốt CHÍNH LÀ ghi nhận đã giao —
- *  gửi kèm `channel` (+ `delivered_at`, `to_company`), hoặc `no_delivery` nếu hợp đồng huỷ. */
+ *  gửi kèm `channel` + `source` (+ `delivered_at`, `to_company`), hoặc `no_delivery` nếu hợp đồng huỷ. */
 export const setContractCompletion = (
   id: number, completedAt: string | null,
   delivery?: { delivered_at?: string | null; channel?: string | null;
-               to_company?: string | null; no_delivery?: boolean },
+               to_company?: string | null; source?: string | null; no_delivery?: boolean },
 ) =>
   apiFetch<{ contract: Contract }>(`/api/sales-contracts/${id}/completion`,
     { method: "PUT", headers: J,
@@ -368,6 +375,8 @@ export type DeliveryHistoryRow = {
   /** Nhóm báo cáo theo hồ sơ mẹ: HĐ chuyến · HĐ nguyên tắc · HĐ dài hạn (null = chưa khai loại). */
   contract_group: string | null;
   channel: string | null;
+  /** Nhãn nguồn tiêu thụ (Khai thác · Thu mua). */
+  source?: string | null;
   grades: string;
   qty: number;                    // đã là QUY KHÔ với latex/mủ nguyên liệu (PA1)
   qty_dry: number;

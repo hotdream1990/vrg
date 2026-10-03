@@ -110,6 +110,7 @@ def test_contract_save_delete_and_file_guard(env) -> None:
     cus = client.put("/api/customers", json={"company": UNIT, "name": "KH đề nghị"}, headers=e["admin"]).json()["id"]
     body = {"company": UNIT, "code": "HD-ER-1", "customer_id": cus, "contract_type": "spot",
             "delivery_type": "single", "sign_date": OLD, "delivered_at": OLD, "channel": "domestic",
+            "source": "exploit",
             "lines": [{"grade": "SVR 10 / CSR 10", "qty": 10.0, "price": 40.0, "ccy": "VND"}]}
     cid = client.put("/api/sales-contracts", headers=e["admin"], json=body).json()["contract"]["id"]
     edit = {**body, "id": cid, "lines": [{**body["lines"][0], "qty": 20.0}]}
@@ -133,6 +134,7 @@ def test_contract_delivery_type_request_round_trip(env) -> None:
                      headers=e["admin"]).json()["id"]
     body = {"company": UNIT, "code": "HD-ER-DT", "customer_id": cus, "contract_type": "spot",
             "delivery_type": "single", "sign_date": OLD, "delivered_at": OLD, "channel": "domestic",
+            "source": "exploit",
             "lines": [{"grade": "SVR 10 / CSR 10", "qty": 12.0, "price": 40.0, "ccy": "VND"}]}
     cid = client.put("/api/sales-contracts", headers=e["admin"], json=body).json()["contract"]["id"]
     lock_round(e["admin"], OLD)

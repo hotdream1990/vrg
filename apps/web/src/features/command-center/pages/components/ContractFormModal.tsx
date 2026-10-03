@@ -19,6 +19,7 @@ import MasterContractPicker from "../../sections/MasterContractPicker";
 import CertPremiumFields from "./CertPremiumFields";
 import ContractAttach from "./ContractAttach";
 import ContractBatchDocs from "./ContractBatchDocs";
+import ContractDeliveryFields from "./ContractDeliveryFields";
 import ContractLinesTable, { EMPTY_LINE } from "./ContractLinesTable";
 import { contractSaveDraft } from "./contract-edit-request";
 
@@ -45,7 +46,7 @@ const blank = (company: string): Contract => ({
   delivery_type: "single",
   contract_type: null,
   sign_date: today(), expiry_date: null, start_date: null, lines: [{ ...EMPTY_LINE }],
-  delivered: false, delivered_at: null, channel: null, to_company: null,
+  delivered: false, delivered_at: null, channel: null, to_company: null, source: null,
   invoice_no: null, invoice_docs: [],
   payment_date: null, payment_qty: null, payment_docs: [], files: [], note: null,
   certs: [], premium: null, premium_ccy: null,
@@ -146,6 +147,7 @@ export default function ContractFormModal({
     if (c.contract_type === "spot" && c.master_id) p.push("HĐ chuyến không có hợp đồng mẹ.");
     if (!isChild && !c.sign_date) p.push("Chọn ngày ký.");
     if (isDelivery && !c.channel) p.push("Chọn hình thức tiêu thụ.");
+    if (isDelivery && !c.source) p.push("Chọn nguồn tiêu thụ (khai thác hay thu mua).");
     if (c.channel === "internal" && !c.to_company) p.push("Chọn đơn vị nhận hàng.");
     const rows = c.lines.filter((l) => l.grade || l.qty != null);
     if (!rows.length) p.push("Thêm ít nhất một dòng chi tiết.");
@@ -333,47 +335,14 @@ export default function ContractFormModal({
         <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
           Kể cả khi <b>số liệu đã chốt</b>, các nội dung sau vẫn sửa và lưu được bình thường:{" "}
           <b>{meta.editable_when_locked.map((f) => f.label).join(" · ")}</b>. Còn sản lượng, đơn
-          giá, ngày hiệu lực của dòng, ngày giao, hình thức tiêu thụ, khách hàng và loại hợp đồng là các
-          ô làm đổi số đã báo
-          cáo — {canEditUnitData
+          giá, ngày hiệu lực của dòng, ngày giao, hình thức và nguồn tiêu thụ, khách hàng và loại hợp
+          đồng là các ô làm đổi số đã báo cáo — {canEditUnitData
             ? <>bấm <b>Lưu</b>, hệ thống mở hộp gửi <b>đề nghị sửa</b>, Ban duyệt xong mới đổi.</>
             : "phải nhờ Ban TTKD sửa hộ."}
         </p>
       )}
 
-      {isBatch && (
-        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 10 }}>
-          <label className="form-field">Ngày giao
-            <DateInput value={c.delivered_at ?? ""} onChange={(v) => set({ delivered_at: v || null })} />
-          </label>
-          <label className="form-field">Hình thức tiêu thụ{isDelivery ? " *" : ""}
-            <select className="blt-date-input" value={c.channel ?? ""}
-              onChange={(e) => set({ channel: e.target.value || null, to_company: null })}>
-              <option value="">— chọn hình thức —</option>
-              {Object.entries(meta.channels)
-                // Đơn vị đứng một mình (không thuộc nhóm mẹ–con) thì không có tiêu thụ nội bộ.
-                .filter(([k]) => k !== "internal" || peers.length > 0)
-                .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </label>
-          {c.channel === "internal" && (
-            <label className="form-field">Đơn vị nhận
-              <select className="blt-date-input" value={c.to_company ?? ""}
-                onChange={(e) => set({ to_company: e.target.value || null })}>
-                <option value="">— chọn đơn vị —</option>
-                {peers.map((u) => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </label>
-          )}
-          <p className="form-note" style={{ gridColumn: "1 / -1", margin: 0, fontSize: 12 }}>
-            Để trống <b>Ngày giao</b> nếu đợt mới lập, chưa xuất hàng — đợt vẫn nằm ở phần chưa giao
-            của hợp đồng và chưa tính vào tiêu thụ.
-            {!peers.length && <>{" "}“{c.company}” chưa thuộc nhóm công ty mẹ–con nên không có{" "}
-              <b>Tiêu thụ nội bộ</b>. Gán <b>Công ty mẹ</b> ở màn Đơn vị thành viên nếu đơn vị này
-              có bán nội bộ.</>}
-          </p>
-        </div>
-      )}
+      {isBatch && <ContractDeliveryFields c={c} meta={meta} peers={peers} set={set} />}
 
       <h4 style={{ margin: "14px 0 6px" }}>Chi tiết {isChild ? "đợt giao" : "hợp đồng"}</h4>
       <ContractLinesTable lines={c.lines} meta={meta} requireFx={isDelivery}

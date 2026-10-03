@@ -38,12 +38,12 @@ def _admin_save(e, body: dict) -> dict:
 def _contract(e, code: str, cus: int, **kw) -> dict:
     return _admin_save(e, {"company": UNIT, "code": code, "customer_id": cus, "contract_type": "spot",
                            "delivery_type": "single", "sign_date": SIGN, "delivered_at": OLD,
-                           "channel": "domestic", "lines": [LINE], **kw})
+                           "channel": "domestic", "source": "exploit", "lines": [LINE], **kw})
 
 
 def _delivery(pid: int, code: str, **kw) -> dict:
     return {"company": UNIT, "parent_id": pid, "code": code, "delivered_at": OLD,
-            "channel": "domestic", "lines": [LINE], **kw}
+            "channel": "domestic", "source": "exploit", "lines": [LINE], **kw}
 
 
 def _pending() -> int:
@@ -164,4 +164,5 @@ def test_review_page_flags_request_that_became_unapprovable(env) -> None:
 def _contract_body(cus: int) -> dict:
     return {"company": UNIT, "code": "", "customer_id": cus, "contract_type": "spot",
             "delivery_type": "single", "sign_date": SIGN, "delivered_at": OLD, "channel": "domestic",
+            "source": "exploit",
             "lines": [LINE]}

@@ -25,6 +25,7 @@ def _new_consumption(key: str, region: str | None) -> dict[str, Any]:
     return {"key": key, "label": key, "region": region, "qty": 0.0,
             "qty_long_term": 0.0, "qty_spot": 0.0, "qty_principle": 0.0, "qty_unknown_type": 0.0,
             "qty_export": 0.0, "qty_domestic": 0.0, "qty_internal": 0.0,
+            "qty_exploit": 0.0, "qty_purchase": 0.0,
             "revenue_vnd": 0.0, "_rev_qty": 0.0, "lines": 0, "_days": set(),
             # Số lần giao CHƯA TÍNH ĐƯỢC doanh thu (thiếu tỷ giá hoặc thiếu đơn giá) — nơi đem doanh
             # thu so kế hoạch cần biết để để trống % như Báo cáo tổng hợp (`total_revenue_vnd` ra
@@ -41,6 +42,7 @@ def _new_consumption(key: str, region: str | None) -> dict[str, Any]:
 #: khác: dồn "single/multi" vào "HĐ chuyến" từng làm chỉ tiêu HĐ dài hạn về 0.
 _TYPE_BUCKET = {"long_term": "qty_long_term", "spot": "qty_spot", "principle": "qty_principle"}
 _CHANNEL_BUCKET = {"export": "qty_export", "domestic": "qty_domestic", "internal": "qty_internal"}
+_SOURCE_BUCKET = {"exploit": "qty_exploit", "purchase": "qty_purchase"}
 
 
 def _feed_consumption(g: dict, r: dict, rev_planned: frozenset[str] = frozenset()) -> None:
@@ -50,6 +52,8 @@ def _feed_consumption(g: dict, r: dict, rev_planned: frozenset[str] = frozenset(
     ch = _CHANNEL_BUCKET.get(r["channel"] or "")
     if ch:
         g[ch] += qty
+    if src := _SOURCE_BUCKET.get(r.get("source") or ""):
+        g[src] += qty
     g["lines"] += 1
     g["bad_price_lines"] += 1 if r.get("bad_price") else 0
     g["_days"].add((r["company"], r["as_of"]))
@@ -110,7 +114,8 @@ def _close_consumption(g: dict) -> dict[str, Any]:
     g["avg_price_trieu"] = (price / TRIEU) if price is not None else None
     g["revenue_ty"] = (g["revenue_vnd"] / 1_000_000_000) or None
     for k in ("qty", "qty_long_term", "qty_spot", "qty_principle", "qty_unknown_type",
-              "qty_export", "qty_domestic", "qty_internal", "revenue_vnd"):
+              "qty_export", "qty_domestic", "qty_internal", "qty_exploit", "qty_purchase",
+              "revenue_vnd"):
         g[k] = g[k] or None
     return g
 

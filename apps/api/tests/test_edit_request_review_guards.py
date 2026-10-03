@@ -80,6 +80,7 @@ def test_completed_contract_rejected_at_submit_and_labels(env) -> None:
     cus = client.put("/api/customers", json={"company": UNIT, "name": "KH đề nghị"}, headers=e["admin"]).json()["id"]
     body = {"company": UNIT, "code": "HD-ER-2", "customer_id": cus, "contract_type": "spot",
             "delivery_type": "single", "sign_date": OLD, "delivered_at": OLD, "channel": "domestic",
+            "source": "exploit",
             "lines": [{"grade": "SVR 10 / CSR 10", "qty": 10.0, "price": 40.0, "ccy": "VND"}]}
     cid = client.put("/api/sales-contracts", headers=e["admin"], json=body).json()["contract"]["id"]
     edit = {**body, "id": cid, "lines": [{**body["lines"][0], "qty": 20.0}]}

@@ -1,6 +1,6 @@
 /* Thống kê TIÊU THỤ (tách hẳn khỏi tồn kho) — dashboard drill-down:
    Toàn Tập đoàn → Khu vực → Đơn vị → Ngày → Chi tiết từng dòng bán (số HĐ, xuất kho, hoá đơn).
-   Lọc chồng thêm: chủng loại · loại HĐ · hình thức HĐ · nguồn mủ. */
+   Lọc chồng thêm: chủng loại · loại HĐ · hình thức HĐ · nguồn tiêu thụ (khai thác / thu mua). */
 
 import { ExportOutlined } from "@ant-design/icons";
 import { message } from "antd";
@@ -25,6 +25,8 @@ const SUMMARY_COLS: StatsCol[] = [
   { key: "qty_export", label: "XK / UTXK", unit: "tấn", note: "cộng dồn" },
   { key: "qty_domestic", label: "Tiêu thụ trong nước", unit: "tấn", note: "cộng dồn" },
   { key: "qty_internal", label: "Tiêu thụ nội bộ", unit: "tấn", note: "cộng dồn" },
+  { key: "qty_exploit", label: "Nguồn khai thác", unit: "tấn", note: "cộng dồn" },
+  { key: "qty_purchase", label: "Nguồn thu mua", unit: "tấn", note: "cộng dồn" },
   { key: "revenue_ty", label: "Doanh thu", unit: "tỷ đồng", note: "cộng dồn" },
   { key: "avg_price_trieu", label: "Giá bán bình quân", unit: "triệu đ/tấn", note: "= DT / SL" },
   { key: "lines", label: "Số dòng bán", unit: "dòng", note: "đếm" },
@@ -53,7 +55,7 @@ const withPlanCols = (cols: StatsCol[]): StatsCol[] => {
 const DETAIL_COLS: StatsCol[] = [
   { key: "as_of", date: true, label: "Ngày" },
   { key: "company", label: "Đơn vị", text: true },
-  { key: "source_label", label: "Nguồn mủ", text: true },
+  { key: "source_label", label: "Nguồn tiêu thụ", text: true },
   { key: "code", label: "Số HĐ/PL", text: true },
   { key: "contract_label", label: "Loại HĐ", text: true },
   { key: "channel_label", label: "Hình thức", text: true },
@@ -76,22 +78,22 @@ const KPIS: Kpi[] = [
   { key: "lines", label: "Số dòng bán", unit: "dòng" },
 ];
 
-// Ngoài chuỗi drill còn xem nhanh theo chủng loại / loại HĐ / hình thức.
-// KHÔNG còn nhóm/lọc theo "nguồn mủ" (mủ thu mua ↔ mủ khai thác): từ 30/07/2026 tiêu thụ tính từ
-// lần giao của hợp đồng nên không tách 2 nguồn nữa, số liệu mới luôn rơi vào một nhãn duy nhất.
+// Ngoài chuỗi drill còn xem nhanh theo chủng loại / loại HĐ / hình thức / nguồn tiêu thụ. Nguồn
+// (khai thác ↔ thu mua) khai trên từng LẦN GIAO từ 03/10/2026; lần giao trước đó tính là khai thác.
 const GROUPS = [
   ...(["region", "company", "day", "grade"] as const).map((v) => ({ value: v, label: DIM_LABEL[v] })),
   { value: "contract", label: "Loại HĐ" },
   { value: "channel", label: "Hình thức HĐ" },
+  { value: "source", label: "Nguồn tiêu thụ" },
   { value: "none", label: "Chi tiết từng dòng" },
 ];
 /** Các cách nhóm KHÔNG nằm trong chuỗi drill → chỉ để xem, không bấm sâu tiếp được. */
-const OFF_CHAIN = new Set(["contract", "channel", "none"]);
+const OFF_CHAIN = new Set(["contract", "channel", "source", "none"]);
 
 export default function ConsumptionStatsPage() {
   const catalog = useFilterCatalog();
   const [base, setBase] = useState<StatsFilters>(
-    { ...initialFilters("region"), contract: [], channel: [] });
+    { ...initialFilters("region"), contract: [], channel: [], source: [] });
   const [groupOverride, setGroupOverride] = useState<string | null>(null);
   // Chế độ chi tiết (từng dòng bán) cắt trang Ở SERVER — số lần giao tăng theo ngày.
   const [page, setPage] = useState(1);
@@ -131,7 +133,7 @@ export default function ConsumptionStatsPage() {
           <h2><ExportOutlined style={{ marginRight: 8 }} />Thống kê tiêu thụ</h2>
           <p>
             Toàn Tập đoàn → <b>khu vực</b> → <b>công ty</b> → <b>ngày</b> → <b>từng dòng bán</b>.
-            Lọc thêm theo chủng loại · loại HĐ · hình thức HĐ.
+            Lọc thêm theo chủng loại · loại HĐ · hình thức HĐ · nguồn tiêu thụ (khai thác / thu mua).
             Dòng bán bằng USD thiếu tỷ giá không được tính vào doanh thu.
             <b> % thực hiện kế hoạch</b> so sản lượng <b>HĐ chuyến</b> với chỉ tiêu năm ở màn
             {" "}<b>Kế hoạch năm</b> (kế hoạch tiêu thụ chỉ đặt cho HĐ chuyến).
@@ -148,6 +150,8 @@ export default function ConsumptionStatsPage() {
                          value={base.contract ?? []} onChange={(v) => change({ ...base, contract: v })} />
             <MultiSelect placeholder="Tất cả hình thức" options={catalog?.channels ?? []} width={175}
                          value={base.channel ?? []} onChange={(v) => change({ ...base, channel: v })} />
+            <MultiSelect placeholder="Tất cả nguồn" options={catalog?.sources ?? []} width={150}
+                         value={base.source ?? []} onChange={(v) => change({ ...base, source: v })} />
           </>
         }
         onReload={reload} onExport={exportXlsx} loading={loading} exporting={saving}

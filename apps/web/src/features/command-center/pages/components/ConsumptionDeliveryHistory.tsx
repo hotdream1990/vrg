@@ -76,7 +76,7 @@ export default function ConsumptionDeliveryHistory(p: Props) {
         <table>
           <thead><tr>
             <th>Ngày giao</th><th>Đơn vị</th><th>Số hợp đồng</th><th>Đợt</th>
-            <th>Khách hàng</th><th title="Xếp theo hồ sơ mẹ — khớp các cột HĐ chuyến / HĐNT / HĐ dài hạn của báo cáo">Nhóm HĐ</th><th>Hình thức</th><th>Chủng loại</th>
+            <th>Khách hàng</th><th title="Xếp theo hồ sơ mẹ — khớp các cột HĐ chuyến / HĐNT / HĐ dài hạn của báo cáo">Nhóm HĐ</th><th>Hình thức</th><th>Nguồn</th><th>Chủng loại</th>
             <th className="r">Quy khô (tấn)</th><th className="r">SL chưa quy khô (tấn)</th>
             <th className="r">Doanh thu (tỷ đ)</th><th>Số hoá đơn</th>
           </tr></thead>
@@ -93,6 +93,7 @@ export default function ConsumptionDeliveryHistory(p: Props) {
                   {r.contract_group ?? "—"}
                 </td>
                 <td>{r.channel ?? "—"}</td>
+                <td>{r.source ?? "—"}</td>
                 <td>{r.grades || "—"}</td>
                 <td className="r">{t3(r.qty)}</td>
                 <td className="r">{wet(r.qty_wet)}</td>
@@ -101,7 +102,7 @@ export default function ConsumptionDeliveryHistory(p: Props) {
               </tr>
             ))}
             {total === 0 && !loading && (
-              <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
+              <tr><td colSpan={13} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                 Chưa có lần giao nào trong kỳ — nới rộng khoảng ngày hoặc bỏ bớt bộ lọc.
               </td></tr>
             )}
@@ -111,7 +112,7 @@ export default function ConsumptionDeliveryHistory(p: Props) {
           {data && data.rows.length > 0 && (
             <tfoot>
               <tr style={{ fontWeight: 600 }}>
-                <td colSpan={8}>
+                <td colSpan={9}>
                   Lũy kế cả kỳ
                   <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: 12 }}>
                     {" "}· {total.toLocaleString("vi-VN")} lần giao

@@ -28,13 +28,14 @@ from typing import Any
 #:   start_date         — ô cũ của vòng đời đợt giao; vẫn khoá để bản ghi cũ không bị lay.
 #:   delivered_at       — MỐC ghi nhận tiêu thụ: dời ngày là chuyển sản lượng sang kỳ khác.
 #:   channel·to_company — cơ cấu XK / trong nước / nội bộ và đơn vị nhận hàng nội bộ.
+#:   source             — tiêu thụ mủ khai thác / mủ thu mua (03/10/2026).
 #:   lines              — chủng loại · sản lượng · quy khô · đơn giá · loại tiền · tỷ giá · ngày
 #:                        hiệu lực của dòng (`from_date`, 30/09/2026).
 #:   payment_qty        — sản lượng thanh toán (số lượng, đơn vị đã xác nhận cùng đợt chốt).
 #:   premium·premium_ccy— khoản tiền cộng thêm của hàng có chứng chỉ.
 STAT_FIELDS: tuple[str, ...] = (
     "company", "parent_id", "delivery_type", "contract_type", "customer_id",
-    "sign_date", "start_date", "delivered_at", "channel", "to_company",
+    "sign_date", "start_date", "delivered_at", "channel", "to_company", "source",
     "lines", "payment_qty", "premium", "premium_ccy",
 )
 

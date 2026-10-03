@@ -20,8 +20,9 @@ export default function ConsumptionCompanyTable({ rep, meta, companies, totals, 
   const undelivered = rep?.undelivered ?? {};
   const bl = rep?.backlog;
   const ch = (c: string, k: string) => rows[c]?.by_channel?.[k] ?? 0;
+  const src = (c: string, k: string) => rows[c]?.by_source?.[k] ?? 0;
   const unknownCol = !!backlog && backlog.unknown > 0;
-  const cols = (bl ? 12 : 9) + (unknownCol ? 1 : 0);
+  const cols = (bl ? 14 : 11) + (unknownCol ? 1 : 0);
 
   return (
     <div className="card table-scroll" style={{ padding: 0 }}>
@@ -33,6 +34,9 @@ export default function ConsumptionCompanyTable({ rep, meta, companies, totals, 
           <th className="r">{meta?.channels.export ?? "Xuất khẩu"}</th>
           <th className="r">{meta?.channels.domestic ?? "Trong nước"}</th>
           <th className="r">{meta?.channels.internal ?? "Nội bộ"}</th>
+          {/* Cùng tổng với 3 cột hình thức, cắt theo chiều khác: hàng từ mủ khai thác hay thu mua. */}
+          <th className="r">Nguồn {(meta?.sources?.exploit ?? "Khai thác").toLowerCase()}</th>
+          <th className="r">Nguồn {(meta?.sources?.purchase ?? "Thu mua").toLowerCase()}</th>
           <th className="r">Doanh thu (tỷ đ)</th>
           {bl ? (
             <>
@@ -54,6 +58,8 @@ export default function ConsumptionCompanyTable({ rep, meta, companies, totals, 
               <td className="r">{t3(ch(c, "export"))}</td>
               <td className="r">{t3(ch(c, "domestic"))}</td>
               <td className="r">{t3(ch(c, "internal"))}</td>
+              <td className="r">{t3(src(c, "exploit"))}</td>
+              <td className="r">{t3(src(c, "purchase"))}</td>
               <td className="r">{ty(rows[c]?.revenue ?? null)}</td>
               {bl ? (
                 <>
@@ -87,6 +93,8 @@ export default function ConsumptionCompanyTable({ rep, meta, companies, totals, 
               <td className="r">{t3(totals.channels.export)}</td>
               <td className="r">{t3(totals.channels.domestic)}</td>
               <td className="r">{t3(totals.channels.internal)}</td>
+              <td className="r">{t3(totals.sources.exploit)}</td>
+              <td className="r">{t3(totals.sources.purchase)}</td>
               <td className="r">{ty(totals.revenue)}</td>
               {backlog ? (
                 <>

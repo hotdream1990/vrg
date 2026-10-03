@@ -57,7 +57,7 @@ def _deliver(h: dict[str, str], company: str, code: str, day: str, grade: str, q
     r = client.put("/api/sales-contracts", json={
         "company": company, "code": code, "customer_id": _customer(h, company),
         "delivery_type": "single", "contract_type": "spot", "sign_date": day, "start_date": day,
-        "delivered_at": day, "channel": "domestic",
+        "delivered_at": day, "channel": "domestic", "source": "exploit",
         "lines": [{"grade": grade, "qty": qty, "price": price, "ccy": "VND"}]}, headers=h)
     assert r.status_code == 200, r.text
 
@@ -282,7 +282,7 @@ def test_lan_giao_thieu_don_gia_thi_de_trong_phan_tram_doanh_thu(env):
     r = client.put("/api/sales-contracts", headers=env["admin"], json={
         "company": UNIT_A, "code": "DB-A3", "customer_id": _customer(env["admin"], UNIT_A),
         "delivery_type": "single", "contract_type": "spot", "sign_date": D1, "start_date": D1,
-        "delivered_at": D1, "channel": "domestic",
+        "delivered_at": D1, "channel": "domestic", "source": "exploit",
         "lines": [{"grade": "SVR 3L", "qty": 5, "price": None, "ccy": "VND"}]})
     assert r.status_code == 200, r.text
     con = _get(env["admin"], "consumption", "unit", UNIT_A)

@@ -51,7 +51,7 @@ def _deliver(h: dict[str, str], company: str, code: str, qty: float, price: floa
     r = client.put("/api/sales-contracts", headers=h, json={
         "company": company, "code": code, "customer_id": _customer(h, company),
         "delivery_type": "single", "contract_type": "spot", "sign_date": TODAY,
-        "delivered_at": TODAY, "channel": "domestic",
+        "delivered_at": TODAY, "channel": "domestic", "source": "exploit",
         "lines": [{"grade": GRADE, "qty": qty, "price": price, "ccy": "VND"}]})
     assert r.status_code == 200, r.text
 

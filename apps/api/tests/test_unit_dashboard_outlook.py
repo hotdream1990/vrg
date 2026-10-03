@@ -49,7 +49,7 @@ def _contract(h: dict[str, str], company: str, code: str, qty: float, price: flo
               delivered: bool, contract_type: str = "spot", master_id: int | None = None) -> None:
     body = {"company": company, "code": code, "customer_id": _customer(h, company),
             "delivery_type": "single", "contract_type": contract_type, "master_id": master_id,
-            "sign_date": TODAY, "channel": "domestic",
+            "sign_date": TODAY, "channel": "domestic", "source": "exploit",
             "lines": [{"grade": GRADE, "qty": qty, "price": price, "ccy": "VND"}]}
     if delivered:
         body["delivered_at"] = TODAY

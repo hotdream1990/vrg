@@ -11,7 +11,9 @@ import math
 from datetime import date
 from typing import Any
 
-from app.core.market_meta import CONTRACT_TYPES, DELIVERY_TYPES, SALE_CHANNELS
+from app.core.market_meta import (
+    CONSUMPTION_SOURCES, CONTRACT_TYPES, DELIVERY_TYPES, SALE_CHANNELS,
+)
 from app.services import contract_certs, contract_docs, customer_repo, sales_contract_calc as calc
 
 
@@ -181,6 +183,16 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         _assert_same_group(company, to_company)
     else:
         to_company = None
+    # NGUỒN TIÊU THỤ (khai thác / thu mua, chốt 03/10/2026) thuộc về MỘT LẦN GIAO như hình thức
+    # tiêu thụ: hợp đồng giao nhiều lần không mang — khai ở từng đợt. Chưa có ngày giao thì chưa
+    # bắt buộc (hàng chưa thành tiêu thụ); có ngày giao là phải khai, KHÔNG tự gán mặc định — đoán
+    # sai là lệch tiêu thụ mủ khai thác / thu mua mà nhìn số không ai biết.
+    raw_source = str(row.get("source") or "").strip()
+    if raw_source and raw_source not in CONSUMPTION_SOURCES:
+        raise ValueError(f"Nguồn tiêu thụ “{raw_source}” không hợp lệ.")
+    source = (raw_source or None) if is_batch else None
+    if delivered and not source:
+        raise ValueError("Thiếu nguồn tiêu thụ (Khai thác · Thu mua).")
 
     # Ngày ký chỉ có ở HỢP ĐỒNG. Đợt giao KHÔNG có ngày ký riêng — form không hiện ô này nhưng vẫn
     # gửi kèm ngày mặc định (hôm nay), nhận vào là mọi đợt giao ngày cũ bị chặn oan bằng thông báo
@@ -235,6 +247,7 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         "delivered_at": delivered_at.isoformat() if delivered_at else None,
         "channel": channel,
         "to_company": to_company,
+        "source": source,
         # Hoá đơn của MỘT LẦN GIAO. Hợp đồng giao-1-lần chính nó là một đợt nên vẫn có; hợp
         # đồng giao-nhiều-lần thì không — hoá đơn nằm ở từng đợt, để ở đây là tra nhầm chỗ.
         "invoice_no": (str(row.get("invoice_no") or "").strip()[:80] or None) if is_batch else None,

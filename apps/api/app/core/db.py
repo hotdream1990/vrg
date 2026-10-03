@@ -644,6 +644,21 @@ ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS completed_at date;
 -- hàng, loại hợp đồng và mọi số liệu của chính nó. Chỉ đặt ở hợp đồng, đợt giao luôn NULL.
 ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS master_id bigint;
 CREATE INDEX IF NOT EXISTS ix_sales_contract_master ON sales_contract (master_id);
+-- NGUỒN TIÊU THỤ của lần giao (chốt 03/10/2026): exploit = mủ khai thác · purchase = mủ thu mua.
+-- Chỉ có ở bản ghi là MỘT LẦN GIAO (đợt giao / hợp đồng giao 1 lần), bắt buộc khi có ngày giao.
+-- Lần giao nhập TRƯỚC khi có cột được tính là KHAI THÁC (khách chốt) — gán ĐÚNG MỘT LẦN lúc thêm
+-- cột. Không gán bù ở mỗi lần khởi động: làm vậy sẽ che mất đường ghi nào lỡ quên khai nguồn.
+-- `ADD COLUMN IF NOT EXISTS` + `source IS NULL`: hai tiến trình khởi động cùng lúc không vấp nhau.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_schema = current_schema() AND table_name = 'sales_contract'
+                   AND column_name = 'source') THEN
+    ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS source text;
+    UPDATE sales_contract SET source = 'exploit'
+     WHERE delivered_at IS NOT NULL AND source IS NULL;
+  END IF;
+END $$;
 -- Nâng bản ghi cũ (1 file ở cột phẳng) lên danh sách. Idempotent: chỉ chạm dòng chưa có danh sách.
 UPDATE unit_stock_contract SET files = jsonb_build_array(
          jsonb_build_object('file', file, 'filename', COALESCE(filename, file)))

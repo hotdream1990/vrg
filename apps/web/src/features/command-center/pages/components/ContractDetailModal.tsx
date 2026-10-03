@@ -381,7 +381,9 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
               <div className="form-note" style={{ fontSize: 11.5, marginTop: 4 }}>
                 Hợp đồng <b>giao 1 lần</b>:{" "}
                 {c.delivered_at
-                  ? <>đã giao ngày <b>{dmy(c.delivered_at)}</b>.</>
+                  ? <>đã giao ngày <b>{dmy(c.delivered_at)}</b>
+                    {c.source && (
+                      <> — nguồn tiêu thụ <b>{meta.sources?.[c.source] ?? c.source}</b></>)}.</>
                   : "chưa giao — toàn bộ sản lượng đang nằm ở mục “đã ký HĐ chưa giao”."}
                 {" "}Thực tế giao làm nhiều lần thì bấm <b>Chuyển sang giao nhiều lần</b>.
               </div>

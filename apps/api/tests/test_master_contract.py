@@ -251,7 +251,7 @@ def test_master_qty_stays_out_of_consumption(env) -> None:
     h = env
     m = _master(h, _customer(h), code="HDDH-KHONG-DEM", master_type="long_term")
     assert _annex(h, m["id"], code="PL-GIAO", delivered_at=TODAY,
-                  channel="domestic").status_code == 200
+                  channel="domestic", source="exploit").status_code == 200
 
     rep = client.get("/api/sales-contracts/consumption", headers=h,
                      params={"date_from": TODAY, "date_to": TODAY, "company": UNIT}).json()

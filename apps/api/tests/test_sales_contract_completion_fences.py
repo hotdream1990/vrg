@@ -72,7 +72,8 @@ def _single_contract(env, code: str, sign_days_ago: int = 30) -> int:
 
 def _complete(env, cid: int, day: date, headers_key: str = "member"):
     return client.put(f"/api/sales-contracts/{cid}/completion", headers=env[headers_key],
-                      json={"completed_at": day.isoformat(), "channel": "domestic"})
+                      json={"completed_at": day.isoformat(), "channel": "domestic",
+                            "source": "exploit"})
 
 
 def test_hoan_thanh_voi_ngay_giao_lui_bi_cua_so_chan(env) -> None:
