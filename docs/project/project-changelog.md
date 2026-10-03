@@ -5,8 +5,10 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 ## [Unreleased]
 ### Added
 - **Quy trình điều chỉnh giá sàn 4 bước: Nháp → Dự thảo → Tờ trình → Áp dụng** (03/10/2026).
-  - Màn *Gợi ý giá sàn → Quy trình giá sàn* (trước là "Bản nháp tờ trình"): mỗi bản có thanh bước, chuyển
-    tới/lui một nấc. Mỗi phần chỉ sửa ở đúng bước (server chặn): **Nháp** chỉnh số · **Dự thảo** chốt số,
+  - Màn *Gợi ý giá sàn → Quy trình giá sàn* (trước là "Bản nháp tờ trình"): mỗi bản có thanh bước, đi tới
+    từng nấc; **trả về thẳng bước bất kỳ phía trước kèm lý do** (lãnh đạo không duyệt tờ trình → về Nháp sửa
+    số). Lý do lần trả về gần nhất hiện trên thanh bước, có lịch sử chuyển bước; lui không mất gì, số đổi thì
+    bước Tờ trình nhắc soát lại phần nhận định (AI soạn lại hoặc "Đã soát"). Mỗi phần chỉ sửa ở đúng bước (server chặn): **Nháp** chỉnh số · **Dự thảo** chốt số,
     nhập tỷ giá VCB · **Tờ trình** soạn nội dung. **Áp dụng** có trong quy trình nhưng **chưa làm** — chưa
     ghi biểu giá sàn chính thức, không áp ngược.
   - Ô sửa được trong bảng phương án (cả ở Trợ lý AI) nay **có viền như ô nhập** — nhận ra ngay chỗ sửa.

@@ -8,7 +8,7 @@ import { Alert, App, Button, Collapse, Input, Popconfirm, Spin, Tag } from "antd
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { STAGE_COLOR, STAGE_LABEL, type Stage } from "../../../lib/floor-draft-flow-client";
+import { STAGES, STAGE_COLOR, STAGE_LABEL, type Stage } from "../../../lib/floor-draft-flow-client";
 import { DRAFT_LIST_PATH, DRAFT_SOURCE_LABEL } from "../../../lib/floor-proposal-client";
 import { dmy, stampVN } from "../../../lib/date";
 import { ApiError } from "../../../lib/http";
@@ -62,10 +62,14 @@ export default function FloorDraftEditorPage() {
     try { await save(); message.success("Đã lưu bản nháp."); } catch (e) { fail(e); }
   };
 
-  const doMove = async (to: Stage) => {
+  const doMove = async (to: Stage, note?: string) => {
+    const back = draft != null && STAGES.indexOf(to) < STAGES.indexOf(draft.stage);
     setMoving(true);
-    try { await move(to); message.success(`Đã chuyển sang bước ${STAGE_LABEL[to]}.`); } catch (e) { fail(e); }
-    finally { setMoving(false); }
+    try {
+      await move(to, note);
+      message.success(back ? `Đã trả về bước ${STAGE_LABEL[to]} — sửa xong thì đi tiếp như bình thường.`
+        : `Đã chuyển sang bước ${STAGE_LABEL[to]}.`);
+    } catch (e) { fail(e); } finally { setMoving(false); }
   };
 
   const doDelete = async () => {
@@ -103,7 +107,8 @@ export default function FloorDraftEditorPage() {
       </div>
       <ReadOnlyNotice cap="floor_suggest" />
 
-      <FloorDraftSteps stage={stage} canEdit={!locked} busy={moving || saving} onMove={doMove} />
+      <FloorDraftSteps stage={stage} history={draft.history ?? []} canEdit={!locked} busy={moving || saving}
+        onMove={doMove} />
 
       <div className="card fd-toolbar">
         <Button icon={<ArrowLeftOutlined />} onClick={() => leaveGuard(() => navigate(DRAFT_LIST_PATH))}>Danh sách</Button>

@@ -62,6 +62,7 @@ class Memo(BaseModel):
     inventory: Para = Field(default_factory=Para)
     intro: str = Field(default="", max_length=1500)
     signers: Signers = Field(default_factory=Signers)
+    sig: str = Field(default="", max_length=40)   # chữ ký số phương án lúc nội dung được soát/soạn
     ai: dict[str, Any] | None = None
 
 
@@ -104,6 +105,8 @@ class UpdateDraft(BaseModel):
 
 class MoveStage(BaseModel):
     to: Literal["nhap", "du_thao", "to_trinh", "ap_dung"]
+    #: Lý do (nhất là khi trả về: "Lãnh đạo chưa duyệt mức +80, đề nghị +60") — ghi vào lịch sử bước.
+    note: str | None = Field(default=None, max_length=500)
     base_updated_at: str | None = Field(default=None, max_length=40)
 
 

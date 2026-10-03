@@ -108,8 +108,9 @@ def test_stage_rules() -> None:
     st.check_move("nhap", "du_thao", full)
     with pytest.raises(st.StageError, match="SVR10"):
         st.check_move("nhap", "du_thao", {"rows": [{**full["rows"][0], "fob": None}]})
-    with pytest.raises(st.StageError, match="liền kề"):
+    with pytest.raises(st.StageError, match="bước kế tiếp"):
         st.check_move("nhap", "to_trinh", full)
+    st.check_move("to_trinh", "nhap", full)          # trả về thẳng bước bất kỳ phía trước
     with pytest.raises(st.StageError, match="chưa triển khai"):
         st.check_move("to_trinh", "ap_dung", full)
     st.check_edit("to_trinh", "memo")

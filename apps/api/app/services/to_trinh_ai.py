@@ -132,5 +132,7 @@ def generate(draft: dict, memo: dict, username: str | None) -> dict[str, Any]:
     part = parse(llm.complete(SYSTEM, prompt(context, leads, way), max_tokens=MAX_TOKENS), leads)
     warns = warnings(part, context, way)
     new = {**memo, **part}
-    new["ai"] = {"at": now_iso(), "by": username, "sig": proposal_sig(draft["proposal"]), "warnings": warns}
+    sig = proposal_sig(draft["proposal"])
+    new["sig"] = sig                       # nội dung vừa soạn theo đúng số hiện tại
+    new["ai"] = {"at": now_iso(), "by": username, "sig": sig, "warnings": warns}
     return {"memo": new, "warnings": warns}

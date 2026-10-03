@@ -150,3 +150,23 @@ def test_memo_ai_endpoint_returns_draft_without_saving(h, draft, monkeypatch) ->
     r = client.post(f"{URL}/{d['id']}/memo/ai", headers=h["admin"], json={})
     assert r.status_code == 400 and "API Key" in r.json()["detail"]
     assert client.post(f"{URL}/{d['id']}/memo/ai", headers=h["exec"], json={}).status_code == 403
+
+
+def test_return_from_to_trinh_straight_to_nhap_keeps_memo_and_flags_review(h, draft) -> None:
+    """Lãnh đạo không duyệt tờ trình → trả về thẳng Nháp kèm lý do, sửa số, đi lại tới Tờ trình."""
+    d = _move(h, _move(h, draft, "du_thao").json(), "to_trinh").json()
+    d = _put(h, d, memo={"so": "54/TTr-TTKD"}).json()
+    sig_at_memo = d["memo"]["sig"]
+    assert sig_at_memo == d["sig"]
+    r = client.post(f"{URL}/{d['id']}/stage", headers=h["admin"],
+                    json={"to": "nhap", "note": "TGĐ chưa duyệt mức tăng, đề nghị giảm bớt"})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["stage"] == "nhap" and d["history"][-1]["from"] == "to_trinh"
+    assert d["history"][-1]["note"] == "TGĐ chưa duyệt mức tăng, đề nghị giảm bớt"
+    d = _put(h, d, proposal=_bump(h, d["proposal"])).json()          # sửa số ở Nháp
+    d = _move(h, _move(h, d, "du_thao").json(), "to_trinh").json()
+    assert d["memo"]["so"] == "54/TTr-TTKD"                            # nội dung tờ trình giữ nguyên
+    assert d["memo"]["sig"] == sig_at_memo != d["sig"]                 # → giao diện nhắc soát lại
+    d = _put(h, d, memo={"sig": d["sig"]}).json()                      # "Đã soát, khớp số mới"
+    assert d["memo"]["sig"] == d["sig"]

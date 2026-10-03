@@ -1,8 +1,9 @@
 """Bước của bản nháp giá sàn: Nháp → Dự thảo → Tờ trình → Áp dụng (plans/261003-quy-trinh-gia-san).
 
 Mỗi phần chỉ sửa ở ĐÚNG bước của nó (server chặn, không tin giao diện): số phương án ở Nháp · tỷ giá
-chú thích hình dự thảo ở Dự thảo · nội dung tờ trình ở Tờ trình. Chuyển bước chỉ một nấc (tới/lui),
-lui không xoá gì. Áp dụng có trong quy trình nhưng CHƯA làm — chưa ghi biểu giá sàn chính thức.
+chú thích hình dự thảo ở Dự thảo · nội dung tờ trình ở Tờ trình. Đi tới từng nấc một; TRẢ VỀ được thẳng bước
+bất kỳ phía trước (vd lãnh đạo không duyệt tờ trình → về Nháp sửa số), kèm lý do; lui không xoá gì.
+Áp dụng có trong quy trình nhưng CHƯA làm — chưa ghi biểu giá sàn chính thức.
 """
 from __future__ import annotations
 
@@ -55,14 +56,15 @@ def missing_numbers(prop: dict) -> list[str]:
 
 
 def check_move(current: str, target: str, prop: dict) -> None:
-    """Chỉ đi một nấc; tới Dự thảo cần đủ số; Áp dụng chưa mở."""
+    """Tới: một nấc, tới Dự thảo cần đủ số, Áp dụng chưa mở. Trả về: bước nào phía trước cũng được."""
     if target not in STAGES:
         raise StageError("Bước không hợp lệ.")
     i, j = STAGES.index(current), STAGES.index(target)
     if i == j:
         raise StageError(f"Bản nháp đã ở bước {LABEL[target]}.")
-    if abs(i - j) != 1:
-        raise StageError(f"Chỉ chuyển được sang bước liền kề (đang ở bước {LABEL[current]}).")
+    if j > i + 1:
+        raise StageError(f"Chỉ chuyển tới được bước kế tiếp (đang ở bước {LABEL[current]}); "
+                         "trả về thì chọn được bước bất kỳ phía trước.")
     if target == "ap_dung":
         raise StageError(APPLY_NOT_READY)
     if target == "du_thao" and current == "nhap":

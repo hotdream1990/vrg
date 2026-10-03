@@ -101,9 +101,9 @@ export function useFloorDraft(id: number) {
     if (dirtyRef.current) await save();
   }, [save, whenIdle]);
 
-  const move = useCallback(async (to: Stage) => {
+  const move = useCallback(async (to: Stage, note?: string) => {
     await ensureSaved();
-    reset(await moveStage(id, to, draftRef.current?.updated_at));
+    reset(await moveStage(id, to, draftRef.current?.updated_at, note));
   }, [ensureSaved, id, reset]);
 
   const remove = useCallback(async () => {

@@ -16,8 +16,9 @@ Ngày: 03/10/2026 · Nhánh: `claude/sleepy-shannon-yii403` · Nền: bản nhá
 - Bước gắn vào bản nháp sẵn có (`floor_draft.stage`), bản cũ = `nhap`. Không thêm bảng mới.
 - Mỗi phần chỉ sửa ở đúng bước của nó, server chặn: số (phương án) ở **Nháp** · tỷ giá VCB ở **Dự
   thảo** · nội dung tờ trình ở **Tờ trình** · **Áp dụng** khoá hết (và hiện chưa chuyển tới được).
-- Chuyển bước chỉ 1 nấc (tới/lui). Lui không xoá gì: nội dung tờ trình giữ lại; số đã đổi sau khi AI
-  soạn → cảnh báo "nên soạn lại" (so chữ ký số phương án `sig`).
+- Đi tới từng nấc; **trả về thẳng bước bất kỳ phía trước** kèm lý do (03/10: lãnh đạo không duyệt tờ trình →
+  về Nháp sửa số). Lui không xoá gì: nội dung tờ trình giữ lại; số đổi so với lúc soạn/soát nội dung →
+  cảnh báo "cần soát lại" (so `memo.sig` với chữ ký số phương án hiện tại), bấm "Đã soát" để tắt.
 - Hình dự thảo + PDF tờ trình dựng ở SERVER bằng Chromium (Playwright có sẵn trong image) → hình chép
   ra giống hệt bản xem. Word (.docx) dựng bằng `python-docx` (thêm phụ thuộc).
 - Mẫu tờ trình mới thay mẫu cũ ở MỌI chỗ xem trước (Trợ lý AI, Gợi ý giá sàn); thiếu nội dung tờ trình
@@ -45,18 +46,19 @@ type Memo = {
   inventory: Para;             // lead đậm "Tồn kho Tập đoàn lũy kế tuần 37: …" + text
   intro: string;               // "Ban TTKD kính trình Tổng giám đốc phê duyệt điều chỉnh giá sàn lần thứ …"
   signers: Signers;
+  sig: string;                 // chữ ký số phương án lúc nội dung được soạn/soát
   ai: { at: string; by: string | null; sig: string; warnings: string[] } | null;
 };
 // Draft thêm:
 type Draft = { /* …cũ… */ stage: Stage; sheet: Sheet | null; memo: Memo | null; sig: string;
-               history: { from: Stage; to: Stage; at: string; by: string | null }[] };
+               history: { from: Stage; to: Stage; at: string; by: string | null; note: string | null }[] };
 type DraftSummary = { /* …cũ… */ stage: Stage };
 ```
 
 | Method | Path | Body | Trả |
 |---|---|---|---|
 | PUT | `/api/floor-proposal/drafts/{id}` | thêm `sheet?`, `memo?` | `Draft` · 400 nếu sửa phần không thuộc bước hiện tại |
-| POST | `/api/floor-proposal/drafts/{id}/stage` | `{to: Stage, base_updated_at?}` | `Draft` · 400 sai nấc / thiếu số / Áp dụng · 409 xung đột |
+| POST | `/api/floor-proposal/drafts/{id}/stage` | `{to: Stage, note?, base_updated_at?}` | `Draft` · tới 1 nấc, lui bước bất kỳ · 400 nhảy cóc tới / thiếu số / Áp dụng · 409 xung đột |
 | POST | `/api/floor-proposal/drafts/{id}/memo/ai` | `{memo?: Memo}` | `{memo: Memo, warnings: string[]}` (không lưu) |
 | GET | `/api/floor-proposal/drafts/{id}/du-thao.png` | — | `image/png` hình dự thảo (bản đã lưu) |
 | GET | `/api/floor-proposal/drafts/{id}/to-trinh.pdf` | — | PDF tờ trình (bản đã lưu) |

@@ -28,17 +28,21 @@ export type Memo = {
   futures_note: string; futures: Para[];
   physical_title: string; physical_note: string; physical: Para[];
   outlook: Para[]; inventory: Para; intro: string;
-  signers: Signers; ai: MemoAiMeta | null;
+  signers: Signers;
+  sig: string;                // chữ ký số phương án lúc nội dung được soạn/soát — khác Draft.sig ⇒ cần soát lại
+  ai: MemoAiMeta | null;
 };
-export type StageMove = { from: Stage; to: Stage; at: string; by: string | null };
+/** Một lần chuyển bước; `note` = lý do (nhất là khi trả về vì lãnh đạo chưa duyệt). */
+export type StageMove = { from: Stage; to: Stage; at: string; by: string | null; note?: string | null };
 
 const BASE = "/api/floor-proposal";
 const json = (body: unknown): RequestInit => ({
   method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
 });
 
-export const moveStage = (id: number, to: Stage, baseUpdatedAt?: string) =>
-  apiFetch<Draft>(`${BASE}/drafts/${id}/stage`, json({ to, base_updated_at: baseUpdatedAt }));
+/** Tới một nấc, hoặc trả về thẳng bước bất kỳ phía trước (kèm lý do). */
+export const moveStage = (id: number, to: Stage, baseUpdatedAt?: string, note?: string) =>
+  apiFetch<Draft>(`${BASE}/drafts/${id}/stage`, json({ to, note: note || undefined, base_updated_at: baseUpdatedAt }));
 
 /** AI viết lại phần nhận định từ dữ liệu của bản nháp — trả nội dung mới, KHÔNG lưu. */
 export const memoAi = (id: number, memo: Memo) =>

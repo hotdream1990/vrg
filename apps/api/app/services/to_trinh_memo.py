@@ -141,7 +141,7 @@ def defaults(doc: dict, inventory_rows: list[dict] | None = None) -> dict[str, A
         "outlook": [],
         "inventory": inventory_para(inventory_rows or []),
         "intro": intro(doc["lan"], doc["year"]),
-        "signers": dict(SIGNERS), "ai": None,
+        "signers": dict(SIGNERS), "sig": "", "ai": None,
     }
 
 
@@ -164,6 +164,7 @@ def clean(raw: Any, base: dict) -> dict[str, Any]:
     out["inventory"] = _para(raw["inventory"]) if "inventory" in raw else base["inventory"]
     sig = raw.get("signers") if isinstance(raw.get("signers"), dict) else {}
     out["signers"] = {k: (_s(sig[k], 120) if k in sig else base["signers"][k]) for k in SIGNERS}
+    out["sig"] = _s(raw["sig"], 40) if "sig" in raw else base.get("sig", "")
     ai = raw.get("ai") if "ai" in raw else base.get("ai")
     out["ai"] = ({"at": _s(ai.get("at"), 40), "by": _s(ai.get("by"), 80) or None, "sig": _s(ai.get("sig"), 40),
                   "warnings": [_s(w, 300) for w in (ai.get("warnings") or [])[:20] if isinstance(w, str)]}

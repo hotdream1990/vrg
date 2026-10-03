@@ -47,7 +47,8 @@ def _file(make, draft_id: int, kind: str, inline: bool = False) -> Response:
 @router.post("/drafts/{draft_id}/stage")
 def move_stage(draft_id: int, body: MoveStage, username: str = Depends(_EDIT)) -> dict:
     try:
-        saved = svc.change_stage(draft_id, body.to, username=username, base_updated_at=body.base_updated_at)
+        saved = svc.change_stage(draft_id, body.to, username=username, note=body.note,
+                                 base_updated_at=body.base_updated_at)
     except st.StageError as exc:
         raise HTTPException(400, str(exc)) from exc
     except svc.DraftConflict as exc:

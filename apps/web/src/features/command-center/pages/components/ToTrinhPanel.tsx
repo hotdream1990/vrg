@@ -25,7 +25,8 @@ export default function ToTrinhPanel({ draftId, sig, memo, editable, ensureSaved
   const { message, modal } = App.useApp();
   const [aiBusy, setAiBusy] = useState(false);
   const [file, setFile] = useState<DraftFile | null>(null);
-  const stale = memo.ai && memo.ai.sig !== sig;
+  // Nội dung được soạn/soát theo bộ số khác bộ số hiện tại (vd trả về Nháp sửa số theo ý lãnh đạo).
+  const stale = Boolean(memo.sig) && memo.sig !== sig;
 
   const runAi = async () => {
     setAiBusy(true);
@@ -85,7 +86,11 @@ export default function ToTrinhPanel({ draftId, sig, memo, editable, ensureSaved
         </div>
         {stale && (
           <Alert type="warning" showIcon style={{ marginTop: 10 }}
-            title="Số phương án đã đổi sau lần AI soạn — nên bấm “AI soạn nội dung” lại hoặc soát tay cho khớp mức điều chỉnh mới." />
+            title="Số phương án đã đổi kể từ lần soạn nội dung tờ trình"
+            description="Bảng giá đề xuất đã tự theo số mới; phần nhận định có thể còn nói theo mức cũ. Bấm “AI soạn nội dung” để viết lại, hoặc soát tay rồi đánh dấu đã soát."
+            action={editable && (
+              <Button size="small" onClick={() => onMemo({ ...memo, sig })}>Đã soát, khớp số mới</Button>
+            )} />
         )}
         {memo.ai && memo.ai.warnings.length > 0 && !stale && (
           <Alert type="info" showIcon style={{ marginTop: 10 }} title="Cảnh báo từ lần AI soạn gần nhất"

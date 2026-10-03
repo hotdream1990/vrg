@@ -63,8 +63,10 @@ def clean_sheet(raw: dict | None, base: dict) -> dict:
 
 
 def memo_for(draft: dict) -> dict:
-    """Nội dung tờ trình của bản nháp: bản đã lưu, chưa có thì mặc định dựng từ số."""
-    base = to_trinh_memo.defaults(draft["doc"], inventory_rows(draft["as_of"]))
+    """Nội dung tờ trình của bản nháp: bản đã lưu, chưa có thì mặc định dựng từ số (gắn chữ ký số
+    phương án hiện tại — số đổi sau đó thì giao diện nhắc soát lại)."""
+    base = {**to_trinh_memo.defaults(draft["doc"], inventory_rows(draft["as_of"])),
+            "sig": st.proposal_sig(draft["proposal"])}
     return to_trinh_memo.clean(draft["memo"], base) if draft.get("memo") else base
 
 
@@ -153,10 +155,11 @@ def update(draft_id: int, *, title: str, note: str | None, proposal: dict, n1: l
                        doc=doc, headline=fp.headline(prop), sheet=new_sheet, memo=new_memo, username=username)
 
 
-def change_stage(draft_id: int, target: str, *, username: str | None,
+def change_stage(draft_id: int, target: str, *, username: str | None, note: str | None = None,
                  base_updated_at: str | None = None) -> dict[str, Any] | None:
-    """Chuyển một nấc. Vào Dự thảo lần đầu: tạo chú thích tỷ giá; vào Tờ trình lần đầu: dựng nội dung
-    mặc định từ số. Lui về không xoá gì (nội dung tờ trình giữ nguyên để dùng lại)."""
+    """Tới một nấc hoặc trả về bước bất kỳ phía trước (kèm lý do `note`). Vào Dự thảo lần đầu: tạo chú
+    thích tỷ giá; vào Tờ trình lần đầu: dựng nội dung mặc định từ số. Lui về không xoá gì (nội dung tờ
+    trình giữ nguyên để dùng lại — số đổi thì giao diện nhắc soát lại)."""
     current = _guard(draft_id, base_updated_at)
     if not current:
         return None
@@ -165,7 +168,8 @@ def change_stage(draft_id: int, target: str, *, username: str | None,
     sheet = current.get("sheet") or (default_sheet(current["as_of"]) if target == "du_thao" else None)
     memo = current.get("memo") or (memo_for(current) if target == "to_trinh" else None)
     history = [*(current.get("history") or []),
-               {"from": stage, "to": target, "at": fp.now_iso(), "by": username}][-50:]
+               {"from": stage, "to": target, "at": fp.now_iso(), "by": username,
+                "note": (note or "").strip()[:500] or None}][-50:]
     return repo.update(draft_id, title=current["title"], note=current["note"], proposal=current["proposal"],
                        doc=current["doc"], headline=fp.headline(current["proposal"]), sheet=sheet, memo=memo,
                        username=username, stage=target, history=history)
