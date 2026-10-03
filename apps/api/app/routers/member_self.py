@@ -25,7 +25,8 @@ from fastapi.responses import FileResponse
 
 from app.core import data_lock, edit_window
 from app.core.entry_types import (
-    CONTRACT, DAILY_KIND_ENTRY_TYPE, PURCHASE, STOCK, assert_entry_type, has_entry_type, user_entry_types,
+    CONTRACT, DAILY_KIND_ENTRY_TYPE, PURCHASE, STOCK, assert_entry_type, has_entry_type, plan_field_type,
+    plan_values_allowed, user_entry_types,
 )
 from app.core.feature_flags import require_excel_import
 from app.core import market_demand_meta as demand_meta
@@ -48,7 +49,7 @@ from app.services.unit_report_query import split_csv
 router = APIRouter(prefix="/api/member", tags=["member-self"])
 _DEMAND_NOT_FOUND = "Không tìm thấy phiếu nhu cầu này."
 _excel = [Depends(require_excel_import)]  # nhập Excel đang tạm tắt (app/core/feature_flags.py)
-#: Mẫu nhập Excel → loại nhập liệu (`plan` đi theo luật từng ô — xem `_plan_allowed`).
+#: Mẫu nhập Excel → loại nhập liệu (`plan` đi theo luật từng ô — xem `plan_values_allowed`).
 #: `sales` ghi vào bản ghi `consumption` nhưng MERGE đúng phần tiêu thụ cũ — khớp `CONSUMPTION_SALES_KEYS`.
 _IMPORT_ENTRY_TYPE = {"purchase": PURCHASE, "stock": STOCK, "sales": CONTRACT}
 
@@ -94,28 +95,9 @@ def _locked(units: list[str]) -> dict[str, str]:
     return {u: got[u] for u in units if u in got}
 
 
-def _plan_field_type(field: str) -> str:
-    """Ô Kế hoạch năm → loại phụ trách: kế hoạch THU MUA thuộc Thu mua; mọi ô còn lại (khai thác,
-    hàng hoá, HĐ dài hạn, chuyển sang, tiêu thụ chuyến, doanh thu) thuộc Hợp đồng & tiêu thụ."""
-    return PURCHASE if field == "plan_tonnes" else CONTRACT
-
-
-def _plan_allowed(member: dict, values: dict) -> dict:
-    """Chỉ giữ ô Kế hoạch năm thuộc loại được giao; gửi ô mà không ô nào được phép → 403.
-
-    BỎ ô ngoài loại thay vì báo lỗi cả form: web gửi nguyên form Kế hoạch năm, chặn cứng thì tài
-    khoản chỉ có một loại không lưu nổi phần của mình. Ô bị bỏ = vắng mặt → `save_year_plan` giữ
-    nguyên số đang lưu (cùng ý với `_keep_sections_without_edit_right` của màn Báo giá).
-    """
-    keep = {k: v for k, v in values.items() if has_entry_type(member, _plan_field_type(k))}
-    if values and not keep:
-        assert_entry_type(member, PURCHASE if "plan_tonnes" in values else CONTRACT)
-    return keep
-
-
 def _assert_import_kind(member: dict, kind: str) -> None:
     """Nhập Excel theo đúng loại được giao. Kế hoạch năm có ô của cả Thu mua lẫn Hợp đồng & tiêu
-    thụ → chỉ cần một trong hai; ô ngoài loại bị bỏ lúc ghi (`_plan_allowed`)."""
+    thụ → chỉ cần một trong hai; ô ngoài loại bị bỏ lúc ghi (`plan_values_allowed`)."""
     if kind != "plan":
         assert_entry_type(member, _IMPORT_ENTRY_TYPE[kind])
     elif not (has_entry_type(member, PURCHASE) or has_entry_type(member, CONTRACT)):
@@ -302,7 +284,11 @@ def my_year_plan(year: int = Query(..., ge=2020, le=2100),
     """Số liệu năm của CÁC đơn vị được gán — chỉ đơn vị CÓ giao kế hoạch thu mua."""
     # Màn Kế hoạch năm mở cho MỌI đơn vị của tài khoản (chốt 03/08/2026 — bỏ cờ bật/tắt).
     units = _units(member)   # form NHẬP 1 lần → chỉ đơn vị được gán
-    return {"year": year, "units": units, "plans": unit_daily_repo.year_plan(year, companies=units)}
+    # Kế hoạch đã chốt cùng đợt chốt số liệu → web chuyển ô sang chỉ xem + nút «Đề nghị sửa».
+    locks = {u: data_lock.locked_until(u) for u in units}
+    return {"year": year, "units": units, "plans": unit_daily_repo.year_plan(year, companies=units),
+            "locked": {u: data_lock.plan_locked(lock, year) for u, lock in locks.items()},
+            "locked_until": {u: lock.isoformat() if lock else None for u, lock in locks.items()}}
 
 
 @router.put("/plan")
@@ -311,8 +297,9 @@ def upsert_my_year_plan(body: PurchasePlanEdit,
     """Đơn vị tự cập nhật số liệu năm của mình (không giới hạn cửa sổ ngày — số liệu năm)."""
     # Chỉ tiêu NĂM: mốc so là 01/01 năm đó — sáp nhập giữa năm vẫn sửa được kế hoạch năm ấy.
     _assert_company(member, body.company, f"{body.year}-01-01")
+    data_lock.assert_plan_not_locked(body.company, body.year)   # chốt cùng đợt → đi Đề nghị sửa
     # Chỉ ghi ô CÓ trong body (null = xoá) VÀ thuộc loại được giao; ô còn lại giữ nguyên.
-    values = _plan_allowed(member, body.plan_values())
+    values = plan_values_allowed(member, body.plan_values())
     unit_daily_repo.save_year_plan(body.year, body.company, values, member.get("username"))
     return {"ok": True}
 
@@ -485,12 +472,18 @@ def my_import_commit(body: ExcelImportCommit,
     if body.kind == "plan":   # ô Kế hoạch năm ngoài loại được giao → bỏ, giữ số đang lưu
         plan_cols = set(unit_daily_repo.PLAN_FIELDS)
         rows = [{k: v for k, v in r.items()
-                 if k not in plan_cols or has_entry_type(member, _plan_field_type(k))} for r in rows]
+                 if k not in plan_cols or has_entry_type(member, plan_field_type(k))} for r in rows]
     # File Excel là đường ghi thứ hai vào đúng những bảng đã chốt → phải qua cùng hàng rào
     # (chốt số liệu ở đây; cửa sổ nhập liệu kiểm từng dòng trong commit_rows).
     for r in rows:
         if r.get("company") and r.get("as_of"):
             data_lock.assert_not_locked(str(r["company"]), str(r["as_of"]))
+        if body.kind == "plan" and r.get("company") and isinstance(r.get("year"), (int, float, str)):
+            try:
+                year = int(float(r["year"]))   # ô năm đọc từ Excel có thể là 2026.0
+            except ValueError:
+                continue                        # năm sai → commit_rows tự loại dòng này
+            data_lock.assert_plan_not_locked(str(r["company"]), year)
     return unit_daily_excel_io.commit_rows(body.kind, rows, member.get("username"),
                                            allowed_units=_units(member),
                                            window=edit_window.member_window())

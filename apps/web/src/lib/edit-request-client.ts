@@ -11,7 +11,7 @@ const J = { "Content-Type": "application/json" };
 
 export type EditRequestOp =
   | "daily_report" | "daily_move" | "contract_save" | "contract_delete" | "contract_delivery_type"
-  | "demand_save" | "demand_delete";
+  | "demand_save" | "demand_delete" | "year_plan";
 export type EditRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
 export type EditRequestStatusFilter = EditRequestStatus | "all";
 
@@ -103,6 +103,7 @@ export const EDIT_REQUEST_OPS: { value: EditRequestOp; label: string }[] = [
   { value: "contract_delivery_type", label: "Chuyển loại giao hợp đồng" },
   { value: "demand_save", label: "Nhu cầu thị trường" },
   { value: "demand_delete", label: "Xoá nhu cầu thị trường" },
+  { value: "year_plan", label: "Kế hoạch năm" },
 ];
 
 /** Bỏ ô lọc trống khỏi query string. */

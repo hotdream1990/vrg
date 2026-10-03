@@ -163,17 +163,20 @@ def unlock(round_id: int, company: str) -> bool:
     return bool(n)
 
 
-def rounds_locked_from(company: str, from_date: str) -> list[dict[str, Any]]:
-    """Các đợt CHƯA HUỶ đơn vị đã xác nhận có ngày chốt ≥ `from_date` — đúng những xác nhận phải
-    gỡ khi Ban duyệt một đề nghị sửa số liệu ngày `from_date` (đợt cũ hơn ngày sửa giữ nguyên)."""
+def rounds_locked_from(company: str, from_date: str, to_date: str | None = None) -> list[dict[str, Any]]:
+    """Các đợt CHƯA HUỶ đơn vị đã xác nhận có ngày chốt ≥ `from_date` (và ≤ `to_date` nếu có) — đúng
+    những xác nhận phải gỡ khi Ban duyệt một đề nghị sửa số liệu ngày `from_date` (đợt cũ hơn ngày sửa
+    giữ nguyên). `to_date`: đề nghị sửa Kế hoạch năm chỉ gỡ đợt của đúng năm đó."""
     ensure_schema()
     with session_scope() as db:
         rows = db.execute(text(
             "SELECT r.id, r.lock_date FROM unit_data_lock l "
             "  JOIN data_lock_round r ON r.id = l.round_id "
             " WHERE l.company = :c AND r.cancelled_at IS NULL "
-            "   AND r.lock_date >= CAST(:d AS date) ORDER BY r.lock_date, r.id"),
-            {"c": company, "d": from_date}).mappings().all()
+            "   AND r.lock_date >= CAST(:d AS date) "
+            "   AND (CAST(:t AS date) IS NULL OR r.lock_date <= CAST(:t AS date)) "
+            " ORDER BY r.lock_date, r.id"),
+            {"c": company, "d": from_date, "t": to_date}).mappings().all()
     return [{"round_id": int(r["id"]), "lock_date": str(r["lock_date"])} for r in rows]
 
 

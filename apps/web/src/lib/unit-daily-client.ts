@@ -101,7 +101,12 @@ export type YearPlanRow = {
    *  "% thực hiện" là phép chia cùng đơn vị chứ không phải quy đổi). */
   plan_revenue_ty: number | null;
 };
-export type YearPlanData = { year: number; units: string[]; plans: Record<string, YearPlanRow> };
+export type YearPlanData = {
+  year: number; units: string[]; plans: Record<string, YearPlanRow>;
+  /** CHỈ phía đơn vị: kế hoạch năm đã chốt cùng đợt chốt số liệu → chỉ xem, sửa qua «Đề nghị sửa». */
+  locked?: Record<string, boolean>;
+  locked_until?: Record<string, string | null>;
+};
 
 const J = { "Content-Type": "application/json" };
 

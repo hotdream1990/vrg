@@ -21,6 +21,7 @@ Payload = đúng body của API ghi gốc (để web gửi lại y nguyên thứ
 | `contract_save` | body của `PUT /api/sales-contracts` (`ContractIn`) | ngày giao cũ + mới (khác null) | `contract:{id}` · thêm mới: `contract:new:{parent_id or 0}:{code chữ thường}` |
 | `contract_delete` | `{id}` | ngày giao đang lưu | `contract:{id}` |
 | `contract_delivery_type` | `{id, delivery_type}` — ô «Loại giao» là ô CHỈ XEM trên form nên đi bằng thao tác riêng (đổi loại giao còn dời lần giao xuống đợt giao đầu tiên) | ngày giao đang lưu | `contract:{id}` |
+| `year_plan` | body của `PUT /api/member/plan` (`{year, company, <ô kế hoạch>…}`) — chỉ ô CÓ trong payload được ghi, `null` = xoá ô; ô ngoài loại nhập liệu của tài khoản bị bỏ lúc gửi. Chặn bởi `assert_plan_not_locked` (kế hoạch năm chốt cùng đợt chốt số liệu). Duyệt chỉ gỡ đợt chốt có ngày chốt trong năm `year` | `[year-01-01]` | `plan:{year}` |
 
 `create_only: true` (nút Thêm) chỉ kiểm LÚC GỬI, không lưu vào `payload` của đề nghị: ngày đó đã có
 số ⇒ `409` đúng câu của API ghi thẳng — biểu ngày: "Đơn vị này đã có số liệu cho ngày này — vui lòng
@@ -50,7 +51,7 @@ interface EditRequest {
   unlocked: { round_id: number; lock_date: string }[] | null;   // đợt chốt đã gỡ khi duyệt
 }
 type EditRequestOp = "daily_report" | "daily_move" | "market_demand" | "contract_save"
-                   | "contract_delete" | "contract_delivery_type";
+                   | "contract_delete" | "contract_delivery_type" | "year_plan";
 interface Paged { items: EditRequest[]; total: number; page: number; page_size: number;
                   counts: { pending: number; approved: number; rejected: number; cancelled: number } }
 ```

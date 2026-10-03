@@ -30,8 +30,9 @@ nhận email kết quả.
 | `contract_save` | Hợp đồng / đợt giao (thêm, sửa) | cửa sổ + chốt theo ngày giao | `sales_contract_repo.save` |
 | `contract_delete` | Xoá hợp đồng / đợt giao | cửa sổ + chốt theo ngày giao | `sales_contract_repo.delete` |
 | `contract_delivery_type` | Chuyển loại giao của hợp đồng (giao 1 lần ↔ giao nhiều lần) | chốt theo ngày giao (KHÔNG có cửa sổ) | `sales_contract_lifecycle.set_delivery_type` |
+| `year_plan` | Kế hoạch năm (thêm 03/10/2026) | chốt số liệu — kế hoạch năm chốt CÙNG ĐỢT (KHÔNG có cửa sổ) | `unit_daily_repo.save_year_plan` + gỡ chốt các đợt của đúng năm đó |
 
-Không nằm trong phạm vi (không bị hàng rào thời gian): Hợp đồng mẹ, Khách hàng, Kế hoạch năm,
+Không nằm trong phạm vi (không bị hàng rào thời gian): Hợp đồng mẹ, Khách hàng,
 Excel import (đang tắt), hợp đồng tồn kho cũ (không còn màn gọi).
 
 ## Phases

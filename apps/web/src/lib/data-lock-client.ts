@@ -54,6 +54,8 @@ export type LockSummary = {
   /** Đơn vị đã SÁP NHẬP vào đơn vị này — mọi con số ở trên đã GỘP cả họ (như Báo cáo tổng hợp),
    *  và xác nhận chốt là chốt luôn phần của họ. Ảnh chụp cũ (trước 0.4.96) không có khoá này. */
   merged_units?: string[];
+  /** Kế hoạch năm của năm chứa ngày chốt — CHỐT CÙNG ĐỢT (03/10/2026). Ảnh chụp cũ không có khoá này. */
+  plan?: { year: number; values: Record<string, number | null> };
 };
 
 export type LockStatusRow = {

@@ -34,9 +34,14 @@ _CHANGED = ("Số liệu đã thay đổi kể từ lúc đơn vị gửi đề 
             "ghi đè.")
 
 
-def unlock_plan(company: str, dates: list[str]) -> list[dict[str, Any]]:
-    """Các đợt chốt SẼ bị gỡ nếu duyệt (dùng cho cả xem trước lẫn lúc duyệt thật)."""
-    return data_lock_repo.rounds_locked_from(company, min(dates)) if dates else []
+def unlock_plan(company: str, dates: list[str], until: str | None = None) -> list[dict[str, Any]]:
+    """Các đợt chốt SẼ bị gỡ nếu duyệt (dùng cho cả xem trước lẫn lúc duyệt thật). `until` = mốc trên
+    (Kế hoạch năm chỉ gỡ đợt của đúng năm đó)."""
+    return data_lock_repo.rounds_locked_from(company, min(dates), until) if dates else []
+
+
+def _until(op: Op, payload: dict) -> str | None:
+    return op.unlock_until(payload) if op.unlock_until else None
 
 
 def _effective_dates(op: Op, row: dict[str, Any], current: dict | None) -> list[str]:
@@ -61,7 +66,8 @@ def detail(req_id: int) -> dict[str, Any]:
         still = None
     locked = data_lock_repo.locked_until(req["company"])
     pending = req["status"] == "pending"
-    will = unlock_plan(req["company"], _effective_dates(op, req, current)) if pending and op.lockable else []
+    will = (unlock_plan(req["company"], _effective_dates(op, req, current), _until(op, req["payload"] or {}))
+            if pending and op.lockable else [])
     return {"request": req, "current": current,
             "changed_since_submit": changed_since(current, req["before"]),
             "still_blocked": still,
@@ -127,7 +133,7 @@ def approve(req_id: int, reviewer: str, note: str | None, expected_updated_at: s
         dates = _effective_dates(op, row, current)
         with request_ctx.use_note(f"Duyệt đề nghị sửa #{req_id} của {row['requested_by']}"):
             op.apply(payload, row["requested_by"], company)
-            unlocked = unlock_plan(company, dates) if op.lockable else []
+            unlocked = unlock_plan(company, dates, _until(op, payload)) if op.lockable else []
             for r in unlocked:
                 data_lock_repo.unlock(r["round_id"], company)
         edit_request_repo.mark_reviewed(db, req_id, "approved", reviewer, note, unlocked, dates)

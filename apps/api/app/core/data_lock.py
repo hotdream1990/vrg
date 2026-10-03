@@ -7,6 +7,10 @@ trị khoá hộ). Hai hàng rào chạy độc lập và **cái nào chặn t�
 
 Ai bị chặn: **chỉ tài khoản đơn vị thành viên**. Chuyên viên và quản trị vẫn sửa được — sau khi
 chốt, đó là đường sửa duy nhất (đơn vị báo Ban TTKD sửa hộ).
+
+KẾ HOẠCH NĂM chốt CÙNG ĐỢT (03/10/2026): xác nhận chốt số liệu đến hết ngày X là xác nhận luôn chỉ
+tiêu kế hoạch của năm X — từ đó kế hoạch năm ≤ năm của mốc chốt thì đơn vị không tự sửa, phải gửi
+«Đề nghị sửa» (`assert_plan_not_locked`). Kế hoạch năm mới mở cho tới khi đơn vị chốt đợt đầu năm đó.
 """
 
 from __future__ import annotations
@@ -41,6 +45,24 @@ def _as_date(as_of: str | date) -> date:
         return date.fromisoformat(str(as_of)[:10])
     except ValueError as exc:
         raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
+
+
+_PLAN_MSG = ("Kế hoạch năm {year} đã được chốt cùng số liệu (đơn vị đã xác nhận chốt đến hết ngày "
+             "{lock}) — đơn vị không tự sửa được nữa. Cần điều chỉnh chỉ tiêu, đơn vị gửi «Đề nghị sửa» "
+             "để Ban duyệt.")
+
+
+def plan_locked(lock: date | None, year: int) -> bool:
+    """Kế hoạch năm `year` đã chốt chưa, với mốc chốt `lock` của đơn vị (luật duy nhất — mọi nơi gọi đây)."""
+    return bool(lock and lock.year >= int(year))
+
+
+def assert_plan_not_locked(company: str, year: int) -> None:
+    """403 (header chặn = lock) nếu kế hoạch năm `year` của đơn vị đã chốt cùng đợt chốt số liệu."""
+    lock = locked_until(company)
+    if plan_locked(lock, year):
+        raise HTTPException(403, _PLAN_MSG.format(year=year, lock=lock.strftime("%d/%m/%Y")),
+                            headers={BLOCK_HEADER: "lock"})
 
 
 def is_locked(company: str, as_of: str | date | None) -> bool:

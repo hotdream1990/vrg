@@ -8,6 +8,8 @@ con số đơn vị xác nhận ở đây và con số trên báo cáo là MỘT
 
 Kỳ chốt = **từ sau lần chốt trước đến ngày chốt** (chưa chốt lần nào thì tính từ đầu năm của ngày
 chốt). Riêng TỒN KHO là chỉ tiêu thời điểm — luôn là ảnh chụp tại ngày chốt, không phụ thuộc kỳ.
+KẾ HOẠCH NĂM của năm chứa ngày chốt chốt CÙNG ĐỢT (03/10/2026) — bày ra để đơn vị rà chỉ tiêu trước
+khi bấm, vì chốt xong muốn đổi phải gửi Đề nghị sửa (`core.data_lock.assert_plan_not_locked`).
 
 ⚠ Tính cho NHIỀU đơn vị thì gọi `summary_many` (một lượt truy vấn cho cả danh sách). Quản trị
 "khoá hộ" cả 70 đơn vị một lần: gọi `summary` trong vòng lặp là nhân 70 lần toàn bộ báo cáo kỳ.
@@ -73,6 +75,7 @@ def summary_many(companies: list[str], lock_date: str,
     date_from = period_start(lock_date, prev_lock)
     year = int(lock_date[:4])
     planned = unit_daily_repo.companies_with_purchase_plan(year)
+    year_plans = unit_daily_repo.year_plan(year, companies)
     mm = merged_map()
 
     pur_rows = _rows_by_company("purchase", companies, date_from, lock_date)
@@ -126,6 +129,9 @@ def summary_many(companies: list[str], lock_date: str,
             # nếu không người đọc tưởng những ngày trước đó đã nộp đủ.
             "missing_from": {"purchase": date_from, "consumption": stock_from},
             "missing_total": len(mp) + len(mc),
+            # Chỉ tiêu kế hoạch năm của CHÍNH đơn vị (đơn vị đã sáp nhập có dòng khoá + ảnh chụp riêng).
+            "plan": {"year": year, "values": {k: (year_plans.get(company) or {}).get(k)
+                                               for k in unit_daily_repo.PLAN_FIELDS}},
         }
     return out
 

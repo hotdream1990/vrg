@@ -1,7 +1,7 @@
 """Registry THAO TÁC của «Đề nghị sửa số liệu quá khứ» + khung chuẩn bị một đề nghị.
 
 Mỗi thao tác (op) khai ĐÚNG MỘT chỗ (`edit_request_ops_daily` · `edit_request_ops_contract` ·
-`edit_request_ops_demand`):
+`edit_request_ops_demand` · `edit_request_ops_plan`):
 chuẩn hoá payload, ảnh chụp bản ghi, đơn vị + phạm vi quyền, khoá chống trùng, tiêu đề, ngày bị ảnh
 hưởng, câu báo chặn và cách GHI THẬT khi Ban duyệt.
 
@@ -23,7 +23,9 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ValidationError
 
 from app.core.edit_window import BLOCK_HEADER
-from app.core.entry_types import CONTRACT, DAILY_KIND_ENTRY_TYPE, assert_entry_type, has_entry_type
+from app.core.entry_types import (
+    CONTRACT, DAILY_KIND_ENTRY_TYPE, PURCHASE, assert_entry_type, has_entry_type, plan_field_type,
+)
 from app.services.unit_daily_fields import CONSUMPTION_SALES_KEYS
 
 REASON_MIN, REASON_MAX = 5, 2000
@@ -52,14 +54,18 @@ class Op:
     labels: Callable[[list[dict | None]], dict[str, dict[str, str]]] | None = None
     # Số liệu có nằm trong CHỐT SỐ LIỆU không — False (nhu cầu thị trường) ⇒ duyệt không gỡ chốt.
     lockable: bool = True
+    # Ô thuộc NHIỀU loại nhập liệu (Kế hoạch năm): bỏ ô ngoài loại của tài khoản thay cho kiểm 1 loại.
+    restrict: Callable[[dict, dict], dict] | None = None
+    # Mốc trên của đợt chốt bị gỡ khi duyệt (None = mọi đợt từ ngày sửa sớm nhất trở đi).
+    unlock_until: Callable[[dict], str] | None = None
 
 
 def _registry() -> dict[str, Op]:
     # Import trong hàm: các module con import lại helper của module này.
     from app.services import edit_request_ops_contract as contract, edit_request_ops_daily as daily
-    from app.services import edit_request_ops_demand as demand
+    from app.services import edit_request_ops_demand as demand, edit_request_ops_plan as plan
 
-    return {**daily.OPS, **contract.OPS, **demand.OPS}
+    return {**daily.OPS, **contract.OPS, **demand.OPS, **plan.OPS}
 
 
 def get_op(key: str) -> Op:
@@ -153,6 +159,9 @@ def entry_type_of(op_key: str, clean: dict) -> str:
     """Loại nhập liệu của một đề nghị (payload đã chuẩn hoá)."""
     if op_key in ("daily_report", "daily_move"):
         return DAILY_KIND_ENTRY_TYPE[clean["kind"]]
+    if op_key == "year_plan":   # chỉ có ô kế hoạch THU MUA → Thu mua; còn lại Hợp đồng & tiêu thụ
+        fields = [k for k in clean if k not in ("year", "company", "kind")]
+        return PURCHASE if fields and all(plan_field_type(k) == PURCHASE for k in fields) else CONTRACT
     return _OP_TYPE[op_key]
 
 
@@ -186,7 +195,10 @@ def prepare(op_key: str, payload: Any, user: dict) -> dict[str, Any]:
     nghiệp vụ → câu chặn. Loại nhập liệu chỉ kiểm LÚC GỬI — Ban duyệt không bị ảnh hưởng."""
     op = get_op(op_key)
     clean = op.validate(payload)
-    assert_entry_type(user, entry_type_of(op_key, clean))
+    if op.restrict:
+        clean = op.restrict(user, clean)
+    else:
+        assert_entry_type(user, entry_type_of(op_key, clean))
     before = op.snapshot(clean)
     if op_key == "daily_report" and sales_locked(user, clean["kind"]):
         # Nội dung lưu chờ duyệt cũng mang ô tiêu thụ ĐANG LƯU, không phải số tài khoản gửi lên.

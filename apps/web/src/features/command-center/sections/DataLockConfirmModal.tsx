@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   type LockSummary, confirmLock, fetchLockSummary,
 } from "../../../lib/data-lock-client";
+import DataLockPlanBlock from "./DataLockPlanBlock";
 
 type Props = {
   company: string;
@@ -173,13 +174,16 @@ export default function DataLockConfirmModal({ company, roundId, readOnly, onClo
             <Kpi label="Doanh thu (tỷ đồng)" value={n3(c.revenue_ty)} />
           </Block>
 
+          {data.plan && <DataLockPlanBlock plan={data.plan} />}
+
           {!readOnly && (
             <div className="form-note" style={{ marginTop: 14, fontSize: 12.5 }}>
               Bấm <b>Xác nhận chốt số liệu</b> nghĩa là đơn vị xác nhận các con số trên đã đúng đến
               hết ngày <b>{dmy(data.lock_date)}</b>
               {!!data.merged_units?.length && <> (gồm cả đơn vị đã sáp nhập)</>}.
               Sau khi chốt, <b>đơn vị không sửa được số liệu
-              của những ngày này nữa</b> — cần điều chỉnh thì báo Ban TTKD để chuyên viên sửa hộ.
+              của những ngày này{data.plan ? <> và kế hoạch năm {data.plan.year}</> : null} nữa</b> — cần điều
+              chỉnh thì gửi «Đề nghị sửa» để Ban duyệt.
             </div>
           )}
           {data.round?.note && (

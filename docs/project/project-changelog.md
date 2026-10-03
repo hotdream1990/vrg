@@ -4,6 +4,17 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Chốt kế hoạch năm cùng đợt chốt số liệu + Đề nghị sửa kế hoạch năm** (03/10/2026).
+  - Đơn vị xác nhận chốt số liệu đến hết ngày X là chốt luôn **kế hoạch năm của năm X**. Bảng *Số liệu chốt*
+    có thêm khối **Kế hoạch năm (chốt cùng đợt)** để đơn vị rà chỉ tiêu trước khi bấm (chưa khai thì nhắc).
+  - Đã chốt thì màn **Kế hoạch năm** chuyển dòng đơn vị sang chỉ xem (nhãn *Đã chốt*); server chặn cả lưu
+    thẳng lẫn nhập Excel. Kế hoạch năm sau vẫn mở tới khi đơn vị chốt đợt đầu tiên của năm đó. Chuyên viên
+    Ban vẫn sửa thẳng như trước.
+  - **Đề nghị sửa kế hoạch năm** (loại mới `year_plan`): bấm *Đề nghị sửa* ở dòng → sửa số → *Gửi đề nghị*
+    kèm lý do; chỉ gửi ô đã đổi, ô ngoài loại nhập liệu của tài khoản bị bỏ (ô thu mua ↔ Thu mua, ô còn lại
+    ↔ Hợp đồng & tiêu thụ). Ban duyệt ở *Duyệt đề nghị sửa* (bảng Lúc gửi / Hiện tại / Đề nghị theo tên ô kế
+    hoạch); duyệt thì ghi số mới và gỡ xác nhận chốt của đơn vị ở các đợt **trong đúng năm đó** — đơn vị rà
+    và chốt lại; đợt của năm khác giữ nguyên.
 - **Quy trình điều chỉnh giá sàn 4 bước: Nháp → Dự thảo → Tờ trình → Áp dụng** (03/10/2026).
   - Màn *Gợi ý giá sàn → Quy trình giá sàn* (trước là "Bản nháp tờ trình"): mỗi bản có thanh bước, đi tới
     từng nấc; **trả về thẳng bước bất kỳ phía trước kèm lý do** (lãnh đạo không duyệt tờ trình → về Nháp sửa

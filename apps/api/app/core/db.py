@@ -498,7 +498,7 @@ CREATE INDEX IF NOT EXISTS ix_support_reminder_next ON support_reminder (enabled
 CREATE TABLE IF NOT EXISTS edit_request (
     id           bigserial PRIMARY KEY,
     company      text NOT NULL,
-    op           text NOT NULL,          -- daily_report | daily_move | demand_save | demand_delete | contract_save | contract_delete | contract_delivery_type
+    op           text NOT NULL,          -- daily_report | daily_move | demand_save | demand_delete | contract_save | contract_delete | contract_delivery_type | year_plan
     target_key   text NOT NULL,          -- khoá bản ghi bị sửa (chống trùng đề nghị đang chờ)
     title        text NOT NULL DEFAULT '',
     dates        jsonb NOT NULL DEFAULT '[]'::jsonb,   -- ngày số liệu bị ảnh hưởng

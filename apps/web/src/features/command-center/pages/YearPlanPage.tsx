@@ -3,41 +3,27 @@
    hợp đồng dài hạn…
    Đơn vị thành viên: chỉ đơn vị của mình · Chuyên viên có quyền `unit_daily`: mọi đơn vị.
    Tài khoản nhập liệu đơn vị chỉ sửa ô thuộc loại được giao: ô thu mua ↔ Thu mua, các ô còn lại ↔
-   Hợp đồng & tiêu thụ (server bỏ qua ô ngoài loại, giữ nguyên số đã lưu). */
+   Hợp đồng & tiêu thụ (server bỏ qua ô ngoài loại, giữ nguyên số đã lưu).
+   Kế hoạch CHỐT CÙNG ĐỢT chốt số liệu (03/10/2026): đơn vị đã chốt tới năm này thì ô chỉ xem, sửa
+   bằng «Đề nghị sửa» (mở dòng → sửa số → gửi; Ban duyệt mới ghi). Chuyên viên vẫn sửa thẳng. */
 
 import { ProfileOutlined } from "@ant-design/icons";
-import { Select, Spin, message } from "antd";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Select, Spin } from "antd";
+import { useMemo, useState } from "react";
 
 import { useAuth } from "../../auth/AuthContext";
 import { ENTRY_TYPE_LABEL, type EntryType } from "../../../lib/entry-types";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
-import { type Role, type YearPlanRow, fetchYearPlan, saveYearPlan } from "../../../lib/unit-daily-client";
+import type { Role, YearPlanRow } from "../../../lib/unit-daily-client";
 import { fmtNum } from "../../../lib/unit-daily-fields";
 import ExcelImportBar from "./components/ExcelImportBar";
+import YearPlanLockCell, { YearPlanLockBanner } from "./components/YearPlanLockCell";
 import { numInput } from "./unit-daily-inputs";
+import { PLAN_FIELDS, fieldEntryType } from "./year-plan-fields";
+import { useYearPlan } from "./useYearPlan";
 import "../../bulletin/bulletin.css";
 
 const YEARS = 6; // năm hiện tại + 2 năm trước/sau để chọn
-
-type PlanField = { key: keyof YearPlanRow; title: string; width: number };
-
-const PLAN_FIELDS: PlanField[] = [
-  // Khai thác = mủ từ vườn cây của chính đơn vị; thu mua = mua của dân → 2 chỉ tiêu riêng.
-  { key: "plan_exploit_tonnes", title: "Kế hoạch khai thác (tấn)", width: 220 },
-  { key: "plan_tonnes", title: "Kế hoạch thu mua (tấn)", width: 240 },
-  { key: "plan_goods_tonnes", title: "Kế hoạch hàng hóa — thành phẩm mua ngoài (tấn)", width: 240 },
-  { key: "plan_sales_spot_tonnes", title: "Kế hoạch tiêu thụ — HĐ chuyến (tấn)", width: 240 },
-  { key: "signed_lt_tonnes", title: "HĐ dài hạn đã ký (tấn)", width: 220 },
-  { key: "carry_lt_tonnes", title: "HĐ dài hạn 2025 chuyển sang (tấn)", width: 220 },
-  { key: "carry_spot_tonnes", title: "HĐ chuyến 2025 chuyển sang (tấn)", width: 220 },
-  // Ô TIỀN duy nhất của bảng — ghi rõ TỶ ĐỒNG ngay trên tiêu đề, cột còn lại đều là tấn nên không
-  // ghi thì chắc chắn có người nhập nhầm sang tấn.
-  { key: "plan_revenue_ty", title: "Kế hoạch doanh thu (tỷ đồng)", width: 220 },
-];
-
-/** Loại nhập liệu phụ trách từng ô (khớp backend `PUT /api/member/plan`). */
-const fieldEntryType = (key: keyof YearPlanRow): EntryType => (key === "plan_tonnes" ? "purchase" : "contract");
 
 export default function YearPlanPage() {
   const { user, isUnitAccount, canEditUnitData, canEditCap, hasEntryType } = useAuth();
@@ -53,44 +39,10 @@ export default function YearPlanPage() {
     ? (["purchase", "contract"] as EntryType[]).filter((t) => !hasEntryType(t)) : [];
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(thisYear);
-  const [units, setUnits] = useState<string[]>([]);
-  const [plans, setPlans] = useState<Record<string, YearPlanRow>>({});
-  const [loading, setLoading] = useState(false);
-  const [savingUnit, setSavingUnit] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    fetchYearPlan(role, year)
-      .then((d) => { setUnits(d.units); setPlans(d.plans ?? {}); })
-      .catch((e) => message.error(e.message))
-      .finally(() => setLoading(false));
-  }, [role, year]);
-  useEffect(() => { load(); }, [load]);
-
-  const EMPTY: YearPlanRow = { plan_exploit_tonnes: null, plan_tonnes: null, plan_goods_tonnes: null,
-    plan_sales_spot_tonnes: null,
-    signed_lt_tonnes: null, carry_lt_tonnes: null, carry_spot_tonnes: null,
-    plan_revenue_ty: null };
-
-  const rowOf = (u: string): YearPlanRow => plans[u] ?? EMPTY;
-
-  /** Sửa 1 ô trong nháp (chưa gọi API) — lưu khi rời ô. */
-  const setCell = (u: string, key: keyof YearPlanRow, v: number | null) =>
-    setPlans((p) => ({ ...p, [u]: { ...rowOf(u), [key]: v } }));
-
-  const save = async (u: string) => {
-    const r = rowOf(u);
-    setSavingUnit(u);
-    try {
-      await saveYearPlan(role, year, u, r);
-      message.success(`Đã lưu kế hoạch ${year} — ${u}`);
-    } catch (e) {
-      message.error((e as Error).message);
-      load(); // hỏng thì nạp lại số thật
-    } finally {
-      setSavingUnit(null);
-    }
-  };
+  const {
+    units, lockedUntil, requesting, setRequesting, loading, savingUnit, load, rowOf, setCell,
+    cellEditable, rowLocked, save, sendRequest, cancelRequest, anyLocked, modal,
+  } = useYearPlan(role, year, canEditField);
 
   const yearOpts = useMemo(
     () => Array.from({ length: YEARS }, (_, i) => thisYear - 2 + i).map((y) => ({ value: y, label: `Năm ${y}` })),
@@ -121,6 +73,7 @@ export default function YearPlanPage() {
       </div>
 
       <ReadOnlyNotice cap="unit_daily" />
+      {anyLocked && <YearPlanLockBanner year={year} lockedUntil={units.map((u) => lockedUntil[u]).find(Boolean) ?? null} />}
 
       <div className="blt-toolbar" style={{ marginBottom: 12 }}>
         <span style={{ fontSize: 13, color: "var(--muted)" }}>Năm:</span>
@@ -146,6 +99,7 @@ export default function YearPlanPage() {
                 {PLAN_FIELDS.map((f) => (
                   <th key={f.key} className="r" style={{ width: f.width }}>{f.title}</th>
                 ))}
+                {anyLocked && <th style={{ width: 210 }}>Chốt số liệu</th>}
               </tr>
             </thead>
             <tbody>
@@ -156,15 +110,23 @@ export default function YearPlanPage() {
                     <td>{i + 1}</td>
                     <td style={{ fontWeight: 500 }}>{u}</td>
                     {PLAN_FIELDS.map(({ key }) => (
-                      <td key={key} onBlur={() => canEditField(key) && save(u)}>
-                        {numInput(r[key], (v) => setCell(u, key, v), !canEditField(key))}
+                      <td key={key} onBlur={() => cellEditable(u, key) && save(u)}>
+                        {numInput(r[key], (v) => setCell(u, key, v), !cellEditable(u, key))}
                       </td>
                     ))}
+                    {anyLocked && (
+                      <td>
+                        <YearPlanLockCell locked={rowLocked(u)} lockedUntil={lockedUntil[u] ?? null}
+                          canRequest={canEdit} requesting={requesting === u} busy={savingUnit === u}
+                          onStart={() => setRequesting(u)} onSend={() => sendRequest(u)}
+                          onCancel={() => cancelRequest(u)} />
+                      </td>
+                    )}
                   </tr>
                 );
               })}
               {units.length === 0 && !loading && (
-                <tr><td colSpan={PLAN_FIELDS.length + 2}
+                <tr><td colSpan={PLAN_FIELDS.length + (anyLocked ? 3 : 2)}
                   style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                   Chưa có đơn vị nào.
                 </td></tr>
@@ -174,12 +136,14 @@ export default function YearPlanPage() {
                   <td />
                   <td>Tổng cộng</td>
                   {PLAN_FIELDS.map(({ key }) => <td key={key} className="r">{fmtNum(total(key), 3)}</td>)}
+                  {anyLocked && <td />}
                 </tr>
               )}
             </tbody>
           </table>
         </div>
       </Spin>
+      {modal}
     </div>
   );
 }

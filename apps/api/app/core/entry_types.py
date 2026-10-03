@@ -80,3 +80,23 @@ def assert_entry_type(user: dict, entry_type: str) -> None:
         label = ENTRY_TYPE_LABEL.get(entry_type, entry_type)
         raise HTTPException(403, f"Tài khoản không được giao nhập liệu {label} — "
                                  "liên hệ quản trị để được phân công.")
+
+
+# ── Kế hoạch năm: mỗi Ô thuộc một loại (một form chung cho cả hai loại) ──────────────────────────
+def plan_field_type(field: str) -> str:
+    """Ô Kế hoạch năm → loại phụ trách: kế hoạch THU MUA thuộc Thu mua; mọi ô còn lại (khai thác,
+    hàng hoá, HĐ dài hạn, chuyển sang, tiêu thụ chuyến, doanh thu) thuộc Hợp đồng & tiêu thụ."""
+    return PURCHASE if field == "plan_tonnes" else CONTRACT
+
+
+def plan_values_allowed(user: dict, values: dict) -> dict:
+    """Chỉ giữ ô Kế hoạch năm thuộc loại được giao; gửi ô mà không ô nào được phép → 403.
+
+    BỎ ô ngoài loại thay vì báo lỗi cả form: web gửi nguyên form Kế hoạch năm, chặn cứng thì tài
+    khoản chỉ có một loại không lưu nổi phần của mình. Ô bị bỏ = vắng mặt → `save_year_plan` giữ
+    nguyên số đang lưu. Dùng chung cho ghi thẳng (`PUT /api/member/plan`) và Đề nghị sửa.
+    """
+    keep = {k: v for k, v in values.items() if has_entry_type(user, plan_field_type(k))}
+    if values and not keep:
+        assert_entry_type(user, PURCHASE if "plan_tonnes" in values else CONTRACT)
+    return keep

@@ -11,6 +11,7 @@ import { labelDemandCodes } from "./market-demand-meta";
 import { SALE_DATES, SALE_DOCS } from "./unit-daily-consumption";
 import { CUP_PRICE_UNIT, LACE_PRICE_UNIT, LATEX_PRICE_UNIT } from "./purchase-price-unit";
 import { COLUMNS } from "./unit-daily-fields";
+import { PLAN_LABELS } from "../features/command-center/pages/year-plan-fields";
 
 type Obj = Record<string, unknown>;
 
@@ -78,6 +79,7 @@ const opLabels = (op: EditRequestOp): Record<string, string> => {
   if (isDailyOp(op)) return DAILY_LABELS;
   if (op.startsWith("contract_")) return CONTRACT_LABELS;
   if (op.startsWith("demand_")) return DEMAND_LABELS;
+  if (op === "year_plan") return PLAN_LABELS;
   return {};
 };
 
@@ -139,6 +141,11 @@ function project(req: Pick<EditRequest, "op" | "payload">, o: Obj | null, side: 
       return labelDemandCodes(side === "payload" ? p : pickKeys(o, p));
     case "demand_delete":
       return side === "payload" ? null : labelDemandCodes(o);
+    case "year_plan": {
+      // Chỉ so các ô kế hoạch có trong đề nghị (năm + đơn vị là khoá, không phải số liệu).
+      const { year: _y, company: _c, ...values } = p;
+      return side === "payload" ? values : pickKeys(o, values);
+    }
   }
 }
 
