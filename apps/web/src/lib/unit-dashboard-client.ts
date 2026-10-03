@@ -129,9 +129,11 @@ export type TargetsBlock = {
 
 /** HĐ dài hạn theo HĐ mẹ có cam kết — cả phạm vi. `expired_short`: cam kết CHƯA KÝ phụ lục của HĐ mẹ
  *  đã hết hạn (KHÔNG vào phải giao) · `unlinked_undelivered`: phụ lục dài hạn ngoài HĐDH có cam kết, đã ký
- *  chưa giao · `remaining_after_year`: phần còn lại thuộc HĐ mẹ còn hiệu lực sau 31/12 / không thời hạn. */
+ *  chưa giao · `missing_master_undelivered`: HĐ dài hạn chưa gán HĐ mẹ (lỗi dữ liệu) ·
+ *  `remaining_after_year`: phần còn lại thuộc HĐ mẹ còn hiệu lực sau 31/12 / không thời hạn. */
 export type OutlookLt = { committed: Num; delivered: Num; remaining: Num; pct: Num; masters: Num;
-                          expired_short: Num; unlinked_undelivered: Num; remaining_after_year: Num };
+                          expired_short: Num; unlinked_undelivered: Num; missing_master_undelivered: Num;
+                          remaining_after_year: Num };
 
 /** Còn phải giao đến cuối năm — cả phạm vi.
  *  to_deliver = spot_undelivered + principle_undelivered + lt_remaining + unknown_undelivered. */
@@ -170,7 +172,7 @@ export type OutlookBlock = {
   scope: ScopeInfo; year: number; as_of: string;
   lt?: Partial<OutlookLt>; backlog?: Partial<OutlookBacklog>;
   volume?: Partial<OutlookVolume>; revenue?: Partial<OutlookRevenue>;
-  breakdown?: OutlookBreakdownRow[]; items?: BacklogItem[]; warnings?: string[];
+  breakdown?: OutlookBreakdownRow[]; items?: BacklogItem[]; warnings?: string[]; critical_errors?: string[];
 };
 
 /** Tham số chung của các endpoint số liệu. `asOf` rỗng = server tự lấy ngày gần nhất đã đủ đơn vị

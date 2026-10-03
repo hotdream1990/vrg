@@ -153,6 +153,20 @@ def test_unit_outlook_lists_master_contracts(env):
     assert item["expired"] is False
 
 
+def test_outlook_marks_long_term_contract_without_master_as_critical(env):
+    # UI hiện tại đã chặn lỗi này; giả lập bản ghi cũ nhập trước hàng rào để kiểm cảnh báo rà dữ liệu.
+    with session_scope() as db:
+        db.execute(text("UPDATE sales_contract SET master_id = NULL "
+                        "WHERE company = :c AND code = 'OL-A-PL-2'"), {"c": UNIT_A})
+
+    d = _get(env, "region", REGION)
+    assert d["lt"]["missing_master_undelivered"] == pytest.approx(50)
+    assert d["backlog"]["lt_remaining"] == pytest.approx(250)
+    assert len(d["critical_errors"]) == 1
+    assert "OL-A-PL-2" in d["critical_errors"][0]
+    assert "50,0 tấn" in d["critical_errors"][0]
+
+
 def test_bad_price_blocks_revenue_pct(env):
     # Nhập 56.200 ở ô triệu đ/tấn (gõ theo đồng/kg) — doanh thu đội lên 1.000 lần.
     _contract(env, UNIT_A, "OL-A-BAD", 10, 56200, delivered=True)

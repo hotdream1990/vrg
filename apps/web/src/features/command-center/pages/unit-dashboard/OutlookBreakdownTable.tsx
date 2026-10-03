@@ -47,7 +47,7 @@ const GROUPS: Group[] = [
     { label: "% thực hiện", title: "Đã giao / cam kết của các HĐDH",
       cell: (r) => <MiniPct pct={r.lt_pct} /> },
   ] },
-  { label: "Sản lượng cả năm (tấn)", cols: [
+  { label: "Sản lượng đã giao + tồn giao (tấn)", cols: [
     { label: "HĐ chuyến chưa giao", title: "HĐ chuyến đã ký, chưa giao hết",
       cell: (r) => fmtTon(r.spot_undelivered) },
     { label: "HĐNT chưa giao", title: "Phụ lục HĐ nguyên tắc đã ký, chưa giao hết",
@@ -56,11 +56,11 @@ const GROUPS: Group[] = [
       cell: (r) => fmtTon(r.backlog_lt_remaining) },
     { label: "Còn phải giao", title: "HĐ chuyến + HĐNT + HĐ dài hạn còn phải giao (+ HĐ chưa khai loại)",
       cell: (r) => fmtTon(r.to_deliver) },
-    { label: "Bán cả năm", title: "Dự kiến = đã giao lũy kế + còn phải giao; dòng có KH ghi số của các đơn vị có KH (tử số của % KH)",
+    { label: "Sau khi giao hết", title: "Đã giao lũy kế + toàn bộ còn phải giao; dòng có KH ghi số của các đơn vị có KH (tử số của % KH)",
       cell: (r) => <BasketCell basket={r.qty_basket_projected} whole={r.projected} fmt={fmtTon} /> },
     { label: "KH (KT + TM + HH)", title: "KH bán hàng = KH khai thác (KT) + KH thu mua (TM) + KH hàng hóa (HH)",
       cell: (r) => <PlanCell r={r} /> },
-    { label: "% KH", title: "Bán cả năm (dự kiến) / KH bán hàng",
+    { label: "% KH", title: "Sản lượng sau khi giao hết / KH bán hàng năm",
       cell: (r) => <MiniPct pct={r.qty_pct} /> },
   ] },
   { label: "Doanh thu (tỷ đồng)", cols: [

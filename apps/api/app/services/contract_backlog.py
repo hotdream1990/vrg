@@ -46,7 +46,8 @@ _BUCKET = {"spot": "spot_undelivered", "principle": "principle_undelivered",
 
 def _empty() -> dict[str, Any]:
     return {"spot_undelivered": 0.0, "principle_undelivered": 0.0,
-            "lt_unlinked_undelivered": 0.0, "unknown_undelivered": 0.0,
+            "lt_unlinked_undelivered": 0.0, "lt_missing_master_undelivered": 0.0,
+            "lt_missing_master_items": [], "unknown_undelivered": 0.0,
             "master_committed": 0.0, "master_delivered": 0.0, "master_remaining": 0.0,
             "master_expired_short": 0.0, "master_remaining_after_year": 0.0,
             "masters": 0, "master_pct": None,
@@ -161,7 +162,16 @@ def backlog_on(as_of: str, companies: list[str] | None = None,
                 annex_open[mid] = annex_open.get(mid, 0.0) + it["remaining"]
                 continue
             key = _BUCKET.get(it.get("contract_group") or "", "unknown_undelivered")
-            out.setdefault(company, _empty())[key] += it["remaining"]
+            acc = out.setdefault(company, _empty())
+            acc[key] += it["remaining"]
+            # HĐ loại dài hạn mà không có HĐ mẹ là lỗi dữ liệu: không thể đối chiếu lượng đã ký
+            # với cam kết HĐDH. Vẫn cộng vào nghĩa vụ giao để không làm mất số, nhưng tách riêng
+            # để Dashboard báo đỏ và đơn vị phải xử lý.
+            if key == "lt_unlinked_undelivered" and mid is None:
+                acc["lt_missing_master_undelivered"] += it["remaining"]
+                acc["lt_missing_master_items"].append({
+                    "id": it["id"], "code": it["code"], "remaining": it["remaining"],
+                })
 
     day = date.fromisoformat(as_of)
     for m in masters:

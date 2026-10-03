@@ -5,6 +5,7 @@
    (thiếu tỷ giá, đơn giá sai đơn vị tính…) → `note` server tô cảnh báo. */
 
 import type { ReactNode } from "react";
+import { Alert } from "antd";
 
 import type { OutlookBlock } from "../../../../lib/unit-dashboard-client";
 import { differsNotably, fmtTon, fmtTons, fmtTy, isPositive } from "./dashboard-format";
@@ -47,6 +48,16 @@ function PlanProgress({ plan, pct, note, noPlan }: { plan: Num; pct: Num; note?:
 
 function LtPanel({ data }: { data: OutlookBlock }) {
   const lt = data.lt ?? {};
+  const backlog = data.backlog ?? {};
+  const otherLongTerm = (backlog.lt_remaining ?? 0) - (lt.remaining ?? 0) - (lt.missing_master_undelivered ?? 0);
+  const longTermTerms = [{ label: "Cam kết HĐDH còn lại", value: fmtTon(lt.remaining) }];
+  if (isPositive(lt.missing_master_undelivered)) {
+    longTermTerms.push({ label: "HĐ dài hạn chưa gán HĐ mẹ", value: fmtTon(lt.missing_master_undelivered) });
+  }
+  if (otherLongTerm > 1e-9) {
+    longTermTerms.push({ label: "HĐ dài hạn ngoài cam kết HĐDH", value: fmtTon(otherLongTerm) });
+  }
+  longTermTerms.push({ label: "Tổng dài hạn còn phải giao", value: fmtTon(backlog.lt_remaining) });
   const has = isPositive(lt.committed);
   return (
     <Panel title="HĐ dài hạn (HĐDH)" tag={has ? `${count(lt.masters)} HĐDH có cam kết` : undefined}>
@@ -63,8 +74,14 @@ function LtPanel({ data }: { data: OutlookBlock }) {
           {lt.pct == null
             ? <div className="ud-muted ud-small">Chưa tính được tỷ lệ thực hiện.</div>
             : <PctProgress pct={lt.pct} />}
-          <div className="ud-ol-figure">Còn phải giao theo HĐDH <b>{fmtTons(lt.remaining)}</b></div>
         </>
+      )}
+      {(isPositive(lt.remaining) || isPositive(lt.unlinked_undelivered) || isPositive(backlog.lt_remaining)) && (
+        <MiniEquation unit="tấn" lead="Cơ cấu dài hạn còn phải giao" terms={longTermTerms} />
+      )}
+      {isPositive(lt.missing_master_undelivered) && (
+        <Alert type="error" showIcon className="ud-ol-critical"
+          title={`${fmtTons(lt.missing_master_undelivered)} HĐ dài hạn đã ký chưa giao chưa gán HĐ mẹ — cần xử lý dữ liệu.`} />
       )}
       {isPositive(lt.remaining_after_year) && (
         <div className="ud-muted ud-small">
@@ -78,12 +95,6 @@ function LtPanel({ data }: { data: OutlookBlock }) {
           (phụ lục đã ký vẫn tính).
         </div>
       )}
-      {isPositive(lt.unlinked_undelivered) && (
-        <div className="ud-muted ud-small">
-          “HĐ dài hạn còn phải giao” gồm thêm {fmtTons(lt.unlinked_undelivered)} phụ lục dài hạn
-          ngoài HĐDH có cam kết, đã ký chưa giao.
-        </div>
-      )}
     </Panel>
   );
 }
@@ -94,7 +105,7 @@ function VolumePanel({ data, single }: Props) {
   return (
     <Panel title="So kế hoạch bán hàng" tag={basketTag(single, v.units_planned)}>
       <div className="ud-ol-figure">
-        Bán cả năm (dự kiến) <b>{fmtTon(single ? v.projected : v.basket_projected)}</b> / KH <b>{fmtTon(v.plan_total)}</b> tấn
+        SL sau khi giao hết <b>{fmtTon(single ? v.projected : v.basket_projected)}</b> / KH <b>{fmtTon(v.plan_total)}</b> tấn
       </div>
       <PlanProgress
         plan={v.plan_total} pct={v.pct} note={v.note}

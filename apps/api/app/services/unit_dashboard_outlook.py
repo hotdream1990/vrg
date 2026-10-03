@@ -27,6 +27,26 @@ from app.services import unit_report_consumption as con
 from app.services import unit_report_purchase as pur
 from app.services.unit_dashboard_outlook_calc import aggregate, label_fn, unit_metrics
 from app.services.unit_report_query import region_of_units, split_csv, year_plan_by_group
+from app.services.weekly_ai_compose import vn
+
+_MAX_CODES_IN_ALERT = 5
+
+
+def _missing_master_errors(back: dict[str, dict[str, Any]]) -> list[str]:
+    """Cảnh báo lỗi NGHIÊM TRỌNG: HĐ dài hạn đã ký nhưng chưa gán HĐ mẹ.
+
+    Không gộp với trường hợp HĐ đã có HĐ mẹ nhưng hồ sơ mẹ không được tính vì hết hạn/không có
+    cam kết; chỉ `master_id is None` mới là lỗi người dùng cần gán lại.
+    """
+    entries = [(company, item) for company, value in back.items()
+               for item in value.get("lt_missing_master_items") or []]
+    if not entries:
+        return []
+    total = sum(float(item["remaining"] or 0) for _, item in entries)
+    shown = ", ".join(f"{company}: {item['code']}" for company, item in entries[:_MAX_CODES_IN_ALERT])
+    more = f" và {len(entries) - _MAX_CODES_IN_ALERT} HĐ khác" if len(entries) > _MAX_CODES_IN_ALERT else ""
+    return [f"LỖI DỮ LIỆU: {len(entries)} HĐ dài hạn đã ký chưa giao ({vn(total)} tấn) chưa gán HĐ mẹ "
+            f"— cần gán lại để đối chiếu cam kết HĐDH. HĐ: {shown}{more}."]
 
 
 def outlook_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any]:
@@ -56,7 +76,7 @@ def outlook_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any
         "scope": sc["public"], "year": year, "as_of": as_of,
         "lt": {k: whole[f"lt_{k}"] for k in ("committed", "delivered", "remaining", "pct",
                                              "masters", "expired_short", "unlinked_undelivered",
-                                             "remaining_after_year")},
+                                             "missing_master_undelivered", "remaining_after_year")},
         # `lt_remaining` ở đây = HĐDH còn lại + phụ lục dài hạn ngoài HĐDH có cam kết đã ký chưa giao;
         # ở khối `lt` chỉ là HĐDH.
         # `principle_undelivered` = phụ lục/hợp đồng thuộc HĐ nguyên tắc đã ký chưa giao (01/10/2026).
@@ -81,6 +101,7 @@ def outlook_block(sc: dict[str, Any], date_to: str, today: str) -> dict[str, Any
         "items": (back.get(sc["public"]["key"]) or {}).get("items") or []
         if sc["public"]["scope"] == "unit" else [],
         "warnings": [w] if (w := whole["bad_price_warning"]) else [],
+        "critical_errors": _missing_master_errors(back),
     }
 
 

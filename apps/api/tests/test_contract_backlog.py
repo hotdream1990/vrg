@@ -89,6 +89,8 @@ def test_chia_chuyen_dai_han_khong_dem_trung() -> None:
     b = _bl()
     assert (b["spot_undelivered"], b["lt_unlinked_undelivered"], b["unknown_undelivered"]) == (
         pytest.approx(100), pytest.approx(50), pytest.approx(30))
+    assert b["lt_missing_master_undelivered"] == pytest.approx(50)
+    assert [(i["code"], i["remaining"]) for i in b["lt_missing_master_items"]] == [("DH-LE", 50)]
     assert b["master_committed"] == pytest.approx(1000)
     assert b["master_delivered"] == pytest.approx(300)
     # 700 = cam kết − đã giao; PL-2 (200) nằm TRONG 700 chứ không cộng thêm → không đếm trùng.
