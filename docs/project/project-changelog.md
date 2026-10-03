@@ -37,7 +37,9 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 ### Changed
 - **Sơ đồ vận hành hiện lại đủ 4 tab khu** (03/10/2026): bỏ `hidden: true` của *Vít tải ngang · Hầm sấy ·
   Đóng gói* trong bố cục Phú Riềng. Số sống vẫn MỘT truy vấn/5 giây cho cả nhà máy (~205 tag, dưới giới
-  hạn 8 KB của OPENQUERY). Thanh điện + ô tiêu thụ trong ngày vẫn tắt (`SHOW_POWER_AND_USAGE`).
+  hạn 8 KB của OPENQUERY). Bật lại luôn thanh điện tổng + ô "Tiêu thụ trong ngày" (`SHOW_POWER_AND_USAGE`):
+  Khu mủ vào vẽ bảng trong khung (`usage_box`), 3 khu kia hiện ô trên trang. Đưa vào khai thác trước; 3 khu
+  mở lại vẫn là bản vẽ v1, chưa vẽ lại sát màn RELCO như Khu mủ vào.
 
 ### Fixed
 - **Tách nhóm HĐ nguyên tắc (HĐNT) khỏi HĐ chuyến / HĐ dài hạn trên mọi báo cáo** (01/10/2026).

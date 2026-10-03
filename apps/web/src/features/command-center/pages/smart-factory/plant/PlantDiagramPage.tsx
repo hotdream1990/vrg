@@ -23,9 +23,9 @@ import { usePlantFactories, usePlantLayout } from "./use-plant-setup";
 import "./plant.css";
 
 const AREA_PARAM = "khu";
-/** Tạm ẩn theo yêu cầu 01/10/2026: thanh điện + ô/bảng "Tiêu thụ trong ngày" (cả trên trang lẫn `usage_box`
- *  trong khung). Ẩn = không dựng component → không gọi /meters/daily. Bật lại: đổi thành true. */
-const SHOW_POWER_AND_USAGE = false;
+/** Thanh điện + ô/bảng "Tiêu thụ trong ngày" (cả trên trang lẫn `usage_box` trong khung) — ẩn từ 01/10/2026,
+ *  bật lại 03/10/2026. Tắt (false) = không dựng component → không gọi /meters/daily. */
+const SHOW_POWER_AND_USAGE = true;
 
 const RetryButton = ({ onClick }: { onClick: () => void }) => (
   <Button size="small" icon={<ReloadOutlined />} onClick={onClick}>Thử lại</Button>

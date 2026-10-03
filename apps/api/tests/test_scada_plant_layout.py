@@ -152,7 +152,7 @@ def test_khu_mu_vao_follows_relco_screen() -> None:
     for i, (na, ra) in enumerate(rects):  # chữ không đè chữ (nhãn+ô số · °C · badge · mũi tên · bảng)
         assert _in(area, *ra[:2]) and _in(area, ra[0] + ra[2], ra[1] + ra[3]), na
         assert [nb for nb, rb in rects[i + 1:] if not _apart(ra, rb)] == [], na
-    for n in area["nodes"]:  # vùng bảng tiêu thụ (web tạm tắt, sẽ bật lại) không có thiết bị
+    for n in area["nodes"]:  # vùng bảng tiêu thụ không có thiết bị
         r = max(n["w"], n["h"]) / 2  # hình vuông bao cả khi xoay
         assert _apart((n["x"] + n["w"] / 2 - r, n["y"] + n["h"] / 2 - r, 2 * r, 2 * r), rects[-1][1])
 
