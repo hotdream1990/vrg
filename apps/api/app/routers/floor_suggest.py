@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
-from app.services import floor_suggest, to_trinh, to_trinh_html
+from app.services import floor_draft_service, floor_suggest, to_trinh
 
 router = APIRouter(prefix="/api/floor-suggest", tags=["floor-suggest"])
 
@@ -78,7 +78,7 @@ def to_trinh_doc(
     model: str = _MODEL,
 ) -> HTMLResponse:
     """Sinh TỜ TRÌNH giá sàn (HTML A4) từ đề xuất mô hình + dữ liệu thị trường — để preview & in."""
-    return HTMLResponse(to_trinh_html.render(to_trinh.build(as_of, model)))
+    return HTMLResponse(floor_draft_service.render_built(to_trinh.build(as_of, model)))
 
 
 @router.get("/to-trinh/data")

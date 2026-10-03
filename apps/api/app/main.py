@@ -25,6 +25,7 @@ from app.routers import (
     config,
     customers,
     floor,
+    floor_draft_flow,
     floor_proposal,
     floor_suggest,
     health,
@@ -126,8 +127,9 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    # Web đọc header này để biết 403 là do hàng rào thời gian → mời gửi «Đề nghị sửa».
-    expose_headers=["X-Edit-Blocked"],
+    # Web đọc header này để biết 403 là do hàng rào thời gian → mời gửi «Đề nghị sửa»;
+    # Content-Disposition: tên tệp tải về (hình dự thảo, tờ trình) khi web khác cổng với API.
+    expose_headers=["X-Edit-Blocked", "Content-Disposition"],
 )
 
 
@@ -191,6 +193,7 @@ app.include_router(floor.router, dependencies=_hq_only)
 app.include_router(floor_suggest.router, dependencies=[Depends(require_cap("floor_suggest"))])
 # Phương án giá sàn nháp (chỉ tính, không lưu) + bản nháp tờ trình — router tự gác quyền từng endpoint.
 app.include_router(floor_proposal.router, dependencies=_hq_only)
+app.include_router(floor_draft_flow.router, dependencies=_hq_only)  # Nháp → Dự thảo → Tờ trình → Áp dụng
 app.include_router(member_unit.router, dependencies=_hq_only)
 app.include_router(member_region.router, dependencies=_hq_only)
 app.include_router(member_self.router, dependencies=_protected)  # đơn vị thành viên tự nhập giá của mình

@@ -4,6 +4,24 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Quy trình điều chỉnh giá sàn 4 bước: Nháp → Dự thảo → Tờ trình → Áp dụng** (03/10/2026).
+  - Màn *Gợi ý giá sàn → Quy trình giá sàn* (trước là "Bản nháp tờ trình"): mỗi bản có thanh bước, chuyển
+    tới/lui một nấc. Mỗi phần chỉ sửa ở đúng bước (server chặn): **Nháp** chỉnh số · **Dự thảo** chốt số,
+    nhập tỷ giá VCB · **Tờ trình** soạn nội dung. **Áp dụng** có trong quy trình nhưng **chưa làm** — chưa
+    ghi biểu giá sàn chính thức, không áp ngược.
+  - Ô sửa được trong bảng phương án (cả ở Trợ lý AI) nay **có viền như ô nhập** — nhận ra ngay chỗ sửa.
+  - **Hình "DỰ THẢO GIÁ SÀN ĐIỀU CHỈNH"** như bảng Excel Ban TTKD vẫn gửi (giá cũ / điều chỉnh / +/- cho FOB và
+    VNĐ, dòng tỷ giá VCB mua CK): **Chép hình** dán thẳng Zalo/email, hoặc tải PNG. Nút "Lấy từ VCB" điền tỷ giá.
+  - **Tờ trình theo mẫu mới** (Tờ trình 54/TTr-TTKD lần 22 ngày 24/9/2026): số tờ trình, mục I (bảng sàn
+    kỳ hạn + dòng nguồn + đoạn theo từng sàn có nhãn đậm-nghiêng), mục II (bảng vật chất + ghi chú + diễn
+    giải), cung – cầu, dòng tồn kho tự lấy 2 tuần gần nhất, câu kính trình, bảng giá dự kiến, người ký (sửa
+    được). Xuất **PDF** và **Word (.docx)**; mẫu mới thay mẫu cũ ở mọi chỗ xem trước tờ trình.
+  - **AI soạn nội dung tờ trình** (như Báo cáo tuần): đọc bảng số của bản nháp, phương án và CHIỀU điều
+    chỉnh, tồn kho, báo cáo tuần đã lưu gần nhất, tin vietnambiz quanh ngày tờ trình → viết dòng nguồn, đoạn
+    từng sàn, mục II, cung – cầu; bắt buộc lập luận cùng chiều phương án. Không tự lưu. Cảnh báo kèm theo: số
+    không đối chiếu được, từ tuyệt đối/tiếng Anh, câu nói giá sàn ngược chiều; số phương án đổi sau lần AI
+    soạn thì nhắc soạn lại.
+  - Thêm phụ thuộc `python-docx` (xuất Word). Kế hoạch + hợp đồng API: `plans/261003-quy-trinh-gia-san/`.
 - **Nguồn tiêu thụ của lần giao: Khai thác / Thu mua** (03/10/2026).
   - Lần giao nay ghi rõ hàng bán ra là mủ **khai thác** (vườn cây của đơn vị) hay mủ **thu mua**. Ô
     *Nguồn tiêu thụ* nằm cạnh *Hình thức tiêu thụ*: hợp đồng giao 1 lần khai trên chính hợp đồng, giao

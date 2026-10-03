@@ -8,6 +8,7 @@ import type { ColumnsType } from "antd/es/table";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { STAGE_COLOR, STAGE_LABEL, type Stage } from "../../../lib/floor-draft-flow-client";
 import {
   DRAFT_SOURCE_LABEL, type DraftSource, type DraftSummary, createDraft, deleteDraft, draftPath, listDrafts,
 } from "../../../lib/floor-proposal-client";
@@ -73,6 +74,10 @@ export default function FloorDraftListPage() {
       title: "Tiêu đề", dataIndex: "title", ellipsis: true, width: 280,
       render: (v: string, r) => <Link to={draftPath(r.id)}>{v || `Bản nháp #${r.id}`}</Link>,
     },
+    {
+      title: "Bước", dataIndex: "stage", width: 100,
+      render: (v: Stage) => <Tag color={STAGE_COLOR[v] ?? "default"}>{STAGE_LABEL[v] ?? v}</Tag>,
+    },
     { title: "Ngày tờ trình", dataIndex: "as_of", width: 120, render: (v: string) => dmy(v) },
     { title: "Lần", dataIndex: "lan", width: 64, align: "center" },
     { title: "Mức nổi bật", dataIndex: "headline", width: 220, ellipsis: true,
@@ -106,9 +111,10 @@ export default function FloorDraftListPage() {
     <div className="main">
       <div className="page-title">
         <div>
-          <h2><FormOutlined style={{ marginRight: 8 }} />Bản nháp tờ trình giá sàn</h2>
-          <p>Các phương án giá sàn đã lưu để sửa tiếp (số + đoạn diễn giải) và in tờ trình. Bản nháp không ghi vào
-            biểu giá sàn chính thức.</p>
+          <h2><FormOutlined style={{ marginRight: 8 }} />Quy trình giá sàn</h2>
+          <p>Mỗi bản đi qua 4 bước: <b>Nháp</b> (chỉnh số) → <b>Dự thảo</b> (chốt số, chép hình dự thảo) →{" "}
+            <b>Tờ trình</b> (soạn nội dung, AI, xuất Word/PDF) → <b>Áp dụng</b> (sắp có). Không ghi vào biểu giá sàn
+            chính thức.</p>
         </div>
       </div>
       <ReadOnlyNotice cap="floor_suggest" />
@@ -132,7 +138,7 @@ export default function FloorDraftListPage() {
       <div className="card" style={{ marginTop: 12 }}>
         <Table<DraftSummary>
           rowKey="id" size="small" columns={columns} dataSource={data.items} loading={loading}
-          scroll={{ x: 1280 }}
+          scroll={{ x: 1380 }}
           pagination={{
             current: page, pageSize: PAGE_SIZE, total: data.total, showSizeChanger: false,
             onChange: setPage,

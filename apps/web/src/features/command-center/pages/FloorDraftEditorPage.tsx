@@ -1,23 +1,26 @@
-/* Soạn Bản nháp tờ trình giá sàn: sửa tay tiêu đề · ghi chú · phương án (mục 3) · 2 khối diễn giải
-   (mục 1 thị trường kỳ hạn, mục 2 vật chất + tồn kho) → lưu · xem trước/in PDF · xoá.
-   Không ghi biểu giá sàn chính thức. Lãnh đạo Tập đoàn chỉ xem. */
+/* Bản nháp giá sàn theo quy trình 4 bước: Nháp (chỉnh số) → Dự thảo (chốt số · chép hình dự thảo) →
+   Tờ trình (soạn nội dung · AI · xuất Word/PDF theo mẫu mới) → Áp dụng (có trong quy trình, chưa làm).
+   Mỗi phần chỉ sửa ở đúng bước của nó (server chặn). Không ghi biểu giá sàn chính thức.
+   Lãnh đạo Tập đoàn chỉ xem/tải. */
 
-import {
-  ArrowLeftOutlined, DeleteOutlined, EyeOutlined, FormOutlined, SaveOutlined,
-} from "@ant-design/icons";
-import { Alert, App, Button, Input, Popconfirm, Spin, Tag } from "antd";
+import { ArrowLeftOutlined, DeleteOutlined, FormOutlined, SaveOutlined } from "@ant-design/icons";
+import { Alert, App, Button, Collapse, Input, Popconfirm, Spin, Tag } from "antd";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { STAGE_COLOR, STAGE_LABEL, type Stage } from "../../../lib/floor-draft-flow-client";
 import { DRAFT_LIST_PATH, DRAFT_SOURCE_LABEL } from "../../../lib/floor-proposal-client";
 import { dmy, stampVN } from "../../../lib/date";
 import { ApiError } from "../../../lib/http";
 import { useAuth } from "../../auth/AuthContext";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import { useUnsavedGuard } from "../unsaved-guard";
-import FloorDraftNarrative from "./components/FloorDraftNarrative";
+import DuThaoPanel from "./components/DuThaoPanel";
+import FloorDraftSteps from "./components/FloorDraftSteps";
 import FloorProposalPanel from "./components/FloorProposalPanel";
+import ToTrinhPanel from "./components/ToTrinhPanel";
 import ToTrinhPreview from "./components/ToTrinhPreview";
+import "./floor-draft.css";
 import { useFloorDraft } from "./useFloorDraft";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : "Có lỗi xảy ra, vui lòng thử lại.");
@@ -30,10 +33,10 @@ export default function FloorDraftEditorPage() {
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
   const canEdit = canEditCap("floor_suggest");
-  const {
-    draft, form, dirty, loading, saving, err, applier, patch, save, remove, reload, previewHtml,
-  } = useFloorDraft(id);
+  const { draft, form, dirty, loading, saving, err, applier, patch, save, ensureSaved, move, remove, reload, previewHtml } =
+    useFloorDraft(id);
   const [preview, setPreview] = useState(false);
+  const [moving, setMoving] = useState(false);
   // Đang có thay đổi chưa lưu → menu / đăng xuất / đóng tab đều hỏi lại (nút Back trình duyệt thì không).
   const leaveGuard = useUnsavedGuard(dirty);
 
@@ -48,50 +51,51 @@ export default function FloorDraftEditorPage() {
       },
     });
   };
+  const fail = (e: unknown) => {
+    if (e instanceof ApiError && e.status === 409) askReloadOnConflict(e.message);
+    else message.error(errText(e));
+  };
 
   const doSave = async () => {
     if (!form) return;
     if (!form.title.trim()) { message.warning("Nhập tiêu đề bản nháp trước khi lưu."); return; }
-    try {
-      await save();
-      message.success("Đã lưu bản nháp.");
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 409) askReloadOnConflict(e.message);
-      else message.error(errText(e));
-    }
+    try { await save(); message.success("Đã lưu bản nháp."); } catch (e) { fail(e); }
+  };
+
+  const doMove = async (to: Stage) => {
+    setMoving(true);
+    try { await move(to); message.success(`Đã chuyển sang bước ${STAGE_LABEL[to]}.`); } catch (e) { fail(e); }
+    finally { setMoving(false); }
   };
 
   const doDelete = async () => {
-    try {
-      await remove();
-      message.success("Đã xoá bản nháp.");
-      navigate(DRAFT_LIST_PATH);
-    } catch (e) {
-      message.error(errText(e));
-    }
+    try { await remove(); message.success("Đã xoá bản nháp."); navigate(DRAFT_LIST_PATH); } catch (e) { message.error(errText(e)); }
   };
-
-  const back = () => leaveGuard(() => navigate(DRAFT_LIST_PATH));
 
   if (loading) return <div className="main" style={{ padding: 32, textAlign: "center" }}><Spin /></div>;
   if (err || !draft || !form) {
     return (
       <div className="main">
-        <Alert type="error" showIcon message={err || "Không tìm thấy bản nháp."} style={{ marginBottom: 12 }} />
+        <Alert type="error" showIcon title={err || "Không tìm thấy bản nháp."} style={{ marginBottom: 12 }} />
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(DRAFT_LIST_PATH)}>Về danh sách bản nháp</Button>
       </div>
     );
   }
 
-  const readOnly = !canEdit;
+  const stage = draft.stage;
+  const locked = !canEdit || stage === "ap_dung";
+  const proposalPanel = (
+    <FloorProposalPanel proposal={form.proposal} applier={applier} readOnly={locked || stage !== "nhap"} />
+  );
 
   return (
     <div className="main">
       <div className="page-title">
         <div>
-          <h2><FormOutlined style={{ marginRight: 8 }} />Bản nháp tờ trình giá sàn</h2>
+          <h2><FormOutlined style={{ marginRight: 8 }} />Quy trình giá sàn — {form.title || `Bản nháp #${draft.id}`}</h2>
           <p>
             Ngày tờ trình <b>{dmy(draft.as_of)}</b> · Lần {draft.doc?.lan ?? "—"} ·{" "}
+            <Tag color={STAGE_COLOR[stage]} style={{ marginInlineEnd: 4 }}>{STAGE_LABEL[stage]}</Tag>
             <Tag style={{ marginInlineEnd: 4 }}>{DRAFT_SOURCE_LABEL[draft.source] ?? draft.source}</Tag>
             · Sửa lần cuối: {draft.updated_by ?? draft.created_by ?? "—"} lúc {stampVN(draft.updated_at)}
           </p>
@@ -99,62 +103,70 @@ export default function FloorDraftEditorPage() {
       </div>
       <ReadOnlyNotice cap="floor_suggest" />
 
-      <div className="card" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={back}>Danh sách</Button>
-        {!readOnly && (
-          // Không khoá theo `dirty`: ô vừa gõ chỉ được áp khi blur (lúc bấm nút) — khoá nút là cú bấm
-          // đầu tiên bị nuốt vì nút còn khoá ở thời điểm blur. Lưu luôn chờ hàng đợi áp số rảnh.
-          <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={doSave}>
-            Lưu
-          </Button>
+      <FloorDraftSteps stage={stage} canEdit={!locked} busy={moving || saving} onMove={doMove} />
+
+      <div className="card fd-toolbar">
+        <Button icon={<ArrowLeftOutlined />} onClick={() => leaveGuard(() => navigate(DRAFT_LIST_PATH))}>Danh sách</Button>
+        {!locked && (
+          // Không khoá theo `dirty`: ô vừa gõ chỉ được áp khi blur (lúc bấm nút) — khoá nút là cú bấm đầu bị nuốt.
+          <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={doSave}>Lưu</Button>
         )}
-        <Button icon={<EyeOutlined />} onClick={() => setPreview(true)}>Xem trước / In PDF</Button>
         {dirty && <Tag color="warning">Có thay đổi chưa lưu</Tag>}
-        {!readOnly && (
+        {!locked && (
           <Popconfirm title="Xoá bản nháp này?" description="Bản nháp đã xoá không khôi phục được."
             okText="Xoá" cancelText="Huỷ" okButtonProps={{ danger: true }} onConfirm={doDelete}>
             <Button danger icon={<DeleteOutlined />} style={{ marginLeft: "auto" }}>Xoá</Button>
           </Popconfirm>
         )}
-        <div className="form-note" style={{ fontSize: 12.5, width: "100%" }}>
-          Bản nháp không ghi vào biểu giá sàn chính thức. Số thị trường ở mục 1–2 là ảnh chụp lúc tạo bản nháp.
+        <div className="fd-grid" style={{ width: "100%" }}>
+          <label>
+            <span style={LABEL}>Tiêu đề</span>
+            <Input value={form.title} readOnly={locked} maxLength={200} onChange={(e) => patch({ title: e.target.value })} />
+          </label>
+          <label>
+            <span style={LABEL}>Ghi chú nội bộ (không in lên tờ trình)</span>
+            <Input.TextArea value={form.note} readOnly={locked} maxLength={4000} autoSize={{ minRows: 1, maxRows: 5 }}
+              onChange={(e) => patch({ note: e.target.value })} />
+          </label>
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 12, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(min(300px, 100%), 1fr))" }}>
-        <label>
-          <span style={LABEL}>Tiêu đề</span>
-          <Input value={form.title} readOnly={readOnly} maxLength={200}
-            onChange={(e) => patch({ title: e.target.value })} />
-        </label>
-        <label>
-          <span style={LABEL}>Ghi chú nội bộ (không in lên tờ trình)</span>
-          <Input.TextArea value={form.note} readOnly={readOnly} maxLength={4000} autoSize={{ minRows: 1, maxRows: 5 }}
-            onChange={(e) => patch({ note: e.target.value })} />
-        </label>
-      </div>
+      {stage === "nhap" ? (
+        <div className="card">
+          <div className="card-head" style={{ marginBottom: 6 }}><h3 style={{ margin: 0 }}>Phương án giá sàn</h3></div>
+          {proposalPanel}
+          <div className="form-note" style={{ fontSize: 12.5, marginTop: 8 }}>
+            Chỉnh xong bấm <b>Chốt dự thảo</b> để khoá số và lấy hình dự thảo. Cần sửa lại số thì trả về bước Nháp.
+          </div>
+        </div>
+      ) : (
+        <Collapse className="fd-collapse" items={[{
+          key: "p", label: "Phương án giá sàn (đã chốt — trả về bước Nháp để sửa số)", children: proposalPanel,
+        }]} />
+      )}
 
-      <div className="card" style={{ marginTop: 12 }}>
-        <div className="card-head" style={{ marginBottom: 6 }}><h3 style={{ margin: 0 }}>Mục 3 — Phương án giá sàn</h3></div>
-        <FloorProposalPanel proposal={form.proposal} applier={applier} readOnly={readOnly} />
-      </div>
+      {stage === "du_thao" && (
+        <DuThaoPanel draftId={id} version={draft.updated_at} sheet={form.sheet} dirty={dirty}
+          editable={!locked} ensureSaved={ensureSaved} onSheet={(sheet) => patch({ sheet })} />
+      )}
+      {(stage === "to_trinh" || stage === "ap_dung") && (
+        <Collapse className="fd-collapse" items={[{
+          key: "d", label: "Hình dự thảo giá sàn điều chỉnh",
+          children: <DuThaoPanel draftId={id} version={draft.updated_at} sheet={form.sheet} dirty={dirty}
+            editable={false} ensureSaved={ensureSaved} onSheet={() => undefined} />,
+        }]} />
+      )}
 
-      <div style={{ marginTop: 12, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(min(360px, 100%), 1fr))" }}>
-        <FloorDraftNarrative title="Mục 1 — Diễn giải thị trường kỳ hạn" readOnly={readOnly}
-          hint="Mỗi ô là một đoạn in dưới bảng giá các sàn. Ô để trống sẽ bị bỏ khi lưu."
-          paragraphs={form.n1} onChange={(n1) => patch({ n1 })} />
-        <FloorDraftNarrative title="Mục 2 — Diễn giải thị trường vật chất và tồn kho" readOnly={readOnly}
-          hint="Mỗi ô là một đoạn in dưới bảng giá physical. Ô để trống sẽ bị bỏ khi lưu."
-          paragraphs={form.n2} onChange={(n2) => patch({ n2 })} />
-      </div>
+      {(stage === "to_trinh" || stage === "ap_dung") && form.memo && (
+        <ToTrinhPanel draftId={id} sig={draft.sig} memo={form.memo} editable={!locked && stage === "to_trinh"}
+          ensureSaved={ensureSaved} onMemo={(memo) => patch({ memo })} onPreview={() => setPreview(true)} />
+      )}
 
       {preview && (
         <ToTrinhPreview
           title={`Xem trước Tờ trình giá sàn — ${form.title || dmy(draft.as_of)}${dirty ? " (gồm thay đổi chưa lưu)" : ""}`}
           load={previewHtml}
-          extraActions={!readOnly && dirty && (
-            <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={doSave}>Lưu</Button>
-          )}
+          extraActions={!locked && dirty && <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={doSave}>Lưu</Button>}
           onClose={() => setPreview(false)}
         />
       )}

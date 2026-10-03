@@ -109,7 +109,9 @@ export function ProposalNumCell({ value, prev, readOnly, syncKey, onCommit }: Nu
       onBlur={readOnly ? undefined : commit}
       onKeyDown={readOnly ? undefined : onKeyDown}
     >
-      <NumInput value={val} onChange={setVal} readOnly={readOnly} prevValue={prev} />
+      {/* Ô sửa được có viền (fd-box-input) để người dùng nhận ra ngay; chỉ xem thì giữ chữ trơn. */}
+      <NumInput value={val} onChange={setVal} readOnly={readOnly} prevValue={prev}
+        className={readOnly ? undefined : "blt-cell-input fd-box-input"} />
     </span>
   );
 }

@@ -4,6 +4,7 @@
    `log[].before`) cùng thay đổi người dùng muốn, rồi thay bằng bản server trả về. */
 
 import { authHeaders, onUnauthorized } from "./auth-token";
+import type { Memo, Sheet, Stage, StageMove } from "./floor-draft-flow-client";
 import type { FloorModel } from "./floor-suggest-client";
 import { API, apiFetch } from "./http";
 
@@ -57,16 +58,21 @@ export type DraftDoc = {
 export type Draft = {
   id: number; as_of: string; title: string; note: string | null; source: DraftSource;
   proposal: Proposal; doc: DraftDoc;
+  stage: Stage; sheet: Sheet | null; memo: Memo | null; history: StageMove[];
+  sig: string;                // chữ ký số phương án — khác memo.ai.sig ⇒ số đã đổi sau khi AI soạn
   created_by: string | null; updated_by: string | null; created_at: string; updated_at: string;
 };
-export type DraftSummary = Omit<Draft, "proposal" | "doc" | "note"> & { lan: number; headline: string };
+export type DraftSummary = Omit<Draft, "proposal" | "doc" | "note" | "sheet" | "memo" | "history" | "sig">
+  & { lan: number; headline: string };
 export type DraftPage = { items: DraftSummary[]; total: number; page: number; page_size: number };
 
 export type DraftCreate = {
   title?: string; note?: string; source?: DraftSource; proposal?: Proposal; as_of?: string; model?: FloorModel;
 };
 export type DraftUpdate = {
-  title: string; note?: string | null; proposal: Proposal; n1: string[]; n2: string[];
+  title: string; note?: string | null; proposal: Proposal;
+  n1?: string[]; n2?: string[];   // diễn giải kiểu cũ — không gửi = giữ nguyên
+  sheet?: Sheet; memo?: Memo;     // chỉ sửa được ở đúng bước (server chặn)
   /** `updated_at` của bản đang sửa — người khác đã lưu sau mốc này thì server trả 409, không lưu đè. */
   base_updated_at?: string;
 };
@@ -109,7 +115,7 @@ export const applyProposal = (proposal: Proposal, changes: ProposalChange[], by:
 
 /** Tờ trình dựng từ phương án đang sửa (kể cả thay đổi chưa lưu). `draft_id` → dùng ảnh chụp số
  *  thị trường của bản nháp thay vì số hôm nay. */
-export const previewProposalHtml = (body: { proposal: Proposal; n1?: string[]; n2?: string[]; draft_id?: number }) =>
+export const previewProposalHtml = (body: { proposal: Proposal; n1?: string[]; n2?: string[]; memo?: Memo; draft_id?: number }) =>
   fetchHtml("/api/floor-proposal/preview", jsonInit("POST", body));
 
 /* ── Bản nháp tờ trình (ghi DB) ───────────────────────────────────────────────────────────── */

@@ -88,7 +88,7 @@ const ITEM = {
   statStock: { key: "/thong-ke/ton-kho", icon: <InboxOutlined />, label: "Thống kê tồn kho" },
   statConsumption: { key: "/thong-ke/tieu-thu", icon: <ExportOutlined />, label: "Thống kê tiêu thụ" },
   floorSuggest: { key: "/goi-y-gia-san", icon: <BulbOutlined />, label: "Gợi ý giá sàn" },
-  floorDrafts: { key: "/goi-y-gia-san/ban-nhap", icon: <FormOutlined />, label: "Bản nháp tờ trình" },
+  floorDrafts: { key: "/goi-y-gia-san/ban-nhap", icon: <FormOutlined />, label: "Quy trình giá sàn" },
   bulletinDaily: { key: "/ban-tin", icon: <FileTextOutlined />, label: "Bản tin ngày" },
   bulletinWeekly: { key: "/ban-tin/tuan", icon: <FileDoneOutlined />, label: "Báo cáo tuần" },
   marketMovement: { key: "/ban-tin-bien-dong", icon: <LineChartOutlined />, label: "Bản tin biến động" },

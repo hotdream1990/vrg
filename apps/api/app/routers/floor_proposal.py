@@ -15,6 +15,7 @@ from app.schemas.floor_proposal import (
 )
 from app.services import floor_draft_repo as repo
 from app.services import floor_draft_service as svc
+from app.services import floor_draft_stage as st
 from app.services import floor_proposal as fp
 from app.services import floor_proposal_ops as ops
 
@@ -69,7 +70,8 @@ def preview(body: PreviewProposal, username: str = Depends(_ANY)) -> HTMLRespons
         doc = draft["doc"]
     else:
         doc = svc.market_doc(prop["as_of"])
-    return HTMLResponse(svc.render(prop, doc, clean_paragraphs(body.n1), clean_paragraphs(body.n2)))
+    memo = body.memo.model_dump(exclude_unset=True) if body.memo else None
+    return HTMLResponse(svc.render(prop, doc, clean_paragraphs(body.n1), clean_paragraphs(body.n2), memo))
 
 
 @router.get("/drafts")
@@ -93,7 +95,7 @@ def get_draft(draft_id: int, _: str = Depends(require_cap("floor_suggest"))) -> 
 @router.get("/drafts/{draft_id}/html", response_class=HTMLResponse)
 def draft_html(draft_id: int, _: str = Depends(require_cap("floor_suggest"))) -> HTMLResponse:
     d = _draft_or_404(draft_id)
-    return HTMLResponse(svc.render(d["proposal"], d["doc"]))
+    return HTMLResponse(svc.render(d["proposal"], d["doc"], memo=d.get("memo")))
 
 
 @router.post("/drafts", status_code=201)
@@ -110,9 +112,11 @@ def update_draft(draft_id: int, body: UpdateDraft,
                  username: str = Depends(require_cap_edit("floor_suggest"))) -> dict:
     try:
         saved = svc.update(draft_id, title=body.title, note=body.note, proposal=body.proposal,
-                           n1=clean_paragraphs(body.n1) or [], n2=clean_paragraphs(body.n2) or [],
+                           n1=clean_paragraphs(body.n1), n2=clean_paragraphs(body.n2),
+                           sheet=body.sheet.model_dump(exclude_unset=True) if body.sheet else None,
+                           memo=body.memo.model_dump(exclude_unset=True) if body.memo else None,
                            username=username, base_updated_at=body.base_updated_at)
-    except fp.ProposalError as exc:
+    except (fp.ProposalError, st.StageError) as exc:
         raise _bad(exc) from exc
     except svc.DraftConflict as exc:
         raise HTTPException(409, str(exc)) from exc

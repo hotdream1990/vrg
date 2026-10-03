@@ -23,6 +23,7 @@ dependencies = [
     "openpyxl>=3.1",
     "pymssql>=2.3",
     "cryptography>=49",  # Web Push (RFC 8291 + VAPID); vốn có sẵn qua pdfminer
+    "python-docx>=1.1",  # xuất Word tờ trình giá sàn (to_trinh_docx)
 ]
 
 [tool.uv]

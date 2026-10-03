@@ -119,7 +119,7 @@ def _physical(db, t2, t1) -> list[dict]:
     return out
 
 
-def _narrative(settlement: list[dict], physical: list[dict], t1=None) -> dict:
+def default_narrative(settlement: list[dict], physical: list[dict], t1=None) -> dict:
     """Câu nhận định CHỈ nói đúng những gì số liệu có.
 
     Ô nào không có phiên đúng ngày t1 thì ghi rõ "(phiên dd/mm)"; ô không có phiên trước để so
@@ -181,7 +181,7 @@ def build_market(as_of: str) -> dict[str, Any]:
     return {"as_of": as_of, "year": year, "lan": lan, "prev_lan": lan - 1,
             "t1": str(t1) if t1 else None, "t2": str(t2) if t2 else None,
             "settlement": settlement, "physical": physical,
-            **_narrative(settlement, physical, t1)}
+            **default_narrative(settlement, physical, t1)}
 
 
 def build(as_of: str, model: str = fs.DEFAULT_MODEL) -> dict[str, Any]:

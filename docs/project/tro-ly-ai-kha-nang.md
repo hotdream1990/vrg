@@ -319,6 +319,8 @@ trình → lưu bản nháp, sửa tay và lưu lại. **Không** đụng biểu
 - **Bản nháp tờ trình** (`floor_draft`, quyền `floor_suggest`): lưu phương án + **ảnh chụp** khối 1–2
   (số thị trường, lần thứ) lúc tạo; sửa được số + đoạn diễn giải + tiêu đề/ghi chú; ngày tờ trình cố định.
   Diễn giải sửa tay được escape khi in HTML. Tạo từ chat, từ màn Gợi ý giá sàn, hoặc tạo mới.
+  Từ 03/10/2026 bản nháp đi theo quy trình **Nháp → Dự thảo → Tờ trình → Áp dụng** (màn "Quy trình giá
+  sàn"); AI soạn nội dung tờ trình ở bước Tờ trình — xem `plans/261003-quy-trinh-gia-san/plan.md`.
 
 ## Cập nhật 25/09/2026 (0.4.89) — kiểm thử trên prod + hàng rào "nói mà không làm"
 - **Kiểm trên prod 0.4.88 (LLM thật, số thật):** tư vấn giá sàn, tăng/giảm/đặt/chặn ở mức Chỉ tra số, bản

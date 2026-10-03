@@ -12,6 +12,7 @@ import { FLOOR_MODELS } from "../../../../lib/floor-suggest-client";
 import { DeltaText, GradeCell, OriginTag, ProposalNumCell, fmtVi } from "./FloorProposalCells";
 import type { ProposalApplier } from "./useProposalApply";
 import "../../../bulletin/bulletin.css";
+import "../floor-draft.css";
 
 type Props = {
   proposal: Proposal;

@@ -281,7 +281,7 @@ def row_line(row: dict, with_model: bool = True) -> str:
 
 def to_trinh_rows(prop: dict) -> list[dict]:
     """Dòng khối 3 tờ trình (Giá dự kiến + (+/-) so lần trước) từ phương án."""
-    return [{"grade": r["label"], "fob": r.get("fob"), "fob_delta": r.get("fob_delta"),
+    return [{"key": r["grade"], "grade": r["label"], "fob": r.get("fob"), "fob_delta": r.get("fob_delta"),
              "vnd": r.get("vnd"), "vnd_delta": r.get("vnd_delta")} for r in prop["rows"]]
 
 

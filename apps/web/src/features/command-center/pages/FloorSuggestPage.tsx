@@ -159,7 +159,7 @@ export default function FloorSuggestPage() {
           </span>
         ) : null}
         <Button icon={<FormOutlined />} style={{ marginLeft: "auto" }} onClick={() => navigate(DRAFT_LIST_PATH)}>
-          Bản nháp tờ trình
+          Quy trình giá sàn
         </Button>
         <button
           onClick={() => setShowToTrinh(true)}
