@@ -21,6 +21,11 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
   - 0.4.106: service worker đăng ký kèm số phiên bản (`/sw.js?v=…`) — Cloudflare ghi đè `no-cache` của
     server thành "trình duyệt giữ 4 giờ", nên bản sửa thông báo sau này phải tới máy người dùng ngay.
 
+### Changed
+- **Sơ đồ vận hành hiện lại đủ 4 tab khu** (03/10/2026): bỏ `hidden: true` của *Vít tải ngang · Hầm sấy ·
+  Đóng gói* trong bố cục Phú Riềng. Số sống vẫn MỘT truy vấn/5 giây cho cả nhà máy (~205 tag, dưới giới
+  hạn 8 KB của OPENQUERY). Thanh điện + ô tiêu thụ trong ngày vẫn tắt (`SHOW_POWER_AND_USAGE`).
+
 ### Fixed
 - **Tách nhóm HĐ nguyên tắc (HĐNT) khỏi HĐ chuyến / HĐ dài hạn trên mọi báo cáo** (01/10/2026).
   - Phản ánh của Cao su Dầu Tiếng Việt Lào: đơn vị chỉ có 3 HĐNT với Camel, không có HĐDH. Thế nhưng

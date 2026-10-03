@@ -19,8 +19,7 @@ REAL_TAGS: dict[str, str] = json.loads(
 LAYOUT = plant.get_layout("phu_rieng")
 KINDS = {"mixer", "conveyor", "screw", "crusher", "tank", "pump", "fan", "zone", "motor", "counter"}
 DECOR = {"basin", "pipe", "arrow_text", "badge"}
-AREAS = ["khu-mu-vao", "vit-tai-ngang", "ham-say", "dong-goi"]
-HIDDEN = AREAS[1:]  # v2 01/10/2026: chỉ hiện Khu mủ vào, 3 khu kia GIỮ dữ liệu
+AREAS = ["khu-mu-vao", "vit-tai-ngang", "ham-say", "dong-goi"]  # 03/10/2026: bật lại cả 4 khu
 POWER = ["PM - VoltAB", "PM - VoltBC", "PM - VoltCA", "PM - CurrentA", "PM - CurrentB",
          "PM - CurrentC", "PM - Power"]
 #: Tag không thuộc sơ đồ: chỉ số ngày (điện lũy kế · nước) + điện áp pha (hợp đồng chỉ lấy dây).
@@ -68,9 +67,8 @@ def _text_rects(area: dict) -> list[tuple[str, tuple]]:
 
 def test_areas_order_power_and_frame() -> None:
     assert [a["key"] for a in LAYOUT["areas"]] == AREAS
-    assert [a["key"] for a in LAYOUT["areas"] if a.get("hidden") is True] == HIDDEN
-    assert [a["key"] for a in plant.visible_areas(LAYOUT)] == ["khu-mu-vao"]
-    assert all(plant.find_area(LAYOUT, k) is None for k in HIDDEN)  # khu ẩn = không có
+    assert [a["key"] for a in plant.visible_areas(LAYOUT)] == AREAS  # không còn khu ẩn
+    assert all(plant.find_area(LAYOUT, k) is not None for k in AREAS)
     assert [p["tag"] for p in LAYOUT["power"]] == POWER
     assert [p["unit"] for p in LAYOUT["power"]] == ["V"] * 3 + ["A"] * 3 + ["kW"]
     for a in LAYOUT["areas"]:
@@ -163,19 +161,20 @@ def test_area_tags_adds_power_dedupes_and_hidden_or_unknown_area_is_none() -> No
     tags = plant.area_tags(LAYOUT, "khu-mu-vao")
     assert tags[-len(POWER):] == POWER and "C3T1 - Upper Left Temperture" in tags
     assert len({t.lower() for t in tags}) == len(tags)
-    assert plant.area_tags(LAYOUT, "khong-co") is None and plant.area_tags(LAYOUT, "dong-goi") is None
+    assert plant.area_tags(LAYOUT, "khong-co") is None and "RobotTotalCount" in plant.area_tags(LAYOUT, "dong-goi")
     fake = {"power": [{"tag": "A"}], "areas": [{"key": "k", "nodes": [
         {"metrics": [{"tag": "A"}, {"tag": "b"}], "status_tag": "B", "temps": []}]},
         {"key": "h", "hidden": True, "nodes": [{"metrics": [{"tag": "Z"}], "temps": []}]}]}
     assert plant.area_tags(fake, "k") == ["A", "b"] == plant.all_tags(fake) and not plant.area_tags(fake, "h")
-    every = plant.all_tags(LAYOUT)  # khu ẩn: không đọc tag, không gửi web, dữ liệu file giữ nguyên
-    assert every == plant.area_tags(LAYOUT, "khu-mu-vao")  # chỉ còn 1 khu hiện
-    hidden = {t.lower() for a in LAYOUT["areas"] if a.get("hidden") for t in _area_node_tags(a)}
-    assert hidden and not hidden & {t.lower() for t in every}
-    assert "Z01 - Champer Temperature" not in every and "RobotTotalCount" not in every
-    pub = plant.public_layout(LAYOUT)
+    every = plant.all_tags(LAYOUT)  # mọi khu đều hiện → đọc tag của cả 4 khu trong MỘT truy vấn
+    for a in AREAS:
+        assert set(plant.area_tags(LAYOUT, a)) <= set(every), a
+    assert "Z01 - Champer Temperature" in every and "RobotTotalCount" in every
+    hidden = {**LAYOUT, "areas": [{**a, "hidden": a["key"] != "khu-mu-vao"} for a in LAYOUT["areas"]]}
+    assert plant.all_tags(hidden) == plant.area_tags(LAYOUT, "khu-mu-vao")  # khu ẩn: không đọc tag
+    pub = plant.public_layout(hidden)
     assert [a["key"] for a in pub["areas"]] == ["khu-mu-vao"] and pub["power"] == LAYOUT["power"]
-    assert len(LAYOUT["areas"]) == 4  # bản sao — dict dùng chung trong cache không bị sửa
+    assert len(hidden["areas"]) == 4  # bản sao — dict gốc không bị sửa
 
 
 def test_plant_query_fits_openquery_limit() -> None:

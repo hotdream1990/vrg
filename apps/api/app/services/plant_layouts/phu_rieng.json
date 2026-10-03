@@ -59,7 +59,7 @@
       "links": []
     },
     {
-      "key": "vit-tai-ngang", "label": "Vít tải ngang", "hidden": true, "width": 1800, "height": 900,
+      "key": "vit-tai-ngang", "label": "Vít tải ngang", "width": 1800, "height": 900,
       "nodes": [
         {"id": "VTN", "kind": "screw", "x": 165, "y": 316, "w": 470, "h": 28, "angle": 0, "label": "VTN", "label_pos": "top", "metrics": [{"key": "hz", "tag": "VTN - Frequence", "unit": "Hz"}, {"key": "a", "tag": "VTN - Current", "unit": "A"}], "status_tag": "VTN - Running Status", "temps": []},
         {"id": "C3T2", "kind": "crusher", "x": 660, "y": 260, "w": 150, "h": 150, "angle": 0, "label": "C3T2", "label_pos": "top", "metrics": [{"key": "hz", "tag": "C3T2 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "C3T2 - Current", "unit": "A"}], "status_tag": "C3T2 - Running Status", "temps": [{"label": "Trên trái", "tag": "C3T2 - Upper Left Temperature"}, {"label": "Trên phải", "tag": "C3T2 - Upper Right Temperature"}, {"label": "Dưới trái", "tag": "C3T2 - Lower Left Temperature"}, {"label": "Dưới phải", "tag": "C3T2 - Lower Right Temperature"}]},
@@ -83,7 +83,7 @@
       "links": [["VTN", "C3T2"], ["C3T2", "BTCS4"], ["BTCS4", "CCS3"], ["CCS3", "BTCS5"], ["BTCS5", "CCS4"], ["BTCS6", "CCS5"], ["CCS5", "BTCS7"], ["BTCS7", "CC2"], ["CC2", "BC2"]]
     },
     {
-      "key": "ham-say", "label": "Hầm sấy", "hidden": true, "width": 1800, "height": 900,
+      "key": "ham-say", "label": "Hầm sấy", "width": 1800, "height": 900,
       "nodes": [
         {"id": "TKMM1", "kind": "mixer", "x": 200, "y": 110, "w": 100, "h": 100, "angle": 0, "label": "TKMM1", "label_pos": "top", "metrics": [{"key": "hz", "tag": "TKMM1 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "TKMM1 - Current", "unit": "A"}], "status_tag": "TKMM1 - Running Status", "temps": []},
         {"id": "TKMM2", "kind": "mixer", "x": 340, "y": 110, "w": 100, "h": 100, "angle": 0, "label": "TKMM2", "label_pos": "top", "metrics": [{"key": "hz", "tag": "TKMM2 - Frequence", "unit": "Hz"}, {"key": "a", "tag": "TKMM2 - Current", "unit": "A"}], "status_tag": "TKMM2 - Running Status", "temps": []},
@@ -126,7 +126,7 @@
       "links": [["TKMM1", "TKMM2"], ["TKMM2", "BTCLM1"], ["BTCLM1", "BTCLM2"], ["BTCLM2", "BTCLM3"], ["BTCLM3", "BTCLM4"], ["XDT", "Z01"]]
     },
     {
-      "key": "dong-goi", "label": "Đóng gói", "hidden": true, "width": 1200, "height": 450,
+      "key": "dong-goi", "label": "Đóng gói", "width": 1200, "height": 450,
       "nodes": [
         {"id": "SR", "kind": "motor", "x": 150, "y": 170, "w": 120, "h": 120, "angle": 0, "label": "SR", "label_pos": "top", "metrics": [{"key": "hz", "tag": "SR- Frequence", "unit": "Hz"}, {"key": "a", "tag": "SR - Current", "unit": "A"}], "status_tag": "SR - Running Status", "temps": []},
         {"id": "RobotTotalCount", "kind": "counter", "x": 600, "y": 150, "w": 300, "h": 160, "angle": 0, "label": "Số bành", "label_pos": "top", "metrics": [{"key": "count", "tag": "RobotTotalCount", "unit": "bành"}], "status_tag": null, "temps": []}

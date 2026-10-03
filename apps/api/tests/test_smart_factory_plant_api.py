@@ -71,9 +71,9 @@ def test_layout_endpoint_and_404s(admin_h) -> None:
     assert res.status_code == 200, res.text
     out = res.json()
     assert out["factory"] == {"id": f["id"], "name": f["name"]}
-    # Chỉ khu đang hiện (3 khu `hidden` giữ trong file, không gửi web).
+    # Chỉ khu đang hiện (khu `hidden` giữ trong file, không gửi web) — hiện cả 4 khu.
     assert out["layout"]["key"] == "phu_rieng" and len(out["layout"]["power"]) == 7
-    assert [a["key"] for a in out["layout"]["areas"]] == ["khu-mu-vao"]
+    assert [a["key"] for a in out["layout"]["areas"]] == ["khu-mu-vao", "vit-tai-ngang", "ham-say", "dong-goi"]
     assert all("hidden" not in a for a in out["layout"]["areas"])
     plain = _factory(admin_h, name="_zz_sf Không sơ đồ")
     off = _factory(admin_h, name="_zz_sf Tắt", layout_key="phu_rieng", enabled=False)
@@ -113,14 +113,15 @@ def test_live_values_rounding_and_cache_per_area(admin_h, monkeypatch) -> None:
     assert v["PM - Power"]["value"] == 200.7
     assert v["CM1 - Main Left Temperature"] == {"value": None, "at": None}
     _, tags, minutes = calls[0]
-    # MỘT truy vấn cho mọi khu ĐANG HIỆN; khu ẩn (hầm sấy, đóng gói…) không đọc.
-    assert minutes == 1 and set(v) == set(tags)
-    assert "Z01 - Champer Temperature" not in tags and "RobotTotalCount" not in tags
+    # MỘT truy vấn cho mọi khu ĐANG HIỆN (cả hầm sấy, đóng gói…), web chỉ nhận tag của khu đang mở.
+    assert minutes == 1 and set(v) < set(tags)
+    assert "Z01 - Champer Temperature" in tags and "RobotTotalCount" in tags
 
     client.get(LIVE_URL, params=q, headers=h)
     assert len(calls) == 1  # cache 5 giây dùng chung
-    for hidden in ("vit-tai-ngang", "ham-say", "dong-goi"):  # khu ẩn = không có, không chạm SCADA
-        assert client.get(LIVE_URL, params={**q, "area": hidden}, headers=h).status_code == 404
+    for other in ("vit-tai-ngang", "ham-say", "dong-goi"):  # khu khác: lấy từ cùng lần đọc (cache)
+        res = client.get(LIVE_URL, params={**q, "area": other}, headers=h)
+        assert res.status_code == 200 and res.json()["area"] == other
     assert len(calls) == 1
     clock[0] += 5.1
     client.get(LIVE_URL, params=q, headers=h)
