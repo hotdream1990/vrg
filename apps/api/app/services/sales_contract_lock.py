@@ -15,6 +15,7 @@ Quyền xem/sửa theo đơn vị vẫn kiểm riêng ở `_assert_company` — 
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 #: Ô LÀM DỊCH SỐ ĐÃ BÁO CÁO — đổi bất kỳ ô nào ở đây thì vẫn bị chặn khi đã chốt.
@@ -56,6 +57,21 @@ EDITABLE_WHEN_LOCKED: tuple[tuple[str, str], ...] = (
 
 #: Câu liệt kê cho người dùng (dùng trong thông báo lỗi).
 EDITABLE_LABELS: str = " · ".join(label for _, label in EDITABLE_WHEN_LOCKED)
+
+#: ĐƠN VỊ TỰ SỬA NGUỒN TIÊU THỤ của lần giao đã khoá — mở CÓ HẠN, hết ngày này tự khoá lại
+#: (chủ dự án chốt 05/10/2026). Lần giao nhập trước khi có ô nguồn đều được gán "Khai thác", đơn vị
+#: phải rà lại cả những lần quá cửa sổ sửa / đã chốt; đi «Đề nghị sửa» thì Ban duyệt từng lần giao.
+#: Đổi nguồn không đổi tổng sản lượng hay doanh thu, chỉ đổi cách chia — nên mở một đường RIÊNG
+#: (`PUT /{id}/source`) thay vì nới `STAT_FIELDS`: đường lưu chung vẫn giữ nguyên hàng rào, và quá
+#: hạn là `source` lại như mọi ô số liệu khác.
+SOURCE_SELF_EDIT_UNTIL = date(2026, 10, 8)
+
+
+def source_self_edit_open() -> bool:
+    """Còn trong hạn đơn vị tự sửa nguồn không (tính theo giờ Việt Nam, hết NGÀY hạn mới đóng)."""
+    from app.core import edit_window
+
+    return edit_window.today() <= SOURCE_SELF_EDIT_UNTIL
 
 
 def _num(v: Any) -> float | None:

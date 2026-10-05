@@ -22,7 +22,7 @@ export default function ConsumptionCompanyTable({ rep, meta, companies, totals, 
   const ch = (c: string, k: string) => rows[c]?.by_channel?.[k] ?? 0;
   const src = (c: string, k: string) => rows[c]?.by_source?.[k] ?? 0;
   const unknownCol = !!backlog && backlog.unknown > 0;
-  const cols = (bl ? 14 : 11) + (unknownCol ? 1 : 0);
+  const cols = (bl ? 15 : 12) + (unknownCol ? 1 : 0);
 
   return (
     <div className="card table-scroll" style={{ padding: 0 }}>
@@ -34,9 +34,10 @@ export default function ConsumptionCompanyTable({ rep, meta, companies, totals, 
           <th className="r">{meta?.channels.export ?? "Xuất khẩu"}</th>
           <th className="r">{meta?.channels.domestic ?? "Trong nước"}</th>
           <th className="r">{meta?.channels.internal ?? "Nội bộ"}</th>
-          {/* Cùng tổng với 3 cột hình thức, cắt theo chiều khác: hàng từ mủ khai thác hay thu mua. */}
+          {/* Cùng tổng với 3 cột hình thức, cắt theo chiều khác: hàng từ mủ khai thác, thu mua hay hàng hóa. */}
           <th className="r">Nguồn {(meta?.sources?.exploit ?? "Khai thác").toLowerCase()}</th>
           <th className="r">Nguồn {(meta?.sources?.purchase ?? "Thu mua").toLowerCase()}</th>
+          <th className="r">Nguồn {(meta?.sources?.goods ?? "Hàng hóa cao su").toLowerCase()}</th>
           <th className="r">Doanh thu (tỷ đ)</th>
           {bl ? (
             <>
@@ -60,6 +61,7 @@ export default function ConsumptionCompanyTable({ rep, meta, companies, totals, 
               <td className="r">{t3(ch(c, "internal"))}</td>
               <td className="r">{t3(src(c, "exploit"))}</td>
               <td className="r">{t3(src(c, "purchase"))}</td>
+              <td className="r">{t3(src(c, "goods"))}</td>
               <td className="r">{ty(rows[c]?.revenue ?? null)}</td>
               {bl ? (
                 <>
@@ -95,6 +97,7 @@ export default function ConsumptionCompanyTable({ rep, meta, companies, totals, 
               <td className="r">{t3(totals.channels.internal)}</td>
               <td className="r">{t3(totals.sources.exploit)}</td>
               <td className="r">{t3(totals.sources.purchase)}</td>
+              <td className="r">{t3(totals.sources.goods)}</td>
               <td className="r">{ty(totals.revenue)}</td>
               {backlog ? (
                 <>

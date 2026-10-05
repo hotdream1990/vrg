@@ -26,6 +26,7 @@ import { useAuth } from "../../../auth/AuthContext";
 import ContractBatchTable, { Docs } from "./ContractBatchTable";
 import ContractCompleteModal from "./ContractCompleteModal";
 import ContractFormModal from "./ContractFormModal";
+import SourceQuickEdit from "./SourceQuickEdit";
 import { lineAmount } from "./ContractLinesTable";
 import {
   contractDeleteDraft, contractDeliveryTypeDraft, deleteConfirmText,
@@ -257,6 +258,8 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                     <>
                       {canEdit && (
                         <div className="blt-toolbar" style={{ marginBottom: 10 }}>
+                          {/* Nút tự ẩn khi hợp đồng chưa có lần giao (giao nhiều lần / chưa giao) hoặc hết hạn. */}
+                          <SourceQuickEdit c={c} meta={meta} onSaved={refresh} />
                           {/* HĐ giao-1-lần ĐÃ GIAO chính là một lần giao → cũng nằm trong cửa sổ sửa. */}
                           {locked(c.delivered_at) ? (
                             <>
@@ -370,7 +373,8 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                       <ContractBatchTable rows={d.children} meta={meta} canEdit={canEdit && !done}
                         locked={locked} canRequest={canRequest}
                         onEdit={(k, request) => setForm({ initial: k, request })}
-                        onDelete={(k, request) => remove(k, request)} />
+                        onDelete={(k, request) => remove(k, request)}
+                        onSourceSaved={canEdit ? refresh : undefined} />
                     </>
                   ),
                 }] : []),

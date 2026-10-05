@@ -49,6 +49,7 @@ CONSUMPTION_COLS: list[Col] = [
     ("qty_internal", "Tiêu thụ nội bộ", "tấn"),
     ("qty_exploit", "Nguồn khai thác", "tấn"),
     ("qty_purchase", "Nguồn thu mua", "tấn"),
+    ("qty_goods", "Nguồn hàng hóa cao su", "tấn"),
     ("revenue_ty", "Doanh thu", "tỷ đồng"),
     ("avg_price_trieu", "Giá bán bình quân", "triệu đ/tấn"),
     ("lines", "Số dòng bán", "dòng"),

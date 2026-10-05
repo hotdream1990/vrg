@@ -121,8 +121,10 @@ export type ContractMeta = {
   certs?: string[];
   premium_currencies?: string[];
   channels: Record<string, string>;
-  /** Nguồn tiêu thụ: {exploit: "Khai thác", purchase: "Thu mua"}. */
+  /** Nguồn tiêu thụ: {exploit: "Khai thác", purchase: "Thu mua", goods: "Hàng hóa cao su"}. */
   sources: Record<string, string>;
+  /** Hạn đơn vị TỰ sửa nguồn của lần giao đã khoá (YYYY-MM-DD); null/thiếu = đã hết hạn. */
+  source_self_edit_until?: string | null;
   delivery_types: Record<string, string>;
   contract_types: Record<string, string>;
   /** Ô vẫn sửa được sau khi đơn vị đã CHỐT số liệu (server quyết, xem `sales_contract_lock.py`). */
@@ -344,6 +346,12 @@ export const setContractCompletion = (
     { method: "PUT", headers: J,
       body: JSON.stringify({ completed_at: completedAt, ...(delivery ?? {}) }) });
 
+/** Đổi riêng NGUỒN TIÊU THỤ của một lần giao — kể cả lần giao đã khoá, nhưng chỉ tới hạn
+ *  `meta.source_self_edit_until`; hết hạn server trả 403. */
+export const setContractSource = (id: number, source: string) =>
+  apiFetch<{ contract: Contract }>(`/api/sales-contracts/${id}/source`,
+    { method: "PUT", headers: J, body: JSON.stringify({ source }) });
+
 /** Chuyển giao-1-lần ↔ giao-nhiều-lần tại chỗ; lần giao đang có được dời thành đợt giao đầu tiên. */
 export const setContractDeliveryType = (id: number, deliveryType: "single" | "multi") =>
   apiFetch<{ contract: Contract }>(`/api/sales-contracts/${id}/delivery-type`,
@@ -375,7 +383,7 @@ export type DeliveryHistoryRow = {
   /** Nhóm báo cáo theo hồ sơ mẹ: HĐ chuyến · HĐ nguyên tắc · HĐ dài hạn (null = chưa khai loại). */
   contract_group: string | null;
   channel: string | null;
-  /** Nhãn nguồn tiêu thụ (Khai thác · Thu mua). */
+  /** Nhãn nguồn tiêu thụ (Khai thác · Thu mua · Hàng hóa cao su). */
   source?: string | null;
   grades: string;
   qty: number;                    // đã là QUY KHÔ với latex/mủ nguyên liệu (PA1)

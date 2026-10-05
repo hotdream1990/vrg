@@ -1,6 +1,6 @@
 /* Thống kê TIÊU THỤ (tách hẳn khỏi tồn kho) — dashboard drill-down:
    Toàn Tập đoàn → Khu vực → Đơn vị → Ngày → Chi tiết từng dòng bán (số HĐ, xuất kho, hoá đơn).
-   Lọc chồng thêm: chủng loại · loại HĐ · hình thức HĐ · nguồn tiêu thụ (khai thác / thu mua). */
+   Lọc chồng thêm: chủng loại · loại HĐ · hình thức HĐ · nguồn tiêu thụ (khai thác / thu mua / hàng hóa cao su). */
 
 import { ExportOutlined } from "@ant-design/icons";
 import { message } from "antd";
@@ -27,6 +27,7 @@ const SUMMARY_COLS: StatsCol[] = [
   { key: "qty_internal", label: "Tiêu thụ nội bộ", unit: "tấn", note: "cộng dồn" },
   { key: "qty_exploit", label: "Nguồn khai thác", unit: "tấn", note: "cộng dồn" },
   { key: "qty_purchase", label: "Nguồn thu mua", unit: "tấn", note: "cộng dồn" },
+  { key: "qty_goods", label: "Nguồn hàng hóa cao su", unit: "tấn", note: "cộng dồn" },
   { key: "revenue_ty", label: "Doanh thu", unit: "tỷ đồng", note: "cộng dồn" },
   { key: "avg_price_trieu", label: "Giá bán bình quân", unit: "triệu đ/tấn", note: "= DT / SL" },
   { key: "lines", label: "Số dòng bán", unit: "dòng", note: "đếm" },
@@ -133,7 +134,7 @@ export default function ConsumptionStatsPage() {
           <h2><ExportOutlined style={{ marginRight: 8 }} />Thống kê tiêu thụ</h2>
           <p>
             Toàn Tập đoàn → <b>khu vực</b> → <b>công ty</b> → <b>ngày</b> → <b>từng dòng bán</b>.
-            Lọc thêm theo chủng loại · loại HĐ · hình thức HĐ · nguồn tiêu thụ (khai thác / thu mua).
+            Lọc thêm theo chủng loại · loại HĐ · hình thức HĐ · nguồn tiêu thụ (khai thác / thu mua / hàng hóa cao su).
             Dòng bán bằng USD thiếu tỷ giá không được tính vào doanh thu.
             <b> % thực hiện kế hoạch</b> so sản lượng <b>HĐ chuyến</b> với chỉ tiêu năm ở màn
             {" "}<b>Kế hoạch năm</b> (kế hoạch tiêu thụ chỉ đặt cho HĐ chuyến).

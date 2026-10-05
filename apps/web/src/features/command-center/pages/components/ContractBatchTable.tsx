@@ -3,6 +3,7 @@ import { DeleteOutlined, FormOutlined, PaperClipOutlined } from "@ant-design/ico
 import type { Contract, ContractDoc, ContractMeta } from "../../../../lib/sales-contract-client";
 import { openContractFile } from "../../../../lib/sales-contract-client";
 import { dmy } from "../../../../lib/date";
+import SourceQuickEdit from "./SourceQuickEdit";
 
 type Props = {
   rows: Contract[];
@@ -15,6 +16,9 @@ type Props = {
   /** `request` = mở ở chế độ đề nghị (đợt đang khoá). */
   onEdit: (batch: Contract, request?: boolean) => void;
   onDelete: (batch: Contract, request?: boolean) => void;
+  /** Có thì mỗi đợt đã giao hiện nút «Sửa nguồn» (khi server còn mở hạn tự sửa nguồn). Nút này KHÔNG
+   *  phụ thuộc `locked`: web không biết đợt có bị "đã chốt số liệu" khoá hay không, chỉ server biết. */
+  onSourceSaved?: () => void;
 };
 
 const t3 = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
@@ -67,7 +71,9 @@ function CertCell({ certs, premium, ccy }: {
 
 /** Bảng ĐỢT GIAO của một hợp đồng — mỗi dòng là một lần giao (hoá đơn · ngày giao · chi tiết
  *  hàng). Đợt chưa điền ngày giao là đang chờ giao, chưa tính vào tiêu thụ. */
-export default function ContractBatchTable({ rows, meta, canEdit, locked, canRequest, onEdit, onDelete }: Props) {
+export default function ContractBatchTable({
+  rows, meta, canEdit, locked, canRequest, onEdit, onDelete, onSourceSaved,
+}: Props) {
   // Thành tiền để null khi CÓ đợt thiếu tỷ giá — cộng tiếp là ra một tổng thiếu mà trông như đủ.
   const sum = rows.reduce(
     (a, k) => ({
@@ -78,6 +84,7 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, canReq
     { qty: 0, qty_dry: 0, revenue: 0 as number | null },
   );
   const pending = rows.filter((k) => !k.delivered_at).length;
+  const showActions = canEdit || !!onSourceSaved;
 
   return (
     <div className="card" style={{ padding: 0, overflow: "auto" }}>
@@ -89,7 +96,7 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, canReq
           <th className="r">Thành tiền (tr.đ)</th>
           <th>Chứng chỉ · Premium</th>
           <th>Thanh toán</th><th>Đính kèm khác</th>
-          {canEdit && <th className="r" style={{ width: 150 }}>Thao tác</th>}
+          {showActions && <th className="r" style={{ width: 150 }}>Thao tác</th>}
         </tr></thead>
         <tbody>
           {rows.map((k) => (
@@ -116,11 +123,11 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, canReq
                 <Docs docs={k.payment_docs} />
               </td>
               <td><Docs docs={k.files} /></td>
-              {canEdit && (
+              {showActions && (
                 <td className="r" style={{ whiteSpace: "nowrap" }}>
                   {/* Lần giao quá cửa sổ sửa → chỉ xem. Server cũng chặn (403), nhưng báo trước ở
                       đây để người dùng khỏi điền xong mới biết không lưu được. */}
-                  {locked(k.delivered_at) ? (
+                  {canEdit && (locked(k.delivered_at) ? (
                     <>
                       <span style={{ color: "var(--muted)", fontSize: 11 }}>(chỉ xem)</span>
                       {canRequest && (
@@ -135,13 +142,14 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, canReq
                       <button className="btn" onClick={() => onEdit(k)}>Sửa</button>{" "}
                       <button className="btn" onClick={() => onDelete(k)}>Xoá</button>
                     </>
-                  )}
+                  ))}
+                  {onSourceSaved && <>{" "}<SourceQuickEdit c={k} meta={meta} onSaved={onSourceSaved} /></>}
                 </td>
               )}
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr><td colSpan={canEdit ? 13 : 12} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>
+            <tr><td colSpan={showActions ? 13 : 12} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>
               Chưa có đợt giao nào — hợp đồng chưa giao lần nào.
             </td></tr>
           )}
@@ -162,7 +170,7 @@ export default function ContractBatchTable({ rows, meta, canEdit, locked, canReq
               <td className="r">{t3(sum.qty)}</td>
               <td className="r">{sum.qty_dry > 0 ? t3(sum.qty_dry) : "—"}</td>
               <td className="r">{money(sum.revenue)}</td>
-              <td colSpan={canEdit ? 4 : 3} />
+              <td colSpan={showActions ? 4 : 3} />
             </tr>
           </tfoot>
         )}

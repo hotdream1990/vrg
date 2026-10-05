@@ -55,7 +55,7 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
     }
     if (needDelivery && !noDelivery) {
       if (!channel) { setErr("Chọn Hình thức tiêu thụ, hoặc tích “hợp đồng huỷ / không giao nữa”."); return; }
-      if (!source) { setErr("Chọn Nguồn tiêu thụ: khai thác hay thu mua."); return; }
+      if (!source) { setErr("Chọn Nguồn tiêu thụ."); return; }
       if (channel === "internal" && !toCompany) { setErr("Chọn đơn vị nhận hàng."); return; }
       // Ngày giao để trống thì lấy ngày hoàn thành — lịch chỉ chặn ngày CHỌN, không chặn giá trị
       // mặc định này, nên phải kiểm lại ở đây thay vì đợi server báo lỗi.
@@ -132,7 +132,7 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
               <label className="form-field">Nguồn tiêu thụ *
                 <select className="blt-date-input" value={source}
                   onChange={(e) => setSource(e.target.value)}>
-                  <option value="">— khai thác hay thu mua —</option>
+                  <option value="">— chọn nguồn tiêu thụ —</option>
                   {Object.entries(meta.sources ?? {})
                     .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>

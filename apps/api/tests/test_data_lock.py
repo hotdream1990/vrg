@@ -192,6 +192,77 @@ def test_delivery_locked_but_contract_still_updatable(env) -> None:
     assert back.status_code == 403
 
 
+def test_unit_changes_the_source_of_a_locked_delivery_only_until_the_deadline(
+        env, monkeypatch) -> None:
+    """Nguồn tiêu thụ của lần giao đã chốt: đơn vị tự đổi được đến hết hạn, rồi tự khoá lại."""
+    from app.services import sales_contract_lock
+
+    h, mh = env
+    cus = client.put("/api/customers", json={"company": UNIT, "name": "KH đổi nguồn"},
+                     headers=h).json()["id"]
+    line = [{"grade": "SVR 10 / CSR 10", "qty": 10.0, "price": 40.0, "ccy": "VND"}]
+    base = {"company": UNIT, "customer_id": cus, "contract_type": "spot",
+            "delivery_type": "single", "sign_date": INSIDE, "channel": "domestic",
+            "source": "exploit", "lines": line}
+    cid = client.put("/api/sales-contracts", headers=mh, json={
+        **base, "code": "HD-SRC-LOCK", "delivered_at": INSIDE}).json()["contract"]["id"]
+    pending = client.put("/api/sales-contracts", headers=mh, json={
+        **base, "code": "HD-SRC-WAIT", "source": None, "channel": None,
+    }).json()["contract"]["id"]
+    rnd = _round(h)
+    client.post("/api/data-lock/confirm", headers=mh, json={"round_id": rnd["id"], "company": UNIT})
+
+    # Đường lưu chung vẫn khoá: đổi nguồn của lần giao đã chốt qua PUT thường bị chặn.
+    via_save = client.put("/api/sales-contracts", headers=mh, json={
+        **base, "id": cid, "code": "HD-SRC-LOCK", "delivered_at": INSIDE, "source": "goods"})
+    assert via_save.status_code == 403 and "đã được chốt" in via_save.json()["detail"]
+
+    # Còn hạn: đường riêng đổi được, sản lượng và doanh thu đứng yên.
+    monkeypatch.setattr(sales_contract_lock, "SOURCE_SELF_EDIT_UNTIL", TODAY + timedelta(days=1))
+    meta = client.get("/api/sales-contracts/meta", headers=mh).json()
+    assert meta["source_self_edit_until"] == (TODAY + timedelta(days=1)).isoformat()
+    before = client.get(f"/api/sales-contracts/{cid}", headers=mh).json()["contract"]
+    ok = client.put(f"/api/sales-contracts/{cid}/source", headers=mh, json={"source": "goods"})
+    assert ok.status_code == 200, ok.text
+    after = ok.json()["contract"]
+    assert after["source"] == "goods"
+    assert {k: after[k] for k in ("qty", "revenue", "delivered_at", "channel")} == \
+        {k: before[k] for k in ("qty", "revenue", "delivered_at", "channel")}
+
+    # Chọn lại đúng nguồn đang có → 200, không ghi thêm dòng nhật ký.
+    def audit_rows() -> int:
+        with session_scope() as db:
+            return db.execute(text("SELECT count(*) FROM audit_log WHERE entity = 'sales_contract' "
+                                   "AND company = :c"), {"c": UNIT}).scalar()
+
+    n_before = audit_rows()
+    same = client.put(f"/api/sales-contracts/{cid}/source", headers=mh, json={"source": "goods"})
+    assert same.status_code == 200 and same.json()["contract"]["source"] == "goods"
+    assert audit_rows() == n_before
+
+    # Hợp đồng đã HOÀN THÀNH vẫn đổi được nguồn (cố ý — không bắt mở lại từng hợp đồng cũ).
+    done = client.put(f"/api/sales-contracts/{cid}/completion", headers=h,
+                      json={"completed_at": TODAY.isoformat()})
+    assert done.status_code == 200, done.text
+    for src in ("purchase", "goods"):
+        r = client.put(f"/api/sales-contracts/{cid}/source", headers=mh, json={"source": src})
+        assert r.status_code == 200 and r.json()["contract"]["source"] == src
+
+    # Nguồn lạ → 400; lần giao chưa có ngày giao thì chưa có gì để đổi → 400.
+    bad = client.put(f"/api/sales-contracts/{cid}/source", headers=mh, json={"source": "trading"})
+    assert bad.status_code == 400 and "không hợp lệ" in bad.json()["detail"]
+    wait = client.put(f"/api/sales-contracts/{pending}/source", headers=mh,
+                      json={"source": "purchase"})
+    assert wait.status_code == 400 and "ngày giao" in wait.json()["detail"]
+
+    # Hết hạn: đóng lại, web không còn nhận hạn, đơn vị quay về «Đề nghị sửa».
+    monkeypatch.setattr(sales_contract_lock, "SOURCE_SELF_EDIT_UNTIL", TODAY - timedelta(days=1))
+    assert client.get("/api/sales-contracts/meta", headers=mh).json()["source_self_edit_until"] is None
+    late = client.put(f"/api/sales-contracts/{cid}/source", headers=mh, json={"source": "purchase"})
+    assert late.status_code == 403 and "hết hạn" in late.json()["detail"]
+    assert client.get(f"/api/sales-contracts/{cid}", headers=mh).json()["contract"]["source"] == "goods"
+
+
 def test_admin_locks_and_unlocks_on_behalf_of_the_unit(env) -> None:
     h, mh = env
     rnd = _round(h)

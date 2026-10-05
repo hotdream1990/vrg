@@ -97,7 +97,7 @@ def test_batches_carry_the_source_and_consumption_splits_by_it(env) -> None:
     no_src = _put(h, {"parent_id": pid, "code": "1", "delivered_at": TODAY, "channel": "export",
                       "lines": [_line(30.0)]})
     assert no_src.status_code == 400 and "nguồn tiêu thụ" in no_src.json()["detail"]
-    for code, qty, src in (("1", 30.0, "exploit"), ("2", 20.0, "purchase")):
+    for code, qty, src in (("1", 30.0, "exploit"), ("2", 20.0, "purchase"), ("3", 10.0, "goods")):
         r = _put(h, {"parent_id": pid, "code": code, "delivered_at": TODAY, "channel": "export",
                      "source": src, "lines": [_line(qty)]})
         assert r.status_code == 200, r.text
@@ -105,11 +105,12 @@ def test_batches_carry_the_source_and_consumption_splits_by_it(env) -> None:
     params = {"date_from": TODAY, "date_to": TODAY, "company": UNIT}
     rep = client.get("/api/sales-contracts/consumption", headers=h, params=params).json()
     by_source = rep["by_company"][UNIT]["by_source"]
-    assert by_source == {"exploit": pytest.approx(30.0), "purchase": pytest.approx(20.0)}
+    assert by_source == {"exploit": pytest.approx(30.0), "purchase": pytest.approx(20.0),
+                         "goods": pytest.approx(10.0)}
 
     hist = client.get("/api/sales-contracts/consumption/deliveries", headers=h,
                       params=params).json()
-    assert sorted(r["source"] for r in hist["rows"]) == ["Khai thác", "Thu mua"]
+    assert sorted(r["source"] for r in hist["rows"]) == ["Hàng hóa cao su", "Khai thác", "Thu mua"]
 
     # Màn Thống kê tiêu thụ đọc cùng nguồn: lọc theo nguồn chỉ còn phần thu mua.
     stats = client.get("/api/unit-daily/analytics/consumption", headers=h, params={
@@ -117,6 +118,13 @@ def test_batches_carry_the_source_and_consumption_splits_by_it(env) -> None:
         "group_by": "company", "split_merged": "true"}).json()
     assert stats["totals"]["qty"] == pytest.approx(20.0)
     assert stats["totals"]["qty_purchase"] == pytest.approx(20.0)
+    assert not stats["totals"].get("qty_goods")
+
+    goods = client.get("/api/unit-daily/analytics/consumption", headers=h, params={
+        "date_from": TODAY, "date_to": TODAY, "companies": UNIT, "source": "goods",
+        "group_by": "company", "split_merged": "true"}).json()
+    assert goods["totals"]["qty"] == pytest.approx(10.0)
+    assert goods["totals"]["qty_goods"] == pytest.approx(10.0)
 
 
 def test_completing_a_single_contract_asks_for_the_source(env) -> None:

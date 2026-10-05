@@ -192,7 +192,7 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         raise ValueError(f"Nguồn tiêu thụ “{raw_source}” không hợp lệ.")
     source = (raw_source or None) if is_batch else None
     if delivered and not source:
-        raise ValueError("Thiếu nguồn tiêu thụ (Khai thác · Thu mua).")
+        raise ValueError(f"Thiếu nguồn tiêu thụ ({' · '.join(CONSUMPTION_SOURCES.values())}).")
 
     # Ngày ký chỉ có ở HỢP ĐỒNG. Đợt giao KHÔNG có ngày ký riêng — form không hiện ô này nhưng vẫn
     # gửi kèm ngày mặc định (hôm nay), nhận vào là mọi đợt giao ngày cũ bị chặn oan bằng thông báo

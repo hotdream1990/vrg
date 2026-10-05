@@ -48,6 +48,20 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     tiết và theo hợp đồng có cột *Nguồn tiêu thụ*); *Lịch sử đợt giao* có cột *Nguồn*; *Thống kê tiêu
     thụ* lọc + nhóm theo nguồn, có 2 cột tách nguồn. Đổi nguồn của lần giao đã chốt số liệu phải qua
     **đề nghị sửa** (như đổi hình thức tiêu thụ).
+- **Nguồn tiêu thụ thứ 3: Hàng hóa cao su** (05/10/2026).
+  - Lần giao chọn thêm được **Hàng hóa cao su** (thành phẩm mua ngoài về bán lại — cùng nghĩa *kế hoạch
+    hàng hóa* ở Kế hoạch năm), khoá `goods` trong `CONSUMPTION_SOURCES`. Luật bắt buộc khi có ngày giao
+    giữ nguyên; không cần đổi cột DB (cột `source` là text) và dữ liệu cũ không đổi.
+  - *Báo cáo tiêu thụ* (web + Excel) và *Thống kê tiêu thụ* (lọc, nhóm, Excel) thêm cột **Nguồn hàng hóa
+    cao su**; *Lịch sử đợt giao*, chi tiết hợp đồng và duyệt đề nghị sửa hiện đúng nhãn mới.
+  - **Chưa tách** hàng hóa ở Báo cáo tổng hợp Biểu (2) và Dashboard đơn vị (xem mục nguồn tiêu thụ 03/10).
+- **Đơn vị tự sửa nguồn tiêu thụ của lần giao đã khoá — mở có hạn đến hết 08/10/2026** (05/10/2026).
+  - Mọi lần giao đã có ngày giao hiện nút **Sửa nguồn** ở danh sách hợp đồng, tab *Thông tin hợp đồng* và
+    bảng *Đợt giao* — dùng được cả khi lần giao quá cửa sổ sửa, đã chốt số liệu hoặc hợp đồng đã hoàn thành.
+    Hộp thoại chỉ có ô *Nguồn tiêu thụ*; các ô khác vẫn khoá. Đổi nguồn không đổi tổng sản lượng/doanh thu,
+    chỉ đổi cách chia; có ghi *Nhật ký hoạt động* (chọn lại đúng nguồn cũ thì không ghi).
+  - Hết ngày 08/10/2026 nút tự ẩn, server trả 403 và đơn vị quay về *Đề nghị sửa*. Đường lưu chung của hợp
+    đồng vẫn khoá như cũ. Hạn đặt ở `SOURCE_SELF_EDIT_UNTIL` (`services/sales_contract_lock.py`).
 - **Chuông thông báo + Web Push · loại nhập liệu đơn vị · chọn người nhận thẻ Hỗ trợ** (01/10/2026).
   - **Chuông** ở thanh trên cho lãnh đạo, chuyên viên đơn vị và người có quyền Hỗ trợ / duyệt đề nghị
     sửa: số thẻ chưa đọc + đề nghị sửa chờ duyệt, bấm vào mở đúng thẻ. Tự cập nhật mỗi phút.

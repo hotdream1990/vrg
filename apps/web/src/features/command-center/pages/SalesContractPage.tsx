@@ -24,6 +24,7 @@ import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import ContractCompleteModal from "./components/ContractCompleteModal";
 import ContractDetailModal from "./components/ContractDetailModal";
 import ContractFormModal from "./components/ContractFormModal";
+import SourceQuickEdit from "./components/SourceQuickEdit";
 import { contractDeleteDraft, deleteConfirmText } from "./components/contract-edit-request";
 import "../../bulletin/bulletin.css";
 
@@ -327,6 +328,7 @@ export default function SalesContractPage() {
                   {/* HĐ giao-1-lần ĐÃ GIAO là một lần giao → quá cửa sổ sửa thì chỉ còn xem.
                       HĐ giao-nhiều-lần không bị khoá: còn phải thêm đợt giao suốt vòng đời. */}
                   {/* Hợp đồng đã chốt hoàn thành thì khoá — mở lại ở màn chi tiết mới sửa được. */}
+                  {canEdit && meta && <><SourceQuickEdit c={r} meta={meta} onSaved={load} />{" "}</>}
                   {canEdit && (locked(r.delivered_at)
                     ? <>
                         <span style={{ color: "var(--muted)", fontSize: 11 }}>(chỉ xem)</span>

@@ -90,6 +90,11 @@ class CompletionIn(BaseModel):
     no_delivery: bool = False         # huỷ / không giao nữa — chốt mà KHÔNG ghi lần giao
 
 
+class SourceIn(BaseModel):
+    """Đổi riêng NGUỒN TIÊU THỤ của một lần giao (đường tự sửa có hạn — xem `sales_contract_lock`)."""
+    source: str
+
+
 class DeliveryTypeIn(BaseModel):
     """Chuyển giao-1-lần ↔ giao-nhiều-lần mà không phải xoá hợp đồng nhập lại."""
     delivery_type: str

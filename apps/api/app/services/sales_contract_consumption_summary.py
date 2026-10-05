@@ -25,6 +25,7 @@ SUMMARY_COLS: list[Col] = [
     # Nguồn tiêu thụ (03/10/2026) — cùng tổng với 3 cột hình thức, chỉ cắt theo chiều khác.
     ("qty_exploit", f"Nguồn {CONSUMPTION_SOURCES['exploit'].lower()}", "tấn quy khô"),
     ("qty_purchase", f"Nguồn {CONSUMPTION_SOURCES['purchase'].lower()}", "tấn quy khô"),
+    ("qty_goods", f"Nguồn {CONSUMPTION_SOURCES['goods'].lower()}", "tấn quy khô"),
     ("revenue_ty", "Doanh thu", "tỷ đồng"),
     # Khối 3 của biểu Tồn kho — tính trên hợp đồng đã ký. KHÁC "Tổng phải giao" bên dưới (phần dài
     # hạn theo cam kết HĐDH, gồm cả sản lượng chưa ký phụ lục) → hai nhãn phải khác nhau (Q4).
@@ -64,6 +65,7 @@ def summary(rep: dict[str, Any]) -> tuple[list[dict], dict, bool]:
             "qty_export": ch.get("export", 0.0), "qty_domestic": ch.get("domestic", 0.0),
             "qty_internal": ch.get("internal", 0.0),
             "qty_exploit": src.get("exploit", 0.0), "qty_purchase": src.get("purchase", 0.0),
+            "qty_goods": src.get("goods", 0.0),
             # Doanh thu để TRỐNG khi thiếu tỷ giá — không quy về 0 để khỏi đọc nhầm là "bán không thu tiền".
             "revenue_ty": None if rev is None else rev / TY,
             "remaining": (rep["undelivered"].get(name) or {}).get("qty", 0.0),

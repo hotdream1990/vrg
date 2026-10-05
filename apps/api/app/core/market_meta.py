@@ -149,14 +149,16 @@ SALE_CHANNELS: dict[str, str] = {
     "internal": "Tiêu thụ nội bộ",
 }
 
-# NGUỒN TIÊU THỤ của một LẦN GIAO (chốt 03/10/2026): hàng bán ra là mủ KHAI THÁC (vườn cây của
-# chính đơn vị) hay mủ THU MUA (mua của dân/bên ngoài). Khai cùng chỗ với hình thức tiêu thụ: hợp
-# đồng giao 1 lần khai trên chính nó, giao nhiều lần thì khai ở TỪNG ĐỢT GIAO. Hợp đồng chưa giao
-# chưa bắt buộc; có ngày giao (= chốt thành tiêu thụ) là phải khai. Lần giao nhập TRƯỚC khi có ô
-# này được tính là khai thác (xem `core/db.py`).
+# NGUỒN TIÊU THỤ của một LẦN GIAO (chốt 03/10/2026, thêm HÀNG HÓA 05/10/2026): hàng bán ra là mủ
+# KHAI THÁC (vườn cây của chính đơn vị), mủ THU MUA (mua của dân/bên ngoài) hay HÀNG HÓA CAO SU
+# (thành phẩm mua ngoài về bán lại — cùng nghĩa "kế hoạch hàng hóa" ở kế hoạch năm). Khai cùng chỗ
+# với hình thức tiêu thụ: hợp đồng giao 1 lần khai trên chính nó, giao nhiều lần thì khai ở TỪNG
+# ĐỢT GIAO. Hợp đồng chưa giao chưa bắt buộc; có ngày giao (= chốt thành tiêu thụ) là phải khai.
+# Lần giao nhập TRƯỚC khi có ô này được tính là khai thác (xem `core/db.py`).
 CONSUMPTION_SOURCES: dict[str, str] = {
     "exploit": "Khai thác",
     "purchase": "Thu mua",
+    "goods": "Hàng hóa cao su",
 }
 
 # Loại giao của hợp đồng: giao trọn 1 lần, hoặc chia thành nhiều ĐỢT GIAO.

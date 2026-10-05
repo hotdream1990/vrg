@@ -29,7 +29,7 @@ from app.core.market_meta import (
 from app.core.edit_window import today
 from app.core.permissions import LEVEL_EDIT
 from app.core.security import cap_or_member_scope
-from app.schemas.sales_contract import CompletionIn, ContractIn, DeliveryTypeIn
+from app.schemas.sales_contract import CompletionIn, ContractIn, DeliveryTypeIn, SourceIn
 from app.services.unit_report_query import roll_by_company
 from app.services import (
     contract_backlog,
@@ -106,8 +106,11 @@ def meta(scope: Scope) -> dict:
         "grades": list(UNIT_GRADES),
         "dry_required": sorted(DRY_REQUIRED_GRADES),
         "channels": SALE_CHANNELS,
-        # Nguồn tiêu thụ của lần giao: khai thác · thu mua (03/10/2026).
+        # Nguồn tiêu thụ của lần giao: khai thác · thu mua · hàng hóa cao su.
         "sources": CONSUMPTION_SOURCES,
+        # Hạn đơn vị TỰ sửa nguồn của lần giao đã khoá; hết hạn thì None → web ẩn nút "Sửa nguồn".
+        "source_self_edit_until": (sales_contract_lock.SOURCE_SELF_EDIT_UNTIL.isoformat()
+                                   if sales_contract_lock.source_self_edit_open() else None),
         "delivery_types": DELIVERY_TYPES,
         "contract_types": CONTRACT_TYPES,
         # Ô vẫn sửa được sau khi đơn vị đã chốt số liệu — form hiện đúng danh sách này, không
@@ -361,6 +364,28 @@ def set_completion(contract_id: int, body: CompletionIn, scope: EditScope) -> di
             delivery={"delivered_at": body.delivered_at, "channel": body.channel,
                       "to_company": body.to_company, "source": body.source,
                       "no_delivery": body.no_delivery})}
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.put("/{contract_id}/source")
+def set_source(contract_id: int, body: SourceIn, scope: EditScope) -> dict:
+    """Đổi riêng NGUỒN TIÊU THỤ của lần giao — kể cả lần giao đã quá cửa sổ sửa / đã chốt số liệu.
+
+    Đường tự sửa CÓ HẠN (`sales_contract_lock.SOURCE_SELF_EDIT_UNTIL`): hết hạn thì trả 403 và đơn
+    vị quay về «Đề nghị sửa». Đổi nguồn không đổi tổng sản lượng/doanh thu, chỉ đổi cách chia.
+    """
+    username, companies = scope
+    if not sales_contract_lock.source_self_edit_open():
+        until = sales_contract_lock.SOURCE_SELF_EDIT_UNTIL
+        raise HTTPException(
+            403, f"Đã hết hạn tự sửa nguồn tiêu thụ (đến hết {until:%d/%m/%Y}). "
+                 "Lần giao đã khoá thì gửi «Đề nghị sửa» để Ban duyệt.")
+    try:
+        return {"contract": sales_contract_lifecycle.set_source(
+            contract_id, body.source, companies, username)}
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:

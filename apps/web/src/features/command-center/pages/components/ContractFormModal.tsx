@@ -147,7 +147,7 @@ export default function ContractFormModal({
     if (c.contract_type === "spot" && c.master_id) p.push("HĐ chuyến không có hợp đồng mẹ.");
     if (!isChild && !c.sign_date) p.push("Chọn ngày ký.");
     if (isDelivery && !c.channel) p.push("Chọn hình thức tiêu thụ.");
-    if (isDelivery && !c.source) p.push("Chọn nguồn tiêu thụ (khai thác hay thu mua).");
+    if (isDelivery && !c.source) p.push("Chọn nguồn tiêu thụ.");
     if (c.channel === "internal" && !c.to_company) p.push("Chọn đơn vị nhận hàng.");
     const rows = c.lines.filter((l) => l.grade || l.qty != null);
     if (!rows.length) p.push("Thêm ít nhất một dòng chi tiết.");

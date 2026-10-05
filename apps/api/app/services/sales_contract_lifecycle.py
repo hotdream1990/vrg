@@ -23,7 +23,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
-from app.core.market_meta import DELIVERY_TYPES
+from app.core.market_meta import CONSUMPTION_SOURCES, DELIVERY_TYPES
 from app.services import audit_repo, sales_contract_lock, sales_contract_repo as repo
 from app.services import sales_contract_line_dates as line_dates
 
@@ -57,6 +57,40 @@ def _last_delivery(db, contract: dict[str, Any]) -> str | None:
                      {"i": contract["id"]}).scalar()
     days = [d for d in (contract.get("delivered_at"), str(kid) if kid else None) if d]
     return max(days) if days else None
+
+
+def set_source(contract_id: int, source: str, companies: list[str] | None,
+               username: str | None) -> dict[str, Any]:
+    """Đổi NGUỒN TIÊU THỤ của một lần giao (hợp đồng giao 1 lần đã giao, hoặc một đợt giao).
+
+    Chỉ ghi đúng ô `source` — không đi qua `repo.save`, nên không dính hàng rào cửa sổ sửa / chốt
+    số liệu và cũng không bị vướng luật kiểm của các ô khác. Việc mở đường này CÓ HẠN do router
+    quyết (`sales_contract_lock.source_self_edit_open`).
+
+    CỐ Ý không chặn hợp đồng đã HOÀN THÀNH (khác `repo.save`): đổi nguồn không đụng tới phần "đã ký
+    HĐ chưa giao", và bắt đơn vị mở lại – sửa – chốt lại từng hợp đồng cũ chỉ để đổi một ô là quá
+    nặng cho đợt rà soát lại nguồn.
+    """
+    c = repo.get(contract_id)
+    if not c or (companies is not None and c["company"] not in companies):
+        raise LookupError("Không tìm thấy hợp đồng trong phạm vi tài khoản.")
+    if source not in CONSUMPTION_SOURCES:
+        raise ValueError(f"Nguồn tiêu thụ “{source}” không hợp lệ.")
+    if not c.get("delivered_at"):
+        raise ValueError("Chỉ đổi nguồn của lần giao đã có ngày giao. Hợp đồng giao nhiều lần "
+                         "khai nguồn ở từng đợt giao.")
+    if c.get("source") == source:
+        return c                                   # không đổi gì → không ghi, không rơi nhật ký
+    ensure_schema()
+    with session_scope() as db:
+        db.execute(text("UPDATE sales_contract SET source = :s, updated_by = :by, "
+                        "updated_at = now() WHERE id = :i"),
+                   {"s": source, "by": username, "i": contract_id})
+    after = repo.get(contract_id) or c
+    what = f"đợt giao {c['code']}" if c.get("parent_id") else f"HĐ {c['code']}"
+    audit_repo.log("sales_contract", "update", f"{what} — nguồn tiêu thụ",
+                   before=c, after=after, as_of=c["delivered_at"], company=c["company"])
+    return after
 
 
 def set_completion(contract_id: int, completed_at: str | None, companies: list[str] | None,
@@ -98,7 +132,7 @@ def set_completion(contract_id: int, completed_at: str | None, companies: list[s
         elif not delivery.get("channel") or not delivery.get("source"):
             raise ValueError(
                 "Hợp đồng giao 1 lần chưa có ngày giao. Chọn Hình thức tiêu thụ và Nguồn tiêu thụ "
-                "(khai thác / thu mua) để chốt hoàn thành và ghi nhận đã giao; nếu hợp đồng huỷ / "
+                "để chốt hoàn thành và ghi nhận đã giao; nếu hợp đồng huỷ / "
                 "không giao nữa thì tích ô “không ghi lần giao”.")
         else:
             delivered_at = delivery.get("delivered_at") or day.isoformat()

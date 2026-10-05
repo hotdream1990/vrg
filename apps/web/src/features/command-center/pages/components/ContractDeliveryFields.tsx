@@ -49,7 +49,7 @@ export default function ContractDeliveryFields({ c, meta, peers, set }: Props) {
       <label className="form-field">Nguồn tiêu thụ{required}
         <select className="blt-date-input" value={c.source ?? ""}
           onChange={(e) => set({ source: e.target.value || null })}>
-          <option value="">— khai thác hay thu mua —</option>
+          <option value="">— chọn nguồn tiêu thụ —</option>
           {Object.entries(meta.sources ?? {})
             .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
@@ -57,8 +57,8 @@ export default function ContractDeliveryFields({ c, meta, peers, set }: Props) {
       <p className="form-note" style={{ gridColumn: "1 / -1", margin: 0, fontSize: 12 }}>
         Để trống <b>Ngày giao</b> nếu đợt mới lập, chưa xuất hàng — đợt vẫn nằm ở phần chưa giao
         của hợp đồng và chưa tính vào tiêu thụ. Điền ngày giao (chốt thành tiêu thụ) thì phải chọn
-        {" "}<b>Hình thức</b> và <b>Nguồn tiêu thụ</b>: hàng từ mủ <b>khai thác</b> của đơn vị hay
-        mủ <b>thu mua</b>.
+        {" "}<b>Hình thức</b> và <b>Nguồn tiêu thụ</b>: hàng từ mủ <b>khai thác</b> của đơn vị,
+        mủ <b>thu mua</b> hay <b>hàng hóa cao su</b> (mua ngoài về bán lại).
         {!peers.length && <>{" "}“{c.company}” chưa thuộc nhóm công ty mẹ–con nên không có{" "}
           <b>Tiêu thụ nội bộ</b>. Gán <b>Công ty mẹ</b> ở màn Đơn vị thành viên nếu đơn vị này
           có bán nội bộ.</>}
