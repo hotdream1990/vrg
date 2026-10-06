@@ -778,7 +778,7 @@ def test_consumption_xlsx_has_detail_sheet(env, cus) -> None:
                      f"&company={UNIT}", headers=h)
     assert xls.status_code == 200
     wb = load_workbook(io.BytesIO(xls.content))
-    assert wb.sheetnames == ["Đơn vị", "Theo hợp đồng", "Chi tiết lần giao"]
+    assert wb.sheetnames == ["Đơn vị", "Theo hợp đồng", "Nguồn × chủng loại", "Chi tiết lần giao"]
 
     ws = wb["Chi tiết lần giao"]
     head = [c.value for c in ws[5]]
@@ -1724,7 +1724,7 @@ def test_locked_edit_guard_covers_every_number_bearing_field(env) -> None:
 
     assert set(lock.STAT_FIELDS) == {
         "company", "parent_id", "delivery_type", "contract_type", "customer_id",
-        "sign_date", "start_date", "delivered_at", "channel", "to_company", "source",
+        "sign_date", "start_date", "delivered_at", "channel", "to_company",
         "lines", "payment_qty", "premium", "premium_ccy",
     }
     # Hai ô KHÔNG được nằm trong danh sách "sửa thoải mái": chúng dịch số thật.
@@ -1741,6 +1741,14 @@ def test_locked_edit_guard_covers_every_number_bearing_field(env) -> None:
     assert lock.is_safe_edit({**base, "payment_qty": 5}, {**base, "payment_qty": 5.0})
     # Ô bỏ trống: "" và None là một, nếu không mở form rồi bấm Lưu là bị báo đổi số liệu.
     assert lock.is_safe_edit({**base, "to_company": None}, {**base, "to_company": ""})
+    # NGUỒN theo TỪNG DÒNG (05/10/2026): bản cũ chỉ có nguồn ở cấp lần giao, form mới gửi nguồn ở
+    # dòng + ô nguồn chung để trống → cùng nguồn hiệu lực thì là sửa an toàn; đổi nguồn một dòng thì
+    # là dịch số liệu.
+    legacy = {**base, "source": "exploit", "lines": [_line(qty=10.0)]}
+    new_form = {**base, "source": None, "lines": [{**_line(qty=10.0), "source": "exploit"}]}
+    assert lock.is_safe_edit(legacy, new_form)
+    assert not lock.is_safe_edit(legacy, {**new_form,
+                                          "lines": [{**_line(qty=10.0), "source": "goods"}]})
 
 
 def test_list_shows_dry_remaining_that_matches_block_3(env, cus) -> None:

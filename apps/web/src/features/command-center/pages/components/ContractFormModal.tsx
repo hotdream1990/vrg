@@ -82,8 +82,11 @@ export default function ContractFormModal({
       // mọi dòng). Dọn ngay khi mở form — không thì ô đã ẩn, người dùng không xoá được mà lưu lại
       // bị chặn, kẹt không biết sửa ở đâu.
       const okDry = new Set(meta.dry_required);
+      // Dòng cũ chưa có nguồn riêng (trước 05/10/2026 nguồn nằm ở cấp lần giao) → điền nguồn của bản
+      // ghi vào ô chọn của dòng, để người sửa THẤY nguồn đang tính chứ không gặp ô trống.
       const lines = (initial.lines.length ? initial.lines : [{ ...EMPTY_LINE }])
-        .map((l) => (okDry.has(l.grade) ? l : { ...l, qty_dry: null }));
+        .map((l) => (okDry.has(l.grade) ? l : { ...l, qty_dry: null }))
+        .map((l) => (l.source || !initial.source ? l : { ...l, source: initial.source }));
       return { ...initial, lines };
     }
     const base = blank(parent?.company ?? preset?.company ?? meta.units[0] ?? "");
@@ -147,11 +150,13 @@ export default function ContractFormModal({
     if (c.contract_type === "spot" && c.master_id) p.push("HĐ chuyến không có hợp đồng mẹ.");
     if (!isChild && !c.sign_date) p.push("Chọn ngày ký.");
     if (isDelivery && !c.channel) p.push("Chọn hình thức tiêu thụ.");
-    if (isDelivery && !c.source) p.push("Chọn nguồn tiêu thụ.");
     if (c.channel === "internal" && !c.to_company) p.push("Chọn đơn vị nhận hàng.");
-    const rows = c.lines.filter((l) => l.grade || l.qty != null);
-    if (!rows.length) p.push("Thêm ít nhất một dòng chi tiết.");
-    rows.forEach((l, i) => {
+    const filled = (l: ContractLine) => !!l.grade || l.qty != null;
+    if (!c.lines.some(filled)) p.push("Thêm ít nhất một dòng chi tiết.");
+    // Số dòng theo ĐÚNG thứ tự trên màn hình (dòng trống ở giữa vẫn được đếm), không theo danh sách
+    // đã lọc — lọc rồi mới đếm thì "Dòng 2" chỉ nhầm sang khối thứ ba.
+    c.lines.forEach((l, i) => {
+      if (!filled(l)) return;
       const at = `Dòng ${i + 1}`;
       if (!l.grade) p.push(`${at}: chọn chủng loại.`);
       if (l.qty == null || l.qty <= 0) p.push(`${at}: số lượng phải lớn hơn 0.`);
@@ -159,6 +164,10 @@ export default function ContractFormModal({
       // (khô), nếu không thì "đã ký chưa giao" là hiệu của hai đơn vị tính khác nhau.
       if (meta.dry_required.includes(l.grade) && !l.qty_dry) {
         p.push(`${at} (${l.grade}): nhập quy khô.`);
+      }
+      // Nguồn nằm ở TỪNG DÒNG của một lần giao, bắt buộc khi đã có ngày giao — khớp server.
+      if (isBatch && isDelivery && !l.source) {
+        p.push(`${l.grade ? `${at} (${l.grade})` : at}: chọn nguồn tiêu thụ.`);
       }
       // Tỷ giá chỉ bắt buộc khi ĐÃ có ngày giao — khớp `require_fx` ở server. Lúc ký hợp đồng
       // chưa ai biết tỷ giá ngày giao hàng.
@@ -192,6 +201,9 @@ export default function ContractFormModal({
     if (!showDates) return l;
     return { ...l, from_date: l.from_date || null };
   };
+  /** Nguồn gửi lên: dòng của một lần giao giữ nguyên; hợp đồng giao nhiều lần bỏ khoá (nguồn khai
+   *  ở từng đợt giao — server cũng tự bỏ). */
+  const sourceOut = (l: ContractLine): ContractLine => (isBatch ? l : { ...l, source: undefined });
 
   const submit = async () => {
     const p = problems();
@@ -200,7 +212,11 @@ export default function ContractFormModal({
     try {
       const body: Contract = {
         ...c,
-        lines: c.lines.filter((l) => l.grade || l.qty != null).map(fromDateOut),
+        lines: c.lines.filter((l) => l.grade || l.qty != null).map(fromDateOut).map(sourceOut),
+        // Nguồn chung cấp bản ghi do server tự tính, nhưng server lại lấy nó làm NGUỒN MẶC ĐỊNH cho
+        // dòng bỏ trống → lần giao phải gửi null, không thì dòng trống bị điền ngầm và kiểm tra
+        // "thiếu nguồn" theo dòng mất tác dụng.
+        source: isBatch ? null : c.source,
         parent_id: isChild ? parent!.id : null,
         // Đợt giao đi theo hợp đồng, KHÔNG nối thẳng vào hợp đồng mẹ (server cũng ép NULL) —
         // nối cả hai cấp là cộng đôi sản lượng đã ký của hợp đồng mẹ.
@@ -296,7 +312,14 @@ export default function ContractFormModal({
             </label>
             <label className="form-field">Loại giao
               <select className="blt-date-input" value={c.delivery_type} disabled={!!initial}
-                onChange={(e) => set({ delivery_type: e.target.value as "single" | "multi" })}>
+                onChange={(e) => {
+                  const v = e.target.value as "single" | "multi";
+                  // Giao nhiều lần thì ngày giao / hình thức nằm ở từng đợt — các ô đó bị ẩn nhưng vẫn
+                  // còn trong state và vẫn bị gửi lên + bị kiểm ("thiếu hình thức") → xoá luôn.
+                  set(v === "multi"
+                    ? { delivery_type: v, delivered_at: null, channel: null, to_company: null }
+                    : { delivery_type: v });
+                }}>
                 {Object.entries(meta.delivery_types).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </label>
@@ -335,8 +358,8 @@ export default function ContractFormModal({
         <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
           Kể cả khi <b>số liệu đã chốt</b>, các nội dung sau vẫn sửa và lưu được bình thường:{" "}
           <b>{meta.editable_when_locked.map((f) => f.label).join(" · ")}</b>. Còn sản lượng, đơn
-          giá, ngày hiệu lực của dòng, ngày giao, hình thức và nguồn tiêu thụ, khách hàng và loại hợp
-          đồng là các ô làm đổi số đã báo cáo — {canEditUnitData
+          giá, ngày hiệu lực và nguồn tiêu thụ của dòng, ngày giao, hình thức tiêu thụ, khách hàng và
+          loại hợp đồng là các ô làm đổi số đã báo cáo — {canEditUnitData
             ? <>bấm <b>Lưu</b>, hệ thống mở hộp gửi <b>đề nghị sửa</b>, Ban duyệt xong mới đổi.</>
             : "phải nhờ Ban TTKD sửa hộ."}
         </p>
@@ -347,6 +370,7 @@ export default function ContractFormModal({
       <h4 style={{ margin: "14px 0 6px" }}>Chi tiết {isChild ? "đợt giao" : "hợp đồng"}</h4>
       <ContractLinesTable lines={c.lines} meta={meta} requireFx={isDelivery}
         signDate={showDates ? c.sign_date : undefined} maxFromDate={maxFromDate}
+        showSource={isBatch} requireSource={isBatch && isDelivery}
         currencies={currencies} onChange={(lines) => set({ lines })} />
 
       {/* Tổng của cả hợp đồng/đợt giao — quy về VNĐ để cộng được các dòng khác loại tiền.

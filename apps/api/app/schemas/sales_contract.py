@@ -32,6 +32,10 @@ class ContractLineIn(BaseModel):
     # Ngày HIỆU LỰC của dòng (30/09/2026) — CHỈ dòng của hợp đồng, trống = theo ngày ký. Thiếu ô này
     # ở schema thì `model_dump()` nuốt mất, DB luôn NULL mà không ai báo (bẫy từng gặp với master_id).
     from_date: str | None = None
+    # NGUỒN TIÊU THỤ của dòng (05/10/2026): exploit · purchase · goods — chỉ ở dòng của MỘT LẦN GIAO
+    # (đợt giao / hợp đồng giao 1 lần), bắt buộc khi có ngày giao. Thiếu ô này ở schema thì
+    # `model_dump()` nuốt mất nguồn của dòng (cùng bẫy với `from_date`).
+    source: str | None = None
 
 
 class ContractIn(BaseModel):
@@ -86,13 +90,20 @@ class CompletionIn(BaseModel):
     delivered_at: str | None = None    # để trống = lấy đúng ngày hoàn thành
     channel: str | None = None         # export | domestic | internal
     to_company: str | None = None      # đơn vị nhận (khi tiêu thụ nội bộ)
-    source: str | None = None          # nguồn tiêu thụ: exploit (khai thác) | purchase (thu mua)
+    source: str | None = None          # nguồn MẶC ĐỊNH cho dòng chưa có nguồn (client cũ)
+    # Nguồn của TỪNG DÒNG, đúng thứ tự `lines` của hợp đồng (05/10/2026); ô trống = giữ nguồn dòng đó.
+    line_sources: list[str | None] | None = None
     no_delivery: bool = False         # huỷ / không giao nữa — chốt mà KHÔNG ghi lần giao
 
 
 class SourceIn(BaseModel):
-    """Đổi riêng NGUỒN TIÊU THỤ của một lần giao (đường tự sửa có hạn — xem `sales_contract_lock`)."""
-    source: str
+    """Đổi riêng NGUỒN TIÊU THỤ của một lần giao (đường tự sửa có hạn — xem `sales_contract_lock`).
+
+    `line_sources` = nguồn của TỪNG DÒNG theo đúng thứ tự `lines` (05/10/2026); `source` = một nguồn
+    cho mọi dòng (client cũ). Gửi một trong hai.
+    """
+    source: str | None = None
+    line_sources: list[str | None] | None = None
 
 
 class DeliveryTypeIn(BaseModel):

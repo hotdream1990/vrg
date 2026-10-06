@@ -212,8 +212,8 @@ Danh sách các hợp đồng của đơn vị kèm tiến độ giao hàng.
 4. **Loại hợp đồng** — bắt buộc: *HĐ dài hạn* hay *HĐ chuyến*. Đây là chỉ tiêu của báo cáo, **khác** với Loại giao bên dưới.
 5. **Loại giao** — *Giao 1 lần* (cả hợp đồng giao trọn một lần) hay *Giao nhiều lần* (chia thành nhiều đợt giao). Chọn nhầm vẫn đổi được sau, xem mục 11.
 6. **Ngày ký** — bắt buộc. Từ ngày này, sản lượng hợp đồng nằm ở mục “đã ký HĐ chưa giao”.
-7. **Ngày giao** — chỉ hiện với hợp đồng *giao 1 lần*; điền khi đã giao xong. Bên dưới là **Hình thức tiêu thụ**, **Nguồn tiêu thụ** (*Khai thác* / *Thu mua* / *Hàng hóa cao su*) và khối **Hoá đơn** (số hoá đơn + file scan).
-8. **Chi tiết hợp đồng** — mỗi chủng loại một dòng (ô SL đổi nhãn thành **SL nước** với latex và mủ nguyên liệu). Ô **Quy khô** chỉ hiện với latex và mủ nguyên liệu; ô **Tỷ giá** chỉ hiện khi dòng bán bằng ngoại tệ và **chỉ bắt buộc khi đã điền Ngày giao**.
+7. **Ngày giao** — chỉ hiện với hợp đồng *giao 1 lần*; điền khi đã giao xong. Bên dưới là **Hình thức tiêu thụ** và khối **Hoá đơn** (số hoá đơn + file scan). **Nguồn tiêu thụ** chọn ở từng dòng chủng loại (bước 8).
+8. **Chi tiết hợp đồng** — mỗi chủng loại một dòng (ô SL đổi nhãn thành **SL nước** với latex và mủ nguyên liệu). Ô **Quy khô** chỉ hiện với latex và mủ nguyên liệu; ô **Tỷ giá** chỉ hiện khi dòng bán bằng ngoại tệ và **chỉ bắt buộc khi đã điền Ngày giao**. Hợp đồng *giao 1 lần* có thêm ô **Nguồn tiêu thụ** ở mỗi dòng: *Khai thác* / *Thu mua* / *Hàng hóa cao su*. Bắt buộc khi đã điền Ngày giao.
 9. **Hàng có chứng chỉ** — tick các chứng chỉ của lô hàng (**PEFC · EUDR · VRG GREEN**, chọn được nhiều) và ô **Premium** là khoản khách trả thêm: tự nhập số tiền, chọn **USD** hay **VNĐ**. **Không có premium thì để trống ô tiền.** Premium chỉ để ghi nhận — **không tự cộng vào đơn giá** ở phần chi tiết.
 10. **Thành tiền** — ô CHỈ ĐỌC ở cuối mỗi dòng (= số lượng × đơn giá, theo đúng loại tiền của dòng). Tổng thành tiền của hợp đồng hiện ngay dưới bảng, quy về triệu đồng.
 
@@ -257,8 +257,8 @@ Mỗi đợt giao = một lần giao hàng + một lần thanh toán. Đây là 
 
 1. **Số đợt giao** — bắt buộc, không trùng trong cùng đơn vị (ví dụ *Đợt 01/HĐ-102*).
 2. **Ngày giao** — để trống nghĩa là **đang chờ giao**; điền vào là đợt đã giao xong và **tính ngay vào tiêu thụ của ngày đó**.
-3. **Hình thức tiêu thụ** — *Xuất khẩu / UTXK* · *Tiêu thụ trong nước* · *Tiêu thụ nội bộ*. Bắt buộc khi đã giao. Cạnh đó là **Nguồn tiêu thụ** — hàng của lần giao là mủ **Khai thác** (vườn cây của đơn vị), mủ **Thu mua**, hay **Hàng hóa cao su** (thành phẩm đơn vị mua ngoài về bán lại); cũng **bắt buộc khi đã giao**, chưa điền ngày giao thì để trống được.
-4. **Chi tiết đợt giao** — chủng loại, sản lượng, đơn giá thực tế của lần giao này. Ô Quy khô và Tỷ giá chỉ hiện khi áp dụng, giống phiếu hợp đồng.
+3. **Hình thức tiêu thụ** — *Xuất khẩu / UTXK* · *Tiêu thụ trong nước* · *Tiêu thụ nội bộ*. Bắt buộc khi đã giao.
+4. **Chi tiết đợt giao** — chủng loại, sản lượng, đơn giá thực tế của lần giao này. Ô Quy khô và Tỷ giá chỉ hiện khi áp dụng, giống phiếu hợp đồng. Mỗi dòng có ô **Nguồn tiêu thụ**: chủng loại đó là mủ **Khai thác** (vườn cây của đơn vị), mủ **Thu mua** hay **Hàng hóa cao su** (thành phẩm mua ngoài về bán lại). Bắt buộc khi đã điền Ngày giao. Một đợt có nhiều chủng loại thì mỗi dòng chọn nguồn riêng.
 5. **Số hoá đơn** + **Hoá đơn (scan)** — số hoá đơn bán hàng của đợt và file đính kèm.
 6. **Thanh toán** — ngày thanh toán, sản lượng của lần thanh toán, kèm chứng từ.
 
@@ -285,7 +285,7 @@ Sản lượng thực giao thường lệch vài phần trăm so với hợp đ�
 > - Chỉ chốt khi **thật sự kết thúc hợp đồng**. Còn giao tiếp thì để nguyên — chốt rồi hợp đồng bị khoá, không thêm/sửa đợt giao được nữa.
 > - Bấm nhầm thì vào lại màn chi tiết bấm **Mở lại hợp đồng**, mọi số liệu trở về như cũ.
 > - Nếu còn đợt **chưa điền ngày giao**, màn này báo bằng khung vàng — điền ngày giao trước, nếu không sản lượng đó sẽ không được tính vào tiêu thụ.
-> - Hợp đồng **giao 1 lần chưa có ngày giao**: chốt hoàn thành chính là ghi nhận **đã giao**, nên màn này hỏi thêm Ngày giao, **Hình thức tiêu thụ** và **Nguồn tiêu thụ** (khai thác / thu mua / hàng hóa cao su). Hợp đồng huỷ, không giao nữa thì tích ô *huỷ / không giao nữa*.
+> - Hợp đồng **giao 1 lần chưa có ngày giao**: chốt hoàn thành chính là ghi nhận **đã giao**, nên màn này hỏi thêm Ngày giao, **Hình thức tiêu thụ** và **Nguồn tiêu thụ** của từng dòng chủng loại (khai thác / thu mua / hàng hóa cao su). Hợp đồng huỷ, không giao nữa thì tích ô *huỷ / không giao nữa*.
 
 ## 14. Báo cáo tiêu thụ
 

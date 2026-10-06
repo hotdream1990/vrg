@@ -20,7 +20,7 @@ from app.core.market_meta import (
     CONSUMPTION_SOURCES, CONTRACT_TYPES, DRY_REQUIRED_GRADES, SALE_CHANNELS,
 )
 from app.services import sales_contract_calc as calc, sales_contract_report, unit_analytics_excel
-from app.services.sales_contract_report import source_of
+from app.services import sales_contract_source_grade
 from app.services.sales_contract_consumption_summary import SUMMARY_COLS, summary
 from app.services.sales_contract_group import GROUP_LABELS
 from app.services.unit_analytics_excel import Col
@@ -105,7 +105,7 @@ def _detail(deliveries: list[dict[str, Any]], names: dict[str, str]) -> list[dic
                 "contract_group": GROUP_LABELS.get(r.get("contract_group") or ""),
                 "channel": SALE_CHANNELS.get(r.get("channel") or ""),
                 "to_company": r.get("to_company"),
-                "source": CONSUMPTION_SOURCES.get(source_of(r)),
+                "source": CONSUMPTION_SOURCES.get(calc.line_source(ln, r.get("source"))),
                 "grade": grade,
                 # Số chưa quy khô chỉ có nghĩa với chủng loại còn nước; thành phẩm bán ra đã là
                 # hàng khô nên để trống, hiện lại số lượng ở đây là mời người đọc cộng hai lần.
@@ -151,7 +151,7 @@ def _by_contract(deliveries: list[dict[str, Any]], names: dict[str, str]) -> lis
                     "_channels": set(), "_sources": set(), "_ids": set(), "_days": set(),
                 }
             g["_channels"].add(r.get("channel") or "")
-            g["_sources"].add(source_of(r))
+            g["_sources"].add(calc.line_source(ln, r.get("source")))
             g["_ids"].add(r["id"])
             if r.get("delivered_at"):
                 g["_days"].add(r["delivered_at"])
@@ -213,10 +213,17 @@ def build(date_from: str, date_to: str, rep: dict[str, Any], companies: list[str
         "trong kỳ. Hợp đồng bán nhiều chủng loại tách thành nhiều dòng. Cộng cột “Sản lượng” ra "
         "đúng sản lượng tiêu thụ của sheet tổng hợp. Doanh thu để trống khi hợp đồng có lần giao "
         "thiếu tỷ giá.")
+    sg_rows, sg_total = sales_contract_source_grade.matrix(rep.get("by_company") or {})
+    sg_note = ("Sản lượng tiêu thụ (tấn quy khô) theo NGUỒN của từng dòng chủng loại: khai thác, thu "
+               "mua, hàng hóa cao su. % là tỷ trọng của nguồn trong chính chủng loại đó; dòng Tổng cộng "
+               "cho tỷ trọng từng nguồn trên toàn bộ. Cùng bộ lọc với sheet tổng hợp.")
     return unit_analytics_excel.build_xlsx(
         title="BÁO CÁO TIÊU THỤ", period=f"{date_from} → {date_to}", note=note,
         group_by="company", columns=SUMMARY_COLS, rows=rows, totals=totals,
         sheets=[{"name": "Theo hợp đồng", "title": "SẢN LƯỢNG THEO HỢP ĐỒNG & CHỦNG LOẠI",
                  "note": contract_note, "columns": CONTRACT_COLS, "rows": by_contract},
+                {"name": "Nguồn × chủng loại", "title": "TIÊU THỤ THEO NGUỒN × CHỦNG LOẠI",
+                 "note": sg_note, "columns": sales_contract_source_grade.COLS, "rows": sg_rows,
+                 "totals": sg_total},
                 {"name": "Chi tiết lần giao", "title": "CHI TIẾT TỪNG DÒNG BÁN",
                  "note": detail_note, "columns": DETAIL_COLS, "rows": detail}])

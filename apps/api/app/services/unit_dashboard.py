@@ -31,8 +31,10 @@ _PURCHASE_TOTALS = ("qty_latex", "qty_cup", "qty_lace", "qty_finished", "qty_mat
                     "qty_total", "price_latex_avg", "price_cup_avg", "price_lace_avg",
                     "price_finished_avg", "days", "no_purchase_days")
 _PURCHASE_TREND = ("qty_latex", "qty_cup", "qty_lace", "qty_finished", "price_latex_avg")
+#: Nguồn tiêu thụ tính theo từng dòng chủng loại (khai thác · thu mua · hàng hóa cao su).
+_CON_SOURCES = ("qty_exploit", "qty_purchase", "qty_goods")
 _CON_QTY = ("qty", "qty_long_term", "qty_spot", "qty_principle", "qty_unknown_type", "qty_export",
-            "qty_domestic", "qty_internal", "revenue_ty")
+            "qty_domestic", "qty_internal", *_CON_SOURCES, "revenue_ty")
 #: `bad_price_lines` = dòng bán nghi sai đơn vị tính (đơn giá vượt trần) — thẻ KPI Doanh thu đọc để
 #: báo số đang bị đội lên, thay vì hiện 4.500 tỷ ảo như một con số thật (phản hồi 26/09/2026).
 _CON_TOTALS = (*_CON_QTY, "avg_price_trieu", "lines", "days", "no_revenue_lines", "bad_price_lines")
@@ -128,7 +130,9 @@ def consumption_block(sc: dict[str, Any], date_from: str, date_to: str,
         "scope": sc["public"], "date_from": date_from, "date_to": date_to, "bucket": bucket,
         "totals": _pick(base["totals"], _CON_TOTALS),
         "trend": _trend(trend["rows"], _CON_QTY, date_from, date_to, bucket, today),
-        "by_grade": _desc([{"grade": r["key"], **_pick(r, ("qty", "revenue_ty", "avg_price_trieu"))}
+        # Kèm sản lượng theo NGUỒN của từng chủng loại → bảng "tiêu thụ từ nguồn nào, loại nào".
+        "by_grade": _desc([{"grade": r["key"],
+                            **_pick(r, ("qty", "revenue_ty", "avg_price_trieu", *_CON_SOURCES))}
                            for r in grade["rows"]], "qty"),
         "breakdown": [{"label": r["key"], **_pick(r, _CON_BREAKDOWN)}
                       for r in _ordered(sc, base["rows"])] if child else [],

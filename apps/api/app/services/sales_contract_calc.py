@@ -14,7 +14,7 @@ import math
 from datetime import date
 from typing import Any
 
-from app.core.market_meta import DRY_REQUIRED_GRADES, SALE_CURRENCIES, UNIT_GRADES
+from app.core.market_meta import CONSUMPTION_SOURCES, DRY_REQUIRED_GRADES, SALE_CURRENCIES, UNIT_GRADES
 from app.services import sales_contract_line_dates as line_dates
 
 TRIEU = 1_000_000
@@ -34,7 +34,9 @@ def _num(v) -> float | None:
 
 def clean_lines(lines, require_fx: bool = True, *, dated: bool = False,
                 sign_date: date | None = None, delivered_at: date | None = None,
-                expiry: date | None = None) -> list[dict[str, Any]]:
+                expiry: date | None = None, with_source: bool = False,
+                require_source: bool = False,
+                force_source: str | None = None) -> list[dict[str, Any]]:
     """Lọc/kiểm tra danh sách dòng chi tiết. Raise ValueError với thông báo tiếng Việt.
 
     `dated` — dòng của HỢP ĐỒNG được mang NGÀY HIỆU LỰC (`from_date`, xem `line_dates.parse`),
@@ -53,6 +55,14 @@ def clean_lines(lines, require_fx: bool = True, *, dated: bool = False,
     thu dòng đó là KHÔNG BIẾT (`line_revenue_vnd` trả None) — không phải 0.
     ⚠ KHÁC quy khô: quy khô ép ở mọi trạng thái vì nó là cách khai SẢN LƯỢNG, không phụ thuộc
     ngày giao.
+
+    NGUỒN TIÊU THỤ nằm ở TỪNG DÒNG chủng loại (05/10/2026 — một lần giao có thể gồm SVR khai thác
+    lẫn loại thu mua). `with_source` chỉ bật cho bản ghi LÀ MỘT LẦN GIAO (hợp đồng cha giao nhiều
+    lần không mang nguồn). `force_source` = ô nguồn CẤP BẢN GHI có giá trị trong payload: chỉ client
+    CŨ gửi (form/màn Hoàn thành trước bản này, đề nghị sửa gửi trước bản này — web mới luôn gửi null),
+    nghĩa là người dùng chọn MỘT nguồn cho cả lần giao → áp cho MỌI dòng. Chỉ điền dòng trống thì
+    thay đổi của họ bị nuốt im lặng vì dòng đã có nguồn (sau migration). `require_source` = đã có
+    ngày giao: dòng nào vẫn trống thì BÁO LỖI, không đoán hộ.
     """
     out: list[dict[str, Any]] = []
     for i, ln in enumerate(lines if isinstance(lines, list) else [], start=1):
@@ -105,6 +115,15 @@ def clean_lines(lines, require_fx: bool = True, *, dated: bool = False,
             "ccy": ccy,
             "fx": fx,
         }
+        if with_source:
+            src = force_source or str(ln.get("source") or "").strip()
+            if src and src not in CONSUMPTION_SOURCES:
+                raise ValueError(f"Dòng {i} ({grade}): nguồn tiêu thụ “{src}” không hợp lệ.")
+            if require_source and not src:
+                raise ValueError(f"Dòng {i} ({grade}): thiếu nguồn tiêu thụ "
+                                 f"({' · '.join(CONSUMPTION_SOURCES.values())}).")
+            if src:
+                row["source"] = src
         # Chỉ ghi khoá khi CÓ ngày riêng: lưu lại một hợp đồng cũ không được đổi JSON của nó (nhật ký
         # sẽ báo "đổi dòng hàng" cho một lần lưu không đổi gì).
         if dated and (fd := line_dates.parse(ln, f"Dòng {i} ({grade})", sign_date, delivered_at,
@@ -114,6 +133,19 @@ def clean_lines(lines, require_fx: bool = True, *, dated: bool = False,
     if not out:
         raise ValueError("Hợp đồng phải có ít nhất một dòng chi tiết.")
     return out
+
+
+def line_source(line: dict, delivery_source: str | None = None) -> str:
+    """Nguồn tiêu thụ của MỘT DÒNG: nguồn tự chọn ở dòng → nguồn cấp lần giao (dữ liệu trước
+    05/10/2026 chỉ có ô này) → "khai thác" (lần giao nhập trước khi có ô nguồn, xem `core/db.py`)."""
+    return line.get("source") or delivery_source or "exploit"
+
+
+def common_source(lines) -> str | None:
+    """Nguồn chung của mọi dòng; None khi dòng khác nguồn nhau hoặc có dòng chưa khai. Ghi vào ô
+    nguồn cấp bản ghi để người/SQL đọc nhanh — số liệu luôn tính theo từng dòng."""
+    srcs = {ln.get("source") or None for ln in lines or []}
+    return next(iter(srcs)) if len(srcs) == 1 and None not in srcs else None
 
 
 def line_revenue_vnd(line: dict) -> float | None:

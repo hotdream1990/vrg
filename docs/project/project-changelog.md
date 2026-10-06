@@ -48,6 +48,25 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     tiết và theo hợp đồng có cột *Nguồn tiêu thụ*); *Lịch sử đợt giao* có cột *Nguồn*; *Thống kê tiêu
     thụ* lọc + nhóm theo nguồn, có 2 cột tách nguồn. Đổi nguồn của lần giao đã chốt số liệu phải qua
     **đề nghị sửa** (như đổi hình thức tiêu thụ).
+- **Nguồn tiêu thụ theo TỪNG DÒNG chủng loại + chỉ số nguồn × chủng loại** (05/10/2026).
+  - Đơn vị cần tính nguồn trên từng chủng loại (một lần giao có thể gồm SVR khai thác lẫn loại thu mua),
+    nên nguồn chuyển từ cấp lần giao xuống **từng dòng** (`lines[].source`). Form hợp đồng giao 1 lần / đợt
+    giao có ô *Nguồn tiêu thụ* ở mỗi dòng, bắt buộc khi có ngày giao; *Hoàn thành hợp đồng* và nút *Sửa nguồn*
+    (vẫn mở tới hết 08/10/2026) chọn nguồn theo từng dòng.
+  - Ô `sales_contract.source` nay là nguồn CHUNG của các dòng (null khi lẫn nguồn). Web mới gửi null; payload
+    có nguồn cấp bản ghi = client cũ (trình duyệt chưa tải lại, đề nghị sửa gửi trước bản này) → áp cho MỌI
+    dòng. Hàng rào chốt số liệu so nguồn hiệu lực của từng dòng (`_lines_key`), bỏ ô `source` khỏi
+    `STAT_FIELDS`. «Sửa nguồn» khoá dòng (`FOR UPDATE`) để không đè sửa đổi đồng thời.
+  - Migration một lần (mốc mới `schema_once`): ghi nguồn cấp lần giao xuống mọi dòng chưa có nguồn, và vá ảnh
+    chụp "lúc gửi" của đề nghị sửa hợp đồng đang chờ để không bị báo "đã thay đổi" oan. Diễn tập trên bản sao
+    prod 04/10: 6.874 bản ghi, tổng theo nguồn trước = sau.
+  - Sửa kèm: chuyển hợp đồng giao 1 lần CHƯA giao sang giao nhiều lần không còn sinh "đợt" chờ giao mang 100%
+    sản lượng (chỉ dời khi có ngày giao / hoá đơn / thanh toán); form không gửi ngày giao / hình thức đang ẩn
+    khi chọn giao nhiều lần; số "Dòng N" trong thông báo lỗi khớp đúng dòng trên màn hình.
+  - Chỉ số: *Báo cáo tiêu thụ* (web + sheet Excel mới *Nguồn × chủng loại*) và *Dashboard đơn vị* (bảng
+    *Cơ cấu nguồn tiêu thụ theo chủng loại*, biểu đồ xu hướng tách theo nguồn) cho biết tiêu thụ từ nguồn
+    nào theo loại nào (tấn quy khô + tỷ trọng). *Thống kê tiêu thụ* nhóm theo chủng loại ra cùng ma trận;
+    sửa lỗi nhóm theo nguồn / loại hợp đồng / hình thức bị mất cột tên nhóm.
 - **Nguồn tiêu thụ thứ 3: Hàng hóa cao su** (05/10/2026).
   - Lần giao chọn thêm được **Hàng hóa cao su** (thành phẩm mua ngoài về bán lại — cùng nghĩa *kế hoạch
     hàng hóa* ở Kế hoạch năm), khoá `goods` trong `CONSUMPTION_SOURCES`. Luật bắt buộc khi có ngày giao

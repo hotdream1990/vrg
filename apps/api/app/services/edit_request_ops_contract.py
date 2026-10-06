@@ -22,6 +22,7 @@ from app.services import (
     customer_repo, master_contract_repo, member_unit_merge, sales_contract_lifecycle,
     sales_contract_lock, sales_contract_repo,
 )
+from app.services import sales_contract_calc as calc
 from app.services.edit_request_ops import Op, collect_blocked, parse, uniq_dates
 
 _NOT_FOUND = "Không tìm thấy hợp đồng trong phạm vi tài khoản."
@@ -74,11 +75,20 @@ def _save_validate(payload: Any) -> dict:
 def _legacy_source(p: dict) -> dict:
     """Đề nghị gửi TRƯỚC khi có ô «Nguồn tiêu thụ» (03/10/2026) không mang khoá `source` — giữ nguồn
     đang lưu của bản ghi; lần giao chưa có nguồn thì tính KHAI THÁC như mọi lần giao cũ. Không vậy
-    thì Ban bấm Duyệt vướng "Thiếu nguồn tiêu thụ" ở một đề nghị không ai sửa được nữa."""
+    thì Ban bấm Duyệt vướng "Thiếu nguồn tiêu thụ" ở một đề nghị không ai sửa được nữa.
+
+    Nguồn nay ở TỪNG DÒNG (05/10/2026) → điền theo dòng cùng vị trí của bản hiện tại. Gán một nguồn
+    cấp bản ghi thì lần giao đang lẫn nguồn (nguồn chung None) bị kéo hết về khai thác."""
     if "source" in p or not p.get("delivered_at"):
         return p
-    cur = sales_contract_repo.get(p["id"]) if p.get("id") else None
-    return {**p, "source": (cur or {}).get("source") or "exploit"}
+    cur = (sales_contract_repo.get(p["id"]) if p.get("id") else None) or {}
+    cur_lines = cur.get("lines") or []
+    lines = [{**ln, "source": ln.get("source") or (
+                 calc.line_source(cur_lines[i], cur.get("source")) if i < len(cur_lines)
+                 else "exploit")}
+             if isinstance(ln, dict) else ln
+             for i, ln in enumerate(p.get("lines") or [])]
+    return {**p, "lines": lines, "source": None}
 
 
 def _save_snapshot(p: dict) -> dict | None:

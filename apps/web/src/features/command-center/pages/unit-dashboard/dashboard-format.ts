@@ -20,6 +20,10 @@ export const fmtTy = (v: Num): string => fmtNum(v, 2);
 /** Phần trăm: 1 số lẻ, kèm dấu %. */
 export const fmtPct = (v: Num): string => (v == null ? "—" : `${vi(v, 1)}%`);
 
+/** Tỷ trọng % của một phần trên tổng — null khi thiếu số hoặc tổng ≤ 0 (không chia cho 0). */
+export const share = (part: Num, total: Num): number | null =>
+  part == null || total == null || total <= 0 ? null : (part / total) * 100;
+
 /** Ghép đơn vị sau số — chưa có số thì chỉ "—" (không "— tấn"). */
 export const withUnit = (text: string, unit: string): string => (text === "—" ? text : `${text} ${unit}`);
 

@@ -36,6 +36,10 @@ export type ContractLine = {
    *  theo ngày ký. Dùng khi TĂNG sản lượng sau khi ký: dòng tăng thêm chỉ vào "đã ký HĐ chưa giao"
    *  từ ngày này. Server lưu null khi trùng ngày ký. */
   from_date?: string | null;
+  /** NGUỒN TIÊU THỤ của DÒNG (05/10/2026): `exploit` khai thác · `purchase` thu mua · `goods` hàng
+   *  hóa cao su. Chỉ ở dòng của MỘT LẦN GIAO (đợt giao / hợp đồng giao 1 lần); bắt buộc khi có
+   *  ngày giao. Dòng của hợp đồng giao nhiều lần không mang. */
+  source?: string | null;
 };
 
 /** Loại hợp đồng: dài hạn | chuyến. null = chưa khai (bản ghi chuyển từ cơ chế cũ). */
@@ -63,8 +67,9 @@ export type Contract = {
   delivered_at: string | null;
   channel: string | null;
   to_company: string | null;
-  /** NGUỒN TIÊU THỤ của lần giao: `exploit` khai thác · `purchase` thu mua (03/10/2026). Bắt buộc
-   *  khi có ngày giao; hợp đồng giao nhiều lần để null (khai ở từng đợt giao). */
+  /** NGUỒN CHUNG của các dòng (server tự tính, chỉ để đọc): null khi các dòng khác nguồn nhau hoặc
+   *  hợp đồng giao nhiều lần. Nguồn thật nằm ở `lines[].source` (05/10/2026) — form KHÔNG gửi ô này
+   *  khi lưu lần giao, vì server dùng nó làm nguồn mặc định cho dòng bỏ trống. */
   source: string | null;
   /** Hoá đơn của ĐỢT GIAO: số hoá đơn + danh sách file scan. */
   invoice_no: string | null;
@@ -210,8 +215,10 @@ export type ConsumptionSummary = {
   revenue: number | null;
   deliveries: number;
   by_channel: Record<string, number>;
-  /** Sản lượng theo nguồn tiêu thụ: exploit (khai thác) · purchase (thu mua). */
+  /** Sản lượng theo nguồn tiêu thụ (tính theo TỪNG DÒNG chủng loại): exploit · purchase · goods. */
   by_source?: Record<string, number>;
+  /** Ma trận {nguồn: {chủng loại: tấn quy khô}} — tiêu thụ từ nguồn nào, loại nào. Vắng = API cũ. */
+  by_source_grade?: Record<string, Record<string, number>>;
   by_grade: Record<string, number>;
   /** {id khách hàng ("0" = chưa gán): sản lượng + doanh thu} — yêu cầu C1 của khách. */
   by_customer: Record<string, { qty: number; revenue: number }>;
@@ -340,17 +347,20 @@ export const deleteContract = (id: number) =>
 export const setContractCompletion = (
   id: number, completedAt: string | null,
   delivery?: { delivered_at?: string | null; channel?: string | null;
-               to_company?: string | null; source?: string | null; no_delivery?: boolean },
+               to_company?: string | null; source?: string | null;
+               /** Nguồn của TỪNG DÒNG theo đúng thứ tự `lines`; null = giữ nguồn đang có của dòng. */
+               line_sources?: (string | null)[]; no_delivery?: boolean },
 ) =>
   apiFetch<{ contract: Contract }>(`/api/sales-contracts/${id}/completion`,
     { method: "PUT", headers: J,
       body: JSON.stringify({ completed_at: completedAt, ...(delivery ?? {}) }) });
 
 /** Đổi riêng NGUỒN TIÊU THỤ của một lần giao — kể cả lần giao đã khoá, nhưng chỉ tới hạn
- *  `meta.source_self_edit_until`; hết hạn server trả 403. */
-export const setContractSource = (id: number, source: string) =>
+ *  `meta.source_self_edit_until`; hết hạn server trả 403. `lineSources` theo ĐÚNG thứ tự
+ *  `contract.lines` (server so số phần tử, lệch = hợp đồng vừa bị sửa → 400). */
+export const setContractSource = (id: number, lineSources: (string | null)[]) =>
   apiFetch<{ contract: Contract }>(`/api/sales-contracts/${id}/source`,
-    { method: "PUT", headers: J, body: JSON.stringify({ source }) });
+    { method: "PUT", headers: J, body: JSON.stringify({ line_sources: lineSources }) });
 
 /** Chuyển giao-1-lần ↔ giao-nhiều-lần tại chỗ; lần giao đang có được dời thành đợt giao đầu tiên. */
 export const setContractDeliveryType = (id: number, deliveryType: "single" | "multi") =>

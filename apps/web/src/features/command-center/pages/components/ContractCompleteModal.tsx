@@ -6,6 +6,7 @@ import {
 } from "../../../../lib/sales-contract-client";
 import { dmy } from "../../../../lib/date";
 import DateInput from "../../sections/DateInput";
+import LineSourcePicker from "./LineSourcePicker";
 
 type Props = {
   d: ContractDetail;
@@ -32,8 +33,9 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
   const [giaoDay, setGiaoDay] = useState("");            // để trống = lấy đúng ngày hoàn thành
   const [channel, setChannel] = useState("");
   const [toCompany, setToCompany] = useState("");
-  // Nguồn tiêu thụ (khai thác / thu mua) — lấy sẵn nếu đã chọn ở form hợp đồng, không thì để trống.
-  const [source, setSource] = useState(c.source ?? "");
+  // Nguồn tiêu thụ của TỪNG DÒNG — lấy sẵn nguồn dòng đã chọn ở form hợp đồng, không thì để trống
+  // (không đoán hộ: chọn sai nguồn là lệch tiêu thụ khai thác / thu mua mà không ai hay).
+  const [sources, setSources] = useState<string[]>(() => c.lines.map((ln) => ln.source ?? ""));
   const peers = meta.internal_targets?.[c.company] ?? [];
   // Không giao trước ngày hiệu lực muộn nhất của các dòng — server chặn, chặn luôn trên lịch.
   const minGiao = c.lines.reduce((m, l) => (l.from_date && l.from_date > m ? l.from_date : m), "");
@@ -55,7 +57,9 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
     }
     if (needDelivery && !noDelivery) {
       if (!channel) { setErr("Chọn Hình thức tiêu thụ, hoặc tích “hợp đồng huỷ / không giao nữa”."); return; }
-      if (!source) { setErr("Chọn Nguồn tiêu thụ."); return; }
+      const missing = c.lines.map((ln, i) => (sources[i] ? "" : `Dòng ${i + 1} (${ln.grade})`))
+        .filter(Boolean);
+      if (missing.length) { setErr(`Chọn Nguồn tiêu thụ cho: ${missing.join(", ")}.`); return; }
       if (channel === "internal" && !toCompany) { setErr("Chọn đơn vị nhận hàng."); return; }
       // Ngày giao để trống thì lấy ngày hoàn thành — lịch chỉ chặn ngày CHỌN, không chặn giá trị
       // mặc định này, nên phải kiểm lại ở đây thay vì đợi server báo lỗi.
@@ -69,7 +73,9 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
       await setContractCompletion(c.id as number, day, needDelivery
         ? (noDelivery
           ? { no_delivery: true }
-          : { delivered_at: giaoDay || day, channel, source,
+          // Nguồn đi theo TỪNG DÒNG (đúng thứ tự `lines`) — KHÔNG gửi `source`: server dùng nó
+          // điền ngầm cho dòng trống.
+          : { delivered_at: giaoDay || day, channel, line_sources: sources,
               to_company: channel === "internal" ? toCompany : null })
         : undefined);
       onDone(); onClose();
@@ -129,14 +135,12 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
                   </select>
                 </label>
               )}
-              <label className="form-field">Nguồn tiêu thụ *
-                <select className="blt-date-input" value={source}
-                  onChange={(e) => setSource(e.target.value)}>
-                  <option value="">— chọn nguồn tiêu thụ —</option>
-                  {Object.entries(meta.sources ?? {})
-                    .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-              </label>
+            </div>
+          )}
+          {!noDelivery && (
+            <div style={{ marginTop: 10 }}>
+              <LineSourcePicker lines={c.lines} labels={meta.sources ?? {}} value={sources}
+                onChange={setSources} />
             </div>
           )}
           {noDelivery && (

@@ -2,12 +2,9 @@
    sản lượng. Tỷ trọng tính trên tổng sản lượng server trả (không tự cộng lại các dòng). */
 
 import type { ConsumptionBlock } from "../../../../lib/unit-dashboard-client";
-import { fmtPct, fmtPrice, fmtTon, fmtTy } from "./dashboard-format";
+import { fmtPct, fmtPrice, fmtTon, fmtTy, share } from "./dashboard-format";
 
 type Props = { rows: ConsumptionBlock["by_grade"]; totalQty: number | null };
-
-const share = (qty: number | null, total: number | null): number | null =>
-  qty == null || total == null || total <= 0 ? null : (qty / total) * 100;
 
 export default function ConsumptionGradeTable({ rows, totalQty }: Props) {
   if (!rows.length) return <div className="scan-empty">Chưa có số tiêu thụ theo chủng loại.</div>;

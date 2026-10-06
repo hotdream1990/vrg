@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.core.market_meta import CONSUMPTION_SOURCES, CONTRACT_TYPES, SALE_CHANNELS
+from app.core.market_meta import CONTRACT_TYPES, SALE_CHANNELS
 from app.services import customer_repo, sales_contract_report
 from app.services.sales_contract_group import GROUP_LABELS
 
@@ -46,7 +46,8 @@ def _shape(r: dict[str, Any], names: dict[int, str]) -> dict[str, Any]:
         # Nhóm báo cáo theo hồ sơ mẹ (HĐ chuyến · HĐ nguyên tắc · HĐ dài hạn) — khớp màn Thống kê.
         "contract_group": GROUP_LABELS.get(r.get("contract_group") or ""),
         "channel": SALE_CHANNELS.get(r.get("channel") or ""),
-        "source": CONSUMPTION_SOURCES.get(sales_contract_report.source_of(r)),
+        # Nguồn khai theo từng dòng chủng loại → một lần giao có thể nhiều nguồn, liệt kê đủ.
+        "source": sales_contract_report.source_label(r),
         "grades": _grades(r.get("lines")),
         "qty": r["qty"],
         "qty_dry": r["qty_dry"],

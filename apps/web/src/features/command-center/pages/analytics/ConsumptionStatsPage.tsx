@@ -13,7 +13,7 @@ import AnalyticsFilters, { MultiSelect } from "./AnalyticsFilters";
 import DrillHeader, { type Kpi } from "./DrillHeader";
 import StatsTable, { type StatsCol } from "./StatsTable";
 import { initialFilters, useFilterCatalog, useStatsReport } from "./use-stats";
-import { CHAINS, DIM_LABEL, type DrillDim, applyDrill, useDrill } from "./use-drill";
+import { CHAINS, DIM_LABEL, type DrillDim, type GroupDim, applyDrill, useDrill } from "./use-drill";
 import "../../../bulletin/bulletin.css";
 
 const SUMMARY_COLS: StatsCol[] = [
@@ -80,7 +80,8 @@ const KPIS: Kpi[] = [
 ];
 
 // Ngoài chuỗi drill còn xem nhanh theo chủng loại / loại HĐ / hình thức / nguồn tiêu thụ. Nguồn
-// (khai thác ↔ thu mua) khai trên từng LẦN GIAO từ 03/10/2026; lần giao trước đó tính là khai thác.
+// (khai thác · thu mua · hàng hóa cao su) khai trên TỪNG DÒNG chủng loại (05/10/2026); lần giao nhập
+// trước khi có ô nguồn tính là khai thác. Nhóm theo chủng loại = ma trận chủng loại × nguồn.
 const GROUPS = [
   ...(["region", "company", "day", "grade"] as const).map((v) => ({ value: v, label: DIM_LABEL[v] })),
   { value: "contract", label: "Loại HĐ" },
@@ -135,7 +136,8 @@ export default function ConsumptionStatsPage() {
           <p>
             Toàn Tập đoàn → <b>khu vực</b> → <b>công ty</b> → <b>ngày</b> → <b>từng dòng bán</b>.
             Lọc thêm theo chủng loại · loại HĐ · hình thức HĐ · nguồn tiêu thụ (khai thác / thu mua / hàng hóa cao su).
-            Dòng bán bằng USD thiếu tỷ giá không được tính vào doanh thu.
+            {" "}Nhóm theo <b>chủng loại</b> để xem tiêu thụ từ nguồn nào theo loại nào (3 cột nguồn, tấn).
+            {" "}Dòng bán bằng USD thiếu tỷ giá không được tính vào doanh thu.
             <b> % thực hiện kế hoạch</b> so sản lượng <b>HĐ chuyến</b> với chỉ tiêu năm ở màn
             {" "}<b>Kế hoạch năm</b> (kế hoạch tiêu thụ chỉ đặt cho HĐ chuyến).
           </p>
@@ -165,7 +167,7 @@ export default function ConsumptionStatsPage() {
       />
 
       <StatsTable
-        groupLabel={detail ? "" : DIM_LABEL[dim as DrillDim]} groupIsDate={dim === "day"}
+        groupLabel={detail ? "" : DIM_LABEL[dim as GroupDim]} groupIsDate={dim === "day"}
         cols={cols}
         rows={data?.rows ?? []} totals={detail ? null : (data?.totals ?? null)}
         showRegion={dim === "company"} loading={loading} warnings={data?.warnings}

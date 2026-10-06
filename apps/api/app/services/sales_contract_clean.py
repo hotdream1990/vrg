@@ -183,16 +183,17 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         _assert_same_group(company, to_company)
     else:
         to_company = None
-    # NGUỒN TIÊU THỤ (khai thác / thu mua, chốt 03/10/2026) thuộc về MỘT LẦN GIAO như hình thức
-    # tiêu thụ: hợp đồng giao nhiều lần không mang — khai ở từng đợt. Chưa có ngày giao thì chưa
-    # bắt buộc (hàng chưa thành tiêu thụ); có ngày giao là phải khai, KHÔNG tự gán mặc định — đoán
-    # sai là lệch tiêu thụ mủ khai thác / thu mua mà nhìn số không ai biết.
+    # NGUỒN TIÊU THỤ (khai thác / thu mua / hàng hóa) nằm ở TỪNG DÒNG chủng loại của một lần giao
+    # (chốt 05/10/2026; trước đó 03/10 là cả lần giao): hợp đồng giao nhiều lần không mang — khai ở
+    # từng đợt. Chưa có ngày giao thì chưa bắt buộc (hàng chưa thành tiêu thụ); có ngày giao là mọi
+    # dòng phải có nguồn, KHÔNG tự gán mặc định — đoán sai là lệch tiêu thụ mà nhìn số không ai
+    # biết. Ô `source` cấp bản ghi trong payload chỉ client CŨ gửi (một nguồn cho cả lần giao → áp
+    # cho mọi dòng, xem `calc.clean_lines`); khi ghi nó là nguồn CHUNG của các dòng (None khi các dòng
+    # khác nguồn nhau) — `calc.common_source`.
     raw_source = str(row.get("source") or "").strip()
     if raw_source and raw_source not in CONSUMPTION_SOURCES:
         raise ValueError(f"Nguồn tiêu thụ “{raw_source}” không hợp lệ.")
-    source = (raw_source or None) if is_batch else None
-    if delivered and not source:
-        raise ValueError(f"Thiếu nguồn tiêu thụ ({' · '.join(CONSUMPTION_SOURCES.values())}).")
+    force_source = (raw_source or None) if is_batch else None
 
     # Ngày ký chỉ có ở HỢP ĐỒNG. Đợt giao KHÔNG có ngày ký riêng — form không hiện ô này nhưng vẫn
     # gửi kèm ngày mặc định (hôm nay), nhận vào là mọi đợt giao ngày cũ bị chặn oan bằng thông báo
@@ -224,6 +225,10 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         if owner != company:
             raise ValueError("Khách hàng thuộc danh mục của đơn vị khác.")
 
+    lines = calc.clean_lines(row.get("lines"), require_fx=delivered, dated=not is_child,
+                             sign_date=sign, delivered_at=None if is_child else delivered_at,
+                             expiry=expiry, with_source=is_batch,
+                             require_source=delivered and is_batch, force_source=force_source)
     return {
         "id": _int_id(row.get("id"), "Mã hợp đồng"),
         "company": company,
@@ -240,14 +245,12 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         # đã có NGÀY GIAO — lúc ký hợp đồng chưa biết tỷ giá ngày giao (chốt 22/08/2026).
         # Ngày hiệu lực theo dòng (30/09/2026) chỉ có ở HỢP ĐỒNG; giao 1 lần đã giao thì dòng nào
         # cũng phải hiệu lực trước ngày giao.
-        "lines": calc.clean_lines(row.get("lines"), require_fx=delivered, dated=not is_child,
-                                  sign_date=sign, delivered_at=None if is_child else delivered_at,
-                                  expiry=expiry),
+        "lines": lines,
         "delivered": delivered,
         "delivered_at": delivered_at.isoformat() if delivered_at else None,
         "channel": channel,
         "to_company": to_company,
-        "source": source,
+        "source": calc.common_source(lines) if is_batch else None,
         # Hoá đơn của MỘT LẦN GIAO. Hợp đồng giao-1-lần chính nó là một đợt nên vẫn có; hợp
         # đồng giao-nhiều-lần thì không — hoá đơn nằm ở từng đợt, để ở đây là tra nhầm chỗ.
         "invoice_no": (str(row.get("invoice_no") or "").strip()[:80] or None) if is_batch else None,

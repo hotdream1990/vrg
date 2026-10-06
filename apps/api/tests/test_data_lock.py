@@ -248,6 +248,23 @@ def test_unit_changes_the_source_of_a_locked_delivery_only_until_the_deadline(
         r = client.put(f"/api/sales-contracts/{cid}/source", headers=mh, json={"source": src})
         assert r.status_code == 200 and r.json()["contract"]["source"] == src
 
+    # Theo TỪNG DÒNG: lần giao 2 chủng loại đổi riêng một dòng; gửi lệch số dòng → 400.
+    two = client.put("/api/sales-contracts", headers=h, json={
+        **base, "code": "HD-SRC-2L", "delivered_at": INSIDE, "source": None,
+        "lines": [{**line[0], "source": "exploit"},
+                  {**line[0], "grade": "SVR 3L", "qty": 4.0, "source": "exploit"}]})
+    assert two.status_code == 200, two.text
+    tid = two.json()["contract"]["id"]
+    per = client.put(f"/api/sales-contracts/{tid}/source", headers=mh,
+                     json={"line_sources": ["exploit", "purchase"]})
+    assert per.status_code == 200, per.text
+    got = per.json()["contract"]
+    assert [ln["source"] for ln in got["lines"]] == ["exploit", "purchase"]
+    assert got["source"] is None                     # lẫn nguồn → không có nguồn chung
+    short = client.put(f"/api/sales-contracts/{tid}/source", headers=mh,
+                       json={"line_sources": ["goods"]})
+    assert short.status_code == 400 and "không khớp" in short.json()["detail"]
+
     # Nguồn lạ → 400; lần giao chưa có ngày giao thì chưa có gì để đổi → 400.
     bad = client.put(f"/api/sales-contracts/{cid}/source", headers=mh, json={"source": "trading"})
     assert bad.status_code == 400 and "không hợp lệ" in bad.json()["detail"]

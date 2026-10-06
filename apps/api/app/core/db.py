@@ -659,6 +659,46 @@ BEGIN
      WHERE delivered_at IS NOT NULL AND source IS NULL;
   END IF;
 END $$;
+-- MỐC CỦA CÁC BƯỚC DỮ LIỆU CHẠY ĐÚNG MỘT LẦN mà không suy được từ cấu trúc bảng (cột/bảng có hay
+-- chưa). Mỗi bước một `name`; đã có dòng = đã chạy, khởi động lại không chạy nữa.
+CREATE TABLE IF NOT EXISTS schema_once (
+    name       text PRIMARY KEY,
+    applied_at timestamptz NOT NULL DEFAULT now()
+);
+-- NGUỒN TIÊU THỤ THEO TỪNG DÒNG chủng loại (chốt 05/10/2026): ghi nguồn đang nằm ở cấp lần giao
+-- xuống MỌI dòng chưa có nguồn riêng, đúng một lần. Sau bước này ô `source` cấp bản ghi chỉ còn là
+-- nguồn CHUNG của các dòng (None khi lẫn nguồn). Chạy lại mỗi lần khởi động thì sẽ che mất đường
+-- ghi nào lỡ để dòng thiếu nguồn — nên khoá bằng `schema_once`. Hai tiến trình khởi động cùng lúc
+-- vẫn an toàn: UPDATE chỉ chạm dòng còn thiếu nguồn, INSERT có ON CONFLICT.
+-- Cùng lượt vá ẢNH CHỤP "lúc gửi" (`before`) của đề nghị sửa hợp đồng ĐANG CHỜ theo đúng luật đó:
+-- không vá thì mọi đề nghị gửi trước bản này bị báo "số liệu đã thay đổi kể từ lúc gửi" (bản hiện
+-- tại có thêm nguồn ở dòng), Ban phải tích ghi đè từng cái và quen tay che luôn thay đổi thật.
+-- Chỉ chạm phần tử là OBJECT trong một MẢNG — dữ liệu lệch khuôn để nguyên, không làm hỏng khởi động.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM schema_once WHERE name = 'sales_contract_line_source') THEN
+    UPDATE sales_contract sc SET lines = (
+        SELECT jsonb_agg(CASE WHEN jsonb_typeof(e.v) <> 'object' OR e.v ? 'source' THEN e.v
+                              ELSE e.v || jsonb_build_object('source', sc.source) END
+                         ORDER BY e.n)
+          FROM jsonb_array_elements(sc.lines) WITH ORDINALITY AS e(v, n))
+     WHERE sc.source IS NOT NULL AND jsonb_typeof(sc.lines) = 'array'
+       AND EXISTS (SELECT 1 FROM jsonb_array_elements(sc.lines) x
+                    WHERE jsonb_typeof(x) = 'object' AND NOT x ? 'source');
+    UPDATE edit_request er SET before = jsonb_set(er.before, '{lines}', (
+        SELECT jsonb_agg(CASE WHEN jsonb_typeof(e.v) <> 'object' OR e.v ? 'source' THEN e.v
+                              ELSE e.v || jsonb_build_object('source', er.before->'source') END
+                         ORDER BY e.n)
+          FROM jsonb_array_elements(er.before->'lines') WITH ORDINALITY AS e(v, n)))
+     WHERE er.status = 'pending' AND er.op LIKE 'contract%'
+       AND jsonb_typeof(er.before) = 'object'
+       AND jsonb_typeof(er.before->'lines') = 'array'
+       AND jsonb_typeof(er.before->'source') = 'string'
+       AND EXISTS (SELECT 1 FROM jsonb_array_elements(er.before->'lines') x
+                    WHERE jsonb_typeof(x) = 'object' AND NOT x ? 'source');
+    INSERT INTO schema_once (name) VALUES ('sales_contract_line_source') ON CONFLICT DO NOTHING;
+  END IF;
+END $$;
 -- Nâng bản ghi cũ (1 file ở cột phẳng) lên danh sách. Idempotent: chỉ chạm dòng chưa có danh sách.
 UPDATE unit_stock_contract SET files = jsonb_build_array(
          jsonb_build_object('file', file, 'filename', COALESCE(filename, file)))

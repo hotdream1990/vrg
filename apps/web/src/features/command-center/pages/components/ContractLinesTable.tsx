@@ -31,6 +31,11 @@ type Props = {
   signDate?: string | null;
   /** Hạn trên của "Hiệu lực từ": thời hạn hợp đồng, và ngày giao của hợp đồng giao 1 lần. */
   maxFromDate?: string | null;
+  /** Hiện ô "Nguồn tiêu thụ" ở từng dòng — CHỈ khi bản ghi là MỘT LẦN GIAO (đợt giao / hợp đồng giao
+   *  1 lần). Dòng của hợp đồng giao nhiều lần không mang nguồn (server tự bỏ). */
+  showSource?: boolean;
+  /** Đã có ngày giao → mọi dòng phải có nguồn (server trả 400 nếu thiếu). */
+  requireSource?: boolean;
   readOnly?: boolean;
   onChange: (lines: ContractLine[]) => void;
 };
@@ -75,9 +80,11 @@ function Field({ label, w, children }: { label: string; w: number; children: Rea
  *   - Quy khô: chỉ latex và mủ nguyên liệu (thành phẩm bán ra vốn đã là hàng khô).
  *   - Tỷ giá: chỉ dòng bán bằng ngoại tệ.
  *   - Hiệu lực từ: chỉ khi SỬA hợp đồng (`signDate`), không bao giờ ở đợt giao.
+ *   - Nguồn tiêu thụ: chỉ khi bản ghi là một lần giao (`showSource`).
  */
 export default function ContractLinesTable({
-  lines, meta, currencies, requireFx = false, signDate, maxFromDate, readOnly, onChange,
+  lines, meta, currencies, requireFx = false, signDate, maxFromDate,
+  showSource = false, requireSource = false, readOnly, onChange,
 }: Props) {
   const dry = new Set(meta.dry_required);
   const dated = signDate !== undefined;
@@ -128,6 +135,18 @@ export default function ContractLinesTable({
                   {meta.grades.map((g) => <option key={g} value={g}>{g}</option>)}
                 </select>
               </Field>
+              {/* Không chọn sẵn cho dòng đầu: đoán hộ một nguồn là lệch tiêu thụ khai thác / thu
+                  mua mà không ai hay. */}
+              {showSource && (
+                <Field label={`Nguồn tiêu thụ${requireSource ? " *" : ""}`} w={190}>
+                  <select className="blt-date-input" value={ln.source ?? ""} disabled={readOnly}
+                    onChange={(e) => set(i, { source: e.target.value || null })}>
+                    <option value="">— chọn nguồn tiêu thụ —</option>
+                    {Object.entries(meta.sources ?? {})
+                      .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </Field>
+              )}
               {/* Chủng loại còn nước (latex · mủ nguyên liệu · mủ dây) bán theo SỐ CHƯA QUY KHÔ —
                   ghi thẳng vào nhãn, vì tiền tính trên số này còn sản lượng tiêu thụ trên báo cáo
                   lại lấy ô Quy khô. */}
@@ -183,7 +202,12 @@ export default function ContractLinesTable({
       </div>
       {!readOnly && (
         <div style={{ marginTop: 8 }}>
-          <button className="btn" onClick={() => onChange([...lines, { ...EMPTY_LINE }])}>
+          {/* Dòng mới chép nguồn của dòng ngay trên: thường cả lần giao một nguồn, và giá trị
+              hiện ngay trong ô chọn nên người nhập thấy và đổi được — không phải giá trị ẩn. */}
+          <button className="btn" onClick={() => onChange([...lines, {
+            ...EMPTY_LINE,
+            ...(showSource ? { source: lines[lines.length - 1]?.source ?? null } : {}),
+          }])}>
             <PlusOutlined /> Thêm dòng
           </button>
         </div>

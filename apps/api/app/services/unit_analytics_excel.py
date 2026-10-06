@@ -189,6 +189,7 @@ def build_xlsx(*, title: str, period: str, note: str, group_by: str, columns: li
 
     `sheets` = các sheet CHI TIẾT đi kèm (mỗi dòng một bản ghi, có sẵn bộ lọc của Excel) — bảng
     tổng hợp trả lời "bao nhiêu", sheet chi tiết trả lời "gồm những gì" mà không phải tải lại số.
+    Sheet nào mang `totals` thì có thêm dòng Tổng cộng (nhãn ở cột đầu, nằm ngoài vùng lọc).
     """
     wb = Workbook()
     ws = wb.active
@@ -203,7 +204,8 @@ def build_xlsx(*, title: str, period: str, note: str, group_by: str, columns: li
     for s in sheets or []:
         _table(wb.create_sheet(str(s["name"])[:31]), title=s["title"], period_label=period_label,
                period=period, note=s["note"], cols=s["columns"], rows=s["rows"],
-               totals=None, label_col=0, flat=True)
+               totals=s.get("totals"), label_col=1 if s.get("totals") is not None else 0,
+               flat=True)
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()

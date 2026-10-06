@@ -28,6 +28,7 @@ import ContractCompleteModal from "./ContractCompleteModal";
 import ContractFormModal from "./ContractFormModal";
 import SourceQuickEdit from "./SourceQuickEdit";
 import { lineAmount } from "./ContractLinesTable";
+import { effectiveLineSource, knownLineSource, sourceSummary } from "./line-source";
 import {
   contractDeleteDraft, contractDeliveryTypeDraft, deleteConfirmText,
 } from "./contract-edit-request";
@@ -48,14 +49,17 @@ const money = (n: number | null) =>
 
 /** Lũy kế bảng dòng chi tiết hợp đồng — CHỈ cộng sản lượng: thành tiền của mỗi dòng theo nguyên tệ
  *  của chính nó, cộng chung nhiều loại tiền lại thành một số là số vô nghĩa. Một dòng thì khỏi cộng. */
-function LinesTotal({ lines, dated }: { lines: Contract["lines"]; dated: boolean }) {
+function LinesTotal({ lines, dated, withSource }: {
+  lines: Contract["lines"]; dated: boolean; withSource: boolean;
+}) {
   if (lines.length < 2) return null;
   const qty = lines.reduce((s, ln) => s + (ln.qty ?? 0), 0);
   const dry = lines.reduce((s, ln) => s + (ln.qty_dry ?? 0), 0);
   return (
     <tfoot>
       <tr style={{ fontWeight: 600 }}>
-        <td>Lũy kế {lines.length} dòng</td>
+        {/* Cột Nguồn đứng ngay sau Chủng loại → ô nhãn trải qua cả hai cột. */}
+        <td colSpan={withSource ? 2 : 1}>Lũy kế {lines.length} dòng</td>
         <td className="r">{t3(qty)}</td>
         {/* Chủng loại không có quy khô → "—" như từng dòng, hiện 0 sẽ bị đọc là khai thiếu. */}
         <td className="r">{dry > 0 ? t3(dry) : "—"}</td>
@@ -63,6 +67,13 @@ function LinesTotal({ lines, dated }: { lines: Contract["lines"]; dated: boolean
       </tr>
     </tfoot>
   );
+}
+
+/** Nguồn của một dòng: đã giao → nguồn hiệu lực (dòng cũ chưa khai = khai thác, như server); chưa
+ *  giao → chỉ nguồn đã chọn, chưa chọn thì "—". */
+function lineSourceText(ln: Contract["lines"][number], c: Contract, meta: ContractMeta): string {
+  const s = c.delivered_at ? effectiveLineSource(ln, c.source) : knownLineSource(ln, c.source);
+  return s ? meta.sources?.[s] ?? s : "—";
 }
 
 /** Chi tiết HỢP ĐỒNG + danh sách ĐỢT GIAO (mỗi đợt = 1 lần giao). */
@@ -310,7 +321,9 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                       <div className="card" style={{ padding: 0, overflow: "auto" }}>
                         <table>
                           <thead><tr>
-                            <th>Chủng loại</th><th className="r">SL chưa quy khô (tấn)</th>
+                            <th>Chủng loại</th>
+                            {!multi && <th>Nguồn</th>}
+                            <th className="r">SL chưa quy khô (tấn)</th>
                             <th className="r">Quy khô (tấn)</th>
                             <th className="r">Đơn giá</th><th>Loại tiền</th><th className="r">Thành tiền</th>
                             {dated && <th>Hiệu lực từ</th>}
@@ -319,6 +332,8 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                             {c.lines.map((ln, i) => (
                               <tr key={i}>
                                 <td>{ln.grade}</td>
+                                {/* Nguồn chỉ có ở MỘT LẦN GIAO — hợp đồng giao nhiều lần khai ở đợt. */}
+                                {!multi && <td>{lineSourceText(ln, c, meta)}</td>}
                                 <td className="r">{t3(ln.qty ?? 0)}</td>
                                 <td className="r">{ln.qty_dry == null ? "—" : t3(ln.qty_dry)}</td>
                                 <td className="r">{ln.price == null ? "—" : t3(ln.price)}</td>
@@ -338,7 +353,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                               </tr>
                             ))}
                           </tbody>
-                          <LinesTotal lines={c.lines} dated={dated} />
+                          <LinesTotal lines={c.lines} dated={dated} withSource={!multi} />
                         </table>
                       </div>
                     </>
@@ -386,8 +401,8 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                 Hợp đồng <b>giao 1 lần</b>:{" "}
                 {c.delivered_at
                   ? <>đã giao ngày <b>{dmy(c.delivered_at)}</b>
-                    {c.source && (
-                      <> — nguồn tiêu thụ <b>{meta.sources?.[c.source] ?? c.source}</b></>)}.</>
+                    {c.lines.length > 0 && (
+                      <> — nguồn tiêu thụ <b>{sourceSummary(c.lines, c.source, meta.sources)}</b></>)}.</>
                   : "chưa giao — toàn bộ sản lượng đang nằm ở mục “đã ký HĐ chưa giao”."}
                 {" "}Thực tế giao làm nhiều lần thì bấm <b>Chuyển sang giao nhiều lần</b>.
               </div>

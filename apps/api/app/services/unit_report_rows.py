@@ -6,7 +6,7 @@ loại HĐ / hình thức HĐ. Module này giữ nguyên chi tiết từng dòng
 - `purchase_rows`    → mỗi dòng = 1 loại mủ trong 1 ngày của 1 đơn vị (mủ nước · mủ chén ·
                        từng chủng loại thành phẩm). Đơn giá mủ nước/chén lấy từ kho giá
                        (đồng/độ), đơn vị nước ngoài quy từ nội tệ qua `fx_purchase`.
-- `consumption_rows` → mỗi dòng bán, kèm nguồn tiêu thụ của lần giao (khai thác / thu mua).
+- `consumption_rows` → mỗi dòng bán (một chủng loại của một lần giao), kèm nguồn tiêu thụ CỦA DÒNG.
 - `stock_rows`       → tồn kho là số THỜI ĐIỂM tại NGÀY CHỐT: mỗi đơn vị lấy bản ghi mới nhất
                        ≤ ngày chốt (không cộng dồn), kèm ngày thật + số ngày đã cũ.
 """
@@ -166,7 +166,8 @@ def _delivery_rows(date_from: str, date_to: str, companies: list[str] | None,
                    meta: dict[str, dict]) -> list[dict[str, Any]]:
     """Dòng bán lấy từ các LẦN GIAO của hợp đồng (nguồn tiêu thụ hiện hành từ 30/07/2026).
 
-    `source` = nguồn tiêu thụ của lần giao (khai thác / thu mua) và `contract` = nhóm hợp đồng;
+    `source` = nguồn tiêu thụ CỦA DÒNG chủng loại (khai thác / thu mua / hàng hóa — 05/10/2026) và
+    `contract` = nhóm hợp đồng;
     các cột còn lại giữ đúng khuôn dòng cũ để màn Thống kê tiêu thụ dùng chung một bảng.
     """
     from app.services import sales_contract_calc, sales_contract_report
@@ -186,7 +187,8 @@ def _delivery_rows(date_from: str, date_to: str, companies: list[str] | None,
                    else (qty_wet * _num(ln.get("price")) * fx
                          if qty_wet is not None and _num(ln.get("price")) is not None and fx else None))
             out.append({
-                **base, "source": sales_contract_report.source_of(d), "code": d.get("code"),
+                **base, "source": sales_contract_calc.line_source(ln, d.get("source")),
+                "code": d.get("code"),
                 # NHÓM HỢP ĐỒNG (chuyến · HĐNT · dài hạn, theo hồ sơ mẹ — `sales_contract_group`) —
                 # KHÔNG lấy `delivery_type` (loại GIAO): suy từ đó thì mọi hợp đồng đều rơi vào "HĐ
                 # chuyến". Chưa khai loại → để trống, không đoán.

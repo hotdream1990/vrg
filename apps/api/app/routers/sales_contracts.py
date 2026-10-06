@@ -363,7 +363,7 @@ def set_completion(contract_id: int, body: CompletionIn, scope: EditScope) -> di
             contract_id, body.completed_at, companies, username,
             delivery={"delivered_at": body.delivered_at, "channel": body.channel,
                       "to_company": body.to_company, "source": body.source,
-                      "no_delivery": body.no_delivery})}
+                      "line_sources": body.line_sources, "no_delivery": body.no_delivery})}
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:
@@ -385,7 +385,7 @@ def set_source(contract_id: int, body: SourceIn, scope: EditScope) -> dict:
                  "Lần giao đã khoá thì gửi «Đề nghị sửa» để Ban duyệt.")
     try:
         return {"contract": sales_contract_lifecycle.set_source(
-            contract_id, body.source, companies, username)}
+            contract_id, body.source, companies, username, line_sources=body.line_sources)}
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:

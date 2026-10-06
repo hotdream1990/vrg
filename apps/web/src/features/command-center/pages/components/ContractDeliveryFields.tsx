@@ -14,11 +14,13 @@ const GRID: React.CSSProperties = {
   gap: 10,
 };
 
-/** Các ô của MỘT LẦN GIAO: ngày giao · hình thức · đơn vị nhận (nội bộ) · nguồn tiêu thụ.
+/** Các ô của MỘT LẦN GIAO: ngày giao · hình thức · đơn vị nhận (nội bộ).
  *
  *  Dùng cho đợt giao lẫn hợp đồng giao-1-lần (hợp đồng đó chính là một lần giao). Có ngày giao =
- *  chốt thành tiêu thụ → hình thức và NGUỒN (khai thác / thu mua, 03/10/2026) mới bắt buộc; đợt
- *  mới lập chưa xuất hàng thì để trống được. Server ép đúng luật này (`sales_contract_clean`). */
+ *  chốt thành tiêu thụ → hình thức mới bắt buộc; đợt mới lập chưa xuất hàng thì để trống được.
+ *  NGUỒN tiêu thụ không còn ở đây: từ 05/10/2026 nó nằm ở TỪNG DÒNG chủng loại (một lần giao có
+ *  thể vừa hàng khai thác vừa hàng thu mua) — xem `ContractLinesTable`. Server ép đúng luật này
+ *  (`sales_contract_clean`). */
 export default function ContractDeliveryFields({ c, meta, peers, set }: Props) {
   const required = c.delivered_at ? " *" : "";
   return (
@@ -45,20 +47,12 @@ export default function ContractDeliveryFields({ c, meta, peers, set }: Props) {
           </select>
         </label>
       )}
-      {/* Không chọn sẵn: đoán hộ một nguồn là lệch tiêu thụ khai thác / thu mua mà không ai hay. */}
-      <label className="form-field">Nguồn tiêu thụ{required}
-        <select className="blt-date-input" value={c.source ?? ""}
-          onChange={(e) => set({ source: e.target.value || null })}>
-          <option value="">— chọn nguồn tiêu thụ —</option>
-          {Object.entries(meta.sources ?? {})
-            .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-      </label>
       <p className="form-note" style={{ gridColumn: "1 / -1", margin: 0, fontSize: 12 }}>
         Để trống <b>Ngày giao</b> nếu đợt mới lập, chưa xuất hàng — đợt vẫn nằm ở phần chưa giao
         của hợp đồng và chưa tính vào tiêu thụ. Điền ngày giao (chốt thành tiêu thụ) thì phải chọn
-        {" "}<b>Hình thức</b> và <b>Nguồn tiêu thụ</b>: hàng từ mủ <b>khai thác</b> của đơn vị,
-        mủ <b>thu mua</b> hay <b>hàng hóa cao su</b> (mua ngoài về bán lại).
+        {" "}<b>Hình thức tiêu thụ</b> ở đây và <b>Nguồn tiêu thụ</b> ở <b>từng dòng chủng loại</b>{" "}
+        bên dưới: hàng từ mủ <b>khai thác</b> của đơn vị, mủ <b>thu mua</b> hay{" "}
+        <b>hàng hóa cao su</b> (mua ngoài về bán lại).
         {!peers.length && <>{" "}“{c.company}” chưa thuộc nhóm công ty mẹ–con nên không có{" "}
           <b>Tiêu thụ nội bộ</b>. Gán <b>Công ty mẹ</b> ở màn Đơn vị thành viên nếu đơn vị này
           có bán nội bộ.</>}

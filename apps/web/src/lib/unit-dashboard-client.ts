@@ -54,6 +54,9 @@ export type PurchaseBlock = {
 export type ConsumptionQtys = {
   qty: Num; qty_long_term: Num; qty_spot: Num; qty_principle: Num; qty_unknown_type: Num;
   qty_export: Num; qty_domestic: Num; qty_internal: Num;
+  /** Nguồn tiêu thụ (tính theo từng dòng chủng loại): khai thác · thu mua · hàng hóa cao su.
+   *  Vắng = API cũ. */
+  qty_exploit?: Num; qty_purchase?: Num; qty_goods?: Num;
 };
 
 export type ConsumptionBlock = {
@@ -68,7 +71,9 @@ export type ConsumptionBlock = {
     bad_price_lines?: number;
   };
   trend: (ConsumptionQtys & { as_of: string; revenue_ty: Num })[];
-  by_grade: { grade: string; qty: Num; revenue_ty: Num; avg_price_trieu: Num }[];
+  /** Mỗi chủng loại kèm sản lượng theo NGUỒN (`qty_exploit/purchase/goods`, vắng = API cũ). */
+  by_grade: { grade: string; qty: Num; revenue_ty: Num; avg_price_trieu: Num;
+              qty_exploit?: Num; qty_purchase?: Num; qty_goods?: Num }[];
   breakdown: { label: string; qty: Num; revenue_ty: Num; avg_price_trieu: Num;
                bad_price_lines?: number }[];
   warnings: string[];

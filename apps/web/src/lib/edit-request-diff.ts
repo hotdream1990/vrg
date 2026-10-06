@@ -70,6 +70,29 @@ const DELIVERY_TYPE_NAMES: Record<string, string> = {
 const deliveryLabel = (v: unknown): unknown =>
   (typeof v === "string" ? DELIVERY_TYPE_NAMES[v] ?? v : v);
 
+/** Nhãn dự phòng khi KHÔNG có bảng nhãn server gửi (màn đề nghị của ĐƠN VỊ) — theo khoá cuối của
+ *  đường dẫn, nên áp cho cả `source` cấp bản ghi lẫn `lines[i].source`. Khớp `CONSUMPTION_SOURCES`
+ *  ở server; trang duyệt vẫn ưu tiên nhãn server. */
+const FALLBACK_VALUE_NAMES: Record<string, Record<string, string>> = {
+  source: { exploit: "Khai thác", purchase: "Thu mua", goods: "Hàng hóa cao su" },
+};
+
+/** Nguồn tiêu thụ nằm ở TỪNG DÒNG (05/10/2026); ô `source` cấp bản ghi chỉ là nguồn chung server
+ *  tự tính (form mới gửi null) → so nó là hiện dòng "Nguồn tiêu thụ: Khai thác → (trống)" gây hiểu
+ *  nhầm, nên bỏ khỏi so sánh khi các dòng đã mang nguồn. Đề nghị gửi từ bản web CŨ chỉ có nguồn ở
+ *  cấp bản ghi → điền nó xuống dòng chưa có nguồn, đúng như server làm khi duyệt (`default_source`),
+ *  để bảng không báo oan "Dòng hàng N · Nguồn: Thu mua → (trống)". */
+function normalizeLineSource(p: Obj): Obj {
+  if (!Array.isArray(p.lines)) return p;
+  const fill = typeof p.source === "string" && p.source ? p.source : null;
+  const lines = fill
+    ? p.lines.map((l) => (isObj(l) && !l.source ? { ...l, source: fill } : l))
+    : p.lines;
+  if (!lines.some((l) => isObj(l) && l.source)) return p;
+  const { source: _s, ...rest } = p;
+  return { ...rest, lines };
+}
+
 /** Nhãn nhu cầu thị trường — phần còn lại (khách hàng, giao tại, thời gian giao, kết quả…) lấy từ audit-diff. */
 const DEMAND_LABELS: Record<string, string> = { as_of: "Ngày nhận", currency: "Đơn vị giá" };
 
@@ -124,9 +147,11 @@ function project(req: Pick<EditRequest, "op" | "payload">, o: Obj | null, side: 
         : o && { fields: o.fields ?? null, prices: pickKeys(asObj(o.prices), asObj(p.prices)) };
     case "daily_move":
       return side === "payload" ? { as_of: p.to_date } : { as_of: o?.fields ? p.as_of : null };
-    case "contract_save":
+    case "contract_save": {
       // Bản ghi lưu có thêm số suy ra (qty, revenue…) — chỉ so các khoá đơn vị gửi lên.
-      return withSignDefault(side === "payload" ? p : pickKeys(o, p));
+      const body = normalizeLineSource(p);
+      return withSignDefault(side === "payload" ? body : pickKeys(o, body));
+    }
     case "contract_delete":
       return side === "payload" ? null : withSignDefault(o);
     case "contract_delivery_type":
@@ -213,12 +238,15 @@ export function buildEditRequestDiff(
   return rows;
 }
 
-/** Giá trị hiển thị: nhãn server tra sẵn (`labels[khoá cuối][giá trị]`, vd id khách → tên khách) ·
- *  dấu XOÁ → "(xoá)" · ngày ISO → dd/mm/yyyy · số kiểu vi-VN · còn lại theo `fmtValue`. */
+/** Giá trị hiển thị: nhãn server tra sẵn (`labels[khoá cuối][giá trị]`, vd id khách → tên khách),
+ *  thiếu thì nhãn dự phòng (mã nguồn tiêu thụ) · dấu XOÁ → "(xoá)" · ngày ISO → dd/mm/yyyy · số kiểu
+ *  vi-VN · còn lại theo `fmtValue`. */
 export function displayValue(v: unknown, path?: string, labels?: Record<string, Record<string, string>>): string {
   if (v === CLEAR) return "(xoá)";
   const key = path?.split(".").pop()?.replace(/\[\d+\]$/, "");
-  const named = key && v != null && v !== "" ? labels?.[key]?.[String(v)] : undefined;
+  const named = key && v != null && v !== ""
+    ? labels?.[key]?.[String(v)] ?? FALLBACK_VALUE_NAMES[key]?.[String(v)]
+    : undefined;
   if (named) return named;
   if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return dmy(v);
   return fmtValue(v);

@@ -4,6 +4,7 @@ import type { Contract, ContractDoc, ContractMeta } from "../../../../lib/sales-
 import { openContractFile } from "../../../../lib/sales-contract-client";
 import { dmy } from "../../../../lib/date";
 import SourceQuickEdit from "./SourceQuickEdit";
+import { sourceSummary } from "./line-source";
 
 type Props = {
   rows: Contract[];
@@ -108,7 +109,8 @@ export default function ContractBatchTable({
               <td><DocCell no={k.invoice_no} docs={k.invoice_docs} /></td>
               <td>{k.channel ? meta.channels[k.channel] : "—"}</td>
               <td>{k.to_company ?? "—"}</td>
-              <td>{k.source ? meta.sources?.[k.source] ?? k.source : "—"}</td>
+              {/* Nguồn ở từng dòng → gộp các nguồn khác nhau của đợt ("Khai thác · Thu mua"). */}
+              <td>{sourceSummary(k.lines, k.source, meta.sources, !!k.delivered_at)}</td>
               <td className="r">{t3(k.qty)}</td>
               {/* Chủng loại thành phẩm không có quy khô → để "—". Hiện số 0 làm người đọc tưởng
                   đợt này khai thiếu quy khô. */}

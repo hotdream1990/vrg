@@ -29,14 +29,18 @@ from typing import Any
 #:   start_date         — ô cũ của vòng đời đợt giao; vẫn khoá để bản ghi cũ không bị lay.
 #:   delivered_at       — MỐC ghi nhận tiêu thụ: dời ngày là chuyển sản lượng sang kỳ khác.
 #:   channel·to_company — cơ cấu XK / trong nước / nội bộ và đơn vị nhận hàng nội bộ.
-#:   source             — tiêu thụ mủ khai thác / mủ thu mua (03/10/2026).
 #:   lines              — chủng loại · sản lượng · quy khô · đơn giá · loại tiền · tỷ giá · ngày
-#:                        hiệu lực của dòng (`from_date`, 30/09/2026).
+#:                        hiệu lực của dòng (`from_date`, 30/09/2026) · NGUỒN TIÊU THỤ của dòng
+#:                        (05/10/2026). Ô `source` cấp bản ghi KHÔNG còn nằm riêng ở đây: từ khi
+#:                        nguồn khai theo từng dòng, nó chỉ là nguồn mặc định/nguồn chung, và đã
+#:                        được tính vào nguồn hiệu lực của từng dòng (`_lines_key`). So riêng ô đó
+#:                        thì lưu lại một lần giao cũ (nguồn chỉ có ở cấp bản ghi) bằng form mới
+#:                        (nguồn ở từng dòng) sẽ bị coi là "đổi số liệu" dù không con số nào dịch.
 #:   payment_qty        — sản lượng thanh toán (số lượng, đơn vị đã xác nhận cùng đợt chốt).
 #:   premium·premium_ccy— khoản tiền cộng thêm của hàng có chứng chỉ.
 STAT_FIELDS: tuple[str, ...] = (
     "company", "parent_id", "delivery_type", "contract_type", "customer_id",
-    "sign_date", "start_date", "delivered_at", "channel", "to_company", "source",
+    "sign_date", "start_date", "delivered_at", "channel", "to_company",
     "lines", "payment_qty", "premium", "premium_ccy",
 )
 
@@ -63,7 +67,7 @@ EDITABLE_LABELS: str = " · ".join(label for _, label in EDITABLE_WHEN_LOCKED)
 #: phải rà lại cả những lần quá cửa sổ sửa / đã chốt; đi «Đề nghị sửa» thì Ban duyệt từng lần giao.
 #: Đổi nguồn không đổi tổng sản lượng hay doanh thu, chỉ đổi cách chia — nên mở một đường RIÊNG
 #: (`PUT /{id}/source`) thay vì nới `STAT_FIELDS`: đường lưu chung vẫn giữ nguyên hàng rào, và quá
-#: hạn là `source` lại như mọi ô số liệu khác.
+#: hạn là nguồn của từng dòng (nằm trong `lines`) lại như mọi ô số liệu khác.
 SOURCE_SELF_EDIT_UNTIL = date(2026, 10, 8)
 
 
@@ -98,9 +102,14 @@ def _from_key(ln: dict, sign_date: Any, is_child: bool) -> str | None:
     return None if is_child or d == (_txt(sign_date) or "")[:10] else d
 
 
-def _lines_key(lines: Any, sign_date: Any = None, is_child: bool = False) -> tuple:
+def _lines_key(lines: Any, sign_date: Any = None, is_child: bool = False,
+               row_source: Any = None) -> tuple:
     """Khoá so sánh của các dòng chi tiết — 6 ô quyết định sản lượng và doanh thu + NGÀY HIỆU LỰC
-    (30/09/2026: dời ngày hiệu lực là dời phần "đã ký HĐ chưa giao" sang ngày khác).
+    (30/09/2026: dời ngày hiệu lực là dời phần "đã ký HĐ chưa giao" sang ngày khác) + NGUỒN HIỆU
+    LỰC của dòng (05/10/2026): nguồn cấp bản ghi nếu có, không thì nguồn của dòng — đúng thứ tự
+    `calc.clean_lines` dùng khi ghi (payload client cũ áp một nguồn cho mọi dòng). Bản trong DB thì
+    nguồn cấp bản ghi là nguồn chung của các dòng (hoặc nguồn duy nhất của bản ghi chưa migration)
+    nên hai cách đọc ra cùng một kết quả; bản cũ và form mới cùng nguồn thì so ra BẰNG nhau.
 
     Không so nguyên dict: bản trong DB đã qua `sales_contract_calc.clean_lines` nên chỉ còn đúng các
     khoá đó, còn payload từ form có thể mang thêm ô phụ; so nguyên dict là lần lưu nào cũng báo "đã đổi".
@@ -113,6 +122,7 @@ def _lines_key(lines: Any, sign_date: Any = None, is_child: bool = False) -> tup
             _txt(ln.get("grade")), _num(ln.get("qty")), _num(ln.get("qty_dry")),
             _num(ln.get("price")), _txt(ln.get("ccy")) or "VND", _num(ln.get("fx")),
             _from_key(ln, sign_date, is_child),
+            _txt(row_source) or _txt(ln.get("source")),
         ))
     return tuple(out)
 
@@ -125,7 +135,8 @@ def stat_snapshot(row: dict[str, Any]) -> dict[str, Any]:
     snap: dict[str, Any] = {}
     for f in STAT_FIELDS:
         if f == "lines":
-            snap[f] = _lines_key(row.get(f), row.get("sign_date"), bool(row.get("parent_id")))
+            snap[f] = _lines_key(row.get(f), row.get("sign_date"), bool(row.get("parent_id")),
+                                 row.get("source"))
         elif f in _NUM_FIELDS:
             snap[f] = _num(row.get(f))
         else:

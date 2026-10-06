@@ -18,6 +18,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core import vn_text
+from app.core.market_meta import CONSUMPTION_SOURCES
 from app.core.db import ensure_schema, session_scope
 from app.services import sales_contract_calc as calc
 from app.services import sales_contract_group as grp
@@ -133,11 +134,18 @@ def _only_grades(rows: list[dict[str, Any]], grades: list[str]) -> list[dict[str
     return out
 
 
-def source_of(delivery: dict[str, Any]) -> str:
-    """Nguồn tiêu thụ của một lần giao. Ô bắt buộc khi có ngày giao và lần giao cũ đã được gán
-    khai thác lúc thêm cột (`core/db.py`), nên trống chỉ còn ở bản ghi ghi tay bằng SQL — cùng luật
-    "chưa khai = khai thác" thay vì để rơi khỏi mọi cột tách nguồn."""
-    return delivery.get("source") or "exploit"
+def sources_of(delivery: dict[str, Any]) -> list[str]:
+    """Các nguồn tiêu thụ có trong một lần giao, theo thứ tự danh mục (05/10/2026: nguồn khai theo
+    TỪNG DÒNG chủng loại nên một lần giao có thể có nhiều nguồn). Dòng chưa tự khai lấy nguồn cấp
+    lần giao, rồi "khai thác" — xem `calc.line_source`."""
+    present = {calc.line_source(ln, delivery.get("source")) for ln in delivery.get("lines") or []}
+    present = present or {delivery.get("source") or "exploit"}
+    return [k for k in CONSUMPTION_SOURCES if k in present]
+
+
+def source_label(delivery: dict[str, Any]) -> str:
+    """Nhãn nguồn của một lần giao cho bảng/Excel — nhiều nguồn thì liệt kê đủ, không chọn bừa."""
+    return " · ".join(CONSUMPTION_SOURCES[k] for k in sources_of(delivery))
 
 
 def consumption(date_from: str, date_to: str, companies: list[str] | None = None,
@@ -153,7 +161,7 @@ def consumption(date_from: str, date_to: str, companies: list[str] | None = None
         acc = out.setdefault(c["company"], {
             "qty": 0.0, "qty_dry": 0.0, "qty_wet": 0.0, "revenue": 0.0, "revenue_missing": False,
             "deliveries": 0, "by_channel": {}, "by_source": {}, "by_grade": {}, "by_customer": {},
-            "by_type": {}, "by_type_channel": {},
+            "by_type": {}, "by_type_channel": {}, "by_source_grade": {},
         })
         cu = str(c.get("customer_id") or 0)
         cus = acc["by_customer"].setdefault(cu, {"qty": 0.0, "revenue": 0.0})
@@ -169,9 +177,15 @@ def consumption(date_from: str, date_to: str, companies: list[str] | None = None
             acc["revenue"] += c["revenue"]
         ch = c.get("channel") or "domestic"
         acc["by_channel"][ch] = acc["by_channel"].get(ch, 0.0) + c["qty"]
-        # Nguồn tiêu thụ (khai thác / thu mua) — lần giao trước 03/10/2026 tính là khai thác.
-        src = source_of(c)
-        acc["by_source"][src] = acc["by_source"].get(src, 0.0) + c["qty"]
+        # Nguồn tiêu thụ tính theo TỪNG DÒNG chủng loại (05/10/2026) — cộng sản lượng tiêu thụ thực
+        # tế của dòng (quy khô khi có), cùng gốc số với `c["qty"]` nên tổng các nguồn = tổng lần giao.
+        # `by_source_grade` = ma trận {nguồn: {chủng loại: tấn}} — tiêu thụ từ nguồn nào, loại nào.
+        for ln in c["lines"]:
+            src, q = calc.line_source(ln, c.get("source")), calc.sale_qty(ln)
+            acc["by_source"][src] = acc["by_source"].get(src, 0.0) + q
+            cell = acc["by_source_grade"].setdefault(src, {})
+            g = ln.get("grade") or ""
+            cell[g] = cell.get(g, 0.0) + q
         # NHÓM hợp đồng (chuyến · HĐNT · dài hạn — đã gắn ở `deliveries`); chưa khai gom vào khoá
         # rỗng thay vì dồn vào một nhóm — dồn là làm sai chỉ tiêu dài hạn/chuyến.
         ct = c.get("contract_group") or ""

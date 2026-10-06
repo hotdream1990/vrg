@@ -17,6 +17,7 @@ import ConsumptionCompanyTable from "./components/ConsumptionCompanyTable";
 import ConsumptionDeliveryHistory from "./components/ConsumptionDeliveryHistory";
 import ConsumptionKpiRow from "./components/ConsumptionKpiRow";
 import ConsumptionMasterProgress from "./components/ConsumptionMasterProgress";
+import ConsumptionSourceGradeMatrix from "./components/ConsumptionSourceGradeMatrix";
 import { reportCompanies, sumBacklog, sumConsumption } from "./components/consumption-report-totals";
 import "../../bulletin/bulletin.css";
 
@@ -117,6 +118,8 @@ export default function ConsumptionReportPage() {
 
       <ConsumptionCompanyTable rep={rep} meta={meta} companies={companies} totals={totals}
         backlog={backlog} loading={loading} />
+
+      {rep && <ConsumptionSourceGradeMatrix rep={rep} meta={meta} companies={companies} />}
 
       {rep && <ConsumptionMasterProgress rep={rep} totals={backlog} />}
 
