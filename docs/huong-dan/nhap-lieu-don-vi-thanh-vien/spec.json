@@ -23,6 +23,7 @@
     ],
     "links": [
       "Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-don-vi-thanh-vien.docx](./Huong-dan-nhap-lieu-don-vi-thanh-vien.docx)",
+      "Riêng cách chọn và sửa **nguồn tiêu thụ** theo chủng loại: [../nguon-tieu-thu/README.md](../nguon-tieu-thu/README.md)",
       "Sửa nội dung: chỉ sửa `spec.json` rồi chạy `python3 render_readme.py` (dựng lại README) và `node build_guide.js spec.json` (dựng lại bản Word).",
       "Dựng lại ảnh khi giao diện đổi: `uv run --directory apps/api --with playwright python ../../docs/huong-dan/nhap-lieu-don-vi-thanh-vien/shoot.py` — thêm tham số để chụp lại vài ảnh, vd `… shoot.py 05` chỉ chụp màn Khách hàng."
     ]
@@ -262,23 +263,24 @@
       "image": {
         "path": "img/07-hop-dong-form.png",
         "w": 3000,
-        "h": 1640
+        "h": 2360
       },
       "caption": "Hình 7. Phiếu thêm hợp đồng",
       "steps": [
         "**Số hợp đồng** — bắt buộc, không trùng trong cùng đơn vị.",
-        "**Hợp đồng mẹ (HĐNT/HĐDH)** — theo **Loại hợp đồng** bên cạnh: **HĐ dài hạn** là *phụ lục* của một hợp đồng mẹ nên **bắt buộc** chọn hồ sơ (chưa có thì lập ở mục 8 trước, rồi quay lại). **HĐ chuyến** bán đứt từng chuyến nên **không có hợp đồng mẹ** — chọn loại đó thì ô này không hiện.",
+        "**Loại hợp đồng** — bắt buộc, chọn TRƯỚC: *Phụ lục hợp đồng mẹ* hay *HĐ chuyến*. Chính ô này quyết định ô **Hợp đồng mẹ** có hiện hay không. Đây là chỉ tiêu của báo cáo, **khác** với Loại giao bên dưới.",
+        "**Hợp đồng mẹ (HĐNT/HĐDH)** — chỉ hiện khi Loại hợp đồng là **Phụ lục hợp đồng mẹ**, khi đó **bắt buộc** chọn hồ sơ (chưa có thì lập ở mục 8 trước, rồi quay lại). **HĐ chuyến** bán đứt từng chuyến nên **không có hợp đồng mẹ** — chọn loại đó thì ô này không hiện.",
         "**Khách hàng** — bắt buộc; gõ vài chữ trong tên (hoặc mã khách) rồi chọn. Danh sách chỉ có khách của chính đơn vị (mục 7).",
-        "**Loại hợp đồng** — bắt buộc: *HĐ dài hạn* hay *HĐ chuyến*. Đây là chỉ tiêu của báo cáo, **khác** với Loại giao bên dưới.",
         "**Loại giao** — *Giao 1 lần* (cả hợp đồng giao trọn một lần) hay *Giao nhiều lần* (chia thành nhiều đợt giao). Chọn nhầm vẫn đổi được sau, xem mục 11.",
         "**Ngày ký** — bắt buộc. Từ ngày này, sản lượng hợp đồng nằm ở mục “đã ký HĐ chưa giao”.",
-        "**Ngày giao** — chỉ hiện với hợp đồng *giao 1 lần*; điền khi đã giao xong. Bên dưới là **Hình thức tiêu thụ** và khối **Hoá đơn** (số hoá đơn + file scan).",
+        "**Ngày giao** — chỉ hiện với hợp đồng *giao 1 lần*; điền khi đã giao xong. Bên dưới là **Hình thức tiêu thụ** và khối **Hoá đơn** (số hoá đơn + file scan). **Nguồn tiêu thụ** chọn ở từng dòng chủng loại (bước 9).",
         "**Chi tiết hợp đồng** — mỗi chủng loại một dòng (ô SL đổi nhãn thành **SL nước** với latex và mủ nguyên liệu). Ô **Quy khô** chỉ hiện với latex và mủ nguyên liệu; ô **Tỷ giá** chỉ hiện khi dòng bán bằng ngoại tệ và **chỉ bắt buộc khi đã điền Ngày giao**.",
-        "**Hàng có chứng chỉ** — tick các chứng chỉ của lô hàng (**PEFC · EUDR · VRG GREEN**, chọn được nhiều) và ô **Premium** là khoản khách trả thêm: tự nhập số tiền, chọn **USD** hay **VNĐ**. **Không có premium thì để trống ô tiền.** Premium chỉ để ghi nhận — **không tự cộng vào đơn giá** ở phần chi tiết.",
-        "**Thành tiền** — ô CHỈ ĐỌC ở cuối mỗi dòng (= số lượng × đơn giá, theo đúng loại tiền của dòng). Tổng thành tiền của hợp đồng hiện ngay dưới bảng, quy về triệu đồng."
+        "**Nguồn tiêu thụ** — chỉ có ở hợp đồng *giao 1 lần*, mỗi dòng chủng loại một ô: *Khai thác* (mủ vườn cây của đơn vị) / *Thu mua* (mủ đơn vị mua vào) / *Hàng hóa cao su* (thành phẩm mua ngoài về bán lại). Bắt buộc khi đã điền Ngày giao; hợp đồng nhiều chủng loại thì mỗi dòng chọn nguồn riêng.",
+        "**Thành tiền** — ô CHỈ ĐỌC ở cuối mỗi dòng (= số lượng × đơn giá, theo đúng loại tiền của dòng). Tổng thành tiền của hợp đồng hiện ngay dưới bảng, quy về triệu đồng.",
+        "**Hàng có chứng chỉ** — tick các chứng chỉ của lô hàng (**PEFC · EUDR · VRG GREEN**, chọn được nhiều) và ô **Premium** là khoản khách trả thêm: tự nhập số tiền, chọn **USD** hay **VNĐ**. **Không có premium thì để trống ô tiền.** Premium chỉ để ghi nhận — **không tự cộng vào đơn giá** ở phần chi tiết."
       ],
       "notes": [
-        "**HĐ dài hạn cũ chưa gắn hồ sơ:** lần sửa tiếp theo hệ thống sẽ yêu cầu chọn hợp đồng mẹ mới lưu được — đây là cách dọn dần hồ sơ cũ. Bấm *Hoàn thành hợp đồng*, *Chuyển loại giao* và mọi thao tác trên **đợt giao** thì không bị hỏi.",
+        "**Phụ lục hợp đồng mẹ cũ chưa gắn hồ sơ:** lần sửa tiếp theo hệ thống sẽ yêu cầu chọn hợp đồng mẹ mới lưu được — đây là cách dọn dần hồ sơ cũ. Bấm *Hoàn thành hợp đồng*, *Chuyển loại giao* và mọi thao tác trên **đợt giao** thì không bị hỏi.",
         "**LATEX và 2 loại mủ nguyên liệu bán theo MỦ NƯỚC:** ô **SL nước (tấn)** là số để tính **Thành tiền** (đơn giá là giá theo tấn mủ nước), còn **sản lượng tiêu thụ trên báo cáo lấy theo ô Quy khô**. Vì vậy hai ô này phải khai đủ và đúng.",
         "Bán bằng **VNĐ** nhập đơn giá theo **triệu đồng/tấn**; bán bằng **ngoại tệ** nhập theo **ngoại tệ/tấn**. **Tỷ giá chỉ bắt buộc khi đã điền Ngày giao** — lúc ký hợp đồng chưa biết tỷ giá ngày giao hàng nên để trống vẫn lưu được, khi đó doanh thu hiện “—” cho tới lúc điền tỷ giá.",
         "Bán **LATEX** và 2 loại mủ nguyên liệu thì **bắt buộc nhập quy khô** mới lưu được.",
@@ -317,7 +319,7 @@
       "image": {
         "path": "img/09-dot-giao-form.png",
         "w": 3000,
-        "h": 1640
+        "h": 2360
       },
       "caption": "Hình 9. Phiếu thêm đợt giao",
       "steps": [
@@ -325,6 +327,7 @@
         "**Ngày giao** — để trống nghĩa là **đang chờ giao**; điền vào là đợt đã giao xong và **tính ngay vào tiêu thụ của ngày đó**.",
         "**Hình thức tiêu thụ** — *Xuất khẩu / UTXK* · *Tiêu thụ trong nước* · *Tiêu thụ nội bộ*. Bắt buộc khi đã giao.",
         "**Chi tiết đợt giao** — chủng loại, sản lượng, đơn giá thực tế của lần giao này. Ô Quy khô và Tỷ giá chỉ hiện khi áp dụng, giống phiếu hợp đồng.",
+        "**Nguồn tiêu thụ** — ở từng dòng chủng loại: mủ **Khai thác** (vườn cây của đơn vị), mủ **Thu mua** hay **Hàng hóa cao su** (thành phẩm mua ngoài về bán lại). Bắt buộc khi đã điền Ngày giao. Một đợt có nhiều chủng loại thì mỗi dòng chọn nguồn riêng.",
         "**Số hoá đơn** + **Hoá đơn (scan)** — số hoá đơn bán hàng của đợt và file đính kèm.",
         "**Thanh toán** — ngày thanh toán, sản lượng của lần thanh toán, kèm chứng từ."
       ],
@@ -354,7 +357,8 @@
       "notes": [
         "Chỉ chốt khi **thật sự kết thúc hợp đồng**. Còn giao tiếp thì để nguyên — chốt rồi hợp đồng bị khoá, không thêm/sửa đợt giao được nữa.",
         "Bấm nhầm thì vào lại màn chi tiết bấm **Mở lại hợp đồng**, mọi số liệu trở về như cũ.",
-        "Nếu còn đợt **chưa điền ngày giao**, màn này báo bằng khung vàng — điền ngày giao trước, nếu không sản lượng đó sẽ không được tính vào tiêu thụ."
+        "Nếu còn đợt **chưa điền ngày giao**, màn này báo bằng khung vàng — điền ngày giao trước, nếu không sản lượng đó sẽ không được tính vào tiêu thụ.",
+        "Hợp đồng **giao 1 lần chưa có ngày giao**: chốt hoàn thành chính là ghi nhận **đã giao**, nên màn này hỏi thêm Ngày giao, **Hình thức tiêu thụ** và **Nguồn tiêu thụ** của từng dòng chủng loại (khai thác / thu mua / hàng hóa cao su). Hợp đồng huỷ, không giao nữa thì tích ô *huỷ / không giao nữa*."
       ]
     },
     {
@@ -364,12 +368,13 @@
       "image": {
         "path": "img/11-bao-cao-tieu-thu.png",
         "w": 3000,
-        "h": 1640
+        "h": 2540
       },
       "caption": "Hình 11. Báo cáo tiêu thụ theo kỳ",
       "steps": [
         "**Bộ lọc** — Từ ngày / Đến ngày · Đơn vị · **Khách hàng** (gõ để tìm, chọn nhiều) · **Chủng loại** (chọn nhiều). Bảng, khối theo khách hàng và file Excel đều theo bộ lọc này.",
-        "**Bảng tổng hợp** — Lần giao · SL · Quy khô · Xuất khẩu · Trong nước · Nội bộ · Doanh thu · **Chưa giao**."
+        "**Bảng tổng hợp** — Lần giao · SL · Quy khô · Xuất khẩu · Trong nước · Nội bộ · **Nguồn khai thác · Nguồn thu mua · Nguồn hàng hóa cao su** · Doanh thu · **Chưa giao**.",
+        "**Tiêu thụ theo nguồn × chủng loại** — mỗi chủng loại bao nhiêu tấn (quy khô) từ mỗi nguồn và chiếm bao nhiêu phần trăm; dòng Tổng cộng cho tỷ trọng từng nguồn. Cùng các đơn vị của bảng trên."
       ],
       "notes": [
         "Cột **SL (tấn)** là sản lượng tiêu thụ thực tế: latex và mủ nguyên liệu tính theo **quy khô**, các chủng loại thành phẩm tính theo chính số lượng bán.",

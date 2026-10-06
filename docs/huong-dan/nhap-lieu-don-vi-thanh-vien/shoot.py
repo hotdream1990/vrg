@@ -13,6 +13,7 @@ Chạy:  ./scripts/dev.sh (API 8390 + Web 5390) rồi
 """
 from __future__ import annotations
 
+import os
 import pathlib
 import sys
 import urllib.error
@@ -26,13 +27,15 @@ from shoot import annotated_shot, browser_page  # noqa: E402
 from playwright.sync_api import Error as PlaywrightError  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
-API = "http://localhost:8390"
-WEB = "http://localhost:5390"
+API = os.environ.get("VRG_API", "http://localhost:8390")
+WEB = os.environ.get("VRG_WEB", "http://localhost:5390")
 #: Đơn vị mẫu — dò theo TỪ KHOÁ chứ không ghi cứng tên đầy đủ: tên đơn vị đổi (hoặc DB được
 #: clone lại từ prod với tên đầy đủ "Công ty Cổ phần Cao Su Bảo Lâm") là script chết ở bước seed.
-UNIT_KEY = "Bảo Lâm"
+# Đổi được qua `VRG_GUIDE_UNIT` / `VRG_GUIDE_MEMBER` — chạy trên BẢN SAO PROD thì PHẢI trỏ sang một
+# đơn vị rỗng tạo riêng (đơn vị thật ở bản sao có số liệu, `clean()` sẽ xoá sạch).
+UNIT_KEY = os.environ.get("VRG_GUIDE_UNIT", "Bảo Lâm")
 UNIT = UNIT_KEY          # gán lại bằng tên THẬT trong main(), sau khi hỏi API
-MEMBER = "caosubaolam@gmail.com"
+MEMBER = os.environ.get("VRG_GUIDE_MEMBER", "caosubaolam@gmail.com")
 OUT = pathlib.Path(__file__).parent / "img"
 
 TODAY = date.today()
@@ -83,7 +86,8 @@ def seed(tok: str, cus: int, master_id: int) -> None:
         "contract_type": "spot", "sign_date": D(9),
         "delivered_at": delivered_1, "channel": "domestic",
         "invoice_no": "HĐ 0001234",
-        "lines": [{"grade": "SVR 3L", "qty": 120, "price": 43.5, "ccy": "VND"}]})
+        "lines": [{"grade": "SVR 3L", "qty": 120, "price": 43.5, "ccy": "VND",
+                   "source": "exploit"}]})
     # HĐ giao nhiều lần: 1 đợt đã giao + 1 đợt đang chờ giao. Còn 350 tấn chưa lập đợt để ảnh
     # "Hoàn thành hợp đồng" có phần chênh thật (nếu giao vừa đủ thì màn đó không nói lên điều gì).
     parent = call("PUT", "/api/sales-contracts", tok, {
@@ -96,8 +100,11 @@ def seed(tok: str, cus: int, master_id: int) -> None:
         "delivered_at": D(0), "channel": "export",
         "invoice_no": "HĐ 0001255",
         "payment_date": D(0), "payment_qty": 300,
-        "lines": [{"grade": "SVR 10 / CSR 10", "qty": 300, "price": 1620, "ccy": "USD",
-                   "fx": 26150}]})
+        # Hai dòng cùng chủng loại, khác NGUỒN — để bảng đợt giao hiện đúng cột "Nguồn" lẫn nguồn.
+        "lines": [{"grade": "SVR 10 / CSR 10", "qty": 200, "price": 1620, "ccy": "USD",
+                   "fx": 26150, "source": "exploit"},
+                  {"grade": "SVR 10 / CSR 10", "qty": 100, "price": 1620, "ccy": "USD",
+                   "fx": 26150, "source": "purchase"}]})
     call("PUT", "/api/sales-contracts", tok, {
         "company": UNIT, "parent_id": parent["id"], "code": "Đợt 02/HĐ-102",
         "channel": "export",
@@ -453,12 +460,20 @@ def open_contract_form(page) -> None:
     page.wait_for_timeout(400)
     page.locator(".ct-line select").first.select_option(label="LATEX")
     page.wait_for_timeout(400)
+    page.locator('.ct-line label:has-text("Nguồn tiêu thụ") select').first.select_option("exploit")
+    # Điền số mẫu (SL nước · quy khô · đơn giá) — để trống thì form hiện khung đỏ "thiếu quy khô".
+    nums = page.locator(".ct-line").first.locator("input[type='text']")
+    for i, v in enumerate(("20", "12", "30")):
+        nums.nth(i).fill(v)
+    page.wait_for_timeout(300)
 
 
 def open_detail(page) -> None:
     """Mở màn chi tiết của hợp đồng giao-nhiều-lần (bấm Xem trên bảng danh sách)."""
     page.add_style_tag(content=".ant-modal,.ant-modal-mask{opacity:1!important;"
                                "transform:none!important;animation:none!important}")
+    # Bảng có sẵn trước khi dòng tải xong ("table" đã có từ lúc đang tải) → chờ ĐÚNG dòng cần mở.
+    page.wait_for_selector("table tbody tr:has-text('HĐ-102/2026')", timeout=15000)
     page.evaluate("""(() => {
       const row = [...document.querySelectorAll('table tbody tr')]
           .find(r => r.textContent.includes('HĐ-102/2026'));
@@ -473,6 +488,10 @@ def open_batch_form(page) -> None:
     open_detail(page)
     page.click('button:has-text("Thêm đợt giao")')
     page.wait_for_timeout(600)
+    form = page.locator(".ant-modal").last
+    form.locator(".ct-line select").first.select_option(label="SVR 10 / CSR 10")
+    form.locator('.ct-line label:has-text("Nguồn tiêu thụ") select').first.select_option("exploit")
+    page.wait_for_timeout(300)
 
 
 def open_master_form(page) -> None:
@@ -492,6 +511,36 @@ def open_complete_modal(page) -> None:
     open_detail(page)
     page.click('button:has-text("Hoàn thành hợp đồng")')
     page.wait_for_timeout(600)
+
+
+#: Báo cáo tiêu thụ: thanh lọc · bảng tổng hợp theo đơn vị · bảng nguồn × chủng loại (05/10/2026).
+REPORT_TARGETS = """(() => {
+  const title = [...document.querySelectorAll('div, span, b, strong')]
+      .find(e => e.textContent.trim() === 'Tiêu thụ theo nguồn × chủng loại');
+  const bar = title && title.closest('.blt-toolbar');
+  const matrix = bar && bar.nextElementSibling;
+  const box = (els) => {
+    const rs = els.filter(Boolean).map(e => e.getBoundingClientRect()), d = document.createElement('div');
+    const x = Math.min(...rs.map(r => r.left)), y = Math.min(...rs.map(r => r.top));
+    Object.assign(d.style, {position: 'fixed', left: x + 'px', top: y + 'px', pointerEvents: 'none',
+      width: Math.max(...rs.map(r => r.right)) - x + 'px', height: Math.max(...rs.map(r => r.bottom)) - y + 'px'});
+    document.body.appendChild(d); return d;
+  };
+  return window.__annotate([document.querySelector('.blt-toolbar'), document.querySelector('table'),
+                            bar && box([bar, matrix])]);
+})()"""
+
+
+def scroll_to_report_filters(page) -> None:
+    """Đầu trang có các dải nhắc việc / chốt số liệu (tuỳ đơn vị) — cuộn thanh lọc lên đầu khung để
+    thấy trọn bảng tổng hợp và bảng nguồn × chủng loại bên dưới."""
+    # Chờ số liệu nạp xong (bảng nguồn × chủng loại là phần hiện SAU CÙNG) rồi mới cuộn: cuộn lúc
+    # trang còn ngắn thì không cuộn được, dữ liệu về sau trang dài ra mà ảnh vẫn ở đầu trang.
+    page.wait_for_selector("text=Tiêu thụ theo nguồn × chủng loại", timeout=15000)
+    page.wait_for_timeout(600)
+    page.evaluate("() => { document.querySelector('.blt-toolbar').scrollIntoView({block:'start'});"
+                  " window.scrollBy(0, -90); }")
+    page.wait_for_timeout(400)
 
 
 def open_page(p, width: int, height: int):
@@ -516,8 +565,9 @@ def resolve_unit(admin: str) -> str:
 
 def main() -> int:
     global UNIT
-    admin = call("POST", "/api/auth/login", None,
-                 {"username": "admin", "password": "admin"})["access_token"]
+    # DB không có admin/admin (vd bản sao prod) → đưa token admin qua `VRG_ADMIN_TOKEN`.
+    admin = os.environ.get("VRG_ADMIN_TOKEN") or call(
+        "POST", "/api/auth/login", None, {"username": "admin", "password": "admin"})["access_token"]
     UNIT = resolve_unit(admin)
     tok = call("POST", "/api/auth/impersonate", admin, {"username": MEMBER})["access_token"]
     clean()               # chạy lại lần 2 không nhân đôi dữ liệu mẫu
@@ -577,17 +627,22 @@ def shoot_all(tok: str, admin: str) -> None:
              wait_for="table", setup=lambda pg: open_modal(pg, "Thêm khách hàng"))
         shot(f"{WEB}/hop-dong", CONTRACT_LIST_SCREEN, "06-hop-dong-danh-sach.png", wait_for="table")
         shot(f"{WEB}/hop-dong",
-             mixed_targets(("f", "Số hợp đồng"), ("f", "Hợp đồng mẹ"), ("f", "Khách hàng"),
-                           ("f", "Loại hợp đồng"), ("f", "Loại giao"), ("f", "Ngày ký"),
-                           ("f", "Ngày giao"), ("b", "Chi tiết hợp đồng"), ("f", "Thành tiền")),
-             "07-hop-dong-form.png", wait_for="table", setup=open_contract_form)
+             # Thứ tự khung = thứ tự ô trên form (đọc trái→phải, trên→dưới), khớp các bước ở mục 10.
+             mixed_targets(("f", "Số hợp đồng"), ("f", "Loại hợp đồng"), ("f", "Hợp đồng mẹ"),
+                           ("f", "Khách hàng"), ("f", "Loại giao"), ("f", "Ngày ký"),
+                           ("f", "Ngày giao"), ("b", "Chi tiết hợp đồng"),
+                           ("f", "Nguồn tiêu thụ"), ("f", "Thành tiền"),
+                           ("b", "Hàng có chứng chỉ")),
+             "07-hop-dong-form.png", wait_for="table", setup=open_contract_form,
+             viewport={"width": 1500, "height": 1180})
         shot(f"{WEB}/hop-dong", CONTRACT_DETAIL, "08-hop-dong-chi-tiet.png",
              wait_for="table", setup=open_detail)
         shot(f"{WEB}/hop-dong",
              mixed_targets(("f", "Số đợt giao"), ("f", "Ngày giao"), ("f", "Hình thức tiêu thụ"),
-                           ("b", "Chi tiết đợt giao"), ("f", "Số hoá đơn"),
+                           ("b", "Chi tiết đợt giao"), ("f", "Nguồn tiêu thụ"), ("f", "Số hoá đơn"),
                            ("b", "Thanh toán (mỗi đợt")),
-             "09-dot-giao-form.png", wait_for="table", setup=open_batch_form)
+             "09-dot-giao-form.png", wait_for="table", setup=open_batch_form,
+             viewport={"width": 1500, "height": 1180})
         shot(f"{WEB}/hop-dong", COMPLETE_MODAL, "10-hoan-thanh-hop-dong.png",
              wait_for="table", setup=open_complete_modal)
         shot(f"{WEB}/hop-dong/hop-dong-me",
@@ -605,10 +660,9 @@ def shoot_all(tok: str, admin: str) -> None:
              " [...document.querySelectorAll('button')].find(e => e.textContent.includes('Gắn hợp đồng'))"
              "]))()",
              "05e-hop-dong-me-chi-tiet.png", wait_for="table", setup=open_master_detail)
-        shot(f"{WEB}/bao-cao-tieu-thu",
-             "(() => window.__annotate([document.querySelector('.blt-toolbar'),"
-             " document.querySelector('table')]))()",
-             "11-bao-cao-tieu-thu.png", wait_for="table")
+        shot(f"{WEB}/bao-cao-tieu-thu", REPORT_TARGETS, "11-bao-cao-tieu-thu.png",
+             wait_for="table", setup=scroll_to_report_filters,
+             viewport={"width": 1500, "height": 1270})
         # Chờ nút bút chì (chỉ có khi bảng đã nạp xong dòng) — bảng không còn thẻ màu nào để chờ.
         demand_rows = '.ant-table-tbody button[aria-label="Sửa"]'
         shot(f"{WEB}/nhu-cau-thi-truong", DEMAND_LIST, "12-nhu-cau-thi-truong.png",
