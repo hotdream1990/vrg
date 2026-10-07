@@ -138,7 +138,7 @@ SPECS: dict[str, Spec] = {
         "BIỂU NHẬP — TỒN KHO", "Tồn kho",
         "Mỗi dòng = 1 dòng tồn kho (số THỜI ĐIỂM cuối ngày, không cộng dồn). "
         "Từ 02/08/2026 biểu này KHÔNG còn nhóm 'Đã ký HĐ': hợp đồng nhập ở màn Quản lý hợp đồng, "
-        "còn 'đã ký HĐ chưa giao' là số hệ thống tự tính từ các đợt giao chưa tới ngày giao.",
+        "còn 'HĐ đã bán chờ giao' là số hệ thống tự tính từ các đợt giao chưa tới ngày giao.",
         [_UNIT_COL, _DATE_COL,
          Col("group", "Nhóm", required=True, type="enum", choices=STOCK_GROUPS, width=20),
          Col("grade", "Chủng loại", required=True, type="enum",
@@ -381,7 +381,7 @@ def parse_upload(kind: str, data: bytes, allowed_units: list[str] | None = None,
                 if val is None and label in _RETIRED_STOCK_GROUPS:
                     rec["_errors"].append(
                         f"{c.title}: '{label}' không còn nhập ở biểu này — hợp đồng nhập ở màn "
-                        "Quản lý hợp đồng, số 'đã ký HĐ chưa giao' hệ thống tự tính")
+                        "Quản lý hợp đồng, số 'HĐ đã bán chờ giao' hệ thống tự tính")
                 elif val is None and label:
                     rec["_errors"].append(f"{c.title}: '{label}' không hợp lệ")
                 elif val is None and c.required:

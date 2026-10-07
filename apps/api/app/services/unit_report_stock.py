@@ -169,7 +169,7 @@ def _warnings(cov: dict, as_of: str, group_by: str) -> list[str]:
     w: list[str] = []
     if cov["missing"]:
         w.append(f"{len(cov['missing'])} đơn vị chưa có số tồn kho tại ngày {dmy(as_of)} → KHÔNG tính vào "
-                 f"tổng (kể cả phần đã ký HĐ chưa giao của họ): {_names(cov['missing'])}.")
+                 f"tổng (kể cả phần HĐ đã bán chờ giao của họ): {_names(cov['missing'])}.")
     # Đơn vị khai "không phát sinh tồn kho" KHÔNG lên cảnh báo: họ đã nộp đúng hạn, không có gì
     # sai để nhắc. Vẫn giữ trong `coverage` để dải độ phủ cộng đủ (có số + khai trống + chưa có số).
     if group_by == "day":

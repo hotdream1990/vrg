@@ -81,7 +81,7 @@ function LtPanel({ data }: { data: OutlookBlock }) {
       )}
       {isPositive(lt.missing_master_undelivered) && (
         <Alert type="error" showIcon className="ud-ol-critical"
-          title={`${fmtTons(lt.missing_master_undelivered)} HĐ dài hạn đã ký chưa giao chưa gán HĐ mẹ — cần xử lý dữ liệu.`} />
+          title={`${fmtTons(lt.missing_master_undelivered)} HĐ dài hạn đã bán chờ giao chưa gán HĐ mẹ — cần xử lý dữ liệu.`} />
       )}
       {isPositive(lt.remaining_after_year) && (
         <div className="ud-muted ud-small">

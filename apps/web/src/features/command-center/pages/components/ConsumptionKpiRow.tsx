@@ -9,13 +9,13 @@ type Kpi = { label: string; value: string; sub?: string };
  *  (HĐ nguyên tắc không tính cam kết).
  *  API cũ (chưa có `backlog`) → giữ 1 thẻ "Đã ký chưa giao" như trước. */
 function backlogCards(totals: ConsumptionTotals, bl: BacklogTotals | null): Kpi[] {
-  if (!bl) return [{ label: "Đã ký chưa giao (tấn quy khô)", value: t3(totals.remaining) }];
+  if (!bl) return [{ label: "HĐ đã bán chờ giao (tấn quy khô)", value: t3(totals.remaining) }];
   return [
-    { label: "HĐ chuyến đã ký chưa giao (tấn)", value: t3(bl.spot) },
-    { label: "HĐNT đã ký chưa giao (tấn)", value: t3(bl.principle), sub: "Phụ lục HĐ nguyên tắc đã ký, chưa giao hết" },
+    { label: "HĐ chuyến đã bán chờ giao (tấn)", value: t3(bl.spot) },
+    { label: "HĐNT đã bán chờ giao (tấn)", value: t3(bl.principle), sub: "Phụ lục HĐ nguyên tắc đã ký, chưa giao hết" },
     {
       label: "HĐ dài hạn còn phải giao (tấn)", value: t3(bl.lt),
-      sub: "HĐDH còn lại (gồm phần chưa ký phụ lục) + phụ lục dài hạn ngoài HĐDH có cam kết đã ký chưa giao",
+      sub: "HĐDH còn lại (gồm phần chưa ký phụ lục) + phụ lục dài hạn ngoài HĐDH có cam kết đã bán chờ giao",
     },
     {
       label: "Tổng phải giao đến cuối năm (tấn)", value: t3(bl.toDeliver),

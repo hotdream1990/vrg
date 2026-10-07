@@ -89,7 +89,7 @@ function StockBody({ d, onPickAsOf }: { d: StockBlock; onPickAsOf: Props["onPick
             notes={(i) => {
               const r = breakdown[i];
               return [
-                `Đã ký HĐ chưa giao: ${withUnit(fmtTon(r.signed_undelivered), "tấn")}`,
+                `HĐ đã bán chờ giao: ${withUnit(fmtTon(r.signed_undelivered), "tấn")}`,
                 `Có thể giao dịch: ${withUnit(fmtTon(r.tradable), "tấn")}`,
                 `Tồn nguyên liệu: ${withUnit(fmtTon(r.material), "tấn quy khô")}`,
                 ...(r.age_days ? [r.as_of ? `Số khai ngày ${dmy(r.as_of)} — cũ ${r.age_days} ngày`

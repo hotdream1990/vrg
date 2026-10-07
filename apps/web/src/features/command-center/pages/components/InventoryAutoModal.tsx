@@ -122,7 +122,7 @@ export default function InventoryAutoModal({ onClose, onSaved, readOnly }: Props
         <b> khai tồn ngày chốt</b> thì lấy số ngày đó; đơn vị tick <b>“không phát sinh tồn kho để
         khai”</b> thì giữ nguyên số của lần khai gần nhất; đơn vị <b>chưa khai gì</b> thì không có
         số — không đắp số ngày khác vào, mà ghi rõ ở ghi chú của tuần.
-        Tồn kho = khối <b>“Đã nhập kho”</b>; Đã có HĐ = phần đã ký chưa giao, <b>cắt trần</b> theo
+        Tồn kho = khối <b>“Đã nhập kho”</b>; Đã có HĐ = phần HĐ đã bán chờ giao, <b>cắt trần</b> theo
         tồn kho của chính đơn vị đó. Tuần chuyên viên đã nhập tay <b>không bị đè</b> — muốn thay thì
         bấm nút đồng bộ của đúng tuần đó.
       </p>

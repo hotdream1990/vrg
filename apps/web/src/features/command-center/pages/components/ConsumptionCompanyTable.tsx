@@ -41,13 +41,13 @@ export default function ConsumptionCompanyTable({ rep, meta, companies, totals, 
           <th className="r">Doanh thu (tỷ đ)</th>
           {bl ? (
             <>
-              <th className="r">HĐ chuyến chưa giao (tấn)</th>
-              <th className="r">HĐNT đã ký chưa giao (tấn)</th>
+              <th className="r">HĐ chuyến đã bán chờ giao (tấn)</th>
+              <th className="r">HĐNT đã bán chờ giao (tấn)</th>
               <th className="r">HĐ dài hạn còn phải giao (tấn)</th>
-              {unknownCol && <th className="r">HĐ chưa khai loại chưa giao (tấn)</th>}
+              {unknownCol && <th className="r">HĐ chưa khai loại đã bán chờ giao (tấn)</th>}
               <th className="r">Tổng phải giao (tấn)</th>
             </>
-          ) : <th className="r">Chưa giao (tấn quy khô)</th>}
+          ) : <th className="r">Đã bán chờ giao (tấn quy khô)</th>}
         </tr></thead>
         <tbody>
           {companies.map((c) => (

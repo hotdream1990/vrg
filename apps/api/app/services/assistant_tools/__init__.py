@@ -28,7 +28,7 @@ PACKS: dict[str, dict[str, Any]] = {
     "unit": {"label": "Đơn vị thành viên", "cap": "unit_daily", "core": False,
              "desc": "Thu mua · tiêu thụ · tồn kho · kế hoạch năm · tình trạng nộp (tổng · khu vực · đơn vị)"},
     "contract": {"label": "Hợp đồng & khách hàng", "cap": "sales_contract", "core": False,
-                 "desc": "Cam kết · đã giao · đã ký chưa giao · doanh thu · khách hàng · hợp đồng mẹ"},
+                 "desc": "Cam kết · đã giao · đã bán chờ giao · doanh thu · khách hàng · hợp đồng mẹ"},
 }
 
 _MODULES = {"market": [market_tools], "floor": [floor_tools, private_price_tools, proposal_tools],
@@ -111,7 +111,7 @@ TOOL_LABELS: dict[str, str] = {
     "get_unit_plan_progress": "Tiến độ kế hoạch năm",
     "get_submission_status": "Đơn vị nào chưa nộp báo cáo",
     # Hợp đồng & khách hàng
-    "get_undelivered_volume": "Đã ký hợp đồng nhưng chưa giao",
+    "get_undelivered_volume": "Hợp đồng đã bán chờ giao",
     "get_contract_deliveries": "Các đợt giao hàng trong kỳ",
     "get_contract_summary": "Hợp đồng ký mới trong kỳ",
     "get_top_customers": "Khách hàng mua nhiều nhất",

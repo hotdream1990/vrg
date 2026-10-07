@@ -52,7 +52,7 @@ const PACK_SUGGESTIONS: Record<string, string[]> = {
     "Đơn vị nào chưa nộp báo cáo tuần này?",
   ],
   contract: [
-    "Sản lượng đã ký hợp đồng chưa giao hiện là bao nhiêu?",
+    "Sản lượng hợp đồng đã bán chờ giao hiện là bao nhiêu?",
     "Khách hàng nào mua nhiều nhất tháng qua?",
   ],
 };

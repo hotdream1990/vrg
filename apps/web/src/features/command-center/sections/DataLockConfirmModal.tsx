@@ -157,7 +157,7 @@ export default function DataLockConfirmModal({ company, roundId, readOnly, onClo
             <Kpi label="Đã nhập kho (tấn)" value={n3(s.stock_warehoused)} />
             <Kpi label="Tồn nguyên liệu (tấn)" value={n3(s.stock_material)} />
             {/* QUY KHÔ (latex/mủ NL) — màn Hợp đồng ghi số chưa quy khô, ghi rõ để đối chiếu được. */}
-            <Kpi label="Đã ký HĐ chưa giao (tấn quy khô)" value={n3(s.stock_finished_hd)} />
+            <Kpi label="HĐ đã bán chờ giao (tấn quy khô)" value={n3(s.stock_finished_hd)} />
           </Block>
 
           <Block title="Tiêu thụ (cộng dồn trong kỳ)"

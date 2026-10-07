@@ -34,8 +34,8 @@ export default function OutlookEquation({ data }: { data: OutlookBlock }) {
   const v = data.volume ?? {};
   const otherLongTerm = (b.lt_remaining ?? 0) - (lt.remaining ?? 0) - (lt.missing_master_undelivered ?? 0);
   const pending: Tile[] = [
-    { label: "HĐ chuyến đã ký chưa giao", value: b.spot_undelivered, sub: "đã ký, chưa giao hết" },
-    { label: "HĐNT đã ký chưa giao", value: b.principle_undelivered, sub: "phụ lục HĐNT đã ký, chưa giao hết" },
+    { label: "HĐ chuyến đã bán chờ giao", value: b.spot_undelivered, sub: "đã ký, chưa giao hết" },
+    { label: "HĐNT đã bán chờ giao", value: b.principle_undelivered, sub: "phụ lục HĐNT đã ký, chưa giao hết" },
     { label: "Còn phải giao theo cam kết HĐDH", value: lt.remaining, sub: "cam kết HĐDH trừ phần đã giao" },
   ];
   if (isPositive(lt.missing_master_undelivered)) {
@@ -48,7 +48,7 @@ export default function OutlookEquation({ data }: { data: OutlookBlock }) {
   }
   if (isPositive(b.unknown_undelivered)) {
     pending.push({ label: "HĐ chưa khai loại", value: b.unknown_undelivered,
-                   sub: "đã ký chưa giao, chưa khai loại hợp đồng" });
+                   sub: "đã bán chờ giao, chưa khai loại hợp đồng" });
   }
   return (
     <div className="ud-eq">

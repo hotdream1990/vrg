@@ -60,7 +60,7 @@ const CONSUMPTION_COLS: Col[] = [
   { key: "stock_as_of", label: "Ngày lấy số tồn", unit: "", note: "thời điểm", date: true },
   { key: "stock_finished", label: "Tồn kho thành phẩm", unit: "tấn", note: "thời điểm" },
   // Khối 3 là CAM KẾT giao hàng, KHÔNG nằm trong tồn kho thành phẩm → báo riêng, không "trong đó".
-  { key: "stock_finished_hd", label: "Đã ký HĐ chưa giao", unit: "tấn quy khô", note: "nằm trong tồn kho" },
+  { key: "stock_finished_hd", label: "HĐ đã bán chờ giao", unit: "tấn quy khô", note: "nằm trong tồn kho" },
 ];
 const TAIL_COLS: Col[] = [
   { key: "stock_material", label: "Tồn kho nguyên liệu", unit: "tấn", note: "thời điểm" },

@@ -29,13 +29,13 @@ SUMMARY_COLS: list[Col] = [
     ("revenue_ty", "Doanh thu", "tỷ đồng"),
     # Khối 3 của biểu Tồn kho — tính trên hợp đồng đã ký. KHÁC "Tổng phải giao" bên dưới (phần dài
     # hạn theo cam kết HĐDH, gồm cả sản lượng chưa ký phụ lục) → hai nhãn phải khác nhau (Q4).
-    ("remaining", "Đã ký HĐ chưa giao (khối 3)", "tấn quy khô"),
-    ("spot_undelivered", "HĐ chuyến chưa giao", "tấn quy khô"),
-    ("principle_undelivered", "HĐ nguyên tắc chưa giao", "tấn quy khô"),
+    ("remaining", "HĐ đã bán chờ giao (khối 3)", "tấn quy khô"),
+    ("spot_undelivered", "HĐ chuyến đã bán chờ giao", "tấn quy khô"),
+    ("principle_undelivered", "HĐ nguyên tắc đã bán chờ giao", "tấn quy khô"),
     ("lt_remaining", "HĐ dài hạn còn phải giao", "tấn quy khô"),
     # Hợp đồng chưa khai loại vẫn là nợ giao thật: thiếu cột này thì chuyến + dài hạn không cộng ra
     # được "Tổng phải giao" và người đọc không biết phần chênh ở đâu.
-    ("unknown_undelivered", "HĐ chưa khai loại chưa giao", "tấn quy khô"),
+    ("unknown_undelivered", "HĐ chưa khai loại đã bán chờ giao", "tấn quy khô"),
     ("to_deliver", "Tổng phải giao", "tấn quy khô"),
     ("master_committed", "Cam kết HĐDH", "tấn quy khô"),
     ("master_delivered", "Đã giao theo HĐDH", "tấn quy khô"),

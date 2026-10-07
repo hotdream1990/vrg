@@ -202,7 +202,7 @@ def build(date_from: str, date_to: str, rep: dict[str, Any], companies: list[str
         note += " ⚠ Có lần giao thiếu tỷ giá → doanh thu để trống, KHÔNG tính là 0."
     note += (f" Phải giao tính tại {date_to}: HĐ dài hạn theo cam kết HĐDH còn hiệu lực (gồm cả phần"
              " chưa ký phụ lục; HĐ nguyên tắc không tính cam kết), nên “Tổng phải giao” khác"
-             " “Đã ký HĐ chưa giao (khối 3)”.")
+             " “HĐ đã bán chờ giao (khối 3)”.")
     detail_note = (
         f"{len(detail)} dòng bán của {len(deliveries)} lần giao — cùng bộ lọc với sheet tổng hợp nên "
         "cộng cột “SL tính tiêu thụ” ra đúng sản lượng tiêu thụ. SL tính tiêu thụ = quy khô nếu dòng "

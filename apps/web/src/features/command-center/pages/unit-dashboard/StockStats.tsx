@@ -14,9 +14,9 @@ export default function StockStats({ totals: t }: { totals: Totals }) {
     { label: "Chưa nhập kho", value: t.not_warehoused, unit: "tấn" },
     { label: "Đã nhập kho", value: t.warehoused, unit: "tấn" },
     { label: "Tổng tồn thành phẩm", value: t.total, unit: "tấn", sub: "= chưa nhập + đã nhập kho", main: true },
-    { label: "Đã ký HĐ chưa giao", value: t.signed_undelivered, unit: "tấn", sub: "nằm trong tồn kho" },
+    { label: "HĐ đã bán chờ giao", value: t.signed_undelivered, unit: "tấn", sub: "nằm trong tồn kho" },
     { label: "Có thể giao dịch", value: t.tradable, unit: "tấn",
-      sub: tradableNeg ? "thiếu hàng để giao" : "= tổng tồn − đã ký chưa giao" },
+      sub: tradableNeg ? "thiếu hàng để giao" : "= tổng tồn − HĐ đã bán chờ giao" },
     { label: "Tồn nguyên liệu", value: t.material, unit: "tấn quy khô" },
   ];
   return (

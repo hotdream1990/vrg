@@ -287,7 +287,7 @@ def test_api_tieu_thu_tra_backlog_va_file_excel_co_cot_phai_giao() -> None:
         assert row["Tổng phải giao"] == pytest.approx(625)
         assert row["HĐ dài hạn còn phải giao"] == pytest.approx(600)
         assert row["% thực hiện HĐDH"] == pytest.approx(40)
-        assert row["Đã ký HĐ chưa giao (khối 3)"] == pytest.approx(25)
+        assert row["HĐ đã bán chờ giao (khối 3)"] == pytest.approx(25)
     finally:
         _wipe()
         client.delete(f"/api/member-units/{UNIT_A}", headers=h)

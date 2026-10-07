@@ -28,8 +28,8 @@ const COLS: StatsCol[] = [
   { key: "not_warehoused", label: "Tồn chưa nhập kho", unit: "tấn", note: "thời điểm" },
   { key: "warehoused", label: "Tồn đã nhập kho", unit: "tấn", note: "thời điểm" },
   { key: "total", label: "Tổng tồn thành phẩm", unit: "tấn", note: "= 2 khối trên" },
-  { key: "signed_undelivered", label: "Đã ký HĐ chưa giao", unit: "tấn quy khô", note: "nằm trong tồn TP" },
-  { key: "tradable", label: "Tồn có thể giao dịch", unit: "tấn", note: "= tổng − chưa giao" },
+  { key: "signed_undelivered", label: "HĐ đã bán chờ giao", unit: "tấn quy khô", note: "nằm trong tồn TP" },
+  { key: "tradable", label: "Tồn có thể giao dịch", unit: "tấn", note: "= tổng − HĐ đã bán chờ giao" },
   { key: "material", label: "Tồn nguyên liệu", unit: "tấn", note: "quy khô" },
 ];
 
@@ -37,7 +37,7 @@ const KPIS: Kpi[] = [
   { key: "total", label: "Tổng tồn thành phẩm", unit: "tấn" },
   { key: "not_warehoused", label: "Chưa nhập kho", unit: "tấn" },
   { key: "warehoused", label: "Đã nhập kho", unit: "tấn" },
-  { key: "signed_undelivered", label: "Đã ký HĐ chưa giao", unit: "tấn quy khô" },
+  { key: "signed_undelivered", label: "HĐ đã bán chờ giao", unit: "tấn quy khô" },
   { key: "tradable", label: "Tồn có thể giao dịch", unit: "tấn" },
   { key: "material", label: "Tồn nguyên liệu", unit: "tấn" },
 ];
@@ -81,9 +81,9 @@ export default function StockStatsPage() {
             ngày. Chỉ lấy số của đơn vị <b>khai đúng ngày chốt</b>; đơn vị tick “không phát sinh tồn
             kho để khai” thì giữ số của lần khai gần nhất và <b>hiện rõ ngày thật</b> ở cột “Ngày lấy
             số”; đơn vị không khai gì thì coi như <b>chưa có số</b>, không mượn số ngày khác đắp vào.
-            <b> Đã ký HĐ chưa giao</b> là số hệ thống tự tính từ hợp đồng (sản lượng hợp đồng −
+            <b> HĐ đã bán chờ giao</b> là số hệ thống tự tính từ hợp đồng (sản lượng hợp đồng −
             đã giao) tại đúng ngày của số tồn, <b>nằm trong</b> tồn thành phẩm; phần còn bán được
-            là <b>tồn có thể giao dịch = tổng tồn − đã ký chưa giao</b> (âm nghĩa là đã ký nhiều
+            là <b>tồn có thể giao dịch = tổng tồn − HĐ đã bán chờ giao</b> (âm nghĩa là đã ký nhiều
             hơn lượng đang có trong kho). Chi tiết từng hợp đồng xem ở mục
             <b> Thống kê hợp đồng</b>.
           </p>

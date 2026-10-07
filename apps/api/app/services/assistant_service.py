@@ -72,7 +72,7 @@ _REASONING = (
     "(b) đối chiếu với diễn biến sàn/physical và tỷ giá; "
     "(c) đối chiếu với tồn kho và số liệu đơn vị thành viên (thu mua · tiêu thụ · tồn kho) nếu "
     "được phép truy cập — tồn kho tăng hoặc tiêu thụ chậm là lý do NGƯỢC lại với rổ futures đang tăng; "
-    "(c2) nếu được phép, xem thêm sản lượng ĐÃ KÝ HỢP ĐỒNG CHƯA GIAO: đã ký nhiều mà chưa giao là "
+    "(c2) nếu được phép, xem thêm sản lượng HỢP ĐỒNG ĐÃ BÁN CHỜ GIAO: đã ký nhiều mà chưa giao là "
     "áp lực bán còn treo (nghiêng GIỮ/HẠ), đã ký ít so với tồn kho tự do cũng vậy; "
     "(c3) gọi get_private_price_benchmark để đối chiếu giá sàn nội địa SVR 3L với VÙNG HỢP LÝ theo giá "
     "mủ tư nhân (giá thành tư nhân + 700.000–1.000.000 đồng/tấn); tool đã kết hợp xu hướng tồn kho để "

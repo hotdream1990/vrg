@@ -77,7 +77,7 @@ def _undelivered_volume(args: dict) -> dict:
 
     rolled = urq.roll_by_company(sales_contract_report.undelivered_on(as_of))
     if not rolled:
-        return err(f"Không có hợp đồng nào ĐÃ KÝ CHƯA GIAO tại ngày {dmy(as_of)}.")
+        return err(f"Không có hợp đồng nào ĐÃ BÁN CHỜ GIAO tại ngày {dmy(as_of)}.")
     total_qty = round(sum(v["qty"] for v in rolled.values()), 3)
     n_hop_dong = sum(len(v["items"]) for v in rolled.values())
 
@@ -86,7 +86,7 @@ def _undelivered_volume(args: dict) -> dict:
     if group_by == "company":
         ranked = _top({k: v["qty"] for k, v in rolled.items()})
         top_rows = [{"nhom": k, "khoi_luong_tan": round(v, 3)} for k, v in ranked]
-        art = table(f"Đã ký HĐ chưa giao theo đơn vị (tại {dmy(as_of)})",
+        art = table(f"HĐ đã bán chờ giao theo đơn vị (tại {dmy(as_of)})",
                    cols(("nhom", "Đơn vị"), ("khoi_luong_tan", "Khối lượng (tấn quy khô)")), top_rows)
     elif group_by == "grade":
         by_grade: dict[str, float] = {}
@@ -95,7 +95,7 @@ def _undelivered_volume(args: dict) -> dict:
                 by_grade[g] = by_grade.get(g, 0.0) + q
         ranked = _top(by_grade)
         top_rows = [{"nhom": k, "khoi_luong_tan": round(v, 3)} for k, v in ranked]
-        art = table(f"Đã ký HĐ chưa giao theo chủng loại (tại {dmy(as_of)})",
+        art = table(f"HĐ đã bán chờ giao theo chủng loại (tại {dmy(as_of)})",
                    cols(("nhom", "Chủng loại"), ("khoi_luong_tan", "Khối lượng (tấn quy khô)")), top_rows)
 
     return {"summary": {
@@ -377,7 +377,7 @@ def _master_contracts(args: dict) -> dict:
 TOOLS: dict[str, dict[str, Any]] = {
     "get_undelivered_volume": {"run": _undelivered_volume, "schema": {
         "name": "get_undelivered_volume",
-        "description": "QUAN TRỌNG cho tư vấn giá sàn: sản lượng ĐÃ KÝ HỢP ĐỒNG NHƯNG CHƯA GIAO (khối "
+        "description": "QUAN TRỌNG cho tư vấn giá sàn: sản lượng HỢP ĐỒNG ĐÃ BÁN CHỜ GIAO (khối "
                       "3) tại MỘT NGÀY, đơn vị TẤN QUY KHÔ — đây là áp lực bán thực tế của Tập đoàn. "
                       "Ảnh chụp tại ngày hỏi, KHÔNG cộng dồn qua ngày khác.",
         "parameters": {"type": "object", "properties": {

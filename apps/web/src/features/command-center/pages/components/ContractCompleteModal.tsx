@@ -146,7 +146,7 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
           {noDelivery && (
             <div className="form-note" style={{ fontSize: 12, marginTop: 8 }}>
               Chốt xong, <b>{t3(c.qty)} tấn</b> này <b>không vào tiêu thụ</b> và rời khỏi mục
-              “đã ký HĐ chưa giao”.
+              “HĐ đã bán chờ giao”.
             </div>
           )}
         </div>
@@ -159,7 +159,7 @@ export default function ContractCompleteModal({ d, meta, onClose, onDone }: Prop
       <p className="form-note" style={{ fontSize: 12, marginTop: 10 }}>
         {short ? (
           <>Sau khi chốt, <b>{t3(d.remaining_qty)} tấn</b> chưa giao sẽ <b>rời khỏi</b> mục
-            “đã ký HĐ chưa giao” kể từ ngày hoàn thành. Chỉ chốt khi hai bên đã kết thúc hợp đồng —
+            “HĐ đã bán chờ giao” kể từ ngày hoàn thành. Chỉ chốt khi hai bên đã kết thúc hợp đồng —
             còn giao tiếp thì để nguyên.</>
         ) : (
           <>Hợp đồng đã giao đủ. Chốt hoàn thành để đánh dấu kết thúc và khoá không cho sửa thêm.</>

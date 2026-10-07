@@ -50,10 +50,10 @@ _OTHER_REGION = "Khu vực khác"
 
 NOTES: list[str] = [
     "Số liệu báo cáo chốt vào thứ 5 hàng tuần, thời gian gửi báo cáo vào thứ 6 hàng tuần.",
-    "Tồn kho thành phẩm là: số lượng bao gồm chưa có HĐ và đã có HĐ (đã có HĐ là gồm SL hàng đã ký "
-    "HĐ nhưng chưa giao hàng, đối với HĐDH thì số lượng ký đã có xác định giá bán).",
+    "Tồn kho thành phẩm là: số lượng bao gồm chưa có HĐ và đã có HĐ (đã có HĐ là SL hàng HĐ đã bán "
+    "chờ giao, đối với HĐDH thì số lượng ký đã có xác định giá bán).",
     "Nguyên liệu: không phải sản phẩm tồn kho.",
-    "Cột “Chưa có hợp đồng” theo chủng loại = tồn kho chủng loại đó trừ phần đã ký hợp đồng chưa "
+    "Cột “Chưa có hợp đồng” theo chủng loại = tồn kho chủng loại đó trừ phần hợp đồng đã bán chờ "
     "giao; đơn vị nào chốt tồn kho trễ hơn ngày ký hợp đồng thì phần chênh được kẹp về 0.",
 ]
 

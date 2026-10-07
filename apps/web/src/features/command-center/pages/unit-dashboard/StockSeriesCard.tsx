@@ -17,7 +17,7 @@ const VIEWS: { value: DashStockView; label: string; sub: string }[] = [
     sub: "Mỗi cột = tồn thành phẩm = đã nhập kho + chưa nhập kho" },
   { value: "grade", label: "Chủng loại", sub: "Mỗi cột = tồn thành phẩm chia theo chủng loại" },
   { value: "structure", label: "Cơ cấu hợp đồng",
-    sub: "Mỗi cột = đã ký hợp đồng (chưa giao) + tồn tự do (chưa ký)" },
+    sub: "Mỗi cột = HĐ đã bán chờ giao + tồn tự do (chưa ký)" },
   { value: "free_grade", label: "Tự do theo chủng loại",
     sub: "Mỗi cột = phần CÒN BÁN ĐƯỢC (tồn − đã ký) của từng chủng loại" },
 ];

@@ -22,7 +22,7 @@ export default function OutlookCard({ state }: { state: BlockState<OutlookBlock>
     <DashboardCard
       id="ud-outlook" state={state} warnings={(o) => o.warnings ?? []}
       title={<><RiseOutlined style={{ marginRight: 6 }} />Tiến độ bán hàng năm {d?.year ?? ""}</>}
-      sub={d && <>Tính đến {dmy(d.as_of)} · Tổng còn phải giao = các HĐ/phụ lục đã ký chưa giao + phần
+      sub={d && <>Tính đến {dmy(d.as_of)} · Tổng còn phải giao = các HĐ/phụ lục đã bán chờ giao + phần
         cam kết HĐDH còn lại chưa ký phụ lục · DT dự kiến = DT đã thực hiện + SL còn phải giao × giá bán
         BQ lũy kế của từng đơn vị.</>}
     >

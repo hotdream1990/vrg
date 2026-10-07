@@ -45,7 +45,7 @@ def _missing_master_errors(back: dict[str, dict[str, Any]]) -> list[str]:
     total = sum(float(item["remaining"] or 0) for _, item in entries)
     shown = ", ".join(f"{company}: {item['code']}" for company, item in entries[:_MAX_CODES_IN_ALERT])
     more = f" và {len(entries) - _MAX_CODES_IN_ALERT} HĐ khác" if len(entries) > _MAX_CODES_IN_ALERT else ""
-    return [f"LỖI DỮ LIỆU: {len(entries)} HĐ dài hạn đã ký chưa giao ({vn(total)} tấn) chưa gán HĐ mẹ "
+    return [f"LỖI DỮ LIỆU: {len(entries)} HĐ dài hạn đã bán chờ giao ({vn(total)} tấn) chưa gán HĐ mẹ "
             f"— cần gán lại để đối chiếu cam kết HĐDH. HĐ: {shown}{more}."]
 
 

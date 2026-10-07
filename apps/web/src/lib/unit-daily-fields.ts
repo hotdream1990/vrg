@@ -119,7 +119,7 @@ const CONSUMPTION: Column[] = [
     compute: (v) => (stockTonnes(v, "stock_not_warehoused") + stockTonnes(v, "stock_warehoused")) || null },
   // Cam kết giao hàng — HỆ THỐNG TỰ TÍNH từ hợp đồng (`{qty, by_grade, items}`), báo RIÊNG:
   // không cộng vào "Tồn kho thành phẩm" và cũng không trừ ra.
-  { key: "stock_signed_t", label: "Đã ký HĐ chưa giao", unit: "tấn quy khô", group: _TK,
+  { key: "stock_signed_t", label: "HĐ đã bán chờ giao", unit: "tấn quy khô", group: _TK,
     compute: (v) => n((v as Record<string, unknown>).stock_signed_undelivered
       ? ((v as Record<string, { qty?: number }>).stock_signed_undelivered.qty ?? null) : null) || null },
   { key: "stock_material", label: "Tồn kho nguyên liệu chưa sản xuất (quy khô)", unit: "tấn", group: _TK },
@@ -188,7 +188,7 @@ export function summaryLine(kind: Kind, v: Values): string {
   const parts = [
     `Tổng tiêu thụ ${fmtNum(colValue(kind, "c_qty", v), 3)}t`,
     `Tồn kho TP ${fmtNum(colValue(kind, "stock_finished_t", v), 3)}t`,
-    `Đã ký HĐ chưa giao ${fmtNum(colValue(kind, "stock_signed_t", v), 3)}t`,
+    `HĐ đã bán chờ giao ${fmtNum(colValue(kind, "stock_signed_t", v), 3)}t`,
   ];
   return parts.join(" · ");
 }

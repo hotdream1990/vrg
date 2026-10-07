@@ -269,7 +269,7 @@ TOOLS: dict[str, dict[str, Any]] = {
     "get_inventory_trend": {
         "run": _inventory_trend,
         "schema": {"name": "get_inventory_trend",
-                   "description": "Tồn kho thành phẩm Tập đoàn THEO NGÀY, đơn vị TẤN, cộng từ biểu Tồn kho đơn vị thành viên (có từ 24/07/2026): biểu đồ đường tồn kho + số mới nhất (đã ký HĐ chưa giao, tồn tự do) + thay đổi SO VỚI LẦN BAN HÀNH GIÁ SÀN GẦN NHẤT (tổng + tự do, kèm hướng tham chiếu) + thay đổi từ đầu khoảng tra cứu. days = số ngày gần nhất (mặc định 60).",
+                   "description": "Tồn kho thành phẩm Tập đoàn THEO NGÀY, đơn vị TẤN, cộng từ biểu Tồn kho đơn vị thành viên (có từ 24/07/2026): biểu đồ đường tồn kho + số mới nhất (HĐ đã bán chờ giao, tồn tự do) + thay đổi SO VỚI LẦN BAN HÀNH GIÁ SÀN GẦN NHẤT (tổng + tự do, kèm hướng tham chiếu) + thay đổi từ đầu khoảng tra cứu. days = số ngày gần nhất (mặc định 60).",
                    "parameters": {"type": "object", "properties": {
                        "days": {"type": "integer", "description": "số ngày gần nhất (mặc định 60)"}}}}},
     "get_market_quote": {

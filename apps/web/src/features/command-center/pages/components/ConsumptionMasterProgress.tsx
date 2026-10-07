@@ -89,7 +89,7 @@ export default function ConsumptionMasterProgress({ rep, totals }: Props) {
       </div>
       <div className="cmp-note">
         Đã giao tính lũy kế từ ngày ký HĐDH. Còn phải giao của một HĐDH = cam kết − đã giao (không
-        thấp hơn phần phụ lục đã ký chưa giao); HĐDH đã hết hạn chỉ còn phần phụ lục đã ký chưa giao —
+        thấp hơn phần phụ lục đã bán chờ giao); HĐDH đã hết hạn chỉ còn phần phụ lục đã bán chờ giao —
         cam kết chưa ký phụ lục của nó ghi ở cột “Hết hạn chưa giao đủ”. HĐ nguyên tắc không tính ở đây:
         sản lượng ghi trên đó chỉ là dự kiến, phụ lục của nó tính theo loại của chính phụ lục.
       </div>

@@ -48,7 +48,7 @@ export default function ContractDeliveryFields({ c, meta, peers, set }: Props) {
         </label>
       )}
       <p className="form-note" style={{ gridColumn: "1 / -1", margin: 0, fontSize: 12 }}>
-        Để trống <b>Ngày giao</b> nếu đợt mới lập, chưa xuất hàng — đợt vẫn nằm ở phần chưa giao
+        Để trống <b>Ngày giao</b> nếu đợt mới lập, chưa xuất hàng — đợt vẫn nằm ở phần đã bán chờ giao
         của hợp đồng và chưa tính vào tiêu thụ. Điền ngày giao (chốt thành tiêu thụ) thì phải chọn
         {" "}<b>Hình thức tiêu thụ</b> ở đây và <b>Nguồn tiêu thụ</b> ở <b>từng dòng chủng loại</b>{" "}
         bên dưới: hàng từ mủ <b>khai thác</b> của đơn vị, mủ <b>thu mua</b> hay{" "}

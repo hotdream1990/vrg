@@ -33,7 +33,7 @@ const GROUPS: Group[] = [
     { src: "consumption", key: "stock_finished", label: "Tồn kho thành phẩm", unit: "tấn" },
     { src: "consumption", key: "stock_not_warehoused", label: "Chưa nhập kho", unit: "tấn" },
     { src: "consumption", key: "stock_warehoused", label: "Đã nhập kho", unit: "tấn" },
-    { src: "consumption", key: "stock_finished_hd", label: "Đã ký HĐ chưa giao", unit: "tấn quy khô" },
+    { src: "consumption", key: "stock_finished_hd", label: "HĐ đã bán chờ giao", unit: "tấn quy khô" },
     { src: "consumption", key: "stock_material", label: "Tồn nguyên liệu", unit: "tấn" },
   ] },
 ];

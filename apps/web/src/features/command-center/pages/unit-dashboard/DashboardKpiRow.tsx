@@ -109,7 +109,7 @@ export default function DashboardKpiRow({ purchase, consumption, stock }: Props)
       return {
         value: withUnit(fmtTon(v), "tấn"),
         sub: negative ? "Thiếu hàng để giao cho hợp đồng đã ký"
-                      : "= tồn thành phẩm − đã ký HĐ chưa giao",
+                      : "= tồn thành phẩm − HĐ đã bán chờ giao",
         negative,
       };
     }),
