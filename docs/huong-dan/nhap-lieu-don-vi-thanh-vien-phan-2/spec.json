@@ -1,0 +1,344 @@
+{
+ "output": "Huong-dan-nhap-lieu-don-vi-thanh-vien-phan-2.docx",
+ "page": "a4",
+ "colors": {
+  "h1": "1F7A4D",
+  "h2": "C2410C"
+ },
+ "header": {
+  "logo": "logo-vrg.png",
+  "logoW": 846,
+  "logoH": 774,
+  "title": "NHẬP LIỆU ĐƠN VỊ THÀNH VIÊN — PHẦN 2",
+  "subtitle": "·  Hệ thống Dự báo & Quản trị Giá Cao su — VRG"
+ },
+ "cover": {
+  "title": "Hướng dẫn nhập liệu — Đơn vị thành viên (Phần 2)",
+  "intro": "Phần 2 chỉ gồm các thay đổi mới, áp dụng từ ngày 08/10/2026: (A) phần Hợp đồng — tên gọi “HĐ đã bán chờ giao”, ngày ký theo bản scan, đặt cọc nhiều đợt, chỉ thị giao hàng, cột Chứng từ; (B) nguồn tiêu thụ theo từng dòng chủng loại; (C) xác nhận kế hoạch năm cùng lúc chốt số liệu. Các nội dung khác vẫn làm như Sổ tay nhập liệu (Phần 1)."
+ },
+ "readme_head": {
+  "intro": [
+   "Tài liệu dành cho **tài khoản nhập liệu của đơn vị thành viên**. Phần 2 chỉ gồm các thay đổi mới, áp dụng từ ngày **08/10/2026**: **Hợp đồng** (mục 1–8), **Nguồn tiêu thụ** (mục 9–14) và **Xác nhận kế hoạch năm khi chốt số liệu** (mục 15–18). Các nội dung khác vẫn làm như Sổ tay nhập liệu (Phần 1).",
+   "Việc cần làm ngay: bổ sung đủ **scan hợp đồng**, **chứng từ cọc**, **chỉ thị giao hàng** cho các hợp đồng đã bán chờ giao (mục 7); rà **nguồn tiêu thụ** của các lần giao đã nhập (sửa được đến hết **08/10/2026**, mục 11); rà **kế hoạch năm** trước khi chốt số liệu (mục 15)."
+  ],
+  "links": [
+   "Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-don-vi-thanh-vien-phan-2.docx](./Huong-dan-nhap-lieu-don-vi-thanh-vien-phan-2.docx)",
+   "Sổ tay nhập liệu (Phần 1): [../nhap-lieu-don-vi-thanh-vien/README.md](../nhap-lieu-don-vi-thanh-vien/README.md)",
+   "Sửa nội dung: chỉ sửa `spec.json` rồi chạy `python3 render_readme.py` (dựng lại README) và `NODE_PATH=\"$(npm root -g)\" node ~/.claude/skills/screenshot-annotate/scripts/build_guide.js spec.json` (dựng lại bản Word).",
+   "Chụp lại bộ ảnh khi giao diện đổi: xem hướng dẫn ở đầu `seed.py` và `shoot.py`."
+  ]
+ },
+ "sections": [
+  {
+   "title": "1. Có gì mới",
+   "steps_label": "Thay đổi:",
+   "steps": [
+    "Mục “Đã ký HĐ chưa giao” nay gọi là **“HĐ đã bán chờ giao”** trên mọi màn hình, báo cáo và file Excel. Cách tính không đổi.",
+    "**Ngày ký** phải đúng ngày ký ghi trên bản scan hợp đồng.",
+    "Hợp đồng có thêm mục **Đặt cọc**: nhập được **nhiều đợt cọc**, mỗi đợt kèm chứng từ cọc.",
+    "Mỗi lần giao có thêm mục **Chỉ thị giao hàng**: thời gian giao, địa điểm giao, bản scan chỉ thị.",
+    "Danh sách hợp đồng có thêm cột **Chứng từ** để biết hợp đồng nào còn thiếu bản scan.",
+    "**Nguồn tiêu thụ**: mỗi dòng chủng loại của một lần giao chọn nguồn **Khai thác**, **Thu mua** hoặc **Hàng hóa cao su** (mục 9–14).",
+    "**Kế hoạch năm** được xác nhận cùng lúc **chốt số liệu**. Chốt xong muốn sửa thì gửi **Đề nghị sửa** (mục 15–18)."
+   ],
+   "notes": [
+    "Đặt cọc, chỉ thị giao hàng và các bản scan **vẫn bổ sung được khi số liệu đã chốt**."
+   ]
+  },
+  {
+   "title": "2. Ngày ký theo bản scan",
+   "location": "Menu ▸ Quản lý hợp đồng ▸ Hợp đồng & đợt giao ▸ Thêm hợp đồng (hoặc Sửa)",
+   "image": {
+    "path": "img/01-ngay-ky-theo-scan.png",
+    "w": 2520,
+    "h": 424
+   },
+   "caption": "Hình 1. Ô Ngày ký và dòng nhắc chứng từ cần đính kèm",
+   "steps": [
+    "Ô **Ngày ký (theo bản scan)**: chọn đúng ngày ký ghi trên bản scan hợp đồng, không lấy ngày nhập liệu.",
+    "Dòng chữ đỏ ngay bên dưới nhắc các bản scan cần đính kèm cho hợp đồng."
+   ],
+   "notes": [
+    "Từ ngày ký, sản lượng hợp đồng bắt đầu nằm ở mục “HĐ đã bán chờ giao”. Ngày ký sai thì số này sai theo."
+   ]
+  },
+  {
+   "title": "3. Nhập đặt cọc (nhiều đợt)",
+   "location": "Phiếu Thêm / Sửa hợp đồng ▸ mục Đặt cọc",
+   "image": {
+    "path": "img/02-dat-coc-nhieu-dot.png",
+    "w": 2576,
+    "h": 554
+   },
+   "caption": "Hình 2. Mục Đặt cọc — mỗi lần nhận cọc là một đợt",
+   "steps": [
+    "Mỗi lần nhận cọc là một **đợt cọc**: nhập **Số tiền cọc**, **Loại tiền**, **Ngày cọc**, rồi bấm **Chọn file** để đính kèm chứng từ cọc (ủy nhiệm chi, giấy báo có…).",
+    "Bấm **Thêm đợt cọc** để thêm đợt tiếp theo. Nhập nhầm một đợt thì bấm biểu tượng thùng rác ở cuối dòng đó.",
+    "Đọc dòng chữ đỏ bên dưới: **tổng cọc** và bằng bao nhiêu % giá trị hợp đồng. Dùng để tự kiểm tra trước khi bấm **Lưu**."
+   ],
+   "notes": [
+    "Tiền VNĐ nhập theo **triệu đồng**: cọc 500 triệu thì gõ **500**. Cọc bằng USD thì nhập số USD.",
+    "Loại tiền tự lấy theo loại tiền của hợp đồng; cọc bằng loại tiền khác thì chọn lại.",
+    "Ngày cọc không được sau hôm nay.",
+    "Hợp đồng giao nhiều lần: đặt cọc nhập ở **hợp đồng**, không nhập ở từng đợt giao."
+   ]
+  },
+  {
+   "title": "4. Khi tổng cọc lớn hơn giá trị hợp đồng",
+   "image": {
+    "path": "img/03-coc-vuot-gia-tri.png",
+    "w": 2576,
+    "h": 604
+   },
+   "caption": "Hình 3. Gõ số tiền theo đồng — hệ thống báo đỏ, không cho lưu",
+   "steps": [
+    "Gõ số tiền theo **đồng** (ví dụ 400.000.000) thì tổng cọc lớn hơn giá trị hợp đồng.",
+    "Hệ thống báo đỏ và **không cho lưu**. Sửa lại theo triệu đồng (ví dụ **400**) rồi bấm **Lưu**."
+   ]
+  },
+  {
+   "title": "5. Nhập chỉ thị giao hàng",
+   "location": "Phiếu hợp đồng giao 1 lần, hoặc phiếu đợt giao ▸ mục Chỉ thị giao hàng",
+   "image": {
+    "path": "img/04-chi-thi-giao-hang.png",
+    "w": 2576,
+    "h": 282
+   },
+   "caption": "Hình 4. Mục Chỉ thị giao hàng",
+   "steps": [
+    "**Thời gian giao (theo chỉ thị)**: ngày giao ghi trên chỉ thị. Chọn được ngày sắp tới.",
+    "**Địa điểm giao**: ví dụ cảng hoặc kho giao hàng.",
+    "Bấm **Chọn file** để đính kèm bản scan chỉ thị giao hàng."
+   ],
+   "notes": [
+    "Hợp đồng **giao 1 lần**: nhập ngay trên phiếu hợp đồng.",
+    "Hợp đồng **giao nhiều lần**: mỗi chuyến một chỉ thị, nhập ở từng **đợt giao** (bấm **Xem** ở hợp đồng ▸ tab **Đợt giao** ▸ **Thêm đợt giao**). Hàng chưa giao thì để trống **Ngày giao**."
+   ]
+  },
+  {
+   "title": "6. Chứng từ thanh toán và scan hợp đồng",
+   "location": "Cuối phiếu Thêm / Sửa hợp đồng",
+   "image": {
+    "path": "img/05-thanh-toan-scan-hd.png",
+    "w": 2576,
+    "h": 674
+   },
+   "caption": "Hình 5. Chứng từ thanh toán, scan hợp đồng và nút Lưu",
+   "steps": [
+    "Khi khách đã thanh toán: ở mục **Thanh toán**, nhập ngày, sản lượng thanh toán và bấm **Chọn file** ở **Chứng từ thanh toán**.",
+    "**Hợp đồng đã ký (scan)**: đính kèm bản scan hợp đồng.",
+    "Bấm **Lưu**."
+   ],
+   "notes": [
+    "Hợp đồng giao nhiều lần: thanh toán nhập ở từng **đợt giao**."
+   ]
+  },
+  {
+   "title": "7. Tìm hợp đồng còn thiếu chứng từ và bổ sung",
+   "location": "Menu ▸ Quản lý hợp đồng ▸ Hợp đồng & đợt giao",
+   "image": {
+    "path": "img/06-danh-sach-cot-chung-tu.png",
+    "w": 3464,
+    "h": 494
+   },
+   "caption": "Hình 6. Cột Chứng từ — chữ gạch ngang là còn thiếu",
+   "steps": [
+    "Xem cột **Chứng từ**: **HĐ** (scan hợp đồng) · **Cọc** · **Chỉ thị** · **TT** (thanh toán, chỉ hiện khi hợp đồng giao 1 lần đã giao). Chữ **gạch ngang** là chưa đính kèm.",
+    "Bấm **Sửa** ở dòng còn thiếu, bổ sung theo mục 3, 5, 6 rồi bấm **Lưu**."
+   ],
+   "notes": [
+    "Dòng hiện **(chỉ xem)**: bấm **Đề nghị sửa**, bổ sung chứng từ rồi bấm **Gửi đề nghị sửa**. Hệ thống báo “Đã lưu trực tiếp” là xong, không phải chờ Ban duyệt.",
+    "Hợp đồng giao nhiều lần: chỉ thị giao hàng và thanh toán xem ở tab **Đợt giao** của hợp đồng."
+   ]
+  },
+  {
+   "title": "8. Xem lại trên màn chi tiết hợp đồng",
+   "location": "Menu ▸ Quản lý hợp đồng ▸ Hợp đồng & đợt giao ▸ bấm Xem ở dòng hợp đồng",
+   "image": {
+    "path": "img/07-chi-tiet-hop-dong.png",
+    "w": 2520,
+    "h": 1068
+   },
+   "caption": "Hình 7. Màn chi tiết — tab Thông tin hợp đồng",
+   "steps": [
+    "**Đặt cọc**: từng đợt cọc kèm số tiền, ngày cọc và file.",
+    "**Chỉ thị giao hàng**: thời gian, địa điểm và file.",
+    "**Thanh toán**: ngày thanh toán và chứng từ. Bấm tên file để mở bản scan."
+   ]
+  },
+  {
+   "title": "9. Nguồn tiêu thụ — chọn nguồn khi nhập lần giao",
+   "location": "Menu ▸ Quản lý hợp đồng ▸ Hợp đồng & đợt giao",
+   "intro": "Mỗi dòng chủng loại của một lần giao phải ghi rõ nguồn: **Khai thác** (mủ vườn cây của đơn vị), **Thu mua** (mủ đơn vị mua vào) hoặc **Hàng hóa cao su** (thành phẩm mua ngoài về bán lại). Áp dụng cho phiếu **Thêm đợt giao** và phiếu hợp đồng **giao 1 lần**.",
+   "image": {
+    "path": "img/08-chon-nguon-tung-dong.png",
+    "w": 3000,
+    "h": 2000
+   },
+   "caption": "Hình 8. Phiếu đợt giao — mỗi dòng chủng loại có ô Nguồn tiêu thụ",
+   "steps": [
+    "Điền **Ngày giao** khi hàng đã giao xong.",
+    "Chọn **Hình thức tiêu thụ**.",
+    "Ở dòng chủng loại, chọn **Nguồn tiêu thụ**.",
+    "Có thêm chủng loại thì chọn nguồn cho từng dòng. Mỗi dòng có thể khác nguồn.",
+    "Bấm **Thêm dòng** để thêm chủng loại. Xong bấm **Lưu** ở cuối phiếu."
+   ],
+   "notes": [
+    "Đợt mới lập, chưa điền Ngày giao thì chưa cần chọn nguồn.",
+    "Hợp đồng giao nhiều lần: nguồn chọn ở từng **đợt giao**. Phần chi tiết của hợp đồng không có ô nguồn."
+   ]
+  },
+  {
+   "title": "10. Khi quên chọn nguồn",
+   "image": {
+    "path": "img/09-bao-thieu-nguon.png",
+    "w": 3000,
+    "h": 2000
+   },
+   "caption": "Hình 9. Thiếu nguồn ở một dòng — hệ thống báo đúng dòng đó",
+   "steps": [
+    "Dòng còn trống ô **Nguồn tiêu thụ** thì phiếu không lưu được.",
+    "Thông báo ở cuối phiếu ghi rõ dòng nào thiếu, ví dụ “Dòng 2 (SVR 3L): chọn nguồn tiêu thụ.”. Chọn nguồn cho dòng đó rồi bấm **Lưu** lại."
+   ]
+  },
+  {
+   "title": "11. Sửa nguồn lần giao đã nhập — mở lần giao (đến hết 08/10/2026)",
+   "location": "Menu ▸ Quản lý hợp đồng ▸ Hợp đồng & đợt giao ▸ Xem",
+   "intro": "Các lần giao nhập trước ngày 05/10/2026 được tạm ghi là **Khai thác**. Dòng nào không đúng thì sửa lại. Nút **Sửa nguồn** dùng được cả với lần giao đã khoá.",
+   "image": {
+    "path": "img/10-nut-sua-nguon.png",
+    "w": 3000,
+    "h": 2000
+   },
+   "caption": "Hình 10. Tab Đợt giao — nút Sửa nguồn và cột Nguồn",
+   "steps": [
+    "Mở hợp đồng bằng nút **Xem**. Hợp đồng giao nhiều lần thì chọn tab **Đợt giao**.",
+    "Bấm **Sửa nguồn** ở lần giao cần sửa. Hợp đồng giao 1 lần thì nút nằm ở tab **Thông tin hợp đồng**.",
+    "Cột **Nguồn** cho biết lần giao đang tính nguồn nào, ví dụ “Khai thác · Thu mua”."
+   ],
+   "notes": [
+    "Nút **Sửa nguồn** chỉ có đến hết ngày **08/10/2026**. Sau đó, lần giao đã khoá phải gửi **Đề nghị sửa**.",
+    "Sửa nguồn không làm đổi sản lượng hay doanh thu, chỉ đổi cách chia theo nguồn."
+   ]
+  },
+  {
+   "title": "12. Sửa nguồn — chọn nguồn từng dòng rồi lưu",
+   "location": "Hộp «Sửa nguồn tiêu thụ»",
+   "image": {
+    "path": "img/11-hop-sua-nguon.png",
+    "w": 3000,
+    "h": 2000
+   },
+   "caption": "Hình 11. Hộp Sửa nguồn tiêu thụ",
+   "steps": [
+    "Cả lần giao cùng một nguồn: chọn ở ô **Chọn nhanh cho tất cả dòng**.",
+    "Các dòng khác nguồn nhau: chọn nguồn cho từng dòng.",
+    "Bấm **Lưu**. Cột **Nguồn** trong bảng đổi ngay."
+   ]
+  },
+  {
+   "title": "13. Hoàn thành hợp đồng giao 1 lần chưa nhập ngày giao",
+   "location": "Menu ▸ Quản lý hợp đồng ▸ Hợp đồng & đợt giao ▸ Xem ▸ Hoàn thành hợp đồng",
+   "intro": "Hoàn thành hợp đồng giao 1 lần chưa có ngày giao cũng là ghi nhận **đã giao**, nên màn hình hỏi thêm hình thức và nguồn của từng dòng.",
+   "image": {
+    "path": "img/12-hoan-thanh-chon-nguon.png",
+    "w": 3000,
+    "h": 2000
+   },
+   "caption": "Hình 12. Hoàn thành hợp đồng — chọn hình thức và nguồn từng dòng",
+   "steps": [
+    "Chọn **Hình thức tiêu thụ**. Ô Ngày giao để sẵn bằng ngày hoàn thành, khác thì sửa lại.",
+    "Chọn **Nguồn tiêu thụ** cho từng dòng, hoặc dùng ô **Chọn nhanh cho tất cả dòng**.",
+    "Bấm **Hoàn thành**."
+   ],
+   "notes": [
+    "Hợp đồng huỷ, không giao nữa thì tích ô **huỷ / không giao nữa**. Khi đó không cần chọn nguồn."
+   ]
+  },
+  {
+   "title": "14. Xem tỷ trọng nguồn trên Dashboard đơn vị",
+   "location": "Menu ▸ Dashboard đơn vị ▸ khối Tiêu thụ",
+   "image": {
+    "path": "img/13-dashboard-co-cau-nguon.png",
+    "w": 3000,
+    "h": 2000
+   },
+   "caption": "Hình 13. Tỷ trọng nguồn và cơ cấu nguồn theo chủng loại",
+   "steps": [
+    "Dòng **Tỷ trọng nguồn** dưới biểu đồ: cả kỳ bao nhiêu phần trăm từ mỗi nguồn.",
+    "Bảng **Cơ cấu nguồn tiêu thụ theo chủng loại**: mỗi chủng loại bao nhiêu tấn từ mỗi nguồn."
+   ],
+   "notes": [
+    "Ở biểu đồ Tiêu thụ, chọn **Nguồn tiêu thụ** (góc trên bên phải) để xem từng ngày theo nguồn. Số tính bằng **tấn quy khô**."
+   ]
+  },
+  {
+   "title": "15. Kế hoạch năm — rà chỉ tiêu trước khi chốt",
+   "location": "Menu ▸ Nhập liệu số liệu ▸ Kế hoạch năm",
+   "image": {
+    "path": "img/14-ke-hoach-nam.png",
+    "w": 2278,
+    "h": 562
+   },
+   "caption": "Hình 14. Màn Kế hoạch năm của đơn vị",
+   "steps": [
+    "Kiểm tra các ô kế hoạch năm của đơn vị: khai thác, thu mua, hàng hóa, tiêu thụ HĐ chuyến, HĐ dài hạn đã ký, phần năm trước chuyển sang và doanh thu. Số phải khớp kế hoạch được giao. Nhập hoặc sửa xong, bấm ra ngoài ô là tự lưu.",
+    "Đọc dòng nhắc đỏ: **Thu mua** chỉ gồm mủ nguyên liệu; **Hàng hóa** (thành phẩm mua ngoài) nhập ô riêng, không cộng vào thu mua. Không kinh doanh hàng hóa thì nhập 0."
+   ],
+   "notes": [
+    "Kế hoạch doanh thu nhập theo **tỷ đồng** (doanh thu 241,36 tỷ thì gõ 241,36). Các ô còn lại tính bằng **tấn**.",
+    "Ô bị mờ, không sửa được: kế hoạch đã chốt — xem mục 18."
+   ]
+  },
+  {
+   "title": "16. Khi Ban TTKD yêu cầu chốt số liệu",
+   "location": "Đầu mọi màn hình (hàng Yêu cầu chốt số liệu)",
+   "image": {
+    "path": "img/15-yeu-cau-chot.png",
+    "w": 2384,
+    "h": 278
+   },
+   "caption": "Hình 15. Hàng Yêu cầu chốt số liệu",
+   "steps": [
+    "Đầu mọi màn hình hiện hàng **Yêu cầu chốt số liệu** kèm ngày chốt và lời nhắn của Ban. Bấm **Xem số liệu & xác nhận chốt**."
+   ]
+  },
+  {
+   "title": "17. Xác nhận kế hoạch năm cùng lúc chốt số liệu",
+   "location": "Bảng «Số liệu chốt đến hết ngày …»",
+   "intro": "Bảng xác nhận gồm Thu mua, Tồn kho, Tiêu thụ và cuối cùng là khối **Kế hoạch năm (chốt cùng đợt)**.",
+   "image": {
+    "path": "img/16-xac-nhan-ke-hoach.png",
+    "w": 1968,
+    "h": 796
+   },
+   "caption": "Hình 16. Khối Kế hoạch năm trong bảng xác nhận chốt số liệu",
+   "steps": [
+    "Kiểm tra khối **Kế hoạch năm (chốt cùng đợt)**. Số sai hoặc còn trống thì bấm **Đóng**, sửa ở màn Kế hoạch năm (mục 15) rồi mở lại bảng này.",
+    "Số liệu và kế hoạch đã đúng thì bấm **Xác nhận chốt số liệu**."
+   ],
+   "notes": [
+    "Bấm xác nhận là đơn vị xác nhận luôn **kế hoạch năm** — đây là kế hoạch dùng để so sánh với số thực hiện.",
+    "Bảng báo còn ngày chưa nộp thì nên nhập bù trước rồi mới chốt: chốt xong đơn vị không tự nhập bù được nữa."
+   ]
+  },
+  {
+   "title": "18. Sau khi chốt: muốn sửa kế hoạch năm",
+   "location": "Menu ▸ Nhập liệu số liệu ▸ Kế hoạch năm",
+   "image": {
+    "path": "img/17-ke-hoach-da-chot.png",
+    "w": 2280,
+    "h": 1016
+   },
+   "caption": "Hình 17. Kế hoạch năm đã chốt — chỉ xem, sửa qua Đề nghị sửa",
+   "steps": [
+    "Đầu màn hiện thông báo kế hoạch năm **đã chốt cùng đợt chốt số liệu**. Các ô kế hoạch chỉ xem.",
+    "Cột **Chốt số liệu** hiện **Đã chốt**.",
+    "Cần điều chỉnh: bấm **Đề nghị sửa**, sửa số trên dòng rồi bấm **Gửi đề nghị**. Ban duyệt xong, số mới được ghi và đơn vị xác nhận chốt lại."
+   ],
+   "notes": [
+    "Theo dõi đề nghị đã gửi ở **Menu ▸ Nhập liệu số liệu ▸ Đề nghị sửa số liệu**."
+   ]
+  }
+ ]
+}
