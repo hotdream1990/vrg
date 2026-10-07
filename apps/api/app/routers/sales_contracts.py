@@ -33,6 +33,7 @@ from app.schemas.sales_contract import CompletionIn, ContractIn, DeliveryTypeIn,
 from app.services.unit_report_query import roll_by_company
 from app.services import (
     contract_backlog,
+    contract_compat,
     contract_files,
     customer_repo,
     master_contract_repo,
@@ -324,8 +325,9 @@ def save_contract(body: ContractIn, scope: EditScope) -> dict:
     """Thêm mới / cập nhật hợp đồng hoặc ĐỢT GIAO (đợt có ngày giao mới tính là đã giao)."""
     username, companies = scope
     _assert_company(companies, body.company)
-    payload = body.model_dump()
     old = sales_contract_repo.get(body.id) if body.id else None
+    # Web bản cũ (chưa có ô cọc / chỉ thị giao hàng) không gửi các khoá đó → giữ số đang lưu.
+    payload = contract_compat.fill_missing(contract_compat.dump(body), old)
     # Luật nghiệp vụ TRƯỚC hàng rào thời gian: dữ liệu sai (trùng số, vượt sản lượng…) báo ngay trên
     # form. Kiểm sau hàng rào thì đơn vị quá hạn bị mời gửi «Đề nghị sửa» cho một bản ghi Ban chắc
     # chắn không duyệt được (#36, #51 ngày 17–18/09/2026).

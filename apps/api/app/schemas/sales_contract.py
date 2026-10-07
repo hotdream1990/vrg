@@ -11,6 +11,14 @@ class ContractDocIn(BaseModel):
     filename: str | None = None
 
 
+class DepositIn(BaseModel):
+    """1 ĐỢT CỌC: số tiền (VNĐ nhập triệu đồng, ngoại tệ nhập nguyên tệ) · loại tiền · ngày · chứng từ."""
+    amount: float | None = None
+    ccy: str | None = None
+    date: str | None = None
+    docs: list[ContractDocIn] = Field(default_factory=list)
+
+
 class CustomerIn(BaseModel):
     id: int | None = None
     company: str
@@ -70,6 +78,12 @@ class ContractIn(BaseModel):
     payment_date: str | None = None
     payment_qty: float | None = None
     payment_docs: list[ContractDocIn] = Field(default_factory=list)
+    # TIỀN ĐẶT CỌC (07/10/2026) — NHIỀU ĐỢT, chỉ ở HỢP ĐỒNG (đợt giao luôn rỗng).
+    deposits: list[DepositIn] = Field(default_factory=list)
+    # CHỈ THỊ GIAO HÀNG (07/10/2026) — chỉ ở MỘT LẦN GIAO: thời gian giao · địa điểm · scan chỉ thị.
+    instruction_date: str | None = None
+    instruction_place: str | None = None
+    instruction_docs: list[ContractDocIn] = Field(default_factory=list)
     files: list[ContractDocIn] = Field(default_factory=list)
     # HÀNG CÓ CHỨNG CHỈ (26/08/2026) — chọn nhiều; premium để TRỐNG nếu hợp đồng không có.
     certs: list[str] = Field(default_factory=list)   # PEFC · EUDR · VRG GREEN

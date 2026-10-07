@@ -14,7 +14,10 @@ from typing import Any
 from app.core.market_meta import (
     CONSUMPTION_SOURCES, CONTRACT_TYPES, DELIVERY_TYPES, SALE_CHANNELS,
 )
-from app.services import contract_certs, contract_docs, customer_repo, sales_contract_calc as calc
+from app.services import (
+    contract_certs, contract_deposit, contract_docs, contract_instruction, customer_repo,
+    sales_contract_calc as calc,
+)
 
 
 def _as_date(v, label: str, required: bool = False) -> date | None:
@@ -258,6 +261,11 @@ def clean(row: dict, company: str) -> dict[str, Any]:
         "payment_date": paid_at.isoformat() if paid_at else None,
         "payment_qty": _money(row.get("payment_qty"), "Sản lượng thanh toán"),
         "payment_docs": contract_docs.normalize(row.get("payment_docs"), None, None),
+        # Tiền cọc thuộc HỢP ĐỒNG (lúc ký) — đợt giao luôn trống; so với giá trị hợp đồng để bắt
+        # lỗi gõ đồng vào ô triệu đồng.
+        **contract_deposit.clean(row, lines, is_child=is_child),
+        # Chỉ thị giao hàng của MỘT LẦN GIAO (như hoá đơn/thanh toán).
+        **contract_instruction.clean(row, is_batch=is_batch),
         "files": contract_docs.normalize(row.get("files"), None, None),
         "note": str(row.get("note") or "").strip()[:500] or None,
         # Hàng có chứng chỉ + premium khai ở NGỌN — nơi có SẢN LƯỢNG thật của một lần giao (chốt

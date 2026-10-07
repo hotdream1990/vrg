@@ -25,7 +25,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
-from app.services import audit_repo, contract_docs, sales_contract_calc as calc
+from app.services import audit_repo, contract_deposit, contract_docs, sales_contract_calc as calc
 from app.services import sales_contract_line_dates as line_dates
 from app.services.sales_contract_code_guard import assert_code_free
 from app.services.sales_contract_clean import assert_unit_can_sign, assert_unit_exists, clean
@@ -36,10 +36,11 @@ _COLS = ("id", "company", "parent_id", "master_id", "code", "customer_id",
          "delivery_type", "contract_type",
          "sign_date", "expiry_date", "start_date", "lines", "delivered", "delivered_at", "channel",
          "to_company", "source", "invoice_no", "invoice_docs", "payment_date", "payment_qty",
-         "payment_docs", "files", "note", "completed_at", "certs", "premium", "premium_ccy")
+         "payment_docs", "files", "note", "completed_at", "certs", "premium", "premium_ccy",
+         "deposits", "instruction_date", "instruction_place", "instruction_docs")
 _DATE_COLS = ("sign_date", "expiry_date", "start_date", "delivered_at", "payment_date",
-              "completed_at")
-_DOC_COLS = ("files", "payment_docs", "invoice_docs")
+              "completed_at", "instruction_date")
+_DOC_COLS = ("files", "payment_docs", "invoice_docs", "instruction_docs")
 
 #: Trần sản lượng thực giao so với hợp đồng đã ký. Thực tế lệch quanh 5%, chặn ở 10% để vẫn bắt
 #: được lỗi nhập nhầm (thêm một số 0) mà không cản nghiệp vụ bình thường.
@@ -52,6 +53,7 @@ def _row(r) -> dict[str, Any]:
         d[k] = str(d[k]) if d.get(k) else None
     d["lines"] = d.get("lines") or []
     d["certs"] = d.get("certs") or []
+    d["deposits"] = contract_deposit.normalize(d.get("deposits"))
     for k in _DOC_COLS:
         d[k] = contract_docs.normalize(d.get(k), None, None)
     d["qty"] = calc.total_qty(d["lines"])
@@ -94,7 +96,8 @@ _INSERT = text(
     " delivery_type, contract_type, sign_date, "
     " expiry_date, start_date, lines, delivered, delivered_at, channel, to_company, source, "
     " invoice_no, invoice_docs, payment_date, "
-    " payment_qty, payment_docs, files, note, certs, premium, premium_ccy, updated_by) "
+    " payment_qty, payment_docs, files, note, certs, premium, premium_ccy, "
+    " deposits, instruction_date, instruction_place, instruction_docs, updated_by) "
     "VALUES (:company, :parent_id, :master_id, :code, :customer_id, :delivery_type, "
     " :contract_type, "
     " CAST(:sign_date AS date), "
@@ -103,7 +106,9 @@ _INSERT = text(
     " :channel, :to_company, :source, :invoice_no, CAST(:invoice_docs AS jsonb), "
     " CAST(:payment_date AS date), :payment_qty, "
     " CAST(:payment_docs AS jsonb), CAST(:files AS jsonb), :note, "
-    " CAST(:certs AS jsonb), :premium, :premium_ccy, :by) RETURNING id")
+    " CAST(:certs AS jsonb), :premium, :premium_ccy, "
+    " CAST(:deposits AS jsonb), CAST(:instruction_date AS date), :instruction_place, CAST(:instruction_docs AS jsonb), "
+    " :by) RETURNING id")
 
 _UPDATE = text(
     "UPDATE sales_contract SET code = :code, master_id = :master_id, "
@@ -119,12 +124,16 @@ _UPDATE = text(
     " payment_qty = :payment_qty, "
     " payment_docs = CAST(:payment_docs AS jsonb), files = CAST(:files AS jsonb), note = :note, "
     " certs = CAST(:certs AS jsonb), premium = :premium, premium_ccy = :premium_ccy, "
+    " deposits = CAST(:deposits AS jsonb), "
+    " instruction_date = CAST(:instruction_date AS date), instruction_place = :instruction_place, "
+    " instruction_docs = CAST(:instruction_docs AS jsonb), "
     " updated_by = :by, updated_at = now() WHERE id = :id")
 
 
 def _params(d: dict, updated_by: str | None) -> dict[str, Any]:
     docs = {k: json.dumps(d[k]) for k in _DOC_COLS}
     return {**d, **docs, "lines": json.dumps(d["lines"]),
+            "deposits": json.dumps(d.get("deposits") or []),
             "certs": json.dumps(d.get("certs") or []), "by": updated_by}
 
 
@@ -261,14 +270,17 @@ def companies_of_file(name: str) -> set[str]:
     """Các đơn vị có hợp đồng/đợt giao đính kèm file này — để chặn tải chéo đơn vị.
 
     File lưu chung một thư mục phẳng theo tên uuid; không kiểm thì bất kỳ tài khoản nào biết tên
-    file đều tải được bản scan hợp đồng của đơn vị khác. Phải quét ĐỦ 4 ô đính kèm — thiếu ô nào
+    file đều tải được bản scan hợp đồng của đơn vị khác. Phải quét ĐỦ các ô đính kèm (`_DOC_COLS`) — thiếu ô nào
     thì file của ô đó không tải được (endpoint trả 404 "không tìm thấy file hợp đồng").
     """
     ensure_schema()
     match = " OR ".join(f"{c} @> CAST(:f AS jsonb)" for c in _DOC_COLS)
+    # Chứng từ cọc nằm LỒNG trong từng đợt cọc: deposits = [{…, docs: [{file, filename}]}].
+    match += " OR deposits @> CAST(:fd AS jsonb)"
     with session_scope() as db:
         rows = db.execute(text(f"SELECT DISTINCT company FROM sales_contract WHERE {match}"),
-                          {"f": json.dumps([{"file": name}])}).scalars().all()
+                          {"f": json.dumps([{"file": name}]),
+                           "fd": json.dumps([{"docs": [{"file": name}]}])}).scalars().all()
     return set(rows)
 
 

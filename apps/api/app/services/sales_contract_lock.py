@@ -53,6 +53,8 @@ EDITABLE_WHEN_LOCKED: tuple[tuple[str, str], ...] = (
     ("invoice_docs", "File hoá đơn"),
     ("payment_date", "Ngày thanh toán"),
     ("payment_docs", "Chứng từ thanh toán"),
+    ("deposits", "Đặt cọc (các đợt cọc: số tiền · ngày · chứng từ)"),
+    ("instruction_date", "Chỉ thị giao hàng (thời gian · địa điểm · scan)"),
     ("files", "File hợp đồng đính kèm"),
     ("certs", "Chứng chỉ (PEFC · EUDR · VRG GREEN)"),
     ("expiry_date", "Thời hạn hợp đồng"),

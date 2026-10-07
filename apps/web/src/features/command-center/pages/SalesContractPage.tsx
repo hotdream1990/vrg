@@ -23,6 +23,7 @@ import MasterContractPicker from "../sections/MasterContractPicker";
 import ReadOnlyNotice from "../sections/ReadOnlyNotice";
 import ContractCompleteModal from "./components/ContractCompleteModal";
 import ContractDetailModal from "./components/ContractDetailModal";
+import ContractDocChips from "./components/ContractDocChips";
 import ContractFormModal from "./components/ContractFormModal";
 import SourceQuickEdit from "./components/SourceQuickEdit";
 import { contractDeleteDraft, deleteConfirmText } from "./components/contract-edit-request";
@@ -41,7 +42,7 @@ function DryNote({ wet, dry }: { wet: number; dry: number }) {
   return <div style={{ fontSize: 11, color: "var(--muted)", fontWeight: 400 }}>quy khô {t3(dry)}</div>;
 }
 const DRY_HINT = "Số chưa quy khô, như ghi trên hợp đồng. Dòng nhỏ \"quy khô\" (latex, mủ nguyên liệu) "
-  + "tính cùng cách với ô \"Đã ký HĐ chưa giao\" của báo cáo và bảng chốt số liệu (tính tới hôm nay).";
+  + "tính cùng cách với ô \"HĐ đã bán chờ giao\" của báo cáo và bảng chốt số liệu (tính tới hôm nay).";
 /** Đã giao đủ sản lượng hợp đồng (chưa chốt hoàn thành) — cùng luật với bộ lọc "Đã giao đủ". */
 const fullyDelivered = (r: ContractRow) => !r.completed_at && r.remaining_qty <= 1e-9;
 /** Giao tới mức này (so với sản lượng hợp đồng) thì coi như ĐẠT — mời chốt hoàn thành ngay ở
@@ -139,7 +140,7 @@ export default function SalesContractPage() {
           <p>
             Hợp đồng <b>giao nhiều lần</b> thì mở ra để thêm <b>đợt giao</b> — mỗi đợt gồm hoá đơn,
             ngày giao và chi tiết hàng. Giao xong hoặc kết thúc hợp đồng thì bấm{" "}
-            <b>Hoàn thành hợp đồng</b> để phần chưa giao rời khỏi “đã ký HĐ chưa giao”.
+            <b>Hoàn thành hợp đồng</b> để phần chưa giao rời khỏi “HĐ đã bán chờ giao”.
           </p>
         </div>
         {canEdit && meta && (
@@ -240,6 +241,9 @@ export default function SalesContractPage() {
             <th className="r">Đã giao</th>
             <th className="r" title={DRY_HINT}>Còn phải giao</th>
             <th className="r">Đợt giao</th><th>Trạng thái</th>
+            <th title="Scan hợp đồng · chứng từ cọc · chứng từ thanh toán (gạch ngang = chưa đính kèm)">
+              Chứng từ
+            </th>
             <th className="r" style={{ width: 160 }}>Thao tác</th>
           </tr></thead>
           <tbody>
@@ -322,6 +326,7 @@ export default function SalesContractPage() {
                           + " — bấm “Hoàn thành” ở cột thao tác để chốt."}>Đã giao đủ</span>
                       : <span style={{ color: "var(--muted)" }}>Đang thực hiện</span>}
                 </td>
+                <td style={{ whiteSpace: "nowrap" }}><ContractDocChips c={r} /></td>
                 <td className="r" style={{ whiteSpace: "nowrap" }}>
                   <button className="btn" onClick={() => setOpenId(r.id as number)}>Xem</button>{" "}
 
@@ -366,7 +371,7 @@ export default function SalesContractPage() {
               </tr>
             ))}
             {rows.length === 0 && !loading && (
-              <tr><td colSpan={14} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
+              <tr><td colSpan={15} style={{ textAlign: "center", color: "var(--muted)", padding: 20 }}>
                 Chưa có hợp đồng nào khớp bộ lọc.
               </td></tr>
             )}
@@ -395,7 +400,7 @@ export default function SalesContractPage() {
                   <DryNote wet={totals.remaining_qty} dry={totals.remaining_dry_qty} />
                 </td>
                 <td className="r">{totals.children.toLocaleString("vi-VN")}</td>
-                <td colSpan={2} />
+                <td colSpan={3} />
               </tr>
             </tfoot>
           )}

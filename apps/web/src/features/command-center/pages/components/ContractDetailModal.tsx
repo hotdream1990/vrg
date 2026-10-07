@@ -23,8 +23,9 @@ import { dmy } from "../../../../lib/date";
 import { useEditWindow } from "../../../../lib/edit-window";
 import { useEditRequest } from "../../../../lib/use-edit-request";
 import { useAuth } from "../../../auth/AuthContext";
-import ContractBatchTable, { Docs } from "./ContractBatchTable";
+import ContractBatchTable, { Docs, InstructionCell } from "./ContractBatchTable";
 import ContractCompleteModal from "./ContractCompleteModal";
+import { depositUnit } from "./ContractDepositFields";
 import ContractFormModal from "./ContractFormModal";
 import SourceQuickEdit from "./SourceQuickEdit";
 import { lineAmount } from "./ContractLinesTable";
@@ -250,7 +251,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                 )}
                 {done && (
                   <span style={{ color: "var(--muted)", fontSize: 12 }}>
-                    Hợp đồng đã chốt — phần chưa giao không còn nằm ở “đã ký HĐ chưa giao”.
+                    Hợp đồng đã chốt — phần chưa giao không còn nằm ở “HĐ đã bán chờ giao”.
                     Mở lại nếu cần sửa tiếp.
                   </span>
                 )}
@@ -301,11 +302,37 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                           <div style={{ color: "var(--muted)", fontSize: 12 }}>Hợp đồng đã ký (scan)</div>
                           <Docs docs={c.files} />
                         </div>
+                        <div>
+                          <div style={{ color: "var(--muted)", fontSize: 12 }}>Đặt cọc</div>
+                          {(c.deposits ?? []).length === 0 ? "—" : (c.deposits ?? []).map((d, i) => (
+                            <div key={i} style={{ fontSize: 12.5 }}>
+                              Đợt {i + 1}: {d.amount == null ? "—" : <>{t3(d.amount)} {depositUnit(d.ccy)}</>}
+                              {d.date && <> · ngày {dmy(d.date)}</>}
+                              {d.docs.length > 0 && <Docs docs={d.docs} />}
+                            </div>
+                          ))}
+                        </div>
                         {!multi && (
                           <>
                             <div>
+                              <div style={{ color: "var(--muted)", fontSize: 12 }}>Chỉ thị giao hàng</div>
+                              <InstructionCell c={c} />
+                            </div>
+                            <div>
                               <div style={{ color: "var(--muted)", fontSize: 12 }}>Hoá đơn</div>
                               {c.invoice_no ?? "—"} <Docs docs={c.invoice_docs} />
+                            </div>
+                            {/* Hợp đồng giao 1 lần chính là một lần thanh toán — giao nhiều lần thì
+                                thanh toán nằm ở từng đợt giao (tab Đợt giao). */}
+                            <div>
+                              <div style={{ color: "var(--muted)", fontSize: 12 }}>Thanh toán</div>
+                              {c.payment_date || c.payment_docs.length ? (
+                                <>
+                                  {c.payment_date ? dmy(c.payment_date) : ""}
+                                  {c.payment_qty != null && <> · {t3(c.payment_qty)} tấn</>}{" "}
+                                  {c.payment_docs.length > 0 && <Docs docs={c.payment_docs} />}
+                                </>
+                              ) : "—"}
                             </div>
                           </>
                         )}
@@ -403,7 +430,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                   ? <>đã giao ngày <b>{dmy(c.delivered_at)}</b>
                     {c.lines.length > 0 && (
                       <> — nguồn tiêu thụ <b>{sourceSummary(c.lines, c.source, meta.sources)}</b></>)}.</>
-                  : "chưa giao — toàn bộ sản lượng đang nằm ở mục “đã ký HĐ chưa giao”."}
+                  : "chưa giao — toàn bộ sản lượng đang nằm ở mục “HĐ đã bán chờ giao”."}
                 {" "}Thực tế giao làm nhiều lần thì bấm <b>Chuyển sang giao nhiều lần</b>.
               </div>
             )}

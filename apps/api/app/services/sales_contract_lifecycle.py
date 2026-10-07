@@ -32,7 +32,8 @@ from app.services import sales_contract_line_dates as line_dates
 #: Các ô CHỈ thuộc về một lần giao — khi hợp đồng chuyển sang giao nhiều lần thì chúng đi theo
 #: đợt giao, không được để lại trên hợp đồng (để lại là sản lượng bị đếm hai lần).
 _BATCH_COLS = ("delivered_at", "channel", "to_company", "source", "invoice_no", "invoice_docs",
-               "payment_date", "payment_qty", "payment_docs", "start_date")
+               "payment_date", "payment_qty", "payment_docs", "start_date",
+               "instruction_date", "instruction_place", "instruction_docs")
 
 #: Dấu hiệu hợp đồng giao 1 lần ĐÃ THẬT SỰ có một lần giao để dời xuống đợt khi chuyển sang giao
 #: nhiều lần. KHÔNG gồm hình thức / đơn vị nhận / nguồn: đó là các ô khai TRƯỚC được trên hợp đồng
@@ -45,6 +46,7 @@ _CLEAR_BATCH = ("delivered = false, delivered_at = NULL, channel = NULL, to_comp
                 "source = NULL, invoice_no = NULL, invoice_docs = '[]'::jsonb, "
                 "payment_date = NULL, payment_qty = NULL, payment_docs = '[]'::jsonb, "
                 "start_date = NULL, "
+                "instruction_date = NULL, instruction_place = NULL, instruction_docs = '[]'::jsonb, "
                 # Nguồn khai ở từng DÒNG của lần giao — hợp đồng cha giao nhiều lần không mang.
                 "lines = (SELECT COALESCE(jsonb_agg(e.v - 'source' ORDER BY e.n), '[]'::jsonb) "
                 "FROM jsonb_array_elements(COALESCE(lines, '[]'::jsonb)) WITH ORDINALITY AS e(v, n))")

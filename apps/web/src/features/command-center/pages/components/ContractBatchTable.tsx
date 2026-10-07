@@ -28,6 +28,20 @@ const money = (n: number | null) =>
   (n == null ? "—" : (n / 1_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
 
 /** Danh sách file đính kèm — mở bằng fetch kèm token (endpoint đòi Bearer). */
+/** Ô xem chỉ thị giao hàng (màn chi tiết · bảng đợt giao). */
+export function InstructionCell({ c }: { c: Contract }) {
+  const docs = c.instruction_docs ?? [];
+  if (!c.instruction_date && !c.instruction_place && !docs.length) {
+    return <span style={{ color: "var(--muted)" }}>—</span>;
+  }
+  return (
+    <div style={{ fontSize: 12.5 }}>
+      {[c.instruction_date && dmy(c.instruction_date), c.instruction_place].filter(Boolean).join(" · ")}
+      {docs.length > 0 && <Docs docs={docs} />}
+    </div>
+  );
+}
+
 export function Docs({ docs }: { docs: ContractDoc[] }) {
   if (!docs.length) return <span style={{ color: "var(--muted)" }}>—</span>;
   return (
@@ -91,7 +105,7 @@ export default function ContractBatchTable({
     <div className="card" style={{ padding: 0, overflow: "auto" }}>
       <table>
         <thead><tr>
-          <th>Số đợt</th><th>Ngày giao</th><th>Hoá đơn</th>
+          <th>Số đợt</th><th>Chỉ thị giao hàng</th><th>Ngày giao</th><th>Hoá đơn</th>
           <th>Hình thức</th><th>Đơn vị nhận</th><th>Nguồn</th>
           <th className="r">SL chưa quy khô (tấn)</th><th className="r">Quy khô (tấn)</th>
           <th className="r">Thành tiền (tr.đ)</th>
@@ -103,6 +117,7 @@ export default function ContractBatchTable({
           {rows.map((k) => (
             <tr key={k.id}>
               <td style={{ fontWeight: 500 }}>{k.code}</td>
+              <td><InstructionCell c={k} /></td>
               <td>
                 {k.delivered_at ? dmy(k.delivered_at) : <span className="chip warn">Đang chờ giao</span>}
               </td>
@@ -151,7 +166,7 @@ export default function ContractBatchTable({
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr><td colSpan={showActions ? 13 : 12} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>
+            <tr><td colSpan={showActions ? 14 : 13} style={{ textAlign: "center", color: "var(--muted)", padding: 18 }}>
               Chưa có đợt giao nào — hợp đồng chưa giao lần nào.
             </td></tr>
           )}
@@ -161,7 +176,7 @@ export default function ContractBatchTable({
         {rows.length > 0 && (
           <tfoot>
             <tr style={{ fontWeight: 600 }}>
-              <td colSpan={6}>
+              <td colSpan={7}>
                 Lũy kế {rows.length} đợt
                 {pending > 0 && (
                   <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: 12 }}>

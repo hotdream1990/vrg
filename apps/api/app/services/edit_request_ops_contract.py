@@ -19,7 +19,7 @@ from app.core.market_meta import (
 from app.schemas.edit_request import ContractDeleteRequest, ContractDeliveryTypeRequest
 from app.schemas.sales_contract import ContractIn
 from app.services import (
-    customer_repo, master_contract_repo, member_unit_merge, sales_contract_lifecycle,
+    contract_compat, customer_repo, master_contract_repo, member_unit_merge, sales_contract_lifecycle,
     sales_contract_lock, sales_contract_repo,
 )
 from app.services import sales_contract_calc as calc
@@ -67,9 +67,17 @@ def _labels(rows: list[dict | None]) -> dict[str, dict[str, str]]:
 
 # ── Thêm / sửa ───────────────────────────────────────────────────────────────
 def _save_validate(payload: Any) -> dict:
-    row = parse(ContractIn, payload).model_dump()
+    # Nhóm ô client không gửi (web bản cũ) KHÔNG lưu vào đề nghị → lúc duyệt giữ số đang lưu.
+    row = contract_compat.dump(parse(ContractIn, payload))
     row["code"] = str(row.get("code") or "").strip()
     return row
+
+
+def _compat(p: dict) -> dict:
+    """Đề nghị gửi trước các ô mới: nguồn tiêu thụ (03/10/2026), tiền cọc + chỉ thị giao hàng
+    (07/10/2026)."""
+    cur = sales_contract_repo.get(p["id"]) if p.get("id") else None
+    return contract_compat.fill_missing(_legacy_source(p), cur)
 
 
 def _legacy_source(p: dict) -> dict:
@@ -108,7 +116,7 @@ def _save_precheck(p: dict, _before: dict | None) -> None:
     dòng chi tiết, trùng số hợp đồng/đợt giao, hợp đồng cha, hạn mức sản lượng, hợp đồng đã hoàn
     thành… Sai thì báo ngay lúc gửi; lúc duyệt chạy lại để bắt thay đổi xảy ra sau khi gửi."""
     try:
-        sales_contract_repo.validate(_legacy_source(p), p["company"])
+        sales_contract_repo.validate(_compat(p), p["company"])
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -127,7 +135,7 @@ def _save_blocked(username: str, p: dict, before: dict | None) -> list[str]:
 
 def _save_apply(p: dict, requester: str, company: str) -> dict:
     try:
-        return {"contract": sales_contract_repo.save(_legacy_source(p), company, requester)}
+        return {"contract": sales_contract_repo.save(_compat(p), company, requester)}
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 

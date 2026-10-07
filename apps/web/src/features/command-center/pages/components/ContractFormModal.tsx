@@ -19,6 +19,10 @@ import MasterContractPicker from "../../sections/MasterContractPicker";
 import CertPremiumFields from "./CertPremiumFields";
 import ContractAttach from "./ContractAttach";
 import ContractBatchDocs from "./ContractBatchDocs";
+import ContractDepositFields, {
+  depositTooLarge, depositsOut, futureDepositIndex,
+} from "./ContractDepositFields";
+import ContractInstructionFields from "./ContractInstructionFields";
 import ContractDeliveryFields from "./ContractDeliveryFields";
 import ContractLinesTable, { EMPTY_LINE } from "./ContractLinesTable";
 import { contractSaveDraft } from "./contract-edit-request";
@@ -49,6 +53,8 @@ const blank = (company: string): Contract => ({
   delivered: false, delivered_at: null, channel: null, to_company: null, source: null,
   invoice_no: null, invoice_docs: [],
   payment_date: null, payment_qty: null, payment_docs: [], files: [], note: null,
+  deposits: [],
+  instruction_date: null, instruction_place: null, instruction_docs: [],
   certs: [], premium: null, premium_ccy: null,
   completed_at: null, qty: 0, qty_dry: 0, revenue: null,
 });
@@ -190,6 +196,11 @@ export default function ContractFormModal({
       }
     });
     if (overCap) p.push(`Giảm sản lượng đợt giao xuống tối đa ${t3(Math.max(0, cap))} tấn.`);
+    if (!isChild && depositTooLarge(c)) {
+      p.push("Tổng tiền cọc lớn hơn giá trị hợp đồng — VNĐ nhập theo triệu đồng.");
+    }
+    const future = isChild ? -1 : futureDepositIndex(c);
+    if (future >= 0) p.push(`Đợt cọc ${future + 1}: ngày cọc không được sau hôm nay.`);
     return p;
   };
 
@@ -217,6 +228,9 @@ export default function ContractFormModal({
         // dòng bỏ trống → lần giao phải gửi null, không thì dòng trống bị điền ngầm và kiểm tra
         // "thiếu nguồn" theo dòng mất tác dụng.
         source: isBatch ? null : c.source,
+        // Loại tiền từng đợt cọc gửi TƯỜNG MINH (mặc định theo loại tiền hợp đồng) — server thiếu ô
+        // này thì hiểu là VNĐ. Đợt giao không mang cọc.
+        deposits: isChild ? [] : depositsOut(c),
         parent_id: isChild ? parent!.id : null,
         // Đợt giao đi theo hợp đồng, KHÔNG nối thẳng vào hợp đồng mẹ (server cũng ép NULL) —
         // nối cả hai cấp là cộng đôi sản lượng đã ký của hợp đồng mẹ.
@@ -259,6 +273,7 @@ export default function ContractFormModal({
               // Đổi đơn vị là đổi luôn NHÓM mẹ–con → đơn vị nhận cũ có thể không còn cùng nhóm.
               ...(c.channel === "internal" ? { channel: null, to_company: null } : {}),
               lines: c.lines.map((l) => ({ ...l, ccy: "VND", fx: null })),
+              deposits: (c.deposits ?? []).map((d) => ({ ...d, ccy: null })),
             })}>
             {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
@@ -323,7 +338,7 @@ export default function ContractFormModal({
                 {Object.entries(meta.delivery_types).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </label>
-            <label className="form-field">Ngày ký *
+            <label className="form-field">Ngày ký (theo bản scan) *
               <DateInput value={c.sign_date ?? ""} onChange={(v) => set({ sign_date: v || null })} />
             </label>
             <label className="form-field">Thời hạn hợp đồng
@@ -332,6 +347,16 @@ export default function ContractFormModal({
           </>
         )}
       </div>
+
+      {!isChild && (
+        <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
+          <b>Ngày ký</b> là ngày ký ghi trên bản scan hợp đồng. Đính kèm đủ <b>scan hợp đồng</b>{" "}
+          và <b>chứng từ cọc</b>
+          {isBatch
+            ? <>, có thanh toán thì đính kèm cả <b>chứng từ thanh toán</b>.</>
+            : <>; chứng từ thanh toán đính kèm ở <b>từng đợt giao</b>.</>}
+        </p>
+      )}
 
       {/* Mở TỪ màn hợp đồng mẹ thì hồ sơ đã chọn sẵn — nhắc "sang màn Hợp đồng mẹ mà lập" là
           chỉ đường tới nơi người dùng đang đứng. */}
@@ -407,6 +432,12 @@ export default function ContractFormModal({
           )}
         </>
       )}
+
+      {/* Đặt cọc gắn với HỢP ĐỒNG (lúc ký), không thuộc từng đợt giao. */}
+      {!isChild && <ContractDepositFields c={c} currencies={currencies} set={set} />}
+
+      {/* Chỉ thị giao hàng thuộc từng CHUYẾN — hợp đồng giao nhiều lần khai ở từng đợt giao. */}
+      {isBatch && <ContractInstructionFields c={c} set={set} />}
 
       {/* Hàng có chứng chỉ + premium khai ở NGỌN — nơi có sản lượng của một lần giao (chốt
           27/08/2026): HĐ chuyến / phụ lục giao 1 lần khai ngay ở đây, giao nhiều lần thì khai

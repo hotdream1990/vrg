@@ -61,6 +61,9 @@ const CONTRACT_LABELS: Record<string, string> = {
   payment_qty: "Sản lượng thanh toán",
   payment_docs: "Chứng từ thanh toán", files: "Bộ hợp đồng", completed_at: "Ngày hoàn thành",
   certs: "Chứng chỉ", premium: "Premium", premium_ccy: "Loại tiền premium",
+  deposits: "Đợt cọc", amount: "Số tiền cọc", date: "Ngày cọc", docs: "Chứng từ",
+  instruction_date: "Thời gian giao (chỉ thị)",
+  instruction_place: "Địa điểm giao (chỉ thị)", instruction_docs: "Chỉ thị giao hàng (scan)",
 };
 
 /** Mã loại giao → chữ (khớp `DELIVERY_TYPES` ở server, bỏ phần giải thích trong ngoặc). */

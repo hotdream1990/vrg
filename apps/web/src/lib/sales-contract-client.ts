@@ -45,6 +45,14 @@ export type ContractLine = {
 /** Loại hợp đồng: dài hạn | chuyến. null = chưa khai (bản ghi chuyển từ cơ chế cũ). */
 export type ContractType = "long_term" | "spot" | null;
 
+/** 1 ĐỢT CỌC: VNĐ nhập TRIỆU đồng, ngoại tệ nhập nguyên tệ (cùng quy ước đơn giá). */
+export type ContractDeposit = {
+  amount: number | null;
+  ccy: string | null;
+  date: string | null;
+  docs: ContractDoc[];
+};
+
 export type Contract = {
   id: number | null;
   company: string;
@@ -77,6 +85,14 @@ export type Contract = {
   payment_date: string | null;
   payment_qty: number | null;
   payment_docs: ContractDoc[];
+  /** TIỀN ĐẶT CỌC (07/10/2026) — NHIỀU ĐỢT, chỉ ở HỢP ĐỒNG (đợt giao luôn rỗng). Số ghi nhận, KHÔNG
+   *  vào doanh thu. */
+  deposits?: ContractDeposit[];
+  /** CHỈ THỊ GIAO HÀNG (07/10/2026) — chỉ ở MỘT LẦN GIAO (HĐ giao 1 lần / đợt giao): thời gian giao
+   *  theo chỉ thị (được ở tương lai) · địa điểm · scan chỉ thị. */
+  instruction_date?: string | null;
+  instruction_place?: string | null;
+  instruction_docs?: ContractDoc[];
   files: ContractDoc[];
   note: string | null;
   /** Ngày HOÀN THÀNH hợp đồng — null = đang thực hiện (còn nằm ở "đã ký HĐ chưa giao"). */

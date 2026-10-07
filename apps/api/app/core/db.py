@@ -605,6 +605,15 @@ ALTER TABLE master_contract ADD COLUMN IF NOT EXISTS premium_ccy text;
 ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS certs jsonb NOT NULL DEFAULT '[]'::jsonb;
 ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS premium double precision;
 ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS premium_ccy text;
+-- TIỀN ĐẶT CỌC của hợp đồng (07/10/2026) — NHIỀU ĐỢT: [{amount, ccy, date, docs}] (VNĐ = triệu đồng,
+-- ngoại tệ = nguyên tệ). Chỉ ở hợp đồng (đợt giao luôn rỗng); số ghi nhận, KHÔNG vào doanh thu — xem
+-- `services/contract_deposit.py`.
+ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS deposits jsonb NOT NULL DEFAULT '[]'::jsonb;
+-- CHỈ THỊ GIAO HÀNG của một lần giao (07/10/2026): thời gian giao · địa điểm · scan chỉ thị. Chỉ ở
+-- bản ghi là MỘT LẦN GIAO (hợp đồng giao 1 lần / đợt giao) — xem `services/contract_instruction.py`.
+ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS instruction_date date;
+ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS instruction_place text;
+ALTER TABLE sales_contract ADD COLUMN IF NOT EXISTS instruction_docs jsonb NOT NULL DEFAULT '[]'::jsonb;
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS carry_lt_tonnes double precision;
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS carry_spot_tonnes double precision;
 -- Kế hoạch TIÊU THỤ cho hợp đồng chuyến (chốt 03/08/2026) — chỉ để đối chiếu % thực hiện,

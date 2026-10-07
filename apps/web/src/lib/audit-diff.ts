@@ -42,6 +42,9 @@ const LABELS: Record<string, string> = {
   // Trường của mẫu phiếu trước khi rút gọn — nhật ký chuyển đổi ngày 17/09/2026 vẫn còn các khoá này.
   price_provisional: "Giá tạm tính", delivery_from: "Giao từ ngày", delivery_to: "Giao đến ngày",
   contract_no: "Số hợp đồng", contract_date: "Ngày ký hợp đồng",
+  // Đặt cọc nhiều đợt + chỉ thị giao hàng của hợp đồng bán (07/10/2026).
+  amount: "Số tiền cọc", docs: "Chứng từ", instruction_date: "Thời gian giao (chỉ thị)",
+  instruction_place: "Địa điểm giao (chỉ thị)", instruction_docs: "Chỉ thị giao hàng (scan)",
   ...UNIT_DAILY_LABELS,
 };
 
