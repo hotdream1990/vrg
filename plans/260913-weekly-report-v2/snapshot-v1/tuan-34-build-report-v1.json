@@ -1,0 +1,216 @@
+{
+ "report": {
+  "week_key": "2026-08-17",
+  "week_no": 34,
+  "year": 2026,
+  "date_range": "17-21/8/2026",
+  "prev_week_no": 33,
+  "prev_year": 2026,
+  "next_week_no": 35,
+  "next_year": 2026,
+  "prev_col_label": "Tuần 33 (10/8 - 14/8)",
+  "curr_col_label": "Tuần 34 (17/8 - 21/8)",
+  "exchange_rows": [
+   {
+    "exchange": "OSE",
+    "grade": "RSS3",
+    "prev": 2658.4,
+    "curr": 2728.1,
+    "change_abs": 69.7,
+    "change_pct": 2.62
+   },
+   {
+    "exchange": "SHANGHAI",
+    "grade": "RSS3",
+    "prev": 2591.7,
+    "curr": 2703.0,
+    "change_abs": 111.3,
+    "change_pct": 4.29
+   },
+   {
+    "exchange": "SGX",
+    "grade": "RSS3",
+    "prev": 2189.6,
+    "curr": 2760.6,
+    "change_abs": 571.0,
+    "change_pct": 26.08
+   },
+   {
+    "exchange": "SGX",
+    "grade": "TSR20",
+    "prev": 1768.2,
+    "curr": 2281.0,
+    "change_abs": 512.8,
+    "change_pct": 29.0
+   },
+   {
+    "exchange": "MRE",
+    "grade": "SMR CV",
+    "prev": 2922.2,
+    "curr": 2917.1,
+    "change_abs": -5.1,
+    "change_pct": -0.17
+   },
+   {
+    "exchange": "MRE",
+    "grade": "SMR20",
+    "prev": 2271.8,
+    "curr": 2337.6,
+    "change_abs": 65.8,
+    "change_pct": 2.9
+   },
+   {
+    "exchange": "MRE",
+    "grade": "LATEX",
+    "prev": 1691.5,
+    "curr": 1687.6,
+    "change_abs": -3.9,
+    "change_pct": -0.23
+   }
+  ],
+  "physical_rows": [
+   {
+    "exchange": null,
+    "grade": "RSS3",
+    "prev": 2795.5,
+    "curr": 2788.9,
+    "change_abs": -6.6,
+    "change_pct": -0.24
+   },
+   {
+    "exchange": null,
+    "grade": "STR20",
+    "prev": 2349.6,
+    "curr": 2384.9,
+    "change_abs": 35.3,
+    "change_pct": 1.5
+   },
+   {
+    "exchange": null,
+    "grade": "SMR20",
+    "prev": 2270.0,
+    "curr": 2325.0,
+    "change_abs": 55.0,
+    "change_pct": 2.42
+   },
+   {
+    "exchange": null,
+    "grade": "LATEX",
+    "prev": 1692.6,
+    "curr": 1712.8,
+    "change_abs": 20.2,
+    "change_pct": 1.19
+   }
+  ],
+  "latex_prev": "515 – 540",
+  "latex_curr": "495 - 540",
+  "latex_change": "-20 /0",
+  "narrative": {
+   "summary_prev": [],
+   "movement": [],
+   "exchange_notes": [],
+   "physical_notes": [],
+   "latex_notes": [],
+   "macro": [
+    {
+     "title": "1. Thị trường Năng lượng và giá cao su tổng hợp (Butadien):",
+     "bullets": []
+    },
+    {
+     "title": "2. Cung – Cầu cơ bản:",
+     "bullets": []
+    },
+    {
+     "title": "3. Tỷ giá và Tài chính Nhật Bản:",
+     "bullets": []
+    },
+    {
+     "title": "4. Các thông tin kinh tế Trung Quốc và dữ liệu khác:",
+     "bullets": []
+    }
+   ],
+   "forecast": [],
+   "conclusion": [],
+   "latex_prev": "515 – 540",
+   "latex_curr": "495 - 540",
+   "latex_change": "-20 /0"
+  }
+ },
+ "stats": {
+  "exchange": {
+   "OSE RSS3": {
+    "high": 2761.4,
+    "high_date": "21/8",
+    "low": 2681.3,
+    "low_date": "18/8"
+   },
+   "SHANGHAI RSS3": {
+    "high": 2751.8,
+    "high_date": "21/8",
+    "low": 2665.8,
+    "low_date": "17/8"
+   },
+   "SGX RSS3": {
+    "high": 2770.0,
+    "high_date": "20/8",
+    "low": 2750.0,
+    "low_date": "18/8"
+   },
+   "SGX TSR20": {
+    "high": 2327.0,
+    "high_date": "21/8",
+    "low": 2237.0,
+    "low_date": "17/8"
+   },
+   "MRE SMR CV": {
+    "high": 2928.0,
+    "high_date": "18/8",
+    "low": 2905.0,
+    "low_date": "21/8"
+   },
+   "MRE SMR20": {
+    "high": 2387.0,
+    "high_date": "21/8",
+    "low": 2297.5,
+    "low_date": "17/8"
+   },
+   "MRE LATEX": {
+    "high": 1695.3,
+    "high_date": "17/8",
+    "low": 1680.7,
+    "low_date": "21/8"
+   }
+  },
+  "physical": {
+   "RSS3": {
+    "high": 2800.5,
+    "high_date": "20/8",
+    "low": 2767.3,
+    "low_date": "18/8"
+   },
+   "STR20": {
+    "high": 2410.1,
+    "high_date": "19/8",
+    "low": 2354.8,
+    "low_date": "18/8"
+   },
+   "SMR20": {
+    "high": 2370.0,
+    "high_date": "20/8",
+    "low": 2300.0,
+    "low_date": "17/8"
+   },
+   "LATEX": {
+    "high": 1733.8,
+    "high_date": "20/8",
+    "low": 1685.8,
+    "low_date": "17/8"
+   }
+  },
+  "fx": {
+   "USD/JPY": 159.0,
+   "USD/CNY": 6.7,
+   "USD/MYR": 4.1
+  }
+ }
+}

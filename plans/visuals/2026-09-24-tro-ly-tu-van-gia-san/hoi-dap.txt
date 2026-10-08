@@ -1,0 +1,170 @@
+Hôm nay nên tăng hay giảm giá sàn Tập đoàn?
+
+=====
+
+Theo mô hình, Tập đoàn nên GIỮ giá sàn hôm nay.
+- SVR 10 / CSR 10: 2.340 → 2.355 USD/tấn FOB (+15, +0,6%) · GIỮ · độ tin cậy cao
+- SVR 3L: 2.475 → 2.485 USD/tấn FOB (+10, +0,4%) · GIỮ · độ tin cậy cao
+- SVR 20 / CSR 20: 2.320 → 2.335 USD/tấn FOB (+15, +0,6%) · GIỮ · độ tin cậy cao
+Lý do tham khảo:
+- Rổ chỉ số mô hình đang cho tín hiệu giảm nhẹ.
+- Tồn kho tổng -2,7% nhưng tự do +80,3% so với lần ban hành trước, nên có yếu tố nghiêng HẠ.
+- Vì vậy dù các dòng chính đều đang đề xuất tăng nhẹ theo mô hình, kết luận chung vẫn là GIỮ.
+Nếu anh/chị muốn, tôi có thể tách riêng khuyến nghị cho SVR 3L hoặc mủ 10.
+Gợi ý điều chỉnh giá sàn (24/09/2026)
+CHỦNG LOẠI	ĐƠN VỊ	GIÁ HIỆN TẠI	ĐỀ XUẤT	HÀNH ĐỘNG	Δ	Δ%	ĐỘ TIN CẬY
+
+Chủng loại
+	
+Đơn vị
+	
+Giá hiện tại
+	
+Đề xuất
+	
+Hành động
+	
+Δ
+	
+Δ%
+	
+Độ tin cậy
+
+SVR CV 50	USD/tấn (FOB)	2.535	2.545	GIỮ	10	0,4	cao
+SVR CV60	USD/tấn (FOB)	2.535	2.545	GIỮ	10	0,4	cao
+SVR L	USD/tấn (FOB)	2.485	2.495	GIỮ	10	0,4	cao
+SVR 3L Mix	USD/tấn (FOB)	2.490	2.500	GIỮ	10	0,4	cao
+SVR 3L	USD/tấn (FOB)	2.475	2.485	GIỮ	10	0,4	cao
+SVR 5S	USD/tấn (FOB)	2.465	2.475	GIỮ	10	0,4	cao
+SVR 5	USD/tấn (FOB)	2.455	2.465	GIỮ	10	0,4	cao
+SVR 10 Mix	USD/tấn (FOB)	2.360	2.375	GIỮ	15	0,6	cao
+SVR 10 / CSR 10	USD/tấn (FOB)	2.340	2.355	GIỮ	15	0,6	cao
+SVR 20 / CSR 20	USD/tấn (FOB)	2.320	2.335	GIỮ	15	0,6	cao
+RSS 3	USD/tấn (FOB)	2.580	2.595	GIỮ	15	0,6	cao
+RSS 1	USD/tấn (FOB)	2.600	2.615	GIỮ	15	0,6	cao
+LATEX	USD/tấn (FOB)	1.570	1.570	GIỮ	0	0	cao
+Skim Block	VNĐ/tấn (nội địa)	39.850.000	40.100.000	GIỮ	250.000	0,6	cao
+Nguồn: engine gợi ý giá sàn · 24/09/2026
+
+=====
+
+Với thông tin hiện tại hãy gợi ý tăng hay giảm giá sàn mủ 10
+
+=====
+
+Với mủ 10, tôi gợi ý GIỮ.
+- Mức mô hình: 2.355 USD/tấn FOB
+- Điều chỉnh: 0 (0%)
+- Mức đề xuất: 2.355 USD/tấn FOB
+- So với giá sàn hiện hành: +15 (+0,6%)
+Căn cứ:
+- SVR 10 / CSR 10: 2.340 → 2.355 USD/tấn FOB (+15, +0,6%) · GIỮ · độ tin cậy cao
+- SHFE RU: -0,99% (24/09/2026)
+- MRB SMR20: +1,03% (24/09/2026)
+- Tham chiếu tồn kho: tồn kho tổng -2,7%, tự do +80,3% so với 09/09/2026 (ngưỡng ±3%) → hỗ trợ HẠ
+Nếu cần, tôi có thể gợi ý tiếp cho SVR 3L hoặc mủ 20.
+Gợi ý điều chỉnh giá sàn (24/09/2026)
+CHỦNG LOẠI	ĐƠN VỊ	GIÁ HIỆN TẠI	ĐỀ XUẤT	HÀNH ĐỘNG	Δ	Δ%	ĐỘ TIN CẬY
+
+Chủng loại
+	
+Đơn vị
+	
+Giá hiện tại
+	
+Đề xuất
+	
+Hành động
+	
+Δ
+	
+Δ%
+	
+Độ tin cậy
+
+SVR 10 / CSR 10	USD/tấn (FOB)	2.340	2.355	GIỮ	15	0,6	cao
+Nguồn: engine gợi ý giá sàn · 24/09/2026
+
+=====
+
+Giá sàn nội địa SVR 3L nên điều chỉnh thế nào?
+
+=====
+
+SVR 3L nội địa: nên tăng.
+- Mức mô hình: 63.000.000 đồng/tấn
+- Điều chỉnh: +900.000 đồng/tấn (+1,43%)
+- Mức đề xuất: 63.900.000 đồng/tấn
+- So với giá sàn hiện hành: +1.150.000 đồng/tấn (+1,83%)
+Căn cứ:
+- Mức mô hình 63.000.000 thấp hơn vùng hợp lý 63.886.909–64.186.909, nên tool khuyến nghị kéo lên 63.900.000 đồng/tấn.
+- Giá sàn hiện hành 62.750.000 thấp hơn vùng hợp lý 1.136.909 đồng/tấn.
+- Tồn kho Tập đoàn: tổng -2,7%, tự do +80,3% so với 09/09/2026 → 23/09/2026; áp lực tồn tự do còn treo, nên chọn mép dưới vùng.
+- Giá mủ tư nhân tham chiếu: giá thành bình quân 63.186.909 đồng/tấn; vùng hợp lý được xác định ở 63.886.909–64.186.909.
+Nếu anh/chị muốn, tôi có thể gợi ý luôn cho mủ 10 hoặc mủ 20 theo cùng bộ tín hiệu.
+Gợi ý điều chỉnh giá sàn (24/09/2026)
+CHỦNG LOẠI	ĐƠN VỊ	GIÁ HIỆN TẠI	ĐỀ XUẤT	HÀNH ĐỘNG	Δ	Δ%	ĐỘ TIN CẬY
+
+Chủng loại
+	
+Đơn vị
+	
+Giá hiện tại
+	
+Đề xuất
+	
+Hành động
+	
+Δ
+	
+Δ%
+	
+Độ tin cậy
+
+SVR 3L	USD/tấn (FOB)	2.475	2.485	GIỮ	10	0,4	cao
+Tín hiệu bối cảnh điều chỉnh giá sàn (24/09/2026)
+TÍN HIỆU	THAY ĐỔI %	HƯỚNG TÁC ĐỘNG	TRỌNG SỐ	GHI CHÚ
+
+Tín hiệu
+	
+Thay đổi %
+	
+Hướng tác động
+	
+Trọng số
+	
+Ghi chú
+
+SHFE RU	-0,99	hỗ trợ HẠ	mạnh	đã nằm trong mô hình · số ngày 24/09/2026 so với 09/09/2026
+MRB SMR20	1,03	hỗ trợ NÂNG	mạnh	đã nằm trong mô hình · số ngày 24/09/2026 so với 09/09/2026
+SGX TSR20	-0,16	trung tính (đi ngang)	mạnh	đã nằm trong mô hình · số ngày 23/09/2026 so với 09/09/2026
+OSE RSS3	-1,74	hỗ trợ HẠ	mạnh	đã nằm trong mô hình · số ngày 18/09/2026 so với 09/09/2026 · số mới nhất cách ngày hỏi 6 ngày (phiên gần nhất có số)
+Giá mủ nước	1,47	hỗ trợ NÂNG	mạnh	đã nằm trong mô hình · số ngày 23/09/2026 so với 09/09/2026
+Tồn kho Tập đoàn (09/09/2026 → 23/09/2026, 49 đơn vị có số cả 2 ngày)	-2,73	hỗ trợ HẠ	bổ sung	tồn kho tổng -2,7%, tự do +80,3% so với 09/09/2026 (ngưỡng ±3%) → hỗ trợ HẠ · tồn 58.786 tấn (49 đơn vị) · tự do (chưa có HĐ) 30.768 tấn
+Giá sàn SVR 3L so với vùng giá tư nhân (giá tới 23/09/2026)	1,83	hỗ trợ NÂNG	bổ sung	THẤP hơn vùng hợp lý 1.136.909 đồng/tấn; vùng 63.886.909–64.186.909 đồng/tấn; thay_doi_pct = mức cần chỉnh để vào vùng
+Giá sàn SVR 3L so với giá mủ tư nhân (11 đơn vị, giá mới nhất 23/09/2026)
+HẠNG MỤC (NGÀY GIÁ)	GIÁ MỦ (ĐỒNG/ĐỘ TSC)	GIÁ THÀNH / GIÁ SÀN (ĐỒNG/TẤN)
+
+Hạng mục (ngày giá)
+	
+Giá mủ (đồng/độ TSC)
+	
+Giá thành / giá sàn (đồng/tấn)
+
+Ba Phúc (23/09/2026)	565	63.020.000
+Bảo Nguyên (23/09/2026)	568–570	63.452.000
+Bến Xúc (23/09/2026)	565	63.020.000
+Long Hòa (23/09/2026)	565	63.020.000
+Mai Thảo (23/09/2026)	566–570	63.344.000
+Minh Thạnh (23/09/2026)	568–570	63.452.000
+Phú Bình (23/09/2026)	565	63.020.000
+Thiện Hưng (23/09/2026)	568	63.344.000
+Thuận Dung (23/09/2026)	565–570	63.290.000
+Thành Lễ (23/09/2026)	560	62.480.000
+Việt Sin (23/09/2026)	570–571	63.614.000
+Giá thành tham chiếu (trung bình tư nhân)	—	63.186.909
+Vùng giá sàn hợp lý — từ	—	63.886.909
+Vùng giá sàn hợp lý — đến	—	64.186.909
+Giá sàn hiện hành (Lần thứ 21 năm 2026)	—	62.750.000
+Mức gợi ý theo giá tư nhân + tồn kho	—	63.900.000
+Nguồn: engine gợi ý giá sàn · 24/09/2026 · engine drivers · biểu Tồn kho đơn vị (ngày) · giá mủ tư nhân · 24/09/2026 · Báo giá mủ Mục 6 · giá tư nhân tới 23/09/2026 · giá sàn Lần thứ 21 năm 2026
