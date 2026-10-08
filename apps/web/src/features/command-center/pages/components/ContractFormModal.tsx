@@ -304,6 +304,13 @@ export default function ContractFormModal({
               deposits: (c.deposits ?? []).map((d) => ({ ...d, ccy: null })),
             })}>
             {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
+            {/* Hợp đồng cũ của đơn vị ĐÃ SÁP NHẬP: danh sách chỉ gồm đơn vị đang hoạt động, thiếu dòng
+                này thì ô (bị khoá) hiện nhầm tên đơn vị đầu danh sách. */}
+            {c.company && !meta.units.includes(c.company) && (
+              <option value={c.company}>
+                {c.company}{(meta.merged_units ?? []).includes(c.company) ? " (đã sáp nhập)" : ""}
+              </option>
+            )}
           </select>
         </label>
         <label className="form-field">{isChild ? "Số đợt giao *" : "Số hợp đồng *"}

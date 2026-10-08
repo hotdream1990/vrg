@@ -127,10 +127,10 @@ export default function SalesContractPage() {
       if (await saveOrRequest(() => deleteContract(r.id as number), contractDeleteDraft(r)) === "saved") load();
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
   };
-  // Tài khoản đơn vị gửi được đề nghị cho dòng quá hạn sửa — trừ đơn vị đã sáp nhập và hợp đồng đã
-  // hoàn thành (hoàn thành không phải hàng rào thời gian).
-  const canRequest = (r: ContractRow) =>
-    canEditUnitData && !r.completed_at && !(meta?.merged_units ?? []).includes(r.company);
+  // Tài khoản đơn vị gửi được đề nghị cho dòng quá hạn sửa — trừ hợp đồng đã hoàn thành (hoàn thành
+  // không phải hàng rào thời gian). Hợp đồng của đơn vị ĐÃ SÁP NHẬP vẫn gửi được: hợp đồng cũ chạy
+  // tiếp ở đơn vị cũ (chốt 24/08/2026), server nhận đề nghị theo dòng đời đơn vị.
+  const canRequest = (r: ContractRow) => canEditUnitData && !r.completed_at;
 
   return (
     <div className="main">

@@ -154,8 +154,8 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
   // Cửa sổ sửa CHỈ áp cho lần giao, mốc là ngày giao — hợp đồng sửa được suốt vòng đời.
   const { isEditable } = useEditWindow();
   const locked = (deliveredAt: string | null) => !!deliveredAt && !isEditable(deliveredAt);
-  // Đơn vị đã sáp nhập không đi đường đề nghị sửa (không phải chuyện hàng rào thời gian).
-  const canRequest = canEditUnitData && !!c && !(meta.merged_units ?? []).includes(c.company);
+  // Hợp đồng của đơn vị ĐÃ SÁP NHẬP vẫn gửi đề nghị được: hợp đồng cũ chạy tiếp ở đơn vị cũ.
+  const canRequest = canEditUnitData && !!c;
 
   /** Đổi loại giao tại chỗ: lần giao đang nằm trên hợp đồng được dời xuống đợt giao đầu tiên.
    *  Số liệu đã chốt thì server chặn → mở hộp gửi «Đề nghị sửa» (thao tác riêng, không đi kèm
