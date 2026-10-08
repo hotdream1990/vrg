@@ -1,22 +1,16 @@
 import { DeleteOutlined, PlusOutlined, WarningOutlined } from "@ant-design/icons";
 
 import {
-  FX_USD_VND, TONNES_CONTRACT, boundWarning, fxWarning, priceBound,
-} from "../../../../lib/entry-bounds";
+  computedLineRevenueVnd, fmtCcyAmount, fmtDong, lineAmount, revenueOverrideAllowed,
+} from "../../../../lib/contract-money";
 import type { ContractLine, ContractMeta } from "../../../../lib/sales-contract-client";
 import DateInput from "../../sections/DateInput";
 import NumInput from "../../sections/NumInput";
-
-const fmtAmount = (n: number) => n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
+import { lineWarnings } from "./contract-line-warnings";
 
 export const EMPTY_LINE: ContractLine = {
-  grade: "", qty: null, qty_dry: null, price: null, ccy: "VND", fx: null,
+  grade: "", qty: null, qty_dry: null, price: null, ccy: "VND", fx: null, revenue_vnd: null,
 };
-
-/** Thành tiền của 1 dòng theo NGUYÊN TỆ của dòng (VNĐ: triệu đồng · ngoại tệ: chính nó).
- *  Không quy đổi ở mức dòng vì đơn giá vốn nhập theo nguyên tệ — quy đổi để dành cho ô tổng. */
-export const lineAmount = (ln: ContractLine): number | null =>
-  (ln.qty == null || ln.price == null ? null : ln.qty * ln.price);
 
 type Props = {
   lines: ContractLine[];
@@ -40,30 +34,19 @@ type Props = {
   onChange: (lines: ContractLine[]) => void;
 };
 
-/** Cảnh báo NHẦM ĐƠN VỊ TÍNH của một dòng — chìa khoá là ô đơn giá.
- *
- *  Vì sao phải có ở đây: rà production ngày 10/08/2026 thấy 47 dòng nhập đơn giá theo ĐỒNG/tấn
- *  (61.600.000) hoặc NGHÌN ĐỒNG/tấn (49.850) trong khi ô tính bằng TRIỆU ĐỒNG/tấn → doanh thu
- *  tiêu thụ bị thổi tới 8.748.352 tỷ đồng (số đúng ~1.065 tỷ). Bộ biên `entry-bounds` được dựng
- *  đúng cho lỗi này từ 07/2026 nhưng chỉ gắn ở biểu nhập ngày; khi tiêu thụ chuyển sang nhập ở
- *  hợp đồng (30/07/2026) thì màn mới KHÔNG có cảnh báo nào — lỗi cũ lặp lại y nguyên.
- *  CHỈ CẢNH BÁO, không chặn lưu: giá thị trường có thể vượt biên thật, chặn cứng là chặn nghiệp vụ.
- */
-function lineWarnings(ln: ContractLine, needDry: boolean, requireFx: boolean) {
-  return {
-    qty: boundWarning(ln.qty, TONNES_CONTRACT),
-    qty_dry: needDry && !ln.qty_dry ? "Bắt buộc nhập quy khô mới lưu được." : null,
-    price: boundWarning(ln.price, priceBound(ln.ccy)),
-    // Chưa có ngày giao thì tỷ giá trống là BÌNH THƯỜNG, không phải ô cần kiểm tra — nhắc ở đây
-    // sẽ hiện cảnh báo trên gần như mọi hợp đồng ngoại tệ mới ký.
-    fx: (requireFx ? fxWarning(ln) : null) ?? boundWarning(ln.fx, FX_USD_VND),
-  };
-}
+/** Gợi ý mờ trong ô doanh thu kế toán = số phần mềm tự tính (đồng), chưa đủ số thì ghi "tự tính". */
+const revenueHint = (ln: ContractLine) => {
+  const v = computedLineRevenueVnd(ln);
+  return v == null ? "tự tính" : fmtDong(v);
+};
 
-/** Một ô có nhãn trong dòng chi tiết. `w` = bề rộng mong muốn, ô vẫn co lại được khi khung hẹp. */
-function Field({ label, w, children }: { label: string; w: number; children: React.ReactNode }) {
+/** Một ô có nhãn trong dòng chi tiết. `w` = bề rộng mong muốn, ô vẫn co lại được khi khung hẹp.
+ *  `hint` = lời giải thích khi rê chuột lên nhãn. */
+function Field({ label, w, hint, children }: {
+  label: string; w: number; hint?: string; children: React.ReactNode;
+}) {
   return (
-    <label className="form-field" style={{ flex: `0 1 ${w}px`, minWidth: 84 }}>
+    <label className="form-field" title={hint} style={{ flex: `0 1 ${w}px`, minWidth: 84 }}>
       <span>{label}</span>
       {children}
     </label>
@@ -72,13 +55,14 @@ function Field({ label, w, children }: { label: string; w: number; children: Rea
 
 /**
  * Dòng chi tiết hợp đồng: chủng loại · sản lượng · quy khô · đơn giá · loại tiền · tỷ giá ·
- * THÀNH TIỀN (tự tính, chỉ đọc).
+ * THÀNH TIỀN (tự tính, chỉ đọc) · DOANH THU VNĐ KẾ TOÁN.
  *
  * Bố cục là KHỐI TỰ XUỐNG HÀNG, không phải bảng: nhiều cột luôn vượt bề ngang modal nên người nhập
  * phải cuộn ngang mới thấy ô cuối. Mỗi ô mang nhãn riêng nên xuống hàng vẫn đọc được, và ô nào không
  * áp dụng cho dòng đó thì ẩn hẳn thay vì để một ô trống khiến người nhập tưởng còn thiếu số:
  *   - Quy khô: chỉ latex và mủ nguyên liệu (thành phẩm bán ra vốn đã là hàng khô).
  *   - Tỷ giá: chỉ dòng bán bằng ngoại tệ.
+ *   - Doanh thu VNĐ (kế toán): chỉ dòng ngoại tệ khi tỷ giá bắt buộc (`requireFx` — đã có ngày giao).
  *   - Hiệu lực từ: chỉ khi SỬA hợp đồng (`signDate`), không bao giờ ở đợt giao.
  *   - Nguồn tiêu thụ: chỉ khi bản ghi là một lần giao (`showSource`).
  */
@@ -109,7 +93,7 @@ export default function ContractLinesTable({
   const alerts = lines.flatMap((ln, i) => {
     const w = lineWarnings(ln, dry.has(ln.grade), requireFx);
     return ([["Sản lượng", w.qty], ["Quy khô", w.qty_dry], ["Đơn giá", w.price],
-             ["Tỷ giá", w.fx]] as const)
+             ["Tỷ giá", w.fx], ["Doanh thu VNĐ kế toán", w.revenue_vnd]] as const)
       .filter(([, m]) => m)
       .map(([field, m]) => `Dòng ${i + 1} · ${field}: ${m}`);
   });
@@ -163,7 +147,11 @@ export default function ContractLinesTable({
               </Field>
               <Field label="Loại tiền" w={92}>
                 <select className="blt-date-input" value={ln.ccy} disabled={readOnly}
-                  onChange={(e) => set(i, { ccy: e.target.value })}>
+                  // Về VNĐ thì XOÁ doanh thu kế toán: ô đã ẩn, giữ lại là server trả 400.
+                  onChange={(e) => set(i, {
+                    ccy: e.target.value,
+                    ...(e.target.value === "VND" ? { revenue_vnd: null } : {}),
+                  })}>
                   {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </Field>
@@ -174,13 +162,24 @@ export default function ContractLinesTable({
                   {num(ln.fx, (v) => set(i, { fx: v }), w.fx, requireFx ? "bắt buộc" : "khi giao")}
                 </Field>
               )}
-              {/* Thành tiền = SL × đơn giá, hiện theo ĐÚNG loại tiền của dòng. Ô CHỈ ĐỌC — sửa
-                  được thì người nhập sẽ sửa tay rồi lệch với số hệ thống tính cho báo cáo. */}
+              {/* Thành tiền = SL × đơn giá, hiện theo ĐÚNG loại tiền của dòng (ngoại tệ đúng 2 số
+                  lẻ, như server). Ô CHỈ ĐỌC — sửa được thì người nhập sẽ sửa tay rồi lệch với số
+                  hệ thống tính cho báo cáo; cần khớp sổ kế toán thì dùng ô doanh thu kế toán. */}
               <Field label={`Thành tiền (${ln.ccy === "VND" ? "tr.đ" : ln.ccy})`} w={140}>
                 <input className="blt-date-input r" readOnly tabIndex={-1}
                   style={{ background: "transparent", fontWeight: 500 }}
-                  value={amount(i) == null ? "—" : fmtAmount(amount(i) as number)} />
+                  value={amount(i) == null ? "—" : fmtCcyAmount(amount(i) as number, ln.ccy)} />
               </Field>
+              {/* Kế toán ghi một phần tiền theo tỷ giá NGÀY CỌC nên SL × giá × một tỷ giá không ra
+                  đúng số trên sổ — ô này cho nhập thẳng số kế toán. Trống = phần mềm tự tính, số tự
+                  tính hiện mờ trong ô để người nhập đối chiếu. */}
+              {revenueOverrideAllowed(ln, requireFx) && (
+                <Field label="Doanh thu VNĐ kế toán (đồng)" w={170}
+                  hint="Tính bằng ĐỒNG. Để trống thì phần mềm tự tính = thành tiền × tỷ giá.">
+                  {num(ln.revenue_vnd ?? null, (v) => set(i, { revenue_vnd: v }), w.revenue_vnd,
+                    revenueHint(ln))}
+                </Field>
+              )}
               {dated && (
                 <Field label="Hiệu lực từ" w={140}>
                   <DateInput value={ln.from_date ?? ""} readOnly={readOnly} allowClear
@@ -224,7 +223,9 @@ export default function ContractLinesTable({
         Đơn giá: bán bằng <b>VNĐ</b> nhập theo <b>triệu đồng/tấn</b>; bán bằng ngoại tệ nhập theo
         <b> ngoại tệ/tấn</b>. <b>Tỷ giá</b> chỉ bắt buộc khi đã điền <b>Ngày giao</b> — lúc ký hợp
         đồng chưa biết tỷ giá ngày giao hàng, để trống thì doanh thu tạm để trống chứ không tính
-        bằng 0. Bán <b>LATEX</b>, 2 loại mủ nguyên liệu và <b>mủ dây</b> thì{" "}
+        bằng 0. Ô <b>Doanh thu VNĐ kế toán</b> (tính bằng <b>đồng</b>) để trống thì phần mềm tự tính
+        = thành tiền (làm tròn 2 số lẻ) × tỷ giá; nhập khi cần khớp số với báo cáo kế toán.
+        Bán <b>LATEX</b>, 2 loại mủ nguyên liệu và <b>mủ dây</b> thì{" "}
         <b>bắt buộc nhập quy khô</b> mới lưu được — cả lúc tạo lẫn lúc sửa, kể cả hợp đồng chưa giao.
         <br />
         Với các chủng loại đó: <b>SL chưa quy khô</b> là số để tính <b>thành tiền</b> (đơn giá là giá

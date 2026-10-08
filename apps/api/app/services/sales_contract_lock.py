@@ -107,7 +107,8 @@ def _from_key(ln: dict, sign_date: Any, is_child: bool) -> str | None:
 
 def _lines_key(lines: Any, sign_date: Any = None, is_child: bool = False,
                row_source: Any = None) -> tuple:
-    """Khoá so sánh của các dòng chi tiết — 6 ô quyết định sản lượng và doanh thu + NGÀY HIỆU LỰC
+    """Khoá so sánh của các dòng chi tiết — 6 ô quyết định sản lượng và doanh thu + DOANH THU THEO
+    KẾ TOÁN (08/10/2026: đổi nó là đổi doanh thu, đi đúng luật cửa sổ sửa/chốt) + NGÀY HIỆU LỰC
     (30/09/2026: dời ngày hiệu lực là dời phần "đã ký HĐ chưa giao" sang ngày khác) + NGUỒN HIỆU
     LỰC của dòng (05/10/2026): nguồn cấp bản ghi nếu có, không thì nguồn của dòng — đúng thứ tự
     `calc.clean_lines` dùng khi ghi (payload client cũ áp một nguồn cho mọi dòng). Bản trong DB thì
@@ -126,6 +127,7 @@ def _lines_key(lines: Any, sign_date: Any = None, is_child: bool = False,
             _num(ln.get("price")), _txt(ln.get("ccy")) or "VND", _num(ln.get("fx")),
             _from_key(ln, sign_date, is_child),
             _txt(row_source) or _txt(ln.get("source")),
+            _num(ln.get("revenue_vnd")),          # doanh thu theo kế toán (08/10/2026) = số liệu
         ))
     return tuple(out)
 

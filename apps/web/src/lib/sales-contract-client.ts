@@ -40,6 +40,10 @@ export type ContractLine = {
    *  hóa cao su. Chỉ ở dòng của MỘT LẦN GIAO (đợt giao / hợp đồng giao 1 lần); bắt buộc khi có
    *  ngày giao. Dòng của hợp đồng giao nhiều lần không mang. */
   source?: string | null;
+  /** DOANH THU VNĐ THEO KẾ TOÁN của dòng (ĐỒNG chẵn, không phải triệu). CHỈ dòng ngoại tệ của bản
+   *  ghi đã có ngày giao (đúng lúc tỷ giá bắt buộc) — server trả 400 nếu gửi ở dòng VNĐ hoặc bản ghi
+   *  chưa giao. null = phần mềm tự tính thành tiền × tỷ giá. Xem `lib/contract-money`. */
+  revenue_vnd?: number | null;
 };
 
 /** Loại hợp đồng: dài hạn | chuyến. null = chưa khai (bản ghi chuyển từ cơ chế cũ). */

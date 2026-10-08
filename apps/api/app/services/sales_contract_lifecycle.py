@@ -47,8 +47,10 @@ _CLEAR_BATCH = ("delivered = false, delivered_at = NULL, channel = NULL, to_comp
                 "payment_date = NULL, payment_qty = NULL, payment_docs = '[]'::jsonb, "
                 "start_date = NULL, "
                 "instruction_date = NULL, instruction_place = NULL, instruction_docs = '[]'::jsonb, "
-                # Nguồn khai ở từng DÒNG của lần giao — hợp đồng cha giao nhiều lần không mang.
-                "lines = (SELECT COALESCE(jsonb_agg(e.v - 'source' ORDER BY e.n), '[]'::jsonb) "
+                # Nguồn + doanh thu theo kế toán khai ở từng DÒNG của lần giao — đi theo đợt giao,
+                # hợp đồng cha giao nhiều lần không mang.
+                "lines = (SELECT COALESCE(jsonb_agg(e.v - 'source' - 'revenue_vnd' ORDER BY e.n), "
+                "'[]'::jsonb) "
                 "FROM jsonb_array_elements(COALESCE(lines, '[]'::jsonb)) WITH ORDINALITY AS e(v, n))")
 
 

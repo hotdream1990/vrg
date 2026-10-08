@@ -1,5 +1,6 @@
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 
+import { fmtCcyAmount, lineAmount } from "../../../../lib/contract-money";
 import type {
   Contract, ContractDeposit, ContractDoc, ContractLine,
 } from "../../../../lib/sales-contract-client";
@@ -24,7 +25,8 @@ export const depositUnit = (ccy: string | null | undefined) =>
   (!ccy || ccy === "VND" ? "triệu đồng" : ccy);
 
 /** Giá trị hợp đồng theo ĐÚNG loại tiền cọc — null khi không so được (dòng khác loại tiền, thiếu
- *  giá). Khớp `contract_deposit.contract_value` ở server. */
+ *  giá). Khớp `contract_deposit.contract_value` ở server: cộng thành tiền TỪNG DÒNG (ngoại tệ đã làm
+ *  tròn 2 số lẻ). */
 export function contractValueIn(lines: ContractLine[], ccy: string): number | null {
   const filled = lines.filter((l) => l.grade || l.qty != null);
   if (!filled.length) return null;
@@ -32,7 +34,7 @@ export function contractValueIn(lines: ContractLine[], ccy: string): number | nu
   for (const l of filled) {
     // Giá 0 = chưa chốt giá (phụ lục theo công thức) — coi như thiếu, giống server.
     if ((l.ccy || "VND") !== ccy || l.qty == null || !l.price) return null;
-    total += l.qty * l.price;
+    total += lineAmount(l) as number;
   }
   return total;
 }
@@ -79,6 +81,7 @@ export const futureDepositIndex = (c: Contract): number => {
   return (c.deposits ?? []).findIndex((d) => !!d.date && d.date > today);
 };
 
+/** Phần trăm cọc / giá trị hợp đồng (tiền thì dùng `fmtCcyAmount`). */
 const n2 = (v: number) => v.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
 const EMPTY_DEPOSIT: ContractDeposit = { amount: null, ccy: null, date: null, docs: [] };
 
@@ -135,8 +138,9 @@ export default function ContractDepositFields({ c, currencies, set }: Props) {
       </button>
       {over ? (
         <div className="blt-error" style={{ marginTop: 6 }}>
-          Tổng tiền cọc ({n2(totals.get(over) as number)} {depositUnit(over)}) lớn hơn giá trị hợp đồng
-          ({n2(contractValueIn(c.lines, over) as number)} {depositUnit(over)}) — kiểm lại đơn vị tính:
+          Tổng tiền cọc ({fmtCcyAmount(totals.get(over) as number, over)} {depositUnit(over)}) lớn hơn
+          giá trị hợp đồng ({fmtCcyAmount(contractValueIn(c.lines, over) as number, over)}{" "}
+          {depositUnit(over)}) — kiểm lại đơn vị tính:
           VNĐ nhập theo <b>triệu đồng</b>.
         </div>
       ) : (
@@ -146,7 +150,7 @@ export default function ContractDepositFields({ c, currencies, set }: Props) {
           {[...totals].map(([k, t]) => {
             const value = contractValueIn(c.lines, k);
             return (
-              <span key={k}> Tổng cọc <b>{n2(t)} {depositUnit(k)}</b>
+              <span key={k}> Tổng cọc <b>{fmtCcyAmount(t, k)} {depositUnit(k)}</b>
                 {value ? <> = <b>{n2((t / value) * 100)}%</b> giá trị hợp đồng</> : null}.</span>
             );
           })}

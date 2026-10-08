@@ -179,13 +179,10 @@ def _delivery_rows(date_from: str, date_to: str, companies: list[str] | None,
         for ln in d.get("lines") or []:
             ccy = ln.get("ccy") or "VND"
             fx = _num(ln.get("fx"))
-            # Sản lượng BÁO CÁO = quy khô khi có (PA1); doanh thu vẫn tính trên MỦ NƯỚC.
-            qty_wet = _num(ln.get("qty"))
+            # Sản lượng BÁO CÁO = quy khô khi có (PA1); doanh thu vẫn tính trên MỦ NƯỚC — dùng CHUNG
+            # công thức của màn Hợp đồng (làm tròn 2 số lẻ ngoại tệ, doanh thu theo kế toán).
             qty = sales_contract_calc.sale_qty(ln)
-            rev = (qty_wet * _num(ln.get("price")) * TRIEU
-                   if ccy == "VND" and qty_wet is not None and _num(ln.get("price")) is not None
-                   else (qty_wet * _num(ln.get("price")) * fx
-                         if qty_wet is not None and _num(ln.get("price")) is not None and fx else None))
+            rev = sales_contract_calc.line_revenue_vnd(ln)
             out.append({
                 **base, "source": sales_contract_calc.line_source(ln, d.get("source")),
                 "code": d.get("code"),

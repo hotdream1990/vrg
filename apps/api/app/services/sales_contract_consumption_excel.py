@@ -115,7 +115,7 @@ def _detail(deliveries: list[dict[str, Any]], names: dict[str, str]) -> list[dic
                 "price": price,
                 "ccy": ln.get("ccy"),
                 "fx": fx,
-                "amount": None if qty is None or price is None else qty * price,
+                "amount": calc.line_amount(ln),      # ngoại tệ làm tròn 2 số lẻ như hoá đơn
                 # Thiếu tỷ giá → để TRỐNG, không quy về 0 (giống mọi chỗ khác của báo cáo).
                 # Làm tròn về ĐỒNG: nhân với 1.000.000 làm sai số dấu phẩy động nở ra, ô hiện
                 # 441.674.999,9999999 trông như số bịa dù chỉ là cách máy lưu số thực.

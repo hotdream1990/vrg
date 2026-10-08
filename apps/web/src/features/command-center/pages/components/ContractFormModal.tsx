@@ -10,6 +10,10 @@ import {
   MAX_OVER_RATIO,
   saveContract,
 } from "../../../../lib/sales-contract-client";
+import {
+  REVENUE_MAX_RATIO, clearInvalidRevenue, computedLineRevenueVnd, lineRevenueVnd, revenueOverrideAllowed,
+  revenueOverrideDiff, roundHalfUp,
+} from "../../../../lib/contract-money";
 import { dmy } from "../../../../lib/date";
 import { DIRECT_SAVED_IN_REQUEST_MODE, useEditRequest } from "../../../../lib/use-edit-request";
 import { useAuth } from "../../../auth/AuthContext";
@@ -62,14 +66,15 @@ const blank = (company: string): Contract => ({
 const sumQty = (lines: ContractLine[]) => lines.reduce((s, l) => s + (l.qty ?? 0), 0);
 
 /** Tổng thành tiền quy về ĐỒNG. null khi CÓ dòng ngoại tệ thiếu tỷ giá — giống `total_revenue_vnd`
- *  ở server: thiếu dữ kiện thì báo "—", không lặng lẽ coi là 0. */
+ *  ở server: thiếu dữ kiện thì báo "—", không lặng lẽ coi là 0. Từng dòng tính theo đúng luật làm
+ *  tròn của server, dòng có doanh thu kế toán thì lấy số kế toán. */
 function sumAmountVnd(lines: ContractLine[]): number | null {
   let total = 0;
   for (const l of lines) {
     if (l.qty == null || l.price == null) continue;
-    if (l.ccy === "VND") total += l.qty * l.price * 1_000_000;
-    else if (l.fx) total += l.qty * l.price * l.fx;
-    else return null;
+    const v = lineRevenueVnd(l);
+    if (v == null) return null;
+    total += v;
   }
   return total;
 }
@@ -102,7 +107,13 @@ export default function ContractFormModal({
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const set = (patch: Partial<Contract>) => setC((prev) => ({ ...prev, ...patch }));
+  // Doanh thu kế toán chỉ sống ở dòng ngoại tệ của bản ghi ĐÃ CÓ NGÀY GIAO. Mọi đường làm mất điều
+  // kiện đó (xoá ngày giao, chuyển giao nhiều lần, đổi đơn vị, đổi về VNĐ) đều đi qua đây → xoá luôn
+  // số cũ: ô đã ẩn mà số còn thì tổng thành tiền sai và server trả 400.
+  const set = (patch: Partial<Contract>) => setC((prev) => {
+    const next = { ...prev, ...patch };
+    return { ...next, lines: clearInvalidRevenue(next.lines, !!next.delivered_at) };
+  });
   // HĐ DÀI HẠN là phụ lục của một hợp đồng mẹ → BẮT BUỘC chọn hồ sơ, cả lúc tạo lẫn lúc sửa
   // (chốt 24/08/2026). Hợp đồng dài hạn cũ chưa gắn hồ sơ sẽ phải gắn ngay lần sửa đầu tiên —
   // đây là cách dọn dần 942 bản ghi cũ trên prod.
@@ -179,6 +190,23 @@ export default function ContractFormModal({
       // chưa ai biết tỷ giá ngày giao hàng.
       if (isDelivery && l.ccy !== "VND" && !l.fx) {
         p.push(`${at}: đã có ngày giao thì bán bằng ${l.ccy} phải nhập tỷ giá.`);
+      }
+      // Tiền ngoại tệ thống nhất 2 số lẻ — server cũng chặn đơn giá lẻ hơn.
+      if (l.ccy !== "VND" && l.price != null && roundHalfUp(l.price, 2) !== l.price) {
+        p.push(`${at}: đơn giá ${l.ccy} chỉ lấy tối đa 2 số lẻ.`);
+      }
+      // Doanh thu kế toán: chỉ kiểm khi ô đang hiện (khớp server). Lệch quá 10% gần như chắc chắn
+      // là gõ nhầm đơn vị (triệu đồng vào ô đồng) hoặc nhầm dòng.
+      if (revenueOverrideAllowed(l, isDelivery) && l.revenue_vnd != null) {
+        const who = l.grade ? `${at} (${l.grade})` : at;
+        if (l.revenue_vnd <= 0) {
+          p.push(`${who}: doanh thu VNĐ theo kế toán phải lớn hơn 0 — để trống thì phần mềm tự tính.`);
+        } else if (!computedLineRevenueVnd(l)) {
+          p.push(`${who}: nhập đơn giá và tỷ giá trước khi nhập doanh thu VNĐ theo kế toán.`);
+        } else if ((revenueOverrideDiff(l) ?? 0) > REVENUE_MAX_RATIO) {
+          p.push(`${who}: doanh thu VNĐ theo kế toán lệch quá ${REVENUE_MAX_RATIO * 100}% so với `
+                 + "thành tiền × tỷ giá — kiểm tra lại số.");
+        }
       }
       if (showDates && l.from_date) {
         const who = l.grade ? `${at} (${l.grade})` : at;
@@ -272,7 +300,7 @@ export default function ContractFormModal({
               company: e.target.value, customer_id: null, master_id: null,
               // Đổi đơn vị là đổi luôn NHÓM mẹ–con → đơn vị nhận cũ có thể không còn cùng nhóm.
               ...(c.channel === "internal" ? { channel: null, to_company: null } : {}),
-              lines: c.lines.map((l) => ({ ...l, ccy: "VND", fx: null })),
+              lines: c.lines.map((l) => ({ ...l, ccy: "VND", fx: null, revenue_vnd: null })),
               deposits: (c.deposits ?? []).map((d) => ({ ...d, ccy: null })),
             })}>
             {meta.units.map((u) => <option key={u} value={u}>{u}</option>)}
@@ -383,8 +411,8 @@ export default function ContractFormModal({
         <p className="form-note" style={{ fontSize: 11.5, margin: "6px 0 0" }}>
           Kể cả khi <b>số liệu đã chốt</b>, các nội dung sau vẫn sửa và lưu được bình thường:{" "}
           <b>{meta.editable_when_locked.map((f) => f.label).join(" · ")}</b>. Còn sản lượng, đơn
-          giá, ngày hiệu lực và nguồn tiêu thụ của dòng, ngày giao, hình thức tiêu thụ, khách hàng và
-          loại hợp đồng là các ô làm đổi số đã báo cáo — {canEditUnitData
+          giá, tỷ giá, doanh thu VNĐ kế toán, ngày hiệu lực và nguồn tiêu thụ của dòng, ngày giao,
+          hình thức tiêu thụ, khách hàng và loại hợp đồng là các ô làm đổi số đã báo cáo — {canEditUnitData
             ? <>bấm <b>Lưu</b>, hệ thống mở hộp gửi <b>đề nghị sửa</b>, Ban duyệt xong mới đổi.</>
             : "phải nhờ Ban TTKD sửa hộ."}
         </p>

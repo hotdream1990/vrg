@@ -3,21 +3,28 @@
 Mỗi dòng: chủng loại · số lượng (tấn) · QUY KHÔ (tấn) · đơn giá · loại tiền · tỷ giá.
 Quy đổi doanh thu về BASE = ĐỒNG, đúng quy ước đang dùng ở biểu tiêu thụ cũ:
   - `ccy = VND`  → đơn giá tính bằng TRIỆU ĐỒNG/TẤN  → doanh thu = qty × price × 1.000.000
-  - `ccy` khác   → đơn giá tính bằng NGOẠI TỆ/TẤN     → doanh thu = qty × price × tỷ giá
-Thiếu tỷ giá thì trả None (KHÔNG đoán) — số liệu ngày khác không được dùng thay, xem nguyên tắc
-"không suy diễn dữ liệu" của dự án.
+  - `ccy` khác   → đơn giá tính bằng NGOẠI TỆ/TẤN     → thành tiền ngoại tệ = qty × price làm tròn
+    2 số lẻ (như hoá đơn), doanh thu = thành tiền × tỷ giá — trừ khi đơn vị nhập DOANH THU VNĐ
+    THEO KẾ TOÁN (`revenue_vnd`, 08/10/2026) thì lấy đúng số đó.
+Làm tròn nửa LÊN bằng Decimal trên chính chuỗi số nhập (`round()` của Python làm tròn về số chẵn,
+còn 19,957 × 1.725 tính bằng float ra 34.425,824999… → mất 1 cent). Thiếu tỷ giá thì trả None
+(KHÔNG đoán) — số liệu ngày khác không được dùng thay, xem nguyên tắc "không suy diễn dữ liệu".
 """
 
 from __future__ import annotations
 
 import math
 from datetime import date
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from app.core.market_meta import CONSUMPTION_SOURCES, DRY_REQUIRED_GRADES, SALE_CURRENCIES, UNIT_GRADES
 from app.services import sales_contract_line_dates as line_dates
 
 TRIEU = 1_000_000
+#: Doanh thu kế toán lệch quá mức này so với thành tiền × tỷ giá thì không nhận — chênh thật (phần
+#: cọc ghi theo tỷ giá ngày nhận cọc) chỉ vài %, lệch 10% trở lên gần như chắc là gõ thừa/thiếu số.
+REVENUE_OVERRIDE_MAX_GAP = 0.10
 _CCY = frozenset(SALE_CURRENCIES)
 _GRADES = frozenset(UNIT_GRADES)
 
@@ -107,6 +114,10 @@ def clean_lines(lines, require_fx: bool = True, *, dated: bool = False,
         price = _num(ln.get("price"))
         if price is not None and price < 0:
             raise ValueError(f"Dòng {i} ({grade}): đơn giá không được âm.")
+        # Tiền ngoại tệ thống nhất 2 số lẻ (08/10/2026) — đơn giá lẻ hơn thì thành tiền hiện ra không
+        # còn bằng số lượng × đơn giá đang hiện.
+        if price is not None and ccy != "VND" and Decimal(str(price)) != round(Decimal(str(price)), 2):
+            raise ValueError(f"Dòng {i} ({grade}): đơn giá {ccy} chỉ lấy tối đa 2 số lẻ.")
         row = {
             "grade": grade,
             "qty": qty,
@@ -115,6 +126,9 @@ def clean_lines(lines, require_fx: bool = True, *, dated: bool = False,
             "ccy": ccy,
             "fx": fx,
         }
+        # Chỉ ghi khoá khi CÓ số (như `from_date`): lưu lại hợp đồng cũ không được đổi JSON của nó.
+        if (rv := _clean_revenue_override(ln, row, require_fx, f"Dòng {i} ({grade})")) is not None:
+            row["revenue_vnd"] = rv
         if with_source:
             src = force_source or str(ln.get("source") or "").strip()
             if src and src not in CONSUMPTION_SOURCES:
@@ -148,15 +162,68 @@ def common_source(lines) -> str | None:
     return next(iter(srcs)) if len(srcs) == 1 and None not in srcs else None
 
 
-def line_revenue_vnd(line: dict) -> float | None:
-    """Doanh thu 1 dòng, quy về ĐỒNG. None khi thiếu dữ kiện (không đoán, không lấy ngày khác)."""
-    qty, price = _num(line.get("qty")), _num(line.get("price"))
+def _clean_revenue_override(ln: dict, row: dict, delivered: bool, where: str) -> float | None:
+    """DOANH THU VNĐ THEO KẾ TOÁN của dòng (08/10/2026): chỉ dòng NGOẠI TỆ của một LẦN GIAO (đã có
+    ngày giao — đúng lúc tỷ giá bắt buộc). Kế toán ghi phần tiền cọc theo tỷ giá ngày nhận cọc nên
+    một tỷ giá trên dòng không tái tạo được số của họ — phải cho nhập thẳng số đồng."""
+    rv = _num(ln.get("revenue_vnd"))
+    if rv is None:
+        return None
+    if row["ccy"] == "VND":
+        raise ValueError(f"{where}: dòng bán bằng VNĐ không nhập doanh thu theo kế toán — doanh "
+                         "thu chính là số lượng × đơn giá.")
+    if not delivered:
+        raise ValueError(f"{where}: doanh thu VNĐ theo kế toán chỉ nhập khi đã có ngày giao.")
+    if rv <= 0:
+        raise ValueError(f"{where}: doanh thu VNĐ theo kế toán phải lớn hơn 0.")
+    base = computed_revenue_vnd(row)
+    # Không có thành tiền × tỷ giá thì không đối chiếu được ±10% — nhận số trần là nhận cả số gõ thừa
+    # chục chữ số (lại nổ Decimal thành lỗi 500).
+    if not base:
+        raise ValueError(f"{where}: nhập đơn giá và tỷ giá trước khi nhập doanh thu VNĐ theo kế toán.")
+    if abs(rv - base) > REVENUE_OVERRIDE_MAX_GAP * base:
+        raise ValueError(f"{where}: doanh thu VNĐ theo kế toán lệch quá "
+                         f"{REVENUE_OVERRIDE_MAX_GAP:.0%} so với thành tiền × tỷ giá "
+                         f"({base:,.0f} đồng) — kiểm tra lại số.".replace(",", "."))
+    return _q(Decimal(str(rv)), 0)
+
+
+def _dec(v) -> Decimal | None:
+    f = _num(v)
+    return None if f is None else Decimal(str(f))
+
+
+def _q(d: Decimal, digits: int) -> float:
+    """Làm tròn nửa LÊN (như hoá đơn/kế toán), không phải về số chẵn như `round()`."""
+    return float(d.quantize(Decimal(1).scaleb(-digits), rounding=ROUND_HALF_UP))
+
+
+def line_amount(line: dict) -> float | None:
+    """Thành tiền theo LOẠI TIỀN CỦA DÒNG: ngoại tệ làm tròn 2 số lẻ (như hoá đơn) · VNĐ = triệu đồng."""
+    qty, price = _dec(line.get("qty")), _dec(line.get("price"))
+    if qty is None or price is None:
+        return None
+    return float(qty * price) if (line.get("ccy") or "VND") == "VND" else _q(qty * price, 2)
+
+
+def computed_revenue_vnd(line: dict) -> float | None:
+    """Doanh thu PHẦN MỀM TỰ TÍNH (đồng): VNĐ = qty × giá triệu; ngoại tệ = thành tiền 2 số lẻ × tỷ giá."""
+    qty, price = _dec(line.get("qty")), _dec(line.get("price"))
     if qty is None or price is None:
         return None
     if (line.get("ccy") or "VND") == "VND":
-        return qty * price * TRIEU
-    fx = _num(line.get("fx"))
-    return None if fx is None else qty * price * fx
+        return _q(qty * price * TRIEU, 0)
+    fx = _dec(line.get("fx"))
+    return None if fx is None else _q(Decimal(str(line_amount(line))) * fx, 0)
+
+
+def line_revenue_vnd(line: dict) -> float | None:
+    """Doanh thu 1 dòng, quy về ĐỒNG — số kế toán nếu đơn vị đã nhập, không thì số tự tính. None
+    khi thiếu dữ kiện (không đoán, không lấy ngày khác). `sales_contract_report._REV_SQL` và
+    `unit_report_rows` phải ra ĐÚNG số này."""
+    if (line.get("ccy") or "VND") != "VND" and (rv := _num(line.get("revenue_vnd"))) is not None:
+        return rv
+    return computed_revenue_vnd(line)
 
 
 def _sum(lines, key: str) -> float:

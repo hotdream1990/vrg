@@ -7,7 +7,7 @@ import {
   SplitCellsOutlined,
   UndoOutlined,
 } from "@ant-design/icons";
-import { Modal, Tabs } from "antd";
+import { Modal, Tabs, Tag } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -19,6 +19,7 @@ import {
   setContractCompletion,
   setContractDeliveryType,
 } from "../../../../lib/sales-contract-client";
+import { fmtCcyAmount, isForeignCcy, lineAmount, lineRevenueVnd } from "../../../../lib/contract-money";
 import { dmy } from "../../../../lib/date";
 import { useEditWindow } from "../../../../lib/edit-window";
 import { useEditRequest } from "../../../../lib/use-edit-request";
@@ -28,7 +29,6 @@ import ContractCompleteModal from "./ContractCompleteModal";
 import { depositUnit } from "./ContractDepositFields";
 import ContractFormModal from "./ContractFormModal";
 import SourceQuickEdit from "./SourceQuickEdit";
-import { lineAmount } from "./ContractLinesTable";
 import { effectiveLineSource, knownLineSource, sourceSummary } from "./line-source";
 import {
   contractDeleteDraft, contractDeliveryTypeDraft, deleteConfirmText,
@@ -64,7 +64,8 @@ function LinesTotal({ lines, dated, withSource }: {
         <td className="r">{t3(qty)}</td>
         {/* Chủng loại không có quy khô → "—" như từng dòng, hiện 0 sẽ bị đọc là khai thiếu. */}
         <td className="r">{dry > 0 ? t3(dry) : "—"}</td>
-        <td colSpan={dated ? 4 : 3} />
+        {/* Đơn giá · Loại tiền · Thành tiền · Doanh thu (+ Hiệu lực từ): không cộng dọc. */}
+        <td colSpan={dated ? 5 : 4} />
       </tr>
     </tfoot>
   );
@@ -94,7 +95,7 @@ function CertBadges({ certs, premium, ccy }: {
         ))}
         {premium != null && (
           <span style={{ fontSize: 13 }}>
-            Premium: <b>{premium.toLocaleString("vi-VN", { maximumFractionDigits: 3 })} {ccy ?? ""}</b>
+            Premium: <b>{fmtCcyAmount(premium, ccy)} {ccy ?? ""}</b>
             {ccy === "USD" ? "/tấn" : ""}
           </span>
         )}
@@ -306,7 +307,8 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                           <div style={{ color: "var(--muted)", fontSize: 12 }}>Đặt cọc</div>
                           {(c.deposits ?? []).length === 0 ? "—" : (c.deposits ?? []).map((d, i) => (
                             <div key={i} style={{ fontSize: 12.5 }}>
-                              Đợt {i + 1}: {d.amount == null ? "—" : <>{t3(d.amount)} {depositUnit(d.ccy)}</>}
+                              Đợt {i + 1}: {d.amount == null ? "—"
+                                : <>{fmtCcyAmount(d.amount, d.ccy)} {depositUnit(d.ccy)}</>}
                               {d.date && <> · ngày {dmy(d.date)}</>}
                               {d.docs.length > 0 && <Docs docs={d.docs} />}
                             </div>
@@ -353,6 +355,7 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                             <th className="r">SL chưa quy khô (tấn)</th>
                             <th className="r">Quy khô (tấn)</th>
                             <th className="r">Đơn giá</th><th>Loại tiền</th><th className="r">Thành tiền</th>
+                            <th className="r">Doanh thu (tr.đ)</th>
                             {dated && <th>Hiệu lực từ</th>}
                           </tr></thead>
                           <tbody>
@@ -363,13 +366,21 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                                 {!multi && <td>{lineSourceText(ln, c, meta)}</td>}
                                 <td className="r">{t3(ln.qty ?? 0)}</td>
                                 <td className="r">{ln.qty_dry == null ? "—" : t3(ln.qty_dry)}</td>
-                                <td className="r">{ln.price == null ? "—" : t3(ln.price)}</td>
+                                <td className="r">{ln.price == null ? "—" : fmtCcyAmount(ln.price, ln.ccy)}</td>
                                 <td>{ln.ccy}</td>
                                 {/* Thành tiền của dòng theo NGUYÊN TỆ của dòng (giống form nhập). */}
                                 <td className="r">
                                   {lineAmount(ln) == null
                                     ? "—"
-                                    : `${t3(lineAmount(ln) as number)} ${ln.ccy === "VND" ? "tr.đ" : ln.ccy}`}
+                                    : `${fmtCcyAmount(lineAmount(ln) as number, ln.ccy)} ${ln.ccy === "VND" ? "tr.đ" : ln.ccy}`}
+                                </td>
+                                {/* Doanh thu quy VNĐ của dòng — dòng ngoại tệ có số kế toán thì hiện số
+                                    đó kèm nhãn, để người xem biết vì sao không bằng thành tiền × tỷ giá. */}
+                                <td className="r" style={{ whiteSpace: "nowrap" }}>
+                                  {money(lineRevenueVnd(ln))}
+                                  {isForeignCcy(ln.ccy) && ln.revenue_vnd != null && (
+                                    <Tag style={{ marginLeft: 6, marginInlineEnd: 0 }}>theo kế toán</Tag>
+                                  )}
                                 </td>
                                 {dated && (
                                   <td>

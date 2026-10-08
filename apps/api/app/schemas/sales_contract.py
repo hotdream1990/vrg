@@ -44,6 +44,9 @@ class ContractLineIn(BaseModel):
     # (đợt giao / hợp đồng giao 1 lần), bắt buộc khi có ngày giao. Thiếu ô này ở schema thì
     # `model_dump()` nuốt mất nguồn của dòng (cùng bẫy với `from_date`).
     source: str | None = None
+    # DOANH THU VNĐ THEO KẾ TOÁN (đồng, 08/10/2026) — chỉ dòng ngoại tệ của một lần giao; trống =
+    # phần mềm tự tính. Thiếu ô này ở schema thì `model_dump()` nuốt mất (cùng bẫy với `from_date`).
+    revenue_vnd: float | None = None
 
 
 class ContractIn(BaseModel):

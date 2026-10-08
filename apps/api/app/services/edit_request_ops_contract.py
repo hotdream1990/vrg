@@ -31,7 +31,9 @@ from app.services import sales_contract_calc as calc
 from app.services.edit_request_ops import Op, collect_blocked, parse, uniq_dates
 
 _NOT_FOUND = "Không tìm thấy hợp đồng trong phạm vi tài khoản."
-_IGNORE = ("completed_at",)   # duyệt không ghi ngày hoàn thành — chốt sau lúc gửi không phải "đã đổi"
+#: Ô duyệt không ghi tới / chỉ là số tính ra: ngày hoàn thành (đơn vị chốt sau lúc gửi) · doanh thu
+#: (tính lại từ `lines` — đổi công thức làm tròn 08/10/2026 không phải "số liệu đã đổi").
+_IGNORE = ("completed_at", "revenue")
 
 
 def _scope(user: dict, company: str, _p: dict) -> None:

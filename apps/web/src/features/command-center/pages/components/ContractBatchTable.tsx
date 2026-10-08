@@ -2,6 +2,7 @@ import { DeleteOutlined, FormOutlined, PaperClipOutlined } from "@ant-design/ico
 
 import type { Contract, ContractDoc, ContractMeta } from "../../../../lib/sales-contract-client";
 import { openContractFile } from "../../../../lib/sales-contract-client";
+import { fmtCcyAmount } from "../../../../lib/contract-money";
 import { dmy } from "../../../../lib/date";
 import SourceQuickEdit from "./SourceQuickEdit";
 import { sourceSummary } from "./line-source";
@@ -77,7 +78,7 @@ function CertCell({ certs, premium, ccy }: {
       {(certs ?? []).map((c) => <span key={c} className="chip ok">{c}</span>)}
       {premium != null && (
         <span className="chip info" style={{ whiteSpace: "nowrap" }}>
-          +{t3(premium)} {ccy ?? ""}
+          +{fmtCcyAmount(premium, ccy)} {ccy ?? ""}
         </span>
       )}
     </div>

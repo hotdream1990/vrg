@@ -21,6 +21,7 @@ from typing import Any
 
 from app.core.market_meta import SALE_CURRENCIES
 from app.services import contract_docs
+from app.services import sales_contract_calc as calc
 
 #: Nhóm ô của một bản ghi không có cọc (đợt giao, hoặc hợp đồng chưa cọc).
 EMPTY: dict[str, Any] = {"deposits": []}
@@ -102,7 +103,7 @@ def contract_value(lines: list[dict], ccy: str) -> float | None:
         # Giá 0 = chưa chốt giá (phụ lục theo công thức) — coi như thiếu, không phải hợp đồng 0 đồng.
         if (ln.get("ccy") or "VND") != ccy or qty is None or not price:
             return None
-        total += float(qty) * float(price)
+        total += calc.line_amount(ln) or 0.0   # ngoại tệ: từng dòng làm tròn 2 số lẻ như hoá đơn
     return total if lines else None
 
 

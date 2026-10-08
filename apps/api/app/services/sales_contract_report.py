@@ -31,15 +31,22 @@ _QTY_SQL = ("COALESCE((SELECT sum(COALESCE(NULLIF(e->>'qty', '')::numeric, 0)) "
             "FROM jsonb_array_elements(%s) e), 0)")
 
 #: Thành tiền (ĐỒNG) của một cột `lines` jsonb — phải cho ra đúng số như `calc.total_revenue_vnd`:
-#: VND tính theo TRIỆU đồng/tấn, ngoại tệ nhân tỷ giá, và **NULL khi có bất kỳ dòng nào thiếu đơn
-#: giá/tỷ giá** (thiếu là KHÔNG BIẾT, không được cộng phần còn lại rồi coi như đủ).
+#: VND tính theo TRIỆU đồng/tấn; ngoại tệ = thành tiền làm tròn 2 số lẻ × tỷ giá, hoặc doanh thu
+#: theo kế toán (`revenue_vnd`) nếu đơn vị đã nhập; làm tròn về đồng (`round` của numeric là nửa
+#: lên với số dương, khớp Decimal ROUND_HALF_UP). **NULL khi có bất kỳ dòng nào thiếu đơn giá/tỷ
+#: giá** (thiếu là KHÔNG BIẾT, không được cộng phần còn lại rồi coi như đủ).
 #: Chỉ dùng cho DÒNG TỔNG CỘNG — tổng phải tính trên toàn bộ hợp đồng khớp lọc, không thể gom ở
 #: Python vì trang chỉ tải 25 dòng. `test_contract_totals_match_the_rows` khoá 2 công thức bằng nhau.
 _REV_SQL = ("(SELECT CASE WHEN count(*) FILTER (WHERE v IS NULL) > 0 THEN NULL "
             "            ELSE COALESCE(sum(v), 0) END "
-            "   FROM (SELECT NULLIF(e->>'qty', '')::numeric * NULLIF(e->>'price', '')::numeric "
-            "                * CASE WHEN COALESCE(NULLIF(e->>'ccy', ''), 'VND') = 'VND' "
-            "                       THEN 1000000 ELSE NULLIF(e->>'fx', '')::numeric END AS v "
+            "   FROM (SELECT CASE WHEN COALESCE(NULLIF(e->>'ccy', ''), 'VND') = 'VND' "
+            "                     THEN round(NULLIF(e->>'qty', '')::numeric "
+            "                                * NULLIF(e->>'price', '')::numeric * 1000000) "
+            "                     WHEN NULLIF(e->>'revenue_vnd', '') IS NOT NULL "
+            "                     THEN (e->>'revenue_vnd')::numeric "
+            "                     ELSE round(round(NULLIF(e->>'qty', '')::numeric "
+            "                                      * NULLIF(e->>'price', '')::numeric, 2) "
+            "                                * NULLIF(e->>'fx', '')::numeric) END AS v "
             "           FROM jsonb_array_elements(%s) e) t)")
 
 
