@@ -19,7 +19,7 @@
  "readme_head": {
   "intro": [
    "Tài liệu dành cho **tài khoản nhập liệu của đơn vị thành viên**. Phần 2 chỉ gồm các thay đổi mới, áp dụng từ ngày **08/10/2026**: **Hợp đồng** (mục 1–8), **Nguồn tiêu thụ** (mục 9–14) và **Xác nhận kế hoạch năm khi chốt số liệu** (mục 15–18). Các nội dung khác vẫn làm như Sổ tay nhập liệu (Phần 1).",
-   "Việc cần làm ngay: bổ sung đủ **scan hợp đồng**, **chứng từ cọc**, **chỉ thị giao hàng** cho các hợp đồng đã bán chờ giao (mục 7); rà **nguồn tiêu thụ** của các lần giao đã nhập (sửa được đến hết **08/10/2026**, mục 11); rà **kế hoạch năm** trước khi chốt số liệu (mục 15)."
+   "Việc cần làm ngay: bổ sung đủ **scan hợp đồng**, **chứng từ cọc**, **chỉ thị giao hàng** cho các hợp đồng đã bán chờ giao (mục 7); rà **nguồn tiêu thụ** của các lần giao đã nhập (sửa được đến hết **12/10/2026**, mục 11); rà **kế hoạch năm** trước khi chốt số liệu (mục 15)."
   ],
   "links": [
    "Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-don-vi-thanh-vien-phan-2.docx](./Huong-dan-nhap-lieu-don-vi-thanh-vien-phan-2.docx)",
@@ -202,7 +202,7 @@
    ]
   },
   {
-   "title": "11. Sửa nguồn lần giao đã nhập — mở lần giao (đến hết 08/10/2026)",
+   "title": "11. Sửa nguồn lần giao đã nhập — mở lần giao (đến hết 12/10/2026)",
    "location": "Menu ▸ Quản lý hợp đồng ▸ Hợp đồng & đợt giao ▸ Xem",
    "intro": "Các lần giao nhập trước ngày 05/10/2026 được tạm ghi là **Khai thác**. Dòng nào không đúng thì sửa lại. Nút **Sửa nguồn** dùng được cả với lần giao đã khoá.",
    "image": {
@@ -217,7 +217,7 @@
     "Cột **Nguồn** cho biết lần giao đang tính nguồn nào, ví dụ “Khai thác · Thu mua”."
    ],
    "notes": [
-    "Nút **Sửa nguồn** chỉ có đến hết ngày **08/10/2026**. Sau đó, lần giao đã khoá phải gửi **Đề nghị sửa**.",
+    "Nút **Sửa nguồn** chỉ có đến hết ngày **12/10/2026**. Sau đó, lần giao đã khoá phải gửi **Đề nghị sửa**.",
     "Sửa nguồn không làm đổi sản lượng hay doanh thu, chỉ đổi cách chia theo nguồn."
    ]
   },

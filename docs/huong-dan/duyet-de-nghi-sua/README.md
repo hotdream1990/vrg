@@ -160,7 +160,7 @@ Năm trường hợp thường gặp và cách xử lý.
 4. **Đơn vị tự huỷ đề nghị** — trạng thái chuyển sang Đã huỷ, hai nút Duyệt và Từ chối không còn. Không phải làm gì thêm.
 5. **Đề nghị này không duyệt được** — khung đỏ ở đầu trang, nút **Duyệt** bị mờ. Nội dung đề nghị vi phạm quy định nhập liệu, hay gặp nhất là **trùng số**: đơn vị bấm Thêm rồi gõ lại số của một hợp đồng hoặc đợt giao đã có. Khung đỏ nêu bản ghi đang có (ngày giao, sản lượng). Bấm **Từ chối** và ghi cách sửa, ví dụ “Đợt 2 đã có — gửi lại với số Đợt 3”.
 
-> - Hợp đồng đang ở trạng thái Hoàn thành thì đơn vị phải bấm Mở lại hợp đồng rồi mới gửi đề nghị được. Gặp đề nghị bị vướng chỗ này, nhắn đơn vị làm bước đó trước.
+> - Hợp đồng đã Hoàn thành vẫn duyệt được, ngày hoàn thành giữ nguyên. Riêng đề nghị dời ngày giao ra sau ngày hoàn thành thì không duyệt được: bấm Mở lại hợp đồng, duyệt, rồi bấm Hoàn thành hợp đồng lại với ngày từ ngày giao mới trở đi.
 > - Nếu bấm duyệt mà hệ thống báo lỗi, đề nghị vẫn ở trạng thái Chờ duyệt — đọc dòng báo lỗi đỏ rồi xử lý tiếp.
 
 ## 9. Sau khi duyệt

@@ -2,7 +2,7 @@
 
 Tài liệu dành cho **tài khoản nhập liệu của đơn vị thành viên**. Phần 2 chỉ gồm các thay đổi mới, áp dụng từ ngày **08/10/2026**: **Hợp đồng** (mục 1–8), **Nguồn tiêu thụ** (mục 9–14) và **Xác nhận kế hoạch năm khi chốt số liệu** (mục 15–18). Các nội dung khác vẫn làm như Sổ tay nhập liệu (Phần 1).
 
-Việc cần làm ngay: bổ sung đủ **scan hợp đồng**, **chứng từ cọc**, **chỉ thị giao hàng** cho các hợp đồng đã bán chờ giao (mục 7); rà **nguồn tiêu thụ** của các lần giao đã nhập (sửa được đến hết **08/10/2026**, mục 11); rà **kế hoạch năm** trước khi chốt số liệu (mục 15).
+Việc cần làm ngay: bổ sung đủ **scan hợp đồng**, **chứng từ cọc**, **chỉ thị giao hàng** cho các hợp đồng đã bán chờ giao (mục 7); rà **nguồn tiêu thụ** của các lần giao đã nhập (sửa được đến hết **12/10/2026**, mục 11); rà **kế hoạch năm** trước khi chốt số liệu (mục 15).
 
 > Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nhap-lieu-don-vi-thanh-vien-phan-2.docx](./Huong-dan-nhap-lieu-don-vi-thanh-vien-phan-2.docx)
 > Sổ tay nhập liệu (Phần 1): [../nhap-lieu-don-vi-thanh-vien/README.md](../nhap-lieu-don-vi-thanh-vien/README.md)
@@ -143,7 +143,7 @@ Mỗi dòng chủng loại của một lần giao phải ghi rõ nguồn: **Khai
 1. Dòng còn trống ô **Nguồn tiêu thụ** thì phiếu không lưu được.
 2. Thông báo ở cuối phiếu ghi rõ dòng nào thiếu, ví dụ “Dòng 2 (SVR 3L): chọn nguồn tiêu thụ.”. Chọn nguồn cho dòng đó rồi bấm **Lưu** lại.
 
-## 11. Sửa nguồn lần giao đã nhập — mở lần giao (đến hết 08/10/2026)
+## 11. Sửa nguồn lần giao đã nhập — mở lần giao (đến hết 12/10/2026)
 
 **Vị trí:** Menu ▸ Quản lý hợp đồng ▸ Hợp đồng & đợt giao ▸ Xem
 
@@ -157,7 +157,7 @@ Các lần giao nhập trước ngày 05/10/2026 được tạm ghi là **Khai t
 2. Bấm **Sửa nguồn** ở lần giao cần sửa. Hợp đồng giao 1 lần thì nút nằm ở tab **Thông tin hợp đồng**.
 3. Cột **Nguồn** cho biết lần giao đang tính nguồn nào, ví dụ “Khai thác · Thu mua”.
 
-> - Nút **Sửa nguồn** chỉ có đến hết ngày **08/10/2026**. Sau đó, lần giao đã khoá phải gửi **Đề nghị sửa**.
+> - Nút **Sửa nguồn** chỉ có đến hết ngày **12/10/2026**. Sau đó, lần giao đã khoá phải gửi **Đề nghị sửa**.
 > - Sửa nguồn không làm đổi sản lượng hay doanh thu, chỉ đổi cách chia theo nguồn.
 
 ## 12. Sửa nguồn — chọn nguồn từng dòng rồi lưu

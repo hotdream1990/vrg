@@ -2,7 +2,7 @@
 
 Tài liệu dành cho **tài khoản nhập liệu của đơn vị thành viên**. Từ ngày 06/10/2026, mỗi dòng chủng loại của một lần giao hàng phải ghi rõ nguồn: **Khai thác**, **Thu mua** hoặc **Hàng hóa cao su**.
 
-Cách làm chung: khi điền **Ngày giao** thì chọn **Nguồn tiêu thụ** ở từng dòng chủng loại. Các lần giao đã nhập trước đó được tạm ghi là Khai thác; dòng nào không đúng thì bấm **Sửa nguồn** để sửa (đến hết ngày 08/10/2026).
+Cách làm chung: khi điền **Ngày giao** thì chọn **Nguồn tiêu thụ** ở từng dòng chủng loại. Các lần giao đã nhập trước đó được tạm ghi là Khai thác; dòng nào không đúng thì bấm **Sửa nguồn** để sửa (đến hết ngày 12/10/2026).
 
 > Bản Word đầy đủ (có ảnh chú thích): [Huong-dan-nguon-tieu-thu.docx](./Huong-dan-nguon-tieu-thu.docx)
 > Sổ tay nhập liệu chung: [../nhap-lieu-don-vi-thanh-vien/README.md](../nhap-lieu-don-vi-thanh-vien/README.md)
@@ -50,7 +50,7 @@ Mỗi dòng chủng loại của một lần giao phải ghi rõ hàng đó lấ
 1. Dòng còn trống ô **Nguồn tiêu thụ** thì phiếu không lưu được.
 2. Thông báo ở cuối phiếu ghi rõ dòng nào thiếu, ví dụ “Dòng 2 (SVR 3L): chọn nguồn tiêu thụ.”. Chọn nguồn cho dòng đó rồi bấm **Lưu** lại.
 
-## 4. Mở lần giao cần sửa nguồn (đến hết 08/10/2026)
+## 4. Mở lần giao cần sửa nguồn (đến hết 12/10/2026)
 
 **Vị trí:** Menu ▸ Quản lý hợp đồng ▸ Hợp đồng & đợt giao ▸ Xem
 
@@ -64,7 +64,7 @@ Nút **Sửa nguồn** dùng được cả với lần giao đã khoá (đang hi
 2. Bấm **Sửa nguồn** ở lần giao cần sửa. Hợp đồng giao 1 lần thì nút nằm ở tab **Thông tin hợp đồng**.
 3. Cột **Nguồn** cho biết lần giao đang tính nguồn nào. Lần giao nhiều nguồn hiện đủ, ví dụ “Khai thác · Thu mua”.
 
-> - Nút **Sửa nguồn** chỉ có đến hết ngày **08/10/2026**. Sau đó, lần giao đã khoá phải gửi **Đề nghị sửa**.
+> - Nút **Sửa nguồn** chỉ có đến hết ngày **12/10/2026**. Sau đó, lần giao đã khoá phải gửi **Đề nghị sửa**.
 > - Sửa nguồn không làm đổi sản lượng hay doanh thu, chỉ đổi cách chia theo nguồn.
 
 ## 5. Chọn nguồn từng dòng rồi lưu
@@ -128,6 +128,6 @@ Chốt hoàn thành hợp đồng giao 1 lần chưa có ngày giao cũng là gh
 |---|---|
 | Báo “Dòng N (…): chọn nguồn tiêu thụ.” | Phiếu đã có Ngày giao mà dòng đó chưa chọn nguồn. Chọn nguồn cho dòng đó rồi bấm Lưu. |
 | Không thấy ô Nguồn ở từng dòng | Trình duyệt còn giữ bản cũ. Bấm Cmd+Shift+R (Mac) hoặc Ctrl+F5 (Windows) để tải lại. |
-| Không thấy nút Sửa nguồn | Đã quá ngày 08/10/2026, hoặc lần giao chưa có Ngày giao. Lần giao đã khoá thì gửi Đề nghị sửa. |
+| Không thấy nút Sửa nguồn | Đã quá ngày 12/10/2026, hoặc lần giao chưa có Ngày giao. Lần giao đã khoá thì gửi Đề nghị sửa. |
 | Báo “Số dòng chủng loại không khớp” | Hợp đồng vừa được sửa ở nơi khác. Đóng hộp, tải lại trang rồi làm lại. |
 | Hợp đồng giao nhiều lần không có ô Nguồn ở phần chi tiết | Đúng như vậy: nguồn chọn ở từng đợt giao. |
