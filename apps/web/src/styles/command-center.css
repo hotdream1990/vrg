@@ -174,6 +174,23 @@ tfoot tr:hover td{background:var(--panel-2)}
 .mc-table thead th:last-child{z-index:3}
 .mc-table tbody td:last-child{z-index:1;border-left:1px solid var(--line)}
 .mc-table tbody tr:hover td:last-child{background:#f3f7f4}
+/* Danh sách HỢP ĐỒNG & ĐỢT GIAO: 15 cột, cột Thao tác (Xem · Đề nghị sửa…) ở cuối — màn 1366px cũng
+   phải cuộn ngang mới thấy, đơn vị tưởng "không có chỗ sửa". Ghim như `.mc-table`; ô dòng tổng ghim cả
+   đáy lẫn phải nên nền theo `tfoot` và nổi trên cả hai. */
+.ct-list-table td:last-child:not([colspan]),.ct-list-table th:last-child{position:sticky;right:0;background:var(--panel)}
+.ct-list-table thead th:last-child{z-index:3}
+.ct-list-table tbody td:last-child:not([colspan]){z-index:1;border-left:1px solid var(--line)}
+.ct-list-table tbody tr:hover td:last-child:not([colspan]){background:#f3f7f4}
+.ct-list-table tfoot td:last-child:not([colspan]){z-index:3;background:var(--panel-2);border-left:1px solid var(--line)}
+/* Tên đơn vị / khách hàng dài: để trình duyệt bóp theo chữ dài nhất là mỗi chữ một dòng, dòng cao gấp 4. */
+.ct-list-table td:nth-child(1),.ct-list-table th:nth-child(1){min-width:170px}
+.ct-list-table td:nth-child(3),.ct-list-table th:nth-child(3){min-width:160px}
+.ct-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:4px;width:250px;margin-left:auto}
+/* Điện thoại: cột ghim 275px chiếm gần hết màn — thôi ghim ngang (bỏ `right`, giữ `sticky` để tiêu đề
+   và dòng tổng vẫn ghim trên/dưới), cuộn ngang như bảng thường. */
+@media (max-width:767px){
+  .ct-list-table td:last-child:not([colspan]),.ct-list-table th:last-child{right:auto}
+}
 .mc-annex{table-layout:fixed;min-width:820px}
 .mc-pick{table-layout:fixed;min-width:880px}
 /* Ô có chữ dài: ngắt trong lòng TỪ khi từ dài hơn cả cột (mã hợp đồng liền một mạch), thay vì

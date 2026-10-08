@@ -272,7 +272,8 @@ export default function ContractDetailModal({ contractId, meta, canEdit, onClose
                       {canEdit && (
                         <div className="blt-toolbar" style={{ marginBottom: 10 }}>
                           {/* Nút tự ẩn khi hợp đồng chưa có lần giao (giao nhiều lần / chưa giao) hoặc hết hạn. */}
-                          <SourceQuickEdit c={c} meta={meta} onSaved={refresh} />
+                          <SourceQuickEdit c={c} meta={meta} onSaved={refresh}
+                            label="Sửa nguồn từng chủng loại" />
                           {/* HĐ giao-1-lần ĐÃ GIAO chính là một lần giao → cũng nằm trong cửa sổ sửa. */}
                           {locked(c.delivered_at) ? (
                             <>

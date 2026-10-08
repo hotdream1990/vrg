@@ -232,7 +232,7 @@ export default function SalesContractPage() {
       {err && <div className="blt-error">{err}</div>}
 
       <div className="card table-scroll" style={{ padding: 0 }}>
-        <table>
+        <table className="ct-list-table">
           <thead><tr>
             <th>Đơn vị</th><th>Số hợp đồng</th><th>Khách hàng</th><th>Loại giao</th>
             <th>Hình thức</th>
@@ -244,7 +244,7 @@ export default function SalesContractPage() {
             <th title="Scan hợp đồng · chứng từ cọc · chứng từ thanh toán (gạch ngang = chưa đính kèm)">
               Chứng từ
             </th>
-            <th className="r" style={{ width: 160 }}>Thao tác</th>
+            <th className="r">Thao tác</th>
           </tr></thead>
           <tbody>
             {rows.map((r) => (
@@ -327,46 +327,50 @@ export default function SalesContractPage() {
                       : <span style={{ color: "var(--muted)" }}>Đang thực hiện</span>}
                 </td>
                 <td style={{ whiteSpace: "nowrap" }}><ContractDocChips c={r} /></td>
-                <td className="r" style={{ whiteSpace: "nowrap" }}>
-                  <button className="btn" onClick={() => setOpenId(r.id as number)}>Xem</button>{" "}
+                <td className="r">
+                  {/* Cột ghim phải: nút xuống hàng trong khung hẹp, không thì 5 nút của dòng đã khoá
+                      chiếm nửa bảng ở màn 1366px. */}
+                  <div className="ct-actions">
+                    <button className="btn" onClick={() => setOpenId(r.id as number)}>Xem</button>{" "}
 
-                  {/* HĐ giao-1-lần ĐÃ GIAO là một lần giao → quá cửa sổ sửa thì chỉ còn xem.
-                      HĐ giao-nhiều-lần không bị khoá: còn phải thêm đợt giao suốt vòng đời. */}
-                  {/* Hợp đồng đã chốt hoàn thành thì khoá — mở lại ở màn chi tiết mới sửa được. */}
-                  {canEdit && meta && <><SourceQuickEdit c={r} meta={meta} onSaved={load} />{" "}</>}
-                  {canEdit && (locked(r.delivered_at)
-                    ? <>
-                        <span style={{ color: "var(--muted)", fontSize: 11 }}>(chỉ xem)</span>
-                        {canRequest(r) && (
-                          <>
-                            {" "}<button className="btn" onClick={() => setForm({ initial: r, request: true })}>
-                              <FormOutlined /> Đề nghị sửa
-                            </button>
-                            {" "}<button className="btn" onClick={() => remove(r, true)}><DeleteOutlined /> Đề nghị xoá</button>
-                          </>
-                        )}
-                      </>
-                    : r.completed_at
-                      ? <span style={{ color: "var(--muted)", fontSize: 11 }}>(đã chốt)</span>
-                      : <>
-                          {/* Giao xong (hoặc gần xong) mà chưa chốt thì phần chênh vẫn nằm ở
-                              "đã ký HĐ chưa giao" — mời chốt ngay tại dòng, khỏi phải mở từng
-                              hợp đồng ra tìm nút. Chỉ hiện ở nhánh CÒN THAO TÁC ĐƯỢC: dòng đã
-                              chuyển sang chỉ xem thì không mọc thêm nút bấm được. */}
-                          {nearlyDone(r) && (
+                    {/* HĐ giao-1-lần ĐÃ GIAO là một lần giao → quá cửa sổ sửa thì chỉ còn xem.
+                        HĐ giao-nhiều-lần không bị khoá: còn phải thêm đợt giao suốt vòng đời. */}
+                    {/* Hợp đồng đã chốt hoàn thành thì khoá — mở lại ở màn chi tiết mới sửa được. */}
+                    {canEdit && meta && <><SourceQuickEdit c={r} meta={meta} onSaved={load} />{" "}</>}
+                    {canEdit && (locked(r.delivered_at)
+                      ? <>
+                          <span style={{ color: "var(--muted)", fontSize: 11 }}>(chỉ xem)</span>
+                          {canRequest(r) && (
                             <>
-                              <button className="btn btn-primary" disabled={completeId === r.id}
-                                title={`Đã giao ${donePct(r).toFixed(1)}% sản lượng hợp đồng`
-                                  + (r.remaining_qty > 1e-9 ? ` — còn ${t3(r.remaining_qty)} tấn` : "")
-                                  + ". Bấm để chốt hoàn thành."}
-                                onClick={() => openComplete(r)}>
-                                {completeId === r.id ? "Đang mở…" : "Hoàn thành"}
-                              </button>{" "}
+                              {" "}<button className="btn" onClick={() => setForm({ initial: r, request: true })}>
+                                <FormOutlined /> Đề nghị sửa
+                              </button>
+                              {" "}<button className="btn" onClick={() => remove(r, true)}><DeleteOutlined /> Đề nghị xoá</button>
                             </>
                           )}
-                          <button className="btn" onClick={() => setForm({ initial: r })}>Sửa</button>{" "}
-                          <button className="btn" onClick={() => remove(r)}>Xoá</button>
-                        </>)}
+                        </>
+                      : r.completed_at
+                        ? <span style={{ color: "var(--muted)", fontSize: 11 }}>(đã chốt)</span>
+                        : <>
+                            {/* Giao xong (hoặc gần xong) mà chưa chốt thì phần chênh vẫn nằm ở
+                                "đã ký HĐ chưa giao" — mời chốt ngay tại dòng, khỏi phải mở từng
+                                hợp đồng ra tìm nút. Chỉ hiện ở nhánh CÒN THAO TÁC ĐƯỢC: dòng đã
+                                chuyển sang chỉ xem thì không mọc thêm nút bấm được. */}
+                            {nearlyDone(r) && (
+                              <>
+                                <button className="btn btn-primary" disabled={completeId === r.id}
+                                  title={`Đã giao ${donePct(r).toFixed(1)}% sản lượng hợp đồng`
+                                    + (r.remaining_qty > 1e-9 ? ` — còn ${t3(r.remaining_qty)} tấn` : "")
+                                    + ". Bấm để chốt hoàn thành."}
+                                  onClick={() => openComplete(r)}>
+                                  {completeId === r.id ? "Đang mở…" : "Hoàn thành"}
+                                </button>{" "}
+                              </>
+                            )}
+                            <button className="btn" onClick={() => setForm({ initial: r })}>Sửa</button>{" "}
+                            <button className="btn" onClick={() => remove(r)}>Xoá</button>
+                          </>)}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -400,7 +404,8 @@ export default function SalesContractPage() {
                   <DryNote wet={totals.remaining_qty} dry={totals.remaining_dry_qty} />
                 </td>
                 <td className="r">{totals.children.toLocaleString("vi-VN")}</td>
-                <td colSpan={3} />
+                {/* Ô cuối đứng riêng dưới cột Thao tác (cột ghim phải) — gộp 3 cột thì cả khối bị ghim theo. */}
+                <td colSpan={2} /><td />
               </tr>
             </tfoot>
           )}

@@ -13,14 +13,19 @@ type Props = {
   c: Contract;
   meta: ContractMeta;
   onSaved: () => void;
+  /** Chữ trên nút. Màn chi tiết đủ chỗ ghi rõ "từng chủng loại"; trong bảng giữ ngắn để cột Thao tác
+   *  (ghim phải) không phình — rê chuột vẫn thấy câu đầy đủ. */
+  label?: string;
 };
+
+const HINT = "Sửa nguồn tiêu thụ (khai thác · thu mua · hàng hóa) của TỪNG dòng chủng loại";
 
 /** Nút «Sửa nguồn» của một lần giao — chỉ đổi NGUỒN TIÊU THỤ của từng dòng chủng loại, kể cả lần
  *  giao ĐÃ KHOÁ (quá cửa sổ sửa / đã chốt số liệu), mở có hạn (`meta.source_self_edit_until`). Hết
  *  hạn thì không hiện nút, đơn vị quay về «Đề nghị sửa». Nút hiện ở mọi lần giao đã có ngày giao,
  *  không dò xem lần giao có khoá hay không: web chỉ biết cửa sổ sửa, còn mốc chốt số liệu chỉ
  *  server biết. */
-export default function SourceQuickEdit({ c, meta, onSaved }: Props) {
+export default function SourceQuickEdit({ c, meta, onSaved, label = "Sửa nguồn" }: Props) {
   const until = meta.source_self_edit_until;
   const [open, setOpen] = useState(false);
   // Giá trị đầu = nguồn đang tính của từng dòng (dòng cũ chưa khai nguồn riêng → nguồn của lần
@@ -47,8 +52,9 @@ export default function SourceQuickEdit({ c, meta, onSaved }: Props) {
 
   return (
     <>
-      <button className="btn" onClick={() => { setValues(initial()); setErr(""); setOpen(true); }}>
-        <EditOutlined /> Sửa nguồn
+      <button className="btn" title={HINT}
+        onClick={() => { setValues(initial()); setErr(""); setOpen(true); }}>
+        <EditOutlined /> {label}
       </button>
       <Modal open={open} title={`Sửa nguồn tiêu thụ — ${c.parent_id ? "đợt giao" : "hợp đồng"} ${c.code}`}
         okText="Lưu" cancelText="Huỷ" confirmLoading={busy} onOk={save}
