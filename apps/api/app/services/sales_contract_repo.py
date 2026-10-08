@@ -82,13 +82,43 @@ def _batches_qty(db, parent_id: int, exclude_id: int | None) -> float:
 def assert_open(contract: dict[str, Any], what: str) -> None:
     """Hợp đồng đã HOÀN THÀNH thì khoá lại — sửa tiếp là đổi số của một kỳ đã chốt.
 
-    Chặn ở đây (không chỉ ở nút bấm) vì đây là chỗ duy nhất mọi đường ghi đi qua.
+    Chặn ở đây (không chỉ ở nút bấm) vì đây là chỗ duy nhất mọi đường ghi đi qua. Ngoại lệ duy nhất:
+    Ban duyệt đề nghị sửa (`allow_completed`) — thay bằng `assert_fits_completion`.
     """
     if contract.get("completed_at"):
         d = str(contract["completed_at"])
         raise ValueError(
             f"Hợp đồng {contract.get('code')} đã hoàn thành ngày "
             f"{d[8:10]}/{d[5:7]}/{d[:4]} — bấm “Mở lại hợp đồng” trước khi {what}.")
+
+
+def assert_fits_completion(contract: dict[str, Any], *, delivered_at: str | None = None,
+                           sign_date: str | None = None, lines: list | None = None) -> None:
+    """Ban DUYỆT đề nghị sửa thì ghi thẳng vào hợp đồng ĐÃ HOÀN THÀNH, không bắt mở lại (chốt
+    08/10/2026: đơn vị gửi đề nghị xong lại bấm Hoàn thành ⇒ đề nghị kẹt). Chỉ chặn khi lần sửa đẩy
+    một mốc ra SAU ngày hoàn thành — đúng các luật `set_completion` kiểm lúc chốt."""
+    if not contract.get("completed_at"):
+        return
+    done = str(contract["completed_at"])[:10]
+    for label, day in (("Ngày giao", delivered_at), ("Ngày ký", sign_date),
+                       ("Dòng hiệu lực từ", line_dates.latest_start(lines))):
+        if day and str(day)[:10] > done:
+            raise ValueError(
+                f"{label} {_dmy(day)} sau ngày hoàn thành hợp đồng {contract.get('code')} "
+                f"({_dmy(done)}) — mở lại hợp đồng rồi mới duyệt được; duyệt xong hoàn thành lại "
+                "từ ngày đó trở đi.")
+
+
+def _assert_editable(contract: dict[str, Any], what: str, allow_completed: bool, **dates: Any) -> None:
+    if allow_completed:
+        assert_fits_completion(contract, **dates)
+    else:
+        assert_open(contract, what)
+
+
+def _dmy(v: Any) -> str:
+    v = str(v)
+    return f"{v[8:10]}/{v[5:7]}/{v[:4]}"
 
 
 _INSERT = text(
@@ -166,9 +196,12 @@ def _prepare(row: dict, company: str) -> dict[str, Any]:
     return d
 
 
-def _assert_rules(db, d: dict[str, Any], company: str) -> None:
+def _assert_rules(db, d: dict[str, Any], company: str, *, allow_completed: bool = False) -> None:
     """Mọi luật cần đọc DB của một lần lưu. `save` và `validate` gọi CHUNG hàm này — luật đổi ở đây
-    thì kiểm trước (form, lúc gửi đề nghị sửa) và lưu thật tự đổi theo."""
+    thì kiểm trước (form, lúc gửi đề nghị sửa) và lưu thật tự đổi theo.
+
+    `allow_completed` = Ban đang duyệt đề nghị sửa: hợp đồng đã hoàn thành không chặn, chỉ kiểm
+    `assert_fits_completion`."""
     old_code = None
     if d["id"] is not None:
         cur = db.execute(text("SELECT company, parent_id, delivery_type, code, completed_at "
@@ -178,7 +211,8 @@ def _assert_rules(db, d: dict[str, Any], company: str) -> None:
             raise ValueError("Hợp đồng không còn tồn tại (có thể đã bị xoá).")
         if cur["company"] != company:
             raise ValueError("Hợp đồng thuộc đơn vị khác.")
-        assert_open(dict(cur), "sửa")
+        _assert_editable(dict(cur), "sửa", allow_completed, delivered_at=d["delivered_at"],
+                         sign_date=d["sign_date"], lines=d["lines"])
         old_code = cur["code"]
         # Cấp bậc KHÔNG đổi được khi sửa: `_UPDATE` không ghi `parent_id`, nên nhận `parent_id`
         # khác trong payload sẽ kiểm hạn mức trên HỢP ĐỒNG KHÁC rồi vẫn nằm ở hợp đồng cũ —
@@ -216,7 +250,7 @@ def _assert_rules(db, d: dict[str, Any], company: str) -> None:
     if parent is not None:
         if parent["delivery_type"] != "multi":
             raise ValueError("Chỉ hợp đồng loại “giao nhiều lần” mới thêm được đợt giao.")
-        assert_open(parent, "thêm/sửa đợt giao")
+        _assert_editable(parent, "thêm/sửa đợt giao", allow_completed, delivered_at=d["delivered_at"])
         if parent["sign_date"] and d["delivered_at"] and d["delivered_at"] < parent["sign_date"]:
             raise ValueError("Ngày giao của đợt không thể trước ngày ký hợp đồng.")
         line_dates.assert_batch_not_before_grade(
@@ -226,24 +260,25 @@ def _assert_rules(db, d: dict[str, Any], company: str) -> None:
         _assert_within_cap(done + calc.total_qty(d["lines"]), parent["qty"], "Tổng các đợt giao")
 
 
-def validate(row: dict, company: str) -> dict[str, Any]:
+def validate(row: dict, company: str, *, allow_completed: bool = False) -> dict[str, Any]:
     """Kiểm Y NHƯ `save` nhưng KHÔNG ghi. Router gọi TRƯỚC hàng rào thời gian và luồng đề nghị sửa
     gọi lúc đơn vị gửi: dữ liệu sai (trùng số, vượt sản lượng…) phải báo ngay trên form, không để
     lọt thành một đề nghị mà Ban bấm Duyệt mới lộ lỗi. Raise ValueError như `save`."""
     d = _prepare(row, company)
     ensure_schema()
     with session_scope() as db:
-        _assert_rules(db, d, company)
+        _assert_rules(db, d, company, allow_completed=allow_completed)
     return d
 
 
-def save(row: dict, company: str, updated_by: str | None) -> dict[str, Any]:
+def save(row: dict, company: str, updated_by: str | None, *,
+         allow_completed: bool = False) -> dict[str, Any]:
     """Thêm mới (không có id) hoặc cập nhật. Raise ValueError nếu vi phạm nghiệp vụ."""
     d = _prepare(row, company)
     ensure_schema()
     before = get(d["id"]) if d["id"] is not None else None
     with session_scope() as db:
-        _assert_rules(db, d, company)
+        _assert_rules(db, d, company, allow_completed=allow_completed)
         if d["id"] is not None:
             db.execute(_UPDATE, _params(d, updated_by))
             new_id = d["id"]
@@ -294,8 +329,9 @@ def children(parent_id: int) -> list[dict[str, Any]]:
     return [_row(r) for r in rows]
 
 
-def delete(contract_id: int, companies: list[str] | None) -> bool:
-    """Xoá 1 hợp đồng / đợt giao. Hợp đồng còn đợt giao thì phải xoá các đợt trước."""
+def delete(contract_id: int, companies: list[str] | None, *, allow_completed: bool = False) -> bool:
+    """Xoá 1 hợp đồng / đợt giao. Hợp đồng còn đợt giao thì phải xoá các đợt trước.
+    `allow_completed` = Ban duyệt đề nghị xoá: hợp đồng đã hoàn thành không chặn."""
     ensure_schema()
     before = get(contract_id)
     with session_scope() as db:
@@ -303,10 +339,11 @@ def delete(contract_id: int, companies: list[str] | None) -> bool:
                          {"i": contract_id}).scalar()
         if cur is None or (companies is not None and cur not in companies):
             return False
-        if before:
+        if before and not allow_completed:
             assert_open(before, "xoá")
             # Xoá một đợt của hợp đồng đã chốt cũng bị chặn — nếu không, sản lượng đã hoàn thành
-            # tự dưng hụt đi mà hợp đồng vẫn ở trạng thái "đã xong".
+            # tự dưng hụt đi mà hợp đồng vẫn ở trạng thái "đã xong". Ban duyệt đề nghị xoá thì cho
+            # qua: đó chính là người có quyền quyết định hụt đi như vậy.
             if before.get("parent_id"):
                 assert_open(get(before["parent_id"]) or {}, "xoá đợt giao")
         kids = db.execute(text("SELECT count(*) FROM sales_contract WHERE parent_id = :i"),

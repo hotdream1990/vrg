@@ -5,10 +5,15 @@ Hàng rào = `sales_contract_lock.assert_delivery_fences` (đúng hàm router `/
 sửa an toàn (`is_safe_edit` — không dịch con số nào) thì không bị chặn nên không cần đề nghị.
 Phạm vi đơn vị giống router hợp đồng (`cap_or_member_scope`): đơn vị được gán + đơn vị đã SÁP NHẬP
 vào đó (hợp đồng dở dang của đơn vị cũ). Khi duyệt, repo vẫn kiểm hợp đồng thuộc đúng đơn vị.
+
+Hợp đồng ĐÃ HOÀN THÀNH: lúc GỬI vẫn chặn (đơn vị phải “Mở lại hợp đồng”), lúc DUYỆT thì không
+(chốt 08/10/2026) — đơn vị hay gửi đề nghị xong lại bấm Hoàn thành, đề nghị kẹt dù nội dung đúng.
+Duyệt chỉ bị chặn khi lần sửa đẩy ngày giao/ngày ký ra sau ngày hoàn thành.
 """
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
 from fastapi import HTTPException
@@ -26,6 +31,7 @@ from app.services import sales_contract_calc as calc
 from app.services.edit_request_ops import Op, collect_blocked, parse, uniq_dates
 
 _NOT_FOUND = "Không tìm thấy hợp đồng trong phạm vi tài khoản."
+_IGNORE = ("completed_at",)   # duyệt không ghi ngày hoàn thành — chốt sau lúc gửi không phải "đã đổi"
 
 
 def _scope(user: dict, company: str, _p: dict) -> None:
@@ -111,12 +117,12 @@ def _save_company(p: dict, before: dict | None) -> str:
     return p["company"]
 
 
-def _save_precheck(p: dict, _before: dict | None) -> None:
+def _save_precheck(p: dict, _before: dict | None, allow_completed: bool = False) -> None:
     """ĐÚNG bộ luật lưu thật (`sales_contract_repo.validate`, chỉ không ghi): khách hàng, loại, ngày,
     dòng chi tiết, trùng số hợp đồng/đợt giao, hợp đồng cha, hạn mức sản lượng, hợp đồng đã hoàn
     thành… Sai thì báo ngay lúc gửi; lúc duyệt chạy lại để bắt thay đổi xảy ra sau khi gửi."""
     try:
-        sales_contract_repo.validate(_compat(p), p["company"])
+        sales_contract_repo.validate(_compat(p), p["company"], allow_completed=allow_completed)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -135,7 +141,8 @@ def _save_blocked(username: str, p: dict, before: dict | None) -> list[str]:
 
 def _save_apply(p: dict, requester: str, company: str) -> dict:
     try:
-        return {"contract": sales_contract_repo.save(_compat(p), company, requester)}
+        return {"contract": sales_contract_repo.save(_compat(p), company, requester,
+                                                     allow_completed=True)}
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -154,7 +161,7 @@ def _record_company(_p: dict, before: dict | None) -> str:
 
 def _delete_apply(p: dict, _requester: str, company: str) -> dict:
     try:
-        ok = sales_contract_repo.delete(p["id"], [company])
+        ok = sales_contract_repo.delete(p["id"], [company], allow_completed=True)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     if not ok:
@@ -170,13 +177,14 @@ def _dtype_validate(payload: Any) -> dict:
     return {"id": body.id, "delivery_type": body.delivery_type}
 
 
-def _dtype_precheck(p: dict, before: dict | None) -> None:
+def _dtype_precheck(p: dict, before: dict | None, allow_completed: bool = False) -> None:
     """ĐÚNG luật của lúc ghi thật (`sales_contract_lifecycle.assert_switchable`): hợp đồng đã hoàn
     thành, đang có đợt giao mà đòi quay về giao 1 lần… Báo ngay lúc gửi, không đợi Ban bấm Duyệt."""
     if before is None:
         raise HTTPException(404, _NOT_FOUND)
     try:
-        sales_contract_lifecycle.assert_switchable(before, p["delivery_type"])
+        sales_contract_lifecycle.assert_switchable(before, p["delivery_type"],
+                                                   allow_completed=allow_completed)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -184,7 +192,7 @@ def _dtype_precheck(p: dict, before: dict | None) -> None:
 def _dtype_apply(p: dict, requester: str, company: str) -> dict:
     try:
         return {"contract": sales_contract_lifecycle.set_delivery_type(
-            p["id"], p["delivery_type"], [company], requester)}
+            p["id"], p["delivery_type"], [company], requester, allow_completed=True)}
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:
@@ -196,6 +204,7 @@ OPS: dict[str, Op] = {
         label=lambda _p: "Hợp đồng",
         validate=_save_validate, snapshot=_save_snapshot, company=_save_company,
         check_scope=_scope, precheck=_save_precheck, target_key=_save_key, labels=_labels,
+        review_precheck=partial(_save_precheck, allow_completed=True), ignore_changes=_IGNORE,
         title=lambda p, _b: f"{_kind(p).capitalize()} {p['code']}",
         dates=lambda p, b: uniq_dates((b or {}).get("delivered_at"), p.get("delivered_at")),
         blocked=_save_blocked, apply=_save_apply),
@@ -204,6 +213,8 @@ OPS: dict[str, Op] = {
         validate=lambda payload: {"id": parse(ContractDeleteRequest, payload).id},
         snapshot=lambda p: sales_contract_repo.get(p["id"]),
         company=_record_company, check_scope=_scope, precheck=_delete_precheck, labels=_labels,
+        review_precheck=lambda _p, _b: None,       # xoá không dời mốc nào ⇒ duyệt không còn gì chặn
+        ignore_changes=_IGNORE,
         target_key=lambda p: f"contract:{p['id']}",
         title=lambda p, b: f"Xoá {_kind(b)} {(b or {}).get('code') or '#' + str(p['id'])}",
         dates=lambda _p, b: uniq_dates((b or {}).get("delivered_at")),
@@ -218,6 +229,7 @@ OPS: dict[str, Op] = {
         label=lambda _p: "Chuyển loại giao hợp đồng",
         validate=_dtype_validate, snapshot=lambda p: sales_contract_repo.get(p["id"]),
         company=_record_company, check_scope=_scope, precheck=_dtype_precheck, labels=_labels,
+        review_precheck=partial(_dtype_precheck, allow_completed=True), ignore_changes=_IGNORE,
         target_key=lambda p: f"contract:{p['id']}",
         title=lambda p, b: (f"Hợp đồng {(b or {}).get('code') or '#' + str(p['id'])} — chuyển sang "
                             f"{DELIVERY_TYPES[p['delivery_type']].lower()}"),

@@ -69,7 +69,7 @@ def detail(req_id: int) -> dict[str, Any]:
     will = (unlock_plan(req["company"], _effective_dates(op, req, current), _until(op, req["payload"] or {}))
             if pending and op.lockable else [])
     return {"request": req, "current": current,
-            "changed_since_submit": changed_since(current, req["before"]),
+            "changed_since_submit": changed_since(current, req["before"], op.ignore_changes),
             "still_blocked": still,
             "cannot_approve": _approval_problem(op, req["payload"] or {}, current) if pending else None,
             "labels": op.labels([req["payload"], req["before"], current]) if op.labels else {},
@@ -77,12 +77,13 @@ def detail(req_id: int) -> dict[str, Any]:
 
 
 def _approval_problem(op: Op, payload: dict, current: dict | None) -> str | None:
-    """Câu lỗi nghiệp vụ mà bấm Duyệt CHẮC CHẮN gặp (cùng `op.precheck` của `approve`) — trang duyệt
+    """Câu lỗi nghiệp vụ mà bấm Duyệt CHẮC CHẮN gặp (cùng luật kiểm của `approve`) — trang duyệt
     báo trước để Ban từ chối kèm hướng dẫn, khỏi bấm Duyệt nhiều lần. None = không thấy vướng gì."""
-    if not op.precheck:
+    check = op.review_precheck or op.precheck
+    if not check:
         return None
     try:
-        op.precheck(payload, current)
+        check(payload, current)
     except HTTPException as exc:
         return str(exc.detail)
     return None
@@ -126,9 +127,9 @@ def approve(req_id: int, reviewer: str, note: str | None, expected_updated_at: s
         if company != row["company"]:
             raise HTTPException(403, "Bản ghi đã chuyển sang đơn vị khác — hãy từ chối đề nghị này.")
         op.check_scope(_requester(row["requested_by"]), company, payload)
-        if op.precheck:
-            op.precheck(payload, current)
-        if changed_since(current, row["before"]) and not accept_changed:
+        if check := op.review_precheck or op.precheck:
+            check(payload, current)
+        if changed_since(current, row["before"], op.ignore_changes) and not accept_changed:
             raise HTTPException(409, _CHANGED)
         dates = _effective_dates(op, row, current)
         with request_ctx.use_note(f"Duyệt đề nghị sửa #{req_id} của {row['requested_by']}"):

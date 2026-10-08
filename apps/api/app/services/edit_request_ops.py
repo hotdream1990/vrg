@@ -8,8 +8,8 @@ hưởng, câu báo chặn và cách GHI THẬT khi Ban duyệt.
 Hai nguyên tắc cứng:
 - `blocked` GỌI CHÍNH các hàng rào hiện có rồi bắt 403 mang header `X-Edit-Blocked` — không viết lại
   luật, nên luật cửa sổ sửa/chốt số liệu đổi ở đâu thì luồng đề nghị tự đổi theo.
-- `apply` bỏ qua HAI hàng rào thời gian nhưng KHÔNG BAO GIỜ bỏ quyền theo đơn vị (`check_scope` chạy
-  lại lúc duyệt) và luật nghiệp vụ của repo.
+- `apply` bỏ qua HAI hàng rào thời gian (và khoá «hợp đồng đã hoàn thành» — `review_precheck`) nhưng
+  KHÔNG BAO GIỜ bỏ quyền theo đơn vị (`check_scope` chạy lại lúc duyệt) và luật nghiệp vụ của repo.
 """
 
 from __future__ import annotations
@@ -50,6 +50,12 @@ class Op:
     blocked: Callable[[str, dict, dict | None], list[str]]
     apply: Callable[[dict, str, str], dict]                # (payload, người gửi, đơn vị) → kết quả
     precheck: Callable[[dict, dict | None], None] | None = None   # luật nghiệp vụ SAU khi đã kiểm quyền
+    # Luật lúc Ban DUYỆT khi khác lúc gửi (None = dùng `precheck`) — vd hợp đồng đã hoàn thành chặn
+    # lúc gửi nhưng không chặn lúc duyệt.
+    review_precheck: Callable[[dict, dict | None], None] | None = None
+    # Ô của ảnh chụp mà thao tác KHÔNG BAO GIỜ ghi — đổi sau lúc gửi thì duyệt cũng không đè mất, nên
+    # không tính là "số liệu đã đổi" (vd `completed_at`: đơn vị gửi đề nghị xong mới bấm Hoàn thành).
+    ignore_changes: tuple[str, ...] = ()
     # Nhãn hiển thị cho giá trị thô trong bảng so sánh: (payload, trước, hiện tại) → {ô: {giá trị: nhãn}}.
     labels: Callable[[list[dict | None]], dict[str, dict[str, str]]] | None = None
     # Số liệu có nằm trong CHỐT SỐ LIỆU không — False (nhu cầu thị trường) ⇒ duyệt không gỡ chốt.
@@ -141,9 +147,13 @@ def canon(value: Any) -> Any:
     return str(value)
 
 
-def changed_since(current: Any, before: Any) -> bool:
-    """Bản ghi đã đổi kể từ lúc gửi? Dùng CHUNG cho màn chi tiết lẫn lúc duyệt thật."""
-    return canon(current) != canon(before)
+def changed_since(current: Any, before: Any, ignore: tuple[str, ...] = ()) -> bool:
+    """Bản ghi đã đổi kể từ lúc gửi? Dùng CHUNG cho màn chi tiết lẫn lúc duyệt thật. `ignore` =
+    `Op.ignore_changes`."""
+    def strip(v: Any) -> Any:
+        return {k: x for k, x in v.items() if k not in ignore} if isinstance(v, dict) else v
+
+    return canon(strip(current)) != canon(strip(before))
 
 
 def clean_reason(reason: str | None) -> str:

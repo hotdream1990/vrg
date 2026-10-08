@@ -226,18 +226,21 @@ def set_completion(contract_id: int, completed_at: str | None, companies: list[s
     return after
 
 
-def assert_switchable(contract: dict[str, Any], delivery_type: str, kids: int | None = None) -> None:
+def assert_switchable(contract: dict[str, Any], delivery_type: str, kids: int | None = None, *,
+                      allow_completed: bool = False) -> None:
     """Luật của việc CHUYỂN LOẠI GIAO — chỉ kiểm, KHÔNG ghi gì.
 
     Tách riêng để luồng «Đề nghị sửa» (`edit_request_ops_contract`) kiểm y hệt lúc đơn vị GỬI và
     lúc Ban mở đề nghị ra xem — không để bấm Duyệt rồi mới biết vướng. `kids` = số đợt giao đã đếm
-    sẵn trong giao dịch ghi thật; None thì tự đếm.
+    sẵn trong giao dịch ghi thật; None thì tự đếm. `allow_completed` = Ban đang duyệt: hợp đồng đã
+    hoàn thành không chặn (chuyển loại giao không dời ngày giao nào nên không vượt ngày hoàn thành).
     """
     if delivery_type not in DELIVERY_TYPES:
         raise ValueError(f"Loại giao “{delivery_type}” không hợp lệ.")
     if contract.get("parent_id") is not None:
         raise ValueError("Thao tác này chỉ áp dụng cho hợp đồng, không áp dụng cho đợt giao.")
-    repo.assert_open(contract, "chuyển loại giao")
+    if not allow_completed:
+        repo.assert_open(contract, "chuyển loại giao")
     if delivery_type == "single":
         n = len(repo.children(contract["id"])) if kids is None else kids
         if n:
@@ -246,7 +249,7 @@ def assert_switchable(contract: dict[str, Any], delivery_type: str, kids: int | 
 
 
 def set_delivery_type(contract_id: int, delivery_type: str, companies: list[str] | None,
-                      username: str | None) -> dict[str, Any]:
+                      username: str | None, *, allow_completed: bool = False) -> dict[str, Any]:
     """Chuyển hợp đồng giữa giao-1-lần ↔ giao-nhiều-lần, giữ nguyên dữ liệu đã nhập."""
     before = _load(contract_id, companies)
     if before["delivery_type"] == delivery_type:
@@ -256,7 +259,7 @@ def set_delivery_type(contract_id: int, delivery_type: str, companies: list[str]
     with session_scope() as db:
         kids = db.execute(text("SELECT count(*) FROM sales_contract WHERE parent_id = :i"),
                           {"i": contract_id}).scalar() or 0
-        assert_switchable(before, delivery_type, kids=kids)
+        assert_switchable(before, delivery_type, kids=kids, allow_completed=allow_completed)
         if delivery_type == "single":
             db.execute(text("UPDATE sales_contract SET delivery_type = 'single', "
                             "updated_by = :by, updated_at = now() WHERE id = :i"),
