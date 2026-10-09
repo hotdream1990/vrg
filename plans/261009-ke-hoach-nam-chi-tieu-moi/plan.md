@@ -1,6 +1,6 @@
 # Kế hoạch năm: bộ chỉ tiêu mới (7 nhóm · 23 chỉ tiêu)
 
-Ngày lập: 09/10/2026 · Nhánh: `feature/master-contract` · Trạng thái: **Giai đoạn 1 làm xong (09/10), chờ commit và deploy**
+Ngày lập: 09/10/2026 · Nhánh: `feature/master-contract` · Trạng thái: **Giai đoạn 1 đã deploy lên prod 0.4.116 (09/10/2026)**
 
 > Tài liệu SỐNG: sau mỗi lần chốt thêm hoặc làm xong một bước, sửa ngay bảng Giai đoạn, mục
 > "Nhật ký quyết định" và "Việc chờ trả lời" ở dưới. Người đọc sau chỉ cần file này để biết đang ở đâu.
@@ -22,7 +22,7 @@ Màn "Kế hoạch năm" hiện chỉ có 8 ô; file có nhiều chỉ tiêu hơ
 | # | Giai đoạn | File | Trạng thái |
 |---|---|---|---|
 | 0 | Bảng 23 chỉ tiêu + ánh xạ cột file (nguồn sự thật) | [phase-00](phase-00-bang-chi-tieu-final.md) | Xong (còn 4 câu chờ) |
-| 1 | **Màn hình nhập kế hoạch năm** (DB · API · web · Excel mẫu) | [phase-01](phase-01-man-hinh-nhap-ke-hoach.md) | Xong, chờ commit/deploy |
+| 1 | **Màn hình nhập kế hoạch năm** (DB · API · web · Excel mẫu) | [phase-01](phase-01-man-hinh-nhap-ke-hoach.md) | **Đã deploy 0.4.116** |
 | 2 | Ban nạp kế hoạch từ file Excel | [phase-02](phase-02-nap-ke-hoach-tu-file.md) | Chưa làm |
 | 3 | Đơn vị xác nhận kế hoạch | [phase-03](phase-03-xac-nhan-ke-hoach.md) | Chưa làm |
 | 4 | So sánh thực hiện trên Dashboard (chỉ tiêu đã có số) | [phase-04](phase-04-so-sanh-thuc-hien.md) | Chưa làm |

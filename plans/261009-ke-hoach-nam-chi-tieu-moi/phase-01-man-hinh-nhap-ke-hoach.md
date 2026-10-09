@@ -1,6 +1,6 @@
 # Giai đoạn 1 — Màn hình nhập Kế hoạch năm (DB · API · web · Excel mẫu)
 
-Trạng thái: **làm xong, chờ commit và deploy** (làm trong ngày 09/10/2026). Bảng chỉ tiêu: [phase-00](phase-00-bang-chi-tieu-final.md) — đọc trước.
+Trạng thái: **ĐÃ DEPLOY lên prod, phiên bản 0.4.116 (09/10/2026)**. Bảng chỉ tiêu: [phase-00](phase-00-bang-chi-tieu-final.md) — đọc trước.
 Không làm ở giai đoạn này: nạp từ file (phase-02), nút xác nhận (phase-03), % thực hiện trên Dashboard (phase-04).
 
 ## Kết quả cần có
@@ -112,10 +112,11 @@ Web không có test tự động; kiểm tay + ảnh chụp lưu ở `visuals/`.
   gõ ô con → tổng đổi ngay · rời ô không đổi → không gọi API · chỉ gửi khoá đã đổi · đơn vị đã chốt xem được, nút «Đề nghị sửa» ở đầu cột ·
   gửi đề nghị với ô mới → Ban thấy dòng tổng doanh thu 2.124,092 → 40 → duyệt → ghi đúng · giả lập tab cũ gửi cả hàng → tổng giữ nguyên · gõ 1 phím với 1.134 ô mất ~7 ms.
 
-## Còn lại trước khi đưa lên prod
-- [ ] Commit (tách riêng khỏi các tài liệu `plans/`), tăng phiên bản, ghi `docs/project/project-changelog.md`.
-- [ ] Deploy **backend trước**; bảng tự thêm 11 cột lúc API khởi động (`ADD COLUMN IF NOT EXISTS`), không cần chạy SQL tay, không đổi số liệu cũ.
-- [ ] Sau deploy: mở màn Kế hoạch năm bằng tài khoản Ban và 1 tài khoản đơn vị; kiểm đơn vị cũ chỉ có tổng vẫn thấy «số cũ».
+## Đã đưa lên prod (09/10/2026)
+- Commit: `cacd490` (code) · `acc96fe` (plan) · `12d4d72` (bump 0.4.116). Chưa push git.
+- Build trên server 225 giây, deploy bằng `dokploy-redeploy.local.sh`; app khoẻ, openapi báo 0.4.116, bundle web không còn `localhost:8390`, log 0 lỗi.
+- Prod đã có đủ 11 cột mới (migration tự chạy lúc khởi động). Chưa có đơn vị nào nhập chỉ tiêu mới; đơn vị cũ chỉ có tổng doanh thu vẫn hiện «số cũ».
+- Người dùng cần Cmd+Shift+R để nạp web mới.
 - [ ] Hướng dẫn người dùng cuối (sổ tay) cập nhật khi chốt Q2–Q4, không ghi chi tiết kỹ thuật vào đó.
 - Nhập Excel kế hoạch năm trên web đang tắt (`EXCEL_IMPORT_ENABLED=false`) nên 5 test Excel qua endpoint bị skip; hàm đã được test trực tiếp.
 - Hai file có sẵn đã vượt 200 dòng từ trước: `lib/unit-daily-client.ts` (359) và `lib/edit-request-diff.ts` (261) — chỉ thêm ít dòng, chưa tách.
