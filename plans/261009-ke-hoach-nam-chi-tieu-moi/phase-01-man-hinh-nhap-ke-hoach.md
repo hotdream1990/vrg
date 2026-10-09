@@ -1,6 +1,6 @@
 # Giai đoạn 1 — Màn hình nhập Kế hoạch năm (DB · API · web · Excel mẫu)
 
-Trạng thái: **ĐÃ DEPLOY lên prod, phiên bản 0.4.116 (09/10/2026)**. Bảng chỉ tiêu: [phase-00](phase-00-bang-chi-tieu-final.md) — đọc trước.
+Trạng thái: **ĐÃ DEPLOY lên prod — 0.4.116, cập nhật 0.4.117 (09/10/2026)**. Bảng chỉ tiêu: [phase-00](phase-00-bang-chi-tieu-final.md) — đọc trước.
 Không làm ở giai đoạn này: nạp từ file (phase-02), nút xác nhận (phase-03), % thực hiện trên Dashboard (phase-04).
 
 ## Kết quả cần có

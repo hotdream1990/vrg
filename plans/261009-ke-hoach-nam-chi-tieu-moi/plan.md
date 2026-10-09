@@ -1,6 +1,6 @@
 # Kế hoạch năm: bộ chỉ tiêu mới (7 nhóm · 25 chỉ tiêu)
 
-Ngày lập: 09/10/2026 · Nhánh: `feature/master-contract` · Trạng thái: **Giai đoạn 1 đã deploy lên prod 0.4.116 (09/10/2026)**
+Ngày lập: 09/10/2026 · Nhánh: `feature/master-contract` · Trạng thái: **Giai đoạn 1 đã deploy lên prod 0.4.117 (09/10/2026)**
 
 > Tài liệu SỐNG: sau mỗi lần chốt thêm hoặc làm xong một bước, sửa ngay bảng Giai đoạn, mục
 > "Nhật ký quyết định" và "Việc chờ trả lời" ở dưới. Người đọc sau chỉ cần file này để biết đang ở đâu.
@@ -22,7 +22,7 @@ Màn "Kế hoạch năm" hiện chỉ có 8 ô; file có nhiều chỉ tiêu hơ
 | # | Giai đoạn | File | Trạng thái |
 |---|---|---|---|
 | 0 | Bảng 23 chỉ tiêu + ánh xạ cột file (nguồn sự thật) | [phase-00](phase-00-bang-chi-tieu-final.md) | Xong (còn 4 câu chờ) |
-| 1 | **Màn hình nhập kế hoạch năm** (DB · API · web · Excel mẫu) | [phase-01](phase-01-man-hinh-nhap-ke-hoach.md) | **Đã deploy 0.4.116** |
+| 1 | **Màn hình nhập kế hoạch năm** (DB · API · web · Excel mẫu) | [phase-01](phase-01-man-hinh-nhap-ke-hoach.md) | **Đã deploy 0.4.117** |
 | 2 | Ban nạp kế hoạch từ file Excel | [phase-02](phase-02-nap-ke-hoach-tu-file.md) | Chưa làm |
 | 3 | Đơn vị xác nhận kế hoạch | [phase-03](phase-03-xac-nhan-ke-hoach.md) | Chưa làm |
 | 4 | So sánh thực hiện trên Dashboard (chỉ tiêu đã có số) | [phase-04](phase-04-so-sanh-thuc-hien.md) | Chưa làm |
@@ -52,5 +52,5 @@ Màn "Kế hoạch năm" hiện chỉ có 8 ô; file có nhiều chỉ tiêu hơ
 | Q8 | Ai được nhập 11 ô mới? Mặc định loại nhập liệu "Hợp đồng" như các ô còn lại, chỉ KH thu mua thuộc loại "Thu mua". Lưu ý có loại thứ ba "Tồn kho": 3 ô tồn kho thành phẩm có thể thuộc loại này, nhưng khi đó tài khoản chỉ có loại Tồn kho hiện không vào được màn Kế hoạch năm (màn chỉ mở cho loại Thu mua/Hợp đồng) | Phase 1 | Loại Hợp đồng cho cả 11 ô |
 
 ## Nhật ký thay đổi tài liệu
-- 09/10/2026 (chiều): chủ dự án thêm 2 dòng tổng ở nhóm Hợp đồng — «Tổng HĐ dài hạn / HĐ chuyến thực hiện trong năm» = hợp đồng của năm + năm trước chuyển sang → 25 chỉ tiêu (chỉ web, chưa deploy).
+- 09/10/2026 (chiều): chủ dự án thêm 2 dòng tổng ở nhóm Hợp đồng — «Tổng HĐ dài hạn / HĐ chuyến thực hiện trong năm» = hợp đồng của năm + năm trước chuyển sang → 25 chỉ tiêu (chỉ web, đã deploy 0.4.117).
 - 09/10/2026: lập kế hoạch từ các quyết định 07–09/10; làm xong Giai đoạn 1 (code + review + kiểm tay); luật doanh thu cuối ghi ở phase-01 mục 2.
