@@ -112,6 +112,8 @@ Web không có test tự động; kiểm tay + ảnh chụp lưu ở `visuals/`.
   gõ ô con → tổng đổi ngay · rời ô không đổi → không gọi API · chỉ gửi khoá đã đổi · đơn vị đã chốt xem được, nút «Đề nghị sửa» ở đầu cột ·
   gửi đề nghị với ô mới → Ban thấy dòng tổng doanh thu 2.124,092 → 40 → duyệt → ghi đúng · giả lập tab cũ gửi cả hàng → tổng giữ nguyên · gõ 1 phím với 1.134 ô mất ~7 ms.
 
+- **09/10 chiều — thêm 2 tổng hợp đồng** (yêu cầu chủ dự án): nhóm Hợp đồng xếp theo loại (dài hạn: đã ký · năm trước chuyển sang · TỔNG; chuyến: KH tiêu thụ · năm trước chuyển sang · TỔNG); chỉ đổi web (`year-plan-sections.ts`, `year-plan-labels.ts`), không đổi API/DB vì tổng tính khi đọc. Chưa deploy.
+
 ## Đã đưa lên prod (09/10/2026)
 - Commit: `cacd490` (code) · `acc96fe` (plan) · `12d4d72` (bump 0.4.116). Chưa push git.
 - Build trên server 225 giây, deploy bằng `dokploy-redeploy.local.sh`; app khoẻ, openapi báo 0.4.116, bundle web không còn `localhost:8390`, log 0 lỗi.

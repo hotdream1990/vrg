@@ -1,4 +1,4 @@
-# Kế hoạch năm: bộ chỉ tiêu mới (7 nhóm · 23 chỉ tiêu)
+# Kế hoạch năm: bộ chỉ tiêu mới (7 nhóm · 25 chỉ tiêu)
 
 Ngày lập: 09/10/2026 · Nhánh: `feature/master-contract` · Trạng thái: **Giai đoạn 1 đã deploy lên prod 0.4.116 (09/10/2026)**
 
@@ -29,7 +29,7 @@ Màn "Kế hoạch năm" hiện chỉ có 8 ô; file có nhiều chỉ tiêu hơ
 | 5 | Bổ sung số thực hiện còn thiếu (khai thác · chế biến · tồn kho theo nguồn) | [phase-05](phase-05-bo-sung-so-thuc-hien.md) | Chưa làm |
 
 ## Tóm tắt thiết kế (chi tiết ở phase-00)
-- **19 cột lưu** trong `unit_purchase_plan` (8 cũ + 11 mới); **4 tổng tính khi đọc** (thu mua, chế biến, tiêu thụ, tồn kho).
+- **19 cột lưu** trong `unit_purchase_plan` (8 cũ + 11 mới); **6 tổng tính khi đọc** (thu mua, chế biến, tiêu thụ, tồn kho, HĐ dài hạn, HĐ chuyến).
 - `plan_revenue_ty` GIỮ nguyên cột và tên để mọi nơi đang đọc (Dashboard, báo cáo kỳ, cảnh báo, trợ lý AI) không đổi;
   nhưng giá trị do **server cộng từ 3 mục con doanh thu** mỗi lần lưu.
 - Ô mới đều tuỳ chọn, **chưa tính vào cảnh báo "thiếu kế hoạch"** cho tới khi Ban chốt (xem phase-01).
@@ -52,4 +52,5 @@ Màn "Kế hoạch năm" hiện chỉ có 8 ô; file có nhiều chỉ tiêu hơ
 | Q8 | Ai được nhập 11 ô mới? Mặc định loại nhập liệu "Hợp đồng" như các ô còn lại, chỉ KH thu mua thuộc loại "Thu mua". Lưu ý có loại thứ ba "Tồn kho": 3 ô tồn kho thành phẩm có thể thuộc loại này, nhưng khi đó tài khoản chỉ có loại Tồn kho hiện không vào được màn Kế hoạch năm (màn chỉ mở cho loại Thu mua/Hợp đồng) | Phase 1 | Loại Hợp đồng cho cả 11 ô |
 
 ## Nhật ký thay đổi tài liệu
+- 09/10/2026 (chiều): chủ dự án thêm 2 dòng tổng ở nhóm Hợp đồng — «Tổng HĐ dài hạn / HĐ chuyến thực hiện trong năm» = hợp đồng của năm + năm trước chuyển sang → 25 chỉ tiêu (chỉ web, chưa deploy).
 - 09/10/2026: lập kế hoạch từ các quyết định 07–09/10; làm xong Giai đoạn 1 (code + review + kiểm tay); luật doanh thu cuối ghi ở phase-01 mục 2.

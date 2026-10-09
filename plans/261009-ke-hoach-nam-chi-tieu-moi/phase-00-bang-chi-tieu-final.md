@@ -3,7 +3,7 @@
 Trạng thái: **xong** (còn Q2–Q4 ở [plan.md](plan.md)). Đây là NGUỒN SỰ THẬT: mọi giai đoạn sau bám bảng này.
 Bản trình bày cho chủ dự án: tab "Kế hoạch final" trong `../reports/261007-doi-chieu-cot-ke-hoach-file-voi-phan-mem.xlsx`.
 
-## Bảng 7 nhóm · 23 chỉ tiêu
+## Bảng 7 nhóm · 25 chỉ tiêu
 "Lưu" = cột thật trong `unit_purchase_plan`. "Tính" = cộng khi đọc, không lưu. Cột file là chữ cái ở tab 1 của file Ban Kế hoạch.
 
 | # | Nhóm | Chỉ tiêu | Khoá | Đơn vị | Cách nhập | Cột file | Tình trạng |
@@ -27,12 +27,14 @@ Bản trình bày cho chủ dự án: tab "Kế hoạch final" trong `../reports
 | 17 | Tồn kho TP | Tồn kho thành phẩm — thu mua | `plan_stock_purchase_tonnes` | tấn | Nhập · lưu | — | Mới |
 | 18 | Tồn kho TP | Tồn kho thành phẩm — hàng hóa | `plan_stock_goods_tonnes` | tấn | Nhập · lưu | — | Mới |
 | 19 | Tồn kho TP | Tồn kho thành phẩm — tổng | `stock_total` | tấn | Tự cộng · tính | — | Mới |
-| 20 | Hợp đồng | KH tiêu thụ HĐ chuyến | `plan_sales_spot_tonnes` | tấn | Nhập · lưu | — | Có sẵn |
-| 21 | Hợp đồng | HĐ dài hạn đã ký | `signed_lt_tonnes` | tấn | Nhập · lưu | — | Có sẵn |
-| 22 | Hợp đồng | HĐ dài hạn năm trước chuyển sang | `carry_lt_tonnes` | tấn | Nhập · lưu | — | Có sẵn |
-| 23 | Hợp đồng | HĐ chuyến năm trước chuyển sang | `carry_spot_tonnes` | tấn | Nhập · lưu | — | Có sẵn |
+| 20 | Hợp đồng | HĐ dài hạn đã ký | `signed_lt_tonnes` | tấn | Nhập · lưu | — | Có sẵn |
+| 21 | Hợp đồng | HĐ dài hạn năm trước chuyển sang | `carry_lt_tonnes` | tấn | Nhập · lưu | — | Có sẵn |
+| 22 | Hợp đồng | Tổng HĐ dài hạn thực hiện trong năm | `lt_total` | tấn | Tự cộng · tính | — (= dòng 20 + 21) | Mới (09/10) |
+| 23 | Hợp đồng | KH tiêu thụ HĐ chuyến | `plan_sales_spot_tonnes` | tấn | Nhập · lưu | — | Có sẵn |
+| 24 | Hợp đồng | HĐ chuyến năm trước chuyển sang | `carry_spot_tonnes` | tấn | Nhập · lưu | — | Có sẵn |
+| 25 | Hợp đồng | Tổng HĐ chuyến thực hiện trong năm | `spot_total` | tấn | Tự cộng · tính | — (= dòng 23 + 24) | Mới (09/10) |
 
-Tổng: **19 cột lưu** (8 có sẵn + 11 mới) và **4 tổng tính khi đọc**. Đã kiểm trên số trong file:
+Tổng: **19 cột lưu** (8 có sẵn + 11 mới) và **6 tổng tính khi đọc** (thu mua, chế biến, tiêu thụ, tồn kho, HĐ dài hạn, HĐ chuyến). Đã kiểm trên số trong file:
 H = I + J, K = L + N, O = P + R, S = T + W đều khớp ở cả 63 công ty có số.
 
 ## Quy tắc ánh xạ file → ô (dùng ở Giai đoạn 2)
