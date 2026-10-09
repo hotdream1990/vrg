@@ -1,5 +1,5 @@
-/* Ô cuối dòng Kế hoạch năm (phía đơn vị): kế hoạch đã chốt cùng đợt chốt số liệu → "Đã chốt" + nút
-   «Đề nghị sửa». Bấm → dòng mở để sửa số, rồi «Gửi đề nghị» (Ban duyệt mới ghi thật) hoặc «Huỷ». */
+/* Đầu cột đơn vị ở bảng Kế hoạch năm (phía đơn vị): kế hoạch đã chốt cùng đợt chốt số liệu → "Đã chốt"
+   + nút «Đề nghị sửa». Bấm → cột mở để sửa số, rồi «Gửi đề nghị» (Ban duyệt mới ghi thật) hoặc «Huỷ». */
 
 import { CloseOutlined, EditOutlined, LockOutlined, SendOutlined } from "@ant-design/icons";
 import { Alert, Button, Space, Tag, Tooltip } from "antd";
@@ -8,7 +8,7 @@ type Props = {
   locked: boolean;
   lockedUntil: string | null;
   canRequest: boolean;          // tài khoản nhập liệu (lãnh đạo đơn vị chỉ xem)
-  requesting: boolean;          // dòng đang ở chế độ soạn đề nghị
+  requesting: boolean;          // cột đang ở chế độ soạn đề nghị
   busy: boolean;
   onStart: () => void;
   onSend: () => void;
@@ -42,8 +42,7 @@ export function YearPlanLockBanner({ year, lockedUntil }: { year: number; locked
   return (
     <Alert type="info" showIcon style={{ marginBottom: 12 }}
       title={`Kế hoạch năm ${year} đã chốt cùng đợt chốt số liệu`
-        + (lockedUntil ? ` (đơn vị xác nhận chốt đến hết ngày ${dmy(lockedUntil)})` : "")}
-      description={<>Dòng <b>Đã chốt</b> chỉ xem. Cần điều chỉnh chỉ tiêu: bấm <b>Đề nghị sửa</b> ở dòng đơn vị,
-        sửa số rồi <b>Gửi đề nghị</b> — Ban duyệt thì số mới được ghi và đơn vị xác nhận chốt lại.</>} />
+        + (lockedUntil ? ` (đến hết ngày ${dmy(lockedUntil)})` : "")}
+      description={<>Cột <b>Đã chốt</b> chỉ xem. Muốn sửa: bấm <b>Đề nghị sửa</b> ở đầu cột, chỉnh số rồi <b>Gửi đề nghị</b> để Ban duyệt.</>} />
   );
 }

@@ -68,5 +68,9 @@ OPS: dict[str, Op] = {
         # Ngày "bị ảnh hưởng" = cả năm: popup cảnh báo gỡ chốt từ 01/01; gỡ chỉ tới hết năm đó.
         dates=lambda p, _b: [f"{p['year']}-01-01"],
         unlock_until=lambda p: f"{p['year']}-12-31",
+        # Ảnh chụp của đề nghị gửi TRƯỚC khi có 11 ô tách theo nguồn (09/10/2026) chỉ có 8 khoá: khoá
+        # thiếu coi là None khi so (không thì 409 oan ngay sau deploy). KHÔNG bỏ qua ô mới — đề nghị
+        # mới vẫn được bảo vệ đủ 19 ô (Ban sửa ô mới giữa lúc gửi và lúc duyệt ⇒ 409).
+        before_fields=unit_daily_repo.PLAN_FIELDS,
         blocked=_blocked, apply=_apply),
 }

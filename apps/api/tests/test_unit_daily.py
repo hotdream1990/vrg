@@ -129,7 +129,19 @@ def test_unit_daily_member_and_editor_flow() -> None:
                                         "plan_tonnes": 2000, "signed_lt_tonnes": 1500,
                                         "carry_lt_tonnes": 40, "carry_spot_tonnes": 15,
                                         "plan_sales_spot_tonnes": None,
-                                        "plan_revenue_ty": None}
+                                        "plan_revenue_ty": None,
+                                        # 11 ô tách theo nguồn (09/10/2026) — chưa khai = None
+                                        "plan_process_exploit_tonnes": None,
+                                        "plan_process_purchase_tonnes": None,
+                                        "plan_consume_exploit_tonnes": None,
+                                        "plan_consume_purchase_tonnes": None,
+                                        "plan_consume_goods_tonnes": None,
+                                        "plan_revenue_exploit_ty": None,
+                                        "plan_revenue_purchase_ty": None,
+                                        "plan_revenue_goods_ty": None,
+                                        "plan_stock_exploit_tonnes": None,
+                                        "plan_stock_purchase_tonnes": None,
+                                        "plan_stock_goods_tonnes": None}
 
     # Đơn vị thành viên tự cập nhật số liệu năm của mình; không đụng được đơn vị khác.
     assert client.put("/api/member/plan",

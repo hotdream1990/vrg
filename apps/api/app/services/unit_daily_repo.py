@@ -17,6 +17,7 @@ from sqlalchemy import text
 from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import PURCHASE_SOURCE_UNIT as UNIT_SRC
 from app.services import audit_repo, unit_daily_fields
+from app.services.year_plan_totals import REVENUE_CHILDREN, REVENUE_TOTAL, revenue_total_to_save
 
 logger = logging.getLogger("vrg.unit_daily")
 
@@ -397,11 +398,19 @@ def companies_with_purchase_plan(year: int | None = None) -> set[str]:
     return {r["company"] for r in rows if (r["plan_tonnes"] or 0) > 0}
 
 
+#: Ô tách theo nguồn (chốt 09/10/2026): chế biến · tiêu thụ · doanh thu (tỷ đồng) · tồn kho thành phẩm
+#: cuối năm. Bốn tổng thu mua/chế biến/tiêu thụ/tồn kho KHÔNG lưu (cộng khi đọc) nên không có ở đây.
+PLAN_SPLIT_FIELDS: tuple[str, ...] = (
+    "plan_process_exploit_tonnes", "plan_process_purchase_tonnes",
+    "plan_consume_exploit_tonnes", "plan_consume_purchase_tonnes", "plan_consume_goods_tonnes",
+    *REVENUE_CHILDREN,
+    "plan_stock_exploit_tonnes", "plan_stock_purchase_tonnes", "plan_stock_goods_tonnes",
+)
 # Các ô số liệu năm = cột của `unit_purchase_plan` (tên cột lấy từ ĐÂY, không từ input → không chèn SQL).
 # Mọi câu SELECT số liệu năm dựng từ bộ này: thêm ô mới chỉ sửa MỘT chỗ.
 PLAN_FIELDS: tuple[str, ...] = (
     "plan_exploit_tonnes", "plan_tonnes", "plan_goods_tonnes", "signed_lt_tonnes", "carry_lt_tonnes",
-    "carry_spot_tonnes", "plan_sales_spot_tonnes", "plan_revenue_ty",
+    "carry_spot_tonnes", "plan_sales_spot_tonnes", "plan_revenue_ty", *PLAN_SPLIT_FIELDS,
 )
 _PLAN_COLS = ", ".join(PLAN_FIELDS)
 
@@ -447,14 +456,25 @@ def save_year_plan(year: int, company: str, values: dict[str, float | None],
 
     Vắng mặt ≠ để trống: body từ bản web cũ (chưa biết ô mới) hay file Excel mẫu cũ (thiếu cột)
     không được âm thầm xoá chỉ tiêu người khác vừa khai (review 24/09/2026).
+
+    KH doanh thu tổng (`plan_revenue_ty`, chốt 09/10/2026) theo `revenue_total_to_save`: còn mục con
+    có số (sau khi ghép body vào số đang lưu) → tổng = cộng mục con, bỏ qua tổng trong body; không
+    còn mục con nào → ghi tổng theo body (đơn vị cũ chỉ có tổng), trừ khi body vừa xoá mục con cuối.
     """
-    cols = [k for k in PLAN_FIELDS if k in values]
-    if not cols:
+    params = {k: values[k] for k in PLAN_FIELDS if k in values}
+    if not params:
         return
     ensure_schema()
-    params = {k: values[k] for k in cols}
     with session_scope() as db:
+        # Web lưu TỪNG Ô khi rời ô → 2 ô doanh thu gõ liền nhau là 2 request song song; không khoá
+        # thì cả hai đọc cùng ảnh chụp cũ và tổng của request sau thiếu mục con của request trước.
+        db.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
+                   {"k": f"unit_purchase_plan|{year}|{company}"})
         before = _plan_snapshot(db, year, company)
+        derived, total = revenue_total_to_save(before or {}, params)
+        if derived:
+            params[REVENUE_TOTAL] = total
+        cols = [k for k in PLAN_FIELDS if k in params]
         db.execute(
             text("INSERT INTO unit_purchase_plan "
                  f"(year, company, {', '.join(cols)}, updated_by, updated_at) "

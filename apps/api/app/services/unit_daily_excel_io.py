@@ -35,6 +35,7 @@ from app.core.paths import bulletin_dir
 from app.core.market_meta import PURCHASE_SOURCE_UNIT
 from app.services import member_unit_repo, price_repo, unit_daily_excel_purchase, unit_daily_repo
 from app.services.unit_daily_fields import SALE_TABLES
+from app.services.year_plan_totals import REVENUE_TOTAL, revenue_total_to_save
 
 _BULLETIN = bulletin_dir()
 if str(_BULLETIN) not in sys.path:
@@ -84,6 +85,20 @@ class Spec:
 
 _UNIT_COL = Col("company", "Đơn vị", required=True, type="text", width=26)
 _DATE_COL = Col("as_of", "Ngày", "dd/mm/yyyy", required=True, type="date")
+# Kế hoạch năm tách theo nguồn — tiêu đề KHÔNG được trùng nhau (bộ đọc dò cột theo tiêu đề).
+_PLAN_SPLIT_COLS = [
+    Col("plan_process_exploit_tonnes", "Kế hoạch chế biến — mủ khai thác", "tấn", width=30),
+    Col("plan_process_purchase_tonnes", "Kế hoạch chế biến — mủ thu mua", "tấn", width=30),
+    Col("plan_consume_exploit_tonnes", "Kế hoạch tiêu thụ — khai thác", "tấn", width=28),
+    Col("plan_consume_purchase_tonnes", "Kế hoạch tiêu thụ — thu mua", "tấn", width=28),
+    Col("plan_consume_goods_tonnes", "Kế hoạch tiêu thụ — hàng hóa", "tấn", width=28),
+    Col("plan_revenue_exploit_ty", "Kế hoạch doanh thu — khai thác", "tỷ đồng", width=30),
+    Col("plan_revenue_purchase_ty", "Kế hoạch doanh thu — thu mua", "tỷ đồng", width=30),
+    Col("plan_revenue_goods_ty", "Kế hoạch doanh thu — hàng hóa", "tỷ đồng", width=30),
+    Col("plan_stock_exploit_tonnes", "Kế hoạch tồn kho thành phẩm — khai thác", "tấn", width=36),
+    Col("plan_stock_purchase_tonnes", "Kế hoạch tồn kho thành phẩm — thu mua", "tấn", width=36),
+    Col("plan_stock_goods_tonnes", "Kế hoạch tồn kho thành phẩm — hàng hóa", "tấn", width=36),
+]
 
 SPECS: dict[str, Spec] = {
     "purchase": Spec(
@@ -149,7 +164,8 @@ SPECS: dict[str, Spec] = {
              "tấn", width=34)]),
     "plan": Spec(
         "BIỂU NHẬP — KẾ HOẠCH NĂM", "Kế hoạch năm",
-        "Mỗi dòng = 1 đơn vị / 1 năm. Số liệu nhập 1 lần, cập nhật khi có thay đổi.",
+        "Mỗi dòng = 1 đơn vị / 1 năm. Số liệu nhập 1 lần, cập nhật khi có thay đổi. "
+        "Doanh thu điền THEO NGUỒN (tỷ đồng) — ô 'Kế hoạch doanh thu' hệ thống tự cộng, để trống.",
         [_UNIT_COL, Col("year", "Năm", required=True, type="year", width=10),
          # Khai thác (vườn cây của chính đơn vị) đứng TRƯỚC thu mua (mua của dân) — chốt 24/09/2026.
          Col("plan_exploit_tonnes", "Kế hoạch khai thác", "tấn", width=20),
@@ -160,7 +176,9 @@ SPECS: dict[str, Spec] = {
          Col("plan_revenue_ty", "Kế hoạch doanh thu", "tỷ đồng", width=22),
          Col("signed_lt_tonnes", "HĐ dài hạn đã ký", "tấn", width=20),
          Col("carry_lt_tonnes", "HĐ dài hạn năm trước chuyển sang", "tấn", width=28),
-         Col("carry_spot_tonnes", "HĐ chuyến năm trước chuyển sang", "tấn", width=28)]),
+         Col("carry_spot_tonnes", "HĐ chuyến năm trước chuyển sang", "tấn", width=28),
+         # Tách theo nguồn (chốt 09/10/2026) — Ở CUỐI để file mẫu cũ và thứ tự cột quen thuộc giữ nguyên.
+         *_PLAN_SPLIT_COLS]),
 }
 
 _HEAD_FILL = PatternFill("solid", fgColor="D9E7D5")
@@ -418,13 +436,34 @@ def parse_upload(kind: str, data: bytes, allowed_units: list[str] | None = None,
     }
 
 
+def _revenue_total_conflict(rec: dict, stored: dict | None) -> str | None:
+    """Ô tổng doanh thu có số mà lúc lưu server sẽ BỎ QUA (còn mục con → tổng tự cộng) và lệch tổng
+    đó → báo lỗi dòng thay vì âm thầm bỏ số người dùng điền. Cùng luật lúc lưu
+    (`revenue_total_to_save`): ghép mục con trong file với số ĐANG LƯU — file thiếu vài cột con
+    không bị báo oan."""
+    filled = rec.get(REVENUE_TOTAL)
+    if filled is None:
+        return None
+    derived, total = revenue_total_to_save(stored or {}, rec)
+    if not derived or (total is not None and math.isclose(total, filled, abs_tol=1e-6)):
+        return None
+    shown = "trống" if total is None else f"{total:.10g}"
+    return (f"Kế hoạch doanh thu: hệ thống tự cộng từ doanh thu khai thác + thu mua + hàng hóa "
+            f"(= {shown}) — để trống ô tổng, điền doanh thu theo nguồn")
+
+
 def _mark_actions(kind: str, rows: list[dict]) -> None:
-    """Đánh dấu mỗi dòng sẽ TẠO MỚI hay GHI ĐÈ số đã có (để người dùng biết trước khi xác nhận)."""
+    """Đánh dấu mỗi dòng sẽ TẠO MỚI hay GHI ĐÈ số đã có (để người dùng biết trước khi xác nhận).
+
+    Kế hoạch năm: tiện số đang lưu vừa đọc, kiểm luôn ô tổng doanh thu (`_revenue_total_conflict`).
+    """
     if kind == "plan":
         for r in rows:
             if r.get("company") and r.get("year"):
-                cur = unit_daily_repo.year_plan(int(r["year"]), [r["company"]])
-                r["_action"] = "update" if cur.get(r["company"]) else "create"
+                cur = unit_daily_repo.year_plan(int(r["year"]), [r["company"]]).get(r["company"])
+                r["_action"] = "update" if cur else "create"
+                if (msg := _revenue_total_conflict(r, cur)) is not None:
+                    r["_errors"].append(msg)
         return
     daily_kind = "purchase" if kind == "purchase" else "consumption"
     seen: dict[tuple[str, str], bool] = {}

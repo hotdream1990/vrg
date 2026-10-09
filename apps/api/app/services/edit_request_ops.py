@@ -56,6 +56,9 @@ class Op:
     # Ô của ảnh chụp mà thao tác KHÔNG BAO GIỜ ghi — đổi sau lúc gửi thì duyệt cũng không đè mất, nên
     # không tính là "số liệu đã đổi" (vd `completed_at`: đơn vị gửi đề nghị xong mới bấm Hoàn thành).
     ignore_changes: tuple[str, ...] = ()
+    # Ô mà ảnh chụp lúc gửi có thể THIẾU vì đề nghị gửi trước khi thêm ô (Kế hoạch năm 09/10/2026):
+    # thiếu thì coi là None khi so, KHÔNG phải "đã đổi" — ô mới vẫn được so như mọi ô khác.
+    before_fields: tuple[str, ...] = ()
     # Nhãn hiển thị cho giá trị thô trong bảng so sánh: (payload, trước, hiện tại) → {ô: {giá trị: nhãn}}.
     labels: Callable[[list[dict | None]], dict[str, dict[str, str]]] | None = None
     # Số liệu có nằm trong CHỐT SỐ LIỆU không — False (nhu cầu thị trường) ⇒ duyệt không gỡ chốt.
@@ -147,12 +150,15 @@ def canon(value: Any) -> Any:
     return str(value)
 
 
-def changed_since(current: Any, before: Any, ignore: tuple[str, ...] = ()) -> bool:
+def changed_since(current: Any, before: Any, ignore: tuple[str, ...] = (),
+                  fill: tuple[str, ...] = ()) -> bool:
     """Bản ghi đã đổi kể từ lúc gửi? Dùng CHUNG cho màn chi tiết lẫn lúc duyệt thật. `ignore` =
-    `Op.ignore_changes`."""
+    `Op.ignore_changes`; `fill` = `Op.before_fields` (khoá `before` thiếu coi là None)."""
     def strip(v: Any) -> Any:
         return {k: x for k, x in v.items() if k not in ignore} if isinstance(v, dict) else v
 
+    if fill and isinstance(before, dict):
+        before = {**dict.fromkeys(fill), **before}
     return canon(strip(current)) != canon(strip(before))
 
 

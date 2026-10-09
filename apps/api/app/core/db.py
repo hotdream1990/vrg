@@ -629,6 +629,22 @@ ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_exploit_tonnes doub
 -- khai thác 3.500 + thu mua 1.000 + hàng hóa 5.000). Không gộp vào `plan_tonnes`: chỉ tiêu thu mua
 -- của Ban TTKD chỉ tính mủ nguyên liệu. NULL = chưa khai.
 ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_goods_tonnes double precision;
+-- Kế hoạch năm TÁCH THEO NGUỒN (chốt 09/10/2026, bảng chỉ tiêu ở plans/261009-ke-hoach-nam-chi-tieu-moi).
+-- NULL = chưa khai. Tổng thu mua/chế biến/tiêu thụ/tồn kho KHÔNG lưu — cộng khi đọc.
+-- Chế biến · tiêu thụ · tồn kho thành phẩm cuối năm: TẤN.
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_process_exploit_tonnes double precision;
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_process_purchase_tonnes double precision;
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_consume_exploit_tonnes double precision;
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_consume_purchase_tonnes double precision;
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_consume_goods_tonnes double precision;
+-- Doanh thu theo nguồn: TỶ ĐỒNG. `plan_revenue_ty` (tổng) vẫn là cột thật, server tự cộng 3 cột này
+-- mỗi lần lưu (xem `services/year_plan_totals.py`).
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_revenue_exploit_ty double precision;
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_revenue_purchase_ty double precision;
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_revenue_goods_ty double precision;
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_stock_exploit_tonnes double precision;
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_stock_purchase_tonnes double precision;
+ALTER TABLE unit_purchase_plan ADD COLUMN IF NOT EXISTS plan_stock_goods_tonnes double precision;
 -- Hợp đồng tồn kho: đính kèm NHIỀU file. Cột file/filename cũ giữ nguyên = file ĐẦU danh sách.
 ALTER TABLE unit_stock_contract ADD COLUMN IF NOT EXISTS files jsonb NOT NULL DEFAULT '[]'::jsonb;
 -- Đã được script chuyển sang bảng hợp đồng 2 cấp `sales_contract` chưa. Bản ghi CŨ vẫn giữ nguyên

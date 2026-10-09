@@ -12,6 +12,7 @@ import { SALE_DATES, SALE_DOCS } from "./unit-daily-consumption";
 import { CUP_PRICE_UNIT, LACE_PRICE_UNIT, LATEX_PRICE_UNIT } from "./purchase-price-unit";
 import { COLUMNS } from "./unit-daily-fields";
 import { PLAN_LABELS } from "../features/command-center/pages/year-plan-fields";
+import { withRevenueTotalForDiff } from "../features/command-center/pages/year-plan-sections";
 
 type Obj = Record<string, unknown>;
 
@@ -140,7 +141,8 @@ function flatten(value: unknown, prefix = "", out: Obj = {}): Obj {
   return out;
 }
 
-/** Chiếu bản ghi về khuôn so sánh được theo op. `side` = before/current hay payload. */
+/** Chiếu bản ghi về khuôn so sánh được theo op. `side` = before/current hay payload; phía payload
+ *  nhận `o` = bản ghi đang lưu (chỉ kế hoạch năm dùng, để ghép mục con doanh thu vắng mặt). */
 function project(req: Pick<EditRequest, "op" | "payload">, o: Obj | null, side: "record" | "payload"): Obj | null {
   const p = req.payload;
   switch (req.op) {
@@ -170,9 +172,10 @@ function project(req: Pick<EditRequest, "op" | "payload">, o: Obj | null, side: 
     case "demand_delete":
       return side === "payload" ? null : labelDemandCodes(o);
     case "year_plan": {
-      // Chỉ so các ô kế hoạch có trong đề nghị (năm + đơn vị là khoá, không phải số liệu).
+      // Chỉ so các ô kế hoạch có trong đề nghị (năm + đơn vị là khoá, không phải số liệu); có mục con
+      // doanh thu thì kèm dòng tổng doanh thu tính sẵn cả hai phía (server tự cộng khi duyệt).
       const { year: _y, company: _c, ...values } = p;
-      return side === "payload" ? values : pickKeys(o, values);
+      return withRevenueTotalForDiff(side === "payload" ? values : pickKeys(o, values), values, o, side === "payload");
     }
   }
 }
@@ -227,7 +230,7 @@ export function buildEditRequestDiff(
 ): DiffRow[] {
   const b = flatten(project(req, req.before, "record"));
   const c = withCurrent ? flatten(project(req, current ?? null, "record")) : {};
-  const p = flatten(project(req, null, "payload"));
+  const p = flatten(project(req, (withCurrent ? current : null) ?? req.before, "payload"));
   const paths = [...new Set([...Object.keys(b), ...Object.keys(c), ...Object.keys(p)])];
   const rows: DiffRow[] = [];
   for (const path of paths) {

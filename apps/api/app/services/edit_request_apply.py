@@ -69,7 +69,8 @@ def detail(req_id: int) -> dict[str, Any]:
     will = (unlock_plan(req["company"], _effective_dates(op, req, current), _until(op, req["payload"] or {}))
             if pending and op.lockable else [])
     return {"request": req, "current": current,
-            "changed_since_submit": changed_since(current, req["before"], op.ignore_changes),
+            "changed_since_submit": changed_since(current, req["before"], op.ignore_changes,
+                                                  op.before_fields),
             "still_blocked": still,
             "cannot_approve": _approval_problem(op, req["payload"] or {}, current) if pending else None,
             "labels": op.labels([req["payload"], req["before"], current]) if op.labels else {},
@@ -129,7 +130,7 @@ def approve(req_id: int, reviewer: str, note: str | None, expected_updated_at: s
         op.check_scope(_requester(row["requested_by"]), company, payload)
         if check := op.review_precheck or op.precheck:
             check(payload, current)
-        if changed_since(current, row["before"], op.ignore_changes) and not accept_changed:
+        if changed_since(current, row["before"], op.ignore_changes, op.before_fields) and not accept_changed:
             raise HTTPException(409, _CHANGED)
         dates = _effective_dates(op, row, current)
         with request_ctx.use_note(f"Duyệt đề nghị sửa #{req_id} của {row['requested_by']}"):

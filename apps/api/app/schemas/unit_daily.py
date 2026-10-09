@@ -53,6 +53,19 @@ class PurchasePlanEdit(BaseModel):
     carry_spot_tonnes: PlanNum | None = None  # SL tiêu thụ HĐ chuyến năm trước chuyển sang (tấn)
     plan_sales_spot_tonnes: PlanNum | None = None  # kế hoạch TIÊU THỤ cho HĐ chuyến (tấn)
     plan_revenue_ty: PlanNum | None = None  # kế hoạch DOANH THU năm (TỶ ĐỒNG)
+    # Tách theo nguồn (chốt 09/10/2026). Tấn, riêng doanh thu là TỶ ĐỒNG. Gửi mục con doanh thu thì
+    # server tự cộng lại `plan_revenue_ty` (xem `unit_daily_repo.save_year_plan`).
+    plan_process_exploit_tonnes: PlanNum | None = None   # chế biến mủ khai thác
+    plan_process_purchase_tonnes: PlanNum | None = None  # chế biến mủ thu mua
+    plan_consume_exploit_tonnes: PlanNum | None = None   # tiêu thụ khai thác
+    plan_consume_purchase_tonnes: PlanNum | None = None  # tiêu thụ thu mua
+    plan_consume_goods_tonnes: PlanNum | None = None     # tiêu thụ hàng hóa
+    plan_revenue_exploit_ty: PlanNum | None = None       # doanh thu khai thác (tỷ đồng)
+    plan_revenue_purchase_ty: PlanNum | None = None      # doanh thu thu mua (tỷ đồng)
+    plan_revenue_goods_ty: PlanNum | None = None         # doanh thu hàng hóa (tỷ đồng)
+    plan_stock_exploit_tonnes: PlanNum | None = None     # tồn kho thành phẩm cuối năm — khai thác
+    plan_stock_purchase_tonnes: PlanNum | None = None    # tồn kho thành phẩm cuối năm — thu mua
+    plan_stock_goods_tonnes: PlanNum | None = None       # tồn kho thành phẩm cuối năm — hàng hóa
 
     def plan_values(self) -> dict[str, float | None]:
         """Chỉ các ô số liệu năm CÓ trong body (kể cả `null` tường minh) → {ô: giá trị}."""

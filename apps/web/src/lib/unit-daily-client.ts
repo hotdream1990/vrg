@@ -98,8 +98,21 @@ export type YearPlanRow = {
   carry_lt_tonnes: number | null;    // HĐ dài hạn năm trước chuyển sang (tấn)
   carry_spot_tonnes: number | null;  // HĐ chuyến năm trước chuyển sang (tấn)
   /** Kế hoạch DOANH THU năm — đơn vị **TỶ ĐỒNG** (cùng đơn vị `revenue_ty` của báo cáo kỳ, nên
-   *  "% thực hiện" là phép chia cùng đơn vị chứ không phải quy đổi). */
+   *  "% thực hiện" là phép chia cùng đơn vị chứ không phải quy đổi). Từ 09/10/2026 SERVER tự cộng
+   *  3 mục con `plan_revenue_*_ty` mỗi lần lưu — web chỉ đọc, không gửi. */
   plan_revenue_ty: number | null;
+  // Chỉ tiêu mới 09/10/2026 (tuỳ chọn) — chế biến · tiêu thụ · doanh thu · tồn kho cuối năm theo nguồn.
+  plan_process_exploit_tonnes: number | null;   // chế biến mủ khai thác (tấn)
+  plan_process_purchase_tonnes: number | null;  // chế biến mủ thu mua (tấn)
+  plan_consume_exploit_tonnes: number | null;   // tiêu thụ khai thác (tấn)
+  plan_consume_purchase_tonnes: number | null;  // tiêu thụ thu mua (tấn)
+  plan_consume_goods_tonnes: number | null;     // tiêu thụ hàng hóa (tấn)
+  plan_revenue_exploit_ty: number | null;       // doanh thu khai thác (tỷ đồng)
+  plan_revenue_purchase_ty: number | null;      // doanh thu thu mua (tỷ đồng)
+  plan_revenue_goods_ty: number | null;         // doanh thu hàng hóa (tỷ đồng)
+  plan_stock_exploit_tonnes: number | null;     // tồn kho thành phẩm cuối năm — khai thác (tấn)
+  plan_stock_purchase_tonnes: number | null;    // tồn kho thành phẩm cuối năm — thu mua (tấn)
+  plan_stock_goods_tonnes: number | null;       // tồn kho thành phẩm cuối năm — hàng hóa (tấn)
 };
 export type YearPlanData = {
   year: number; units: string[]; plans: Record<string, YearPlanRow>;
@@ -242,10 +255,11 @@ const planBase = (role: Role) => (role === "member" ? "/api/member/plan" : "/api
 export const fetchYearPlan = (role: Role, year: number) =>
   apiFetch<YearPlanData>(`${planBase(role)}?year=${year}`);
 
-export const saveYearPlan = (role: Role, year: number, company: string, row: YearPlanRow) =>
+/** Chỉ gửi các ô ĐÃ ĐỔI (`null` = xoá ô); ô vắng mặt server giữ nguyên số đang lưu. */
+export const saveYearPlan = (role: Role, year: number, company: string, values: Partial<YearPlanRow>) =>
   apiFetch<{ ok: boolean }>(planBase(role), {
     method: "PUT", headers: J,
-    body: JSON.stringify({ year, company, ...row }),
+    body: JSON.stringify({ year, company, ...values }),
   });
 
 // ── Báo cáo tổng hợp theo KỲ (tuần/tháng/năm/khoảng tự chọn) — trích xuất từ số liệu ngày ──

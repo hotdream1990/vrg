@@ -174,7 +174,7 @@ export default function DataLockConfirmModal({ company, roundId, readOnly, onClo
             <Kpi label="Doanh thu (tỷ đồng)" value={n3(c.revenue_ty)} />
           </Block>
 
-          {data.plan && <DataLockPlanBlock plan={data.plan} />}
+          {data.plan && <DataLockPlanBlock plan={data.plan} onOpenPlan={readOnly ? undefined : onClose} />}
 
           {!readOnly && (
             <div className="form-note" style={{ marginTop: 14, fontSize: 12.5 }}>

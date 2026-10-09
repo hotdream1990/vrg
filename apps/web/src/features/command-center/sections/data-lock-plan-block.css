@@ -1,0 +1,21 @@
+/* Khối Kế hoạch năm trong bảng xác nhận chốt (DataLockPlanBlock): bảng gọn hai cột, mỗi nhóm một khối
+   không bị cắt đôi giữa hai cột; màn hẹp tự xuống một cột. */
+
+.dlp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.dlp-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.dlp-link { font-size: 13px; white-space: nowrap; }
+.dlp-chip { font-size: 12px; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+.dlp-chip.ok { background: #e7f4ec; color: #1e6b3b; }
+.dlp-chip.warn { background: #fdf3dc; color: #8a5a00; }
+
+.dlp { columns: 2 320px; column-gap: 32px; }
+.dlp-g { break-inside: avoid; margin: 0 0 14px; }
+.dlp-gh { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 0 4px; border-bottom: 1px solid var(--line); }
+.dlp-r { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; font-size: 13px; border-bottom: 1px dashed var(--line); }
+.dlp-r .n { flex: 1; min-width: 0; }
+.dlp-r .u { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.dlp-r .v { min-width: 92px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dlp-r .v.blank { color: var(--muted); font-weight: 400; }
+.dlp-r .v em { font-style: normal; font-weight: 400; font-size: 11px; color: var(--muted); }
+.dlp-r.t { border-bottom: 0; border-top: 1px solid var(--line); }
+.dlp-r.t .n, .dlp-r.t .v { font-weight: 700; }

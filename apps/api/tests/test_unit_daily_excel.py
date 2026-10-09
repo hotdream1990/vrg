@@ -491,6 +491,71 @@ def test_plan_import_old_template_keeps_columns_missing_from_file() -> None:
         _drop_plan_unit(unit, h)
 
 
+def test_plan_template_appends_split_columns_and_round_trips() -> None:
+    """Mẫu Kế hoạch năm có 11 cột tách theo nguồn (09/10/2026) Ở CUỐI, thứ tự cũ giữ nguyên; điền vào
+    đúng mẫu rồi nhập lại → giữ đúng số; ô tổng doanh thu tự cộng (điền lệch → lỗi dòng, không âm thầm
+    bỏ); file mẫu CŨ (thiếu cột mới) không xoá ô mới."""
+    from app.services import unit_daily_excel_io as xio
+    from app.services import unit_daily_repo
+
+    unit, year = "_zz_xl_plan_split", date.today().year
+    h = _plan_unit(unit)
+    split = list(unit_daily_repo.PLAN_SPLIT_FIELDS)
+    titles = {c.key: c.title for c in xio.SPECS["plan"].cols}
+    nums = {k: (i + 1) * 10.5 for i, k in enumerate(split)}   # doanh thu: 63 + 73,5 + 84 = 220,5
+
+    def run(head: list[str], cells: dict) -> dict:
+        return xio.parse_upload("plan", _rows_to_xlsx(_PLAN_SHEET, head, [tuple(cells.get(t) for t in head)]))
+
+    try:
+        ws = load_workbook(io.BytesIO(xio.build_template("plan")))[_PLAN_SHEET]
+        head = [ws.cell(row=5, column=c).value for c in range(1, ws.max_column + 1)]
+        assert len(head) == 21 and len(set(head)) == 21
+        assert head[-11:] == [titles[k] for k in split]
+        assert head[:4] == ["Đơn vị", "Năm", "Kế hoạch khai thác", "Kế hoạch thu mua"]
+
+        cells = {"Đơn vị": unit, "Năm": year, "Kế hoạch thu mua": 800,
+                 **{titles[k]: v for k, v in nums.items()}}
+        bad = run(head, {**cells, "Kế hoạch doanh thu": 1})
+        assert bad["summary"]["error"] == 1 and "tự cộng" in bad["rows"][0]["_errors"][0]
+        prev = run(head, {**cells, "Kế hoạch doanh thu": 220.5})     # điền đúng tổng → không lỗi
+        assert prev["summary"]["error"] == 0, prev["rows"]
+        assert {c["key"] for c in prev["columns"]} >= set(split)
+        assert xio.commit_rows("plan", prev["rows"], "admin")["saved"] == 1
+        got = unit_daily_repo.year_plan(year, [unit])[unit]
+        assert {k: got[k] for k in split} == nums
+        assert got["plan_tonnes"] == 800 and got["plan_revenue_ty"] == 220.5
+
+        # Mẫu trước 09/10/2026 (không có cột mục con), ô tổng để TRỐNG: đơn vị đã có mục con thì tổng
+        # vẫn = tổng mục con (lỗi cũ: ô trống xoá mất tổng), ô mới giữ nguyên.
+        old_head = head[:-11]
+        base = {"Đơn vị": unit, "Năm": year, "Kế hoạch thu mua": 900}
+        prev = run(old_head, base)
+        assert prev["summary"]["error"] == 0 and not set(split) & set(prev["rows"][0])
+        assert prev["rows"][0]["plan_revenue_ty"] is None
+        assert xio.commit_rows("plan", prev["rows"], "admin")["saved"] == 1
+        got = unit_daily_repo.year_plan(year, [unit])[unit]
+        assert {k: got[k] for k in split} == nums and got["plan_tonnes"] == 900
+        assert got["plan_revenue_ty"] == 220.5
+        # Mẫu cũ điền tổng KHÁC tổng mục con đang lưu → lỗi dòng; client lách lỗi vẫn không ghi đè được.
+        prev = run(old_head, {**base, "Kế hoạch doanh thu": 100})
+        assert prev["summary"]["error"] == 1 and "220.5" in prev["rows"][0]["_errors"][0]
+        forced = [{**r, "_errors": []} for r in prev["rows"]]
+        assert xio.commit_rows("plan", forced, "admin")["saved"] == 1
+        assert unit_daily_repo.year_plan(year, [unit])[unit]["plan_revenue_ty"] == 220.5
+
+        # File THIẾU cột mục con hàng hóa: ô tổng đúng = 10 + 20 + 84 (hàng hóa đang lưu) → không báo oan.
+        part_head = [t for t in head if t != titles["plan_revenue_goods_ty"]]
+        cells = {**base, titles["plan_revenue_exploit_ty"]: 10, titles["plan_revenue_purchase_ty"]: 20,
+                 "Kế hoạch doanh thu": 114}
+        prev = run(part_head, cells)
+        assert prev["summary"]["error"] == 0, prev["rows"]
+        assert xio.commit_rows("plan", prev["rows"], "admin")["saved"] == 1
+        assert unit_daily_repo.year_plan(year, [unit])[unit]["plan_revenue_ty"] == 114
+    finally:
+        _drop_plan_unit(unit, h)
+
+
 def test_period_excel_total_row_does_not_sum_prices_or_percents() -> None:
     """Dòng Tổng cộng của file báo cáo kỳ KHÔNG cộng giá BQ / % (40% + 70% ≠ 110%)."""
     from app.services import unit_period_excel

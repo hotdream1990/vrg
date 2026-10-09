@@ -1,0 +1,52 @@
+/* Bảng Kế hoạch năm ĐẢO (YearPlanGrid): hàng = chỉ tiêu, cột = đơn vị.
+   Cột nhãn + cột "Tổng cộng" (Ban/admin) ghim trái; bề rộng cột nhãn là biến để cột Tổng cộng ghim
+   ngay sát nó (left = bề rộng cột nhãn; `*{box-sizing:border-box}` toàn cục nên width gồm cả padding). */
+
+/* Khung ôm vừa bảng (đơn vị 1 cột thì không kéo ô nhập dài hết màn), rộng quá thì cuộn ngang. */
+.yp-grid-wrap { padding: 0; overflow: auto; width: fit-content; max-width: 100%; }
+.yp-grid { --yp-label-w: 300px; width: auto; }
+.yp-grid td { padding: 4px 8px; }
+
+/* Cột ghim: nền ĐỤC vì ô số trượt xuống dưới khi cuộn ngang; đường kẻ phải bằng box-shadow — bảng
+   `border-collapse: collapse` thì border của ô sticky biến mất khi cuộn. */
+.yp-grid .yp-label, .yp-grid .yp-sum {
+  position: sticky; z-index: 1; background: var(--panel); box-shadow: inset -1px 0 0 var(--line);
+}
+.yp-grid .yp-label {
+  left: 0; width: var(--yp-label-w); min-width: var(--yp-label-w); max-width: var(--yp-label-w);
+  white-space: normal;
+}
+.yp-grid .yp-sum {
+  left: var(--yp-label-w); min-width: 150px; text-align: right; font-weight: 600;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.yp-grid thead th.yp-label, .yp-grid thead th.yp-sum { z-index: 3; vertical-align: bottom; }
+/* Rê chuột: ô ghim đổi màu cùng cả hàng như `.mc-table` (dòng tiêu đề nhóm giữ nền riêng). */
+.yp-grid tbody tr:not(.yp-sec):hover td.yp-label,
+.yp-grid tbody tr:not(.yp-sec):hover td.yp-sum { background: #f3f7f4; }
+
+/* Tiêu đề cột đơn vị: tên đọc được — không in hoa 11px xám như tiêu đề bảng chung. */
+.yp-grid th.yp-unit {
+  min-width: 170px; text-align: right; vertical-align: bottom;
+  text-transform: none; letter-spacing: normal; font-size: 13px; font-weight: 600; color: var(--text);
+}
+/* Trạng thái chốt + nút «Đề nghị sửa» dưới tên đơn vị. */
+.yp-unit-extra { margin-top: 4px; font-weight: 400; }
+
+.yp-grid .yp-sec td, .yp-grid .yp-sec:hover td {
+  background: var(--panel-2); font-weight: 600; padding-top: 8px; padding-bottom: 8px;
+}
+.yp-grid .yp-total td { font-weight: 600; }
+
+/* Ô nhãn: tên ngắn bên trái, ⓘ gợi ý ngay cạnh tên, đơn vị tính mờ ở mép phải. */
+.yp-lab { display: flex; align-items: baseline; gap: 6px; }
+.yp-name { min-width: 0; }
+.yp-uom { margin-left: auto; padding-left: 8px; font-size: 12px; font-weight: 400; color: var(--muted); white-space: nowrap; }
+.yp-help { font-size: 13px; color: var(--muted); cursor: help; outline: none; align-self: center; }
+.yp-help:hover, .yp-help:focus-visible { color: var(--primary, #2f855a); }
+
+/* Điện thoại: cột ghim 300px gần kín màn → thôi ghim, thu hẹp cột nhãn. */
+@media (max-width: 640px) {
+  .yp-grid { --yp-label-w: 170px; }
+  .yp-grid .yp-label, .yp-grid .yp-sum { position: static; }
+}
