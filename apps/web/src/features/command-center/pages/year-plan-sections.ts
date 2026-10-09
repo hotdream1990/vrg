@@ -1,4 +1,4 @@
-/* Bố cục màn Kế hoạch năm: 7 nhóm · 23 chỉ tiêu (19 ô lưu + 4 tổng tự cộng + tổng doanh thu do server
+/* Bố cục màn Kế hoạch năm: 7 nhóm · 25 chỉ tiêu (18 ô nhập + 6 tổng tự cộng + tổng doanh thu do server
    cộng) — đúng thứ tự bảng chỉ tiêu (plans/261009-ke-hoach-nam-chi-tieu-moi/phase-00).
    Tổng ở đây chỉ để HIỂN THỊ: không nằm trong PLAN_FIELDS/YearPlanRow/EMPTY_PLAN nên không lọt vào
    payload, diff đề nghị sửa hay thẻ chốt số liệu. */
@@ -6,7 +6,8 @@
 import type { YearPlanRow } from "../../../lib/unit-daily-client";
 
 type PlanKey = keyof YearPlanRow;
-export type PlanTotalId = "purchase_total" | "process_total" | "consume_total" | "revenue_total" | "stock_total";
+export type PlanTotalId =
+  | "purchase_total" | "process_total" | "consume_total" | "revenue_total" | "stock_total" | "lt_total" | "spot_total";
 
 /** `fallback` = ô đã lưu dùng khi mọi mục con trống (đơn vị cũ chỉ khai tổng doanh thu). */
 export type PlanTotal = { id: PlanTotalId; title: string; short: string; parts: PlanKey[]; fallback?: PlanKey };
@@ -34,6 +35,15 @@ export const PLAN_TOTALS: Record<PlanTotalId, PlanTotal> = {
     id: "stock_total", title: "Tổng tồn kho thành phẩm cuối năm (tấn)", short: "Tổng tồn kho cuối năm (tấn)",
     parts: ["plan_stock_exploit_tonnes", "plan_stock_purchase_tonnes", "plan_stock_goods_tonnes"],
   },
+  // Hợp đồng thực hiện trong năm = hợp đồng của năm + hợp đồng năm trước chuyển sang (09/10/2026).
+  lt_total: {
+    id: "lt_total", title: "Tổng HĐ dài hạn thực hiện trong năm (tấn)", short: "Tổng HĐ dài hạn trong năm (tấn)",
+    parts: ["signed_lt_tonnes", "carry_lt_tonnes"],
+  },
+  spot_total: {
+    id: "spot_total", title: "Tổng HĐ chuyến thực hiện trong năm (tấn)", short: "Tổng HĐ chuyến trong năm (tấn)",
+    parts: ["plan_sales_spot_tonnes", "carry_spot_tonnes"],
+  },
 };
 
 export type PlanSectionRow = { kind: "field"; key: PlanKey } | { kind: "total"; id: PlanTotalId };
@@ -60,7 +70,10 @@ export const PLAN_SECTIONS: PlanSection[] = [
   },
   {
     title: "Hợp đồng (đơn vị tự khai)",
-    rows: [f("plan_sales_spot_tonnes"), f("signed_lt_tonnes"), f("carry_lt_tonnes"), f("carry_spot_tonnes")],
+    rows: [
+      f("signed_lt_tonnes"), f("carry_lt_tonnes"), t("lt_total"),
+      f("plan_sales_spot_tonnes"), f("carry_spot_tonnes"), t("spot_total"),
+    ],
   },
 ];
 

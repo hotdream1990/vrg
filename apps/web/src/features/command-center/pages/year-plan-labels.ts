@@ -44,6 +44,8 @@ export const ROW_UI: Record<string, RowUi> = {
   signed_lt_tonnes: { label: "HĐ dài hạn đã ký", uom: "tấn" },
   carry_lt_tonnes: { label: "HĐ dài hạn năm trước chuyển sang", uom: "tấn" },
   carry_spot_tonnes: { label: "HĐ chuyến năm trước chuyển sang", uom: "tấn" },
+  lt_total: { label: "Tổng HĐ dài hạn thực hiện trong năm", uom: "tấn", hint: "HĐ dài hạn đã ký + HĐ dài hạn năm trước chuyển sang." },
+  spot_total: { label: "Tổng HĐ chuyến thực hiện trong năm", uom: "tấn", hint: "Kế hoạch tiêu thụ HĐ chuyến + HĐ chuyến năm trước chuyển sang." },
 };
 
 /** Gợi ý ở tiêu đề nhóm (khoá = tiêu đề nhóm trong PLAN_SECTIONS). */
