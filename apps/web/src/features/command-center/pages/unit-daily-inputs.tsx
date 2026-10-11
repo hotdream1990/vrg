@@ -1,13 +1,11 @@
 /* Ô nhập số + hộp chỉ đọc dùng chung cho form Thu mua & Tiêu thụ–Tồn kho.
    Định dạng số kiểu vi-VN: nhóm nghìn "." + thập phân ",". */
 
+import { useCallback, useState } from "react";
 import { InputNumber, Tooltip } from "antd";
 
 import { type Bound, boundWarning } from "../../../lib/entry-bounds";
 import { formatViNumber } from "../../../lib/number-format";
-
-// Dùng chung 1 nguồn định dạng số vi-VN (giữ nguyên chữ ký để antd suy kiểu InputNumber<string>).
-export const fmtInput = (v?: string | number): string => formatViNumber(v);
 
 //: Dạng nhóm nghìn kiểu Việt: "1.250" · "12.345.678" — mỗi nhóm sau dấu chấm ĐÚNG 3 chữ số.
 const THOUSANDS = /^-?\d{1,3}(\.\d{3})+$/;
@@ -26,6 +24,50 @@ export const parseInput = (s?: string): string => {
   if (raw.includes(",")) return raw.replace(/\./g, "").replace(",", ".");
   return THOUSANDS.test(raw) ? raw.replace(/\./g, "") : raw;
 };
+
+type ViNumberFieldProps = {
+  value: number | null; onChange: (v: number | null) => void;
+  disabled?: boolean; size?: "small"; status?: "warning";
+  /** `undefined` = không bọc Tooltip; còn lại (kể cả "") = bọc. Tooltip nằm TRONG component vì
+   *  Tooltip cần gắn ref/sự kiện chuột thẳng lên InputNumber. */
+  tip?: string;
+};
+
+/** `InputNumber` hiển thị số vi-VN. Chỉ nhóm nghìn khi KHÔNG đứng trong ô.
+ *
+ *  ⚠ Nếu nhóm nghìn cả lúc đang gõ/sửa thì gõ "1234" → ô hiện "1.234", gõ tiếp "5" → `parseInput`
+ *  nhận "1.2345" (không còn là dạng nhóm nghìn) → hiểu là thập phân 1,2345: không nhập nổi quá 4
+ *  chữ số; sửa số có sẵn bằng cách gõ nối cũng sai y vậy. Nên:
+ *   - đang gõ (`userTyping`) → trả NGUYÊN chuỗi người dùng gõ;
+ *   - đứng trong ô (focus) → số TRẦN không dấu chấm nghìn ("1234567,5"), để gõ nối không sai;
+ *   - rời ô → nhóm nghìn "1.234.567,5".
+ *  Trạng thái focus nằm trong component này nên chỉ ô đang sửa vẽ lại (bảng 1.100+ ô vẫn nhẹ). */
+function ViNumberField({ value, onChange, disabled, size, status, tip }: ViNumberFieldProps) {
+  const [focused, setFocused] = useState(false);
+  const formatter = useCallback((v: string | number | undefined, info: { userTyping: boolean; input: string }) => {
+    if (info.userTyping) return info.input;
+    const text = formatViNumber(v);
+    return focused ? text.replace(/\./g, "") : text;
+  }, [focused]);
+  const el = (
+    <InputNumber
+      value={value}
+      onChange={(v) => onChange(v as number | null)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      disabled={disabled}
+      size={size}
+      controls={false}
+      min={0}
+      status={status}
+      formatter={formatter}
+      parser={parseInput}
+      style={{ width: "100%" }}
+      placeholder="—"
+    />
+  );
+  return tip === undefined ? el : <Tooltip title={tip}>{el}</Tooltip>;
+}
 
 /** Hộp ô chỉ đọc (cột suy ra / tự quy đổi) — nền mờ, viền nét đứt. */
 export const readOnlyBox = (text: string, tag: string) => (
@@ -51,23 +93,13 @@ export const numInput = (
   size?: "small", bound?: Bound | null, warnText?: string | null,
 ) => {
   const warn = warnText ?? boundWarning(value, bound);
-  const el = (
-    <InputNumber
-      value={value}
-      onChange={(v) => onChange(v as number | null)}
-      disabled={readOnly}
-      size={size}
-      controls={false}
-      min={0}
-      status={warn ? "warning" : undefined}
-      formatter={fmtInput}
-      parser={parseInput}
-      style={{ width: "100%" }}
-      placeholder="—"
+  const hasTip = bound != null || warnText !== undefined;
+  return (
+    <ViNumberField
+      value={value} onChange={onChange} disabled={readOnly} size={size}
+      status={warn ? "warning" : undefined} tip={hasTip ? (warn ?? "") : undefined}
     />
   );
-  if (bound == null && warnText === undefined) return el;
-  return <Tooltip title={warn ?? ""}>{el}</Tooltip>;
 };
 
 /** Nhãn ô + đơn vị (dùng chung). */
