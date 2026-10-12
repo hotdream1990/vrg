@@ -1,10 +1,10 @@
-"""Test offline cho FX CNY/JPY/THB — không cần mạng.
+"""Test offline cho FX CNY/JPY/THB + MYR (BNM) — không cần mạng.
 
 Nguồn chính exchangerates.org.uk (bảng "Recent history" giao diện 03/09/2026) + dự phòng x-rates.com
 (chỉ nhận trang ĐÃ CHỐT, Close ngày D = ảnh chụp ngày D+1) + quy tắc dùng dự phòng theo từng đồng.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 
@@ -170,3 +170,69 @@ def test_rec_shape() -> None:
     assert r.unit == "THB per USD"
     assert r.price_type == "fx"
     assert r.as_of == date(2026, 9, 3)
+
+
+# ---------- MYR (BNM): quét theo tháng, lấp lại ngày thiếu ----------
+
+def _bnm_month_payload(*days: tuple[str, float]) -> dict:
+    return {"data": {"currency_code": "USD", "rate": [{"date": d, "buying_rate": r} for d, r in days]}}
+
+
+def _stub_bnm(monkeypatch: pytest.MonkeyPatch, months: dict[str, dict | None]) -> list[str]:
+    """Giả lập BNM theo tháng: months['2026/9'] = payload, None = lỗi mạng. Trả về danh sách URL đã gọi."""
+    calls: list[str] = []
+
+    def fake(url: str, **_: object) -> dict:
+        calls.append(url)
+        key = url.split("/year/", 1)[1].split("?", 1)[0].replace("/month/", "/")
+        payload = months.get(key)
+        if payload is None:
+            raise RuntimeError("BNM down")
+        return payload
+
+    monkeypatch.setattr(fx, "fetch_json", fake)
+    return calls
+
+
+def test_bnm_myr_spans_months_and_keeps_days_from_since(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = _stub_bnm(monkeypatch, {
+        "2026/9": _bnm_month_payload(("2026-09-25", 4.075), ("2026-09-28", 4.082), ("2026-09-30", 4.077)),
+        "2026/10": _bnm_month_payload(("2026-10-01", 4.084), ("2026-10-05", 4.085)),
+    })
+    recs = fx._bnm_myr(date(2026, 9, 28), date(2026, 10, 12))
+    assert [(r.grade, r.as_of, r.price) for r in recs] == [
+        ("USD/MYR", date(2026, 9, 28), 4.082), ("USD/MYR", date(2026, 9, 30), 4.077),
+        ("USD/MYR", date(2026, 10, 1), 4.084), ("USD/MYR", date(2026, 10, 5), 4.085)]
+    assert len(calls) == 2 and "/month/9?" in calls[0] and "/month/10?" in calls[1]
+
+
+def test_bnm_myr_one_month_failing_keeps_the_other(monkeypatch: pytest.MonkeyPatch) -> None:
+    _stub_bnm(monkeypatch, {"2026/9": None, "2026/10": _bnm_month_payload(("2026-10-06", 4.083))})
+    recs = fx._bnm_myr(date(2026, 9, 20), date(2026, 10, 12))
+    assert [r.as_of for r in recs] == [date(2026, 10, 6)]
+
+
+def test_bnm_myr_year_rollover_and_empty_on_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = _stub_bnm(monkeypatch, {})
+    assert fx._bnm_myr(date(2026, 12, 20), date(2027, 1, 5)) == []
+    assert [c.split("/year/", 1)[1].split("?", 1)[0] for c in calls] == ["2026/month/12", "2027/month/1"]
+
+
+def test_crawl_refills_myr_days_missed_by_earlier_scans(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Hồi quy sự cố 28/09–06/10/2026: BNM lỗi nhiều ngày rồi trở lại → lượt quét đầu tiên sau đó
+    # phải trả lại CẢ các ngày đã lỡ, không chỉ ngày mới nhất.
+    _stub_bnm(monkeypatch, {"2026/10": _bnm_month_payload(
+        ("2026-10-01", 4.084), ("2026-10-02", 4.083), ("2026-10-05", 4.085), ("2026-10-06", 4.083))})
+    monkeypatch.setattr(fx, "_asia_closes", lambda since, today: ([], []))
+    monkeypatch.setattr(fx, "_vnd_records", lambda day=None: [])
+
+    class _FixedNow:
+        @staticmethod
+        def now(tz=None):  # noqa: ANN001
+            return datetime(2026, 10, 7, 0, 30, tzinfo=tz)
+
+    monkeypatch.setattr(fx, "datetime", _FixedNow)
+    res = fx.crawl()
+    myr = [r for r in res.records if r.grade == "USD/MYR"]
+    assert [r.as_of.day for r in myr] == [1, 2, 5, 6]
+    assert "MYR (BNM) lỗi" not in (res.note or "")

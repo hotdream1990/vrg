@@ -7,7 +7,8 @@ CNY/JPY/THB — NGUỒN CHÍNH exchangerates.org.uk (đúng nguồn Ban TTKD dù
 VND: TỪ VIETCOMBANK (API công khai có date param) — "USD/VND (Mua)" (chuyển khoản) và
   "USD/VND (Bán)", đồng bộ với phiếu Báo giá mủ.
 MYR: TỪ BNM (Ngân hàng TW Malaysia) API — buying_rate phiên 12:00 (đúng nguồn chuyên viên,
-  rateType=BR, quote=rm); dùng quy đổi Latex LGM (Sen ÷ USD/MYR × 10). API theo tháng.
+  rateType=BR, quote=rm); dùng quy đổi Latex LGM (Sen ÷ USD/MYR × 10). API theo tháng; mỗi lần
+  quét lấp lại 31 ngày gần nhất → BNM lỗi vài ngày (28/09–06/10/2026) thì tự lành khi nó trở lại.
 LÀM TRÒN: crawler giữ 4 số lẻ (CNY 4 · THB 4 · MYR 4); chuẩn hoá riêng khi LƯU
 (USD/JPY 2 số lẻ theo file gốc Ban TTKD) nằm ở 1 chỗ duy nhất — `app.services.price_repo`.
 """
@@ -22,6 +23,7 @@ from . import fx_exchangerates, fx_xrates
 
 _CODES = ("CNY", "JPY", "THB")  # CNY/JPY quy futures→USD · THB quy physical Thái
 _LOOKBACK_DAYS = 7  # mỗi lần quét lấp lại 7 ngày gần nhất
+_MYR_LOOKBACK_DAYS = 31  # BNM trả cả tháng/1 request → lùi xa hơn cũng không tốn thêm lượt gọi
 
 _VCB_URL = "https://www.vietcombank.com.vn/api/exchangerates?date={d}"  # VND: nguồn Vietcombank
 # BNM (Malaysia) — buying_rate phiên 12:00, quote=rm (đúng nguồn chuyên viên). {path}='' hoặc '/year/Y/month/M'.
@@ -103,14 +105,15 @@ def _vnd_records(day: date | None = None) -> list[PriceRecord]:
     return out
 
 
-def _bnm_myr(day: date | None = None) -> list[PriceRecord]:
-    """USD/MYR từ BNM (buying_rate, phiên 12:00). day=None → mới nhất; có day → cả tháng đó.
+def _bnm_month(day: date) -> list[PriceRecord]:
+    """USD/MYR cả THÁNG của `day` từ BNM (buying_rate, phiên 12:00); [] nếu lỗi.
 
     quote=rm → RM per 1 USD (≈4,07), cùng chiều với các cặp USD/xxx khác. rateType=BR = buying_rate.
+    Chỉ có các ngày BNM ĐÃ công bố (ngày lễ Malaysia, vd 16/09, không có dòng).
     """
-    path = f"/year/{day.year}/month/{day.month}" if day else ""
     try:
-        data = fetch_json(_BNM_URL.format(path=path), headers=_BNM_HEADERS)
+        data = fetch_json(_BNM_URL.format(path=f"/year/{day.year}/month/{day.month}"),
+                          headers=_BNM_HEADERS)
     except Exception:  # noqa: BLE001
         return []
     rate = (data or {}).get("data", {}).get("rate")
@@ -127,6 +130,16 @@ def _bnm_myr(day: date | None = None) -> list[PriceRecord]:
     return out
 
 
+def _bnm_myr(since: date, today: date) -> list[PriceRecord]:
+    """USD/MYR từ `since` tới `today`: gọi từng tháng phủ khoảng đó, giữ ngày >= since."""
+    out: list[PriceRecord] = []
+    year, month = since.year, since.month
+    while (year, month) <= (today.year, today.month):
+        out.extend(r for r in _bnm_month(date(year, month, 1)) if r.as_of >= since)
+        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+    return out
+
+
 def crawl() -> CrawlResult:
     """Quét tỷ giá: CNY/JPY/THB (lấp 7 ngày) + VND (VCB) + MYR (BNM). Cô lập lỗi từng nguồn."""
     today = datetime.now(timezone.utc).date()
@@ -136,7 +149,7 @@ def crawl() -> CrawlResult:
         records.extend(vnd)
     else:
         notes.append("VND (VCB) lỗi")
-    myr = _bnm_myr()
+    myr = _bnm_myr(today - timedelta(days=_MYR_LOOKBACK_DAYS), today)
     if myr:
         records.extend(myr)
     else:
@@ -163,13 +176,5 @@ def history(days: int) -> list[PriceRecord]:
         records.extend(_vnd_records(day))
         day -= timedelta(days=1)
 
-    # MYR từ BNM — API trả theo tháng; quét các tháng phủ khoảng [since, hôm nay].
-    seen_months: set[tuple[int, int]] = set()
-    day = today
-    for _ in range(days + 1):
-        key = (day.year, day.month)
-        if key not in seen_months:
-            seen_months.add(key)
-            records.extend(m for m in _bnm_myr(day) if m.as_of >= since)
-        day -= timedelta(days=1)
+    records.extend(_bnm_myr(since, today))  # BNM trả theo tháng — helper tự quét các tháng phủ khoảng
     return records
