@@ -25,7 +25,7 @@ _MARKET = "market"
 # section key → (price_type, currency, unit) khi mirror sang fact_price source=market
 _SECTION_MODES = {
     "domestic_private": ("market_domestic_private", "VND", "đồng/tấn"),
-    "domestic_export": ("market_domestic_export", "VND", "đồng/tấn"),
+    "domestic_export": ("market_domestic_export", "USD", "USD/tấn"),   # Mục 2 = USD/tấn FOB (số nhập cỡ 2.000–2.500)
     "export_vrg": ("market_export_vrg", "USD", "USD/tấn"),
     "domestic_vrg": ("market_domestic_vrg", "VND", "đồng/tấn"),
 }
@@ -42,7 +42,7 @@ def meta() -> dict[str, Any]:
 # price_type mirror → (section key, nhãn, đơn vị) cho biểu đồ lịch sử
 _HISTORY_SECTIONS = [
     ("market_domestic_private", "domestic_private", "Giá nội địa — tư nhân", "VNĐ/tấn"),
-    ("market_domestic_export", "domestic_export", "Giá xuất khẩu — hàng tư nhân", "VNĐ/tấn"),
+    ("market_domestic_export", "domestic_export", "Giá xuất khẩu — hàng tư nhân", "USD/tấn"),
     ("market_export_vrg", "export_vrg", "Giá xuất khẩu — VRG", "USD/tấn"),
     ("market_domestic_vrg", "domestic_vrg", "Giá nội địa — VRG", "VNĐ/tấn"),
 ]
@@ -166,7 +166,7 @@ def get_quote(as_of: str) -> dict[str, Any] | None:
         or {"prices": {}, "packaging": {}, "shipping": {}, "note": ""},
         "export_vrg": p.get("export_vrg") or {"prices": {}, "note": ""},
         "domestic_vrg": p.get("domestic_vrg") or {"prices": {}, "status": {}, "note": ""},
-        "customer_proposal": p.get("customer_proposal") or {"qty": {}, "prices": {}, "note": ""},
+        "customer_proposal": p.get("customer_proposal") or {"items": [], "note": ""},
         "private_prices": p.get("private_prices") or {},
         "private_processing_cost": p.get("private_processing_cost"),
         "footer": p.get("footer") or "",

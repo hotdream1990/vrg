@@ -33,10 +33,15 @@ def _quote() -> dict:
         "domestic_private": {"prices": {"SVR 10": 57500000},
                              "packaging": {"SVR 10": "Pallet"},
                              "shipping": {"SVR 10": "Xe khách"}, "note": "n1"},
+        "domestic_export": {"prices": {"SVR 10": 2240}},  # Mục 2 = USD/tấn FOB
         "export_vrg": {"prices": {"SVR 10": 2260}, "note": "n2"},
         "domestic_vrg": {"prices": {"SVR 10": 58200000},
                          "status": {"SVR 10": "Có giao dịch"}, "note": "n3"},
-        "customer_proposal": {"qty": {"SVR 10": 100}, "prices": {"SVR 10": 57000000}, "note": "kh"},
+        "customer_proposal": {"items": [
+            {"grade": "SVR 10", "customer": "__TEST KH A", "qty": 100, "price_vnd": 57000000,
+             "price_usd": 2210.5, "source": "Công ty TNHH MTV Cao su Dầu Tiếng"},
+            {"grade": "SVR 10", "customer": "__TEST KH B", "qty": 40, "price_vnd": None,
+             "price_usd": 2250, "source": ""}], "note": "kh"},
         "private_prices": {_PRIVATE: {"price": 557, "price_max": None},
                            "__TEST Minh Thạnh Phát__": {"price": 560, "price_max": 563},
                            "__TEST dòng trống__": {"price": None, "price_max": None}},
@@ -53,7 +58,10 @@ def test_save_get_roundtrip_and_private_prices() -> None:
     assert saved["domestic_vrg"]["status"]["SVR 10"] == "Có giao dịch"
     assert saved["domestic_private"]["packaging"]["SVR 10"] == "Pallet"
     assert saved["domestic_private"]["shipping"]["SVR 10"] == "Xe khách"
-    assert saved["customer_proposal"]["qty"]["SVR 10"] == 100
+    items = saved["customer_proposal"]["items"]  # cùng chủng loại SVR 10 có 2 dòng riêng
+    assert [(i["grade"], i["customer"], i["qty"]) for i in items] == [
+        ("SVR 10", "__TEST KH A", 100), ("SVR 10", "__TEST KH B", 40)]
+    assert items[0]["price_usd"] == 2210.5 and items[0]["source"].startswith("Công ty TNHH MTV")
     assert saved["private_prices"][_PRIVATE] == {"price": 557, "price_max": None}
     assert saved["private_prices"]["__TEST Minh Thạnh Phát__"] == {"price": 560, "price_max": 563}
     assert "__TEST dòng trống__" not in saved["private_prices"]
@@ -62,7 +70,7 @@ def test_save_get_roundtrip_and_private_prices() -> None:
 
     got = market_quote_repo.get_quote(_D)
     assert got and got["domestic_private"]["prices"]["SVR 10"] == 57500000
-    assert got["customer_proposal"]["prices"]["SVR 10"] == 57000000
+    assert got["customer_proposal"]["items"][0]["price_vnd"] == 57000000
 
 
 def test_private_price_normalised_and_range_check() -> None:
@@ -104,8 +112,41 @@ def test_market_series_mirrored_then_delete() -> None:
     market_quote_repo.save_quote(_quote())
     rows = price_repo.list_records(source="market", date_from=_D, date_to=_D, limit=50)
     ptypes = {r["price_type"] for r in rows["records"]}
-    assert {"market_domestic_private", "market_export_vrg", "market_domestic_vrg"} <= ptypes
+    assert {"market_domestic_private", "market_export_vrg", "market_domestic_vrg", "market_domestic_export"} <= ptypes
+    # Mục 2 là USD/tấn FOB — chuỗi giá phải ghi đúng tiền tệ/đơn vị (từng bị ghi nhầm VND/'đồng/tấn')
+    m2 = next(r for r in rows["records"] if r["price_type"] == "market_domestic_export")
+    assert (m2["currency"], m2["unit"], m2["price"]) == ("USD", "USD/tấn", 2240)
+    hist = {sec["key"]: sec["unit"] for sec in market_quote_repo.price_history(days=3650)["sections"]}
+    assert hist["domestic_export"] == "USD/tấn" and hist["export_vrg"] == "USD/tấn"
 
     assert market_quote_repo.delete_quote(_D) is True
     assert price_repo.list_records(source="market", date_from=_D, date_to=_D, limit=50)["total"] == 0
     assert market_quote_repo.get_quote(_D) is None
+
+
+def test_proposal_legacy_per_grade_payload_becomes_rows() -> None:
+    """Phiếu cũ lưu Mục 5 theo chủng loại (qty/prices là dict) → đọc ra thành các dòng, không mất số."""
+    from app.schemas.market_quote import ProposalSection
+
+    legacy = {"qty": {"SVR 10": 100, "RSS3": None}, "prices": {"SVR 10": 57000000, "SVR 3L": 59000000},
+              "note": "cũ"}
+    got = ProposalSection.model_validate(legacy)
+    assert [(i.grade, i.qty, i.price_vnd) for i in got.items] == [
+        ("SVR 3L", None, 59000000), ("SVR 10", 100, 57000000)]  # theo thứ tự chủng loại; RSS3 trống bị bỏ
+    assert got.note == "cũ"
+    assert ProposalSection.model_validate({}).items == []
+
+
+def test_customer_name_search_is_accent_insensitive_and_deduped() -> None:
+    """Ô chọn khách ở Mục 5: tìm không dấu, một khách có ở nhiều đơn vị chỉ hiện một dòng, bỏ khách đã ẩn."""
+    from app.services import customer_repo
+
+    for company in ("__TEST đơn vị 1", "__TEST đơn vị 2"):
+        customer_repo.save({"name": "__TEST Cao su Sài Gòn"}, company, "tester")
+    customer_repo.save({"name": "__TEST Cao su Sài Gòn Ẩn", "is_active": False}, "__TEST đơn vị 1", "tester")
+    try:
+        rows = customer_repo.search_names("__test cao su sai gon")
+        assert [(r["name"], r["units"]) for r in rows] == [("__TEST Cao su Sài Gòn", 2)]
+    finally:
+        with session_scope() as db:
+            db.execute(text("DELETE FROM unit_customer WHERE company LIKE '__TEST đơn vị%'"))

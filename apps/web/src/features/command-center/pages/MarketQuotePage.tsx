@@ -1,4 +1,4 @@
-import { CheckCircleOutlined, CopyOutlined, SolutionOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, CopyOutlined, FileExcelOutlined, SolutionOutlined } from "@ant-design/icons";
 import { message } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -13,6 +13,7 @@ import {
   copyFromPrevQuote,
   deletePrivateUnit,
   deleteQuote,
+  downloadQuoteXlsx,
   emptyQuote,
   fetchQuoteMeta,
   getQuote,
@@ -22,6 +23,7 @@ import {
   saveQuote,
 } from "../../../lib/market-quote-client";
 import { useEditorWindow } from "../../../lib/edit-window";
+import { type ProposalSection, emptyProposal } from "../../../lib/market-quote-proposal";
 import { useAuth } from "../../auth/AuthContext";
 import DataSourceNote from "../sections/DataSourceNote";
 import DateInput from "../sections/DateInput";
@@ -53,11 +55,13 @@ export default function MarketQuotePage() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [savedAt, setSavedAt] = useState("");
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
   const [createDate, setCreateDate] = useState(todayISO());
   const lastSaved = useRef("");
   const timer = useRef<number | null>(null);
+  const inflight = useRef<Promise<unknown> | null>(null); // lần lưu đang chạy — Xuất Excel chờ nó xong
 
   // Phiếu của ngày ngoài cửa sổ sửa → chỉ xem (khoá toàn bộ form + tự-lưu). Admin miễn.
   const outOfWindow = !!draft && !ew.isEditable(draft.as_of);
@@ -74,6 +78,20 @@ export default function MarketQuotePage() {
   }, [from, to]);
   useEffect(() => { loadList(); }, [loadList]);
 
+  /** Lưu phiếu xuống server (dùng cho tự lưu và cho nút Xuất Excel). Lỗi: báo ở banner rồi ném lại. */
+  const persist = useCallback(async (d: MarketQuote) => {
+    const json = JSON.stringify(d);
+    setSaveState("saving"); setErr("");
+    const run = saveQuote(d).then(() => {
+      lastSaved.current = json;
+      setSaveState("saved"); setSavedAt(new Date().toLocaleTimeString("vi-VN"));
+      setIsNew(false); loadList();
+    });
+    inflight.current = run.catch(() => undefined);
+    try { await run; }
+    catch (e) { setSaveState("error"); setErr(e instanceof Error ? e.message : "Lỗi lưu"); throw e; }
+  }, [loadList]);
+
   // Auto-save: nhập xong ~0.9s tự lưu (bỏ qua khi phiếu còn trống / chưa đổi gì).
   useEffect(() => {
     if (!draft || !editable) return; // ngoài cửa sổ sửa → không tự lưu (backend cũng chặn)
@@ -82,16 +100,9 @@ export default function MarketQuotePage() {
     // Khoảng giá ngược (Giá max < Giá) → chờ sửa rồi mới lưu; bảng Mục 6 báo đỏ ngay tại chỗ.
     if (invalidPrivateRows(draft.private_prices).length > 0) return;
     if (timer.current) clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      setSaveState("saving"); setErr("");
-      saveQuote(draft).then(() => {
-        lastSaved.current = json;
-        setSaveState("saved"); setSavedAt(new Date().toLocaleTimeString("vi-VN"));
-        setIsNew(false); loadList();
-      }).catch((e) => { setSaveState("error"); setErr(e instanceof Error ? e.message : "Lỗi lưu"); });
-    }, 900);
+    timer.current = window.setTimeout(() => { persist(draft).catch(() => undefined); }, 900);
     return () => { if (timer.current) clearTimeout(timer.current); };
-  }, [draft, editable, loadList]);
+  }, [draft, editable, persist]);
 
   // Phiếu gần nhất TRƯỚC ngày `as_of` (để đối chiếu cảnh báo). Lỗi/không có → bỏ qua.
   const loadPrev = useCallback(async (as_of: string) => {
@@ -163,12 +174,9 @@ export default function MarketQuotePage() {
     try { setPrivateUnits(await deletePrivateUnit(unit.id)); message.success(`Đã xoá “${unit.name}” khỏi danh mục`); }
     catch (e) { message.error(e instanceof Error ? e.message : "Không xoá được đơn vị"); }
   };
-  const setProp = (patch: Partial<MarketQuote["customer_proposal"]>) =>
-    setDraft((d) => d && { ...d, customer_proposal: { ...d.customer_proposal, ...patch } });
-  const setPropQty = (g: string, v: number | null) =>
-    setDraft((d) => d && { ...d, customer_proposal: { ...d.customer_proposal, qty: { ...d.customer_proposal.qty, [g]: v } } });
-  const setPropPrice = (g: string, v: number | null) =>
-    setDraft((d) => d && { ...d, customer_proposal: { ...d.customer_proposal, prices: { ...d.customer_proposal.prices, [g]: v } } });
+  // Mục 5: nhận hàm cập nhật để hai lần sửa liên tiếp (vd chọn chủng loại rồi gõ số) không đè nhau.
+  const setProposal = (update: (s: ProposalSection) => ProposalSection) =>
+    setDraft((d) => d && { ...d, customer_proposal: update({ ...emptyProposal(), ...d.customer_proposal }) });
 
   /** Lấy số liệu phiếu gần nhất trước đó điền vào các ô CÒN TRỐNG (không đè số đã nhập).
    *  Không lấy tỷ giá VCB — số riêng của từng ngày. */
@@ -188,6 +196,28 @@ export default function MarketQuotePage() {
       + "trước khi phiếu tự lưu. Tỷ giá VCB không được lấy sang.");
   };
 
+  /** Xuất Excel: LƯU phiếu xong rồi mới xuất (server dựng file từ bản đã lưu). Lưu lỗi thì không xuất. */
+  const exportXlsx = async () => {
+    if (!draft) return;
+    setErr(""); setInfo(""); setExporting(true);
+    try {
+      if (timer.current) clearTimeout(timer.current);   // đang chờ tự lưu → lưu ngay tại đây
+      await inflight.current;                            // chờ lần lưu đang chạy, tránh bản cũ đè bản mới
+      const needSave = editable && JSON.stringify(draft) !== lastSaved.current;
+      if (needSave) {
+        if (isEmptyQuote(draft)) throw new Error("Phiếu chưa có số liệu nào để lưu và xuất.");
+        if (invalidPrivate.length > 0) {
+          throw new Error(`Mục 6: Giá max phải lớn hơn Giá (${invalidPrivate.join(", ")}) — sửa rồi mới lưu và xuất được.`);
+        }
+        await persist(draft);
+      }
+      await downloadQuoteXlsx(draft.as_of);
+      setInfo(`${needSave ? "Đã lưu phiếu và xuất" : "Đã xuất"} file Excel phiếu ngày ${dmy(draft.as_of)}.`);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Không xuất được file Excel");
+    } finally { setExporting(false); }
+  };
+
   const remove = async () => {
     if (!draft || !confirm(`Xoá phiếu báo giá ngày ${dmy(draft.as_of)}?`)) return;
     setBusy(true);
@@ -205,7 +235,7 @@ export default function MarketQuotePage() {
       <div className="page-title">
         <div>
           <h2><SolutionOutlined style={{ marginRight: 8 }} />Báo giá mủ thị trường</h2>
-          <p>Phiếu báo giá theo ngày: tỷ giá VCB · giá SVR (NĐ tư nhân/NĐ hàng XK/VRG XK/VRG nội địa) · đề xuất mua từ khách hàng · giá mủ tư nhân. Tự lưu khi nhập.</p>
+          <p>Phiếu báo giá theo ngày: tỷ giá VCB · giá SVR (NĐ tư nhân/XK hàng tư nhân/VRG XK/VRG nội địa) · đề xuất mua từ khách hàng · giá mủ tư nhân. Tự lưu khi nhập.</p>
         </div>
         {canEdit && (
           <div className="actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -269,7 +299,13 @@ export default function MarketQuotePage() {
                     <CopyOutlined style={{ marginRight: 6 }} />Lấy số liệu phiếu ngày {dmy(prev.as_of)}
                   </button>
                 )}
-                {editable && <button className="btn" onClick={remove} disabled={busy}>Xoá phiếu</button>}
+                <button className="btn" onClick={exportXlsx} disabled={busy || exporting || (isNew && isEmptyQuote(draft))}
+                  title={editable ? "Lưu phiếu rồi tải file Excel theo mẫu báo giá" : "Tải file Excel theo mẫu báo giá"}>
+                  {exporting ? <span className="spinner" style={{ marginRight: 6 }} />
+                    : <FileExcelOutlined style={{ marginRight: 6 }} />}
+                  {exporting ? "Đang lưu & xuất…" : "Xuất Excel"}
+                </button>
+                {editable && <button className="btn" onClick={remove} disabled={busy || exporting}>Xoá phiếu</button>}
               </div>
             </div>
           </div>
@@ -286,9 +322,9 @@ export default function MarketQuotePage() {
             onStatus={(g, v) => setStatus("domestic_private", g, v)}
             onNote={(v) => setSect("domestic_private", { note: v })} />
 
-          <GradePriceTable title="2. Giá xuất khẩu — hàng tư nhân" subtitle="VNĐ/tấn + tình trạng" grades={grades}
+          <GradePriceTable title="2. Giá xuất khẩu — hàng tư nhân" subtitle="USD/tấn (FOB) + tình trạng" grades={grades}
             section={draft.domestic_export ?? { prices: {}, packaging: {}, shipping: {}, status: {}, note: "" }}
-            unitLabel="Đồng/tấn" packagingOptions={packOpts} withStatus readOnly={!editable}
+            unitLabel="USD/tấn" packagingOptions={packOpts} withStatus readOnly={!editable}
             prevPrices={prev?.domestic_export?.prices}
             onPrice={(g, v) => setPrice("domestic_export", g, v)}
             onPackaging={(g, v) => setPackaging("domestic_export", g, v)}
@@ -314,9 +350,8 @@ export default function MarketQuotePage() {
             onStatus={(g, v) => setStatus("domestic_vrg", g, v)}
             onNote={(v) => setSect("domestic_vrg", { note: v })} />
 
-          <ProposalTable grades={grades} section={draft.customer_proposal ?? { qty: {}, prices: {}, note: "" }}
-            readOnly={!editable} prevQty={prev?.customer_proposal?.qty} prevPrices={prev?.customer_proposal?.prices}
-            onQty={setPropQty} onPrice={setPropPrice} onNote={(v) => setProp({ note: v })} />
+          <ProposalTable grades={grades} section={{ ...emptyProposal(), ...draft.customer_proposal }}
+            readOnly={!editable} onChange={setProposal} />
 
           <PrivatePriceTable units={privateUnits} prices={draft.private_prices ?? {}}
             prevPrices={prev?.private_prices} readOnly={!editable} invalid={invalidPrivate}

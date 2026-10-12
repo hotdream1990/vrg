@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { type MqPriceHistory, fetchMarketPriceHistory } from "../../../../lib/market-quote-client";
 import HistorySectionChart from "./HistorySectionChart";
 
-/** Lịch sử giá SVR thị trường — 4 box cho 4 mục (NĐ tư nhân · NĐ hàng XK · XK VRG · NĐ VRG),
+/** Lịch sử giá SVR thị trường — 4 box cho 4 mục (NĐ tư nhân · XK hàng tư nhân · XK VRG · NĐ VRG),
  *  mỗi box bật/tắt từng chủng loại (chip) + Hiện/Ẩn hết. */
 export default function MarketHistoryBlock() {
   const [data, setData] = useState<MqPriceHistory | null>(null);

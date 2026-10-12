@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from app.core.security import assert_editor_window, block_unit_roles, require_admin, require_cap_edit
 from app.schemas.market_quote import (
@@ -13,7 +15,7 @@ from app.schemas.market_quote import (
     PrivateUnitCreate,
     VcbRateResult,
 )
-from app.services import market_private_unit_repo, market_quote_repo, vcb_rate
+from app.services import customer_repo, market_private_unit_repo, market_quote_excel, market_quote_repo, vcb_rate
 
 router = APIRouter(prefix="/api/market-quote", tags=["market-quote"])
 
@@ -53,6 +55,15 @@ def vcb_rate_now(date: str | None = Query(None, description="YYYY-MM-DD (mặc �
         raise HTTPException(502, "Không lấy được tỷ giá VCB (mạng/nguồn) — vui lòng nhập tay.") from exc
 
 
+@router.get("/customer-options", dependencies=_hq_only)
+def customer_options(
+    q: str | None = Query(None, max_length=120, description="Tìm theo tên/mã/MST (không dấu)"),
+    limit: int = Query(50, ge=1, le=100),
+) -> list[dict]:
+    """Tên khách hàng trong hệ thống cho ô chọn ở Mục 5 — tìm ở server, gộp trùng tên giữa các đơn vị."""
+    return customer_repo.search_names(q, limit)
+
+
 @router.get("/history", dependencies=_hq_only)
 def get_price_history(days: int = Query(90, ge=7, le=365)) -> dict:
     """Lịch sử giá SVR thị trường (4 mục) theo ngày × chủng loại — cho biểu đồ xu hướng."""
@@ -86,6 +97,23 @@ def delete_private_unit(unit_id: int, _admin: str = Depends(require_admin)):
     if not market_private_unit_repo.delete_unit(unit_id):
         raise HTTPException(404, "Không tìm thấy đơn vị tư nhân này")
     return market_private_unit_repo.list_units()
+
+
+@router.get("/{as_of}/export.xlsx", dependencies=_hq_only)
+def export_quote_xlsx(as_of: str) -> Response:
+    """File Excel Phiếu báo giá mủ theo mẫu Ban TTKD — dựng từ phiếu ĐÃ LƯU của ngày `as_of`."""
+    try:
+        day = date.fromisoformat(as_of).isoformat()
+    except ValueError as exc:
+        raise HTTPException(400, "Ngày không hợp lệ (YYYY-MM-DD).") from exc
+    q = market_quote_repo.get_quote(day)
+    if q is None:
+        raise HTTPException(404, f"Chưa có phiếu đã lưu cho ngày {day} — hãy lưu phiếu trước khi xuất.")
+    units = [u["name"] for u in market_private_unit_repo.list_units()]
+    return Response(
+        content=market_quote_excel.build_xlsx(MarketQuote.model_validate(q).model_dump(), units),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="bao-gia-mu-thi-truong-{day}.xlsx"'})
 
 
 @router.get("/{as_of}", response_model=MarketQuote, dependencies=_hq_only)

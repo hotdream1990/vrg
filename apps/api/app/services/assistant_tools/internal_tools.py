@@ -73,7 +73,7 @@ _QUOTE_GROUPS = [
     ("export_vrg", "Xuất khẩu VRG", "USD/tấn"),
     ("domestic_vrg", "Nội địa VRG", "đồng/tấn"),
     ("domestic_private", "Nội địa — tư nhân", "đồng/tấn"),
-    ("domestic_export", "Xuất khẩu — hàng tư nhân", "đồng/tấn"),
+    ("domestic_export", "Xuất khẩu — hàng tư nhân", "USD/tấn"),
 ]
 
 

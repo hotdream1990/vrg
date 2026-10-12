@@ -58,6 +58,29 @@ async function errorMessage(res: Response, fallback?: string): Promise<string> {
   return base;
 }
 
+/** Hết phiên (401): huỷ Web Push, đẩy về /login, trả lỗi để ném. */
+function expireSession(): ApiError {
+  dropPushSubscription();
+  onUnauthorized();
+  return new ApiError("Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.", 401);
+}
+
+/** Tải 1 file (Excel…) từ API kèm Bearer token rồi lưu về máy. Lỗi trả đúng câu tiếng Việt của server
+ *  (vd "chưa có phiếu đã lưu"), không phải "HTTP 404". */
+export async function apiDownload(path: string, filename: string): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`${API}${path}`, { headers: authHeaders() });
+  } catch {
+    throw new ApiError(`Không kết nối được máy chủ (${API}) — kiểm tra mạng hoặc thử lại.`, 0);
+  }
+  if (res.status === 401) throw expireSession();
+  if (!res.ok) throw new ApiError(await errorMessage(res, "Không tải được file."), res.status);
+  const url = URL.createObjectURL(await res.blob());
+  Object.assign(document.createElement("a"), { href: url, download: filename }).click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 /** Gọi API + parse JSON. Ném `ApiError` với message thân thiện cho mọi nhánh lỗi. */
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
@@ -69,11 +92,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   } catch {
     throw new ApiError(`Không kết nối được máy chủ (${API}) — kiểm tra mạng hoặc thử lại.`, 0);
   }
-  if (res.status === 401) {
-    dropPushSubscription();
-    onUnauthorized();
-    throw new ApiError("Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.", 401);
-  }
+  if (res.status === 401) throw expireSession();
   if (res.status === 403) {
     const msg = await errorMessage(res, "Bạn không có quyền thực hiện thao tác này.");
     throw new ApiError(msg, 403, blockedKind(res));

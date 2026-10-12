@@ -20,7 +20,7 @@ function gradesOf(q: MarketQuote): string[] {
   return out;
 }
 
-/** Báo giá mủ thị trường — 4 mục giá SVR (NĐ tư nhân · NĐ hàng XK · XK VRG · NĐ VRG) + tình trạng,
+/** Báo giá mủ thị trường — 4 mục giá SVR (NĐ tư nhân · XK hàng tư nhân · XK VRG · NĐ VRG) + tình trạng,
  *  lấy phiếu gần nhất; cột XK VRG kèm %thay đổi so phiếu trước. */
 export default function MarketQuoteBlock() {
   const [q, setQ] = useState<MarketQuote | null>(null);
@@ -62,7 +62,7 @@ export default function MarketQuoteBlock() {
                 <tr>
                   <th>Chủng loại</th>
                   <th className="r">NĐ tư nhân<br /><small style={{ color: "var(--muted)" }}>tr.đ/tấn</small></th>
-                  <th className="r">NĐ hàng XK<br /><small style={{ color: "var(--muted)" }}>tr.đ/tấn</small></th>
+                  <th className="r">XK hàng tư nhân<br /><small style={{ color: "var(--muted)" }}>USD/tấn</small></th>
                   <th className="r">XK VRG<br /><small style={{ color: "var(--muted)" }}>USD/tấn</small></th>
                   <th className="r">± XK</th>
                   <th className="r">NĐ VRG<br /><small style={{ color: "var(--muted)" }}>tr.đ/tấn</small></th>
@@ -79,7 +79,7 @@ export default function MarketQuoteBlock() {
                     <tr key={g}>
                       <td style={{ fontWeight: 500 }}>{g}</td>
                       <td className="r">{mil(q!.domestic_private.prices?.[g] ?? null)}</td>
-                      <td className="r">{mil(q!.domestic_export.prices?.[g] ?? null)}</td>
+                      <td className="r">{usd(q!.domestic_export.prices?.[g] ?? null)}</td>
                       <td className="r">{usd(xk)}</td>
                       <td className="r" style={{ fontWeight: 600, color: chgColor(chg) }}>
                         {chg == null ? "—" : `${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%`}

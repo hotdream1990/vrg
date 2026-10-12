@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Any
+
+from pydantic import BaseModel, Field, model_validator
+
+from app.core.market_meta import MARKET_QUOTE_GRADES
 
 
 class VcbRate(BaseModel):
@@ -23,12 +27,38 @@ class Section(BaseModel):
     note: str = ""
 
 
-class ProposalSection(BaseModel):
-    """Mục 5 — Đề xuất mua từ khách hàng - hàng VRG: số lượng + đơn giá theo chủng loại (lưu trong phiếu)."""
+class ProposalItem(BaseModel):
+    """1 dòng đề xuất của khách hàng. Cùng một chủng loại có thể có nhiều dòng (nhiều khách / nhiều nguồn)."""
 
-    qty: dict[str, float | None] = Field(default_factory=dict)  # grade -> số lượng (tấn)
-    prices: dict[str, float | None] = Field(default_factory=dict)  # grade -> đơn giá (VNĐ/tấn)
+    grade: str = ""  # chủng loại (SVR 10, RSS3, …)
+    customer: str = ""  # tên khách hàng — chọn từ danh mục khách hàng của hệ thống
+    qty: float | None = None  # số lượng (tấn)
+    price_vnd: float | None = None  # đơn giá (VNĐ/tấn)
+    price_usd: float | None = None  # đơn giá (USD/tấn)
+    source: str = ""  # nguồn — tên công ty thành viên
+
+
+class ProposalSection(BaseModel):
+    """Mục 5 — Đề xuất mua từ khách hàng - hàng VRG: danh sách dòng đề xuất (lưu trong phiếu)."""
+
+    items: list[ProposalItem] = Field(default_factory=list)
     note: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _from_legacy(cls, data: Any) -> Any:
+        """Phiếu cũ (đến 0.4.118) lưu theo chủng loại: `qty` / `prices` là dict chủng loại → số.
+
+        Đọc phiếu cũ thì đổi thành danh sách dòng (mỗi chủng loại có số = một dòng) để không mất số đã nhập.
+        """
+        if not isinstance(data, dict) or data.get("items") or not ("qty" in data or "prices" in data):
+            return data
+        qty, prices = data.get("qty") or {}, data.get("prices") or {}
+        known = [g for g in MARKET_QUOTE_GRADES if g in qty or g in prices]
+        grades = known + [g for g in {**qty, **prices} if g not in known]
+        items = [{"grade": g, "qty": qty.get(g), "price_vnd": prices.get(g)}
+                 for g in grades if qty.get(g) is not None or prices.get(g) is not None]
+        return {"items": items, "note": data.get("note", "")}
 
 
 class PrivatePrice(BaseModel):
@@ -44,7 +74,7 @@ class MarketQuote(BaseModel):
     as_of: str
     fx: VcbRate = Field(default_factory=VcbRate)
     domestic_private: Section = Field(default_factory=Section)  # Mục 1 — giá NĐ hàng tư nhân (VNĐ/tấn)
-    domestic_export: Section = Field(default_factory=Section)  # Mục 2 — giá XK hàng tư nhân (VNĐ/tấn)
+    domestic_export: Section = Field(default_factory=Section)  # Mục 2 — giá XK hàng tư nhân (USD/tấn FOB)
     export_vrg: Section = Field(default_factory=Section)  # Mục 3 — giá XK VRG (USD/tấn)
     domestic_vrg: Section = Field(default_factory=Section)  # Mục 4 (VNĐ/tấn)
     customer_proposal: ProposalSection = Field(default_factory=ProposalSection)  # Mục 5 — đề xuất KH hàng VRG

@@ -89,6 +89,28 @@ def list_customers(companies: list[str] | None = None, include_inactive: bool = 
             "total": int(rows[0]["total"]) if rows else 0}
 
 
+def search_names(q: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+    """Tên khách hàng ĐANG DÙNG của mọi đơn vị, gộp trùng tên → `[{name, units, company}]`.
+
+    Cho ô chọn khách ở phiếu báo giá (mức Tập đoàn): chỉ cần TÊN, nên cùng một khách có ở nhiều đơn vị
+    chỉ hiện một dòng (`units` = số đơn vị có khách đó; `company` = đơn vị đầu tiên, để phân biệt
+    các khách gần trùng tên). Tìm không dấu theo tên / mã / mã số thuế như `list_customers`.
+    """
+    ensure_schema()
+    where, params = ["is_active"], {"lim": int(limit)}
+    if q:
+        cols = " OR ".join(f"{vn_text.fold_sql(c)} LIKE :q" for c in ("name", "code", "tax_code"))
+        where.append(f"({cols})")
+        params.update(vn_text.FOLD_PARAMS)
+        params["q"] = f"%{vn_text.fold(q)}%"
+    with session_scope() as db:
+        rows = db.execute(text(
+            "SELECT name, min(company) AS company, count(DISTINCT company) AS units "
+            f"FROM unit_customer WHERE {' AND '.join(where)} GROUP BY name ORDER BY name LIMIT :lim"
+        ), params).mappings().all()
+    return [{"name": r["name"], "company": r["company"], "units": int(r["units"])} for r in rows]
+
+
 def names_by_id(companies: list[str] | None = None,
                 ids: list[int] | None = None) -> dict[int, str]:
     """{id: tên khách} — gắn tên khách vào danh sách hợp đồng/báo cáo mà không join thêm.

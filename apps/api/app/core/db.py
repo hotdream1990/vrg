@@ -724,6 +724,18 @@ BEGIN
     INSERT INTO schema_once (name) VALUES ('sales_contract_line_source') ON CONFLICT DO NOTHING;
   END IF;
 END $$;
+-- MỤC 2 PHIẾU BÁO GIÁ ("Giá xuất khẩu — hàng tư nhân") LÀ USD/TẤN FOB (chốt 12/10/2026): số chuyên viên
+-- nhập cỡ 2.000–2.500 nhưng bản sao chuỗi giá (`fact_price`, source='market') từng bị ghi nhãn VND/'đồng/tấn'.
+-- Vá nhãn các dòng cũ đúng MỘT lần (từ nay `_SECTION_MODES` ghi USD). Chỉ đổi nhãn tiền tệ/đơn vị, KHÔNG đụng
+-- số; điều kiện `price < 100000` để dòng nào lỡ nhập cỡ triệu đồng (không có) thì để nguyên.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM schema_once WHERE name = 'market_domestic_export_usd') THEN
+    UPDATE fact_price SET currency = 'USD', unit = 'USD/tấn'
+     WHERE source = 'market' AND price_type = 'market_domestic_export' AND price < 100000;
+    INSERT INTO schema_once (name) VALUES ('market_domestic_export_usd') ON CONFLICT DO NOTHING;
+  END IF;
+END $$;
 -- Nâng bản ghi cũ (1 file ở cột phẳng) lên danh sách. Idempotent: chỉ chạm dòng chưa có danh sách.
 UPDATE unit_stock_contract SET files = jsonb_build_array(
          jsonb_build_object('file', file, 'filename', COALESCE(filename, file)))

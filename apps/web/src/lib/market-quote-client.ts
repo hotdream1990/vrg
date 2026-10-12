@@ -1,6 +1,7 @@
 /* Client API Báo giá mủ thị trường (market_quote) — 1 phiếu/ngày, đọc/lưu/xoá. */
 
-import { apiFetch } from "./http";
+import { apiDownload, apiFetch } from "./http";
+import { type ProposalSection, emptyProposal, fillProposalFromPrev, isProposalEmpty } from "./market-quote-proposal";
 
 export type VcbRate = { mua_tm: number | null; mua_ck: number | null; ban: number | null };
 export type Section = {
@@ -10,12 +11,6 @@ export type Section = {
   status?: Record<string, string>; // grade -> tình trạng giao dịch (Mục 1-4)
   note: string;
 };
-export type ProposalSection = {
-  qty: Record<string, number | null>; // grade -> số lượng (tấn)
-  prices: Record<string, number | null>; // grade -> đơn giá (VNĐ/tấn)
-  note: string;
-};
-
 /** Mục 6 — giá mủ 1 đơn vị tư nhân: một giá, hoặc khoảng giá `price`–`price_max`. */
 export type PrivatePrice = { price: number | null; price_max: number | null };
 export type PrivateUnit = { id: number; name: string };
@@ -59,6 +54,10 @@ export const getQuote = (as_of: string) => req<MarketQuote>(`/api/market-quote/$
 
 export const saveQuote = (mq: MarketQuote) =>
   req<MarketQuote>(`/api/market-quote`, { method: "PUT", body: JSON.stringify(mq) });
+
+/** Tải Excel phiếu báo giá theo mẫu Ban TTKD. Server dựng từ phiếu ĐÃ LƯU → phải lưu phiếu xong rồi mới gọi. */
+export const downloadQuoteXlsx = (as_of: string) =>
+  apiDownload(`/api/market-quote/${as_of}/export.xlsx`, `bao-gia-mu-thi-truong-${as_of}.xlsx`);
 
 export const deleteQuote = (as_of: string) =>
   req<{ deleted: string }>(`/api/market-quote/${as_of}`, { method: "DELETE" });
@@ -127,9 +126,7 @@ export const isEmptyQuote = (q: MarketQuote): boolean => {
     !s || (numMapEmpty(s.prices ?? {}) && textMapEmpty(s.packaging ?? {})
       && textMapEmpty(s.shipping ?? {}) && textMapEmpty(s.status ?? {}) && !s.note?.trim());
   const fxEmpty = q.fx.mua_tm == null && q.fx.mua_ck == null && q.fx.ban == null;
-  const propEmpty =
-    numMapEmpty(q.customer_proposal.qty) && numMapEmpty(q.customer_proposal.prices)
-    && !q.customer_proposal.note.trim();
+  const propEmpty = isProposalEmpty(q.customer_proposal);
   return fxEmpty && secEmpty(q.domestic_private) && secEmpty(q.domestic_export)
     && secEmpty(q.export_vrg) && secEmpty(q.domestic_vrg) && propEmpty
     && privateEmpty(q.private_prices) && !q.footer.trim();
@@ -187,21 +184,20 @@ export const copyFromPrevQuote = (draft: MarketQuote, prev: MarketQuote): [Marke
   const [domestic_export, b] = fillSection(draft.domestic_export, prev.domestic_export);
   const [export_vrg, c] = fillSection(draft.export_vrg, prev.export_vrg);
   const [domestic_vrg, d] = fillSection(draft.domestic_vrg, prev.domestic_vrg);
-  const [qty, e] = fillNums(draft.customer_proposal?.qty ?? {}, prev.customer_proposal?.qty);
-  const [prices, f] = fillNums(draft.customer_proposal?.prices ?? {}, prev.customer_proposal?.prices);
-  const [propNote, g] = fillNote(draft.customer_proposal?.note, prev.customer_proposal?.note);
+  const [propRows, e] = fillProposalFromPrev(draft.customer_proposal, prev.customer_proposal);
+  const [propNote, g] = fillNote(propRows.note, prev.customer_proposal?.note);
   const [footer, h] = fillNote(draft.footer, prev.footer);
   const [private_prices, i] = fillPrivate(draft.private_prices ?? {}, prev.private_prices);
   const copyCost = draft.private_processing_cost == null && prev.private_processing_cost != null;
   return [{
     ...draft,
     domestic_private, domestic_export, export_vrg, domestic_vrg,
-    customer_proposal: { ...draft.customer_proposal, qty, prices, note: propNote },
+    customer_proposal: { ...propRows, note: propNote },
     private_prices,
     private_processing_cost: copyCost ? prev.private_processing_cost : draft.private_processing_cost,
     footer,
     // fx: giữ nguyên phiếu đang mở — KHÔNG lấy từ ngày khác.
-  }, a + b + c + d + e + f + g + h + i + (copyCost ? 1 : 0)];
+  }, a + b + c + d + e + g + h + i + (copyCost ? 1 : 0)];
 };
 
 /** Phiếu rỗng để tạo mới (giá theo chủng loại = null). */
@@ -214,7 +210,7 @@ export const emptyQuote = (as_of: string, grades: string[]): MarketQuote => {
     domestic_export: { prices: blankNum(), packaging: {}, shipping: {}, status: {}, note: "" },
     export_vrg: { prices: blankNum(), packaging: {}, shipping: {}, status: {}, note: "" },
     domestic_vrg: { prices: blankNum(), packaging: {}, shipping: {}, status: {}, note: "" },
-    customer_proposal: { qty: blankNum(), prices: blankNum(), note: "" },
+    customer_proposal: emptyProposal(),
     private_prices: {},
     private_processing_cost: null,
     footer: "",
