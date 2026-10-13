@@ -33,7 +33,9 @@ export default function AnomalyPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const isLeader = user?.role === "leader";
-  const scope = isLeader ? "mine" : "all";
+  // Tài khoản đơn vị (lãnh đạo + nhập liệu) chỉ xem đơn vị mình — server tự thu hẹp phạm vi.
+  const isUnit = isLeader || user?.role === "member";
+  const scope = isUnit ? "mine" : "all";
 
   // Mở từ link trong tin cảnh báo tự động → đúng khoảng ngày của tin; mở thường → khoảng mặc định.
   const [params] = useSearchParams();
@@ -101,6 +103,10 @@ export default function AnomalyPage() {
             <p>Những chỗ <b>nhân viên nhập liệu của đơn vị</b> đang nhập sai hoặc còn thiếu — để
               nhắc đúng việc cần sửa: <b>nhập sai đơn vị tính · chưa nộp báo cáo · thiếu đơn giá ·
               kế hoạch năm khai thiếu</b>…</p>
+          ) : isUnit ? (
+            <p>Những chỗ <b>số liệu của đơn vị</b> đang nhập sai hoặc còn thiếu — xem để tự sửa
+              trước khi Ban nhắc: <b>nhập sai đơn vị tính · chưa nộp báo cáo · thiếu đơn giá ·
+              kế hoạch năm khai thiếu</b>…</p>
           ) : (
             <p>Quét toàn bộ số liệu đơn vị thành viên trong khoảng đã chọn và gom mọi dấu hiệu sai:
               <b> nhập sai đơn vị tính · chưa nộp báo cáo · thiếu đơn giá · doanh thu vô lý</b>…</p>
@@ -111,6 +117,9 @@ export default function AnomalyPage() {
               {isLeader ? (
                 <>Cảnh báo là <b>dấu hiệu cần kiểm tra</b> — nhắc nhân viên nhập liệu xem lại. Ngày
                   đã khoá thì nhân viên gửi <b>Đề nghị sửa số liệu</b> để Ban duyệt.</>
+              ) : isUnit ? (
+                <>Cảnh báo là <b>dấu hiệu cần kiểm tra</b> — mở đúng phiếu ngày đó ra xem lại. Ngày
+                  đã khoá thì gửi <b>Đề nghị sửa số liệu</b> để Ban duyệt.</>
               ) : (
                 <>Cảnh báo là <b>dấu hiệu cần kiểm tra</b>, chưa chắc đã là số sai — đối chiếu với
                   đơn vị trước khi sửa.</>
@@ -167,7 +176,7 @@ export default function AnomalyPage() {
                một loạt bảng "Không có cảnh báo" thay vì một câu xác nhận. */
             <Alert type="success" showIcon
                    message="Không phát hiện bất thường nào trong khoảng đã chọn."
-                   description={isLeader
+                   description={isUnit
                      ? "Số liệu của đơn vị trong kỳ này đạt mọi luật kiểm tra."
                      : "Số liệu đơn vị thành viên trong kỳ này đạt mọi luật kiểm tra."} />
           ) : (

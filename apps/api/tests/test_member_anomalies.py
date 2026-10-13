@@ -1,4 +1,5 @@
-"""Test Cảnh báo bất thường cho LÃNH ĐẠO ĐƠN VỊ: chỉ thấy đơn vị mình, không thấy số gộp Tập đoàn."""
+"""Test Cảnh báo bất thường cho TÀI KHOẢN ĐƠN VỊ (lãnh đạo + nhập liệu): chỉ thấy đơn vị mình,
+không thấy số gộp Tập đoàn."""
 
 from __future__ import annotations
 
@@ -96,15 +97,26 @@ def test_xuat_excel_chi_co_don_vi_minh(env):
     assert UNIT_A in cells and UNIT_B not in cells
 
 
-def test_chi_lanh_dao_don_vi_vao_duoc(env):
-    # Tài khoản nhập liệu, quản trị: không phải lãnh đạo đơn vị → 403 ở đường của lãnh đạo.
-    assert client.get("/api/member/anomalies", headers=env["mem"]).status_code == 403
+def test_tai_khoan_nhap_lieu_cung_xem_duoc_va_chi_thay_don_vi_minh(env):
+    """Từ 13/10/2026 tài khoản nhập liệu xem được để tự chủ động sửa — vẫn đúng phạm vi đơn vị."""
+    r = client.get("/api/member/anomalies", headers=env["mem"])
+    assert r.status_code == 200
+    body = r.json()
+    assert {row.get("don_vi") for g in body["groups"] for row in g["rows"]} == {UNIT_A}
+    assert "revenue_outlier" not in {g["key"] for g in body["groups"]}
+    assert "thresholds" not in body
+    assert client.get("/api/member/anomalies/export.xlsx", headers=env["mem"]).status_code == 200
+
+
+def test_chi_tai_khoan_don_vi_vao_duoc(env):
+    # Quản trị không gắn đơn vị → 403 ở đường của đơn vị (quản trị có màn toàn hệ thống riêng).
     assert client.get("/api/member/anomalies", headers=env["admin"]).status_code == 403
-    # Lãnh đạo đơn vị KHÔNG vào được màn toàn hệ thống, cũng không chạm được cấu hình ngưỡng.
-    assert client.get("/api/anomalies", headers=env["lead"]).status_code == 403
-    assert client.get("/api/anomalies/config", headers=env["lead"]).status_code == 403
-    assert client.put("/api/anomalies/config", json={"values": {}},
-                      headers=env["lead"]).status_code == 403
+    # Tài khoản đơn vị KHÔNG vào được màn toàn hệ thống, cũng không chạm được cấu hình ngưỡng.
+    for who in ("lead", "mem"):
+        assert client.get("/api/anomalies", headers=env[who]).status_code == 403
+        assert client.get("/api/anomalies/config", headers=env[who]).status_code == 403
+        assert client.put("/api/anomalies/config", json={"values": {}},
+                          headers=env[who]).status_code == 403
     assert client.get("/api/member/anomalies").status_code == 401
     assert client.get("/api/member/anomalies", headers=env["lead"],
                       params={"date_from": "01/01/2026"}).status_code == 422

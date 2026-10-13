@@ -96,6 +96,8 @@ const ITEM = {
   assistantHistory: { key: "/tro-ly-ai/lich-su", icon: <HistoryOutlined />, label: "Lịch sử hỏi đáp" },
   myEditRequests: { key: "/de-nghi-sua", icon: <DiffOutlined />, label: "Đề nghị sửa số liệu" },
   unitInbox: { key: "/ho-tro", icon: <CustomerServiceOutlined />, label: "Hỗ trợ & Thông báo" },
+  // Quản trị xem toàn hệ thống; tài khoản đơn vị chỉ thấy đơn vị mình (server tự lọc).
+  anomalies: { key: "/canh-bao-bat-thuong", icon: <WarningOutlined />, label: "Cảnh báo bất thường" },
   factoryMeters: { key: "/nha-may-thong-minh/chi-so", icon: <ControlOutlined />, label: "Giám sát chỉ số" },
   plantDiagram: {
     key: "/nha-may-thong-minh/so-do-van-hanh", icon: <DeploymentUnitOutlined />, label: "Sơ đồ vận hành",
@@ -238,7 +240,7 @@ const ADMIN_MENU = {
   key: "admin", icon: <SafetyOutlined />, label: "Quản trị",
   children: [
     { key: "/quan-tri/nguoi-dung", icon: <UsergroupAddOutlined />, label: "Người dùng" },
-    { key: "/canh-bao-bat-thuong", icon: <WarningOutlined />, label: "Cảnh báo bất thường" },
+    ITEM.anomalies,
     { key: "/quan-tri/nhat-ky", icon: <AuditOutlined />, label: "Nhật ký hoạt động" },
     { key: "/quan-tri/truy-cap", icon: <HistoryOutlined />, label: "Lịch sử truy cập" },
     { key: "/quan-tri/cau-hinh", icon: <SettingOutlined />, label: "Cấu hình hệ thống" },
@@ -256,6 +258,8 @@ function buildMemberMenu(user: User | null, hasPurchasePlan: boolean) {
     // Bức tranh thu mua · tồn kho · tiêu thụ · chỉ tiêu của chính đơn vị (server ép đúng đơn vị).
     ITEM.unitDashboard,
     ITEM.unitInbox,
+    // Người sửa được số là tài khoản nhập liệu — cho họ tự xem chỗ sai/thiếu thay vì chờ nhắc lại.
+    ITEM.anomalies,
     ...group("data-manual", <EditOutlined />, "Nhập liệu số liệu", [
       has("purchase") && hasPurchasePlan
         && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Thu mua (theo ngày)" },
@@ -285,7 +289,7 @@ function buildLeaderMenu(hasPurchasePlan: boolean) {
     ITEM.unitDashboard,
     ITEM.unitInbox,
     // Chỗ nhân viên nhập sai/thiếu — để lãnh đạo nhắc đúng việc (chỉ đơn vị mình, server tự lọc).
-    { key: "/canh-bao-bat-thuong", icon: <WarningOutlined />, label: "Cảnh báo bất thường" },
+    ITEM.anomalies,
     ...group("data-manual", <BarChartOutlined />, "Số liệu đơn vị (chỉ xem)", [
       hasPurchasePlan && { key: "/bao-cao-thu-mua", icon: <ScheduleOutlined />, label: "Thu mua (theo ngày)" },
       { key: "/bao-cao-ton-kho", icon: <InboxOutlined />, label: "Tồn kho (theo ngày)" },

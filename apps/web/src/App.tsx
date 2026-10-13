@@ -307,9 +307,9 @@ export default function App() {
                     <Route path="/nha-may-thong-minh/cau-hinh-scada"
                       element={<Navigate to="/quan-tri/cau-hinh?tab=scada" replace />} />
                   </Route>
-                  {/* Cảnh báo bất thường: quản trị xem toàn hệ thống, lãnh đạo đơn vị xem đơn vị mình
-                      (server tự thu hẹp phạm vi theo vai trò — xem routers/member_anomalies.py). */}
-                  <Route element={<RequireRole roles={["admin", "leader"]} />}>
+                  {/* Cảnh báo bất thường: quản trị xem toàn hệ thống, tài khoản đơn vị (lãnh đạo +
+                      nhập liệu) xem đơn vị mình — server tự thu hẹp phạm vi (routers/member_anomalies.py). */}
+                  <Route element={<RequireRole roles={["admin", "leader", "member"]} />}>
                     <Route path="/canh-bao-bat-thuong" element={<AnomalyPage />} />
                   </Route>
                   <Route path="/ho-so" element={<ProfilePage />} />
