@@ -345,3 +345,40 @@ def test_completed_contract_without_any_delivery_is_flagged() -> None:
             db.execute(text("DELETE FROM sales_contract WHERE company = :c"), {"c": UNIT})
             db.execute(text("DELETE FROM unit_customer WHERE company = :c"), {"c": UNIT})
         _cleanup(h)
+
+
+def test_purchase_day_without_price_is_flagged_like_the_anomaly_page() -> None:
+    """Ngày có sản lượng thu mua mà chưa có đơn giá → nhắc NGAY trên màn của người nhập liệu.
+
+    Trước 13/10/2026 chỉ màn Cảnh báo bất thường (quản trị · lãnh đạo) nêu chuyện này, người sửa
+    được số lại không thấy. Cùng luật `missing_purchase_price`: khai 0 (cờ `no_price_*`) là hết
+    nhắc; đơn vị không được giao kế hoạch thu mua thì không nhắc (họ không mở được màn Thu mua).
+    """
+    from app.services import missing_purchase_price
+
+    h = _admin()
+    _cleanup(h)
+    member_unit_repo.add_unit(UNIT)
+    assert client.post("/api/users", json={"username": USER, "password": "pass123",
+                                           "role": "member", "member_units": [UNIT]},
+                       headers=h).status_code == 200
+    mh = _member()
+    today = date.today()
+    day = date(today.year, 1, 1).isoformat()
+    try:
+        unit_daily_repo.upsert("purchase", day, UNIT, {"coagulum": 0.244}, "admin")
+        assert client.get("/api/member/checklist", headers=mh).json()["units"][0]["missing_price"] == []
+
+        unit_daily_repo.set_year_plan(today.year, UNIT, 1000.0, None, None, None, None, None, "admin")
+        body = client.get("/api/member/checklist", headers=mh).json()
+        items = body["units"][0]["missing_price"]
+        assert [(i["as_of"], i["materials"], i["qty"]) for i in items] == [(day, ["Mủ chén"], 0.244)]
+        assert items[0]["editable"] is (day >= body["editable_from"])
+        # Đúng số với màn Cảnh báo bất thường — hai nơi đọc chung một luật.
+        assert [r["as_of"] for r in missing_purchase_price.find(day, today.isoformat(), [UNIT])] == [day]
+
+        # Khai "ngày không có giá" (gõ 0 → cờ) là hết nhắc.
+        unit_daily_repo.upsert("purchase", day, UNIT, {"coagulum": 0.244, "no_price_cup": True}, "admin")
+        assert client.get("/api/member/checklist", headers=mh).json()["units"][0]["missing_price"] == []
+    finally:
+        _cleanup(h)

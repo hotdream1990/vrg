@@ -74,6 +74,14 @@ export type DataCheck = {
   editable: boolean;                // ngoài cửa sổ sửa thì đơn vị không tự sửa được
 };
 
+/** Ngày có sản lượng thu mua mà chưa có đơn giá — cùng luật màn Cảnh báo bất thường. */
+export type MissingPurchasePrice = {
+  as_of: string;
+  materials: string[];      // loại mủ thiếu giá ("Mủ nước", "Mủ chén"…)
+  qty: number;              // tổng sản lượng các loại mủ thiếu giá (tấn)
+  editable: boolean;        // ngoài cửa sổ sửa thì phải gửi Đề nghị sửa
+};
+
 export type UnitChecklist = {
   company: string;
   needs_purchase: boolean;      // đơn vị có kế hoạch thu mua → mới phải nộp biểu Thu mua
@@ -85,6 +93,7 @@ export type UnitChecklist = {
   /** Hợp đồng đã chốt hoàn thành mà chưa ghi lần giao nào — sản lượng không vào tiêu thụ. */
   completed_no_delivery: { id: number; code: string; qty: number; completed_at: string }[];
   missing_fx: MissingFxDelivery[];  // rà từ 01/01 năm nay, KHÔNG giới hạn trong alert_days
+  missing_price?: MissingPurchasePrice[];  // ngày thu mua thiếu đơn giá — rà từ 01/01 năm nay
   data_checks: DataCheck[];         // ô cần soát lại — cũng rà từ 01/01 năm nay
 };
 

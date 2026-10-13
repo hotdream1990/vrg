@@ -2,8 +2,9 @@
    Đặt ở khung layout chứ không ở từng trang: đơn vị vào bất kỳ màn nào cũng thấy ngay mình còn
    nợ số liệu ngày nào, thay vì phải tự đi soi từng biểu. Chỉ nhắc phần CÒN SỬA ĐƯỢC (server lọc
    theo cửa sổ nhập liệu) — nhắc ngày đã khoá thì người dùng bỏ qua cả bảng. Riêng nhóm THIẾU TỶ
-   GIÁ và nhóm Ô CẦN KIỂM TRA rà cả năm và hiện cả bản ghi đã khoá (chữ xám): đó là doanh thu bị
-   hụt / số nhầm đơn vị tính, đơn vị phải biết để mở ra rồi gửi Đề nghị sửa cho Ban duyệt.
+   GIÁ, THIẾU ĐƠN GIÁ thu mua và Ô CẦN KIỂM TRA rà cả năm và hiện cả bản ghi đã khoá (chữ xám): đó
+   là doanh thu bị hụt / giá bình quân sai / số nhầm đơn vị tính, đơn vị phải biết để mở ra rồi gửi
+   Đề nghị sửa cho Ban duyệt.
 
    Nhóm "ô cần kiểm tra" là cảnh báo vốn CHỈ chạy trong form lúc đang nhập — lưu xong đóng form là
    không ai thấy nữa. Server rà lại số đã lưu (`member_data_check`) rồi đưa lên đây. */
@@ -178,6 +179,34 @@ function UnitRow({ u, today, editableFrom, go }: {
       </div>,
     );
   }
+  const noPrice = u.missing_price ?? [];
+  if (noPrice.length) {
+    // Cùng luật nhóm "Có thu mua nhưng thiếu đơn giá" ở màn Cảnh báo bất thường. Hay gặp nhất là
+    // ngày nhập sản lượng chênh lệch sau chế biến mà để TRỐNG ô giá — trống thì máy không phân biệt
+    // được với quên nhập, nên dặn ngay tại đây cách khai "không có giá".
+    const fixable = noPrice.filter((p) => p.editable).length;
+    items.push(
+      <div key="np" style={{ marginBottom: 4 }}>
+        <b>{noPrice.length} ngày thu mua chưa có đơn giá</b> (rà từ đầu năm {u.year}) — giá bình
+        quân thu mua của đơn vị <b>chưa tính đúng</b>:
+        <ul style={{ margin: "2px 0 0", paddingLeft: 18 }}>
+          {noPrice.slice(0, 5).map((p) => (
+            <CheckRow key={p.as_of} onPick={() => go("/bao-cao-thu-mua", p.as_of, u.company)}
+              c={{ as_of: p.as_of, kind: "purchase", where: p.materials.join(", "), code: null,
+                   message: `${t3(p.qty)} tấn chưa có đơn giá.`, editable: p.editable }} />
+          ))}
+        </ul>
+        {noPrice.length > 5 ? (
+          <div style={{ color: "var(--muted)" }}>…và {noPrice.length - 5} ngày nữa.</div>
+        ) : null}
+        <div className="form-note" style={{ marginTop: 2 }}>
+          Nếu đó là <b>sản lượng chênh lệch thu mua</b> (mủ dư sau chế biến nhập lại, không có giá):
+          mở phiếu, <b>gõ 0</b> vào ô đơn giá của loại mủ đó rồi lưu.
+          {fixable < noPrice.length ? <> Ngày đã khoá (chữ xám) thì gõ 0 rồi bấm <b>Đề nghị sửa</b> để Ban duyệt.</> : null}
+        </div>
+      </div>,
+    );
+  }
   if (u.data_checks.length) {
     // Số ĐÃ NHẬP nhưng đáng ngờ — khác hẳn các nhóm trên (số còn thiếu), nên nói rõ hệ quả: sai
     // đơn vị tính là báo cáo tổng hợp sai theo, mà nhìn con số tổng thì không thấy sai từ đâu.
@@ -265,7 +294,8 @@ export default function MemberChecklistBanner() {
         <span className="dsn-badge"><WarningFilled /> Còn thiếu {data.total_missing} việc</span>
         <span className="dsn-tagline">
           Đơn vị chưa nhập đủ số liệu trong {data.alert_days} ngày gần nhất, hoặc có ô đã nhập
-          cần kiểm tra lại (phần <b>thiếu tỷ giá</b> và <b>ô cần kiểm tra</b> rà cả năm). Ô{" "}
+          cần kiểm tra lại (phần <b>thiếu tỷ giá</b>, <b>thiếu đơn giá</b> và <b>ô cần kiểm tra</b> rà
+          cả năm). Ô{" "}
           <b>màu cam</b> bấm vào là sửa được ngay; ô <b>xám</b> đã quá hạn sửa — bấm vào để mở, rồi
           bấm <b>Đề nghị sửa</b> để gửi Ban duyệt.
           {ew.days !== null && <> {windowRule(ew.days, ew.cutoffHour)}.</>}

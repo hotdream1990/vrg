@@ -20,7 +20,8 @@ from sqlalchemy import text
 from app.core import edit_window
 from app.core.db import ensure_schema, session_scope
 from app.core.entry_types import CONTRACT, PURCHASE, STOCK
-from app.services import member_data_check, unit_daily_repo
+from app.services import member_data_check, missing_purchase_price, unit_daily_repo
+from app.services.unit_report_rows import MATERIAL_LABELS
 from app.services import unit_daily_fields as fields
 
 #: Đợt giao mở lâu mà chưa điền ngày giao = nhiều khả năng đơn vị quên đóng đợt. Dưới ngưỡng này
@@ -30,7 +31,8 @@ PENDING_AFTER_DAYS = 7
 #: Nhóm việc → loại nhập liệu phụ trách (chốt 01/10/2026). Tài khoản nhập liệu chỉ được nhắc phần
 #: việc của mình — nhắc chuyện người khác làm thì tổng "còn thiếu" không bao giờ về 0 với họ.
 #: `data_checks` lọc theo `kind` của từng ô (trùng tên loại: purchase · stock · contract).
-_GROUP_TYPE = {"purchase_missing": PURCHASE, "year_plan_missing": PURCHASE, "stock_missing": STOCK,
+_GROUP_TYPE = {"purchase_missing": PURCHASE, "year_plan_missing": PURCHASE, "missing_price": PURCHASE,
+               "stock_missing": STOCK,
                "pending_batches": CONTRACT, "completed_no_delivery": CONTRACT, "missing_fx": CONTRACT}
 
 _PENDING_SQL = text("""
@@ -120,6 +122,24 @@ def _missing_fx(units: list[str], today: date, editable_from: str) -> dict[str, 
     return out
 
 
+def _missing_price(units: list[str], year_start: str, today: date,
+                   editable_from: str) -> dict[str, list[dict[str, Any]]]:
+    """Ngày có sản lượng thu mua mà chưa có đơn giá — CÙNG luật với màn Cảnh báo bất thường.
+
+    Rà từ ĐẦU NĂM như nhóm thiếu tỷ giá: ngày thiếu giá kéo lệch giá bình quân của cả kỳ, mà
+    trước 13/10/2026 tài khoản nhập liệu không có màn nào nhắc chuyện này (chỉ lãnh đạo thấy).
+    """
+    out: dict[str, list[dict[str, Any]]] = {u: [] for u in units}
+    for r in missing_purchase_price.find(year_start, today.isoformat(), units):
+        out.setdefault(r["company"], []).append({
+            "as_of": r["as_of"],
+            "materials": [MATERIAL_LABELS[m] for m in r["materials"]],
+            "qty": round(sum(r["materials"].values()), 3),
+            "editable": r["as_of"] >= editable_from,
+        })
+    return out
+
+
 def _days(alert: int, today: date) -> list[str]:
     """`alert` ngày gần nhất, TÍNH CẢ HÔM NAY, mới nhất trước (admin cấu hình `MEMBER_ALERT_DAYS`)."""
     return [(today - timedelta(days=i)).isoformat() for i in range(alert)]
@@ -185,8 +205,9 @@ def checklist(units: list[str], entry_types: Collection[str] | None = None) -> d
 
     Ba nhóm: (1) ngày chưa nhập biểu Thu mua · (2) ngày chưa nhập biểu Tồn kho ·
     (3) nhắc khác — chưa khai Kế hoạch năm, đợt giao quên điền ngày giao, **hợp đồng đã chốt mà
-    chưa ghi lần giao nào**, lần giao ngoại tệ thiếu tỷ giá, và **ô số liệu cần soát lại** (nhiều khả năng nhầm đơn vị tính — xem
-    `member_data_check`). Hai nhóm cuối rà từ ĐẦU NĂM, không giới hạn trong `alert_days`.
+    chưa ghi lần giao nào**, lần giao ngoại tệ thiếu tỷ giá, **ngày thu mua thiếu đơn giá** (cùng luật
+    màn Cảnh báo bất thường) và **ô số liệu cần soát lại** (nhiều khả năng nhầm đơn vị tính — xem
+    `member_data_check`). Ba nhóm cuối rà từ ĐẦU NĂM, không giới hạn trong `alert_days`.
 
     Phạm vi rà = `MEMBER_ALERT_DAYS` (admin cấu hình, mặc định 14 ngày, **0 = tắt cảnh báo**).
     Rà có thể XA HƠN cửa sổ sửa → trả kèm `editable_from` (đã tính giờ chốt, chung mọi biểu) để
@@ -218,6 +239,7 @@ def checklist(units: list[str], entry_types: Collection[str] | None = None) -> d
     done = {k: _submitted(k, units, days) for k in ("purchase", "consumption")}
     pending = _pending_batches(units, today)
     no_fx = _missing_fx(units, today, editable_from)
+    no_price = _missing_price(units, year_start, today, editable_from)
     closed_no_giao = _completed_no_delivery(units, year_start)
 
     rows = []
@@ -233,6 +255,9 @@ def checklist(units: list[str], entry_types: Collection[str] | None = None) -> d
                "year_plan_missing": plan_missing, "year": today.year,
                "pending_batches": pending.get(u, []),
                "missing_fx": no_fx.get(u, []),
+               # Đơn vị không được giao kế hoạch thu mua thì không mở được màn Thu mua để sửa —
+               # nhắc việc người dùng không làm được là nhắc hỏng.
+               "missing_price": no_price.get(u, []) if needs_purchase else [],
                "completed_no_delivery": closed_no_giao.get(u, []),
                "data_checks": checks.get(u, [])}
         rows.append(row if entry_types is None else _only_types(row, entry_types))
