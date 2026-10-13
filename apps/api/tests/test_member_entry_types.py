@@ -231,13 +231,14 @@ def test_checklist_shows_only_own_entry_types(et) -> None:
 def test_checklist_filter_helpers() -> None:
     row = {"company": "X", "needs_purchase": True, "purchase_missing": ["d"], "stock_missing": ["d"],
            "year_plan_missing": True, "year": 2026, "pending_batches": [{}], "missing_fx": [{}],
-           "completed_no_delivery": [{}],
+           "completed_no_delivery": [{}], "missing_price": [{}],
            "data_checks": [{"kind": "purchase"}, {"kind": "stock"}, {"kind": "contract"}]}
     out = member_checklist._only_types(row, {"stock"})
     assert out["needs_purchase"] is False and out["purchase_missing"] == [] and out["year_plan_missing"] is False
+    assert out["missing_price"] == []                      # thiếu đơn giá thuộc loại Thu mua
     assert out["stock_missing"] == ["d"] and [c["kind"] for c in out["data_checks"]] == ["stock"]
     assert out["pending_batches"] == out["missing_fx"] == out["completed_no_delivery"] == []
-    assert member_checklist._row_total(out) == 2 and member_checklist._row_total(row) == 9
+    assert member_checklist._row_total(out) == 2 and member_checklist._row_total(row) == 10
 
 
 def test_leader_is_not_restricted_by_entry_types(et) -> None:
