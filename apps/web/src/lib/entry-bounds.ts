@@ -16,8 +16,9 @@ import { formatViNumber } from "./number-format";
 export type Bound = { lo?: number; hi?: number; unit: string };
 
 // ── Sản lượng (tấn) ──────────────────────────────────────────────────────────────────────
-/** Số phát sinh trong MỘT NGÀY của MỘT đơn vị. Thực tế prod: 0–227 tấn (một ngoại lệ 5.719). */
-export const TONNES_DAILY: Bound = { lo: 0, hi: 1_000, unit: "tấn" };
+/** Số phát sinh trong MỘT NGÀY của MỘT đơn vị. Thực tế prod: 0–227 tấn (một ngoại lệ 5.719).
+ *  Chủ dự án nâng từ 1.000 lên 2.500 tấn (13/10/2026) — C.R.C.K.2 bị nhắc ở mức 1.000. */
+export const TONNES_DAILY: Bound = { lo: 0, hi: 2_500, unit: "tấn" };
 /** Tồn kho là số TẠI THỜI ĐIỂM (tích luỹ) nên cao hơn sản lượng ngày.
  *  Đo lại 10/08/2026: bản ghi ĐÚNG lớn nhất là 9.340 tấn (C.R.C.K.2) — mức 5.000 cũ kêu oan đơn vị
  *  này gần như MỖI NGÀY, và cảnh báo kêu mỗi ngày thì lần sai thật (7.701.258 tấn) cũng bị bỏ qua. */

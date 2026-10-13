@@ -23,7 +23,7 @@ class Bound(NamedTuple):
 
 
 # ── Sản lượng (tấn) ──────────────────────────────────────────────────────────────────────
-TONNES_DAILY = Bound(0, 1_000, "tấn")        # phát sinh trong MỘT ngày của MỘT đơn vị
+TONNES_DAILY = Bound(0, 2_500, "tấn")        # phát sinh trong MỘT ngày của MỘT đơn vị
 TONNES_STOCK = Bound(0, 20_000, "tấn")       # tồn kho = số tích luỹ tại thời điểm
 TONNES_CONTRACT = Bound(0, 10_000, "tấn")    # một dòng hợp đồng/đợt giao (cả lô)
 TONNES_YEAR = Bound(0, 50_000, "tấn")        # chỉ tiêu cả năm
