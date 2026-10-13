@@ -4,6 +4,14 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
 
 ## [Unreleased]
 ### Added
+- **Đơn vị tự thấy ngày thu mua thiếu đơn giá + tài khoản nhập liệu xem Cảnh báo bất thường** (13/10/2026, 0.4.120).
+  - Bảng *Còn thiếu N việc* ở đầu các màn của tài khoản nhập liệu có thêm mục **ngày thu mua chưa có đơn giá**
+    (rà từ đầu năm, cùng luật với màn Cảnh báo bất thường). Bấm ngày là mở đúng phiếu; ngày đã khoá thì mở
+    rồi gửi Đề nghị sửa. Chỉ hiện với đơn vị có kế hoạch thu mua.
+  - Lời dặn chữ đỏ ngay tại chỗ nhắc (cả màn Cảnh báo bất thường và file Excel): sản lượng **chênh lệch thu
+    mua** (mủ dư sau chế biến nhập lại, không có giá) thì **gõ 0** vào ô đơn giá của loại mủ đó.
+  - Màn **Cảnh báo bất thường** mở cho tài khoản **nhập liệu** của đơn vị (trước chỉ lãnh đạo đơn vị): chỉ thấy
+    đơn vị mình, không có nhóm doanh thu toàn Tập đoàn, cấu hình ngưỡng hay cột Đăng nhập hộ.
 - **Chốt kế hoạch năm cùng đợt chốt số liệu + Đề nghị sửa kế hoạch năm** (03/10/2026).
   - Đơn vị xác nhận chốt số liệu đến hết ngày X là chốt luôn **kế hoạch năm của năm X**. Bảng *Số liệu chốt*
     có thêm khối **Kế hoạch năm (chốt cùng đợt)** để đơn vị rà chỉ tiêu trước khi bấm (chưa khai thì nhắc).
@@ -99,6 +107,8 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     server thành "trình duyệt giữ 4 giờ", nên bản sửa thông báo sau này phải tới máy người dùng ngay.
 
 ### Changed
+- **Ngưỡng nhắc "nhầm đơn vị tính" của sản lượng một ngày nâng từ 1.000 lên 2.500 tấn** (13/10/2026, 0.4.120):
+  áp cho mọi ô sản lượng ngày (mủ nước · mủ chén · mủ dây · thu mua thành phẩm), cả lúc nhập lẫn bảng nhắc việc.
 - **Sơ đồ vận hành hiện lại đủ 4 tab khu** (03/10/2026): bỏ `hidden: true` của *Vít tải ngang · Hầm sấy ·
   Đóng gói* trong bố cục Phú Riềng. Số sống vẫn MỘT truy vấn/5 giây cho cả nhà máy (~205 tag, dưới giới
   hạn 8 KB của OPENQUERY). Bật lại luôn thanh điện tổng + ô "Tiêu thụ trong ngày" (`SHOW_POWER_AND_USAGE`):
