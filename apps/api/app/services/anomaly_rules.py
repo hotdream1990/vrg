@@ -16,7 +16,9 @@ from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
 from app.core.market_meta import PURCHASE_PRICE_TYPES, PURCHASE_SOURCE_UNIT
-from app.services import member_unit_repo, unit_daily_fields, unit_daily_repo, unit_report_rows
+from app.services import (
+    member_unit_repo, missing_purchase_price, unit_daily_fields, unit_daily_repo, unit_report_rows,
+)
 from app.services.anomaly_types import (
     HIGH, LOW, MEDIUM, THRESHOLDS, finalize, group, vn_date, vn_day_runs, vn_num,
 )
@@ -29,11 +31,8 @@ TY = 1_000_000_000
 MERGE_STOCK_GAP_PCT = 10.0
 #: Loại mủ nguyên liệu thu mua — dùng chung nhãn với `unit_report_rows` (DRY, khỏi định nghĩa lại).
 _MATERIALS = unit_report_rows.MATERIAL_LABELS
-#: (loại mủ, ô sản lượng, loại giá trong kho) — dựng từ hằng số dùng chung để thêm loại mủ mới
-#: KHÔNG phải sửa ở đây. Viết tay `IN ('purchase', 'purchase_cup')` là bỏ quên MỦ DÂY: luật
-#: thiếu-đơn-giá từng nêu oan Chưmomray 09/09/2026 (đã khai `purchase_lace` = 520,5 đ/độ).
-_MATS = tuple((mat, qty_key, ptype) for mat, qty_key, _price_key, ptype
-              in unit_report_rows.PURCHASE_MATERIALS)
+#: (loại mủ, ô sản lượng, loại giá trong kho) — xem `missing_purchase_price.MATS`.
+_MATS = missing_purchase_price.MATS
 
 
 def _th(thresholds: dict[str, float], key: str) -> float:
@@ -353,64 +352,18 @@ def _missing_label(missing: int, total: int) -> str:
 # ── MEDIUM — missing_price (nhóm D collect.sql) ───────────────────────────────────────────────
 @_rule("missing_price", "Có thu mua nhưng thiếu đơn giá")
 def _missing_price(date_from: str, date_to: str, thresholds: dict[str, float]) -> dict[str, Any]:
-    """Ngày có tổ chức thu mua (production ≠ `no_purchase`) mà kho giá `vrg_unit` chưa có đơn giá.
-
-    Bỏ qua loại mủ đơn vị đã KHAI RÕ "không có giá" (`unit_daily_fields.declared_no_price` — cờ
-    `no_price_*` hoặc đơn giá nội tệ = 0), khác hẳn "quên khai" (chốt 07/09/2026).
-
-    Đối chiếu THEO TỪNG LOẠI MỦ (mủ nước ↔ `purchase` · mủ chén ↔ `purchase_cup` · mủ dây ↔
-    `purchase_lace`). Xét chung "ngày đó có giá nào không" như trước vừa nêu oan vừa bỏ lọt:
-    ngày chỉ mua mủ dây mà đã khai giá vẫn bị nêu (Chưmomray 09/09/2026), còn ngày có giá mủ
-    nước nhưng quên giá mủ chén thì lọt lưới.
-    """
-    ensure_schema()
-    # Ô sản lượng đọc qua CASE có chốt chặn regex: payload là jsonb tự do, ép kiểu thẳng sẽ ném
-    # lỗi nếu có bản ghi lỡ lưu chuỗi. Mệnh đề dựng từ `_MATS` nên thêm loại mủ là tự có mặt.
-    lacks = " OR ".join(
-        f"(CASE WHEN r.payload->>'{qty_key}' ~ '^[0-9.]+$' "
-        f"      THEN (r.payload->>'{qty_key}')::numeric ELSE 0 END > 0 "
-        f" AND NOT ('{ptype}' = ANY(COALESCE(p.have, ARRAY[]::text[]))))"
-        for _mat, qty_key, ptype in _MATS)
-    # Giá gom MỘT LẦN theo khoảng ngày cố định rồi LEFT JOIN — KHÔNG hỏi `fact_price` bằng truy vấn
-    # con theo từng dòng. `fact_price` là hypertable (~140 chunk): truy vấn con tương quan không
-    # loại được chunk lúc lập kế hoạch → chi phí ước lượng vượt ngưỡng JIT, Postgres bỏ ~5 giây
-    # BIÊN DỊCH trong khi chạy thật chỉ ~20ms (đo 13/09/2026, cả trang chờ vì luật này).
-    with session_scope() as db:
-        rows = db.execute(text(
-            "WITH p AS ("
-            "  SELECT grade AS company, as_of, array_agg(DISTINCT price_type) AS have "
-            "  FROM fact_price WHERE source = :src AND price_type = ANY(:ptypes) "
-            "  AND as_of BETWEEN CAST(:a AS date) AND CAST(:b AS date) "
-            "  GROUP BY grade, as_of) "
-            "SELECT r.as_of, r.company, r.payload, COALESCE(p.have, ARRAY[]::text[]) AS have "
-            "FROM unit_daily_report r "
-            "LEFT JOIN p ON p.company = r.company AND p.as_of = r.as_of "
-            "WHERE r.kind = 'purchase' AND r.payload <> '{}'::jsonb "
-            "AND r.as_of BETWEEN CAST(:a AS date) AND CAST(:b AS date) "
-            "AND COALESCE((r.payload->>'no_purchase')::bool, false) = false "
-            f"AND ({lacks}) "
-            "ORDER BY r.company, r.as_of"),
-            {"a": date_from, "b": date_to, "src": PURCHASE_SOURCE_UNIT,
-             "ptypes": list(PURCHASE_PRICE_TYPES)}).mappings().all()
-    out = []
-    for r in rows:
-        payload = dict(r["payload"] or {})
-        declared = unit_daily_fields.declared_no_price(payload)
-        have = set(r["have"] or [])
-        missing = {mat: _num(payload.get(qty_key)) or 0.0
-                  for mat, qty_key, ptype in _MATS
-                  if mat not in declared and ptype not in have
-                  and (_num(payload.get(qty_key)) or 0) > 0}
-        if not missing:
-            continue
-        out.append({"don_vi": r["company"], "ngay": str(r["as_of"]),
-                    "loai_mu": ", ".join(_MATERIALS[m] for m in missing),
-                    "san_luong_tan": round(sum(missing.values()), 2)})
+    """Ngày có sản lượng thu mua mà chưa có đơn giá của đúng loại mủ đó — luật ở
+    `missing_purchase_price` (dùng chung với bảng nhắc việc của tài khoản nhập liệu)."""
+    out = [{"don_vi": r["company"], "ngay": r["as_of"],
+            "loai_mu": ", ".join(_MATERIALS[m] for m in r["materials"]),
+            "san_luong_tan": round(sum(r["materials"].values()), 2)}
+           for r in missing_purchase_price.find(date_from, date_to)]
     return group("missing_price", "Có thu mua nhưng thiếu đơn giá",
                 "Ngày có sản lượng thu mua nhưng chưa nhập đơn giá của đúng loại mủ đó, và cũng "
                 "chưa khai là ngày không có giá.",
                 MEDIUM, [("don_vi", "Đơn vị"), ("ngay", "Ngày"), ("loai_mu", "Loại mủ thiếu giá"),
-                        ("san_luong_tan", "Sản lượng (tấn)")], out)
+                        ("san_luong_tan", "Sản lượng (tấn)")], out,
+                note=missing_purchase_price.HOW_TO_DECLARE)
 
 
 # ── MEDIUM — silent_unit ──────────────────────────────────────────────────────────────────────

@@ -61,6 +61,10 @@ def _group_sheet(ws: Worksheet, group: dict[str, Any], period: str) -> None:
     rows: list[dict[str, Any]] = group.get("rows") or []
     _title_block(ws, str(group.get("label") or group.get("key") or ""), period,
                  str(group.get("desc") or ""), len(cols))
+    if group.get("note"):
+        # Lời dặn cách xử lý — chữ đỏ như trên web; dòng 4 vốn để trống ngăn tiêu đề với bảng.
+        ws.cell(row=4, column=1, value=str(group["note"])).font = Font(size=9, color="EF4444")
+        ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=max(2, min(len(cols), 8)))
 
     head = 5
     for i, c in enumerate(cols, start=1):

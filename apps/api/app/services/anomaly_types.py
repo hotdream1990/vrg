@@ -68,10 +68,15 @@ def vn_num(value: float) -> str:
 
 
 def group(key: str, label: str, desc: str, severity: str,
-          columns: list[tuple[str, str]], rows: list[dict[str, Any]]) -> dict[str, Any]:
-    """Đóng gói một nhóm cảnh báo theo đúng khuôn frontend đang chờ."""
+          columns: list[tuple[str, str]], rows: list[dict[str, Any]],
+          note: str = "") -> dict[str, Any]:
+    """Đóng gói một nhóm cảnh báo theo đúng khuôn frontend đang chờ.
+
+    `desc` mô tả luật; `note` là LỜI DẶN cách xử lý cho người nhập liệu (web tô đỏ như mọi lưu ý
+    nhập liệu khác, Excel in dòng đỏ dưới mô tả) — để trống nếu nhóm không cần dặn gì thêm.
+    """
     units = {r.get("don_vi") for r in rows if r.get("don_vi")}
-    return {"key": key, "label": label, "desc": desc, "severity": severity,
+    return {"key": key, "label": label, "desc": desc, "note": note, "severity": severity,
             "columns": [{"key": k, "label": lb} for k, lb in columns],
             "rows": rows, "count": len(rows), "units": len(units)}
 

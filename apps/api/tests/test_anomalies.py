@@ -183,6 +183,22 @@ def test_missing_price_is_checked_per_material(_unit) -> None:
     assert rows[0]["san_luong_tan"] == 3.0
 
 
+def test_declared_zero_price_clears_the_warning_and_group_says_how(_unit) -> None:
+    """Sản lượng chênh lệch sau chế biến không có giá: khai 0 (cờ `no_price_*`) là hết bị nêu.
+
+    Nhóm phải kèm lời dặn "gõ 0" — đơn vị hay để trống ô giá vì nghĩ không có giá thì khỏi điền,
+    mà trống thì máy không phân biệt được với quên nhập (chủ dự án yêu cầu 13/10/2026).
+    """
+    from app.services import anomaly_rules
+
+    _report({"coagulum": 0.244})
+    assert len(_missing_rows()) == 1
+    grp = next(g for g in anomaly_rules.scan(_DAY, _DAY, {})["groups"] if g["key"] == "missing_price")
+    assert "gõ 0" in grp["note"]
+    _report({"coagulum": 0.244, "no_price_cup": True})
+    assert _missing_rows() == []
+
+
 # ── Luật "Chưa nộp / thiếu một phần" — phải nêu ĐÚNG những ngày thiếu ──────────────────────────
 def test_not_submitted_lists_the_missing_days(monkeypatch) -> None:
     """Chỉ ghi "0/259 ngày thiếu" thì người đọc không biết đi nhắc ngày nào (chủ dự án phản ánh

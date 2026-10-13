@@ -73,6 +73,8 @@ export function GroupHeader({ g }: { g: AnomalyGroup }) {
         </span>
       </div>
       {g.desc && <div style={{ color: "var(--muted)", fontSize: 12.5, marginTop: 2 }}>{g.desc}</div>}
+      {/* Lời dặn chỉ hiện khi nhóm CÓ cảnh báo — nhóm sạch thì dặn cách sửa chỉ là nhiễu. */}
+      {g.note && !clean && <div className="form-note" style={{ fontSize: 12.5, marginTop: 2 }}>{g.note}</div>}
     </div>
   );
 }

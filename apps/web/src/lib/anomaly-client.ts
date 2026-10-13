@@ -28,6 +28,8 @@ export type AnomalyGroup = {
   key: string;
   label: string;
   desc: string;
+  /** Lời dặn cách xử lý cho người nhập liệu (tô đỏ) — rỗng nếu nhóm không cần dặn thêm. */
+  note?: string;
   severity: AnomalySeverity;
   count: number;
   units: number;
