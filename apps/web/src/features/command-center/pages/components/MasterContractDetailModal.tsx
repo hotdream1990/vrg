@@ -193,9 +193,10 @@ export default function MasterContractDetailModal({ masterId, meta, canEdit, onC
       )}
       {adding && m && (
         <ContractFormModal meta={meta} onClose={() => setAdding(false)} onSaved={refresh}
+          // Hồ sơ của đơn vị đã sáp nhập → đơn vị điền sẵn là đơn vị NHẬN (cũ không ký mới được).
           // Chỉ điền sẵn ĐƠN VỊ + HỒ SƠ MẸ. Khách hàng và loại hợp đồng vẫn do người nhập
           // khai như mọi hợp đồng khác — hồ sơ mẹ không quyết định số liệu của phụ lục.
-          preset={{ company: m.company, master_id: m.id }} />
+          preset={{ company: m.company_now ?? m.company, master_id: m.id }} />
       )}
     </Modal>
   );

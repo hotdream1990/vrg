@@ -37,6 +37,7 @@ D_AFTER = (date.today() - timedelta(days=3)).isoformat()           # sau sáp nh
 def _cleanup() -> None:
     with session_scope() as db:
         db.execute(text("DELETE FROM sales_contract WHERE company = ANY(:u)"), {"u": list(UNITS)})
+        db.execute(text("DELETE FROM master_contract WHERE company = ANY(:u)"), {"u": list(UNITS)})
         db.execute(text("DELETE FROM unit_customer WHERE company = ANY(:u)"), {"u": list(UNITS)})
         db.execute(text("DELETE FROM unit_daily_report WHERE company = ANY(:u)"), {"u": list(UNITS)})
         db.execute(text("DELETE FROM unit_purchase_plan WHERE company = ANY(:u)"), {"u": list(UNITS)})
@@ -387,6 +388,82 @@ def test_receiving_unit_account_sees_the_old_units_contracts() -> None:
     user_repo.create_user(ACCOUNT, "matkhau123", None, "member", member_units=[NEW])
     _, companies = cap_or_member_scope("sales_contract")(ACCOUNT)
     assert set(companies) == {NEW, OLD}, "phạm vi phải gồm cả đơn vị đã sáp nhập vào mình"
+
+
+def _master_of_old_unit() -> int:
+    """Hồ sơ mẹ do đơn vị cũ lập TRƯỚC khi sáp nhập — trường hợp thật: Bình Long → Lộc Ninh."""
+    from app.services import customer_repo, master_contract_repo
+
+    khach = customer_repo.save({"name": "KH hồ sơ mẹ"}, OLD, "test")["id"]
+    return master_contract_repo.save(
+        {"code": "HDDH-CU", "master_type": "long_term", "customer_id": khach, "sign_date": D_BEFORE,
+         "lines": [{"grade": "SVR 3L", "qty": 500.0}]}, OLD, "test")["id"]
+
+
+def _annex_body(company: str, master_id: int, code: str = "PL-01") -> dict:
+    from app.services import customer_repo
+
+    khach = customer_repo.save({"name": f"KH {code}"}, company, "test")["id"]
+    return {"code": code, "delivery_type": "multi", "contract_type": "long_term",
+            "master_id": master_id, "sign_date": D_AFTER, "customer_id": khach,
+            "lines": [{"grade": "SVR 3L", "qty": 50.0, "price": 30.0, "ccy": "VND"}]}
+
+
+def test_receiving_unit_can_add_an_annex_to_the_old_units_master() -> None:
+    """Đơn vị cũ không ký mới được nữa → phụ lục của hồ sơ mẹ cũ PHẢI lập ở đơn vị nhận.
+
+    Trước đây ô "Hợp đồng mẹ" chỉ tìm đúng một đơn vị và server đòi cùng đơn vị, nên hồ sơ mẹ lập
+    trước sáp nhập hết đường thêm phụ lục (Bình Long → Lộc Ninh, 13/10/2026).
+    """
+    from app.services import master_contract_repo, sales_contract_repo
+
+    master_id = _master_of_old_unit()
+    merge.merge(OLD, NEW, D_MERGE)
+
+    annex = sales_contract_repo.save(_annex_body(NEW, master_id), NEW, "test")
+    assert annex["company"] == NEW and annex["master_id"] == master_id
+
+    # Ô tìm hồ sơ mẹ của đơn vị nhận thấy hồ sơ của đơn vị cũ; đơn vị không liên quan thì không.
+    assert master_id in [m["id"] for m in master_contract_repo.list_masters(company=NEW)["items"]]
+    assert master_contract_repo.list_masters(company=THIRD)["items"] == []
+
+    # Chi tiết hồ sơ báo đơn vị hiện hành → nút "Thêm phụ lục" điền sẵn đơn vị nhận.
+    from app.routers import master_contracts as router
+
+    detail = router.get_master(master_id, ("admin", None))
+    assert detail["master"]["company"] == OLD and detail["master"]["company_now"] == NEW
+    assert [a["id"] for a in detail["annexes"]] == [annex["id"]]
+
+
+def test_unrelated_unit_still_cannot_use_the_old_units_master() -> None:
+    from app.services import sales_contract_repo
+
+    master_id = _master_of_old_unit()
+    merge.merge(OLD, NEW, D_MERGE)
+
+    with pytest.raises(ValueError, match="thuộc đơn vị khác"):
+        sales_contract_repo.save(_annex_body(THIRD, master_id), THIRD, "test")
+
+
+def test_attach_existing_contract_of_the_receiving_unit_to_the_old_units_master() -> None:
+    from app.services import master_contract_annexes, sales_contract_repo, user_repo
+
+    master_id = _master_of_old_unit()
+    merge.merge(OLD, NEW, D_MERGE)
+    user_repo.create_user(ACCOUNT, "matkhau123", None, "member", member_units=[NEW])
+    plain = _annex_body(NEW, master_id, "HD-CHUA-GAN")
+    plain.update(master_id=None, contract_type="spot")
+    cid = sales_contract_repo.save(plain, NEW, "test")["id"]
+
+    master_contract_annexes.link(master_id, [cid], True, None, ACCOUNT)
+    assert [a["id"] for a in master_contract_annexes.annexes(master_id)] == [cid]
+
+    # Hợp đồng của đơn vị ngoài dòng đời vẫn bị chặn.
+    other = _annex_body(THIRD, master_id, "HD-NGOAI")
+    other.update(master_id=None, contract_type="spot")
+    oid = sales_contract_repo.save(other, THIRD, "test")["id"]
+    with pytest.raises(ValueError, match="thuộc đơn vị khác"):
+        master_contract_annexes.link(master_id, [oid], True, None, ACCOUNT)
 
 
 def test_contract_screens_sum_the_old_unit_into_the_new_one() -> None:

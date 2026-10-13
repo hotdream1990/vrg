@@ -38,6 +38,8 @@ export type MasterContract = {
   /* Server trả kèm cho tiện hiển thị. */
   qty: number;                    // tổng số lượng cam kết trên hợp đồng mẹ
   customer_name?: string | null;
+  /** Đơn vị HIỆN HÀNH của hồ sơ (đã sáp nhập thì là đơn vị nhận) — chỉ có ở chi tiết 1 hồ sơ. */
+  company_now?: string;
   annexes?: number;               // số PHỤ LỤC đã nối về
   annex_qty?: number;             // tổng sản lượng đã ký ở các phụ lục
 };

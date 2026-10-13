@@ -3,6 +3,15 @@
 Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/).
 
 ## [Unreleased]
+### Fixed
+- **Phụ lục của đơn vị nhận nối được vào hợp đồng mẹ do đơn vị đã sáp nhập lập** (13/10/2026).
+  - Trước đây hồ sơ mẹ lập từ lúc còn là đơn vị cũ (vd Bình Long) hết đường thêm phụ lục: đơn vị cũ không ký
+    mới được, còn ô *Hợp đồng mẹ* ở đơn vị nhận (vd Lộc Ninh) chỉ tìm đúng một đơn vị nên không thấy hồ sơ.
+  - Ô *Hợp đồng mẹ* tìm cả hồ sơ của đơn vị đã sáp nhập vào đơn vị đang chọn (tên đơn vị cũ hiện ở dòng riêng
+    dưới mỗi hồ sơ). Server chấp nhận nối khi hai đơn vị cùng dòng đời; đơn vị ngoài dòng đời vẫn bị chặn.
+  - Nút *Thêm phụ lục* ở chi tiết hồ sơ của đơn vị cũ điền sẵn **đơn vị nhận**; *Gắn hợp đồng có sẵn* cũng
+    liệt kê hợp đồng của đơn vị nhận. Khoá số liệu khi gắn xét theo đơn vị của từng hợp đồng.
+
 ### Added
 - **Đơn vị tự thấy ngày thu mua thiếu đơn giá + tài khoản nhập liệu xem Cảnh báo bất thường** (13/10/2026, 0.4.120).
   - Bảng *Còn thiếu N việc* ở đầu các màn của tài khoản nhập liệu có thêm mục **ngày thu mua chưa có đơn giá**

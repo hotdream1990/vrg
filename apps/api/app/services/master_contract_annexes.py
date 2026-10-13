@@ -25,7 +25,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.db import ensure_schema, session_scope
-from app.services import audit_repo
+from app.services import audit_repo, member_unit_merge
 from app.services import sales_contract_group as grp
 
 _MAX_LINK = 200      # trần một lượt gắn — tránh bấm nhầm kéo cả nghìn hợp đồng vào một hồ sơ
@@ -64,9 +64,9 @@ def _assert_linkable(rows, master: dict[str, Any], attach: bool) -> None:
     """Kiểm từng hợp đồng trước khi ghi — sai một cái là dừng cả lượt (không gắn nửa vời)."""
     for r in rows:
         code = r["code"]
-        if r["company"] != master["company"]:
+        if not member_unit_merge.same_lineage(r["company"], master["company"]):
             raise ValueError(f"Hợp đồng “{code}” thuộc đơn vị khác — hợp đồng mẹ và phụ lục phải "
-                             "cùng một đơn vị.")
+                             "cùng một đơn vị (hoặc đơn vị đã sáp nhập vào nhau).")
         if r["parent_id"] is not None:
             raise ValueError(f"“{code}” là ĐỢT GIAO nằm trong một hợp đồng, không gắn thẳng vào "
                              "hợp đồng mẹ được.")
@@ -100,7 +100,11 @@ def link(master_id: int, contract_ids, attach: bool, companies: list[str] | None
     moved = [r["id"] for r in rows
              if grp.group_of(r["contract_type"], mt.get(r["master_id"])) != new_group]
     if updated_by:
-        grp.assert_regroup_fences(updated_by, master["company"], moved)
+        # Khoá số liệu xét theo đơn vị của TỪNG hợp đồng — hồ sơ mẹ của đơn vị cũ có thể nhận phụ
+        # lục của đơn vị nhận, lần giao nằm trong kỳ của đơn vị nào thì xét kỳ chốt của đơn vị đó.
+        for co in sorted({r["company"] for r in rows if r["id"] in moved}):
+            grp.assert_regroup_fences(updated_by, co, [r["id"] for r in rows
+                                                       if r["id"] in moved and r["company"] == co])
     with session_scope() as db:
         # Đổi liên kết hồ sơ + loại (Phụ lục khi GẮN, chưa khai khi GỠ). Khách hàng, số lượng… giữ
         # NGUYÊN — gắn vào hồ sơ không được phép sửa số liệu của một kỳ đã chốt (chốt 24/08/2026).

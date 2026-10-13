@@ -19,7 +19,8 @@ from app.core.permissions import LEVEL_EDIT
 from app.core.security import cap_or_member_scope
 from app.schemas.master_contract import AnnexLinkIn, MasterContractIn
 from app.services import (
-    customer_repo, master_contract_annexes, master_contract_repo, sales_contract_group,
+    customer_repo, master_contract_annexes, master_contract_repo, member_unit_merge,
+    sales_contract_group,
 )
 
 router = APIRouter(prefix="/api/master-contracts", tags=["master-contracts"])
@@ -74,6 +75,8 @@ def get_master(master_id: int, scope: Scope) -> dict:
         raise HTTPException(404, "Không tìm thấy hợp đồng mẹ trong phạm vi tài khoản.")
     _with_customer(companies, [m])
     kids = master_contract_annexes.annexes(master_id)
+    # Đơn vị HIỆN HÀNH của hồ sơ: đơn vị cũ không ký mới được, phụ lục mới phải lập ở đơn vị này.
+    m["company_now"] = member_unit_merge.current_name(m["company"])
     return {"master": m, "annexes": kids,
             # Sản lượng đã ký ở các phụ lục — đối chiếu với cam kết trên hợp đồng mẹ.
             "annex_qty": sum(k["qty"] for k in kids)}

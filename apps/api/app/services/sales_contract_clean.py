@@ -105,18 +105,19 @@ def _assert_same_group(company: str, to_company: str) -> None:
 
 
 def _assert_master_ok(master_id: int, company: str) -> None:
-    """Hợp đồng mẹ được nối tới phải có thật và CÙNG ĐƠN VỊ. Ngoài ra KHÔNG lấy gì từ nó —
-    hợp đồng giữ nguyên khách hàng, loại hợp đồng, mọi thứ của chính nó.
+    """Hợp đồng mẹ được nối tới phải có thật và CÙNG ĐƠN VỊ (hoặc cùng dòng đời sáp nhập: hồ sơ mẹ
+    do đơn vị cũ lập, phụ lục ký ở đơn vị nhận). Ngoài ra KHÔNG lấy gì từ nó — hợp đồng giữ nguyên
+    khách hàng, loại hợp đồng, mọi thứ của chính nó.
 
     Import muộn để tránh vòng import: `master_contract_repo` đọc SQL sản lượng của
     `sales_contract_report`, mà module đó lại đi qua `sales_contract_repo` → file này.
     """
-    from app.services import master_contract_repo
+    from app.services import master_contract_repo, member_unit_merge
 
     master = master_contract_repo.get(master_id)
     if master is None:
         raise ValueError("Hợp đồng mẹ không còn tồn tại (có thể đã bị xoá).")
-    if master["company"] != company:
+    if not member_unit_merge.same_lineage(master["company"], company):
         raise ValueError("Hợp đồng mẹ thuộc đơn vị khác.")
 
 

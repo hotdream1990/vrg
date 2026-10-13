@@ -118,6 +118,15 @@ def stock_superseded(latest: dict[str, str]) -> set[str]:
     return superseded_in(merge_pairs(), latest)
 
 
+def same_lineage(a: str, b: str) -> bool:
+    """Hai tên đơn vị có CÙNG đơn vị hiện hành không (A đã sáp nhập vào B → A và B cùng dòng đời).
+
+    Dùng cho liên kết hồ sơ: phụ lục ký ở đơn vị nhận vẫn nối được vào hợp đồng mẹ mà đơn vị cũ đã
+    lập từ trước — đơn vị cũ không ký mới được nữa nên không còn đường nào khác để thêm phụ lục.
+    """
+    return a == b or current_name(a) == current_name(b)
+
+
 def lineage(name: str, as_of: str | None = None) -> list[str]:
     """`name` + MỌI đơn vị đã sáp nhập vào nó (kể cả gián tiếp). Dùng để CỘNG số liệu của cả dòng đời."""
     roll = rollup_map(as_of)

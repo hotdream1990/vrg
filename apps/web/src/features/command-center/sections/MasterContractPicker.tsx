@@ -17,15 +17,17 @@ type Opt = {
   label: string;
   customer: string;
   type: string;
-  /** Đơn vị sở hữu hồ sơ — chỉ hiện khi đang xem NHIỀU đơn vị: hai đơn vị hoàn toàn có thể đánh
-   *  trùng số hợp đồng, thiếu tên đơn vị là chọn nhầm hồ sơ mà không biết. */
+  /** Đơn vị sở hữu hồ sơ — chỉ hiện khi khác đơn vị đang chọn (xem nhiều đơn vị, hoặc hồ sơ của đơn
+   *  vị đã sáp nhập): hai đơn vị hoàn toàn có thể đánh trùng số hợp đồng, thiếu tên đơn vị là chọn
+   *  nhầm hồ sơ mà không biết. */
   company: string;
 };
 
 type Props = {
   value: number | null;
   onChange: (id: number | null, master: MasterContract | null) => void;
-  /** Chỉ tìm trong 1 đơn vị — hợp đồng mẹ của đơn vị khác không nối được (server cũng chặn). */
+  /** Chỉ tìm trong 1 đơn vị + đơn vị đã sáp nhập vào nó — hồ sơ của đơn vị khác không nối được
+   *  (server cũng chặn). */
   company?: string;
   typeLabels: Record<string, string>;
   disabled?: boolean;
@@ -82,7 +84,7 @@ export default function MasterContractPicker({
       label: `${o.code} — ${typeLabels[o.master_type] ?? o.master_type}`,
       customer: o.customer_name ?? "—",
       type: typeLabels[o.master_type] ?? o.master_type,
-      company: company ? "" : o.company,
+      company: o.company === company ? "" : o.company,
     }));
   }, [found, known, value, typeLabels, company]);
 
@@ -109,9 +111,9 @@ export default function MasterContractPicker({
         return (
           <div>
             <div>{opt.short}</div>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>
-              {opt.type} · {opt.customer}{opt.company ? ` · ${opt.company}` : ""}
-            </div>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>{opt.type} · {opt.customer}</div>
+            {/* Dòng riêng: gắn cuối dòng trên thì bị cắt mất đúng chỗ người nhập cần phân biệt. */}
+            {opt.company && <div style={{ fontSize: 11, color: "var(--muted)" }}>{opt.company}</div>}
           </div>
         );
       }}

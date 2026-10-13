@@ -72,8 +72,12 @@ def list_masters(companies: list[str] | None = None, *, company: str | None = No
         where.append("m.company = ANY(:cs)")
         params["cs"] = list(companies)
     if company:
-        where.append("m.company = :co")
-        params["co"] = company
+        # Lọc 1 đơn vị = lấy luôn hồ sơ của đơn vị đã sáp nhập vào nó (giống màn hợp đồng/tiêu thụ):
+        # hồ sơ mẹ đơn vị cũ lập vẫn phải chọn được để thêm phụ lục ở đơn vị nhận.
+        from app.services import member_unit_merge
+
+        where.append("m.company = ANY(:co)")
+        params["co"] = member_unit_merge.lineage(company)
     if master_type:
         where.append("m.master_type = :mt")
         params["mt"] = master_type

@@ -30,16 +30,18 @@ export default function MasterAnnexPickerModal({ master, meta, onClose, onLinked
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Hồ sơ của đơn vị đã sáp nhập: phụ lục lập ở đơn vị nhận (kèm cả hợp đồng của đơn vị cũ).
+  const unit = master.company_now ?? master.company;
 
   const load = useCallback(() => {
     setLoading(true);
     // Lọc Ở SERVER theo đơn vị của hợp đồng mẹ + chưa gắn hồ sơ nào (đơn vị có tới vài trăm HĐ).
-    listContracts({ company: master.company, unlinked: true, q: q.trim() || undefined,
+    listContracts({ company: unit, unlinked: true, q: q.trim() || undefined,
                     page, page_size: PAGE_SIZE })
       .then((r) => { setRows(r.contracts); setTotal(r.total); })
       .catch((e) => setErr(e.message))
       .finally(() => setLoading(false));
-  }, [master.company, q, page]);
+  }, [unit, q, page]);
   useEffect(() => { load(); }, [load]);
 
   const toggle = (id: number) =>
@@ -83,7 +85,7 @@ export default function MasterAnnexPickerModal({ master, meta, onClose, onLinked
       <p className="form-note" style={{ fontSize: 12, margin: "0 0 8px" }}>
         Gắn vào hồ sơ thì loại hợp đồng thành <b>Phụ lục hợp đồng mẹ</b> và báo cáo xếp sản lượng vào
         nhóm <b>{master.master_type === "principle" ? "HĐ nguyên tắc" : "HĐ dài hạn"}</b>; khách hàng và
-        sản lượng giữ nguyên. Danh sách chỉ hiện hợp đồng của <b>{master.company}</b> chưa thuộc hồ sơ nào.
+        sản lượng giữ nguyên. Danh sách chỉ hiện hợp đồng của <b>{unit}</b> chưa thuộc hồ sơ nào.
       </p>
 
       <div className="card table-scroll" style={{ padding: 0, maxHeight: 360 }}>
