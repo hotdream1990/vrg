@@ -89,7 +89,12 @@ export default function UnitDailyEditModal(
   // Chỉ khoá vì HÀNG RÀO THỜI GIAN (chốt số liệu · ngoài cửa sổ) mới gửi đề nghị được — sáp nhập,
   // ngày tương lai, tài khoản chỉ xem thì không phải chuyện Ban duyệt.
   const canRequest = canEditUnitData && canEdit && !editable && !mergedUnit && !!day && day <= today;
-  const writable = editable || requestMode;
+  // Ngày CHƯA CÓ SỐ mà đã quá hạn / đã chốt: không có gì để "xem" — vào thẳng chế độ soạn đề nghị THÊM
+  // số liệu (form mở sẵn để nhập, gửi = đề nghị Ban duyệt). Ngày đã có số thì giữ xem-trước, cần sửa
+  // mới bấm «Đề nghị sửa». Chờ tải xong (`!loading`) để không bật nhầm theo số của ngày trước đó.
+  const autoRequest = canRequest && !!data && !loading && !exists;
+  const inRequest = requestMode || autoRequest;
+  const writable = editable || inRequest;
 
   // Đơn giá mủ nước/mủ chén → ghi thẳng kho "Giá mủ nguyên liệu" (đúng đơn vị + ngày), chỉ khi đổi.
   //
@@ -111,14 +116,14 @@ export default function UnitDailyEditModal(
     try {
       const changed = kind === "purchase" ? priceChanges(prices, data?.prices?.[company]) : undefined;
       // Thêm mới vào ngày CHƯA có số → chống ghi trùng; ngày đã có số (form nạp sẵn) thì là sửa.
-      const createOnly = !!adding && !exists;
+      const createOnly = !exists && (!!adding || autoRequest);
       const result = await saveOrRequest(async () => {
         await (role === "member" ? saveMyDaily : saveDaily)(kind, company, day, fields, createOnly);
         if (changed) await savePrices(changed);
       }, dailyReportDraft(kind, company, day, fields, changed, createOnly));
       if (result === "cancelled") return;
       if (result === "saved") {
-        message.success(requestMode ? DIRECT_SAVED_IN_REQUEST_MODE : "Đã lưu số liệu ngày");
+        message.success(inRequest ? DIRECT_SAVED_IN_REQUEST_MODE : "Đã lưu số liệu ngày");
         onSaved();
       }
       onClose();   // "requested": popup đã báo, số liệu chưa đổi nên không tải lại
@@ -135,7 +140,7 @@ export default function UnitDailyEditModal(
   return (
     <Modal open={open} onCancel={onClose} footer={null}
            width={width} destroyOnHidden
-           title={`${requestMode ? "Đề nghị sửa số liệu" : editable ? "Nhập số liệu" : "Xem số liệu"} — ${KIND_LABEL[kind]}`}>
+           title={`${inRequest ? (exists ? "Đề nghị sửa số liệu" : "Đề nghị thêm số liệu") : editable ? "Nhập số liệu" : "Xem số liệu"} — ${KIND_LABEL[kind]}`}>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
         <DateInput value={day} onChange={setDay} noFuture style={{ width: 190 }} />
         <Select value={company} onChange={setCompany} showSearch style={{ minWidth: 220 }}
@@ -153,9 +158,15 @@ export default function UnitDailyEditModal(
           tài khoản chỉ xem (không bao giờ sửa được, đừng chờ) · ngày đã chốt (phải nhờ Ban TTKD
           sửa hộ) · ngoài cửa sổ nhập (hết hạn tự sửa). Ghi nhầm lý do là người dùng ngồi chờ hết
           cửa sổ trong khi thực ra phải gọi cho Ban, hoặc đi xin quyền mà vai trò vốn không có. */}
-      {requestMode && (
+      {inRequest && (
         <Alert type="warning" showIcon style={{ marginBottom: 12 }}
-               message="Bạn đang soạn đề nghị sửa — số liệu chỉ thay đổi sau khi Ban duyệt." />
+               message={autoRequest
+                 ? (closed
+                   ? `Số liệu đến hết ngày ${dmy(lockedUntil ?? "")} đã được chốt`
+                   : `Ngày này đã quá hạn nhập (${windowRule(data?.edit_window_days ?? 7, cutoffHour)})`)
+                   + " — bạn đang soạn ĐỀ NGHỊ THÊM số liệu cho ngày này. Nhập xong bấm “Gửi đề nghị”; "
+                   + "số liệu chỉ được ghi khi Ban duyệt."
+                 : "Bạn đang soạn đề nghị sửa — số liệu chỉ thay đổi sau khi Ban duyệt."} />
       )}
       {!writable && (
         <Alert type="info" showIcon style={{ marginBottom: 12 }}
@@ -196,8 +207,8 @@ export default function UnitDailyEditModal(
               <div style={{ marginTop: 14, textAlign: "right" }}>
                 <button className="btn btn-primary" disabled={!dirty || saving}
                         onClick={() => save(current, prices)}>
-                  {saving ? (requestMode ? "Đang gửi đề nghị…" : "Đang lưu…")
-                    : requestMode ? <><SendOutlined /> Gửi đề nghị sửa</> : "Lưu số liệu"}
+                  {saving ? (inRequest ? "Đang gửi đề nghị…" : "Đang lưu…")
+                    : inRequest ? <><SendOutlined /> {exists ? "Gửi đề nghị sửa" : "Gửi đề nghị thêm"}</> : "Lưu số liệu"}
                 </button>
               </div>
             )}

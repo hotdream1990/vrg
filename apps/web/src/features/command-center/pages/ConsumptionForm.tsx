@@ -13,6 +13,7 @@ import { Select, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 import { TONNES_STOCK } from "../../../lib/entry-bounds";
+import { dmy, todayISO } from "../../../lib/date";
 import { HINT_STOCK_BALANCE } from "../../../lib/unit-daily-entry-hints";
 import { consumptionWarnings } from "../../../lib/unit-daily-warnings";
 import { type PriceDraft, type Role, fetchPrevStock } from "../../../lib/unit-daily-client";
@@ -150,7 +151,7 @@ export default function ConsumptionForm({ values, readOnly, formKey, currency, r
         <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 13 }}>
           <input type="checkbox" checked={data.no_stock === true}
             onChange={(e) => setData((d) => ({ ...d, no_stock: e.target.checked }))} />
-          Hôm nay <b>không phát sinh</b> tồn kho để khai
+          {day === todayISO() ? "Hôm nay" : `Ngày ${dmy(day)}`} <b>không phát sinh</b> tồn kho để khai
         </label>
       )}
 

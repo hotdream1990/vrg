@@ -13,6 +13,13 @@ Ghi nhận thay đổi đáng kể. Định dạng theo [Keep a Changelog](https
     liệt kê hợp đồng của đơn vị nhận. Khoá số liệu khi gắn xét theo đơn vị của từng hợp đồng.
 
 ### Added
+- **Thêm tồn kho / thu mua cho ngày cũ chưa có số qua Đề nghị sửa — form tự mở ở chế độ soạn đề nghị** (23/10/2026).
+  - Trước đây đơn vị chọn một ngày đã quá hạn nhập mà chưa có số liệu thì chỉ thấy form *Xem số liệu*, phải đoán
+    ra nút *Đề nghị sửa*. Nay ngày **chưa có số** bị chặn (quá hạn hoặc đã chốt) thì form mở thẳng ở chế độ
+    *Đề nghị thêm số liệu*: nhập như bình thường, nút cuối là **Gửi đề nghị thêm**, số liệu chỉ được ghi khi Ban duyệt.
+  - Ngày **đã có số** vẫn mở ở chế độ xem trước, muốn đổi bấm *Đề nghị sửa* như cũ. Áp dụng chung cho Tồn kho và
+    Thu mua (cùng một form). Đề nghị chỉ thêm mới (`create_only`): Ban duyệt mà ngày đó đã có số thì server trả 409.
+  - Nhãn ô *không phát sinh tồn kho* ghi đúng ngày đang nhập thay vì luôn là «Hôm nay».
 - **Đơn vị tự thấy ngày thu mua thiếu đơn giá + tài khoản nhập liệu xem Cảnh báo bất thường** (13/10/2026, 0.4.120).
   - Bảng *Còn thiếu N việc* ở đầu các màn của tài khoản nhập liệu có thêm mục **ngày thu mua chưa có đơn giá**
     (rà từ đầu năm, cùng luật với màn Cảnh báo bất thường). Bấm ngày là mở đúng phiếu; ngày đã khoá thì mở
